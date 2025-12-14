@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * JMX MBean implementation for monitoring the SSH client.
  */
-public class SSHClientMonitor implements SSHClientMBean {
+public class SSHClientMonitor implements SSHClientMonitorMBean {
     
     private final SessionManager sessionManager;
     private final LocalDateTime startTime;

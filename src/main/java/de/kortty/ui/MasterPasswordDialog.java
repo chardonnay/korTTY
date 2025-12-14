@@ -1,6 +1,5 @@
 package de.kortty.ui;
 
-import de.kortty.KorTTYApplication;
 import de.kortty.security.MasterPasswordManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -12,11 +11,15 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Dialog for setting up or entering the master password.
  */
 public class MasterPasswordDialog {
+    
+    private static final Logger logger = LoggerFactory.getLogger(MasterPasswordDialog.class);
     
     private final Stage dialog;
     private final MasterPasswordManager passwordManager;
@@ -27,9 +30,15 @@ public class MasterPasswordDialog {
         
         dialog = new Stage();
         dialog.initModality(Modality.APPLICATION_MODAL);
-        dialog.initOwner(owner);
+        // Don't set owner if it's not showing yet
+        if (owner != null && owner.isShowing()) {
+            dialog.initOwner(owner);
+        }
         dialog.initStyle(StageStyle.UTILITY);
         dialog.setResizable(false);
+        dialog.setOnCloseRequest(e -> {
+            result = false;
+        });
         
         if (passwordManager.isPasswordSet()) {
             setupLoginDialog();
@@ -100,6 +109,7 @@ public class MasterPasswordDialog {
         
         Scene scene = new Scene(root);
         dialog.setScene(scene);
+        dialog.sizeToScene();
     }
     
     private void setupSetupDialog() {
@@ -196,10 +206,13 @@ public class MasterPasswordDialog {
             }
             
             try {
+                logger.info("Setting up master password...");
                 passwordManager.setupPassword(password.toCharArray());
+                logger.info("Master password setup successful");
                 result = true;
                 dialog.close();
             } catch (Exception ex) {
+                logger.error("Failed to setup master password", ex);
                 errorLabel.setText("Fehler: " + ex.getMessage());
                 errorLabel.setVisible(true);
             }
@@ -212,6 +225,7 @@ public class MasterPasswordDialog {
         
         Scene scene = new Scene(root);
         dialog.setScene(scene);
+        dialog.sizeToScene();
     }
     
     private double calculatePasswordStrength(String password) {
@@ -248,7 +262,9 @@ public class MasterPasswordDialog {
     }
     
     public boolean showAndWait() {
+        logger.info("Showing master password dialog, isPasswordSet={}", passwordManager.isPasswordSet());
         dialog.showAndWait();
+        logger.info("Master password dialog closed, result={}", result);
         return result;
     }
 }
