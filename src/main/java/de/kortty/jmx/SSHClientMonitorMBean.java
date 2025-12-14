@@ -5,8 +5,9 @@ import java.util.Map;
 
 /**
  * JMX MBean interface for monitoring the SSH client.
+ * Note: The interface name must be <ImplementationClassName>MBean
  */
-public interface SSHClientMBean {
+public interface SSHClientMonitorMBean {
     
     /**
      * Gets the number of active SSH connections.

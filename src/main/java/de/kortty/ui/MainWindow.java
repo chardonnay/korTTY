@@ -106,7 +106,14 @@ public class MainWindow {
         
         // Scene setup
         Scene scene = new Scene(root, 1000, 700);
-        scene.getStylesheets().add(getClass().getResource("/styles/terminal.css").toExternalForm());
+        
+        // Load CSS stylesheet (safely)
+        var cssResource = getClass().getResource("/styles/terminal.css");
+        if (cssResource != null) {
+            scene.getStylesheets().add(cssResource.toExternalForm());
+        } else {
+            logger.warn("Could not load terminal.css stylesheet");
+        }
         
         stage.setScene(scene);
         stage.setTitle(KorTTYApplication.getAppName());
