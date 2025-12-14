@@ -19,17 +19,14 @@ repositories {
 
 javafx {
     version = "21"
-    modules = listOf("javafx.controls", "javafx.fxml")
+    modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics")
 }
 
 dependencies {
     // SSH
     implementation("org.apache.sshd:sshd-core:2.12.0")
     implementation("org.apache.sshd:sshd-common:2.12.0")
-    
-    // Terminal Emulation
-    implementation("com.jediterm:jediterm-core:3.45")
-    implementation("com.jediterm:jediterm-ui:3.45")
+    implementation("org.apache.sshd:sshd-sftp:2.12.0")
     
     // XML Binding (JAXB)
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
