@@ -1,0 +1,157 @@
+package de.kortty;
+
+import de.kortty.core.ConfigurationManager;
+import de.kortty.core.SessionManager;
+import de.kortty.jmx.SSHClientMonitor;
+import de.kortty.security.MasterPasswordManager;
+import de.kortty.ui.MainWindow;
+import de.kortty.ui.MasterPasswordDialog;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
+import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/**
+ * Main entry point for the KorTTY SSH Client application.
+ */
+public class KorTTYApplication extends Application {
+    
+    private static final Logger logger = LoggerFactory.getLogger(KorTTYApplication.class);
+    private static final String APP_NAME = "KorTTY";
+    private static final String APP_VERSION = "1.0.0";
+    
+    private static KorTTYApplication instance;
+    
+    private ConfigurationManager configManager;
+    private SessionManager sessionManager;
+    private MasterPasswordManager masterPasswordManager;
+    
+    public static void main(String[] args) {
+        logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
+        launch(args);
+    }
+    
+    public static KorTTYApplication getInstance() {
+        return instance;
+    }
+    
+    @Override
+    public void init() throws Exception {
+        instance = this;
+        
+        // Initialize configuration directory
+        Path configDir = getConfigDirectory();
+        if (!Files.exists(configDir)) {
+            Files.createDirectories(configDir);
+            logger.info("Created configuration directory: {}", configDir);
+        }
+        
+        // Initialize managers
+        configManager = new ConfigurationManager(configDir);
+        sessionManager = new SessionManager();
+        masterPasswordManager = new MasterPasswordManager(configDir);
+        
+        // Register JMX MBean
+        registerJMXBean();
+    }
+    
+    @Override
+    public void start(Stage primaryStage) {
+        try {
+            // Check if master password needs to be set up or verified
+            if (!handleMasterPassword(primaryStage)) {
+                Platform.exit();
+                return;
+            }
+            
+            // Load configuration
+            configManager.load(masterPasswordManager.getDerivedKey());
+            
+            // Create and show main window
+            MainWindow mainWindow = new MainWindow(primaryStage);
+            mainWindow.show();
+            
+            logger.info("{} started successfully", APP_NAME);
+            
+        } catch (Exception e) {
+            logger.error("Failed to start application", e);
+            showErrorAndExit("Fehler beim Starten der Anwendung: " + e.getMessage());
+        }
+    }
+    
+    @Override
+    public void stop() throws Exception {
+        logger.info("Shutting down {}...", APP_NAME);
+        
+        // Close all SSH sessions
+        if (sessionManager != null) {
+            sessionManager.closeAllSessions();
+        }
+        
+        // Save configuration
+        if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
+            configManager.save(masterPasswordManager.getDerivedKey());
+        }
+        
+        logger.info("{} shutdown complete", APP_NAME);
+    }
+    
+    private boolean handleMasterPassword(Stage ownerStage) {
+        MasterPasswordDialog dialog = new MasterPasswordDialog(ownerStage, masterPasswordManager);
+        return dialog.showAndWait();
+    }
+    
+    private void registerJMXBean() {
+        try {
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            ObjectName name = new ObjectName("de.kortty:type=SSHClient");
+            SSHClientMonitor monitor = new SSHClientMonitor(sessionManager);
+            mbs.registerMBean(monitor, name);
+            logger.info("JMX MBean registered: {}", name);
+        } catch (Exception e) {
+            logger.warn("Failed to register JMX MBean", e);
+        }
+    }
+    
+    private void showErrorAndExit(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Fehler");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+        Platform.exit();
+    }
+    
+    public static Path getConfigDirectory() {
+        String userHome = System.getProperty("user.home");
+        return Path.of(userHome, ".kortty");
+    }
+    
+    public ConfigurationManager getConfigManager() {
+        return configManager;
+    }
+    
+    public SessionManager getSessionManager() {
+        return sessionManager;
+    }
+    
+    public MasterPasswordManager getMasterPasswordManager() {
+        return masterPasswordManager;
+    }
+    
+    public static String getAppName() {
+        return APP_NAME;
+    }
+    
+    public static String getAppVersion() {
+        return APP_VERSION;
+    }
+}

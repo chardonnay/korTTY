@@ -1,0 +1,99 @@
+package de.kortty.ui;
+
+import de.kortty.core.SSHSession;
+import de.kortty.model.ConnectionSettings;
+import javafx.application.Platform;
+import javafx.scene.control.Tab;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+
+/**
+ * A tab containing a terminal view for an SSH session.
+ */
+public class TerminalTab extends Tab {
+    
+    private final SSHSession session;
+    private final TerminalView terminalView;
+    private final ConnectionSettings settings;
+    
+    public TerminalTab(SSHSession session, ConnectionSettings settings) {
+        this.session = session;
+        this.settings = settings;
+        this.terminalView = new TerminalView(session, settings);
+        
+        setText(session.getConnection().getDisplayName());
+        setContent(terminalView);
+        
+        // Update tab title when terminal state changes
+        session.setOutputConsumer(text -> {
+            Platform.runLater(() -> {
+                setText(session.generateTabTitle());
+            });
+        });
+    }
+    
+    /**
+     * Called when the SSH connection is established.
+     */
+    public void onConnected() {
+        terminalView.onConnected();
+        setText(session.generateTabTitle());
+    }
+    
+    /**
+     * Called when the SSH connection fails.
+     */
+    public void onConnectionFailed(String error) {
+        terminalView.showError("Verbindung fehlgeschlagen: " + error);
+        setText(session.getConnection().getDisplayName() + " (Fehler)");
+    }
+    
+    /**
+     * Copies the selected text to clipboard.
+     */
+    public void copySelection() {
+        String selected = terminalView.getSelectedText();
+        if (selected != null && !selected.isEmpty()) {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(selected);
+            Clipboard.getSystemClipboard().setContent(content);
+        }
+    }
+    
+    /**
+     * Pastes text from clipboard to the terminal.
+     */
+    public void paste() {
+        Clipboard clipboard = Clipboard.getSystemClipboard();
+        if (clipboard.hasString()) {
+            String text = clipboard.getString();
+            terminalView.sendText(text);
+        }
+    }
+    
+    /**
+     * Zooms the terminal font.
+     */
+    public void zoom(int delta) {
+        terminalView.zoom(delta);
+    }
+    
+    /**
+     * Resets the terminal font size.
+     */
+    public void resetZoom() {
+        terminalView.resetZoom();
+    }
+    
+    public String getSessionId() {
+        return session.getSessionId();
+    }
+    
+    public SSHSession getSession() {
+        return session;
+    }
+    
+    public TerminalView getTerminalView() {
+        return terminalView;
+    }
+}
