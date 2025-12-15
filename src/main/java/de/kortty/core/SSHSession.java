@@ -316,7 +316,7 @@ public class SSHSession {
     public enum SpecialKey {
         ENTER("\r"),
         TAB("\t"),
-        BACKSPACE("\u007F"),
+        BACKSPACE("\b"),  // ASCII 8 - works better with most Linux terminals
         ESCAPE("\u001B"),
         UP("\u001B[A"),
         DOWN("\u001B[B"),

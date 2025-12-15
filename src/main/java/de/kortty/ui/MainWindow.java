@@ -293,30 +293,21 @@ public class MainWindow {
     }
     
     private void showQuickConnect() {
-        // Pass saved connections to the dialog
-        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections());
+        // Create password vault for retrieving stored passwords
+        PasswordVault vault = new PasswordVault(
+                app.getMasterPasswordManager().getEncryptionService(),
+                app.getMasterPasswordManager().getMasterPassword()
+        );
+        
+        // Pass saved connections and vault to the dialog
+        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault);
         dialog.showAndWait().ifPresent(result -> {
             String password = result.password();
             
-            // If using an existing saved connection, retrieve password from vault
-            if (result.existingSaved()) {
-                PasswordVault vault = new PasswordVault(
-                        app.getMasterPasswordManager().getEncryptionService(),
-                        app.getMasterPasswordManager().getMasterPassword()
-                );
-                String storedPassword = vault.retrievePassword(result.connection());
-                if (storedPassword != null && (password == null || password.isEmpty())) {
-                    password = storedPassword;
-                }
-            }
-            // Save connection if requested
-            else if (result.save()) {
+            // Save connection if requested (for new connections)
+            if (result.save() && !result.existingSaved()) {
                 // Store password encrypted
                 if (password != null && !password.isEmpty()) {
-                    PasswordVault vault = new PasswordVault(
-                            app.getMasterPasswordManager().getEncryptionService(),
-                            app.getMasterPasswordManager().getMasterPassword()
-                    );
                     vault.storePassword(result.connection(), password);
                 }
                 app.getConfigManager().addConnection(result.connection());

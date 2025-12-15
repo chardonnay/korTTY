@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.model.ServerConnection;
+import de.kortty.security.PasswordVault;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -25,9 +26,11 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private final TextField connectionNameField;
     
     private final List<ServerConnection> savedConnections;
+    private final PasswordVault passwordVault;
     
-    public QuickConnectDialog(Stage owner, List<ServerConnection> savedConnections) {
+    public QuickConnectDialog(Stage owner, List<ServerConnection> savedConnections, PasswordVault passwordVault) {
         this.savedConnections = savedConnections;
+        this.passwordVault = passwordVault;
         
         setTitle("Schnellverbindung");
         setHeaderText("SSH-Verbindung herstellen");
@@ -94,15 +97,27 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             savedConnectionsCombo.getItems().addAll(savedConnections);
         }
         
-        // When a saved connection is selected, fill in the fields
+        // When a saved connection is selected, fill in the fields including password
         savedConnectionsCombo.setOnAction(e -> {
             ServerConnection selected = savedConnectionsCombo.getValue();
             if (selected != null) {
                 hostField.setText(selected.getHost());
                 portSpinner.getValueFactory().setValue(selected.getPort());
                 usernameField.setText(selected.getUsername());
-                passwordField.clear();
-                passwordField.requestFocus();
+                
+                // Try to retrieve stored password from vault
+                if (passwordVault != null) {
+                    String storedPassword = passwordVault.retrievePassword(selected);
+                    if (storedPassword != null && !storedPassword.isEmpty()) {
+                        passwordField.setText(storedPassword);
+                    } else {
+                        passwordField.clear();
+                        passwordField.requestFocus();
+                    }
+                } else {
+                    passwordField.clear();
+                    passwordField.requestFocus();
+                }
                 saveConnectionCheck.setSelected(false);
             }
         });
