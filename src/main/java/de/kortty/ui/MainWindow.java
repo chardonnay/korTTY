@@ -293,17 +293,31 @@ public class MainWindow {
     }
     
     private void showQuickConnect() {
-        QuickConnectDialog dialog = new QuickConnectDialog(stage);
+        // Pass saved connections to the dialog
+        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections());
         dialog.showAndWait().ifPresent(result -> {
+            String password = result.password();
+            
+            // If using an existing saved connection, retrieve password from vault
+            if (result.existingSaved()) {
+                PasswordVault vault = new PasswordVault(
+                        app.getMasterPasswordManager().getEncryptionService(),
+                        app.getMasterPasswordManager().getMasterPassword()
+                );
+                String storedPassword = vault.retrievePassword(result.connection());
+                if (storedPassword != null && (password == null || password.isEmpty())) {
+                    password = storedPassword;
+                }
+            }
             // Save connection if requested
-            if (result.save()) {
+            else if (result.save()) {
                 // Store password encrypted
-                if (result.password() != null && !result.password().isEmpty()) {
+                if (password != null && !password.isEmpty()) {
                     PasswordVault vault = new PasswordVault(
                             app.getMasterPasswordManager().getEncryptionService(),
                             app.getMasterPasswordManager().getMasterPassword()
                     );
-                    vault.storePassword(result.connection(), result.password());
+                    vault.storePassword(result.connection(), password);
                 }
                 app.getConfigManager().addConnection(result.connection());
                 try {
@@ -313,7 +327,7 @@ public class MainWindow {
                     logger.error("Failed to save connection", e);
                 }
             }
-            openConnection(result.connection(), result.password());
+            openConnection(result.connection(), password);
         });
     }
     
