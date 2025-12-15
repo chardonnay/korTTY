@@ -3,6 +3,8 @@ package de.kortty.ui;
 import de.kortty.core.SSHSession;
 import de.kortty.model.ConnectionSettings;
 import javafx.application.Platform;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -23,12 +25,33 @@ public class TerminalTab extends Tab {
         
         setText(session.getConnection().getDisplayName());
         setContent(terminalView);
+        setClosable(true);
         
-        // Update tab title when terminal state changes
+        // Set up output consumer that both displays output AND updates tab title
         session.setOutputConsumer(text -> {
+            // Display output in terminal
+            terminalView.handleOutput(text);
+            // Update tab title
             Platform.runLater(() -> {
                 setText(session.generateTabTitle());
             });
+        });
+        
+        // Handle tab close
+        setOnCloseRequest(event -> {
+            if (session.isConnected() && !settings.isCloseWithoutConfirmation()) {
+                // Show confirmation dialog
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Verbindung schließen");
+                alert.setHeaderText("SSH-Verbindung beenden?");
+                alert.setContentText("Die Verbindung zu " + session.getConnection().getDisplayName() + " wird getrennt.");
+                
+                if (alert.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                    event.consume(); // Cancel the close
+                    return;
+                }
+            }
+            session.disconnect();
         });
     }
     

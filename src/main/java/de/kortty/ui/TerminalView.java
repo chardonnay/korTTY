@@ -108,8 +108,16 @@ public class TerminalView extends StackPane {
             }
         });
         
-        // Set up output consumer
-        session.setOutputConsumer(this::appendOutput);
+        // Note: Output consumer is set by TerminalTab to coordinate between
+        // terminal display and tab title updates
+    }
+    
+    /**
+     * Called externally to append output to the terminal.
+     * This is called by the output consumer set in TerminalTab.
+     */
+    public void handleOutput(String text) {
+        appendOutput(text);
     }
     
     /**
