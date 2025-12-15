@@ -6,22 +6,25 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.input.*;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import java.io.IOException;
 import java.util.regex.Matcher;
@@ -55,6 +58,9 @@ public class TerminalView extends StackPane {
     // Selection
     private int selectionStart = -1;
     private int selectionEnd = -1;
+    private double selectionStartX, selectionStartY;
+    private final List<Text> selectedTextNodes = new ArrayList<>();
+    private String selectedText = null;
     
     // Cursor
     private final Text cursorText;
@@ -127,17 +133,42 @@ public class TerminalView extends StackPane {
         textFlow.setOnMousePressed(e -> {
             requestFocus();
             if (e.getButton() == MouseButton.PRIMARY) {
-                // Start selection
+                // Clear previous selection
+                clearSelection();
+                // Start new selection
+                selectionStartX = e.getX();
+                selectionStartY = e.getY();
                 selectionStart = getCharacterIndexAt(e.getX(), e.getY());
                 selectionEnd = selectionStart;
             }
         });
-        
+
         textFlow.setOnMouseDragged(e -> {
-            if (selectionStart >= 0) {
+            if (e.getButton() == MouseButton.PRIMARY && selectionStart >= 0) {
                 selectionEnd = getCharacterIndexAt(e.getX(), e.getY());
-                updateSelection();
+                updateSelection(selectionStartX, selectionStartY, e.getX(), e.getY());
             }
+        });
+        
+        textFlow.setOnMouseReleased(e -> {
+            if (e.getButton() == MouseButton.PRIMARY) {
+                // Finalize selection
+                buildSelectedText();
+            }
+        });
+        
+        // Context menu for copy/paste
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem copyItem = new MenuItem("Kopieren");
+        copyItem.setOnAction(e -> copyToClipboard());
+        MenuItem pasteItem = new MenuItem("Einfügen");
+        pasteItem.setOnAction(e -> pasteFromClipboard());
+        MenuItem selectAllItem = new MenuItem("Alles auswählen");
+        selectAllItem.setOnAction(e -> selectAll());
+        contextMenu.getItems().addAll(copyItem, pasteItem, new SeparatorMenuItem(), selectAllItem);
+        textFlow.setOnContextMenuRequested(e -> {
+            copyItem.setDisable(selectedText == null || selectedText.isEmpty());
+            contextMenu.show(textFlow, e.getScreenX(), e.getScreenY());
         });
         
         // Note: Output consumer is set by TerminalTab to coordinate between
@@ -363,6 +394,9 @@ public class TerminalView extends StackPane {
         Text textNode = new Text(text);
         textNode.setFill(currentFgColor);
         textNode.setFont(Font.font(fontFamily, bold ? javafx.scene.text.FontWeight.BOLD : javafx.scene.text.FontWeight.NORMAL, fontSize));
+        
+        // Store original color for selection restoration
+        textNode.setUserData(currentFgColor);
 
         if (underline) {
             textNode.setUnderline(true);
@@ -382,13 +416,41 @@ public class TerminalView extends StackPane {
      * Handles key press events.
      */
     private void handleKeyPressed(KeyEvent event) {
+        KeyCode code = event.getCode();
+        
+        // Handle Copy/Paste shortcuts (work even when disconnected)
+        if (event.isShortcutDown()) {
+            if (code == KeyCode.C) {
+                // Ctrl+C / Cmd+C: Copy if text is selected, otherwise send SIGINT
+                if (selectedText != null && !selectedText.isEmpty()) {
+                    copyToClipboard();
+                    event.consume();
+                    return;
+                }
+                // If nothing selected, send Ctrl+C to terminal (SIGINT)
+            } else if (code == KeyCode.V) {
+                // Ctrl+V / Cmd+V: Paste
+                pasteFromClipboard();
+                event.consume();
+                return;
+            } else if (code == KeyCode.A) {
+                // Ctrl+A / Cmd+A: Select all
+                selectAll();
+                event.consume();
+                return;
+            }
+        }
+        
         if (!session.isConnected()) {
             return;
         }
         
+        // Clear selection when typing
+        if (!event.isShortcutDown() && !event.isAltDown()) {
+            clearSelection();
+        }
+        
         try {
-            KeyCode code = event.getCode();
-            
             // Handle special keys
             SSHSession.SpecialKey specialKey = switch (code) {
                 case ENTER -> SSHSession.SpecialKey.ENTER;
@@ -423,15 +485,11 @@ public class TerminalView extends StackPane {
             if (specialKey != null) {
                 session.sendSpecialKey(specialKey);
                 event.consume();
-            } else if (event.isControlDown() && !event.isAltDown()) {
-                // Handle Ctrl+key combinations
-                String text = event.getText();
-                if (text.length() == 1) {
-                    char c = text.charAt(0);
-                    if (c >= 'a' && c <= 'z') {
-                        session.sendChar((char) (c - 'a' + 1));
-                        event.consume();
-                    } else if (c >= 'A' && c <= 'Z') {
+            } else if (event.isControlDown() && !event.isAltDown() && !event.isMetaDown()) {
+                // Handle Ctrl+key combinations (send control characters to terminal)
+                if (code.isLetterKey()) {
+                    char c = code.getChar().charAt(0);
+                    if (c >= 'A' && c <= 'Z') {
                         session.sendChar((char) (c - 'A' + 1));
                         event.consume();
                     }
@@ -480,33 +538,159 @@ public class TerminalView extends StackPane {
      * Gets selected text.
      */
     public String getSelectedText() {
-        if (selectionStart < 0 || selectionEnd < 0 || selectionStart == selectionEnd) {
-            return null;
-        }
-        
-        int start = Math.min(selectionStart, selectionEnd);
-        int end = Math.max(selectionStart, selectionEnd);
-        
-        if (start >= 0 && end <= terminalBuffer.length()) {
-            return terminalBuffer.substring(start, end);
-        }
-        return null;
+        return selectedText;
     }
     
+    /**
+     * Clears the current selection.
+     */
+    private void clearSelection() {
+        // Reset highlighting on previously selected nodes - restore original colors
+        for (Text node : selectedTextNodes) {
+            // Restore original color from userData
+            if (node.getUserData() instanceof Color originalColor) {
+                node.setFill(originalColor);
+            } else {
+                node.setFill(foregroundColor);
+            }
+        }
+        selectedTextNodes.clear();
+        selectedText = null;
+        selectionStart = -1;
+        selectionEnd = -1;
+    }
+    
+    /**
+     * Updates the visual selection based on mouse coordinates.
+     */
+    private void updateSelection(double startX, double startY, double endX, double endY) {
+        // Clear previous highlighting - restore original colors
+        for (Text node : selectedTextNodes) {
+            if (node != cursorText) {
+                if (node.getUserData() instanceof Color originalColor) {
+                    node.setFill(originalColor);
+                } else {
+                    node.setFill(foregroundColor);
+                }
+            }
+        }
+        selectedTextNodes.clear();
+        
+        // Calculate selection bounds
+        double minY = Math.min(startY, endY);
+        double maxY = Math.max(startY, endY);
+        double minX = startY < endY ? startX : (startY > endY ? endX : Math.min(startX, endX));
+        double maxX = startY < endY ? endX : (startY > endY ? startX : Math.max(startX, endX));
+        
+        // Highlight text nodes within selection
+        for (var node : textFlow.getChildren()) {
+            if (node instanceof Text textNode && textNode != cursorText) {
+                double nodeY = textNode.getLayoutY();
+                double nodeX = textNode.getLayoutX();
+                double nodeWidth = textNode.getBoundsInLocal().getWidth();
+                double nodeHeight = textNode.getBoundsInLocal().getHeight();
+                
+                // Check if node is within selection area
+                boolean inSelection = false;
+                if (nodeY + nodeHeight >= minY && nodeY <= maxY) {
+                    if (nodeY > minY && nodeY + nodeHeight < maxY) {
+                        // Fully within vertical range
+                        inSelection = true;
+                    } else if (Math.abs(maxY - minY) < nodeHeight * 1.5) {
+                        // Single line selection
+                        if (nodeX + nodeWidth >= minX && nodeX <= maxX) {
+                            inSelection = true;
+                        }
+                    } else {
+                        // Multi-line - check edges
+                        if (nodeY <= minY + nodeHeight && nodeX + nodeWidth >= minX) {
+                            inSelection = true;
+                        } else if (nodeY + nodeHeight >= maxY - nodeHeight && nodeX <= maxX) {
+                            inSelection = true;
+                        } else if (nodeY > minY + nodeHeight && nodeY + nodeHeight < maxY - nodeHeight) {
+                            inSelection = true;
+                        }
+                    }
+                }
+                
+                if (inSelection) {
+                    textNode.setFill(Color.web(settings.getSelectionColor()));
+                    selectedTextNodes.add(textNode);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Builds the selected text string from selected nodes.
+     */
+    private void buildSelectedText() {
+        StringBuilder sb = new StringBuilder();
+        for (var node : textFlow.getChildren()) {
+            if (node instanceof Text textNode && selectedTextNodes.contains(textNode)) {
+                sb.append(textNode.getText());
+            }
+        }
+        selectedText = sb.length() > 0 ? sb.toString() : null;
+    }
+    
+    /**
+     * Copies selected text to clipboard.
+     */
+    public void copyToClipboard() {
+        if (selectedText != null && !selectedText.isEmpty()) {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(selectedText);
+            Clipboard.getSystemClipboard().setContent(content);
+            logger.debug("Copied {} characters to clipboard", selectedText.length());
+        }
+    }
+    
+    /**
+     * Pastes text from clipboard to terminal.
+     */
+    public void pasteFromClipboard() {
+        Clipboard clipboard = Clipboard.getSystemClipboard();
+        if (clipboard.hasString()) {
+            String text = clipboard.getString();
+            sendText(text);
+        }
+    }
+    
+    /**
+     * Selects all text in the terminal.
+     */
+    public void selectAll() {
+        // First clear previous selection (restores colors)
+        clearSelection();
+        // Then select all
+        for (var node : textFlow.getChildren()) {
+            if (node instanceof Text textNode && textNode != cursorText) {
+                // Store original color before changing to selection color
+                if (textNode.getUserData() == null) {
+                    textNode.setUserData(textNode.getFill());
+                }
+                textNode.setFill(Color.web(settings.getSelectionColor()));
+                selectedTextNodes.add(textNode);
+            }
+        }
+        buildSelectedText();
+    }
+
     private int getCharacterIndexAt(double x, double y) {
-        // Simplified character index calculation
-        // In a real implementation, this would need to consider font metrics
-        return (int) (y / (fontSize + 2) * 80 + x / (fontSize * 0.6));
-    }
-    
-    private void updateSelection() {
-        // TODO: Implement visual selection highlighting
+        // Calculate approximate character position
+        int line = (int) (y / (fontSize * 1.5));
+        int col = (int) (x / (fontSize * 0.6));
+        return line * 80 + col; // Approximate - used for tracking selection start/end
     }
     
     /**
      * Scrolls to the bottom of the terminal.
      */
     private void scrollToBottom() {
+        // Use layout pass to ensure content is updated before scrolling
+        textFlow.layout();
+        scrollPane.layout();
         scrollPane.setVvalue(1.0);
     }
     

@@ -6,8 +6,6 @@ import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 
 /**
  * A tab containing a terminal view for an SSH session.
@@ -76,23 +74,14 @@ public class TerminalTab extends Tab {
      * Copies the selected text to clipboard.
      */
     public void copySelection() {
-        String selected = terminalView.getSelectedText();
-        if (selected != null && !selected.isEmpty()) {
-            ClipboardContent content = new ClipboardContent();
-            content.putString(selected);
-            Clipboard.getSystemClipboard().setContent(content);
-        }
+        terminalView.copyToClipboard();
     }
     
     /**
      * Pastes text from clipboard to the terminal.
      */
     public void paste() {
-        Clipboard clipboard = Clipboard.getSystemClipboard();
-        if (clipboard.hasString()) {
-            String text = clipboard.getString();
-            terminalView.sendText(text);
-        }
+        terminalView.pasteFromClipboard();
     }
     
     /**
