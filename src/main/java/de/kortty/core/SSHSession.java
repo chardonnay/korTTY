@@ -165,6 +165,8 @@ public class SSHSession {
      * Sends special key sequences.
      */
     public void sendSpecialKey(SpecialKey key) throws IOException {
+        logger.debug("Sending special key: {} -> {}", key.name(), 
+            key.getSequence().replace("\u001B", "ESC").replace("\r", "CR").replace("\n", "LF"));
         sendInput(key.getSequence());
     }
     
@@ -316,7 +318,7 @@ public class SSHSession {
     public enum SpecialKey {
         ENTER("\r"),
         TAB("\t"),
-        BACKSPACE("\b"),  // ASCII 8 - works better with most Linux terminals
+        BACKSPACE("\u007F"),  // ASCII 127 DEL character - standard for most terminals
         ESCAPE("\u001B"),
         UP("\u001B[A"),
         DOWN("\u001B[B"),
