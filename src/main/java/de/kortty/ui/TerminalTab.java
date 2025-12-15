@@ -51,6 +51,7 @@ public class TerminalTab extends Tab {
                     return;
                 }
             }
+            terminalView.cleanup();
             session.disconnect();
         });
     }
