@@ -34,8 +34,8 @@ public class SSHSession {
     
     private PipedInputStream terminalInput;
     private PipedOutputStream terminalOutput;
-    private InputStream channelInput;
-    private OutputStream channelOutput;
+    private PipedInputStream channelInput;
+    private PipedOutputStream channelOutput;
     
     private final StringBuilder terminalBuffer = new StringBuilder();
     private final AtomicBoolean connected = new AtomicBoolean(false);
