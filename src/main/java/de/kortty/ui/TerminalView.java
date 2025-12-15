@@ -238,7 +238,6 @@ public class TerminalView extends StackPane {
      */
     private void appendOutput(String text) {
         Platform.runLater(() -> {
-            terminalBuffer.append(text);
             parseAndDisplay(text);
             scrollToBottom();
         });
@@ -253,6 +252,17 @@ public class TerminalView extends StackPane {
         
         // Remove other escape sequences
         text = ANSI_OTHER_PATTERN.matcher(text).replaceAll("");
+        
+        // Handle carriage return: \r followed by text (not \n) means overwrite current line
+        // For simplicity, we convert \r (not followed by \n) to nothing (the server is repositioning cursor)
+        // This prevents duplicate prompts when server sends "\r" to redraw the line
+        text = text.replaceAll("\r(?!\n)", "");
+        
+        // Also remove any clear line sequences that might cause issues
+        text = text.replaceAll("\u001B\\[K", "");
+        text = text.replaceAll("\u001B\\[0K", "");
+        text = text.replaceAll("\u001B\\[1K", "");
+        text = text.replaceAll("\u001B\\[2K", "");
         
         // Now process CSI sequences
         Matcher matcher = ANSI_CSI_PATTERN.matcher(text);
@@ -416,13 +426,34 @@ public class TerminalView extends StackPane {
         
         // Normalize line endings: \r\n -> \n, lone \r -> \n
         text = text.replace("\r\n", "\n").replace("\r", "\n");
-        
-        // Remove excessive blank lines (more than 2 consecutive newlines -> 2)
-        text = text.replaceAll("\n{3,}", "\n\n");
 
         if (text.isEmpty()) {
             return;
         }
+        
+        // Check for excessive newlines at buffer end combined with new text
+        String bufferEnd = terminalBuffer.length() > 0 ? 
+            terminalBuffer.substring(Math.max(0, terminalBuffer.length() - 2)) : "";
+        
+        // If buffer ends with newlines and text starts with newlines, limit to max 1 newline
+        if (bufferEnd.endsWith("\n") && text.startsWith("\n")) {
+            // Remove leading newlines from text, keep just one
+            text = text.replaceFirst("^\n+", "\n");
+            // If buffer already has double newline, skip this one too
+            if (bufferEnd.equals("\n\n")) {
+                text = text.replaceFirst("^\n", "");
+            }
+        }
+        
+        if (text.isEmpty()) {
+            return;
+        }
+
+        // Record the start index BEFORE adding to buffer
+        int startIndex = terminalBuffer.length();
+        
+        // Add cleaned text to buffer
+        terminalBuffer.append(text);
 
         Text textNode = new Text(text);
         textNode.setFill(currentFgColor);
@@ -435,9 +466,7 @@ public class TerminalView extends StackPane {
             textNode.setUnderline(true);
         }
 
-        // Track text node for character-based selection
-        int startIndex = terminalBuffer.length() - text.length();
-        if (startIndex < 0) startIndex = 0;
+        // Track text node for character-based selection (with correct index)
         textNodeInfos.add(new TextNodeInfo(textNode, startIndex, currentFgColor));
 
         // Remove cursor, add text, then add cursor back at the end
@@ -599,32 +628,53 @@ public class TerminalView extends StackPane {
     }
     
     /**
-     * Gets the character index at a given screen position.
+     * Gets the character index at a given screen position using actual text node positions.
      */
     private int getCharacterIndexAtPosition(double x, double y) {
         String buffer = terminalBuffer.toString();
         if (buffer.isEmpty()) return 0;
         
-        // Calculate approximate line height and character width based on font metrics
+        // Try to find the exact text node at this position
+        for (TextNodeInfo info : textNodeInfos) {
+            Text node = info.node;
+            double nodeX = node.getLayoutX();
+            double nodeY = node.getLayoutY();
+            double nodeWidth = node.getBoundsInLocal().getWidth();
+            double nodeHeight = node.getBoundsInLocal().getHeight();
+            
+            // Check if click is within this node's bounds
+            if (x >= nodeX && x <= nodeX + nodeWidth && 
+                y >= nodeY && y <= nodeY + nodeHeight) {
+                
+                // Calculate character position within node
+                String nodeText = node.getText();
+                if (nodeText.isEmpty()) continue;
+                
+                // Estimate character width
+                double charWidth = nodeWidth / nodeText.length();
+                int charPos = (int) ((x - nodeX) / charWidth);
+                charPos = Math.max(0, Math.min(charPos, nodeText.length()));
+                
+                return info.startIndex + charPos;
+            }
+        }
+        
+        // Fallback: use line-based calculation
         double lineHeight = fontSize * 1.4;
         double charWidth = fontSize * 0.6;
         
-        // Account for padding
         double adjustedY = y - 5;
         double adjustedX = x - 5;
         
-        // Find the line number
         int lineNum = (int) Math.max(0, adjustedY / lineHeight);
         
-        // Split buffer into lines and find the correct position
         String[] lines = buffer.split("\n", -1);
         int charIndex = 0;
         
         for (int i = 0; i < lines.length && i < lineNum; i++) {
-            charIndex += lines[i].length() + 1; // +1 for newline
+            charIndex += lines[i].length() + 1;
         }
         
-        // Add column position within the line
         if (lineNum < lines.length) {
             int colPos = (int) Math.max(0, adjustedX / charWidth);
             colPos = Math.min(colPos, lines[lineNum].length());
