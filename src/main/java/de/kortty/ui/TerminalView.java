@@ -413,6 +413,12 @@ public class TerminalView extends StackPane {
     private void addText(String text) {
         // Filter out control characters except newlines and tabs
         text = text.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "");
+        
+        // Normalize line endings: \r\n -> \n, lone \r -> \n
+        text = text.replace("\r\n", "\n").replace("\r", "\n");
+        
+        // Remove excessive blank lines (more than 2 consecutive newlines -> 2)
+        text = text.replaceAll("\n{3,}", "\n\n");
 
         if (text.isEmpty()) {
             return;
