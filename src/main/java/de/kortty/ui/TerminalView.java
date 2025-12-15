@@ -2,6 +2,8 @@ package de.kortty.ui;
 
 import de.kortty.core.SSHSession;
 import de.kortty.model.ConnectionSettings;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.ScrollPane;
@@ -13,9 +15,11 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +56,20 @@ public class TerminalView extends StackPane {
     private int selectionStart = -1;
     private int selectionEnd = -1;
     
-    // ANSI escape sequence pattern
-    private static final Pattern ANSI_PATTERN = Pattern.compile("\u001B\\[([0-9;]*)([A-Za-z])");
+    // Cursor
+    private final Text cursorText;
+    private final Timeline cursorBlink;
+    private boolean cursorVisible = true;
+    
+    // ANSI escape sequence pattern (CSI sequences)
+    private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\u001B\\[([0-9;?]*)([A-Za-z@`])");
+    
+    // OSC (Operating System Command) sequences - used for window titles etc.
+    // Format: ESC ] ... BEL  or  ESC ] ... ESC \
+    private static final Pattern ANSI_OSC_PATTERN = Pattern.compile("\u001B\\][^\u0007\u001B]*(?:\u0007|\u001B\\\\)");
+    
+    // Other escape sequences to filter
+    private static final Pattern ANSI_OTHER_PATTERN = Pattern.compile("\u001B[()][AB012]|\u001B[>=]|\u001B[78]");
     
     public TerminalView(SSHSession session, ConnectionSettings settings) {
         this.session = session;
@@ -85,6 +101,22 @@ public class TerminalView extends StackPane {
         textFlow.setBackground(new Background(new BackgroundFill(backgroundColor, CornerRadii.EMPTY, Insets.EMPTY)));
         
         getChildren().add(scrollPane);
+        
+        // Create cursor
+        cursorText = new Text("█");
+        cursorText.setFill(Color.web(settings.getCursorColor()));
+        cursorText.setFont(Font.font(fontFamily, fontSize));
+        textFlow.getChildren().add(cursorText);
+        
+        // Cursor blink animation
+        cursorBlink = new Timeline(
+            new KeyFrame(Duration.millis(500), e -> {
+                cursorVisible = !cursorVisible;
+                cursorText.setVisible(cursorVisible);
+            })
+        );
+        cursorBlink.setCycleCount(Timeline.INDEFINITE);
+        cursorBlink.play();
         
         // Handle keyboard input
         setFocusTraversable(true);
@@ -137,7 +169,9 @@ public class TerminalView extends StackPane {
             Text errorText = new Text("\n" + error + "\n");
             errorText.setFill(Color.RED);
             errorText.setFont(Font.font(fontFamily, fontSize));
+            textFlow.getChildren().remove(cursorText);
             textFlow.getChildren().add(errorText);
+            textFlow.getChildren().add(cursorText);
         });
     }
     
@@ -156,7 +190,14 @@ public class TerminalView extends StackPane {
      * Parses ANSI escape sequences and displays text.
      */
     private void parseAndDisplay(String text) {
-        Matcher matcher = ANSI_PATTERN.matcher(text);
+        // First, remove OSC sequences (window title, etc.)
+        text = ANSI_OSC_PATTERN.matcher(text).replaceAll("");
+        
+        // Remove other escape sequences
+        text = ANSI_OTHER_PATTERN.matcher(text).replaceAll("");
+        
+        // Now process CSI sequences
+        Matcher matcher = ANSI_CSI_PATTERN.matcher(text);
         int lastEnd = 0;
         
         while (matcher.find()) {
@@ -314,20 +355,27 @@ public class TerminalView extends StackPane {
     private void addText(String text) {
         // Filter out control characters except newlines and tabs
         text = text.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "");
-        
+
         if (text.isEmpty()) {
             return;
         }
-        
+
         Text textNode = new Text(text);
         textNode.setFill(currentFgColor);
         textNode.setFont(Font.font(fontFamily, bold ? javafx.scene.text.FontWeight.BOLD : javafx.scene.text.FontWeight.NORMAL, fontSize));
-        
+
         if (underline) {
             textNode.setUnderline(true);
         }
-        
+
+        // Remove cursor, add text, then add cursor back at the end
+        textFlow.getChildren().remove(cursorText);
         textFlow.getChildren().add(textNode);
+        textFlow.getChildren().add(cursorText);
+        
+        // Reset cursor blink to visible when new text arrives
+        cursorVisible = true;
+        cursorText.setVisible(true);
     }
     
     /**
@@ -481,9 +529,22 @@ public class TerminalView extends StackPane {
     private void updateFont() {
         for (var node : textFlow.getChildren()) {
             if (node instanceof Text text) {
-                text.setFont(Font.font(fontFamily, text.getFont().getStyle().contains("Bold") ? 
-                        javafx.scene.text.FontWeight.BOLD : javafx.scene.text.FontWeight.NORMAL, fontSize));
+                if (text == cursorText) {
+                    text.setFont(Font.font(fontFamily, fontSize));
+                } else {
+                    text.setFont(Font.font(fontFamily, text.getFont().getStyle().contains("Bold") ? 
+                            javafx.scene.text.FontWeight.BOLD : javafx.scene.text.FontWeight.NORMAL, fontSize));
+                }
             }
+        }
+    }
+    
+    /**
+     * Stops the cursor animation and cleans up resources.
+     */
+    public void cleanup() {
+        if (cursorBlink != null) {
+            cursorBlink.stop();
         }
     }
     

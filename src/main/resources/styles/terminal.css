@@ -38,13 +38,18 @@
 }
 
 .tab-close-button {
-    -fx-background-color: transparent;
-    -fx-shape: "M 0,0 L 4,4 M 4,0 L 0,4";
-    -fx-padding: 0 0 0 5;
+    -fx-background-color: #666666;
+    -fx-background-radius: 2;
+    -fx-padding: 4;
+    -fx-cursor: hand;
 }
 
 .tab-close-button:hover {
     -fx-background-color: #ff6666;
+}
+
+.tab-close-button .glyph-icon {
+    -fx-fill: #cccccc;
 }
 
 /* Scroll Pane */
