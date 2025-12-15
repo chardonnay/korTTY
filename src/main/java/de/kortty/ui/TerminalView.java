@@ -55,12 +55,30 @@ public class TerminalView extends StackPane {
     private boolean bold = false;
     private boolean underline = false;
     
-    // Selection
-    private int selectionStart = -1;
-    private int selectionEnd = -1;
-    private double selectionStartX, selectionStartY;
-    private final List<Text> selectedTextNodes = new ArrayList<>();
+    // Selection - character-based for precise selection
+    private int selectionStartIndex = -1;
+    private int selectionEndIndex = -1;
     private String selectedText = null;
+    
+    // Text tracking for precise character selection
+    private final List<TextNodeInfo> textNodeInfos = new ArrayList<>();
+    
+    /**
+     * Helper class to track text node positions and content.
+     */
+    private static class TextNodeInfo {
+        final Text node;
+        final int startIndex;
+        final int endIndex;
+        final Color originalColor;
+        
+        TextNodeInfo(Text node, int startIndex, Color originalColor) {
+            this.node = node;
+            this.startIndex = startIndex;
+            this.endIndex = startIndex + node.getText().length();
+            this.originalColor = originalColor;
+        }
+    }
     
     // Cursor
     private final Text cursorText;
@@ -135,18 +153,27 @@ public class TerminalView extends StackPane {
             if (e.getButton() == MouseButton.PRIMARY) {
                 // Clear previous selection
                 clearSelection();
-                // Start new selection
-                selectionStartX = e.getX();
-                selectionStartY = e.getY();
-                selectionStart = getCharacterIndexAt(e.getX(), e.getY());
-                selectionEnd = selectionStart;
+                // Start new selection at character position
+                selectionStartIndex = getCharacterIndexAtPosition(e.getX(), e.getY());
+                selectionEndIndex = selectionStartIndex;
+                
+                // Double-click to select word
+                if (e.getClickCount() == 2) {
+                    selectWordAt(selectionStartIndex);
+                    e.consume();
+                }
+                // Triple-click to select line
+                else if (e.getClickCount() == 3) {
+                    selectLineAt(selectionStartIndex);
+                    e.consume();
+                }
             }
         });
 
         textFlow.setOnMouseDragged(e -> {
-            if (e.getButton() == MouseButton.PRIMARY && selectionStart >= 0) {
-                selectionEnd = getCharacterIndexAt(e.getX(), e.getY());
-                updateSelection(selectionStartX, selectionStartY, e.getX(), e.getY());
+            if (e.getButton() == MouseButton.PRIMARY && selectionStartIndex >= 0) {
+                selectionEndIndex = getCharacterIndexAtPosition(e.getX(), e.getY());
+                updateSelectionHighlight();
             }
         });
         
@@ -402,6 +429,11 @@ public class TerminalView extends StackPane {
             textNode.setUnderline(true);
         }
 
+        // Track text node for character-based selection
+        int startIndex = terminalBuffer.length() - text.length();
+        if (startIndex < 0) startIndex = 0;
+        textNodeInfos.add(new TextNodeInfo(textNode, startIndex, currentFgColor));
+
         // Remove cursor, add text, then add cursor back at the end
         textFlow.getChildren().remove(cursorText);
         textFlow.getChildren().add(textNode);
@@ -444,6 +476,9 @@ public class TerminalView extends StackPane {
         if (!session.isConnected()) {
             return;
         }
+        
+        // Auto-scroll to bottom when user presses a key
+        scrollToBottom();
         
         // Clear selection when typing
         if (!event.isShortcutDown() && !event.isAltDown()) {
@@ -508,6 +543,9 @@ public class TerminalView extends StackPane {
             return;
         }
         
+        // Auto-scroll to bottom when user types
+        scrollToBottom();
+        
         String character = event.getCharacter();
         if (character.length() == 1 && !event.isControlDown() && !event.isMetaDown()) {
             char c = character.charAt(0);
@@ -545,93 +583,145 @@ public class TerminalView extends StackPane {
      * Clears the current selection.
      */
     private void clearSelection() {
-        // Reset highlighting on previously selected nodes - restore original colors
-        for (Text node : selectedTextNodes) {
-            // Restore original color from userData
-            if (node.getUserData() instanceof Color originalColor) {
-                node.setFill(originalColor);
-            } else {
-                node.setFill(foregroundColor);
-            }
+        // Reset highlighting on all text nodes - restore original colors
+        for (TextNodeInfo info : textNodeInfos) {
+            info.node.setFill(info.originalColor);
         }
-        selectedTextNodes.clear();
         selectedText = null;
-        selectionStart = -1;
-        selectionEnd = -1;
+        selectionStartIndex = -1;
+        selectionEndIndex = -1;
     }
     
     /**
-     * Updates the visual selection based on mouse coordinates.
+     * Gets the character index at a given screen position.
      */
-    private void updateSelection(double startX, double startY, double endX, double endY) {
-        // Clear previous highlighting - restore original colors
-        for (Text node : selectedTextNodes) {
-            if (node != cursorText) {
-                if (node.getUserData() instanceof Color originalColor) {
-                    node.setFill(originalColor);
-                } else {
-                    node.setFill(foregroundColor);
-                }
-            }
+    private int getCharacterIndexAtPosition(double x, double y) {
+        String buffer = terminalBuffer.toString();
+        if (buffer.isEmpty()) return 0;
+        
+        // Calculate approximate line height and character width based on font metrics
+        double lineHeight = fontSize * 1.4;
+        double charWidth = fontSize * 0.6;
+        
+        // Account for padding
+        double adjustedY = y - 5;
+        double adjustedX = x - 5;
+        
+        // Find the line number
+        int lineNum = (int) Math.max(0, adjustedY / lineHeight);
+        
+        // Split buffer into lines and find the correct position
+        String[] lines = buffer.split("\n", -1);
+        int charIndex = 0;
+        
+        for (int i = 0; i < lines.length && i < lineNum; i++) {
+            charIndex += lines[i].length() + 1; // +1 for newline
         }
-        selectedTextNodes.clear();
         
-        // Calculate selection bounds
-        double minY = Math.min(startY, endY);
-        double maxY = Math.max(startY, endY);
-        double minX = startY < endY ? startX : (startY > endY ? endX : Math.min(startX, endX));
-        double maxX = startY < endY ? endX : (startY > endY ? startX : Math.max(startX, endX));
+        // Add column position within the line
+        if (lineNum < lines.length) {
+            int colPos = (int) Math.max(0, adjustedX / charWidth);
+            colPos = Math.min(colPos, lines[lineNum].length());
+            charIndex += colPos;
+        }
         
-        // Highlight text nodes within selection
-        for (var node : textFlow.getChildren()) {
-            if (node instanceof Text textNode && textNode != cursorText) {
-                double nodeY = textNode.getLayoutY();
-                double nodeX = textNode.getLayoutX();
-                double nodeWidth = textNode.getBoundsInLocal().getWidth();
-                double nodeHeight = textNode.getBoundsInLocal().getHeight();
-                
-                // Check if node is within selection area
-                boolean inSelection = false;
-                if (nodeY + nodeHeight >= minY && nodeY <= maxY) {
-                    if (nodeY > minY && nodeY + nodeHeight < maxY) {
-                        // Fully within vertical range
-                        inSelection = true;
-                    } else if (Math.abs(maxY - minY) < nodeHeight * 1.5) {
-                        // Single line selection
-                        if (nodeX + nodeWidth >= minX && nodeX <= maxX) {
-                            inSelection = true;
-                        }
-                    } else {
-                        // Multi-line - check edges
-                        if (nodeY <= minY + nodeHeight && nodeX + nodeWidth >= minX) {
-                            inSelection = true;
-                        } else if (nodeY + nodeHeight >= maxY - nodeHeight && nodeX <= maxX) {
-                            inSelection = true;
-                        } else if (nodeY > minY + nodeHeight && nodeY + nodeHeight < maxY - nodeHeight) {
-                            inSelection = true;
-                        }
-                    }
-                }
-                
-                if (inSelection) {
-                    textNode.setFill(Color.web(settings.getSelectionColor()));
-                    selectedTextNodes.add(textNode);
-                }
+        return Math.min(charIndex, buffer.length());
+    }
+    
+    /**
+     * Updates the selection highlighting based on character indices.
+     */
+    private void updateSelectionHighlight() {
+        int start = Math.min(selectionStartIndex, selectionEndIndex);
+        int end = Math.max(selectionStartIndex, selectionEndIndex);
+        
+        String buffer = terminalBuffer.toString();
+        Color selectionColor = Color.web(settings.getSelectionColor());
+        
+        for (TextNodeInfo info : textNodeInfos) {
+            // Check if this node overlaps with selection
+            if (info.endIndex > start && info.startIndex < end) {
+                // Node is at least partially selected
+                info.node.setFill(selectionColor);
+            } else {
+                // Node is not selected - restore original color
+                info.node.setFill(info.originalColor);
             }
         }
     }
     
     /**
-     * Builds the selected text string from selected nodes.
+     * Selects the word at the given character index.
+     */
+    private void selectWordAt(int index) {
+        String buffer = terminalBuffer.toString();
+        if (buffer.isEmpty() || index < 0 || index >= buffer.length()) return;
+        
+        // Find word boundaries
+        int start = index;
+        int end = index;
+        
+        // Expand backwards to find word start
+        while (start > 0 && isWordChar(buffer.charAt(start - 1))) {
+            start--;
+        }
+        
+        // Expand forwards to find word end
+        while (end < buffer.length() && isWordChar(buffer.charAt(end))) {
+            end++;
+        }
+        
+        if (start < end) {
+            selectionStartIndex = start;
+            selectionEndIndex = end;
+            updateSelectionHighlight();
+            buildSelectedText();
+        }
+    }
+    
+    /**
+     * Selects the line at the given character index.
+     */
+    private void selectLineAt(int index) {
+        String buffer = terminalBuffer.toString();
+        if (buffer.isEmpty() || index < 0) return;
+        
+        // Find line boundaries
+        int start = buffer.lastIndexOf('\n', index - 1) + 1;
+        int end = buffer.indexOf('\n', index);
+        if (end < 0) end = buffer.length();
+        
+        selectionStartIndex = start;
+        selectionEndIndex = end;
+        updateSelectionHighlight();
+        buildSelectedText();
+    }
+    
+    /**
+     * Checks if a character is part of a word.
+     */
+    private boolean isWordChar(char c) {
+        return Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == '.' || c == '/';
+    }
+    
+    /**
+     * Builds the selected text string from character indices.
      */
     private void buildSelectedText() {
-        StringBuilder sb = new StringBuilder();
-        for (var node : textFlow.getChildren()) {
-            if (node instanceof Text textNode && selectedTextNodes.contains(textNode)) {
-                sb.append(textNode.getText());
-            }
+        if (selectionStartIndex < 0 || selectionEndIndex < 0) {
+            selectedText = null;
+            return;
         }
-        selectedText = sb.length() > 0 ? sb.toString() : null;
+        
+        int start = Math.min(selectionStartIndex, selectionEndIndex);
+        int end = Math.max(selectionStartIndex, selectionEndIndex);
+        
+        String buffer = terminalBuffer.toString();
+        if (start >= 0 && end <= buffer.length() && start < end) {
+            selectedText = buffer.substring(start, end);
+        } else {
+            selectedText = null;
+        }
     }
     
     /**
@@ -661,27 +751,13 @@ public class TerminalView extends StackPane {
      * Selects all text in the terminal.
      */
     public void selectAll() {
-        // First clear previous selection (restores colors)
-        clearSelection();
-        // Then select all
-        for (var node : textFlow.getChildren()) {
-            if (node instanceof Text textNode && textNode != cursorText) {
-                // Store original color before changing to selection color
-                if (textNode.getUserData() == null) {
-                    textNode.setUserData(textNode.getFill());
-                }
-                textNode.setFill(Color.web(settings.getSelectionColor()));
-                selectedTextNodes.add(textNode);
-            }
-        }
+        String buffer = terminalBuffer.toString();
+        if (buffer.isEmpty()) return;
+        
+        selectionStartIndex = 0;
+        selectionEndIndex = buffer.length();
+        updateSelectionHighlight();
         buildSelectedText();
-    }
-
-    private int getCharacterIndexAt(double x, double y) {
-        // Calculate approximate character position
-        int line = (int) (y / (fontSize * 1.5));
-        int col = (int) (x / (fontSize * 0.6));
-        return line * 80 + col; // Approximate - used for tracking selection start/end
     }
     
     /**

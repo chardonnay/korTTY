@@ -2,20 +2,21 @@ package de.kortty.ui;
 
 import de.kortty.model.ServerConnection;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-import java.util.Optional;
+import java.util.List;
 
 /**
  * Quick connect dialog for entering connection details.
  */
 public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResult> {
     
+    private final ComboBox<ServerConnection> savedConnectionsCombo;
     private final TextField hostField;
     private final Spinner<Integer> portSpinner;
     private final TextField usernameField;
@@ -23,18 +24,20 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private final CheckBox saveConnectionCheck;
     private final TextField connectionNameField;
     
-    public QuickConnectDialog(Stage owner) {
+    private final List<ServerConnection> savedConnections;
+    
+    public QuickConnectDialog(Stage owner, List<ServerConnection> savedConnections) {
+        this.savedConnections = savedConnections;
+        
         setTitle("Schnellverbindung");
         setHeaderText("SSH-Verbindung herstellen");
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         
-        // Create form
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20, 20, 10, 20));
+        VBox mainContent = new VBox(15);
+        mainContent.setPadding(new Insets(10, 20, 10, 20));
         
+        // Create form fields first (before they are referenced in event handlers)
         hostField = new TextField();
         hostField.setPromptText("hostname oder IP");
         hostField.setPrefWidth(250);
@@ -60,7 +63,59 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             connectionNameField.setDisable(!newVal);
         });
         
+        // Saved connections dropdown (created after fields are initialized)
+        savedConnectionsCombo = new ComboBox<>();
+        savedConnectionsCombo.setPromptText("-- Gespeicherte Verbindung auswählen --");
+        savedConnectionsCombo.setPrefWidth(400);
+        savedConnectionsCombo.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(ServerConnection item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " (" + item.getUsername() + "@" + item.getHost() + ":" + item.getPort() + ")");
+                }
+            }
+        });
+        savedConnectionsCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ServerConnection item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText("-- Gespeicherte Verbindung auswählen --");
+                } else {
+                    setText(item.getName() + " (" + item.getUsername() + "@" + item.getHost() + ")");
+                }
+            }
+        });
+        
+        if (savedConnections != null && !savedConnections.isEmpty()) {
+            savedConnectionsCombo.getItems().addAll(savedConnections);
+        }
+        
+        // When a saved connection is selected, fill in the fields
+        savedConnectionsCombo.setOnAction(e -> {
+            ServerConnection selected = savedConnectionsCombo.getValue();
+            if (selected != null) {
+                hostField.setText(selected.getHost());
+                portSpinner.getValueFactory().setValue(selected.getPort());
+                usernameField.setText(selected.getUsername());
+                passwordField.clear();
+                passwordField.requestFocus();
+                saveConnectionCheck.setSelected(false);
+            }
+        });
+        
+        // Separator
+        Separator separator = new Separator();
+        separator.setPadding(new Insets(5, 0, 5, 0));
+        
         // Layout
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        
         grid.add(new Label("Host:"), 0, 0);
         
         HBox hostBox = new HBox(10);
@@ -78,7 +133,14 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         grid.add(new Label("Name:"), 0, 4);
         grid.add(connectionNameField, 1, 4);
         
-        getDialogPane().setContent(grid);
+        // Add all to main content
+        if (savedConnections != null && !savedConnections.isEmpty()) {
+            Label savedLabel = new Label("Gespeicherte Verbindungen:");
+            mainContent.getChildren().addAll(savedLabel, savedConnectionsCombo, separator);
+        }
+        mainContent.getChildren().add(grid);
+        
+        getDialogPane().setContent(mainContent);
         
         // Buttons
         ButtonType connectButtonType = new ButtonType("Verbinden", ButtonBar.ButtonData.OK_DONE);
@@ -95,6 +157,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         // Result converter
         setResultConverter(dialogButton -> {
             if (dialogButton == connectButtonType) {
+                // Check if using a saved connection
+                ServerConnection selected = savedConnectionsCombo.getValue();
+                if (selected != null && 
+                    selected.getHost().equals(hostField.getText().trim()) &&
+                    selected.getPort() == portSpinner.getValue() &&
+                    selected.getUsername().equals(usernameField.getText().trim())) {
+                    // Using an existing saved connection
+                    return new ConnectionResult(selected, passwordField.getText(), false, true);
+                }
+                
                 ServerConnection connection = new ServerConnection();
                 connection.setHost(hostField.getText().trim());
                 connection.setPort(portSpinner.getValue());
@@ -105,17 +177,25 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                     connection.setName(name.isEmpty() ? connection.getUsername() + "@" + connection.getHost() : name);
                 }
                 
-                return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected());
+                return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false);
             }
             return null;
         });
         
-        // Focus host field
-        hostField.requestFocus();
+        // Focus host field or saved connections
+        if (savedConnections != null && !savedConnections.isEmpty()) {
+            savedConnectionsCombo.requestFocus();
+        } else {
+            hostField.requestFocus();
+        }
     }
     
     /**
      * Result record containing connection details.
+     * @param connection The server connection details
+     * @param password The password entered
+     * @param save Whether to save this as a new connection
+     * @param existingSaved Whether this is an existing saved connection (password needs to be fetched from vault)
      */
-    public record ConnectionResult(ServerConnection connection, String password, boolean save) {}
+    public record ConnectionResult(ServerConnection connection, String password, boolean save, boolean existingSaved) {}
 }
