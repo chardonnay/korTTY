@@ -46,6 +46,9 @@ public class ConnectionSettings {
     @XmlElement
     private String encoding = "UTF-8";
     
+    @XmlElement
+    private boolean closeWithoutConfirmation = false;
+    
     // ANSI Colors
     @XmlElement
     private String ansiBlack = "#000000";
@@ -98,6 +101,7 @@ public class ConnectionSettings {
         this.scrollbackLines = other.scrollbackLines;
         this.boldAsBright = other.boldAsBright;
         this.encoding = other.encoding;
+        this.closeWithoutConfirmation = other.closeWithoutConfirmation;
         copyAnsiColors(other);
     }
     
@@ -216,6 +220,14 @@ public class ConnectionSettings {
     
     public void setEncoding(String encoding) {
         this.encoding = encoding;
+    }
+    
+    public boolean isCloseWithoutConfirmation() {
+        return closeWithoutConfirmation;
+    }
+    
+    public void setCloseWithoutConfirmation(boolean closeWithoutConfirmation) {
+        this.closeWithoutConfirmation = closeWithoutConfirmation;
     }
     
     public String getAnsiColor(int index, boolean bright) {
