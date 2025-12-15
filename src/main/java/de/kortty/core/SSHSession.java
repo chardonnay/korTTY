@@ -32,10 +32,8 @@ public class SSHSession {
     private ClientSession session;
     private ChannelShell channel;
     
-    private PipedInputStream terminalInput;
-    private PipedOutputStream terminalOutput;
-    private PipedInputStream channelInput;
-    private PipedOutputStream channelOutput;
+    private InputStream channelInputStream;   // Read server output from here
+    private OutputStream channelOutputStream; // Write our input to here
     
     private final StringBuilder terminalBuffer = new StringBuilder();
     private final AtomicBoolean connected = new AtomicBoolean(false);
@@ -93,24 +91,14 @@ public class SSHSession {
         channel.setPtyColumns(connection.getSettings().getTerminalColumns());
         channel.setPtyLines(connection.getSettings().getTerminalRows());
         
-        // Set up streams for communication with the channel
-        // We need:
-        // - An InputStream for the channel to read our input (what we type)
-        // - An OutputStream for the channel to write its output (what we see)
-        
-        // For input: We write to channelOutput, channel reads from terminalInput
-        terminalInput = new PipedInputStream(8192);
-        channelOutput = new PipedOutputStream(terminalInput);
-        
-        // For output: Channel writes to terminalOutput, we read from channelInput
-        channelInput = new PipedInputStream(8192);
-        terminalOutput = new PipedOutputStream(channelInput);
-        
-        channel.setIn(terminalInput);
-        channel.setOut(terminalOutput);
-        channel.setErr(terminalOutput);
-        
+        // Open the channel first
         channel.open().verify(Duration.ofSeconds(10));
+        
+        // Use inverted streams - this is the recommended way with Apache MINA SSHD
+        // getInvertedIn() returns an OutputStream we can write to (sends to server)
+        // getInvertedOut() returns an InputStream we can read from (receives from server)
+        channelOutputStream = channel.getInvertedIn();
+        channelInputStream = channel.getInvertedOut();
         
         connected.set(true);
         startReaderThread();
@@ -127,9 +115,10 @@ public class SSHSession {
             try {
                 while (connected.get() && !Thread.currentThread().isInterrupted()) {
                     // Use blocking read - will block until data is available
-                    int read = channelInput.read(buffer);
+                    int read = channelInputStream.read(buffer);
                     if (read > 0) {
                         String text = new String(buffer, 0, read, StandardCharsets.UTF_8);
+                        logger.trace("Received {} bytes: {}", read, text.replace("\n", "\\n").replace("\r", "\\r"));
                         synchronized (terminalBuffer) {
                             terminalBuffer.append(text);
                         }
@@ -158,9 +147,10 @@ public class SSHSession {
      * Sends input to the SSH channel.
      */
     public void sendInput(String input) throws IOException {
-        if (connected.get() && channelOutput != null) {
-            channelOutput.write(input.getBytes(StandardCharsets.UTF_8));
-            channelOutput.flush();
+        if (connected.get() && channelOutputStream != null) {
+            logger.trace("Sending input: {}", input.replace("\n", "\\n").replace("\r", "\\r"));
+            channelOutputStream.write(input.getBytes(StandardCharsets.UTF_8));
+            channelOutputStream.flush();
         }
     }
     
