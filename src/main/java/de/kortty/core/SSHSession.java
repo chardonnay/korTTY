@@ -93,19 +93,22 @@ public class SSHSession {
         channel.setPtyColumns(connection.getSettings().getTerminalColumns());
         channel.setPtyLines(connection.getSettings().getTerminalRows());
         
-        // Set up streams
-        terminalInput = new PipedInputStream();
-        terminalOutput = new PipedOutputStream();
+        // Set up streams for communication with the channel
+        // We need:
+        // - An InputStream for the channel to read our input (what we type)
+        // - An OutputStream for the channel to write its output (what we see)
         
-        PipedOutputStream pipeToChannel = new PipedOutputStream(terminalInput);
-        PipedInputStream pipeFromChannel = new PipedInputStream(terminalOutput);
+        // For input: We write to channelOutput, channel reads from terminalInput
+        terminalInput = new PipedInputStream(8192);
+        channelOutput = new PipedOutputStream(terminalInput);
+        
+        // For output: Channel writes to terminalOutput, we read from channelInput
+        channelInput = new PipedInputStream(8192);
+        terminalOutput = new PipedOutputStream(channelInput);
         
         channel.setIn(terminalInput);
         channel.setOut(terminalOutput);
         channel.setErr(terminalOutput);
-        
-        channelInput = pipeFromChannel;
-        channelOutput = pipeToChannel;
         
         channel.open().verify(Duration.ofSeconds(10));
         
@@ -123,29 +126,29 @@ public class SSHSession {
             byte[] buffer = new byte[8192];
             try {
                 while (connected.get() && !Thread.currentThread().isInterrupted()) {
-                    int available = channelInput.available();
-                    if (available > 0) {
-                        int read = channelInput.read(buffer, 0, Math.min(available, buffer.length));
-                        if (read > 0) {
-                            String text = new String(buffer, 0, read, StandardCharsets.UTF_8);
-                            synchronized (terminalBuffer) {
-                                terminalBuffer.append(text);
-                            }
-                            if (outputConsumer != null) {
-                                outputConsumer.accept(text);
-                            }
+                    // Use blocking read - will block until data is available
+                    int read = channelInput.read(buffer);
+                    if (read > 0) {
+                        String text = new String(buffer, 0, read, StandardCharsets.UTF_8);
+                        synchronized (terminalBuffer) {
+                            terminalBuffer.append(text);
                         }
-                    } else {
-                        Thread.sleep(10);
+                        if (outputConsumer != null) {
+                            outputConsumer.accept(text);
+                        }
+                    } else if (read == -1) {
+                        // End of stream
+                        logger.info("SSH channel closed");
+                        connected.set(false);
+                        break;
                     }
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
             } catch (IOException e) {
                 if (connected.get()) {
                     logger.error("Error reading from channel", e);
                 }
             }
+            logger.debug("Reader thread for session {} stopped", sessionId);
         }, "SSH-Reader-" + sessionId);
         readerThread.setDaemon(true);
         readerThread.start();

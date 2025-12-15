@@ -295,6 +295,24 @@ public class MainWindow {
     private void showQuickConnect() {
         QuickConnectDialog dialog = new QuickConnectDialog(stage);
         dialog.showAndWait().ifPresent(result -> {
+            // Save connection if requested
+            if (result.save()) {
+                // Store password encrypted
+                if (result.password() != null && !result.password().isEmpty()) {
+                    PasswordVault vault = new PasswordVault(
+                            app.getMasterPasswordManager().getEncryptionService(),
+                            app.getMasterPasswordManager().getMasterPassword()
+                    );
+                    vault.storePassword(result.connection(), result.password());
+                }
+                app.getConfigManager().addConnection(result.connection());
+                try {
+                    app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+                    logger.info("Connection saved: {}", result.connection().getDisplayName());
+                } catch (Exception e) {
+                    logger.error("Failed to save connection", e);
+                }
+            }
             openConnection(result.connection(), result.password());
         });
     }
