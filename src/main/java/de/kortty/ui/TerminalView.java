@@ -14,8 +14,10 @@ import javafx.scene.input.*;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
@@ -59,6 +61,10 @@ public class TerminalView extends StackPane {
     private int selectionStartIndex = -1;
     private int selectionEndIndex = -1;
     private String selectedText = null;
+    
+    // Selection highlight rectangles
+    private final Pane selectionPane;
+    private final List<Rectangle> selectionRectangles = new ArrayList<>();
     
     // Text tracking for precise character selection
     private final List<TextNodeInfo> textNodeInfos = new ArrayList<>();
@@ -108,13 +114,21 @@ public class TerminalView extends StackPane {
         this.currentFgColor = foregroundColor;
         this.currentBgColor = backgroundColor;
         
+        // Create selection pane (below text for highlighting)
+        selectionPane = new Pane();
+        selectionPane.setMouseTransparent(true);
+        
         // Create text flow for terminal output
         textFlow = new TextFlow();
         textFlow.setPadding(new Insets(5));
         textFlow.setLineSpacing(2);
         
+        // Stack selection pane under text flow
+        StackPane textContainer = new StackPane();
+        textContainer.getChildren().addAll(selectionPane, textFlow);
+        
         // Scroll pane
-        scrollPane = new ScrollPane(textFlow);
+        scrollPane = new ScrollPane(textContainer);
         scrollPane.setFitToWidth(true);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
@@ -485,23 +499,25 @@ public class TerminalView extends StackPane {
     private void handleKeyPressed(KeyEvent event) {
         KeyCode code = event.getCode();
         
-        // Handle Copy/Paste shortcuts (work even when disconnected)
-        if (event.isShortcutDown()) {
-            if (code == KeyCode.C) {
-                // Ctrl+C / Cmd+C: Copy if text is selected, otherwise send SIGINT
-                if (selectedText != null && !selectedText.isEmpty()) {
-                    copyToClipboard();
-                    event.consume();
-                    return;
-                }
-                // If nothing selected, send Ctrl+C to terminal (SIGINT)
+        // On Mac, use Cmd for GUI shortcuts (copy/paste/select all)
+        // On other platforms, use Ctrl but only for copy/paste when text is selected
+        boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
+        boolean isGuiShortcut = isMac ? event.isMetaDown() : event.isShortcutDown();
+        
+        // Handle GUI shortcuts (Cmd+C/V/A on Mac, Ctrl+C/V/A on others only when appropriate)
+        if (isGuiShortcut) {
+            if (code == KeyCode.C && selectedText != null && !selectedText.isEmpty()) {
+                // Copy selected text
+                copyToClipboard();
+                event.consume();
+                return;
             } else if (code == KeyCode.V) {
-                // Ctrl+V / Cmd+V: Paste
+                // Paste
                 pasteFromClipboard();
                 event.consume();
                 return;
-            } else if (code == KeyCode.A) {
-                // Ctrl+A / Cmd+A: Select all
+            } else if (code == KeyCode.A && isMac) {
+                // Select all (only on Mac with Cmd, Ctrl+A goes to terminal on all platforms)
                 selectAll();
                 event.consume();
                 return;
@@ -515,13 +531,13 @@ public class TerminalView extends StackPane {
         // Auto-scroll to bottom when user presses a key
         scrollToBottom();
         
-        // Clear selection when typing
-        if (!event.isShortcutDown() && !event.isAltDown()) {
+        // Clear selection when typing (but not for modifier keys alone)
+        if (!event.isShortcutDown() && !event.isAltDown() && !event.isControlDown() && !event.isMetaDown()) {
             clearSelection();
         }
         
         try {
-            // Handle special keys
+            // Handle special keys first
             SSHSession.SpecialKey specialKey = switch (code) {
                 case ENTER -> SSHSession.SpecialKey.ENTER;
                 case TAB -> SSHSession.SpecialKey.TAB;
@@ -556,12 +572,19 @@ public class TerminalView extends StackPane {
                 session.sendSpecialKey(specialKey);
                 event.consume();
             } else if (event.isControlDown() && !event.isAltDown() && !event.isMetaDown()) {
-                // Handle Ctrl+key combinations (send control characters to terminal)
+                // Handle Ctrl+key combinations - send control characters to terminal
+                // Ctrl+A = 1 (SOH, start of line), Ctrl+B = 2, ..., Ctrl+Z = 26
+                // Ctrl+E = 5 (end of line), Ctrl+K = 11 (kill to end), etc.
                 if (code.isLetterKey()) {
-                    char c = code.getChar().charAt(0);
-                    if (c >= 'A' && c <= 'Z') {
-                        session.sendChar((char) (c - 'A' + 1));
-                        event.consume();
+                    String keyChar = code.getChar();
+                    if (keyChar != null && !keyChar.isEmpty()) {
+                        char c = keyChar.toUpperCase().charAt(0);
+                        if (c >= 'A' && c <= 'Z') {
+                            int controlChar = c - 'A' + 1;
+                            logger.debug("Sending Ctrl+{} as control character {}", c, controlChar);
+                            session.sendChar((char) controlChar);
+                            event.consume();
+                        }
                     }
                 }
             }
@@ -618,10 +641,10 @@ public class TerminalView extends StackPane {
      * Clears the current selection.
      */
     private void clearSelection() {
-        // Reset highlighting on all text nodes - restore original colors
-        for (TextNodeInfo info : textNodeInfos) {
-            info.node.setFill(info.originalColor);
-        }
+        // Clear selection rectangles
+        selectionPane.getChildren().clear();
+        selectionRectangles.clear();
+        
         selectedText = null;
         selectionStartIndex = -1;
         selectionEndIndex = -1;
@@ -686,22 +709,55 @@ public class TerminalView extends StackPane {
     
     /**
      * Updates the selection highlighting based on character indices.
+     * Uses rectangles behind text for proper selection appearance.
      */
     private void updateSelectionHighlight() {
+        // Clear existing selection rectangles
+        selectionPane.getChildren().clear();
+        selectionRectangles.clear();
+        
         int start = Math.min(selectionStartIndex, selectionEndIndex);
         int end = Math.max(selectionStartIndex, selectionEndIndex);
         
-        String buffer = terminalBuffer.toString();
-        Color selectionColor = Color.web(settings.getSelectionColor());
+        if (start < 0 || end <= start) {
+            return;
+        }
         
+        Color selectionBgColor = Color.web(settings.getSelectionColor()).deriveColor(0, 1, 1, 0.7);
+        
+        // Create rectangles for each selected text node
         for (TextNodeInfo info : textNodeInfos) {
             // Check if this node overlaps with selection
             if (info.endIndex > start && info.startIndex < end) {
-                // Node is at least partially selected
-                info.node.setFill(selectionColor);
-            } else {
-                // Node is not selected - restore original color
-                info.node.setFill(info.originalColor);
+                Text node = info.node;
+                
+                // Get node bounds
+                double nodeX = node.getLayoutX() + textFlow.getPadding().getLeft();
+                double nodeY = node.getLayoutY() + textFlow.getPadding().getTop();
+                double nodeWidth = node.getBoundsInLocal().getWidth();
+                double nodeHeight = node.getBoundsInLocal().getHeight();
+                
+                // Calculate partial selection within the node
+                int nodeStart = info.startIndex;
+                int nodeEnd = info.endIndex;
+                String nodeText = node.getText();
+                
+                double charWidth = nodeWidth / Math.max(1, nodeText.length());
+                
+                // Calculate the selected portion
+                int selStartInNode = Math.max(0, start - nodeStart);
+                int selEndInNode = Math.min(nodeText.length(), end - nodeStart);
+                
+                if (selStartInNode < selEndInNode) {
+                    double rectX = nodeX + (selStartInNode * charWidth);
+                    double rectWidth = (selEndInNode - selStartInNode) * charWidth;
+                    
+                    Rectangle rect = new Rectangle(rectX, nodeY - fontSize * 0.2, rectWidth, nodeHeight + fontSize * 0.1);
+                    rect.setFill(selectionBgColor);
+                    rect.setMouseTransparent(true);
+                    selectionRectangles.add(rect);
+                    selectionPane.getChildren().add(rect);
+                }
             }
         }
     }
