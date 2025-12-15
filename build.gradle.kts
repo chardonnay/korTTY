@@ -15,11 +15,15 @@ java {
 
 repositories {
     mavenCentral()
+    // JetBrains repository for pty4j and its dependencies
+    maven {
+        url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
+    }
 }
 
 javafx {
     version = "21"
-    modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics")
+    modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.swing")
 }
 
 dependencies {
@@ -27,6 +31,10 @@ dependencies {
     implementation("org.apache.sshd:sshd-core:2.12.0")
     implementation("org.apache.sshd:sshd-common:2.12.0")
     implementation("org.apache.sshd:sshd-sftp:2.12.0")
+    
+    // JediTermFX - Professional terminal emulator for JavaFX
+    implementation("com.techsenger.jeditermfx:jeditermfx-core:1.1.0")
+    implementation("com.techsenger.jeditermfx:jeditermfx-ui:1.1.0")
     
     // XML Binding (JAXB)
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")

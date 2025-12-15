@@ -116,10 +116,10 @@ public class SSHSession {
         ptyModes.put(PtyMode.ECHONL, 0);  // Don't echo NL even if echo is off
         ptyModes.put(PtyMode.IEXTEN, 1);  // Enable extensions
         
-        // Control characters
+        // Control characters - use values that match common terminal defaults
         ptyModes.put(PtyMode.VINTR, 3);   // Ctrl+C (ASCII 3 = ETX)
         ptyModes.put(PtyMode.VQUIT, 28);  // Ctrl+\ (ASCII 28 = FS)
-        ptyModes.put(PtyMode.VERASE, 127); // Backspace/DEL (ASCII 127)
+        ptyModes.put(PtyMode.VERASE, 8);  // Backspace (ASCII 8 = BS) - more compatible
         ptyModes.put(PtyMode.VKILL, 21);  // Ctrl+U (ASCII 21 = NAK)
         ptyModes.put(PtyMode.VEOF, 4);    // Ctrl+D (ASCII 4 = EOT)
         ptyModes.put(PtyMode.VEOL, 0);    // End of line (disabled)
@@ -159,7 +159,13 @@ public class SSHSession {
                     int read = channelInputStream.read(buffer);
                     if (read > 0) {
                         String text = new String(buffer, 0, read, StandardCharsets.UTF_8);
-                        logger.trace("Received {} bytes: {}", read, text.replace("\n", "\\n").replace("\r", "\\r"));
+                        StringBuilder hexDebug = new StringBuilder();
+                        for (int i = 0; i < read; i++) {
+                            hexDebug.append(String.format("%02X ", buffer[i] & 0xFF));
+                        }
+                        logger.debug("Received {} bytes: [{}] hex: {}", read, 
+                            text.replace("\n", "\\n").replace("\r", "\\r").replace("\u001B", "ESC").replace("\b", "\\b"),
+                            hexDebug.toString().trim());
                         synchronized (terminalBuffer) {
                             terminalBuffer.append(text);
                         }
@@ -189,8 +195,15 @@ public class SSHSession {
      */
     public void sendInput(String input) throws IOException {
         if (connected.get() && channelOutputStream != null) {
-            logger.trace("Sending input: {}", input.replace("\n", "\\n").replace("\r", "\\r"));
-            channelOutputStream.write(input.getBytes(StandardCharsets.UTF_8));
+            byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
+            StringBuilder hexDebug = new StringBuilder();
+            for (byte b : bytes) {
+                hexDebug.append(String.format("%02X ", b & 0xFF));
+            }
+            logger.debug("Sending {} bytes: [{}] hex: {}", bytes.length, 
+                input.replace("\n", "\\n").replace("\r", "\\r").replace("\u001B", "ESC").replace("\b", "\\b").replace("\t", "\\t"),
+                hexDebug.toString().trim());
+            channelOutputStream.write(bytes);
             channelOutputStream.flush();
         }
     }
@@ -359,7 +372,7 @@ public class SSHSession {
     public enum SpecialKey {
         ENTER("\r"),
         TAB("\t"),
-        BACKSPACE("\u007F"),  // ASCII 127 DEL character - standard for most terminals
+        BACKSPACE("\b"),  // ASCII 8 BS character - try this instead of DEL
         ESCAPE("\u001B"),
         UP("\u001B[A"),
         DOWN("\u001B[B"),

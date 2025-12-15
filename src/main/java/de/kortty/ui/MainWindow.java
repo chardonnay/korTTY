@@ -188,15 +188,15 @@ public class MainWindow {
         showDashboard.setOnAction(e -> toggleDashboard(showDashboard.isSelected()));
         
         MenuItem zoomIn = new MenuItem("Vergrößern");
-        zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.SHORTCUT_DOWN));
+        zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
         
         MenuItem zoomOut = new MenuItem("Verkleinern");
-        zoomOut.setAccelerator(new KeyCodeCombination(KeyCode.MINUS, KeyCombination.SHORTCUT_DOWN));
+        zoomOut.setAccelerator(new KeyCodeCombination(KeyCode.MINUS, KeyCombination.ALT_DOWN));
         zoomOut.setOnAction(e -> zoomTerminal(-1));
         
         MenuItem resetZoom = new MenuItem("Zoom zurücksetzen");
-        resetZoom.setAccelerator(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.SHORTCUT_DOWN));
+        resetZoom.setAccelerator(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.ALT_DOWN));
         resetZoom.setOnAction(e -> resetTerminalZoom());
         
         viewMenu.getItems().addAll(showDashboard, new SeparatorMenuItem(),
@@ -255,11 +255,9 @@ public class MainWindow {
      */
     public void openConnection(ServerConnection connection, String password) {
         try {
-            SSHSession session = sessionManager.createSession(connection, password);
-            
-            TerminalTab terminalTab = new TerminalTab(session, app.getConfigManager().getEffectiveSettings(connection));
+            // Create terminal tab with JediTermFX
+            TerminalTab terminalTab = new TerminalTab(connection, password);
             terminalTab.setOnClosed(e -> {
-                sessionManager.closeSession(session.getSessionId());
                 updateDashboard();
             });
             
@@ -271,9 +269,8 @@ public class MainWindow {
             // Connect in background
             new Thread(() -> {
                 try {
-                    session.connect();
+                    terminalTab.connect();
                     Platform.runLater(() -> {
-                        terminalTab.onConnected();
                         updateStatus("Verbunden mit " + connection.getDisplayName());
                         updateDashboard();
                     });
@@ -453,10 +450,10 @@ public class MainWindow {
         }
     }
     
-    private void focusSession(String sessionId) {
+    private void focusSession(String connectionName) {
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
-                if (terminalTab.getSessionId().equals(sessionId)) {
+                if (terminalTab.getConnection().getDisplayName().equals(connectionName)) {
                     tabPane.getSelectionModel().select(tab);
                     break;
                 }
@@ -528,10 +525,14 @@ public class MainWindow {
         
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
-                SSHSession session = sessionManager.getSession(terminalTab.getSessionId());
-                if (session != null) {
-                    windowState.addTab(session.getState());
-                }
+                ServerConnection connection = terminalTab.getConnection();
+                SessionState sessionState = new SessionState(
+                        java.util.UUID.randomUUID().toString(),
+                        connection.getId()
+                );
+                sessionState.setSettings(connection.getSettings());
+                sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
+                windowState.addTab(sessionState);
             }
         }
         

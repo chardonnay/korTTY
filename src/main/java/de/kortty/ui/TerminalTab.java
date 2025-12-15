@@ -1,7 +1,7 @@
 package de.kortty.ui;
 
-import de.kortty.core.SSHSession;
 import de.kortty.model.ConnectionSettings;
+import de.kortty.model.ServerConnection;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -12,37 +12,27 @@ import javafx.scene.control.Tab;
  */
 public class TerminalTab extends Tab {
     
-    private final SSHSession session;
+    private final ServerConnection connection;
     private final TerminalView terminalView;
     private final ConnectionSettings settings;
     
-    public TerminalTab(SSHSession session, ConnectionSettings settings) {
-        this.session = session;
-        this.settings = settings;
-        this.terminalView = new TerminalView(session, settings);
+    public TerminalTab(ServerConnection connection, String password) {
+        this.connection = connection;
+        this.settings = connection.getSettings();
+        this.terminalView = new TerminalView(connection, password);
         
-        setText(session.getConnection().getDisplayName());
+        setText(connection.getDisplayName());
         setContent(terminalView);
         setClosable(true);
         
-        // Set up output consumer that both displays output AND updates tab title
-        session.setOutputConsumer(text -> {
-            // Display output in terminal
-            terminalView.handleOutput(text);
-            // Update tab title
-            Platform.runLater(() -> {
-                setText(session.generateTabTitle());
-            });
-        });
-        
         // Handle tab close
         setOnCloseRequest(event -> {
-            if (session.isConnected() && !settings.isCloseWithoutConfirmation()) {
+            if (terminalView.isConnected() && !settings.isCloseWithoutConfirmation()) {
                 // Show confirmation dialog
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Verbindung schließen");
                 alert.setHeaderText("SSH-Verbindung beenden?");
-                alert.setContentText("Die Verbindung zu " + session.getConnection().getDisplayName() + " wird getrennt.");
+                alert.setContentText("Die Verbindung zu " + connection.getDisplayName() + " wird getrennt.");
                 
                 if (alert.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
                     event.consume(); // Cancel the close
@@ -50,16 +40,14 @@ public class TerminalTab extends Tab {
                 }
             }
             terminalView.cleanup();
-            session.disconnect();
         });
     }
     
     /**
-     * Called when the SSH connection is established.
+     * Connects to the SSH server.
      */
-    public void onConnected() {
-        terminalView.onConnected();
-        setText(session.generateTabTitle());
+    public void connect() {
+        terminalView.connect();
     }
     
     /**
@@ -67,7 +55,7 @@ public class TerminalTab extends Tab {
      */
     public void onConnectionFailed(String error) {
         terminalView.showError("Verbindung fehlgeschlagen: " + error);
-        setText(session.getConnection().getDisplayName() + " (Fehler)");
+        Platform.runLater(() -> setText(connection.getDisplayName() + " (Fehler)"));
     }
     
     /**
@@ -98,15 +86,15 @@ public class TerminalTab extends Tab {
         terminalView.resetZoom();
     }
     
-    public String getSessionId() {
-        return session.getSessionId();
-    }
-    
-    public SSHSession getSession() {
-        return session;
+    public ServerConnection getConnection() {
+        return connection;
     }
     
     public TerminalView getTerminalView() {
         return terminalView;
+    }
+    
+    public boolean isConnected() {
+        return terminalView.isConnected();
     }
 }
