@@ -6,6 +6,7 @@ import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.channel.PtyMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +14,9 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -90,6 +93,44 @@ public class SSHSession {
         channel.setPtyType("xterm-256color");
         channel.setPtyColumns(connection.getSettings().getTerminalColumns());
         channel.setPtyLines(connection.getSettings().getTerminalRows());
+        
+        // Configure PTY modes for proper terminal control character handling
+        Map<PtyMode, Integer> ptyModes = new EnumMap<>(PtyMode.class);
+        
+        // Input modes
+        ptyModes.put(PtyMode.ICRNL, 1);   // Map CR to NL on input
+        ptyModes.put(PtyMode.IXON, 1);    // Enable output flow control
+        ptyModes.put(PtyMode.IXANY, 1);   // Any char will restart after stop
+        ptyModes.put(PtyMode.IMAXBEL, 1); // Ring bell on input queue full
+        
+        // Output modes
+        ptyModes.put(PtyMode.OPOST, 1);   // Enable output processing
+        ptyModes.put(PtyMode.ONLCR, 1);   // Map NL to CR-NL on output
+        
+        // Local modes
+        ptyModes.put(PtyMode.ISIG, 1);    // Enable signals (important for Ctrl+C, etc.)
+        ptyModes.put(PtyMode.ICANON, 1);  // Canonical input (erase and kill processing)
+        ptyModes.put(PtyMode.ECHO, 1);    // Enable echo
+        ptyModes.put(PtyMode.ECHOE, 1);   // Echo erase character as BS-SP-BS
+        ptyModes.put(PtyMode.ECHOK, 1);   // Echo NL after kill character
+        ptyModes.put(PtyMode.ECHONL, 0);  // Don't echo NL even if echo is off
+        ptyModes.put(PtyMode.IEXTEN, 1);  // Enable extensions
+        
+        // Control characters
+        ptyModes.put(PtyMode.VINTR, 3);   // Ctrl+C (ASCII 3 = ETX)
+        ptyModes.put(PtyMode.VQUIT, 28);  // Ctrl+\ (ASCII 28 = FS)
+        ptyModes.put(PtyMode.VERASE, 127); // Backspace/DEL (ASCII 127)
+        ptyModes.put(PtyMode.VKILL, 21);  // Ctrl+U (ASCII 21 = NAK)
+        ptyModes.put(PtyMode.VEOF, 4);    // Ctrl+D (ASCII 4 = EOT)
+        ptyModes.put(PtyMode.VEOL, 0);    // End of line (disabled)
+        ptyModes.put(PtyMode.VSTART, 17); // Ctrl+Q (ASCII 17 = DC1, XON)
+        ptyModes.put(PtyMode.VSTOP, 19);  // Ctrl+S (ASCII 19 = DC3, XOFF)
+        ptyModes.put(PtyMode.VSUSP, 26);  // Ctrl+Z (ASCII 26 = SUB)
+        ptyModes.put(PtyMode.VREPRINT, 18); // Ctrl+R (ASCII 18)
+        ptyModes.put(PtyMode.VWERASE, 23);  // Ctrl+W (ASCII 23)
+        ptyModes.put(PtyMode.VLNEXT, 22);   // Ctrl+V (ASCII 22)
+        
+        channel.setPtyModes(ptyModes);
         
         // Open the channel first
         channel.open().verify(Duration.ofSeconds(10));
