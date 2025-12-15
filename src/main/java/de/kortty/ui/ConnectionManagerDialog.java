@@ -24,9 +24,11 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private final ConfigurationManager configManager;
     private final TableView<ServerConnection> table;
     private final ObservableList<ServerConnection> connections;
+    private final Stage owner;
     
     public ConnectionManagerDialog(Stage owner, ConfigurationManager configManager) {
         this.configManager = configManager;
+        this.owner = owner;
         
         setTitle("Verbindungen verwalten");
         setHeaderText(null);
@@ -129,7 +131,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     }
     
     private void addConnection() {
-        ConnectionEditDialog dialog = new ConnectionEditDialog((Stage) getDialogPane().getScene().getWindow(), null);
+        ConnectionEditDialog dialog = new ConnectionEditDialog(owner, null);
         dialog.showAndWait().ifPresent(connection -> {
             connections.add(connection);
             configManager.addConnection(connection);
@@ -140,8 +142,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private void editConnection() {
         ServerConnection selected = table.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            ConnectionEditDialog dialog = new ConnectionEditDialog(
-                    (Stage) getDialogPane().getScene().getWindow(), selected);
+            ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected);
             dialog.showAndWait().ifPresent(connection -> {
                 int index = connections.indexOf(selected);
                 connections.set(index, connection);
