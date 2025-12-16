@@ -13,13 +13,13 @@ import javafx.scene.control.Tab;
 public class TerminalTab extends Tab {
     
     private final ServerConnection connection;
-    private final LanternaTerminalView terminalView;
+    private final TerminalView terminalView;
     private final ConnectionSettings settings;
     
     public TerminalTab(ServerConnection connection, String password) {
         this.connection = connection;
         this.settings = connection.getSettings();
-        this.terminalView = new LanternaTerminalView(connection, password);
+        this.terminalView = new TerminalView(connection, password);
         
         setText(connection.getDisplayName());
         setContent(terminalView);
@@ -90,7 +90,7 @@ public class TerminalTab extends Tab {
         return connection;
     }
     
-    public LanternaTerminalView getTerminalView() {
+    public TerminalView getTerminalView() {
         return terminalView;
     }
     
