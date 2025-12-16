@@ -169,13 +169,17 @@ public class TerminalView extends BorderPane {
     
     /**
      * Applies the zoom by scaling the terminal pane.
+     * Uses Scale transform with pivot at top-left corner (0,0) to keep text aligned.
      */
     private void applyZoom() {
         if (terminalWidget != null && terminalWidget.getPane() != null) {
             // Calculate scale factor based on font size ratio
             double scale = (double) currentFontSize / defaultFontSize;
-            terminalWidget.getPane().setScaleX(scale);
-            terminalWidget.getPane().setScaleY(scale);
+            
+            // Clear existing transforms and add scale with pivot at top-left (0,0)
+            javafx.scene.transform.Scale scaleTransform = new javafx.scene.transform.Scale(scale, scale, 0, 0);
+            terminalWidget.getPane().getTransforms().clear();
+            terminalWidget.getPane().getTransforms().add(scaleTransform);
         }
     }
     
