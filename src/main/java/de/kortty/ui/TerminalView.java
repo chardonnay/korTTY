@@ -168,33 +168,24 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Applies the zoom by triggering a terminal resize.
-     * The SettingsProvider returns the updated font size, so we just need to trigger a relayout.
+     * Applies the zoom by scaling the terminal pane.
+     * Uses Scale transform with pivot at top-left corner (0,0) to keep text aligned.
      */
     private void applyZoom() {
-        if (terminalWidget != null && terminalWidget.getTerminalPanel() != null) {
+        if (terminalWidget != null && terminalWidget.getPane() != null) {
+            // Calculate scale factor based on font size ratio
+            double scale = (double) currentFontSize / defaultFontSize;
+            
+            // Clear existing transforms and add scale with pivot at top-left (0,0)
+            javafx.scene.transform.Scale scaleTransform = new javafx.scene.transform.Scale(scale, scale, 0, 0);
+            terminalWidget.getPane().getTransforms().clear();
+            terminalWidget.getPane().getTransforms().add(scaleTransform);
+            
+            // Scroll to show current output after zoom
             Platform.runLater(() -> {
-                // Get the terminal pane and trigger a resize by briefly changing size
-                javafx.scene.layout.Pane pane = terminalWidget.getTerminalPanel().getPane();
-                if (pane != null && pane.getParent() != null) {
-                    // Force layout recalculation by invalidating
-                    pane.requestLayout();
-                    
-                    // Trigger terminal resize notification
-                    var termSize = terminalWidget.getTerminalPanel().getTerminalSizeFromComponent();
-                    if (termSize != null) {
-                        terminalWidget.getTerminalPanel().onResize(termSize, 
-                            com.techsenger.jeditermfx.core.RequestOrigin.User);
-                    }
-                    
-                    // Repaint to apply new font size
-                    terminalWidget.getTerminalPanel().repaint();
-                }
-                
-                // Scroll to show current output after resize
-                Platform.runLater(() -> {
+                if (terminalWidget.getTerminalPanel() != null) {
                     terminalWidget.getTerminalPanel().scrollToShowAllOutput();
-                });
+                }
             });
         }
     }
