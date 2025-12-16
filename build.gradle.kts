@@ -32,9 +32,12 @@ dependencies {
     implementation("org.apache.sshd:sshd-common:2.12.0")
     implementation("org.apache.sshd:sshd-sftp:2.12.0")
     
-    // JediTermFX - Professional terminal emulator for JavaFX
+    // JediTermFX - Professional terminal emulator for JavaFX (backup)
     implementation("com.techsenger.jeditermfx:jeditermfx-core:1.1.0")
     implementation("com.techsenger.jeditermfx:jeditermfx-ui:1.1.0")
+    
+    // Lanterna - Text-based terminal emulator with better zoom support
+    implementation("com.googlecode.lanterna:lanterna:3.1.2")
     
     // XML Binding (JAXB)
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
