@@ -116,26 +116,31 @@ public class MainWindow {
         }
         
         // Global keyboard shortcuts for zoom (works on all keyboard layouts)
-        scene.setOnKeyPressed(event -> {
-            boolean ctrlOrAlt = event.isControlDown() || event.isAltDown();
-            if (ctrlOrAlt) {
-                String character = event.getText();
-                KeyCode code = event.getCode();
-                
+        scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            boolean ctrl = event.isControlDown();
+            boolean alt = event.isAltDown();
+            KeyCode code = event.getCode();
+            String text = event.getText();
+            String character = event.getCharacter();
+            
+            if (ctrl || alt) {
                 // Zoom in: Ctrl/Alt + Plus (various key codes for different keyboards)
                 if (code == KeyCode.PLUS || code == KeyCode.ADD || 
-                    code == KeyCode.EQUALS || "+".equals(character)) {
+                    code == KeyCode.EQUALS || "+".equals(text) || "+".equals(character)) {
+                    logger.info("ZOOM IN triggered!");
                     zoomTerminal(1);
                     event.consume();
                 }
                 // Zoom out: Ctrl/Alt + Minus
                 else if (code == KeyCode.MINUS || code == KeyCode.SUBTRACT || 
-                         "-".equals(character)) {
+                         "-".equals(text) || "-".equals(character)) {
+                    logger.info("ZOOM OUT triggered!");
                     zoomTerminal(-1);
                     event.consume();
                 }
                 // Reset zoom: Ctrl/Alt + 0
                 else if (code == KeyCode.DIGIT0 || code == KeyCode.NUMPAD0) {
+                    logger.info("ZOOM RESET triggered!");
                     resetTerminalZoom();
                     event.consume();
                 }
