@@ -129,7 +129,18 @@ public class MainWindow {
             
             // Fullscreen toggle: F11
             if (code == KeyCode.F11) {
-                stage.setFullScreen(!stage.isFullScreen());
+                boolean goFullscreen = !stage.isFullScreen();
+                stage.setFullScreen(goFullscreen);
+                // Force terminal resize after fullscreen change
+                Platform.runLater(() -> {
+                    Platform.runLater(() -> {
+                        // Double runLater to ensure layout is complete
+                        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                        if (selectedTab instanceof TerminalTab terminalTab) {
+                            terminalTab.getTerminalView().requestFocus();
+                        }
+                    });
+                });
                 event.consume();
                 return;
             }
@@ -161,12 +172,28 @@ public class MainWindow {
         // Also consume KEY_TYPED events for zoom to prevent +/- appearing in terminal
         scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
             if (zoomTriggered[0]) {
+                // Consume early to prevent JediTermFX from processing empty character
                 event.consume();
+                zoomTriggered[0] = false; // Reset for next event
             }
         });
         
         stage.setScene(scene);
         stage.setTitle(KorTTYApplication.getAppName());
+        
+        // Handle fullscreen changes - resize terminal properly
+        stage.fullScreenProperty().addListener((obs, wasFullscreen, isFullscreen) -> {
+            Platform.runLater(() -> {
+                // Give layout time to update, then resize terminal
+                Platform.runLater(() -> {
+                    Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                    if (selectedTab instanceof TerminalTab terminalTab) {
+                        // Request focus to trigger proper resize
+                        terminalTab.getTerminalView().requestFocus();
+                    }
+                });
+            });
+        });
         
         // Window close handling
         stage.setOnCloseRequest(e -> {
