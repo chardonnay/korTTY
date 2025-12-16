@@ -115,6 +115,33 @@ public class MainWindow {
             logger.warn("Could not load terminal.css stylesheet");
         }
         
+        // Global keyboard shortcuts for zoom (works on all keyboard layouts)
+        scene.setOnKeyPressed(event -> {
+            boolean ctrlOrAlt = event.isControlDown() || event.isAltDown();
+            if (ctrlOrAlt) {
+                String character = event.getText();
+                KeyCode code = event.getCode();
+                
+                // Zoom in: Ctrl/Alt + Plus (various key codes for different keyboards)
+                if (code == KeyCode.PLUS || code == KeyCode.ADD || 
+                    code == KeyCode.EQUALS || "+".equals(character)) {
+                    zoomTerminal(1);
+                    event.consume();
+                }
+                // Zoom out: Ctrl/Alt + Minus
+                else if (code == KeyCode.MINUS || code == KeyCode.SUBTRACT || 
+                         "-".equals(character)) {
+                    zoomTerminal(-1);
+                    event.consume();
+                }
+                // Reset zoom: Ctrl/Alt + 0
+                else if (code == KeyCode.DIGIT0 || code == KeyCode.NUMPAD0) {
+                    resetTerminalZoom();
+                    event.consume();
+                }
+            }
+        });
+        
         stage.setScene(scene);
         stage.setTitle(KorTTYApplication.getAppName());
         
