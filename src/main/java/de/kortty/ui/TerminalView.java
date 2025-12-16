@@ -180,13 +180,6 @@ public class TerminalView extends BorderPane {
             javafx.scene.transform.Scale scaleTransform = new javafx.scene.transform.Scale(scale, scale, 0, 0);
             terminalWidget.getPane().getTransforms().clear();
             terminalWidget.getPane().getTransforms().add(scaleTransform);
-            
-            // Scroll to show current output after zoom
-            Platform.runLater(() -> {
-                if (terminalWidget.getTerminalPanel() != null) {
-                    terminalWidget.getTerminalPanel().scrollToShowAllOutput();
-                }
-            });
         }
     }
     
