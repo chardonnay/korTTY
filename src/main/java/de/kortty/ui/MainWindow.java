@@ -115,35 +115,53 @@ public class MainWindow {
             logger.warn("Could not load terminal.css stylesheet");
         }
         
-        // Global keyboard shortcuts for zoom (works on all keyboard layouts)
+        // Global keyboard shortcuts for zoom and fullscreen (works on all keyboard layouts)
+        // Track if zoom was triggered to also consume KEY_TYPED event
+        final boolean[] zoomTriggered = {false};
+        
         scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
             boolean ctrl = event.isControlDown();
             boolean alt = event.isAltDown();
             KeyCode code = event.getCode();
             String text = event.getText();
             String character = event.getCharacter();
+            zoomTriggered[0] = false;
+            
+            // Fullscreen toggle: F11
+            if (code == KeyCode.F11) {
+                stage.setFullScreen(!stage.isFullScreen());
+                event.consume();
+                return;
+            }
             
             if (ctrl || alt) {
                 // Zoom in: Ctrl/Alt + Plus (various key codes for different keyboards)
                 if (code == KeyCode.PLUS || code == KeyCode.ADD || 
                     code == KeyCode.EQUALS || "+".equals(text) || "+".equals(character)) {
-                    logger.info("ZOOM IN triggered!");
                     zoomTerminal(1);
+                    zoomTriggered[0] = true;
                     event.consume();
                 }
                 // Zoom out: Ctrl/Alt + Minus
                 else if (code == KeyCode.MINUS || code == KeyCode.SUBTRACT || 
                          "-".equals(text) || "-".equals(character)) {
-                    logger.info("ZOOM OUT triggered!");
                     zoomTerminal(-1);
+                    zoomTriggered[0] = true;
                     event.consume();
                 }
                 // Reset zoom: Ctrl/Alt + 0
                 else if (code == KeyCode.DIGIT0 || code == KeyCode.NUMPAD0) {
-                    logger.info("ZOOM RESET triggered!");
                     resetTerminalZoom();
+                    zoomTriggered[0] = true;
                     event.consume();
                 }
+            }
+        });
+        
+        // Also consume KEY_TYPED events for zoom to prevent +/- appearing in terminal
+        scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
+            if (zoomTriggered[0]) {
+                event.consume();
             }
         });
         
@@ -231,8 +249,12 @@ public class MainWindow {
         resetZoom.setAccelerator(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.ALT_DOWN));
         resetZoom.setOnAction(e -> resetTerminalZoom());
         
+        MenuItem fullscreen = new MenuItem("Vollbild");
+        fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
+        fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
+        
         viewMenu.getItems().addAll(showDashboard, new SeparatorMenuItem(),
-                zoomIn, zoomOut, resetZoom);
+                zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
         
         // Verbindungen Menu
         Menu connectionsMenu = new Menu("Verbindungen");
