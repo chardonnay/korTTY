@@ -43,6 +43,9 @@ dependencies {
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
     runtimeOnly("org.glassfish.jaxb:jaxb-runtime:4.0.4")
     
+    // ZIP encryption
+    implementation("net.lingala.zip4j:zip4j:2.11.5")
+    
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("ch.qos.logback:logback-classic:1.4.14")

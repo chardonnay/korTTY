@@ -18,6 +18,21 @@ public class GlobalSettings {
     @XmlElement
     private long lastBackupTime; // Timestamp of last backup
     
+    @XmlElement
+    private BackupEncryptionType backupEncryptionType = BackupEncryptionType.PASSWORD;
+    
+    @XmlElement
+    private String backupCredentialId; // Selected credential for password encryption
+    
+    @XmlElement
+    private String backupGpgKeyId; // Selected GPG key for GPG encryption
+    
+    @XmlEnum
+    public enum BackupEncryptionType {
+        @XmlEnumValue("PASSWORD") PASSWORD,
+        @XmlEnumValue("GPG") GPG
+    }
+    
     public GlobalSettings() {}
     
     public int getMaxBackupCount() {
@@ -42,5 +57,29 @@ public class GlobalSettings {
     
     public void setLastBackupTime(long lastBackupTime) {
         this.lastBackupTime = lastBackupTime;
+    }
+    
+    public BackupEncryptionType getBackupEncryptionType() {
+        return backupEncryptionType;
+    }
+    
+    public void setBackupEncryptionType(BackupEncryptionType backupEncryptionType) {
+        this.backupEncryptionType = backupEncryptionType;
+    }
+    
+    public String getBackupCredentialId() {
+        return backupCredentialId;
+    }
+    
+    public void setBackupCredentialId(String backupCredentialId) {
+        this.backupCredentialId = backupCredentialId;
+    }
+    
+    public String getBackupGpgKeyId() {
+        return backupGpgKeyId;
+    }
+    
+    public void setBackupGpgKeyId(String backupGpgKeyId) {
+        this.backupGpgKeyId = backupGpgKeyId;
     }
 }

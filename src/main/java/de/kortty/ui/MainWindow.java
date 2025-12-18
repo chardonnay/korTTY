@@ -471,7 +471,8 @@ public class MainWindow {
     
     private void showSettings() {
         SettingsDialog dialog = new SettingsDialog(stage, app.getConfigManager(), 
-                app.getGlobalSettingsManager().getSettings());
+                app.getGlobalSettingsManager().getSettings(),
+                app.getCredentialManager(), app.getGpgKeyManager());
         
         // Add listener to apply settings changes immediately to all open terminals
         dialog.addChangeListener(() -> {
@@ -1133,8 +1134,9 @@ public class MainWindow {
                 updateMessage("Erstelle Backup...");
                 return app.getBackupManager().createBackup(
                     selectedDir.toPath(),
-                    app.getMasterPasswordManager().getMasterPassword(),
-                    app.getMasterPasswordManager().getDerivedKey()
+                    app.getCredentialManager(),
+                    app.getGpgKeyManager(),
+                    app.getMasterPasswordManager().getMasterPassword()
                 );
             }
         };
@@ -1144,6 +1146,16 @@ public class MainWindow {
             try {
                 long fileSize = java.nio.file.Files.size(backupFile) / 1024; // KB
                 
+                // Determine encryption description
+                String encryptionDesc = "Unbekannt";
+                if (app.getGlobalSettingsManager().getSettings().getBackupEncryptionType() 
+                    == de.kortty.model.GlobalSettings.BackupEncryptionType.PASSWORD) {
+                    encryptionDesc = "ZIP mit Passwort";
+                } else if (app.getGlobalSettingsManager().getSettings().getBackupEncryptionType() 
+                           == de.kortty.model.GlobalSettings.BackupEncryptionType.GPG) {
+                    encryptionDesc = "GPG-Verschlüsselung";
+                }
+                
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
                 success.setTitle("Backup erstellt");
                 success.setHeaderText("Backup erfolgreich erstellt");
@@ -1151,11 +1163,12 @@ public class MainWindow {
                     "Backup wurde erstellt:\n\n" +
                     "Datei: %s\n" +
                     "Größe: %d KB\n" +
-                    "Verschlüsselung: AES-256-GCM\n\n" +
+                    "Verschlüsselung: %s\n\n" +
                     "Das Backup enthält alle Verbindungen, Zugangsdaten,\n" +
                     "GPG-Schlüssel und Einstellungen.",
                     backupFile.getFileName(),
-                    fileSize
+                    fileSize,
+                    encryptionDesc
                 ));
                 success.showAndWait();
                 

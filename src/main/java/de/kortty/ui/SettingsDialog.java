@@ -1,8 +1,12 @@
 package de.kortty.ui;
 
 import de.kortty.core.ConfigurationManager;
+import de.kortty.core.CredentialManager;
+import de.kortty.core.GPGKeyManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.StoredCredential;
+import de.kortty.model.GPGKey;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -24,6 +28,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ConfigurationManager configManager;
     private final ConnectionSettings settings;
     private final GlobalSettings globalSettings;
+    private final CredentialManager credentialManager;
+    private final GPGKeyManager gpgKeyManager;
     private final List<Runnable> changeListeners = new ArrayList<>();
     
     // Font settings
@@ -47,11 +53,18 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     
     // Backup settings
     private final Spinner<Integer> maxBackupSpinner;
+    private final javafx.scene.control.RadioButton passwordEncryptionRadio;
+    private final javafx.scene.control.RadioButton gpgEncryptionRadio;
+    private final ComboBox<StoredCredential> backupCredentialCombo;
+    private final ComboBox<GPGKey> backupGpgKeyCombo;
     
-    public SettingsDialog(Stage owner, ConfigurationManager configManager, GlobalSettings globalSettings) {
+    public SettingsDialog(Stage owner, ConfigurationManager configManager, GlobalSettings globalSettings,
+                          CredentialManager credentialManager, GPGKeyManager gpgKeyManager) {
         this.configManager = configManager;
         this.settings = new ConnectionSettings(configManager.getGlobalSettings());
         this.globalSettings = globalSettings;
+        this.credentialManager = credentialManager;
+        this.gpgKeyManager = gpgKeyManager;
         
         setTitle("Einstellungen");
         setHeaderText("Globale Terminal-Einstellungen");
@@ -193,10 +206,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         backupGrid.setVgap(10);
         backupGrid.setPadding(new Insets(20));
         
+        int backupRow = 0;
+        
         Label backupHeader = new Label("Backup-Einstellungen");
         backupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-        backupGrid.add(backupHeader, 0, 0, 2, 1);
+        backupGrid.add(backupHeader, 0, backupRow++, 2, 1);
         
+        // Max backup count
         Label maxBackupLabel = new Label("Maximale Anzahl Backups:");
         maxBackupLabel.setTooltip(new Tooltip("0 = unbegrenzt, sonst werden älteste Backups gelöscht"));
         
@@ -205,12 +221,109 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         maxBackupSpinner.setPrefWidth(150);
         maxBackupSpinner.setTooltip(new Tooltip("0 = unbegrenzt"));
         
-        backupGrid.add(maxBackupLabel, 0, 1);
-        backupGrid.add(maxBackupSpinner, 1, 1);
+        backupGrid.add(maxBackupLabel, 0, backupRow);
+        backupGrid.add(maxBackupSpinner, 1, backupRow++);
         
         Label infoLabel = new Label("(0 = unbegrenzt, älteste Backups werden automatisch gelöscht)");
         infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
-        backupGrid.add(infoLabel, 0, 2, 2, 1);
+        backupGrid.add(infoLabel, 0, backupRow++, 2, 1);
+        
+        // Verschlüsselung (PFLICHT!)
+        Label encryptionHeader = new Label("Verschlüsselung (Pflicht)");
+        encryptionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        backupGrid.add(encryptionHeader, 0, backupRow++, 2, 1);
+        
+        javafx.scene.control.ToggleGroup encryptionGroup = new javafx.scene.control.ToggleGroup();
+        
+        passwordEncryptionRadio = new javafx.scene.control.RadioButton("ZIP mit Passwort");
+        passwordEncryptionRadio.setToggleGroup(encryptionGroup);
+        passwordEncryptionRadio.setSelected(globalSettings == null || 
+            globalSettings.getBackupEncryptionType() == GlobalSettings.BackupEncryptionType.PASSWORD);
+        backupGrid.add(passwordEncryptionRadio, 0, backupRow++, 2, 1);
+        
+        // Password credential combo
+        backupCredentialCombo = new ComboBox<>();
+        backupCredentialCombo.setPromptText("Passwort aus Verwaltung wählen...");
+        backupCredentialCombo.setPrefWidth(300);
+        backupCredentialCombo.setCellFactory(lv -> new javafx.scene.control.ListCell<StoredCredential>() {
+            @Override
+            protected void updateItem(StoredCredential item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName() + " (" + item.getUsername() + ")");
+            }
+        });
+        backupCredentialCombo.setButtonCell(new javafx.scene.control.ListCell<StoredCredential>() {
+            @Override
+            protected void updateItem(StoredCredential item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName() + " (" + item.getUsername() + ")");
+            }
+        });
+        if (credentialManager != null) {
+            backupCredentialCombo.getItems().addAll(credentialManager.getAllCredentials());
+            // Restore selection
+            if (globalSettings != null && globalSettings.getBackupCredentialId() != null) {
+                credentialManager.findCredentialById(globalSettings.getBackupCredentialId())
+                    .ifPresent(backupCredentialCombo::setValue);
+            }
+        }
+        backupGrid.add(new Label("  Passwort:"), 0, backupRow);
+        backupGrid.add(backupCredentialCombo, 1, backupRow++);
+        
+        // GPG encryption
+        gpgEncryptionRadio = new javafx.scene.control.RadioButton("GPG-Verschlüsselung");
+        gpgEncryptionRadio.setToggleGroup(encryptionGroup);
+        gpgEncryptionRadio.setSelected(globalSettings != null && 
+            globalSettings.getBackupEncryptionType() == GlobalSettings.BackupEncryptionType.GPG);
+        backupGrid.add(gpgEncryptionRadio, 0, backupRow++, 2, 1);
+        
+        // GPG key combo
+        backupGpgKeyCombo = new ComboBox<>();
+        backupGpgKeyCombo.setPromptText("GPG-Schlüssel wählen...");
+        backupGpgKeyCombo.setPrefWidth(300);
+        backupGpgKeyCombo.setCellFactory(lv -> new javafx.scene.control.ListCell<GPGKey>() {
+            @Override
+            protected void updateItem(GPGKey item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName() + " (" + item.getKeyId() + ")");
+            }
+        });
+        backupGpgKeyCombo.setButtonCell(new javafx.scene.control.ListCell<GPGKey>() {
+            @Override
+            protected void updateItem(GPGKey item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName() + " (" + item.getKeyId() + ")");
+            }
+        });
+        if (gpgKeyManager != null) {
+            backupGpgKeyCombo.getItems().addAll(gpgKeyManager.getAllKeys());
+            // Restore selection
+            if (globalSettings != null && globalSettings.getBackupGpgKeyId() != null) {
+                gpgKeyManager.getAllKeys().stream()
+                    .filter(k -> k.getId().equals(globalSettings.getBackupGpgKeyId()))
+                    .findFirst()
+                    .ifPresent(backupGpgKeyCombo::setValue);
+            }
+        }
+        backupGrid.add(new Label("  GPG-Schlüssel:"), 0, backupRow);
+        backupGrid.add(backupGpgKeyCombo, 1, backupRow++);
+        
+        // Dynamic enable/disable based on radio selection
+        backupCredentialCombo.setDisable(!passwordEncryptionRadio.isSelected());
+        backupGpgKeyCombo.setDisable(!gpgEncryptionRadio.isSelected());
+        
+        passwordEncryptionRadio.selectedProperty().addListener((obs, old, selected) -> {
+            backupCredentialCombo.setDisable(!selected);
+        });
+        
+        gpgEncryptionRadio.selectedProperty().addListener((obs, old, selected) -> {
+            backupGpgKeyCombo.setDisable(!selected);
+        });
+        
+        // Warning message
+        Label warningLabel = new Label("⚠ Backups sind IMMER verschlüsselt!");
+        warningLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #d97706; -fx-font-weight: bold;");
+        backupGrid.add(warningLabel, 0, backupRow++, 2, 1);
         
         // Show last backup info
         if (globalSettings != null && globalSettings.getLastBackupTime() > 0) {
@@ -228,8 +341,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             lastBackupValue.setWrapText(true);
             lastBackupValue.setMaxWidth(350);
             
-            backupGrid.add(lastBackupLabel, 0, 3);
-            backupGrid.add(lastBackupValue, 1, 3);
+            backupGrid.add(lastBackupLabel, 0, backupRow);
+            backupGrid.add(lastBackupValue, 1, backupRow++);
         }
         
         backupTab.setContent(backupGrid);
@@ -266,6 +379,30 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         settings.setScrollbackLines(scrollbackSpinner.getValue());
         settings.setBoldAsBright(boldAsBrightCheck.isSelected());
         settings.setEncoding(encodingCombo.getValue());
+        
+        // Save backup settings to GlobalSettings
+        if (globalSettings != null) {
+            globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
+            
+            // Save encryption settings
+            if (passwordEncryptionRadio.isSelected()) {
+                globalSettings.setBackupEncryptionType(GlobalSettings.BackupEncryptionType.PASSWORD);
+                if (backupCredentialCombo.getValue() != null) {
+                    globalSettings.setBackupCredentialId(backupCredentialCombo.getValue().getId());
+                } else {
+                    globalSettings.setBackupCredentialId(null);
+                }
+                globalSettings.setBackupGpgKeyId(null);
+            } else if (gpgEncryptionRadio.isSelected()) {
+                globalSettings.setBackupEncryptionType(GlobalSettings.BackupEncryptionType.GPG);
+                if (backupGpgKeyCombo.getValue() != null) {
+                    globalSettings.setBackupGpgKeyId(backupGpgKeyCombo.getValue().getId());
+                } else {
+                    globalSettings.setBackupGpgKeyId(null);
+                }
+                globalSettings.setBackupCredentialId(null);
+            }
+        }
     }
     
     private void updatePreviewFont(Label previewLabel) {
