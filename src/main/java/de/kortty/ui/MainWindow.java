@@ -733,7 +733,7 @@ public class MainWindow {
                         @Override
                         protected void updateItem(ConnectionExporter item, boolean empty) {
                             super.updateItem(item, empty);
-                            setText(empty || item == null ? "" : item.getName() + " (" + item.getFileDescription() + ")");
+                            setText(empty || item == null ? "" : item.getName());
                         }
                     });
                     combo.setButtonCell(new ListCell<>() {
