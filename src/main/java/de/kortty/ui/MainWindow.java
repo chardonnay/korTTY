@@ -209,6 +209,13 @@ public class MainWindow {
             } else {
                 closeAllTabs();
                 openWindows.remove(this);
+                
+                // If this was the last window, exit the application
+                if (openWindows.isEmpty()) {
+                    logger.info("Last window closed, exiting application");
+                    Platform.exit();
+                    System.exit(0);
+                }
             }
         });
     }
