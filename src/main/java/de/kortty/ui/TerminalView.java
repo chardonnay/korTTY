@@ -127,12 +127,36 @@ public class TerminalView extends BorderPane {
      * Cleans up resources.
      */
     public void cleanup() {
-        if (terminalWidget != null) {
-            terminalWidget.stop();
-            terminalWidget.close();
-        }
+        // Close connection first
         if (ttyConnector != null) {
-            ttyConnector.close();
+            try {
+                ttyConnector.close();
+            } catch (Exception e) {
+                logger.warn("Error closing TtyConnector: {}", e.getMessage());
+            }
+            ttyConnector = null;
+        }
+        
+        // Stop terminal widget - catch JediTermFX bug
+        if (terminalWidget != null) {
+            try {
+                terminalWidget.stop();
+                // Give terminal time to process stop before closing
+                Platform.runLater(() -> {
+                    try {
+                        if (terminalWidget != null) {
+                            terminalWidget.close();
+                        }
+                    } catch (Exception e) {
+                        // Known JediTermFX bug: ClassCastException in WeakRedrawTimer
+                        // This is harmless and can be ignored
+                        logger.debug("Ignoring JediTermFX cleanup exception (known bug): {}", e.getMessage());
+                    }
+                });
+            } catch (Exception e) {
+                logger.debug("Ignoring JediTermFX cleanup exception (known bug): {}", e.getMessage());
+            }
+            terminalWidget = null;
         }
     }
     
