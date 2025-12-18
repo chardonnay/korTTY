@@ -249,7 +249,8 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Restores terminal history cleanly without visible commands.
+     * Restores terminal history by writing to temp file first, then displaying it.
+     * This approach shows only one short command line instead of multi-line here-doc.
      */
     public void restoreHistory(String history) {
         if (history == null || history.isEmpty()) {
@@ -264,20 +265,28 @@ public class TerminalView extends BorderPane {
                         .replaceAll("\\n{3,}", "\n\n") // Max 2 consecutive newlines
                         .trim();
                     
-                    // Strategy: Clear screen, then use cat to output history, then redraw prompt
-                    // This makes the restoration nearly invisible
+                    // Escape for shell (for writing to file via here-doc)
+                    String escapedForFile = cleanHistory;
+                    
+                    // Use a temp file approach - much cleaner!
+                    // 1. Write history to temp file (using very short here-doc 'H')
+                    // 2. Clear screen and cat the file  
+                    // 3. Delete the temp file
+                    // This way only "clear;cat ..." is visible, not the multi-line content
+                    
                     StringBuilder command = new StringBuilder();
+                    String tmpFile = "/tmp/.kortty_hist_$$"; // $$ = current shell PID (unique)
                     
-                    // 1. Clear screen completely
-                    command.append("clear\n");
-                    
-                    // 2. Output history using cat (most reliable for preserving formatting)
-                    command.append("cat<<'HIST'\n");
-                    command.append(cleanHistory);
-                    if (!cleanHistory.endsWith("\n")) {
+                    // Write to temp file (this command is short)
+                    command.append("cat>").append(tmpFile).append("<<H\n");
+                    command.append(escapedForFile);
+                    if (!escapedForFile.endsWith("\n")) {
                         command.append("\n");
                     }
-                    command.append("HIST\n");
+                    command.append("H\n");
+                    
+                    // Clear screen, show file content, delete file (all in one short line)
+                    command.append("clear;cat ").append(tmpFile).append(";rm ").append(tmpFile).append("\n");
                     
                     ttyConnector.write(command.toString());
                     
