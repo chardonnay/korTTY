@@ -799,7 +799,7 @@ public class MainWindow {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Verbindungen exportieren als " + exportResult.exporter.getName());
         
-        if (exportResult.encrypted) {
+        if (exportResult.encrypted()) {
             fileChooser.getExtensionFilters().add(
                     new FileChooser.ExtensionFilter("Verschlüsselte ZIP-Datei", "*.zip")
             );
@@ -815,7 +815,7 @@ public class MainWindow {
         File file = fileChooser.showSaveDialog(stage);
         if (file != null) {
             try {
-                if (exportResult.encrypted) {
+                if (exportResult.encrypted()) {
                     exportAsEncryptedZip(exportResult, file.toPath());
                 } else {
                     exportResult.exporter.exportConnections(exportResult.connections, file.toPath());
@@ -824,7 +824,7 @@ public class MainWindow {
                 showInfo("Export erfolgreich", 
                         exportResult.connections.size() + " Verbindungen exportiert nach " + file.getName() + 
                         "\n\nFormat: " + exportResult.exporter.getName() +
-                        (exportResult.encrypted ? "\nVerschlüsselt: Ja" : ""));
+                        (exportResult.encrypted() ? "\nVerschlüsselt: Ja" : ""));
             } catch (Exception e) {
                 logger.error("Export failed", e);
                 showError("Export fehlgeschlagen", e.getMessage());

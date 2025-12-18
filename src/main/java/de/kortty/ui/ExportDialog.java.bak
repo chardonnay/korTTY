@@ -223,18 +223,11 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
             password = pass1;
         }
         
-        // Determine encryption type
-        EncryptionType encType = EncryptionType.NONE;
-        if (encryptCheckBox.isSelected()) {
-            encType = EncryptionType.PASSWORD;
-        }
-        
         return new ExportResult(
             selected,
             formatCombo.getValue(),
-            encType,
-            password,
-            null  // No GPG key yet
+            encryptCheckBox.isSelected(),
+            password
         );
     }
     
@@ -267,29 +260,18 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         }
     }
     
-    public enum EncryptionType {
-        NONE, PASSWORD, GPG
-    }
-    
     public static class ExportResult {
         public final List<ServerConnection> connections;
         public final ConnectionExporter exporter;
-        public final EncryptionType encryptionType;
-        public final String password;  // For PASSWORD encryption
-        public final de.kortty.model.GPGKey gpgKey;  // For GPG encryption
+        public final boolean encrypted;
+        public final String password;
         
         public ExportResult(List<ServerConnection> connections, ConnectionExporter exporter, 
-                           EncryptionType encryptionType, String password, de.kortty.model.GPGKey gpgKey) {
+                           boolean encrypted, String password) {
             this.connections = connections;
             this.exporter = exporter;
-            this.encryptionType = encryptionType;
+            this.encrypted = encrypted;
             this.password = password;
-            this.gpgKey = gpgKey;
-        }
-        
-        // Legacy property for backward compatibility
-        public boolean encrypted() {
-            return encryptionType != EncryptionType.NONE;
         }
     }
 }
