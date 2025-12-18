@@ -47,6 +47,9 @@ public class KorTTYApplication extends Application {
     public void init() throws Exception {
         instance = this;
         
+        // Install global exception handler to suppress JediTermFX bug
+        installGlobalExceptionHandler();
+        
         // Initialize configuration directory
         Path configDir = getConfigDirectory();
         if (!Files.exists(configDir)) {
@@ -61,6 +64,30 @@ public class KorTTYApplication extends Application {
         
         // Register JMX MBean
         registerJMXBean();
+    }
+    
+    /**
+     * Installs a global exception handler to suppress known harmless exceptions.
+     */
+    private void installGlobalExceptionHandler() {
+        // Set default uncaught exception handler for all threads
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            // Suppress known JediTermFX ClassCastException bug
+            if (throwable instanceof ClassCastException) {
+                String message = throwable.getMessage();
+                if (message != null && message.contains("javafx.animation.KeyFrame") 
+                    && message.contains("javafx.animation.Timeline")) {
+                    // This is the known JediTermFX WeakRedrawTimer bug - ignore it
+                    logger.debug("Suppressed known JediTermFX bug: {}", message);
+                    return;
+                }
+            }
+            
+            // Log all other exceptions
+            logger.error("Uncaught exception in thread {}: {}", thread.getName(), throwable.getMessage(), throwable);
+        });
+        
+        logger.debug("Global exception handler installed");
     }
     
     @Override
