@@ -43,16 +43,7 @@ public class TerminalView extends BorderPane {
         this.defaultFontSize = settings.getFontSize();
         this.currentFontSize = defaultFontSize;
         
-        // Make this view focusable
-        setFocusTraversable(true);
-        
         initializeTerminal();
-        
-        // Add click handler to ensure terminal gets focus when clicked anywhere
-        setOnMouseClicked(event -> {
-            logger.debug("TerminalView clicked, requesting focus");
-            focusTerminal();
-        });
     }
     
     private void initializeTerminal() {
@@ -63,13 +54,7 @@ public class TerminalView extends BorderPane {
         terminalWidget = new JediTermFxWidget(settingsProvider);
         
         // Set the terminal pane as center content
-        var pane = terminalWidget.getPane();
-        setCenter(pane);
-        
-        // Make sure the pane can receive focus
-        if (pane != null) {
-            pane.setFocusTraversable(true);
-        }
+        setCenter(terminalWidget.getPane());
         
         // Request focus on the terminal
         Platform.runLater(() -> {
@@ -91,35 +76,8 @@ public class TerminalView extends BorderPane {
      * Should be called when switching to this terminal tab.
      */
     public void focusTerminal() {
-        if (terminalWidget == null) {
-            return;
-        }
-        
-        // Request focus aggressively on all possible nodes
-        Platform.runLater(() -> {
-            try {
-                // 1. Request focus on the preferred focusable node (most likely to work)
-                var focusNode = terminalWidget.getPreferredFocusableNode();
-                if (focusNode != null) {
-                    focusNode.requestFocus();
-                    logger.debug("Requested focus on preferred node: {}", focusNode.getClass().getSimpleName());
-                }
-                
-                // 2. Request focus on the pane
-                var pane = terminalWidget.getPane();
-                if (pane != null) {
-                    pane.requestFocus();
-                    logger.debug("Requested focus on terminal pane");
-                }
-                
-                // 3. Also focus this view
-                requestFocus();
-                logger.debug("Requested focus on TerminalView");
-                
-            } catch (Exception e) {
-                logger.warn("Error focusing terminal: {}", e.getMessage());
-            }
-        });
+        // Currently not implemented - requires clicking into terminal
+        // Focus handling with JediTermFX is complex due to Swing/JavaFX interaction
     }
     
     /**
