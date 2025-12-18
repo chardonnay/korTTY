@@ -4,9 +4,11 @@ import de.kortty.model.ServerConnection;
 import de.kortty.model.ConnectionSettings;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.control.Alert;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.Priority;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -148,7 +150,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         // Tab 2: Terminal settings
         Tab settingsTab = createSettingsTab();
         
-        tabPane.getTabs().addAll(connectionTab, settingsTab);
+        // Tab 3: SSH Tunnels
+        Tab tunnelsTab = createTunnelsTab();
+        
+        // Tab 4: Jump Server
+        Tab jumpServerTab = createJumpServerTab();
+        
+        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab);
         getDialogPane().setContent(tabPane);
         
         // Buttons
@@ -315,4 +323,133 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 (int) (color.getGreen() * 255),
                 (int) (color.getBlue() * 255));
     }
+
+    
+    private Tab createTunnelsTab() {
+        Tab tab = new Tab("SSH-Tunnel");
+        tab.setClosable(false);
+        
+        VBox vbox = new VBox(15);
+        vbox.setPadding(new Insets(20));
+        
+        // Enable tunnel checkbox
+        CheckBox enableTunnelsCheck = new CheckBox("SSH-Tunnel aktivieren");
+        enableTunnelsCheck.setSelected(!connection.getSshTunnels().isEmpty());
+        
+        // Tunnel list
+        Label label = new Label("Konfigurierte Tunnel:");
+        ListView<String> tunnelList = new ListView<>();
+        
+        // Simple display of existing tunnels
+        for (de.kortty.model.SSHTunnel tunnel : connection.getSshTunnels()) {
+            tunnelList.getItems().add(tunnel.toString());
+        }
+        
+        // Buttons for add/edit/remove
+        HBox buttonBox = new HBox(10);
+        Button addButton = new Button("Hinzufügen");
+        Button editButton = new Button("Bearbeiten");
+        Button removeButton = new Button("Entfernen");
+        
+        addButton.setOnAction(e -> {
+            // TODO: Show tunnel edit dialog
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("SSH-Tunnel");
+            alert.setHeaderText("Funktion in Entwicklung");
+            alert.setContentText("Die SSH-Tunnel-Konfiguration wird in einer späteren Version vollständig implementiert.");
+            alert.showAndWait();
+        });
+        
+        editButton.setDisable(true);
+        removeButton.setDisable(true);
+        
+        tunnelList.getSelectionModel().selectedItemProperty().addListener((obs, old, newVal) -> {
+            boolean selected = newVal != null;
+            editButton.setDisable(!selected);
+            removeButton.setDisable(!selected);
+        });
+        
+        buttonBox.getChildren().addAll(addButton, editButton, removeButton);
+        
+        Label infoLabel = new Label("SSH-Tunnel ermöglichen Port-Forwarding durch den SSH-Server.\n" +
+                "Local: -L localPort:remoteHost:remotePort\n" +
+                "Remote: -R remotePort:localHost:localPort\n" +
+                "Dynamic (SOCKS): -D localPort");
+        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setWrapText(true);
+        
+        vbox.getChildren().addAll(enableTunnelsCheck, new Separator(), label, tunnelList, buttonBox, infoLabel);
+        VBox.setVgrow(tunnelList, Priority.ALWAYS);
+        
+        tab.setContent(vbox);
+        return tab;
+    }
+    
+    private Tab createJumpServerTab() {
+        Tab tab = new Tab("Jump Server");
+        tab.setClosable(false);
+        
+        VBox vbox = new VBox(15);
+        vbox.setPadding(new Insets(20));
+        
+        // Enable jump server checkbox
+        CheckBox enableJumpCheck = new CheckBox("Jump Server / Auto-Hop aktivieren");
+        de.kortty.model.JumpServer jumpServer = connection.getJumpServer();
+        enableJumpCheck.setSelected(jumpServer != null && jumpServer.isEnabled());
+        
+        // Jump server configuration
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setDisable(jumpServer == null || !jumpServer.isEnabled());
+        
+        TextField jumpHostField = new TextField();
+        jumpHostField.setPromptText("Jump-Server Hostname");
+        if (jumpServer != null) jumpHostField.setText(jumpServer.getHost());
+        
+        Spinner<Integer> jumpPortSpinner = new Spinner<>(1, 65535, jumpServer != null ? jumpServer.getPort() : 22);
+        jumpPortSpinner.setEditable(true);
+        jumpPortSpinner.setPrefWidth(80);
+        
+        TextField jumpUserField = new TextField();
+        jumpUserField.setPromptText("Benutzername");
+        if (jumpServer != null) jumpUserField.setText(jumpServer.getUsername());
+        
+        PasswordField jumpPasswordField = new PasswordField();
+        jumpPasswordField.setPromptText("Passwort (optional)");
+        
+        TextField autoCommandField = new TextField();
+        autoCommandField.setPromptText("z.B. ssh user@final-host");
+        if (jumpServer != null) autoCommandField.setText(jumpServer.getAutoCommand());
+        
+        int row = 0;
+        grid.add(new Label("Jump-Server Host:"), 0, row);
+        HBox hostBox = new HBox(10);
+        hostBox.getChildren().addAll(jumpHostField, new Label("Port:"), jumpPortSpinner);
+        grid.add(hostBox, 1, row++);
+        
+        grid.add(new Label("Benutzer:"), 0, row);
+        grid.add(jumpUserField, 1, row++);
+        
+        grid.add(new Label("Passwort:"), 0, row);
+        grid.add(jumpPasswordField, 1, row++);
+        
+        grid.add(new Label("Auto-Befehl:"), 0, row);
+        grid.add(autoCommandField, 1, row++);
+        
+        enableJumpCheck.selectedProperty().addListener((obs, old, newVal) -> {
+            grid.setDisable(!newVal);
+        });
+        
+        Label infoLabel = new Label("Jump Server ermöglicht das automatische Hopping über einen Bastion-Host.\n" +
+                "Der Auto-Befehl wird nach dem Login auf dem Jump-Server ausgeführt.");
+        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setWrapText(true);
+        
+        vbox.getChildren().addAll(enableJumpCheck, new Separator(), grid, infoLabel);
+        
+        tab.setContent(vbox);
+        return tab;
+    }
+    
 }
