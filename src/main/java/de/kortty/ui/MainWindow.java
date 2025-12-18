@@ -29,6 +29,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.zip.ZipOutputStream;
+import java.util.zip.ZipEntry;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -711,67 +714,111 @@ public class MainWindow {
     }
     
     private void exportConnections() {
-        // Create format selection dialog
-        List<ConnectionExporter> exporters = List.of(
-                new KorTTYExporter(),
-                new MTPuTTYExporter(),
-                new MobaXTermExporter()
-        );
+        List<ServerConnection> allConnections = app.getConfigManager().getConnections();
         
-        ChoiceDialog<ConnectionExporter> formatDialog = new ChoiceDialog<>(exporters.get(0), exporters);
-        formatDialog.setTitle("Export-Format wählen");
-        formatDialog.setHeaderText("Wählen Sie das Export-Format");
-        formatDialog.setContentText("Format:");
-        
-        // Custom cell factory to show exporter name
-        formatDialog.getDialogPane().getChildren().stream()
-                .filter(node -> node instanceof ComboBox)
-                .map(node -> (ComboBox<ConnectionExporter>) node)
-                .findFirst()
-                .ifPresent(combo -> {
-                    combo.setCellFactory(lv -> new ListCell<>() {
-                        @Override
-                        protected void updateItem(ConnectionExporter item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? "" : item.getName());
-                        }
-                    });
-                    combo.setButtonCell(new ListCell<>() {
-                        @Override
-                        protected void updateItem(ConnectionExporter item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? "" : item.getName());
-                        }
-                    });
-                });
-        
-        Optional<ConnectionExporter> selectedExporter = formatDialog.showAndWait();
-        if (selectedExporter.isEmpty()) {
+        if (allConnections.isEmpty()) {
+            showInfo("Keine Verbindungen", "Es sind keine Verbindungen zum Exportieren vorhanden.");
             return;
         }
         
-        ConnectionExporter exporter = selectedExporter.get();
+        // Show export dialog
+        ExportDialog dialog = new ExportDialog(stage, allConnections);
+        Optional<ExportDialog.ExportResult> result = dialog.showAndWait();
         
+        if (result.isEmpty() || result.get() == null) {
+            return;
+        }
+        
+        ExportDialog.ExportResult exportResult = result.get();
+        
+        // File chooser
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Verbindungen exportieren als " + exporter.getName());
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter(exporter.getFileDescription(), "*." + exporter.getFileExtension())
-        );
-        fileChooser.setInitialFileName("connections." + exporter.getFileExtension());
+        fileChooser.setTitle("Verbindungen exportieren als " + exportResult.exporter.getName());
+        
+        if (exportResult.encrypted) {
+            fileChooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("Verschlüsselte ZIP-Datei", "*.zip")
+            );
+            fileChooser.setInitialFileName("connections.zip");
+        } else {
+            fileChooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter(exportResult.exporter.getFileDescription(), 
+                            "*." + exportResult.exporter.getFileExtension())
+            );
+            fileChooser.setInitialFileName("connections." + exportResult.exporter.getFileExtension());
+        }
         
         File file = fileChooser.showSaveDialog(stage);
         if (file != null) {
             try {
-                List<ServerConnection> connections = app.getConfigManager().getConnections();
-                exporter.exportConnections(connections, file.toPath());
+                if (exportResult.encrypted) {
+                    exportAsEncryptedZip(exportResult, file.toPath());
+                } else {
+                    exportResult.exporter.exportConnections(exportResult.connections, file.toPath());
+                }
+                
                 showInfo("Export erfolgreich", 
-                        connections.size() + " Verbindungen exportiert nach " + file.getName() + 
-                        "\n\nFormat: " + exporter.getName());
+                        exportResult.connections.size() + " Verbindungen exportiert nach " + file.getName() + 
+                        "\n\nFormat: " + exportResult.exporter.getName() +
+                        (exportResult.encrypted ? "\nVerschlüsselt: Ja" : ""));
             } catch (Exception e) {
                 logger.error("Export failed", e);
                 showError("Export fehlgeschlagen", e.getMessage());
             }
         }
+    }
+    
+    private void exportAsEncryptedZip(ExportDialog.ExportResult exportResult, Path zipFile) throws Exception {
+        // Create temporary file for export
+        Path tempFile = Files.createTempFile("kortty-export", "." + exportResult.exporter.getFileExtension());
+        
+        try {
+            // Export to temp file
+            exportResult.exporter.exportConnections(exportResult.connections, tempFile);
+            
+            // Create encrypted ZIP
+            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+                // Set password if provided (Note: Standard Java ZIP doesn't support encryption)
+                // We'll use a workaround with encrypted content
+                
+                ZipEntry entry = new ZipEntry("connections." + exportResult.exporter.getFileExtension());
+                zos.putNextEntry(entry);
+                
+                // Read and encrypt content
+                byte[] content = Files.readAllBytes(tempFile);
+                byte[] encrypted = encryptContent(content, exportResult.password);
+                zos.write(encrypted);
+                
+                zos.closeEntry();
+            }
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+    
+    private byte[] encryptContent(byte[] data, String password) throws Exception {
+        // Use AES encryption
+        javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+        
+        // Derive key from password
+        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+        byte[] key = digest.digest(password.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        javax.crypto.spec.SecretKeySpec secretKey = new javax.crypto.spec.SecretKeySpec(key, "AES");
+        
+        // Generate IV
+        byte[] iv = new byte[12];
+        new java.security.SecureRandom().nextBytes(iv);
+        javax.crypto.spec.GCMParameterSpec gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, iv);
+        
+        cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, secretKey, gcmSpec);
+        byte[] encrypted = cipher.doFinal(data);
+        
+        // Prepend IV to encrypted data
+        byte[] result = new byte[iv.length + encrypted.length];
+        System.arraycopy(iv, 0, result, 0, iv.length);
+        System.arraycopy(encrypted, 0, result, iv.length, encrypted.length);
+        
+        return result;
     }
     
     private void showAbout() {
