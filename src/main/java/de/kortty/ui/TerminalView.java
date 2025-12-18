@@ -168,6 +168,19 @@ public class TerminalView extends BorderPane {
     }
     
     /**
+     * Sends input to the terminal (for broadcast mode).
+     */
+    public void sendInput(String text) {
+        if (ttyConnector != null && ttyConnector.isConnected()) {
+            try {
+                ttyConnector.write(text);
+            } catch (java.io.IOException e) {
+                logger.error("Failed to send input to terminal", e);
+            }
+        }
+    }
+    
+    /**
      * Copies selected text to clipboard.
      */
     public void copyToClipboard() {
@@ -233,6 +246,41 @@ public class TerminalView extends BorderPane {
             return terminalWidget.getTerminalTextBuffer().getScreenLines();
         }
         return "";
+    }
+    
+    /**
+     * Restores terminal history by displaying it as info text.
+     * Note: Due to JediTermFX limitations, we can only display history as reference text,
+     * not as actual terminal buffer content.
+     */
+    public void restoreHistory(String history) {
+        if (history == null || history.isEmpty()) {
+            return;
+        }
+        
+        Platform.runLater(() -> {
+            if (ttyConnector != null && ttyConnector.isConnected()) {
+                try {
+                    // Escape single quotes in history for shell safety
+                    String escapedHistory = history.replace("'", "'\\''");
+                    
+                    // Use printf to display the history (preserves formatting better than echo)
+                    String command = String.format(
+                        "printf '\\033[2m--- Wiederhergestellte Terminal-Historie ---\\033[0m\\n%s\\n\\033[2m--- Ende der Historie ---\\033[0m\\n'\n",
+                        escapedHistory
+                    );
+                    
+                    // Send command via ttyConnector
+                    ttyConnector.write(command);
+                    
+                    logger.info("Sent history restore command ({} bytes)", history.length());
+                } catch (Exception e) {
+                    logger.error("Failed to restore terminal history", e);
+                }
+            } else {
+                logger.warn("Cannot restore history: terminal not connected");
+            }
+        });
     }
     
     public ServerConnection getConnection() {

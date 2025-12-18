@@ -373,6 +373,13 @@ public class MainWindow {
      * Opens a new SSH connection in a new tab.
      */
     public void openConnection(ServerConnection connection, String password) {
+        openConnection(connection, password, null);
+    }
+    
+    /**
+     * Opens a new SSH connection in a new tab with optional history restore.
+     */
+    public void openConnection(ServerConnection connection, String password, String historyToRestore) {
         try {
             // Create terminal tab with JediTermFX
             TerminalTab terminalTab = new TerminalTab(connection, password);
@@ -392,6 +399,22 @@ public class MainWindow {
                     Platform.runLater(() -> {
                         updateStatus("Verbunden mit " + connection.getDisplayName());
                         updateDashboard();
+                        
+                        // Restore history after connection is established
+                        if (historyToRestore != null && !historyToRestore.isEmpty()) {
+                            // Wait a bit for terminal to be fully initialized
+                            new Thread(() -> {
+                                try {
+                                    Thread.sleep(500); // Give terminal time to settle
+                                    Platform.runLater(() -> {
+                                        terminalTab.getTerminalView().restoreHistory(historyToRestore);
+                                        logger.info("Terminal history restored for {}", connection.getDisplayName());
+                                    });
+                                } catch (InterruptedException e) {
+                                    logger.error("History restore interrupted", e);
+                                }
+                            }).start();
+                        }
                     });
                 } catch (Exception ex) {
                     logger.error("Connection failed", ex);
@@ -730,18 +753,20 @@ public class MainWindow {
                 ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
                 if (connection != null) {
                     if (project.isAutoReconnect()) {
-                        // Get password and reconnect
-                        PasswordVault vault = new PasswordVault(
-                                app.getMasterPasswordManager().getEncryptionService(),
-                                app.getMasterPasswordManager().getMasterPassword()
-                        );
+                        // Get password and reconnect with history restore
                         String password = getConnectionPassword(connection);
                         if (password != null) {
-                            openConnection(connection, password);
+                            String history = sessionState.getTerminalHistory();
+                            openConnection(connection, password, history);
+                            logger.info("Restoring tab for {} with {} chars of history", 
+                                    connection.getDisplayName(), 
+                                    history != null ? history.length() : 0);
                         }
+                    } else {
+                        // TODO: Create read-only tab with history display only (no connection)
+                        logger.info("Auto-reconnect disabled, skipping connection for {}", 
+                                connection.getDisplayName());
                     }
-                    // Restore history if not reconnecting
-                    // TODO: Create tab with history display
                 }
             }
         }
