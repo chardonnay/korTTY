@@ -442,6 +442,12 @@ public class MainWindow {
         QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
                 app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
         dialog.showAndWait().ifPresent(result -> {
+            // Handle load project request
+            if (result.isLoadProject()) {
+                openProject();
+                return;
+            }
+            
             // Handle group connection
             if (result.isGroupConnection()) {
                 openGroupConnections(result.groupName());
