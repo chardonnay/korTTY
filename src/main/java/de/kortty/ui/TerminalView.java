@@ -74,10 +74,12 @@ public class TerminalView extends BorderPane {
     /**
      * Focuses the terminal input, making it ready for keyboard input.
      * Should be called when switching to this terminal tab.
+     * 
+     * Note: Currently not fully implemented due to Swing/JavaFX focus complexity.
+     * User needs to click into terminal after tab switch.
      */
     public void focusTerminal() {
-        // Currently not implemented - requires clicking into terminal
-        // Focus handling with JediTermFX is complex due to Swing/JavaFX interaction
+        // Empty implementation - focus handling is complex with JediTermFX
     }
     
     /**

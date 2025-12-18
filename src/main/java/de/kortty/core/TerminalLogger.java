@@ -33,6 +33,7 @@ public class TerminalLogger {
     private BufferedWriter writer;
     private long currentFileSize = 0;
     private boolean headerWritten = false;
+    private final StringBuilder lineBuffer = new StringBuilder();
     
     public TerminalLogger(TerminalLogConfig config, String connectionName) {
         this.config = config;
@@ -81,6 +82,18 @@ public class TerminalLogger {
         }
         
         running = false;
+        
+        // Flush any remaining buffered data
+        synchronized (lineBuffer) {
+            if (lineBuffer.length() > 0) {
+                String remaining = sanitizeLine(lineBuffer.toString());
+                if (!remaining.isEmpty()) {
+                    logQueue.offer(remaining);
+                }
+                lineBuffer.setLength(0);
+            }
+        }
+        
         writerThread.interrupt();
         
         try {
@@ -94,18 +107,54 @@ public class TerminalLogger {
     }
     
     /**
-     * Logs a line of terminal output.
+     * Logs terminal output data (may be partial).
+     * Data is buffered until a complete line is available.
      */
-    public void log(String line) {
-        if (!running) {
+    public void log(String data) {
+        if (!running || data == null || data.isEmpty()) {
             return;
         }
         
-        // Remove ANSI escape sequences and non-ASCII characters
-        String cleanLine = sanitizeLine(line);
-        
-        if (!logQueue.offer(cleanLine)) {
-            logger.warn("Log queue full for {}, dropping line", connectionName);
+        synchronized (lineBuffer) {
+            // Append data to buffer
+            lineBuffer.append(data);
+            
+            // Process complete lines (ending with \n or \r\n)
+            String bufferContent = lineBuffer.toString();
+            int lastNewline = Math.max(bufferContent.lastIndexOf('\n'), bufferContent.lastIndexOf('\r'));
+            
+            if (lastNewline >= 0) {
+                // Extract complete lines
+                String completeLinesStr = bufferContent.substring(0, lastNewline + 1);
+                String remaining = bufferContent.substring(lastNewline + 1);
+                
+                // Split into individual lines and process
+                String[] lines = completeLinesStr.split("[\\r\\n]+");
+                for (String line : lines) {
+                    if (!line.trim().isEmpty()) {
+                        // Remove ANSI escape sequences and non-ASCII characters
+                        String cleanLine = sanitizeLine(line);
+                        
+                        if (!cleanLine.trim().isEmpty() && !logQueue.offer(cleanLine)) {
+                            logger.warn("Log queue full for {}, dropping line", connectionName);
+                        }
+                    }
+                }
+                
+                // Keep remaining incomplete line in buffer
+                lineBuffer.setLength(0);
+                lineBuffer.append(remaining);
+            }
+            
+            // Prevent buffer from growing too large
+            if (lineBuffer.length() > 10000) {
+                logger.warn("Line buffer too large for {}, flushing", connectionName);
+                String cleanLine = sanitizeLine(lineBuffer.toString());
+                if (!cleanLine.trim().isEmpty()) {
+                    logQueue.offer(cleanLine);
+                }
+                lineBuffer.setLength(0);
+            }
         }
     }
     
@@ -113,24 +162,31 @@ public class TerminalLogger {
      * Sanitizes a line by removing ANSI escape sequences and non-ASCII characters.
      */
     private String sanitizeLine(String line) {
-        if (line == null) {
+        if (line == null || line.isEmpty()) {
             return "";
         }
         
-        // Remove ANSI escape sequences
+        // Remove ANSI CSI escape sequences (ESC[...)
         String cleaned = line.replaceAll("\\x1B\\[[;\\d]*m", "");
         cleaned = cleaned.replaceAll("\\x1B\\[\\?[0-9;]*[a-zA-Z]", "");
-        cleaned = cleaned.replaceAll("\\x1B\\[[0-9;]*[A-Za-z]", "");
+        cleaned = cleaned.replaceAll("\\x1B\\[[0-9;]*[A-Za-z~]", "");
         
-        // Keep only ASCII printable characters, tabs, and newlines
+        // Remove ANSI OSC sequences (ESC]... - like ]3008;...)
+        cleaned = cleaned.replaceAll("\\x1B\\].*?(?:\\x07|\\x1B\\\\)", "");
+        cleaned = cleaned.replaceAll("\\]\\d+;[^\\\\]*\\\\", "");
+        
+        // Remove standalone backslashes at end
+        cleaned = cleaned.replaceAll("\\\\+$", "");
+        
+        // Keep only ASCII printable characters, tabs
         StringBuilder sb = new StringBuilder();
         for (char c : cleaned.toCharArray()) {
-            if ((c >= 32 && c <= 126) || c == '\t' || c == '\n' || c == '\r') {
+            if ((c >= 32 && c <= 126) || c == '\t') {
                 sb.append(c);
             }
         }
         
-        return sb.toString();
+        return sb.toString().trim();
     }
     
     /**
