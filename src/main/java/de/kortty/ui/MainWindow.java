@@ -403,7 +403,8 @@ public class MainWindow {
         );
         
         // Pass saved connections and vault to the dialog
-        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 10);
+        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
+                app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
         dialog.showAndWait().ifPresent(result -> {
             // Handle group connection
             if (result.isGroupConnection()) {
@@ -446,7 +447,7 @@ public class MainWindow {
                     app.getMasterPasswordManager().getMasterPassword()
             );
             
-            String password = vault.retrievePassword(connection);
+            String password = getConnectionPassword(connection);
             if (password == null) {
                 TextInputDialog pwDialog = new TextInputDialog();
                 pwDialog.setTitle("Passwort erforderlich");
@@ -719,7 +720,7 @@ public class MainWindow {
                                 app.getMasterPasswordManager().getEncryptionService(),
                                 app.getMasterPasswordManager().getMasterPassword()
                         );
-                        String password = vault.retrievePassword(connection);
+                        String password = getConnectionPassword(connection);
                         if (password != null) {
                             openConnection(connection, password);
                         }
@@ -1056,6 +1057,42 @@ public class MainWindow {
             logger.error("Failed to show GPG key management", e);
             showError("Fehler", "GPG-Schlüssel-Verwaltung konnte nicht geöffnet werden: " + e.getMessage());
         }
+    }
+
+    
+    /**
+     * Retrieves password for a connection, either from credential store or from encrypted password.
+     * This ensures password changes in credential management are immediately reflected.
+     */
+    private String getConnectionPassword(ServerConnection connection) {
+        // Try credential store first (if credentialId is set)
+        if (connection.getCredentialId() != null) {
+            try {
+                java.util.Optional<de.kortty.model.StoredCredential> credential = 
+                    app.getCredentialManager().findCredentialById(connection.getCredentialId());
+                
+                if (credential.isPresent()) {
+                    String password = app.getCredentialManager().getPassword(
+                        credential.get(), 
+                        app.getMasterPasswordManager().getMasterPassword()
+                    );
+                    if (password != null) {
+                        logger.debug("Using password from credential store for: {}", connection.getDisplayName());
+                        return password;
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to retrieve password from credential store: {}", e.getMessage());
+                // Fall back to stored password
+            }
+        }
+        
+        // Fall back to stored encrypted password in connection
+        PasswordVault vault = new PasswordVault(
+            app.getMasterPasswordManager().getEncryptionService(),
+            app.getMasterPasswordManager().getMasterPassword()
+        );
+        return vault.retrievePassword(connection);
     }
 
 }

@@ -61,6 +61,9 @@ public class ServerConnection {
     @XmlElement
     private JumpServer jumpServer;
     
+    @XmlElement
+    private String credentialId;  // Reference to StoredCredential
+    
     public ServerConnection() {
         this.id = UUID.randomUUID().toString();
         this.settings = new ConnectionSettings();
@@ -210,6 +213,14 @@ public class ServerConnection {
     
     public void setUsageCount(int usageCount) {
         this.usageCount = usageCount;
+    }
+    
+    public String getCredentialId() {
+        return credentialId;
+    }
+    
+    public void setCredentialId(String credentialId) {
+        this.credentialId = credentialId;
     }
     
     public void incrementUsageCount() {

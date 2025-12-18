@@ -21,6 +21,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     
     private final List<ServerConnection> savedConnections;
     private final PasswordVault passwordVault;
+    private final de.kortty.core.CredentialManager credentialManager;
+    private final char[] masterPassword;
     private final int topConnectionsCount;
     
     // Individual connection tab
@@ -35,9 +37,12 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     // Group tab
     private ListView<String> groupListView;
     
-    public QuickConnectDialog(Stage owner, List<ServerConnection> savedConnections, PasswordVault passwordVault, int topConnectionsCount) {
+    public QuickConnectDialog(Stage owner, List<ServerConnection> savedConnections, PasswordVault passwordVault, 
+                              de.kortty.core.CredentialManager credentialManager, char[] masterPassword, int topConnectionsCount) {
         this.savedConnections = savedConnections;
         this.passwordVault = passwordVault;
+        this.credentialManager = credentialManager;
+        this.masterPassword = masterPassword;
         this.topConnectionsCount = topConnectionsCount;
         
         setTitle("Schnellverbindung");
@@ -159,7 +164,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 // Fill in the form and close dialog
                 fillFormWithConnection(conn);
                 setResult(new ConnectionResult(conn, 
-                        passwordVault != null ? passwordVault.retrievePassword(conn) : "", 
+                        getConnectionPassword(conn), 
                         false, true, null));
                 close();
             });
@@ -317,7 +322,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         // Try to retrieve stored password
         if (passwordVault != null) {
-            String storedPassword = passwordVault.retrievePassword(conn);
+            String storedPassword = getConnectionPassword(conn);
             if (storedPassword != null && !storedPassword.isEmpty()) {
                 passwordField.setText(storedPassword);
             } else {
@@ -368,4 +373,31 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             return groupName != null;
         }
     }
+    
+    /**
+     * Retrieves password for a connection, prioritizing credential store.
+     */
+    private String getConnectionPassword(ServerConnection conn) {
+        // Try credential store first
+        if (conn.getCredentialId() != null && credentialManager != null) {
+            try {
+                java.util.Optional<de.kortty.model.StoredCredential> credential = 
+                    credentialManager.findCredentialById(conn.getCredentialId());
+                
+                if (credential.isPresent() && masterPassword != null) {
+                    String password = credentialManager.getPassword(
+                        credential.get(),
+                        masterPassword
+                    );
+                    if (password != null) return password;
+                }
+            } catch (Exception e) {
+                // Fall back to stored password
+            }
+        }
+        
+        // Fall back to stored password
+        return getConnectionPassword(conn);
+    }
+
 }

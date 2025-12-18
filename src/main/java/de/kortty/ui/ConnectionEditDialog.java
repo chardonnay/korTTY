@@ -100,6 +100,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         savedCredentialsCombo.setPromptText("Gespeichertes Passwort auswählen...");
         savedCredentialsCombo.setPrefWidth(300);
         updateCredentialCombo(connection.getHost());
+        
+        // Restore previously selected credential
+        if (connection.getCredentialId() != null && credentialManager != null) {
+            credentialManager.findCredentialById(connection.getCredentialId()).ifPresent(cred -> {
+                savedCredentialsCombo.setValue(cred);
+            });
+        }
         savedCredentialsCombo.setOnAction(e -> {
             StoredCredential selected = savedCredentialsCombo.getValue();
             if (selected != null) {
@@ -107,7 +114,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     usernameField.setText(selected.getUsername());
                     if (credentialManager != null && masterPassword != null) {
                         String password = credentialManager.getPassword(selected, masterPassword);
-                        if (password != null) passwordField.setText(password);
+                        if (password != null) {
+                            passwordField.setText(password);
+                            // Mark that password comes from credential store
+                            passwordField.setPromptText("Aus Zugangsdaten: " + selected.getName());
+                        }
                     }
                 } catch (Exception ex) {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -116,6 +127,8 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     alert.setContentText(ex.getMessage());
                     alert.showAndWait();
                 }
+            } else {
+                passwordField.setPromptText("");
             }
         });
         
@@ -514,11 +527,20 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     private void updateCredentialCombo(String hostname) {
         if (savedCredentialsCombo == null || credentialManager == null) return;
+        
+        // Remember current selection
+        StoredCredential currentSelection = savedCredentialsCombo.getValue();
+        
         savedCredentialsCombo.getItems().clear();
         if (hostname != null && !hostname.trim().isEmpty()) {
             java.util.List<StoredCredential> matchingCredentials = credentialManager.getAllCredentials().stream()
                 .filter(c -> c.matchesServer(hostname)).collect(java.util.stream.Collectors.toList());
             savedCredentialsCombo.getItems().addAll(matchingCredentials);
+            
+            // Restore selection if it still matches
+            if (currentSelection != null && matchingCredentials.contains(currentSelection)) {
+                savedCredentialsCombo.setValue(currentSelection);
+            }
         }
     }
 
