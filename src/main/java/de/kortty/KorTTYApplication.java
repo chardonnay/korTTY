@@ -2,6 +2,8 @@ package de.kortty;
 
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.SessionManager;
+import de.kortty.core.GPGKeyManager;
+import de.kortty.core.CredentialManager;
 import de.kortty.jmx.SSHClientMonitor;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.ui.MainWindow;
@@ -33,6 +35,8 @@ public class KorTTYApplication extends Application {
     private ConfigurationManager configManager;
     private SessionManager sessionManager;
     private MasterPasswordManager masterPasswordManager;
+    private GPGKeyManager gpgKeyManager;
+    private CredentialManager credentialManager;
     
     public static void main(String[] args) {
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
@@ -61,6 +65,8 @@ public class KorTTYApplication extends Application {
         configManager = new ConfigurationManager(configDir);
         sessionManager = new SessionManager();
         masterPasswordManager = new MasterPasswordManager(configDir);
+        gpgKeyManager = new GPGKeyManager(configDir);
+        credentialManager = new CredentialManager(configDir);
         
         // Register JMX MBean
         registerJMXBean();
@@ -100,6 +106,14 @@ public class KorTTYApplication extends Application {
             // Load configuration
             configManager.load(masterPasswordManager.getDerivedKey());
             
+            // Load GPG keys and credentials
+            try {
+                gpgKeyManager.load();
+                credentialManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load GPG keys or credentials", e);
+            }
+            
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
@@ -124,6 +138,18 @@ public class KorTTYApplication extends Application {
         // Save configuration
         if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
             configManager.save(masterPasswordManager.getDerivedKey());
+        }
+        
+        // Save GPG keys and credentials
+        try {
+            if (gpgKeyManager != null) {
+                gpgKeyManager.save();
+            }
+            if (credentialManager != null) {
+                credentialManager.save();
+            }
+        } catch (Exception e) {
+            logger.error("Failed to save GPG keys or credentials", e);
         }
         
         logger.info("{} shutdown complete", APP_NAME);
@@ -178,5 +204,13 @@ public class KorTTYApplication extends Application {
     
     public static String getAppVersion() {
         return APP_VERSION;
+    }
+    
+    public GPGKeyManager getGpgKeyManager() {
+        return gpgKeyManager;
+    }
+    
+    public CredentialManager getCredentialManager() {
+        return credentialManager;
     }
 }

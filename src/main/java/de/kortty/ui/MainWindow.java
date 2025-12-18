@@ -271,6 +271,17 @@ public class MainWindow {
         
         editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), settings);
         
+        // Verwaltung Menu
+        Menu managementMenu = new Menu("Verwaltung");
+        
+        MenuItem manageCredentials = new MenuItem("Zugangsdaten verwalten...");
+        manageCredentials.setOnAction(e -> showCredentialManagement());
+        
+        MenuItem manageGPGKeys = new MenuItem("GPG-Schlüssel verwalten...");
+        manageGPGKeys.setOnAction(e -> showGPGKeyManagement());
+        
+        managementMenu.getItems().addAll(manageCredentials, manageGPGKeys);
+        
         // Ansicht Menu
         Menu viewMenu = new Menu("Ansicht");
         
@@ -323,7 +334,7 @@ public class MainWindow {
         
         helpMenu.getItems().add(about);
         
-        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, connectionsMenu, helpMenu);
+        menuBar.getMenus().addAll(fileMenu, editMenu, managementMenu, viewMenu, connectionsMenu, helpMenu);
         root.setTop(menuBar);
     }
     
@@ -969,4 +980,28 @@ public class MainWindow {
         updateDashboard();
     }
     
+    
+    private void showCredentialManagement() {
+        try {
+            CredentialManagementDialog dialog = new CredentialManagementDialog(
+                app.getCredentialManager(),
+                app.getMasterPasswordManager().getMasterPassword()
+            );
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to show credential management", e);
+            showError("Fehler", "Zugangsdaten-Verwaltung konnte nicht geöffnet werden: " + e.getMessage());
+        }
+    }
+    
+    private void showGPGKeyManagement() {
+        try {
+            GPGKeyManagementDialog dialog = new GPGKeyManagementDialog(app.getGpgKeyManager());
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to show GPG key management", e);
+            showError("Fehler", "GPG-Schlüssel-Verwaltung konnte nicht geöffnet werden: " + e.getMessage());
+        }
+    }
+
 }
