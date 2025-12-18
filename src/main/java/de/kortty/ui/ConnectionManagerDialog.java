@@ -52,6 +52,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         // Create table
         table = new TableView<>(connections);
         table.setPrefSize(600, 400);
+        table.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
         
         TableColumn<ServerConnection, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -93,24 +94,31 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         Button editButton = new Button("Bearbeiten...");
         Button deleteButton = new Button("Löschen");
         Button duplicateButton = new Button("Duplizieren");
+        Button exportButton = new Button("Exportieren...");
         
         editButton.setDisable(true);
         deleteButton.setDisable(true);
         duplicateButton.setDisable(true);
+        exportButton.setDisable(true);
         
         table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
             boolean hasSelection = selected != null;
-            editButton.setDisable(!hasSelection);
+            boolean multipleSelection = table.getSelectionModel().getSelectedItems().size() > 1;
+            
+            editButton.setDisable(!hasSelection || multipleSelection);  // Only single selection
             deleteButton.setDisable(!hasSelection);
-            duplicateButton.setDisable(!hasSelection);
+            duplicateButton.setDisable(!hasSelection || multipleSelection);  // Only single selection
+            exportButton.setDisable(!hasSelection);  // Allow multiple selection
         });
         
         addButton.setOnAction(e -> addConnection());
         editButton.setOnAction(e -> editConnection());
         deleteButton.setOnAction(e -> deleteConnection());
         duplicateButton.setOnAction(e -> duplicateConnection());
+        exportButton.setOnAction(e -> exportConnections());
         
-        VBox buttonBox = new VBox(10, addButton, editButton, deleteButton, duplicateButton);
+        VBox buttonBox = new VBox(10, addButton, editButton, deleteButton, duplicateButton, 
+                              new javafx.scene.control.Separator(), exportButton);
         buttonBox.setAlignment(Pos.TOP_CENTER);
         buttonBox.setPadding(new Insets(0, 0, 0, 10));
         
@@ -218,4 +226,103 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             alert.showAndWait();
         }
     }
+    
+    private void exportConnections() {
+        java.util.List<ServerConnection> selectedConnections = 
+            new java.util.ArrayList<>(table.getSelectionModel().getSelectedItems());
+        
+        if (selectedConnections.isEmpty()) {
+            return;
+        }
+        
+        ConnectionExportDialog dialog = new ConnectionExportDialog(owner, selectedConnections);
+        dialog.showAndWait().ifPresent(result -> {
+            try {
+                exportConnectionsToFile(result);
+                
+                Alert success = new Alert(Alert.AlertType.INFORMATION);
+                success.setTitle("Export erfolgreich");
+                success.setHeaderText(String.format("%d Verbindung(en) exportiert", selectedConnections.size()));
+                success.setContentText("Datei: " + result.exportFile.getAbsolutePath());
+                success.showAndWait();
+            } catch (Exception e) {
+                Alert error = new Alert(Alert.AlertType.ERROR);
+                error.setTitle("Export fehlgeschlagen");
+                error.setHeaderText("Fehler beim Exportieren");
+                error.setContentText(e.getMessage());
+                error.showAndWait();
+            }
+        });
+    }
+    
+    private void exportConnectionsToFile(ConnectionExportDialog.ExportResult result) throws Exception {
+        // Create copies of connections and filter based on options
+        java.util.List<ServerConnection> exportList = new java.util.ArrayList<>();
+        
+        for (ServerConnection conn : result.connections) {
+            ServerConnection copy = new ServerConnection();
+            copy.setName(conn.getName());
+            copy.setHost(conn.getHost());
+            copy.setPort(conn.getPort());
+            copy.setGroup(conn.getGroup());
+            copy.setAuthMethod(conn.getAuthMethod());
+            copy.setPrivateKeyPath(conn.getPrivateKeyPath());
+            
+            // Username (optional)
+            if (result.includeUsername) {
+                copy.setUsername(conn.getUsername());
+            } else {
+                copy.setUsername("");  // Empty but field exists
+            }
+            
+            // Password/CredentialId (optional)
+            if (result.includePassword) {
+                copy.setEncryptedPassword(conn.getEncryptedPassword());
+                copy.setCredentialId(conn.getCredentialId());
+            } else {
+                copy.setEncryptedPassword(null);
+                copy.setCredentialId(null);
+            }
+            
+            // SSH Tunnels (optional)
+            if (result.includeTunnels && conn.getSshTunnels() != null) {
+                copy.setSshTunnels(new java.util.ArrayList<>(conn.getSshTunnels()));
+            }
+            
+            // Jump Server (optional)
+            if (result.includeJumpServer && conn.getJumpServer() != null) {
+                copy.setJumpServer(conn.getJumpServer());
+            }
+            
+            // Copy settings
+            if (conn.getSettings() != null) {
+                copy.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
+            }
+            
+            exportList.add(copy);
+        }
+        
+        // Export to XML using XMLConnectionRepository
+        de.kortty.persistence.XMLConnectionRepository repo = 
+            new de.kortty.persistence.XMLConnectionRepository(result.exportFile.getParentFile().toPath());
+        
+        // Write directly to the selected file
+        jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
+            de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
+            ServerConnection.class,
+            de.kortty.model.SSHTunnel.class,
+            de.kortty.model.JumpServer.class,
+            de.kortty.model.AuthMethod.class,
+            de.kortty.model.TunnelType.class
+        );
+        
+        de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper wrapper = 
+            new de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper();
+        wrapper.setConnections(exportList);
+        
+        jakarta.xml.bind.Marshaller marshaller = context.createMarshaller();
+        marshaller.setProperty(jakarta.xml.bind.Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        marshaller.marshal(wrapper, result.exportFile);
+    }
+
 }
