@@ -59,6 +59,8 @@ public class MainWindow {
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
     
+    private volatile boolean quickConnectDialogOpen = false;
+    
     public MainWindow(Stage stage) {
         this.stage = stage;
         this.app = KorTTYApplication.getInstance();
@@ -89,15 +91,36 @@ public class MainWindow {
         // Add "new tab" button tab
         Tab newTabButton = new Tab("+");
         newTabButton.setClosable(false);
-        newTabButton.setOnSelectionChanged(e -> {
-            if (newTabButton.isSelected()) {
+        tabPane.getTabs().add(newTabButton);
+        
+        // Handle clicks on the + tab - works even when already selected
+        tabPane.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 1 && event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                // Check if + tab is selected after the click
                 Platform.runLater(() -> {
-                    tabPane.getSelectionModel().selectPrevious();
+                    Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                    if (selectedTab == newTabButton && !quickConnectDialogOpen) {
+                        // If there are other tabs, select the previous one first
+                        if (tabPane.getTabs().size() > 1) {
+                            tabPane.getSelectionModel().selectPrevious();
+                        }
+                        showQuickConnect();
+                    }
+                });
+            }
+        });
+        
+        // Also handle keyboard navigation to + tab
+        newTabButton.setOnSelectionChanged(e -> {
+            if (newTabButton.isSelected() && !quickConnectDialogOpen) {
+                Platform.runLater(() -> {
+                    if (tabPane.getTabs().size() > 1) {
+                        tabPane.getSelectionModel().selectPrevious();
+                    }
                     showQuickConnect();
                 });
             }
         });
-        tabPane.getTabs().add(newTabButton);
         
         // Auto-focus terminal when tab is selected
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
@@ -432,16 +455,24 @@ public class MainWindow {
     }
     
     private void showQuickConnect() {
-        // Create password vault for retrieving stored passwords
-        PasswordVault vault = new PasswordVault(
-                app.getMasterPasswordManager().getEncryptionService(),
-                app.getMasterPasswordManager().getMasterPassword()
-        );
+        // Prevent double-opening
+        if (quickConnectDialogOpen) {
+            return;
+        }
         
-        // Pass saved connections and vault to the dialog
-        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
-                app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
-        dialog.showAndWait().ifPresent(result -> {
+        quickConnectDialogOpen = true;
+        
+        try {
+            // Create password vault for retrieving stored passwords
+            PasswordVault vault = new PasswordVault(
+                    app.getMasterPasswordManager().getEncryptionService(),
+                    app.getMasterPasswordManager().getMasterPassword()
+            );
+            
+            // Pass saved connections and vault to the dialog
+            QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
+                    app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
+            dialog.showAndWait().ifPresent(result -> {
             // Handle load project request
             if (result.isLoadProject()) {
                 openProject();
@@ -477,7 +508,10 @@ public class MainWindow {
                 }
             }
             openConnection(result.connection(), password);
-        });
+            });
+        } finally {
+            quickConnectDialogOpen = false;
+        }
     }
     
     private void showConnectionManager() {
