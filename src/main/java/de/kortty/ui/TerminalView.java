@@ -5,6 +5,7 @@ import com.techsenger.jeditermfx.core.TextStyle;
 import com.techsenger.jeditermfx.ui.JediTermFxWidget;
 import com.techsenger.jeditermfx.ui.settings.DefaultSettingsProvider;
 import de.kortty.core.SshTtyConnector;
+import de.kortty.core.DisconnectListener;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ServerConnection;
 import javafx.application.Platform;
@@ -31,6 +32,8 @@ public class TerminalView extends BorderPane {
     private KorTTYSettingsProvider settingsProvider;
     private int currentFontSize;
     private final int defaultFontSize;
+    
+    private DisconnectListener externalDisconnectListener;
     
     public TerminalView(ServerConnection connection, String password) {
         this.connection = connection;
@@ -68,12 +71,27 @@ public class TerminalView extends BorderPane {
     }
     
     /**
+     * Sets a listener to be notified when the SSH connection is disconnected.
+     */
+    public void setDisconnectListener(DisconnectListener listener) {
+        this.externalDisconnectListener = listener;
+    }
+    
+    /**
      * Connects to the SSH server and starts the terminal session.
      */
     public void connect() {
         try {
             // Create TtyConnector
             ttyConnector = new SshTtyConnector(connection, password);
+            
+            // Register disconnect listener
+            ttyConnector.setDisconnectListener((reason, wasError) -> {
+                logger.info("Disconnect event: {} (wasError={})", reason, wasError);
+                if (externalDisconnectListener != null) {
+                    externalDisconnectListener.onDisconnect(reason, wasError);
+                }
+            });
             
             // Connect SSH first
             if (!ttyConnector.connect()) {

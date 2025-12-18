@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ServerConnection;
 import javafx.application.Platform;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
@@ -47,7 +48,32 @@ public class TerminalTab extends Tab {
      * Connects to the SSH server.
      */
     public void connect() {
+        // Register disconnect listener for auto-close on normal exit
+        terminalView.setDisconnectListener((reason, wasError) -> {
+            Platform.runLater(() -> {
+                if (!wasError) {
+                    // Normal exit - auto-close the tab
+                    closeTabSilently();
+                } else {
+                    // Error - keep tab open and update title
+                    setText(connection.getDisplayName() + " (Getrennt)");
+                }
+            });
+        });
+        
         terminalView.connect();
+    }
+    
+    /**
+     * Closes the tab without confirmation dialog.
+     */
+    private void closeTabSilently() {
+        TabPane tabPane = getTabPane();
+        if (tabPane != null) {
+            // Remove close request handler temporarily to avoid confirmation
+            setOnCloseRequest(null);
+            tabPane.getTabs().remove(this);
+        }
     }
     
     /**

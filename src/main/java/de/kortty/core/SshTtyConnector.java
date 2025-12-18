@@ -39,6 +39,9 @@ public class SshTtyConnector implements TtyConnector {
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final Charset charset = StandardCharsets.UTF_8;
     
+    private DisconnectListener disconnectListener;
+    private Thread connectionMonitorThread;
+    
     public SshTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
         this.password = password;
@@ -94,6 +97,10 @@ public class SshTtyConnector implements TtyConnector {
             
             connected.set(true);
             logger.info("Connected to {}", connection.getDisplayName());
+            
+            // Start monitoring thread to detect disconnection
+            startConnectionMonitor();
+            
             return true;
             
         } catch (Exception e) {
@@ -103,9 +110,75 @@ public class SshTtyConnector implements TtyConnector {
         }
     }
     
+    /**
+     * Starts a background thread to monitor the connection status.
+     * This thread detects when the SSH session ends and notifies the listener.
+     */
+    private void startConnectionMonitor() {
+        connectionMonitorThread = new Thread(() -> {
+            try {
+                if (channel != null) {
+                    logger.debug("Connection monitor started for {}", connection.getDisplayName());
+                    
+                    // Wait for channel to close
+                    channel.waitFor(
+                        java.util.EnumSet.of(
+                            org.apache.sshd.client.channel.ClientChannelEvent.CLOSED,
+                            org.apache.sshd.client.channel.ClientChannelEvent.EXIT_SIGNAL,
+                            org.apache.sshd.client.channel.ClientChannelEvent.EXIT_STATUS
+                        ),
+                        0L // Wait indefinitely
+                    );
+                    
+                    // Connection closed - check if it was normal or error
+                    Integer exitStatus = channel.getExitStatus();
+                    String exitSignal = channel.getExitSignal();
+                    
+                    final boolean wasError;
+                    final String reason;
+                    
+                    if (exitSignal != null && !exitSignal.isEmpty()) {
+                        wasError = true;
+                        reason = "Connection terminated with signal: " + exitSignal;
+                    } else if (exitStatus != null && exitStatus != 0) {
+                        wasError = true;
+                        reason = "Connection closed with exit code: " + exitStatus;
+                    } else {
+                        wasError = false;
+                        reason = "Normal exit";
+                    }
+                    
+                    logger.info("SSH connection ended: {} (wasError={})", reason, wasError);
+                    
+                    // Notify listener
+                    if (disconnectListener != null) {
+                        javafx.application.Platform.runLater(() -> {
+                            disconnectListener.onDisconnect(reason, wasError);
+                        });
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("Connection monitor error: {}", e.getMessage());
+                if (disconnectListener != null) {
+                    javafx.application.Platform.runLater(() -> {
+                        disconnectListener.onDisconnect("Connection error: " + e.getMessage(), true);
+                    });
+                }
+            }
+        }, "SSH-Monitor-" + connection.getDisplayName());
+        connectionMonitorThread.setDaemon(true);
+        connectionMonitorThread.start();
+    }
+    
     @Override
     public void close() {
         connected.set(false);
+        
+        // Stop monitor thread
+        if (connectionMonitorThread != null) {
+            connectionMonitorThread.interrupt();
+        }
+        
         try {
             if (channel != null) {
                 channel.close();
@@ -179,6 +252,10 @@ public class SshTtyConnector implements TtyConnector {
                 logger.warn("Failed to resize terminal: {}", e.getMessage());
             }
         }
+    }
+    
+    public void setDisconnectListener(DisconnectListener listener) {
+        this.disconnectListener = listener;
     }
     
     public ServerConnection getConnection() {
