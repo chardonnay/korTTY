@@ -631,8 +631,17 @@ public class MainWindow {
         if (file != null) {
             try {
                 Project project = projectManager.loadProject(file.toPath());
-                loadProject(project);
-                updateStatus("Projekt geladen: " + project.getName());
+                
+                // Show preview dialog
+                ProjectPreviewDialog previewDialog = new ProjectPreviewDialog(stage, project);
+                Optional<ProjectPreviewDialog.OpenProjectOptions> options = previewDialog.showAndWait();
+                
+                if (options.isPresent()) {
+                    // Override auto-reconnect with user choice
+                    project.setAutoReconnect(options.get().autoReconnect);
+                    loadProject(project);
+                    updateStatus("Projekt geladen: " + project.getName());
+                }
             } catch (Exception e) {
                 logger.error("Failed to load project", e);
                 showError("Fehler", "Projekt konnte nicht geladen werden: " + e.getMessage());
@@ -676,44 +685,69 @@ public class MainWindow {
     private Project createProjectFromCurrentState() {
         Project project = new Project("Neues Projekt");
         
-        WindowState windowState = new WindowState(UUID.randomUUID().toString());
-        windowState.setGeometry(new WindowGeometry(
-                stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()
-        ));
-        windowState.getGeometry().setMaximized(stage.isMaximized());
-        
-        for (Tab tab : tabPane.getTabs()) {
-            if (tab instanceof TerminalTab terminalTab) {
-                ServerConnection connection = terminalTab.getConnection();
-                SessionState sessionState = new SessionState(
-                        java.util.UUID.randomUUID().toString(),
-                        connection.getId()
-                );
-                sessionState.setSettings(connection.getSettings());
-                sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
-                windowState.addTab(sessionState);
+        // Save ALL open windows (not just this one)
+        for (MainWindow window : openWindows) {
+            WindowState windowState = new WindowState(UUID.randomUUID().toString());
+            windowState.setGeometry(new WindowGeometry(
+                    window.stage.getX(), window.stage.getY(), 
+                    window.stage.getWidth(), window.stage.getHeight()
+            ));
+            windowState.getGeometry().setMaximized(window.stage.isMaximized());
+            
+            for (Tab tab : window.tabPane.getTabs()) {
+                if (tab instanceof TerminalTab terminalTab) {
+                    ServerConnection connection = terminalTab.getConnection();
+                    SessionState sessionState = new SessionState(
+                            java.util.UUID.randomUUID().toString(),
+                            connection.getId()
+                    );
+                    sessionState.setTabTitle(terminalTab.getText());
+                    sessionState.setSettings(connection.getSettings());
+                    sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
+                    windowState.addTab(sessionState);
+                }
             }
+            
+            windowState.setActiveTabIndex(window.tabPane.getSelectionModel().getSelectedIndex());
+            project.addWindow(windowState);
         }
         
-        windowState.setActiveTabIndex(tabPane.getSelectionModel().getSelectedIndex());
-        project.addWindow(windowState);
+        logger.info("Created project from {} windows with {} total tabs", 
+                   openWindows.size(),
+                   project.getWindows().stream().mapToInt(w -> w.getTabs().size()).sum());
         
         return project;
     }
     
     private void loadProject(Project project) {
-        // Close existing tabs
-        closeAllTabs();
+        logger.info("Loading project with {} windows", project.getWindows().size());
+        
+        // First window: Use current window
+        boolean isFirstWindow = true;
         
         for (WindowState windowState : project.getWindows()) {
+            MainWindow targetWindow;
+            
+            if (isFirstWindow) {
+                // Use current window for first WindowState
+                targetWindow = this;
+                closeAllTabs();
+                isFirstWindow = false;
+            } else {
+                // Create new window for additional WindowStates
+                Stage newStage = new Stage();
+                targetWindow = new MainWindow(newStage);
+                newStage.show();
+            }
+            
             // Apply window geometry
             WindowGeometry geo = windowState.getGeometry();
             if (geo != null) {
-                stage.setX(geo.getX());
-                stage.setY(geo.getY());
-                stage.setWidth(geo.getWidth());
-                stage.setHeight(geo.getHeight());
-                stage.setMaximized(geo.isMaximized());
+                targetWindow.stage.setX(geo.getX());
+                targetWindow.stage.setY(geo.getY());
+                targetWindow.stage.setWidth(geo.getWidth());
+                targetWindow.stage.setHeight(geo.getHeight());
+                targetWindow.stage.setMaximized(geo.isMaximized());
             }
             
             // Restore tabs
@@ -722,23 +756,24 @@ public class MainWindow {
                 if (connection != null) {
                     if (project.isAutoReconnect()) {
                         // Get password and reconnect
-                        PasswordVault vault = new PasswordVault(
-                                app.getMasterPasswordManager().getEncryptionService(),
-                                app.getMasterPasswordManager().getMasterPassword()
-                        );
                         String password = getConnectionPassword(connection);
                         if (password != null) {
-                            openConnection(connection, password);
+                            targetWindow.openConnection(connection, password);
                         }
+                    } else {
+                        // TODO: Create tab with history display only (no connection)
+                        // For now, just don't open anything if auto-reconnect is disabled
                     }
-                    // Restore history if not reconnecting
-                    // TODO: Create tab with history display
                 }
+            }
+            
+            // Show dashboard for first window
+            if (targetWindow == this) {
+                toggleDashboard(true);
             }
         }
         
-        // Show dashboard for projects
-        toggleDashboard(true);
+        logger.info("Project loaded: {} windows restored", project.getWindows().size());
     }
     
     private void importConnections() {
