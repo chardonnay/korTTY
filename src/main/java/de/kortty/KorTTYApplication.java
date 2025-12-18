@@ -4,6 +4,8 @@ import de.kortty.core.ConfigurationManager;
 import de.kortty.core.SessionManager;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.BackupManager;
 import de.kortty.jmx.SSHClientMonitor;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.ui.MainWindow;
@@ -37,6 +39,8 @@ public class KorTTYApplication extends Application {
     private MasterPasswordManager masterPasswordManager;
     private GPGKeyManager gpgKeyManager;
     private CredentialManager credentialManager;
+    private GlobalSettingsManager globalSettingsManager;
+    private BackupManager backupManager;
     
     public static void main(String[] args) {
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
@@ -213,5 +217,13 @@ public class KorTTYApplication extends Application {
     
     public CredentialManager getCredentialManager() {
         return credentialManager;
+    }
+    
+    public GlobalSettingsManager getGlobalSettingsManager() {
+        return globalSettingsManager;
+    }
+    
+    public BackupManager getBackupManager() {
+        return backupManager;
     }
 }

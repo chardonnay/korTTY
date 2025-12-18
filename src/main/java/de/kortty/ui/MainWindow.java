@@ -269,7 +269,11 @@ public class MainWindow {
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
         settings.setOnAction(e -> showSettings());
         
-        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), settings);
+        MenuItem createBackup = new MenuItem("Backup erstellen...");
+        createBackup.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        createBackup.setOnAction(e -> createBackup());
+        
+        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), settings, createBackup);
         
         // Verwaltung Menu
         Menu managementMenu = new Menu("Verwaltung");
@@ -466,7 +470,8 @@ public class MainWindow {
     }
     
     private void showSettings() {
-        SettingsDialog dialog = new SettingsDialog(stage, app.getConfigManager());
+        SettingsDialog dialog = new SettingsDialog(stage, app.getConfigManager(), 
+                app.getGlobalSettingsManager().getSettings());
         
         // Add listener to apply settings changes immediately to all open terminals
         dialog.addChangeListener(() -> {
@@ -1093,6 +1098,94 @@ public class MainWindow {
             app.getMasterPasswordManager().getMasterPassword()
         );
         return vault.retrievePassword(connection);
+    }
+
+    
+    /**
+     * Creates an encrypted backup of all settings.
+     */
+    private void createBackup() {
+        // Show directory chooser
+        javafx.stage.DirectoryChooser dirChooser = new javafx.stage.DirectoryChooser();
+        dirChooser.setTitle("Backup-Ziel auswählen");
+        
+        // Use last backup path as initial directory if available
+        String lastPath = app.getGlobalSettingsManager().getSettings().getLastBackupPath();
+        if (lastPath != null) {
+            java.io.File lastDir = new java.io.File(lastPath);
+            if (lastDir.exists() && lastDir.isDirectory()) {
+                dirChooser.setInitialDirectory(lastDir);
+            }
+        } else {
+            // Default to user home
+            dirChooser.setInitialDirectory(new java.io.File(System.getProperty("user.home")));
+        }
+        
+        java.io.File selectedDir = dirChooser.showDialog(stage);
+        if (selectedDir == null) {
+            return; // User cancelled
+        }
+        
+        // Create backup in background
+        javafx.concurrent.Task<java.nio.file.Path> backupTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected java.nio.file.Path call() throws Exception {
+                updateMessage("Erstelle Backup...");
+                return app.getBackupManager().createBackup(
+                    selectedDir.toPath(),
+                    app.getMasterPasswordManager().getMasterPassword(),
+                    app.getMasterPasswordManager().getDerivedKey()
+                );
+            }
+        };
+        
+        backupTask.setOnSucceeded(e -> {
+            java.nio.file.Path backupFile = backupTask.getValue();
+            try {
+                long fileSize = java.nio.file.Files.size(backupFile) / 1024; // KB
+                
+                Alert success = new Alert(Alert.AlertType.INFORMATION);
+                success.setTitle("Backup erstellt");
+                success.setHeaderText("Backup erfolgreich erstellt");
+                success.setContentText(String.format(
+                    "Backup wurde erstellt:\n\n" +
+                    "Datei: %s\n" +
+                    "Größe: %d KB\n" +
+                    "Verschlüsselung: AES-256-GCM\n\n" +
+                    "Das Backup enthält alle Verbindungen, Zugangsdaten,\n" +
+                    "GPG-Schlüssel und Einstellungen.",
+                    backupFile.getFileName(),
+                    fileSize
+                ));
+                success.showAndWait();
+                
+                // Save global settings (updated by BackupManager)
+                app.getGlobalSettingsManager().save();
+                
+                updateStatus("Backup erfolgreich erstellt: " + backupFile.getFileName());
+                
+            } catch (Exception ex) {
+                logger.error("Failed to get backup file size", ex);
+            }
+        });
+        
+        backupTask.setOnFailed(e -> {
+            Throwable ex = backupTask.getException();
+            logger.error("Backup creation failed", ex);
+            
+            Alert error = new Alert(Alert.AlertType.ERROR);
+            error.setTitle("Fehler");
+            error.setHeaderText("Backup fehlgeschlagen");
+            error.setContentText("Backup konnte nicht erstellt werden:\n" + ex.getMessage());
+            error.showAndWait();
+        });
+        
+        // Update status and run task
+        updateStatus("Erstelle Backup...");
+        
+        Thread thread = new Thread(backupTask);
+        thread.setDaemon(true);
+        thread.start();
     }
 
 }

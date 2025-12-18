@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.core.ConfigurationManager;
 import de.kortty.model.ConnectionSettings;
+import de.kortty.model.GlobalSettings;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -22,6 +23,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     
     private final ConfigurationManager configManager;
     private final ConnectionSettings settings;
+    private final GlobalSettings globalSettings;
     private final List<Runnable> changeListeners = new ArrayList<>();
     
     // Font settings
@@ -43,9 +45,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final CheckBox boldAsBrightCheck;
     private final ComboBox<String> encodingCombo;
     
-    public SettingsDialog(Stage owner, ConfigurationManager configManager) {
+    // Backup settings
+    private final Spinner<Integer> maxBackupSpinner;
+    
+    public SettingsDialog(Stage owner, ConfigurationManager configManager, GlobalSettings globalSettings) {
         this.configManager = configManager;
         this.settings = new ConnectionSettings(configManager.getGlobalSettings());
+        this.globalSettings = globalSettings;
         
         setTitle("Einstellungen");
         setHeaderText("Globale Terminal-Einstellungen");
@@ -180,7 +186,55 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         terminalTab.setContent(terminalGrid);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab);
+        // Backup tab
+        Tab backupTab = new Tab("Backup");
+        GridPane backupGrid = new GridPane();
+        backupGrid.setHgap(10);
+        backupGrid.setVgap(10);
+        backupGrid.setPadding(new Insets(20));
+        
+        Label backupHeader = new Label("Backup-Einstellungen");
+        backupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        backupGrid.add(backupHeader, 0, 0, 2, 1);
+        
+        Label maxBackupLabel = new Label("Maximale Anzahl Backups:");
+        maxBackupLabel.setTooltip(new Tooltip("0 = unbegrenzt, sonst werden älteste Backups gelöscht"));
+        
+        maxBackupSpinner = new Spinner<>(0, 100, globalSettings != null ? globalSettings.getMaxBackupCount() : 10);
+        maxBackupSpinner.setEditable(true);
+        maxBackupSpinner.setPrefWidth(150);
+        maxBackupSpinner.setTooltip(new Tooltip("0 = unbegrenzt"));
+        
+        backupGrid.add(maxBackupLabel, 0, 1);
+        backupGrid.add(maxBackupSpinner, 1, 1);
+        
+        Label infoLabel = new Label("(0 = unbegrenzt, älteste Backups werden automatisch gelöscht)");
+        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        backupGrid.add(infoLabel, 0, 2, 2, 1);
+        
+        // Show last backup info
+        if (globalSettings != null && globalSettings.getLastBackupTime() > 0) {
+            Label lastBackupLabel = new Label("Letztes Backup:");
+            java.time.LocalDateTime lastBackup = java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(globalSettings.getLastBackupTime()),
+                java.time.ZoneId.systemDefault()
+            );
+            String lastBackupText = lastBackup.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"));
+            if (globalSettings.getLastBackupPath() != null) {
+                lastBackupText += "\n→ " + globalSettings.getLastBackupPath();
+            }
+            Label lastBackupValue = new Label(lastBackupText);
+            lastBackupValue.setStyle("-fx-font-size: 10px;");
+            lastBackupValue.setWrapText(true);
+            lastBackupValue.setMaxWidth(350);
+            
+            backupGrid.add(lastBackupLabel, 0, 3);
+            backupGrid.add(lastBackupValue, 1, 3);
+        }
+        
+        backupTab.setContent(backupGrid);
+        
+        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab);
         
         VBox content = new VBox(tabPane);
         content.setPrefSize(500, 400);
