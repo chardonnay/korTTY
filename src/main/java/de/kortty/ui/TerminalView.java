@@ -249,9 +249,7 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Restores terminal history by displaying it as info text.
-     * Note: Due to JediTermFX limitations, we can only display history as reference text,
-     * not as actual terminal buffer content.
+     * Restores terminal history cleanly without visible commands.
      */
     public void restoreHistory(String history) {
         if (history == null || history.isEmpty()) {
@@ -261,19 +259,29 @@ public class TerminalView extends BorderPane {
         Platform.runLater(() -> {
             if (ttyConnector != null && ttyConnector.isConnected()) {
                 try {
-                    // Escape single quotes in history for shell safety
-                    String escapedHistory = history.replace("'", "'\\''");
+                    // Clean up the history - remove excessive empty lines
+                    String cleanHistory = history
+                        .replaceAll("\\n{3,}", "\n\n") // Max 2 consecutive newlines
+                        .trim();
                     
-                    // Use printf to display the history (preserves formatting better than echo)
-                    String command = String.format(
-                        "printf '\\033[2m--- Wiederhergestellte Terminal-Historie ---\\033[0m\\n%s\\n\\033[2m--- Ende der Historie ---\\033[0m\\n'\n",
-                        escapedHistory
-                    );
+                    // Strategy: Clear screen, then use cat to output history, then redraw prompt
+                    // This makes the restoration nearly invisible
+                    StringBuilder command = new StringBuilder();
                     
-                    // Send command via ttyConnector
-                    ttyConnector.write(command);
+                    // 1. Clear screen completely
+                    command.append("clear\n");
                     
-                    logger.info("Sent history restore command ({} bytes)", history.length());
+                    // 2. Output history using cat (most reliable for preserving formatting)
+                    command.append("cat<<'HIST'\n");
+                    command.append(cleanHistory);
+                    if (!cleanHistory.endsWith("\n")) {
+                        command.append("\n");
+                    }
+                    command.append("HIST\n");
+                    
+                    ttyConnector.write(command.toString());
+                    
+                    logger.info("Restored history ({} bytes)", cleanHistory.length());
                 } catch (Exception e) {
                     logger.error("Failed to restore terminal history", e);
                 }
