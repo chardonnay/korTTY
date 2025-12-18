@@ -1,5 +1,7 @@
 package de.kortty.model;
 
+import de.kortty.model.AuthMethod;
+
 import jakarta.xml.bind.annotation.*;
 import java.util.Objects;
 import java.util.UUID;
@@ -200,12 +202,7 @@ public class ServerConnection {
                 ", username='" + username + '\'' +
                 '}';
     }
-    
-    public enum AuthMethod {
-        PASSWORD,
-        PUBLIC_KEY,
-        KEYBOARD_INTERACTIVE
-    }
+
     
     public int getUsageCount() {
         return usageCount;

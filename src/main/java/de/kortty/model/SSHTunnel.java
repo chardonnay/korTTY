@@ -1,5 +1,7 @@
 package de.kortty.model;
 
+import de.kortty.model.TunnelType;
+
 import jakarta.xml.bind.annotation.*;
 
 /**
@@ -29,16 +31,7 @@ public class SSHTunnel {
     
     @XmlElement
     private String description;
-    
-    @XmlEnum
-    public enum TunnelType {
-        @XmlEnumValue("LOCAL")
-        LOCAL,    // Local port forwarding: -L localPort:remoteHost:remotePort
-        @XmlEnumValue("REMOTE")
-        REMOTE,   // Remote port forwarding: -R remotePort:localHost:localPort
-        @XmlEnumValue("DYNAMIC")
-        DYNAMIC   // Dynamic port forwarding (SOCKS): -D localPort
-    }
+
     
     public SSHTunnel() {
     }

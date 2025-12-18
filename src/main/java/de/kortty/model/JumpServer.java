@@ -1,5 +1,7 @@
 package de.kortty.model;
 
+import de.kortty.model.AuthMethod;
+
 import jakarta.xml.bind.annotation.*;
 
 /**
@@ -32,16 +34,7 @@ public class JumpServer {
     
     @XmlElement
     private String autoCommand;  // Command to execute after jump (e.g., "ssh user@final-host")
-    
-    @XmlEnum
-    public enum AuthMethod {
-        @XmlEnumValue("PASSWORD")
-        PASSWORD,
-        @XmlEnumValue("PUBLIC_KEY")
-        PUBLIC_KEY,
-        @XmlEnumValue("KEYBOARD_INTERACTIVE")
-        KEYBOARD_INTERACTIVE
-    }
+
     
     public JumpServer() {
     }

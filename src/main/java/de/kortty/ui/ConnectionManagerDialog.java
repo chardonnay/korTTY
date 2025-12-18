@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import de.kortty.model.AuthMethod;
+
 import de.kortty.core.ConfigurationManager;
 import de.kortty.model.ServerConnection;
 import javafx.collections.FXCollections;

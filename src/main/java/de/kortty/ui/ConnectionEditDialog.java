@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import de.kortty.model.AuthMethod;
+
 import de.kortty.model.ServerConnection;
 import de.kortty.model.ConnectionSettings;
 import javafx.geometry.Insets;
@@ -97,7 +99,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         keyAuthRadio = new RadioButton("Privater Schlüssel");
         keyAuthRadio.setToggleGroup(authMethodGroup);
         
-        if (connection.getAuthMethod() == ServerConnection.AuthMethod.PUBLIC_KEY) {
+        if (connection.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
             keyAuthRadio.setSelected(true);
         } else {
             passwordAuthRadio.setSelected(true);
@@ -184,11 +186,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 connection.setGroup(groupField.getText().trim().isEmpty() ? null : groupField.getText().trim());
                 
                 if (keyAuthRadio.isSelected()) {
-                    connection.setAuthMethod(ServerConnection.AuthMethod.PUBLIC_KEY);
+                    connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
                     connection.setPrivateKeyPath(keyPathField.getText().trim());
                     // Note: Key passphrase should be encrypted before saving
                 } else {
-                    connection.setAuthMethod(ServerConnection.AuthMethod.PASSWORD);
+                    connection.setAuthMethod(AuthMethod.PASSWORD);
                     // Note: Password should be encrypted before saving
                 }
                 

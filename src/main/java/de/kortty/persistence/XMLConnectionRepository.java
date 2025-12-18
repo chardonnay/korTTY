@@ -3,6 +3,8 @@ package de.kortty.persistence;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SSHTunnel;
 import de.kortty.model.JumpServer;
+import de.kortty.model.AuthMethod;
+import de.kortty.model.TunnelType;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
@@ -38,7 +40,7 @@ public class XMLConnectionRepository {
         ConnectionsWrapper wrapper = new ConnectionsWrapper();
         wrapper.setConnections(connections);
         
-        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class);
+        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class, AuthMethod.class, TunnelType.class);
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         
@@ -61,7 +63,7 @@ public class XMLConnectionRepository {
             return new ArrayList<>();
         }
         
-        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class);
+        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class, AuthMethod.class, TunnelType.class);
         Unmarshaller unmarshaller = context.createUnmarshaller();
         
         ConnectionsWrapper wrapper;
@@ -82,7 +84,7 @@ public class XMLConnectionRepository {
         ConnectionsWrapper wrapper = new ConnectionsWrapper();
         wrapper.setConnections(connections);
         
-        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class);
+        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class, AuthMethod.class, TunnelType.class);
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         
@@ -97,7 +99,7 @@ public class XMLConnectionRepository {
      * Imports connections from an XML file.
      */
     public List<ServerConnection> importConnections(Path sourceFile) throws Exception {
-        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class);
+        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class, AuthMethod.class, TunnelType.class);
         Unmarshaller unmarshaller = context.createUnmarshaller();
         
         ConnectionsWrapper wrapper;

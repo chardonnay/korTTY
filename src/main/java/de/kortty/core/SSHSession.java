@@ -1,5 +1,7 @@
 package de.kortty.core;
 
+import de.kortty.model.AuthMethod;
+
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SessionState;
 import org.apache.sshd.client.SshClient;
