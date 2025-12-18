@@ -443,6 +443,15 @@ public class MainWindow {
     
     private void showSettings() {
         SettingsDialog dialog = new SettingsDialog(stage, app.getConfigManager());
+        
+        // Add listener to apply settings changes immediately to all open terminals
+        dialog.addChangeListener(() -> {
+            logger.info("Settings changed, notifying user");
+            Platform.runLater(() -> {
+                updateStatus("Globale Einstellungen gespeichert - wirksam bei neuen Verbindungen");
+            });
+        });
+        
         dialog.showAndWait();
     }
     
@@ -469,19 +478,25 @@ public class MainWindow {
     }
     
     private boolean confirmClose() {
-        long activeSessions = tabPane.getTabs().stream()
+        // Count only active (connected) sessions
+        long activeConnections = tabPane.getTabs().stream()
                 .filter(t -> t instanceof TerminalTab)
+                .map(t -> (TerminalTab) t)
+                .filter(TerminalTab::isConnected)
                 .count();
         
-        if (activeSessions > 0) {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Fenster schließen");
-            alert.setHeaderText("Aktive Verbindungen");
-            alert.setContentText("Es gibt " + activeSessions + " aktive Verbindung(en). Wirklich schließen?");
-            
-            return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+        // No confirmation needed if no active connections
+        if (activeConnections == 0) {
+            return true;
         }
-        return true;
+        
+        // Show confirmation for active connections
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Fenster schließen");
+        alert.setHeaderText("Aktive SSH-Verbindungen");
+        alert.setContentText("Es gibt " + activeConnections + " aktive SSH-Verbindung(en).\nWirklich schließen?");
+        
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
     
     private void selectNextTab() {

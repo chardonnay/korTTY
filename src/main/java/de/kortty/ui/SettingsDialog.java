@@ -13,6 +13,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Dialog for editing global terminal settings.
@@ -21,6 +22,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     
     private final ConfigurationManager configManager;
     private final ConnectionSettings settings;
+    private final List<Runnable> changeListeners = new ArrayList<>();
     
     // Font settings
     private final ComboBox<String> fontFamilyCombo;
@@ -235,5 +237,16 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 (int) (color.getRed() * 255),
                 (int) (color.getGreen() * 255),
                 (int) (color.getBlue() * 255));
+    }
+
+    
+    public void addChangeListener(Runnable listener) {
+        changeListeners.add(listener);
+    }
+    
+    private void notifyListeners() {
+        for (Runnable listener : changeListeners) {
+            listener.run();
+        }
     }
 }
