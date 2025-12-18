@@ -234,6 +234,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
                 connection.setGroup(groupField.getText().trim().isEmpty() ? null : groupField.getText().trim());
                 
+                // Save credential reference
+                if (savedCredentialsCombo.getValue() != null) {
+                    connection.setCredentialId(savedCredentialsCombo.getValue().getId());
+                } else {
+                    connection.setCredentialId(null);
+                }
+                
                 if (keyAuthRadio.isSelected()) {
                     connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
                     connection.setPrivateKeyPath(keyPathField.getText().trim());

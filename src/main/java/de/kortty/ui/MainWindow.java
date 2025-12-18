@@ -439,7 +439,7 @@ public class MainWindow {
     }
     
     private void showConnectionManager() {
-        ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app.getConfigManager(), app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword());
+        ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
         dialog.showAndWait().ifPresent(connection -> {
             // Ask for password if needed
             PasswordVault vault = new PasswordVault(

@@ -397,7 +397,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         }
         
         // Fall back to stored password
-        return getConnectionPassword(conn);
+        return passwordVault != null ? passwordVault.retrievePassword(conn) : "";
     }
 
 }

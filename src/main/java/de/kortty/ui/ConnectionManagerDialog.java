@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.model.AuthMethod;
 
+import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.model.ServerConnection;
@@ -24,6 +25,7 @@ import java.util.Optional;
  */
 public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     
+    private final KorTTYApplication app;
     private final ConfigurationManager configManager;
     private final CredentialManager credentialManager;
     private final char[] masterPassword;
@@ -31,11 +33,11 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private final ObservableList<ServerConnection> connections;
     private final Stage owner;
     
-    public ConnectionManagerDialog(Stage owner, ConfigurationManager configManager,
-                                   CredentialManager credentialManager, char[] masterPassword) {
-        this.configManager = configManager;
-        this.credentialManager = credentialManager;
-        this.masterPassword = masterPassword;
+    public ConnectionManagerDialog(Stage owner, KorTTYApplication app) {
+        this.app = app;
+        this.configManager = app.getConfigManager();
+        this.credentialManager = app.getCredentialManager();
+        this.masterPassword = app.getMasterPasswordManager().getMasterPassword();
         this.owner = owner;
         
         setTitle("Verbindungen verwalten");
@@ -144,6 +146,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             connections.add(connection);
             configManager.addConnection(connection);
             table.getSelectionModel().select(connection);
+            saveConnections();
         });
     }
     
@@ -156,6 +159,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 connections.set(index, connection);
                 configManager.updateConnection(connection);
                 table.getSelectionModel().select(connection);
+                saveConnections();
             });
         }
     }
@@ -172,6 +176,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 if (result == ButtonType.OK) {
                     connections.remove(selected);
                     configManager.removeConnection(selected);
+                    saveConnections();
                 }
             });
         }
@@ -196,6 +201,21 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             connections.add(copy);
             configManager.addConnection(copy);
             table.getSelectionModel().select(copy);
+            saveConnections();
+        }
+    }
+    
+    private void saveConnections() {
+        try {
+            configManager.save(app.getMasterPasswordManager().getDerivedKey());
+            org.slf4j.LoggerFactory.getLogger(getClass()).info("Connections saved successfully");
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(getClass()).error("Failed to save connections", e);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Fehler");
+            alert.setHeaderText("Speichern fehlgeschlagen");
+            alert.setContentText("Die Verbindungen konnten nicht gespeichert werden: " + e.getMessage());
+            alert.showAndWait();
         }
     }
 }
