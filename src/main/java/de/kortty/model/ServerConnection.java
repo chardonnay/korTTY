@@ -47,6 +47,18 @@ public class ServerConnection {
     @XmlElement
     private String group;
     
+    @XmlElement
+    private int usageCount = 0;
+    
+    @XmlElement
+    private long lastUsed = 0;
+    
+    @XmlElement
+    private java.util.List<SSHTunnel> sshTunnels = new java.util.ArrayList<>();
+    
+    @XmlElement
+    private JumpServer jumpServer;
+    
     public ServerConnection() {
         this.id = UUID.randomUUID().toString();
         this.settings = new ConnectionSettings();
@@ -193,5 +205,42 @@ public class ServerConnection {
         PASSWORD,
         PUBLIC_KEY,
         KEYBOARD_INTERACTIVE
+    }
+    
+    public int getUsageCount() {
+        return usageCount;
+    }
+    
+    public void setUsageCount(int usageCount) {
+        this.usageCount = usageCount;
+    }
+    
+    public void incrementUsageCount() {
+        this.usageCount++;
+        this.lastUsed = System.currentTimeMillis();
+    }
+    
+    public long getLastUsed() {
+        return lastUsed;
+    }
+    
+    public void setLastUsed(long lastUsed) {
+        this.lastUsed = lastUsed;
+    }
+    
+    public java.util.List<SSHTunnel> getSshTunnels() {
+        return sshTunnels;
+    }
+    
+    public void setSshTunnels(java.util.List<SSHTunnel> sshTunnels) {
+        this.sshTunnels = sshTunnels;
+    }
+    
+    public JumpServer getJumpServer() {
+        return jumpServer;
+    }
+    
+    public void setJumpServer(JumpServer jumpServer) {
+        this.jumpServer = jumpServer;
     }
 }

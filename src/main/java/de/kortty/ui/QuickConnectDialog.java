@@ -4,43 +4,177 @@ import de.kortty.model.ServerConnection;
 import de.kortty.security.PasswordVault;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Quick connect dialog for entering connection details.
+ * Quick connect dialog with support for:
+ * - Top N most frequently used connections
+ * - Individual connection
+ * - Group selection (open all tabs in a group)
  */
 public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResult> {
     
-    private final ComboBox<ServerConnection> savedConnectionsCombo;
-    private final TextField hostField;
-    private final Spinner<Integer> portSpinner;
-    private final TextField usernameField;
-    private final PasswordField passwordField;
-    private final CheckBox saveConnectionCheck;
-    private final TextField connectionNameField;
-    
     private final List<ServerConnection> savedConnections;
     private final PasswordVault passwordVault;
+    private final int topConnectionsCount;
     
-    public QuickConnectDialog(Stage owner, List<ServerConnection> savedConnections, PasswordVault passwordVault) {
+    // Individual connection tab
+    private ComboBox<ServerConnection> savedConnectionsCombo;
+    private TextField hostField;
+    private Spinner<Integer> portSpinner;
+    private TextField usernameField;
+    private PasswordField passwordField;
+    private CheckBox saveConnectionCheck;
+    private TextField connectionNameField;
+    
+    // Group tab
+    private ListView<String> groupListView;
+    
+    public QuickConnectDialog(Stage owner, List<ServerConnection> savedConnections, PasswordVault passwordVault, int topConnectionsCount) {
         this.savedConnections = savedConnections;
         this.passwordVault = passwordVault;
+        this.topConnectionsCount = topConnectionsCount;
         
         setTitle("Schnellverbindung");
-        setHeaderText("SSH-Verbindung herstellen");
+        setHeaderText(null);
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
+        setResizable(true);
         
-        VBox mainContent = new VBox(15);
-        mainContent.setPadding(new Insets(10, 20, 10, 20));
+        VBox mainContent = new VBox(10);
+        mainContent.setPadding(new Insets(15));
+        mainContent.setPrefWidth(500);
         
-        // Create form fields first (before they are referenced in event handlers)
+        // Top N most used connections
+        if (savedConnections != null && !savedConnections.isEmpty()) {
+            VBox topConnections = createTopConnectionsSection();
+            if (topConnections != null) {
+                mainContent.getChildren().add(topConnections);
+                mainContent.getChildren().add(new Separator());
+            }
+        }
+        
+        // TabPane for Individual vs Group connection
+        TabPane tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        
+        Tab individualTab = new Tab("Einzelverbindung");
+        individualTab.setContent(createIndividualConnectionPane());
+        
+        Tab groupTab = new Tab("Gruppe öffnen");
+        groupTab.setContent(createGroupSelectionPane());
+        
+        tabPane.getTabs().addAll(individualTab, groupTab);
+        
+        mainContent.getChildren().add(tabPane);
+        
+        getDialogPane().setContent(mainContent);
+        
+        // Buttons
+        ButtonType connectButtonType = new ButtonType("Verbinden", ButtonBar.ButtonData.OK_DONE);
+        ButtonType openGroupButtonType = new ButtonType("Gruppe öffnen", ButtonBar.ButtonData.OK_DONE);
+        getDialogPane().getButtonTypes().addAll(connectButtonType, openGroupButtonType, ButtonType.CANCEL);
+        
+        // Show/hide buttons based on selected tab
+        Button connectButton = (Button) getDialogPane().lookupButton(connectButtonType);
+        Button openGroupButton = (Button) getDialogPane().lookupButton(openGroupButtonType);
+        
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab == individualTab) {
+                connectButton.setVisible(true);
+                connectButton.setManaged(true);
+                openGroupButton.setVisible(false);
+                openGroupButton.setManaged(false);
+            } else {
+                connectButton.setVisible(false);
+                connectButton.setManaged(false);
+                openGroupButton.setVisible(true);
+                openGroupButton.setManaged(true);
+            }
+        });
+        
+        // Initially show only connect button
+        openGroupButton.setVisible(false);
+        openGroupButton.setManaged(false);
+        
+        // Enable/disable connect button
+        connectButton.setDisable(true);
+        hostField.textProperty().addListener((obs, old, newVal) -> {
+            connectButton.setDisable(newVal.trim().isEmpty());
+        });
+        
+        // Enable/disable group button
+        openGroupButton.setDisable(true);
+        groupListView.getSelectionModel().selectedItemProperty().addListener((obs, old, newVal) -> {
+            openGroupButton.setDisable(newVal == null);
+        });
+        
+        // Result converter
+        setResultConverter(dialogButton -> {
+            if (dialogButton == connectButtonType) {
+                return createIndividualResult();
+            } else if (dialogButton == openGroupButtonType) {
+                String selectedGroup = groupListView.getSelectionModel().getSelectedItem();
+                if (selectedGroup != null) {
+                    return new ConnectionResult(null, null, false, false, selectedGroup);
+                }
+            }
+            return null;
+        });
+    }
+    
+    private VBox createTopConnectionsSection() {
+        // Get top N most used connections
+        List<ServerConnection> topConnections = savedConnections.stream()
+                .filter(c -> c.getUsageCount() > 0)
+                .sorted((a, b) -> {
+                    // Sort by usage count descending, then by last used descending
+                    int usageCompare = Integer.compare(b.getUsageCount(), a.getUsageCount());
+                    if (usageCompare != 0) return usageCompare;
+                    return Long.compare(b.getLastUsed(), a.getLastUsed());
+                })
+                .limit(topConnectionsCount)
+                .collect(Collectors.toList());
+        
+        if (topConnections.isEmpty()) {
+            return null;
+        }
+        
+        VBox box = new VBox(8);
+        Label label = new Label("Häufig genutzte Verbindungen:");
+        label.setStyle("-fx-font-weight: bold;");
+        
+        FlowPane flowPane = new FlowPane(8, 8);
+        
+        for (ServerConnection conn : topConnections) {
+            Button btn = new Button(conn.getName());
+            btn.setTooltip(new Tooltip(conn.getUsername() + "@" + conn.getHost() + ":" + conn.getPort() + 
+                    "\nVerwendet: " + conn.getUsageCount() + "x"));
+            btn.setOnAction(e -> {
+                // Fill in the form and close dialog
+                fillFormWithConnection(conn);
+                setResult(new ConnectionResult(conn, 
+                        passwordVault != null ? passwordVault.retrievePassword(conn) : "", 
+                        false, true, null));
+                close();
+            });
+            flowPane.getChildren().add(btn);
+        }
+        
+        box.getChildren().addAll(label, flowPane);
+        return box;
+    }
+    
+    private VBox createIndividualConnectionPane() {
+        VBox pane = new VBox(15);
+        pane.setPadding(new Insets(15));
+        
+        // Create form fields
         hostField = new TextField();
         hostField.setPromptText("hostname oder IP");
         hostField.setPrefWidth(250);
@@ -66,7 +200,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             connectionNameField.setDisable(!newVal);
         });
         
-        // Saved connections dropdown (created after fields are initialized)
+        // Saved connections dropdown
         savedConnectionsCombo = new ComboBox<>();
         savedConnectionsCombo.setPromptText("-- Gespeicherte Verbindung auswählen --");
         savedConnectionsCombo.setPrefWidth(400);
@@ -97,34 +231,13 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             savedConnectionsCombo.getItems().addAll(savedConnections);
         }
         
-        // When a saved connection is selected, fill in the fields including password
+        // When a saved connection is selected, fill in the fields
         savedConnectionsCombo.setOnAction(e -> {
             ServerConnection selected = savedConnectionsCombo.getValue();
             if (selected != null) {
-                hostField.setText(selected.getHost());
-                portSpinner.getValueFactory().setValue(selected.getPort());
-                usernameField.setText(selected.getUsername());
-                
-                // Try to retrieve stored password from vault
-                if (passwordVault != null) {
-                    String storedPassword = passwordVault.retrievePassword(selected);
-                    if (storedPassword != null && !storedPassword.isEmpty()) {
-                        passwordField.setText(storedPassword);
-                    } else {
-                        passwordField.clear();
-                        passwordField.requestFocus();
-                    }
-                } else {
-                    passwordField.clear();
-                    passwordField.requestFocus();
-                }
-                saveConnectionCheck.setSelected(false);
+                fillFormWithConnection(selected);
             }
         });
-        
-        // Separator
-        Separator separator = new Separator();
-        separator.setPadding(new Insets(5, 0, 5, 0));
         
         // Layout
         GridPane grid = new GridPane();
@@ -132,7 +245,6 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         grid.setVgap(10);
         
         grid.add(new Label("Host:"), 0, 0);
-        
         HBox hostBox = new HBox(10);
         hostBox.getChildren().addAll(hostField, new Label("Port:"), portSpinner);
         grid.add(hostBox, 1, 0);
@@ -148,69 +260,112 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         grid.add(new Label("Name:"), 0, 4);
         grid.add(connectionNameField, 1, 4);
         
-        // Add all to main content
+        // Add to pane
         if (savedConnections != null && !savedConnections.isEmpty()) {
             Label savedLabel = new Label("Gespeicherte Verbindungen:");
-            mainContent.getChildren().addAll(savedLabel, savedConnectionsCombo, separator);
+            pane.getChildren().addAll(savedLabel, savedConnectionsCombo, new Separator());
         }
-        mainContent.getChildren().add(grid);
+        pane.getChildren().add(grid);
         
-        getDialogPane().setContent(mainContent);
+        return pane;
+    }
+    
+    private VBox createGroupSelectionPane() {
+        VBox pane = new VBox(10);
+        pane.setPadding(new Insets(15));
         
-        // Buttons
-        ButtonType connectButtonType = new ButtonType("Verbinden", ButtonBar.ButtonData.OK_DONE);
-        getDialogPane().getButtonTypes().addAll(connectButtonType, ButtonType.CANCEL);
+        Label label = new Label("Wählen Sie eine Gruppe, um alle Verbindungen dieser Gruppe zu öffnen:");
         
-        // Enable/disable connect button
-        Button connectButton = (Button) getDialogPane().lookupButton(connectButtonType);
-        connectButton.setDisable(true);
+        groupListView = new ListView<>();
         
-        hostField.textProperty().addListener((obs, old, newVal) -> {
-            connectButton.setDisable(newVal.trim().isEmpty());
-        });
-        
-        // Result converter
-        setResultConverter(dialogButton -> {
-            if (dialogButton == connectButtonType) {
-                // Check if using a saved connection
-                ServerConnection selected = savedConnectionsCombo.getValue();
-                if (selected != null && 
-                    selected.getHost().equals(hostField.getText().trim()) &&
-                    selected.getPort() == portSpinner.getValue() &&
-                    selected.getUsername().equals(usernameField.getText().trim())) {
-                    // Using an existing saved connection
-                    return new ConnectionResult(selected, passwordField.getText(), false, true);
-                }
-                
-                ServerConnection connection = new ServerConnection();
-                connection.setHost(hostField.getText().trim());
-                connection.setPort(portSpinner.getValue());
-                connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
-                
-                if (saveConnectionCheck.isSelected()) {
-                    String name = connectionNameField.getText().trim();
-                    connection.setName(name.isEmpty() ? connection.getUsername() + "@" + connection.getHost() : name);
-                }
-                
-                return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false);
-            }
-            return null;
-        });
-        
-        // Focus host field or saved connections
+        // Get all unique groups
         if (savedConnections != null && !savedConnections.isEmpty()) {
-            savedConnectionsCombo.requestFocus();
-        } else {
-            hostField.requestFocus();
+            Set<String> groups = savedConnections.stream()
+                    .map(ServerConnection::getGroup)
+                    .filter(Objects::nonNull)
+                    .filter(g -> !g.trim().isEmpty())
+                    .collect(Collectors.toCollection(TreeSet::new));
+            
+            groupListView.getItems().addAll(groups);
         }
+        
+        groupListView.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    long count = savedConnections.stream()
+                            .filter(c -> item.equals(c.getGroup()))
+                            .count();
+                    setText(item + " (" + count + " Verbindung" + (count != 1 ? "en" : "") + ")");
+                }
+            }
+        });
+        
+        pane.getChildren().addAll(label, groupListView);
+        VBox.setVgrow(groupListView, Priority.ALWAYS);
+        
+        return pane;
+    }
+    
+    private void fillFormWithConnection(ServerConnection conn) {
+        hostField.setText(conn.getHost());
+        portSpinner.getValueFactory().setValue(conn.getPort());
+        usernameField.setText(conn.getUsername());
+        
+        // Try to retrieve stored password
+        if (passwordVault != null) {
+            String storedPassword = passwordVault.retrievePassword(conn);
+            if (storedPassword != null && !storedPassword.isEmpty()) {
+                passwordField.setText(storedPassword);
+            } else {
+                passwordField.clear();
+                passwordField.requestFocus();
+            }
+        } else {
+            passwordField.clear();
+            passwordField.requestFocus();
+        }
+        saveConnectionCheck.setSelected(false);
+    }
+    
+    private ConnectionResult createIndividualResult() {
+        // Check if using a saved connection
+        ServerConnection selected = savedConnectionsCombo.getValue();
+        if (selected != null && 
+            selected.getHost().equals(hostField.getText().trim()) &&
+            selected.getPort() == portSpinner.getValue() &&
+            selected.getUsername().equals(usernameField.getText().trim())) {
+            // Using an existing saved connection
+            return new ConnectionResult(selected, passwordField.getText(), false, true, null);
+        }
+        
+        ServerConnection connection = new ServerConnection();
+        connection.setHost(hostField.getText().trim());
+        connection.setPort(portSpinner.getValue());
+        connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
+        
+        if (saveConnectionCheck.isSelected()) {
+            String name = connectionNameField.getText().trim();
+            connection.setName(name.isEmpty() ? connection.getUsername() + "@" + connection.getHost() : name);
+        }
+        
+        return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false, null);
     }
     
     /**
-     * Result record containing connection details.
-     * @param connection The server connection details
+     * Result containing connection details or group name.
+     * @param connection The server connection details (null for group)
      * @param password The password entered
      * @param save Whether to save this as a new connection
-     * @param existingSaved Whether this is an existing saved connection (password needs to be fetched from vault)
+     * @param existingSaved Whether this is an existing saved connection
+     * @param groupName The group name to open (null for individual connection)
      */
-    public record ConnectionResult(ServerConnection connection, String password, boolean save, boolean existingSaved) {}
+    public record ConnectionResult(ServerConnection connection, String password, boolean save, boolean existingSaved, String groupName) {
+        public boolean isGroupConnection() {
+            return groupName != null;
+        }
+    }
 }

@@ -392,9 +392,21 @@ public class MainWindow {
         );
         
         // Pass saved connections and vault to the dialog
-        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault);
+        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 10);
         dialog.showAndWait().ifPresent(result -> {
+            // Handle group connection
+            if (result.isGroupConnection()) {
+                openGroupConnections(result.groupName());
+                return;
+            }
+            
             String password = result.password();
+            
+            // Increment usage count for existing connection
+            if (result.existingSaved() && result.connection() != null) {
+                result.connection().incrementUsageCount();
+                app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+            }
             
             // Save connection if requested (for new connections)
             if (result.save() && !result.existingSaved()) {
@@ -881,4 +893,60 @@ public class MainWindow {
     public Stage getStage() {
         return stage;
     }
+    
+    /**
+     * Opens all connections in a group as tabs.
+     */
+    private void openGroupConnections(String groupName) {
+        List<ServerConnection> groupConnections = app.getConfigManager().getConnections().stream()
+                .filter(c -> groupName.equals(c.getGroup()))
+                .collect(java.util.stream.Collectors.toList());
+        
+        if (groupConnections.isEmpty()) {
+            logger.warn("No connections found in group: {}", groupName);
+            return;
+        }
+        
+        logger.info("Opening {} connections from group: {}", groupConnections.size(), groupName);
+        
+        // Create password vault for retrieving stored passwords
+        PasswordVault vault = new PasswordVault(
+                app.getMasterPasswordManager().getEncryptionService(),
+                app.getMasterPasswordManager().getMasterPassword()
+        );
+        
+        for (ServerConnection conn : groupConnections) {
+            // Retrieve password from vault
+            String password = vault != null ? vault.retrievePassword(conn) : "";
+            
+            if (password == null || password.isEmpty()) {
+                logger.warn("No password found for connection: {}", conn.getDisplayName());
+                // Skip this connection or show password dialog
+                continue;
+            }
+            
+            // Increment usage count
+            conn.incrementUsageCount();
+            
+            // Open tab
+            TerminalTab tab = new TerminalTab(conn, password);
+            tabPane.getTabs().add(tab);
+            tab.connect();
+            
+            // Select the first tab
+            if (tabPane.getTabs().size() == 1) {
+                tabPane.getSelectionModel().select(tab);
+            }
+        }
+        
+        // Save updated usage counts
+        try {
+            app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+        } catch (Exception e) {
+            logger.error("Failed to save usage counts", e);
+        }
+        
+        updateStatus("Gruppe '" + groupName + "' geöffnet: " + groupConnections.size() + " Verbindungen");
+    }
+    
 }
