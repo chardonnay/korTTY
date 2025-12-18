@@ -38,6 +38,10 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     // Connection-specific settings
     private CheckBox useCustomSettingsCheck;
+    
+    // Tunnel and Jump Server
+    private CheckBox enableTunnelsCheck;
+    private CheckBox enableJumpCheck;
     private ComboBox<String> fontFamilyCombo;
     private Spinner<Integer> fontSizeSpinner;
     private ColorPicker foregroundColorPicker;
@@ -201,6 +205,23 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     connection.setSettings(null); // Use global settings
                 }
                 
+                // Save tunnel settings (checkboxes control enabled state in models)
+                // Tunnels are managed through add/edit/remove buttons
+                // The enabled state is already reflected in the tunnel objects
+                
+                // Save jump server settings
+                if (enableJumpCheck != null && enableJumpCheck.isSelected()) {
+                    // Jump server configuration is saved when checkbox is enabled
+                    // Full implementation TODO: extract values from UI fields
+                    if (connection.getJumpServer() == null) {
+                        connection.setJumpServer(new de.kortty.model.JumpServer());
+                    }
+                    connection.getJumpServer().setEnabled(true);
+                    // TODO: Set host, port, username, password, autoCommand from UI fields
+                } else if (connection.getJumpServer() != null) {
+                    connection.getJumpServer().setEnabled(false);
+                }
+                
                 return connection;
             }
             return null;
@@ -333,7 +354,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         vbox.setPadding(new Insets(20));
         
         // Enable tunnel checkbox
-        CheckBox enableTunnelsCheck = new CheckBox("SSH-Tunnel aktivieren");
+        enableTunnelsCheck = new CheckBox("SSH-Tunnel aktivieren");
         enableTunnelsCheck.setSelected(!connection.getSshTunnels().isEmpty());
         
         // Tunnel list
@@ -393,7 +414,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         vbox.setPadding(new Insets(20));
         
         // Enable jump server checkbox
-        CheckBox enableJumpCheck = new CheckBox("Jump Server / Auto-Hop aktivieren");
+        enableJumpCheck = new CheckBox("Jump Server / Auto-Hop aktivieren");
         de.kortty.model.JumpServer jumpServer = connection.getJumpServer();
         enableJumpCheck.setSelected(jumpServer != null && jumpServer.isEnabled());
         
