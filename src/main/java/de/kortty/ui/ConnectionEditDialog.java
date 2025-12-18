@@ -3,6 +3,8 @@ package de.kortty.ui;
 import de.kortty.model.AuthMethod;
 
 import de.kortty.model.ServerConnection;
+import de.kortty.model.StoredCredential;
+import de.kortty.core.CredentialManager;
 import de.kortty.model.ConnectionSettings;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -24,7 +26,10 @@ import java.io.File;
 public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     private final ServerConnection connection;
-    
+    private final CredentialManager credentialManager;
+    private final char[] masterPassword;
+    private ComboBox<StoredCredential> savedCredentialsCombo;
+
     private final TextField nameField;
     private final TextField hostField;
     private final Spinner<Integer> portSpinner;
@@ -50,8 +55,10 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private ColorPicker backgroundColorPicker;
     private CheckBox closeWithoutConfirmCheck;
     
-    public ConnectionEditDialog(Stage owner, ServerConnection existingConnection) {
+    public ConnectionEditDialog(Stage owner, ServerConnection existingConnection, CredentialManager credentialManager, char[] masterPassword) {
         this.connection = existingConnection != null ? existingConnection : new ServerConnection();
+        this.credentialManager = credentialManager;
+        this.masterPassword = masterPassword;
         
         setTitle(existingConnection == null ? "Neue Verbindung" : "Verbindung bearbeiten");
         setHeaderText(null);
@@ -87,6 +94,30 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         passwordField = new PasswordField();
         // Don't show encrypted password
+        
+        // Saved credentials ComboBox
+        savedCredentialsCombo = new ComboBox<>();
+        savedCredentialsCombo.setPromptText("Gespeichertes Passwort auswählen...");
+        savedCredentialsCombo.setPrefWidth(300);
+        updateCredentialCombo(connection.getHost());
+        savedCredentialsCombo.setOnAction(e -> {
+            StoredCredential selected = savedCredentialsCombo.getValue();
+            if (selected != null) {
+                try {
+                    usernameField.setText(selected.getUsername());
+                    if (credentialManager != null && masterPassword != null) {
+                        String password = credentialManager.getPassword(selected, masterPassword);
+                        if (password != null) passwordField.setText(password);
+                    }
+                } catch (Exception ex) {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Fehler");
+                    alert.setHeaderText("Passwort-Entschlüsselung fehlgeschlagen");
+                    alert.setContentText(ex.getMessage());
+                    alert.showAndWait();
+                }
+            }
+        });
         
         groupField = new TextField(connection.getGroup());
         groupField.setPromptText("Optional - zur Gruppierung");
@@ -142,6 +173,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         HBox authBox = new HBox(15, passwordAuthRadio, keyAuthRadio);
         connectionGrid.add(authBox, 1, row++);
         
+        
+        // Saved credentials
+        connectionGrid.add(new Label("Gespeicherte Zugangsdaten:"), 0, row);
+        connectionGrid.add(savedCredentialsCombo, 1, row++);
+        
         connectionGrid.add(new Label("Passwort:"), 0, row);
         connectionGrid.add(passwordField, 1, row++);
         
@@ -173,7 +209,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         Button saveButton = (Button) getDialogPane().lookupButton(saveButtonType);
         saveButton.setDisable(true);
         
-        hostField.textProperty().addListener((obs, old, newVal) -> validateForm(saveButton));
+        hostField.textProperty().addListener((obs, old, newVal) -> { validateForm(saveButton); updateCredentialCombo(newVal); });
         validateForm(saveButton);
         
         // Result converter
@@ -475,4 +511,15 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         return tab;
     }
     
+    
+    private void updateCredentialCombo(String hostname) {
+        if (savedCredentialsCombo == null || credentialManager == null) return;
+        savedCredentialsCombo.getItems().clear();
+        if (hostname != null && !hostname.trim().isEmpty()) {
+            java.util.List<StoredCredential> matchingCredentials = credentialManager.getAllCredentials().stream()
+                .filter(c -> c.matchesServer(hostname)).collect(java.util.stream.Collectors.toList());
+            savedCredentialsCombo.getItems().addAll(matchingCredentials);
+        }
+    }
+
 }

@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.model.AuthMethod;
 
 import de.kortty.core.ConfigurationManager;
+import de.kortty.core.CredentialManager;
 import de.kortty.model.ServerConnection;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -24,12 +25,17 @@ import java.util.Optional;
 public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     
     private final ConfigurationManager configManager;
+    private final CredentialManager credentialManager;
+    private final char[] masterPassword;
     private final TableView<ServerConnection> table;
     private final ObservableList<ServerConnection> connections;
     private final Stage owner;
     
-    public ConnectionManagerDialog(Stage owner, ConfigurationManager configManager) {
+    public ConnectionManagerDialog(Stage owner, ConfigurationManager configManager,
+                                   CredentialManager credentialManager, char[] masterPassword) {
         this.configManager = configManager;
+        this.credentialManager = credentialManager;
+        this.masterPassword = masterPassword;
         this.owner = owner;
         
         setTitle("Verbindungen verwalten");
@@ -133,7 +139,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     }
     
     private void addConnection() {
-        ConnectionEditDialog dialog = new ConnectionEditDialog(owner, null);
+        ConnectionEditDialog dialog = new ConnectionEditDialog(owner, null, credentialManager, masterPassword);
         dialog.showAndWait().ifPresent(connection -> {
             connections.add(connection);
             configManager.addConnection(connection);
@@ -144,7 +150,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private void editConnection() {
         ServerConnection selected = table.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected);
+            ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected, credentialManager, masterPassword);
             dialog.showAndWait().ifPresent(connection -> {
                 int index = connections.indexOf(selected);
                 connections.set(index, connection);

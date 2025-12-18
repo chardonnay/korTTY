@@ -81,8 +81,9 @@ public class KorTTYApplication extends Application {
             // Suppress known JediTermFX ClassCastException bug
             if (throwable instanceof ClassCastException) {
                 String message = throwable.getMessage();
-                if (message != null && message.contains("javafx.animation.KeyFrame") 
-                    && message.contains("javafx.animation.Timeline")) {
+                // JediTermFX bug can have null message or the specific KeyFrame/Timeline message
+                if (message == null || 
+                    (message.contains("javafx.animation.KeyFrame") && message.contains("javafx.animation.Timeline"))) {
                     // This is the known JediTermFX WeakRedrawTimer bug - silently ignore it
                     return;
                 }
