@@ -77,8 +77,7 @@ public class KorTTYApplication extends Application {
                 String message = throwable.getMessage();
                 if (message != null && message.contains("javafx.animation.KeyFrame") 
                     && message.contains("javafx.animation.Timeline")) {
-                    // This is the known JediTermFX WeakRedrawTimer bug - ignore it
-                    logger.debug("Suppressed known JediTermFX bug: {}", message);
+                    // This is the known JediTermFX WeakRedrawTimer bug - silently ignore it
                     return;
                 }
             }
@@ -87,7 +86,6 @@ public class KorTTYApplication extends Application {
             logger.error("Uncaught exception in thread {}: {}", thread.getName(), throwable.getMessage(), throwable);
         });
         
-        logger.debug("Global exception handler installed");
     }
     
     @Override
