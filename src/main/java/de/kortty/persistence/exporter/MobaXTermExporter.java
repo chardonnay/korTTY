@@ -112,4 +112,10 @@ public class MobaXTermExporter implements ConnectionExporter {
         // Remove characters that might break the INI format
         return name.replace("=", "_").replace("%", "_").replace("#", "_");
     }
+
+    
+    @Override
+    public String toString() {
+        return getName();
+    }
 }

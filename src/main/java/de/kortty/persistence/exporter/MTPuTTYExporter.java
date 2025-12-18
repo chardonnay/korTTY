@@ -107,4 +107,10 @@ public class MTPuTTYExporter implements ConnectionExporter {
         
         logger.info("Exported {} connections to MTPuTTY format: {}", connections.size(), file);
     }
+
+    
+    @Override
+    public String toString() {
+        return getName();
+    }
 }

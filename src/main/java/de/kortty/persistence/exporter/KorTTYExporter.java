@@ -36,4 +36,10 @@ public class KorTTYExporter implements ConnectionExporter {
         repository.saveConnections(connections);
         logger.info("Exported {} connections to KorTTY format: {}", connections.size(), file);
     }
+
+    
+    @Override
+    public String toString() {
+        return getName();
+    }
 }
