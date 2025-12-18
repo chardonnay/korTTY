@@ -330,7 +330,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
 
     
     private void importConnections() {
-        ConnectionImportDialog dialog = new ConnectionImportDialog(owner, credentialManager);
+        ConnectionImportDialog dialog = new ConnectionImportDialog(owner, credentialManager, configManager);
         dialog.showAndWait().ifPresent(result -> {
             try {
                 java.util.List<ServerConnection> importedConnections = importConnectionsFromFile(result);
@@ -385,15 +385,43 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         java.util.List<ServerConnection> importList = new java.util.ArrayList<>();
         
         for (ServerConnection conn : wrapper.getConnections()) {
+            // Group filtering
+            if (result.filterGroups && !result.selectedGroups.isEmpty()) {
+                String connGroup = conn.getGroup();
+                boolean isNoGroup = connGroup == null || connGroup.trim().isEmpty();
+                
+                // Check if connection matches selected groups
+                boolean matchesFilter = false;
+                for (String selectedGroup : result.selectedGroups) {
+                    if (selectedGroup.equals("(keine Gruppe)") && isNoGroup) {
+                        matchesFilter = true;
+                        break;
+                    } else if (!isNoGroup && selectedGroup.equals(connGroup)) {
+                        matchesFilter = true;
+                        break;
+                    }
+                }
+                
+                if (!matchesFilter) {
+                    continue;  // Skip this connection
+                }
+            }
+            
             ServerConnection imported = new ServerConnection();
             
             // Always import basic data
             imported.setName(conn.getName());
             imported.setHost(conn.getHost());
             imported.setPort(conn.getPort());
-            imported.setGroup(conn.getGroup());
             imported.setAuthMethod(conn.getAuthMethod());
             imported.setPrivateKeyPath(conn.getPrivateKeyPath());
+            
+            // Group assignment (target group overrides original group)
+            if (result.assignToGroup && result.targetGroup != null && !result.targetGroup.trim().isEmpty()) {
+                imported.setGroup(result.targetGroup);
+            } else {
+                imported.setGroup(conn.getGroup());
+            }
             
             // Username (conditional)
             if (result.importUsername) {

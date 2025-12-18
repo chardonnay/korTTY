@@ -3,9 +3,11 @@ package de.kortty.ui;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.ConfigurationManager;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -13,6 +15,8 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * Dialog for importing connections with options.
@@ -21,6 +25,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     
     private final Stage owner;
     private final CredentialManager credentialManager;
+    private final ConfigurationManager configManager;
     
     private final CheckBox importUsernameCheck;
     private final CheckBox importPasswordCheck;
@@ -28,8 +33,14 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     private final CheckBox importJumpServerCheck;
     private final CheckBox replaceCredentialsCheck;
     private final ComboBox<StoredCredential> credentialCombo;
+    private final CheckBox filterGroupsCheck;
+    private final ListView<String> groupListView;
+    private final CheckBox assignToGroupCheck;
+    private final ComboBox<String> targetGroupCombo;
+    private final Button newGroupButton;
     private final TextField importPathField;
     private File selectedFile;
+    private List<String> availableGroupsFromFile = new ArrayList<>();
     
     public static class ImportResult {
         public final File importFile;
@@ -39,11 +50,17 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         public final boolean importJumpServer;
         public final boolean replaceCredentials;
         public final StoredCredential replacementCredential;
+        public final boolean filterGroups;
+        public final List<String> selectedGroups;
+        public final boolean assignToGroup;
+        public final String targetGroup;
         
         public ImportResult(File importFile,
                           boolean importUsername, boolean importPassword,
                           boolean importTunnels, boolean importJumpServer,
-                          boolean replaceCredentials, StoredCredential replacementCredential) {
+                          boolean replaceCredentials, StoredCredential replacementCredential,
+                          boolean filterGroups, List<String> selectedGroups,
+                          boolean assignToGroup, String targetGroup) {
             this.importFile = importFile;
             this.importUsername = importUsername;
             this.importPassword = importPassword;
@@ -51,18 +68,24 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
             this.importJumpServer = importJumpServer;
             this.replaceCredentials = replaceCredentials;
             this.replacementCredential = replacementCredential;
+            this.filterGroups = filterGroups;
+            this.selectedGroups = selectedGroups;
+            this.assignToGroup = assignToGroup;
+            this.targetGroup = targetGroup;
         }
     }
     
-    public ConnectionImportDialog(Stage owner, CredentialManager credentialManager) {
+    public ConnectionImportDialog(Stage owner, CredentialManager credentialManager, 
+                                 ConfigurationManager configManager) {
         this.owner = owner;
         this.credentialManager = credentialManager;
+        this.configManager = configManager;
         
         setTitle("Verbindungen importieren");
         setHeaderText("Verbindungen aus Datei importieren");
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
-        setResizable(false);
+        setResizable(true);
         
         // Create form
         GridPane grid = new GridPane();
@@ -85,6 +108,34 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         grid.add(pathLabel, 0, row);
         grid.add(importPathField, 1, row);
         grid.add(browseButton, 2, row++);
+        
+        // Section: Group filter
+        Label groupFilterHeader = new Label("Gruppen-Filter:");
+        groupFilterHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        grid.add(groupFilterHeader, 0, row++, 3, 1);
+        
+        filterGroupsCheck = new CheckBox("Nur bestimmte Gruppen importieren");
+        filterGroupsCheck.setSelected(false);
+        grid.add(filterGroupsCheck, 0, row++, 3, 1);
+        
+        Label groupListLabel = new Label("  Gruppen aus Datei:");
+        groupListView = new ListView<>();
+        groupListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        groupListView.setPrefHeight(100);
+        groupListView.setPrefWidth(300);
+        groupListView.setDisable(true);
+        groupListView.setPlaceholder(new Label("(Datei auswählen, um Gruppen zu sehen)"));
+        
+        grid.add(groupListLabel, 0, row);
+        grid.add(groupListView, 1, row++, 2, 1);
+        
+        Label groupFilterInfo = new Label("(Mehrfachauswahl möglich, leer = keine Gruppe)");
+        groupFilterInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        grid.add(groupFilterInfo, 0, row++, 3, 1);
+        
+        filterGroupsCheck.selectedProperty().addListener((obs, old, selected) -> {
+            groupListView.setDisable(!selected);
+        });
         
         // Section: Import options
         Label importHeader = new Label("Import-Optionen:");
@@ -144,13 +195,45 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         grid.add(credentialLabel, 0, row);
         grid.add(credentialCombo, 1, row++, 2, 1);
         
-        Label replaceInfo = new Label("(Überschreibt Username & Passwort aller importierten Verbindungen)");
-        replaceInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
-        grid.add(replaceInfo, 0, row++, 3, 1);
-        
-        // Dynamic enable/disable
         replaceCredentialsCheck.selectedProperty().addListener((obs, old, selected) -> {
             credentialCombo.setDisable(!selected);
+        });
+        
+        // Section: Target group assignment
+        Label targetGroupHeader = new Label("Ziel-Gruppe:");
+        targetGroupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        grid.add(targetGroupHeader, 0, row++, 3, 1);
+        
+        assignToGroupCheck = new CheckBox("Importierte Verbindungen in Gruppe verschieben");
+        assignToGroupCheck.setSelected(false);
+        grid.add(assignToGroupCheck, 0, row++, 3, 1);
+        
+        Label targetGroupLabel = new Label("  Ziel-Gruppe:");
+        targetGroupCombo = new ComboBox<>();
+        targetGroupCombo.setPromptText("Gruppe auswählen...");
+        targetGroupCombo.setPrefWidth(200);
+        targetGroupCombo.setEditable(false);
+        targetGroupCombo.setDisable(true);
+        
+        // Populate with existing groups
+        updateTargetGroupCombo();
+        
+        newGroupButton = new Button("Neue Gruppe...");
+        newGroupButton.setDisable(true);
+        newGroupButton.setOnAction(e -> createNewGroup());
+        
+        HBox targetGroupBox = new HBox(10, targetGroupCombo, newGroupButton);
+        
+        grid.add(targetGroupLabel, 0, row);
+        grid.add(targetGroupBox, 1, row++, 2, 1);
+        
+        Label targetGroupInfo = new Label("(Überschreibt Gruppe aller importierten Verbindungen)");
+        targetGroupInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        grid.add(targetGroupInfo, 0, row++, 3, 1);
+        
+        assignToGroupCheck.selectedProperty().addListener((obs, old, selected) -> {
+            targetGroupCombo.setDisable(!selected);
+            newGroupButton.setDisable(!selected);
         });
         
         VBox content = new VBox(grid);
@@ -171,15 +254,23 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         // Result converter
         setResultConverter(dialogButton -> {
             if (dialogButton == importButtonType && selectedFile != null) {
-                // Validate if replace credentials is selected
+                // Validate credentials replacement
                 if (replaceCredentialsCheck.isSelected() && credentialCombo.getValue() == null) {
-                    Alert alert = new Alert(Alert.AlertType.WARNING);
-                    alert.setTitle("Warnung");
-                    alert.setHeaderText("Keine Zugangsdaten ausgewählt");
-                    alert.setContentText("Bitte wählen Sie Zugangsdaten aus oder deaktivieren Sie die Option.");
-                    alert.showAndWait();
+                    showWarning("Keine Zugangsdaten ausgewählt", 
+                               "Bitte wählen Sie Zugangsdaten aus oder deaktivieren Sie die Option.");
                     return null;
                 }
+                
+                // Validate group assignment
+                if (assignToGroupCheck.isSelected() && 
+                    (targetGroupCombo.getValue() == null || targetGroupCombo.getValue().trim().isEmpty())) {
+                    showWarning("Keine Gruppe ausgewählt", 
+                               "Bitte wählen Sie eine Gruppe aus oder deaktivieren Sie die Option.");
+                    return null;
+                }
+                
+                // Get selected groups for filtering
+                List<String> selectedGroups = new ArrayList<>(groupListView.getSelectionModel().getSelectedItems());
                 
                 return new ImportResult(
                     selectedFile,
@@ -188,7 +279,11 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
                     importTunnelsCheck.isSelected(),
                     importJumpServerCheck.isSelected(),
                     replaceCredentialsCheck.isSelected(),
-                    credentialCombo.getValue()
+                    credentialCombo.getValue(),
+                    filterGroupsCheck.isSelected(),
+                    selectedGroups,
+                    assignToGroupCheck.isSelected(),
+                    targetGroupCombo.getValue()
                 );
             }
             return null;
@@ -206,6 +301,87 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         selectedFile = fileChooser.showOpenDialog(owner);
         if (selectedFile != null) {
             importPathField.setText(selectedFile.getAbsolutePath());
+            loadGroupsFromFile();
         }
+    }
+    
+    private void loadGroupsFromFile() {
+        try {
+            // Read XML and extract groups
+            jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
+                de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
+                ServerConnection.class,
+                de.kortty.model.SSHTunnel.class,
+                de.kortty.model.JumpServer.class,
+                de.kortty.model.AuthMethod.class,
+                de.kortty.model.TunnelType.class
+            );
+            
+            jakarta.xml.bind.Unmarshaller unmarshaller = context.createUnmarshaller();
+            de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper wrapper = 
+                (de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper) 
+                unmarshaller.unmarshal(selectedFile);
+            
+            // Extract unique groups
+            availableGroupsFromFile = wrapper.getConnections().stream()
+                .map(ServerConnection::getGroup)
+                .filter(g -> g != null && !g.trim().isEmpty())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+            
+            // Add "(keine Gruppe)" for connections without group
+            boolean hasConnectionsWithoutGroup = wrapper.getConnections().stream()
+                .anyMatch(c -> c.getGroup() == null || c.getGroup().trim().isEmpty());
+            
+            if (hasConnectionsWithoutGroup) {
+                availableGroupsFromFile.add(0, "(keine Gruppe)");
+            }
+            
+            groupListView.getItems().clear();
+            groupListView.getItems().addAll(availableGroupsFromFile);
+            
+        } catch (Exception e) {
+            showWarning("Fehler beim Laden der Gruppen", 
+                       "Die Gruppen konnten nicht aus der Datei gelesen werden: " + e.getMessage());
+        }
+    }
+    
+    private void updateTargetGroupCombo() {
+        targetGroupCombo.getItems().clear();
+        
+        // Get all existing groups from configuration
+        if (configManager != null) {
+            List<String> existingGroups = configManager.getConnections().stream()
+                .map(ServerConnection::getGroup)
+                .filter(g -> g != null && !g.trim().isEmpty())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+            
+            targetGroupCombo.getItems().addAll(existingGroups);
+        }
+    }
+    
+    private void createNewGroup() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Neue Gruppe");
+        dialog.setHeaderText("Neue Gruppe erstellen");
+        dialog.setContentText("Gruppenname:");
+        
+        dialog.showAndWait().ifPresent(groupName -> {
+            if (groupName != null && !groupName.trim().isEmpty()) {
+                targetGroupCombo.getItems().add(groupName);
+                targetGroupCombo.setValue(groupName);
+            }
+        });
+    }
+    
+    private void showWarning(String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Warnung");
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 }
