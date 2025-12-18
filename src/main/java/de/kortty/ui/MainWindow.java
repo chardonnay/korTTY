@@ -8,6 +8,10 @@ import de.kortty.model.*;
 import de.kortty.persistence.importer.ConnectionImporter;
 import de.kortty.persistence.importer.MTPuTTYImporter;
 import de.kortty.persistence.importer.MobaXTermImporter;
+import de.kortty.persistence.exporter.ConnectionExporter;
+import de.kortty.persistence.exporter.KorTTYExporter;
+import de.kortty.persistence.exporter.MTPuTTYExporter;
+import de.kortty.persistence.exporter.MobaXTermExporter;
 import de.kortty.security.PasswordVault;
 import javafx.application.Platform;
 import javafx.geometry.Orientation;
@@ -707,17 +711,62 @@ public class MainWindow {
     }
     
     private void exportConnections() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Verbindungen exportieren");
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("XML Dateien", "*.xml")
+        // Create format selection dialog
+        List<ConnectionExporter> exporters = List.of(
+                new KorTTYExporter(),
+                new MTPuTTYExporter(),
+                new MobaXTermExporter()
         );
+        
+        ChoiceDialog<ConnectionExporter> formatDialog = new ChoiceDialog<>(exporters.get(0), exporters);
+        formatDialog.setTitle("Export-Format wählen");
+        formatDialog.setHeaderText("Wählen Sie das Export-Format");
+        formatDialog.setContentText("Format:");
+        
+        // Custom cell factory to show exporter name
+        formatDialog.getDialogPane().getChildren().stream()
+                .filter(node -> node instanceof ComboBox)
+                .map(node -> (ComboBox<ConnectionExporter>) node)
+                .findFirst()
+                .ifPresent(combo -> {
+                    combo.setCellFactory(lv -> new ListCell<>() {
+                        @Override
+                        protected void updateItem(ConnectionExporter item, boolean empty) {
+                            super.updateItem(item, empty);
+                            setText(empty || item == null ? "" : item.getName() + " (" + item.getFileDescription() + ")");
+                        }
+                    });
+                    combo.setButtonCell(new ListCell<>() {
+                        @Override
+                        protected void updateItem(ConnectionExporter item, boolean empty) {
+                            super.updateItem(item, empty);
+                            setText(empty || item == null ? "" : item.getName());
+                        }
+                    });
+                });
+        
+        Optional<ConnectionExporter> selectedExporter = formatDialog.showAndWait();
+        if (selectedExporter.isEmpty()) {
+            return;
+        }
+        
+        ConnectionExporter exporter = selectedExporter.get();
+        
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Verbindungen exportieren als " + exporter.getName());
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(exporter.getFileDescription(), "*." + exporter.getFileExtension())
+        );
+        fileChooser.setInitialFileName("connections." + exporter.getFileExtension());
         
         File file = fileChooser.showSaveDialog(stage);
         if (file != null) {
             try {
-                app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
-                showInfo("Export erfolgreich", "Verbindungen exportiert nach " + file.getName());
+                List<ServerConnection> connections = app.getConfigManager().getConnections();
+                exporter.exportConnections(connections, file.toPath());
+                showInfo("Export erfolgreich", 
+                        connections.size() + " Verbindungen exportiert nach " + file.getName() + 
+                        "\n\nFormat: " + exporter.getName());
             } catch (Exception e) {
                 logger.error("Export failed", e);
                 showError("Export fehlgeschlagen", e.getMessage());
