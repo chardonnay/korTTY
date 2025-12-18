@@ -786,7 +786,7 @@ public class MainWindow {
         }
         
         // Show export dialog
-        ExportDialog dialog = new ExportDialog(stage, allConnections);
+        ExportDialog dialog = new ExportDialog(stage, allConnections, app.getGpgKeyManager());
         Optional<ExportDialog.ExportResult> result = dialog.showAndWait();
         
         if (result.isEmpty() || result.get() == null) {
@@ -799,11 +799,16 @@ public class MainWindow {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Verbindungen exportieren als " + exportResult.exporter.getName());
         
-        if (exportResult.encrypted()) {
+        if (exportResult.encryptionType == ExportDialog.EncryptionType.PASSWORD) {
             fileChooser.getExtensionFilters().add(
                     new FileChooser.ExtensionFilter("Verschlüsselte ZIP-Datei", "*.zip")
             );
             fileChooser.setInitialFileName("connections.zip");
+        } else if (exportResult.encryptionType == ExportDialog.EncryptionType.GPG) {
+            fileChooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("GPG-verschlüsselte Datei", "*.gpg")
+            );
+            fileChooser.setInitialFileName("connections." + exportResult.exporter.getFileExtension() + ".gpg");
         } else {
             fileChooser.getExtensionFilters().add(
                     new FileChooser.ExtensionFilter(exportResult.exporter.getFileDescription(), 
@@ -855,6 +860,55 @@ public class MainWindow {
                 
                 zos.closeEntry();
             }
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+    
+    
+    private void exportAsGPGEncrypted(ExportDialog.ExportResult exportResult, Path gpgFile) throws Exception {
+        // Create temporary file for export
+        Path tempFile = Files.createTempFile("kortty-export", "." + exportResult.exporter.getFileExtension());
+        
+        try {
+            // Export to temp file
+            exportResult.exporter.exportConnections(exportResult.connections, tempFile);
+            
+            // Encrypt with GPG
+            String keyId = exportResult.gpgKey.getKeyId();
+            
+            ProcessBuilder pb = new ProcessBuilder(
+                "gpg",
+                "--encrypt",
+                "--recipient", keyId,
+                "--trust-model", "always",  // Trust the key automatically
+                "--output", gpgFile.toString(),
+                tempFile.toString()
+            );
+            
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            
+            // Read output
+            StringBuilder output = new StringBuilder();
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+            
+            int exitCode = process.waitFor();
+            
+            if (exitCode != 0) {
+                throw new Exception("GPG-Verschlüsselung fehlgeschlagen (Exit Code: " + exitCode + ")\n" +
+                                   "Output: " + output.toString() + "\n" +
+                                   "Stellen Sie sicher, dass GPG installiert ist und der Schlüssel " + keyId + " vorhanden ist.");
+            }
+            
+            logger.info("File encrypted with GPG using key {}: {}", keyId, gpgFile);
+            
         } finally {
             Files.deleteIfExists(tempFile);
         }
