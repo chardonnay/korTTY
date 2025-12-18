@@ -71,6 +71,7 @@ public class KorTTYApplication extends Application {
         masterPasswordManager = new MasterPasswordManager(configDir);
         gpgKeyManager = new GPGKeyManager(configDir);
         credentialManager = new CredentialManager(configDir);
+        globalSettingsManager = new GlobalSettingsManager(configDir);
         
         // Register JMX MBean
         registerJMXBean();
@@ -115,6 +116,10 @@ public class KorTTYApplication extends Application {
             try {
                 gpgKeyManager.load();
                 credentialManager.load();
+                globalSettingsManager.load();
+                
+                // Initialize BackupManager after settings are loaded
+                backupManager = new BackupManager(getConfigDirectory(), globalSettingsManager.getSettings());
             } catch (Exception e) {
                 logger.warn("Failed to load GPG keys or credentials", e);
             }
@@ -152,6 +157,9 @@ public class KorTTYApplication extends Application {
             }
             if (credentialManager != null) {
                 credentialManager.save();
+            }
+            if (globalSettingsManager != null) {
+                globalSettingsManager.save();
             }
         } catch (Exception e) {
             logger.error("Failed to save GPG keys or credentials", e);
