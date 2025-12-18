@@ -95,11 +95,13 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         Button deleteButton = new Button("Löschen");
         Button duplicateButton = new Button("Duplizieren");
         Button exportButton = new Button("Exportieren...");
+        Button importButton = new Button("Importieren...");
         
         editButton.setDisable(true);
         deleteButton.setDisable(true);
         duplicateButton.setDisable(true);
         exportButton.setDisable(true);
+        // importButton always enabled
         
         table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
             boolean hasSelection = selected != null;
@@ -116,9 +118,10 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         deleteButton.setOnAction(e -> deleteConnection());
         duplicateButton.setOnAction(e -> duplicateConnection());
         exportButton.setOnAction(e -> exportConnections());
+        importButton.setOnAction(e -> importConnections());
         
         VBox buttonBox = new VBox(10, addButton, editButton, deleteButton, duplicateButton, 
-                              new javafx.scene.control.Separator(), exportButton);
+                              new javafx.scene.control.Separator(), exportButton, importButton);
         buttonBox.setAlignment(Pos.TOP_CENTER);
         buttonBox.setPadding(new Insets(0, 0, 0, 10));
         
@@ -323,6 +326,115 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         jakarta.xml.bind.Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(jakarta.xml.bind.Marshaller.JAXB_FORMATTED_OUTPUT, true);
         marshaller.marshal(wrapper, result.exportFile);
+    }
+
+    
+    private void importConnections() {
+        ConnectionImportDialog dialog = new ConnectionImportDialog(owner, credentialManager);
+        dialog.showAndWait().ifPresent(result -> {
+            try {
+                java.util.List<ServerConnection> importedConnections = importConnectionsFromFile(result);
+                
+                // Add to connections list and config
+                int successCount = 0;
+                for (ServerConnection conn : importedConnections) {
+                    connections.add(conn);
+                    configManager.addConnection(conn);
+                    successCount++;
+                }
+                
+                // Save
+                saveConnections();
+                
+                Alert success = new Alert(Alert.AlertType.INFORMATION);
+                success.setTitle("Import erfolgreich");
+                success.setHeaderText(String.format("%d Verbindung(en) importiert", successCount));
+                success.setContentText("Die Verbindungen wurden erfolgreich hinzugefügt.");
+                success.showAndWait();
+                
+                // Select first imported connection
+                if (!importedConnections.isEmpty()) {
+                    table.getSelectionModel().select(importedConnections.get(0));
+                }
+            } catch (Exception e) {
+                Alert error = new Alert(Alert.AlertType.ERROR);
+                error.setTitle("Import fehlgeschlagen");
+                error.setHeaderText("Fehler beim Importieren");
+                error.setContentText(e.getMessage());
+                error.showAndWait();
+            }
+        });
+    }
+    
+    private java.util.List<ServerConnection> importConnectionsFromFile(ConnectionImportDialog.ImportResult result) throws Exception {
+        // Read XML file
+        jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
+            de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
+            ServerConnection.class,
+            de.kortty.model.SSHTunnel.class,
+            de.kortty.model.JumpServer.class,
+            de.kortty.model.AuthMethod.class,
+            de.kortty.model.TunnelType.class
+        );
+        
+        jakarta.xml.bind.Unmarshaller unmarshaller = context.createUnmarshaller();
+        de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper wrapper = 
+            (de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper) 
+            unmarshaller.unmarshal(result.importFile);
+        
+        java.util.List<ServerConnection> importList = new java.util.ArrayList<>();
+        
+        for (ServerConnection conn : wrapper.getConnections()) {
+            ServerConnection imported = new ServerConnection();
+            
+            // Always import basic data
+            imported.setName(conn.getName());
+            imported.setHost(conn.getHost());
+            imported.setPort(conn.getPort());
+            imported.setGroup(conn.getGroup());
+            imported.setAuthMethod(conn.getAuthMethod());
+            imported.setPrivateKeyPath(conn.getPrivateKeyPath());
+            
+            // Username (conditional)
+            if (result.importUsername) {
+                imported.setUsername(conn.getUsername());
+            } else {
+                imported.setUsername("");
+            }
+            
+            // Password (conditional or replaced)
+            if (result.replaceCredentials && result.replacementCredential != null) {
+                // Replace with selected credential
+                imported.setUsername(result.replacementCredential.getUsername());
+                imported.setCredentialId(result.replacementCredential.getId());
+                imported.setEncryptedPassword(null);  // Use credential instead
+            } else if (result.importPassword) {
+                imported.setEncryptedPassword(conn.getEncryptedPassword());
+                imported.setCredentialId(conn.getCredentialId());
+            } else {
+                imported.setEncryptedPassword(null);
+                imported.setCredentialId(null);
+            }
+            
+            // SSH Tunnels (conditional)
+            if (result.importTunnels && conn.getSshTunnels() != null) {
+                imported.setSshTunnels(new java.util.ArrayList<>(conn.getSshTunnels()));
+            }
+            
+            // Jump Server (conditional)
+            if (result.importJumpServer && conn.getJumpServer() != null) {
+                imported.setJumpServer(conn.getJumpServer());
+            }
+            
+            // Copy settings
+            if (conn.getSettings() != null) {
+                imported.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
+            }
+            
+            importList.add(imported);
+        }
+        
+        return importList;
     }
 
 }
