@@ -555,7 +555,7 @@ public class MainWindow {
     private void toggleDashboard(boolean show) {
         if (show && !dashboardVisible) {
             if (dashboardView == null) {
-                dashboardView = new DashboardView(sessionManager, this::focusSession);
+                dashboardView = new DashboardView(tabPane, this::handleDashboardAction);
             }
             splitPane.getItems().add(0, dashboardView);
             splitPane.setDividerPositions(0.2);
@@ -572,14 +572,33 @@ public class MainWindow {
         }
     }
     
-    private void focusSession(String connectionName) {
-        for (Tab tab : tabPane.getTabs()) {
-            if (tab instanceof TerminalTab terminalTab) {
-                if (terminalTab.getConnection().getDisplayName().equals(connectionName)) {
-                    tabPane.getSelectionModel().select(tab);
-                    break;
-                }
-            }
+    private void handleDashboardAction(TerminalTab terminalTab, DashboardView.DashboardAction action) {
+        switch (action) {
+            case FOCUS:
+                // Focus the tab
+                tabPane.getSelectionModel().select(terminalTab);
+                break;
+                
+            case CLOSE:
+                // Close the tab
+                tabPane.getTabs().remove(terminalTab);
+                updateDashboard();
+                updateStatus("Tab geschlossen: " + terminalTab.getConnection().getDisplayName());
+                break;
+                
+            case RECONNECT:
+                // Reconnect the terminal
+                Platform.runLater(() -> {
+                    try {
+                        terminalTab.connect();
+                        updateDashboard();
+                        updateStatus("Wiederverbinde mit " + terminalTab.getConnection().getDisplayName());
+                    } catch (Exception e) {
+                        logger.error("Reconnect failed", e);
+                        updateStatus("Wiederverbindung fehlgeschlagen: " + e.getMessage());
+                    }
+                });
+                break;
         }
     }
     
@@ -947,6 +966,7 @@ public class MainWindow {
         }
         
         updateStatus("Gruppe '" + groupName + "' geöffnet: " + groupConnections.size() + " Verbindungen");
+        updateDashboard();
     }
     
 }

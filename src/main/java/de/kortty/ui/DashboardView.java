@@ -1,25 +1,31 @@
 package de.kortty.ui;
 
-import de.kortty.core.SSHSession;
-import de.kortty.core.SessionManager;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
- * Dashboard view showing a tree of all windows and tabs.
+ * Dashboard view showing a tree of all active terminal tabs with their connection status.
+ * Shows server name or IP address, and allows reconnect/close via context menu.
  */
 public class DashboardView extends VBox {
     
-    private final SessionManager sessionManager;
-    private final Consumer<String> sessionSelector;
+    private final TabPane tabPane;
+    private final BiConsumer<TerminalTab, DashboardAction> actionHandler;
     private final TreeView<DashboardItem> treeView;
     
-    public DashboardView(SessionManager sessionManager, Consumer<String> sessionSelector) {
-        this.sessionManager = sessionManager;
-        this.sessionSelector = sessionSelector;
+    public enum DashboardAction {
+        RECONNECT,
+        CLOSE,
+        FOCUS
+    }
+    
+    public DashboardView(TabPane tabPane, BiConsumer<TerminalTab, DashboardAction> actionHandler) {
+        this.tabPane = tabPane;
+        this.actionHandler = actionHandler;
         
         setPadding(new Insets(5));
         setSpacing(5);
@@ -32,30 +38,67 @@ public class DashboardView extends VBox {
         treeView.setShowRoot(false);
         treeView.setStyle("-fx-background-color: #2d2d2d;");
         
-        // Custom cell factory
-        treeView.setCellFactory(tv -> new TreeCell<>() {
-            @Override
-            protected void updateItem(DashboardItem item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                    setStyle("-fx-background-color: transparent;");
-                } else {
-                    setText(item.displayName());
-                    setStyle("-fx-text-fill: " + (item.connected() ? "#00ff00" : "#ff6666") + ";");
+        // Custom cell factory with context menu
+        treeView.setCellFactory(tv -> {
+            TreeCell<DashboardItem> cell = new TreeCell<>() {
+                @Override
+                protected void updateItem(DashboardItem item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setGraphic(null);
+                        setStyle("-fx-background-color: transparent;");
+                        setContextMenu(null);
+                    } else {
+                        String statusIcon = item.isConnected() ? "●" : "○";
+                        String statusText = item.isConnected() ? "Aktiv" : "Beendet";
+                        setText(statusIcon + " " + item.getDisplayName() + " (" + statusText + ")");
+                        
+                        // Color: green for active, red for disconnected
+                        String color = item.isConnected() ? "#00ff00" : "#ff6666";
+                        setStyle("-fx-text-fill: " + color + "; -fx-background-color: transparent;");
+                        
+                        // Context menu for terminal tabs only (not for window nodes)
+                        if (item.getTerminalTab() != null) {
+                            ContextMenu contextMenu = new ContextMenu();
+                            
+                            if (item.isConnected()) {
+                                MenuItem closeItem = new MenuItem("Schließen");
+                                closeItem.setOnAction(e -> {
+                                    actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
+                                });
+                                contextMenu.getItems().add(closeItem);
+                            } else {
+                                MenuItem reconnectItem = new MenuItem("Wiederverbinden");
+                                reconnectItem.setOnAction(e -> {
+                                    actionHandler.accept(item.getTerminalTab(), DashboardAction.RECONNECT);
+                                });
+                                contextMenu.getItems().add(reconnectItem);
+                                
+                                SeparatorMenuItem separator = new SeparatorMenuItem();
+                                MenuItem closeItem = new MenuItem("Schließen");
+                                closeItem.setOnAction(e -> {
+                                    actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
+                                });
+                                contextMenu.getItems().addAll(separator, closeItem);
+                            }
+                            
+                            setContextMenu(contextMenu);
+                        } else {
+                            setContextMenu(null);
+                        }
+                    }
                 }
-            }
-        });
-        
-        // Double-click to focus session
-        treeView.setOnMouseClicked(e -> {
-            if (e.getClickCount() == 2) {
-                TreeItem<DashboardItem> selected = treeView.getSelectionModel().getSelectedItem();
-                if (selected != null && selected.getValue().sessionId() != null) {
-                    sessionSelector.accept(selected.getValue().sessionId());
+            };
+            
+            // Double-click to focus
+            cell.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && cell.getItem() != null && cell.getItem().getTerminalTab() != null) {
+                    actionHandler.accept(cell.getItem().getTerminalTab(), DashboardAction.FOCUS);
                 }
-            }
+            });
+            
+            return cell;
         });
         
         VBox.setVgrow(treeView, javafx.scene.layout.Priority.ALWAYS);
@@ -66,44 +109,98 @@ public class DashboardView extends VBox {
     }
     
     /**
-     * Refreshes the dashboard tree.
+     * Refreshes the dashboard tree with current tabs.
      */
     public void refresh() {
-        TreeItem<DashboardItem> root = new TreeItem<>(new DashboardItem("Projekt", null, true));
+        TreeItem<DashboardItem> root = new TreeItem<>(new DashboardItem("Projekt", null, true, null));
         
-        // Group sessions by window (for now, all in one window)
+        // Count active connections
+        int totalTabs = 0;
+        int activeTabs = 0;
+        
+        // Create window item
         TreeItem<DashboardItem> windowItem = new TreeItem<>(
-                new DashboardItem("Hauptfenster", null, true)
+                new DashboardItem("Hauptfenster", null, true, null)
         );
         windowItem.setExpanded(true);
         
-        for (SSHSession session : sessionManager.getAllSessions()) {
-            String displayName = session.generateTabTitle();
-            boolean connected = session.isConnected();
-            
-            TreeItem<DashboardItem> sessionItem = new TreeItem<>(
-                    new DashboardItem(displayName, session.getSessionId(), connected)
-            );
-            windowItem.getChildren().add(sessionItem);
+        // Iterate through tabs
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                totalTabs++;
+                boolean connected = terminalTab.isConnected();
+                if (connected) activeTabs++;
+                
+                // Get server name or IP
+                String displayName = getServerDisplayName(terminalTab);
+                
+                TreeItem<DashboardItem> tabItem = new TreeItem<>(
+                        new DashboardItem(displayName, null, connected, terminalTab)
+                );
+                windowItem.getChildren().add(tabItem);
+            }
         }
         
-        if (!windowItem.getChildren().isEmpty()) {
+        // Update window title with counts
+        if (totalTabs > 0) {
+            windowItem.setValue(new DashboardItem(
+                    "Hauptfenster (" + activeTabs + "/" + totalTabs + " aktiv)",
+                    null,
+                    true,
+                    null
+            ));
             root.getChildren().add(windowItem);
         }
         
         root.setExpanded(true);
         treeView.setRoot(root);
-        
-        // Update window title
-        windowItem.setValue(new DashboardItem(
-                "Hauptfenster (" + windowItem.getChildren().size() + " Verbindungen)",
-                null,
-                true
-        ));
     }
     
     /**
-     * Record for dashboard tree items.
+     * Gets the display name for a terminal tab (server name or IP).
      */
-    private record DashboardItem(String displayName, String sessionId, boolean connected) {}
+    private String getServerDisplayName(TerminalTab terminalTab) {
+        if (terminalTab.getConnection() != null) {
+            String name = terminalTab.getConnection().getName();
+            // If name is empty or null, use host (IP or hostname)
+            if (name == null || name.trim().isEmpty()) {
+                return terminalTab.getConnection().getHost();
+            }
+            return name;
+        }
+        return "Unbekannt";
+    }
+    
+    /**
+     * Dashboard tree item.
+     */
+    private static class DashboardItem {
+        private final String displayName;
+        private final String sessionId;
+        private final boolean connected;
+        private final TerminalTab terminalTab;
+        
+        public DashboardItem(String displayName, String sessionId, boolean connected, TerminalTab terminalTab) {
+            this.displayName = displayName;
+            this.sessionId = sessionId;
+            this.connected = connected;
+            this.terminalTab = terminalTab;
+        }
+        
+        public String getDisplayName() {
+            return displayName;
+        }
+        
+        public String getSessionId() {
+            return sessionId;
+        }
+        
+        public boolean isConnected() {
+            return connected;
+        }
+        
+        public TerminalTab getTerminalTab() {
+            return terminalTab;
+        }
+    }
 }
