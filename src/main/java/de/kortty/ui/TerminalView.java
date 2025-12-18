@@ -34,6 +34,7 @@ public class TerminalView extends BorderPane {
     private final int defaultFontSize;
     
     private DisconnectListener externalDisconnectListener;
+    private de.kortty.core.TerminalLogger terminalLogger;
     
     public TerminalView(ServerConnection connection, String password) {
         this.connection = connection;
@@ -42,7 +43,16 @@ public class TerminalView extends BorderPane {
         this.defaultFontSize = settings.getFontSize();
         this.currentFontSize = defaultFontSize;
         
+        // Make this view focusable
+        setFocusTraversable(true);
+        
         initializeTerminal();
+        
+        // Add click handler to ensure terminal gets focus when clicked anywhere
+        setOnMouseClicked(event -> {
+            logger.debug("TerminalView clicked, requesting focus");
+            focusTerminal();
+        });
     }
     
     private void initializeTerminal() {
@@ -53,7 +63,13 @@ public class TerminalView extends BorderPane {
         terminalWidget = new JediTermFxWidget(settingsProvider);
         
         // Set the terminal pane as center content
-        setCenter(terminalWidget.getPane());
+        var pane = terminalWidget.getPane();
+        setCenter(pane);
+        
+        // Make sure the pane can receive focus
+        if (pane != null) {
+            pane.setFocusTraversable(true);
+        }
         
         // Request focus on the terminal
         Platform.runLater(() -> {
@@ -68,6 +84,42 @@ public class TerminalView extends BorderPane {
      */
     int getCurrentFontSize() {
         return currentFontSize;
+    }
+    
+    /**
+     * Focuses the terminal input, making it ready for keyboard input.
+     * Should be called when switching to this terminal tab.
+     */
+    public void focusTerminal() {
+        if (terminalWidget == null) {
+            return;
+        }
+        
+        // Request focus aggressively on all possible nodes
+        Platform.runLater(() -> {
+            try {
+                // 1. Request focus on the preferred focusable node (most likely to work)
+                var focusNode = terminalWidget.getPreferredFocusableNode();
+                if (focusNode != null) {
+                    focusNode.requestFocus();
+                    logger.debug("Requested focus on preferred node: {}", focusNode.getClass().getSimpleName());
+                }
+                
+                // 2. Request focus on the pane
+                var pane = terminalWidget.getPane();
+                if (pane != null) {
+                    pane.requestFocus();
+                    logger.debug("Requested focus on terminal pane");
+                }
+                
+                // 3. Also focus this view
+                requestFocus();
+                logger.debug("Requested focus on TerminalView");
+                
+            } catch (Exception e) {
+                logger.warn("Error focusing terminal: {}", e.getMessage());
+            }
+        });
     }
     
     /**
@@ -88,6 +140,10 @@ public class TerminalView extends BorderPane {
             // Register disconnect listener
             ttyConnector.setDisconnectListener((reason, wasError) -> {
                 logger.info("Disconnect event: {} (wasError={})", reason, wasError);
+                
+                // Stop logger if running
+                stopLogger();
+                
                 if (externalDisconnectListener != null) {
                     externalDisconnectListener.onDisconnect(reason, wasError);
                 }
@@ -99,6 +155,9 @@ public class TerminalView extends BorderPane {
                 return;
             }
             
+            // Start terminal logger if enabled
+            startLogger();
+            
             // Set the connector and start the terminal
             terminalWidget.setTtyConnector(ttyConnector);
             terminalWidget.start();
@@ -108,6 +167,46 @@ public class TerminalView extends BorderPane {
         } catch (Exception e) {
             logger.error("Failed to start terminal session: {}", e.getMessage(), e);
             showError("Verbindung fehlgeschlagen: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Starts the terminal logger if logging is enabled for this connection.
+     */
+    private void startLogger() {
+        de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
+        if (logConfig == null || !logConfig.isEnabled()) {
+            return;
+        }
+        
+        try {
+            terminalLogger = new de.kortty.core.TerminalLogger(logConfig, connection.getDisplayName());
+            terminalLogger.start();
+            
+            // Register data listener to capture terminal output
+            if (ttyConnector != null) {
+                ttyConnector.setDataListener(data -> {
+                    if (terminalLogger != null) {
+                        terminalLogger.log(data);
+                    }
+                });
+            }
+            
+            logger.info("Terminal logging started for {}", connection.getDisplayName());
+        } catch (Exception e) {
+            logger.error("Failed to start terminal logger: {}", e.getMessage(), e);
+            showError("Logging konnte nicht gestartet werden: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Stops the terminal logger.
+     */
+    private void stopLogger() {
+        if (terminalLogger != null) {
+            terminalLogger.stop();
+            terminalLogger = null;
+            logger.info("Terminal logging stopped for {}", connection.getDisplayName());
         }
     }
     
@@ -127,7 +226,10 @@ public class TerminalView extends BorderPane {
      * Cleans up resources.
      */
     public void cleanup() {
-        // Close connection first
+        // Stop logger first
+        stopLogger();
+        
+        // Close connection
         if (ttyConnector != null) {
             try {
                 ttyConnector.close();

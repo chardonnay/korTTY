@@ -55,6 +55,12 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private ColorPicker backgroundColorPicker;
     private CheckBox closeWithoutConfirmCheck;
     
+    // Terminal Logging
+    private CheckBox enableLoggingCheck;
+    private TextField logFilePathField;
+    private Spinner<Integer> maxFileSizeMBSpinner;
+    private ComboBox<de.kortty.model.TerminalLogConfig.LogFormat> logFormatCombo;
+    
     public ConnectionEditDialog(Stage owner, ServerConnection existingConnection, CredentialManager credentialManager, char[] masterPassword) {
         this.connection = existingConnection != null ? existingConnection : new ServerConnection();
         this.credentialManager = credentialManager;
@@ -211,7 +217,10 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         // Tab 4: Jump Server
         Tab jumpServerTab = createJumpServerTab();
         
-        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab);
+        // Tab 5: Terminal Logging
+        Tab loggingTab = createLoggingTab();
+        
+        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab, loggingTab);
         getDialogPane().setContent(tabPane);
         
         // Buttons
@@ -278,6 +287,15 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     // TODO: Set host, port, username, password, autoCommand from UI fields
                 } else if (connection.getJumpServer() != null) {
                     connection.getJumpServer().setEnabled(false);
+                }
+                
+                // Save logging settings
+                de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
+                logConfig.setEnabled(enableLoggingCheck.isSelected());
+                if (enableLoggingCheck.isSelected()) {
+                    logConfig.setLogFilePath(logFilePathField.getText().trim());
+                    logConfig.setMaxFileSizeMB(maxFileSizeMBSpinner.getValue());
+                    logConfig.setFormat(logFormatCombo.getValue());
                 }
                 
                 return connection;
@@ -529,6 +547,107 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         tab.setContent(vbox);
         return tab;
+    }
+    
+    private Tab createLoggingTab() {
+        Tab tab = new Tab("Terminal-Logging");
+        tab.setClosable(false);
+        
+        VBox vbox = new VBox(15);
+        vbox.setPadding(new Insets(20));
+        
+        // Enable logging checkbox
+        enableLoggingCheck = new CheckBox("Terminal-Ausgabe in Datei protokollieren");
+        de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
+        enableLoggingCheck.setSelected(logConfig != null && logConfig.isEnabled());
+        
+        // Logging configuration
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setDisable(logConfig == null || !logConfig.isEnabled());
+        
+        // Log file path
+        logFilePathField = new TextField();
+        logFilePathField.setPromptText("/path/to/terminal.log");
+        logFilePathField.setPrefWidth(300);
+        if (logConfig != null) {
+            logFilePathField.setText(logConfig.getLogFilePath());
+        }
+        
+        Button browseLogButton = new Button("Durchsuchen...");
+        browseLogButton.setOnAction(e -> browseForLogFile());
+        
+        // Max file size
+        maxFileSizeMBSpinner = new Spinner<>(1, 1000, logConfig != null ? logConfig.getMaxFileSizeMB() : 10);
+        maxFileSizeMBSpinner.setEditable(true);
+        maxFileSizeMBSpinner.setPrefWidth(100);
+        
+        // Log format
+        logFormatCombo = new ComboBox<>();
+        logFormatCombo.getItems().addAll(de.kortty.model.TerminalLogConfig.LogFormat.values());
+        logFormatCombo.setValue(logConfig != null ? logConfig.getFormat() : de.kortty.model.TerminalLogConfig.LogFormat.PLAIN_TEXT);
+        logFormatCombo.setPrefWidth(200);
+        
+        // Layout
+        int row = 0;
+        grid.add(new Label("Log-Datei:"), 0, row);
+        HBox logPathBox = new HBox(10);
+        logPathBox.getChildren().addAll(logFilePathField, browseLogButton);
+        grid.add(logPathBox, 1, row++);
+        
+        grid.add(new Label("Max. Dateigröße:"), 0, row);
+        HBox sizeBox = new HBox(10);
+        sizeBox.getChildren().addAll(maxFileSizeMBSpinner, new Label("MB"));
+        grid.add(sizeBox, 1, row++);
+        
+        grid.add(new Label("Format:"), 0, row);
+        grid.add(logFormatCombo, 1, row++);
+        
+        // Enable/disable grid based on checkbox
+        enableLoggingCheck.selectedProperty().addListener((obs, old, newVal) -> {
+            grid.setDisable(!newVal);
+        });
+        
+        Label infoLabel = new Label(
+                "Terminal-Logging protokolliert die komplette Terminal-Ausgabe in eine Datei.\n\n" +
+                "• Plain Text: Einfaches Textformat mit Zeitstempeln\n" +
+                "• XML: Strukturiertes XML-Format\n" +
+                "• JSON: Maschinenlesbares JSON-Format\n\n" +
+                "Wenn die maximale Dateigröße erreicht ist, wird die Datei gelöscht und neu begonnen.\n" +
+                "Alle ANSI-Escape-Sequenzen und Nicht-ASCII-Zeichen werden entfernt.");
+        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setWrapText(true);
+        
+        vbox.getChildren().addAll(enableLoggingCheck, new Separator(), grid, infoLabel);
+        
+        tab.setContent(vbox);
+        return tab;
+    }
+    
+    private void browseForLogFile() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Log-Datei auswählen");
+        
+        // Start in user home
+        File homeDir = new File(System.getProperty("user.home"));
+        fileChooser.setInitialDirectory(homeDir);
+        
+        // Suggest file name based on connection
+        String suggestedName = connection.getName() != null ? 
+                connection.getName().replaceAll("[^a-zA-Z0-9-_]", "_") + ".log" : 
+                "terminal.log";
+        fileChooser.setInitialFileName(suggestedName);
+        
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Log Dateien", "*.log", "*.txt", "*.xml", "*.json"),
+                new FileChooser.ExtensionFilter("Alle Dateien", "*.*")
+        );
+        
+        File file = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
+        if (file != null) {
+            logFilePathField.setText(file.getAbsolutePath());
+        }
     }
     
     

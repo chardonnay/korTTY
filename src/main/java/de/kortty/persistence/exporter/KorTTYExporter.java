@@ -45,7 +45,9 @@ public class KorTTYExporter implements ConnectionExporter {
             de.kortty.model.SSHTunnel.class,
             de.kortty.model.JumpServer.class,
             de.kortty.model.AuthMethod.class,
-            de.kortty.model.TunnelType.class
+            de.kortty.model.TunnelType.class,
+            de.kortty.model.TerminalLogConfig.class,
+            de.kortty.model.TerminalLogConfig.LogFormat.class
         );
         jakarta.xml.bind.Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(jakarta.xml.bind.Marshaller.JAXB_FORMATTED_OUTPUT, true);
