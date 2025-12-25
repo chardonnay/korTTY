@@ -71,7 +71,11 @@ public class TerminalTab extends Tab {
     public void retryConnection() {
         isConnectionFailed = false;
         resetTabColor();
-        setText(connection.getDisplayName());
+        String displayName = connection.getDisplayName();
+        if (displayName == null || displayName.trim().isEmpty()) {
+            displayName = connection.getUsername() + "@" + connection.getHost();
+        }
+        setText(displayName);
         connect();
     }
     
@@ -88,29 +92,26 @@ public class TerminalTab extends Tab {
                 } else {
                     // Error or disconnection - mark as failed and color tab red
                     isConnectionFailed = true;
-                    setText(connection.getDisplayName() + " (Getrennt)");
+                    setText(connection.getDisplayName() + " (DISCONNECT)");
                     setTabErrorColor();
                 }
+            });
+        });
+        
+        // Register callback for successful connection
+        terminalView.setOnConnectedCallback(() -> {
+            Platform.runLater(() -> {
+                // Connected successfully - show connection name only
+                String displayName = connection.getDisplayName();
+                if (displayName == null || displayName.trim().isEmpty()) {
+                    displayName = connection.getUsername() + "@" + connection.getHost();
+                }
+                setText(displayName);
+                resetTabColor(); // Ensure tab is not red
             });
         });
         
         terminalView.connect();
-        
-        // Check connection status after a short delay to detect immediate failures
-        Platform.runLater(() -> {
-            javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(
-                javafx.util.Duration.millis(500)
-            );
-            delay.setOnFinished(e -> {
-                if (!terminalView.isConnected()) {
-                    // Connection failed - mark tab as failed
-                    isConnectionFailed = true;
-                    setText(connection.getDisplayName() + " (Fehler)");
-                    setTabErrorColor();
-                }
-            });
-            delay.play();
-        });
     }
     
     /**
@@ -132,7 +133,7 @@ public class TerminalTab extends Tab {
         isConnectionFailed = true;
         terminalView.showError("Verbindung fehlgeschlagen: " + error);
         Platform.runLater(() -> {
-            setText(connection.getDisplayName() + " (Fehler)");
+            setText(connection.getDisplayName() + " (DISCONNECT)");
             setTabErrorColor();
         });
     }
