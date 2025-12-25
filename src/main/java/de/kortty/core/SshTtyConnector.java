@@ -41,6 +41,7 @@ public class SshTtyConnector implements TtyConnector {
     
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
+    private DataListener dataListener;
     
     public SshTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
@@ -63,14 +64,20 @@ public class SshTtyConnector implements TtyConnector {
             });
             client.start();
             
+            // Get timeout from connection settings
+            int timeoutSeconds = connection.getConnectionTimeoutSeconds();
+            if (timeoutSeconds <= 0) {
+                timeoutSeconds = 15; // Default fallback
+            }
+            
             // Connect to server
             session = client.connect(connection.getUsername(), connection.getHost(), connection.getPort())
-                    .verify(Duration.ofSeconds(30))
+                    .verify(Duration.ofSeconds(timeoutSeconds))
                     .getSession();
             
             // Authenticate
             session.addPasswordIdentity(password);
-            session.auth().verify(Duration.ofSeconds(30));
+            session.auth().verify(Duration.ofSeconds(timeoutSeconds));
             
             // Create shell channel
             channel = session.createShellChannel();
@@ -205,7 +212,20 @@ public class SshTtyConnector implements TtyConnector {
         if (!connected.get() || reader == null) {
             return -1;
         }
-        return reader.read(buf, offset, length);
+        int count = reader.read(buf, offset, length);
+        
+        // Notify listener of received data
+        if (count > 0 && dataListener != null) {
+            try {
+                String data = new String(buf, offset, count);
+                dataListener.onData(data);
+            } catch (Exception e) {
+                // Don't let listener errors break the connection
+                logger.warn("Data listener error: {}", e.getMessage());
+            }
+        }
+        
+        return count;
     }
     
     @Override
@@ -258,7 +278,18 @@ public class SshTtyConnector implements TtyConnector {
         this.disconnectListener = listener;
     }
     
+    public void setDataListener(DataListener listener) {
+        this.dataListener = listener;
+    }
+    
     public ServerConnection getConnection() {
         return connection;
+    }
+    
+    /**
+     * Listener for data received from the SSH connection.
+     */
+    public interface DataListener {
+        void onData(String data);
     }
 }

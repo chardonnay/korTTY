@@ -34,6 +34,8 @@ public class TerminalView extends BorderPane {
     private final int defaultFontSize;
     
     private DisconnectListener externalDisconnectListener;
+    private Runnable onConnectedCallback;
+    private de.kortty.core.TerminalLogger terminalLogger;
     
     public TerminalView(ServerConnection connection, String password) {
         this.connection = connection;
@@ -71,6 +73,17 @@ public class TerminalView extends BorderPane {
     }
     
     /**
+     * Focuses the terminal input, making it ready for keyboard input.
+     * Should be called when switching to this terminal tab.
+     * 
+     * Note: Currently not fully implemented due to Swing/JavaFX focus complexity.
+     * User needs to click into terminal after tab switch.
+     */
+    public void focusTerminal() {
+        // Empty implementation - focus handling is complex with JediTermFX
+    }
+    
+    /**
      * Sets a listener to be notified when the SSH connection is disconnected.
      */
     public void setDisconnectListener(DisconnectListener listener) {
@@ -78,37 +91,197 @@ public class TerminalView extends BorderPane {
     }
     
     /**
+     * Sets a callback to be notified when the SSH connection is successfully established.
+     */
+    public void setOnConnectedCallback(Runnable callback) {
+        this.onConnectedCallback = callback;
+    }
+    
+    /**
      * Connects to the SSH server and starts the terminal session.
+     * Implements retry logic with configurable timeout and retry count.
+     * Runs asynchronously to prevent UI blocking.
      */
     public void connect() {
-        try {
-            // Create TtyConnector
-            ttyConnector = new SshTtyConnector(connection, password);
-            
-            // Register disconnect listener
-            ttyConnector.setDisconnectListener((reason, wasError) -> {
-                logger.info("Disconnect event: {} (wasError={})", reason, wasError);
-                if (externalDisconnectListener != null) {
-                    externalDisconnectListener.onDisconnect(reason, wasError);
-                }
-            });
-            
-            // Connect SSH first
-            if (!ttyConnector.connect()) {
-                showError("SSH-Verbindung fehlgeschlagen");
-                return;
+        // Run connection in background thread to prevent UI blocking
+        Thread connectThread = new Thread(() -> {
+            int retryCount = connection.getRetryCount();
+            if (retryCount <= 0) {
+                retryCount = 4; // Default fallback
             }
             
-            // Set the connector and start the terminal
-            terminalWidget.setTtyConnector(ttyConnector);
-            terminalWidget.start();
+            int attempt = 0;
+            boolean connected = false;
+            String lastError = null;
             
-            logger.info("Terminal session started for {}", connection.getDisplayName());
+            // Clear terminal before first attempt
+            clearTerminal();
+            showMessage("Verbindungsversuch " + 1 + " von " + retryCount + "...");
             
-        } catch (Exception e) {
-            logger.error("Failed to start terminal session: {}", e.getMessage(), e);
-            showError("Verbindung fehlgeschlagen: " + e.getMessage());
+            while (attempt < retryCount && !connected) {
+                attempt++;
+                
+                try {
+                    // Clean up previous attempt if any
+                    if (ttyConnector != null) {
+                        try {
+                            ttyConnector.close();
+                        } catch (Exception e) {
+                            // Ignore cleanup errors
+                        }
+                    }
+                    
+                    // Clear terminal before each retry attempt
+                    if (attempt > 1) {
+                        clearTerminal();
+                        showMessage("Verbindungsversuch " + attempt + " von " + retryCount + "...");
+                    }
+                    
+                    // Create TtyConnector
+                    ttyConnector = new SshTtyConnector(connection, password);
+                    
+                    // Register disconnect listener
+                    ttyConnector.setDisconnectListener((reason, wasError) -> {
+                        logger.info("Disconnect event: {} (wasError={})", reason, wasError);
+                        
+                        // Stop logger if running
+                        stopLogger();
+                        
+                        if (externalDisconnectListener != null) {
+                            externalDisconnectListener.onDisconnect(reason, wasError);
+                        }
+                    });
+                    
+                    // Connect SSH
+                    connected = ttyConnector.connect();
+                    
+                    if (connected) {
+                        // Start terminal logger if enabled
+                        startLogger();
+                        
+                        // Set the connector and start the terminal on JavaFX thread
+                        Platform.runLater(() -> {
+                            terminalWidget.setTtyConnector(ttyConnector);
+                            terminalWidget.start();
+                            
+                            // Notify success callback
+                            if (onConnectedCallback != null) {
+                                onConnectedCallback.run();
+                            }
+                        });
+                        
+                        logger.info("Terminal session started for {} (attempt {}/{})", 
+                                   connection.getDisplayName(), attempt, retryCount);
+                        return; // Success!
+                    } else {
+                        lastError = "SSH-Verbindung fehlgeschlagen";
+                        logger.warn("Connection attempt {}/{} failed for {}", 
+                                   attempt, retryCount, connection.getDisplayName());
+                        
+                        // Show failure message
+                        showMessage("Verbindungsversuch " + attempt + " fehlgeschlagen.");
+                        
+                        // Wait a bit before retry (except on last attempt)
+                        if (attempt < retryCount) {
+                            try {
+                                Thread.sleep(1000); // 1 second delay between retries
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                break;
+                            }
+                        }
+                    }
+                    
+                } catch (Exception e) {
+                    lastError = "Verbindung fehlgeschlagen: " + e.getMessage();
+                    logger.error("Failed to start terminal session (attempt {}/{}): {}", 
+                                attempt, retryCount, e.getMessage(), e);
+                    
+                    // Show failure message
+                    showMessage("Verbindungsversuch " + attempt + " fehlgeschlagen: " + e.getMessage());
+                    
+                    // Wait before retry (except on last attempt)
+                    if (attempt < retryCount) {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // All retries failed
+            clearTerminal();
+            showMessage("Verbindung nach " + retryCount + " Versuchen fehlgeschlagen.");
+            showMessage("Timeout: " + connection.getConnectionTimeoutSeconds() + " Sekunden.");
+            String finalError = lastError != null && !lastError.isEmpty() ? lastError : "Unbekannter Fehler";
+            showMessage(finalError);
+            logger.error("All connection attempts failed for {}", connection.getDisplayName());
+            
+            // Notify disconnect listener about failure
+            String errorMessage = "Verbindung nach " + retryCount + " Versuchen fehlgeschlagen";
+            if (externalDisconnectListener != null) {
+                Platform.runLater(() -> {
+                    externalDisconnectListener.onDisconnect(errorMessage, true);
+                });
+            }
+        }, "SSH-Connect-" + connection.getDisplayName());
+        connectThread.setDaemon(true);
+        connectThread.start();
+    }
+    
+    /**
+     * Starts the terminal logger if logging is enabled for this connection.
+     */
+    private void startLogger() {
+        de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
+        if (logConfig == null || !logConfig.isEnabled()) {
+            return;
         }
+        
+        try {
+            terminalLogger = new de.kortty.core.TerminalLogger(logConfig, connection.getDisplayName());
+            terminalLogger.start();
+            
+            // Register data listener to capture terminal output
+            if (ttyConnector != null) {
+                ttyConnector.setDataListener(data -> {
+                    if (terminalLogger != null) {
+                        terminalLogger.log(data);
+                    }
+                });
+            }
+            
+            logger.info("Terminal logging started for {}", connection.getDisplayName());
+        } catch (Exception e) {
+            logger.error("Failed to start terminal logger: {}", e.getMessage(), e);
+            showError("Logging konnte nicht gestartet werden: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Stops the terminal logger.
+     */
+    private void stopLogger() {
+        if (terminalLogger != null) {
+            terminalLogger.stop();
+            terminalLogger = null;
+            logger.info("Terminal logging stopped for {}", connection.getDisplayName());
+        }
+    }
+    
+    /**
+     * Clears the terminal screen.
+     */
+    public void clearTerminal() {
+        Platform.runLater(() -> {
+            if (terminalWidget != null && terminalWidget.getTerminal() != null) {
+                // Clear screen using ANSI escape sequence
+                terminalWidget.getTerminal().writeCharacters("\033[2J\033[H");
+            }
+        });
     }
     
     /**
@@ -124,10 +297,24 @@ public class TerminalView extends BorderPane {
     }
     
     /**
+     * Shows a message in the terminal (on new line).
+     */
+    public void showMessage(String message) {
+        Platform.runLater(() -> {
+            if (terminalWidget != null && terminalWidget.getTerminal() != null) {
+                terminalWidget.getTerminal().writeCharacters("\r\n" + message + "\r\n");
+            }
+        });
+    }
+    
+    /**
      * Cleans up resources.
      */
     public void cleanup() {
-        // Close connection first
+        // Stop logger first
+        stopLogger();
+        
+        // Close connection
         if (ttyConnector != null) {
             try {
                 ttyConnector.close();
@@ -165,6 +352,19 @@ public class TerminalView extends BorderPane {
      */
     public boolean isConnected() {
         return ttyConnector != null && ttyConnector.isConnected();
+    }
+    
+    /**
+     * Sends input to the terminal (for broadcast mode).
+     */
+    public void sendInput(String text) {
+        if (ttyConnector != null && ttyConnector.isConnected()) {
+            try {
+                ttyConnector.write(text);
+            } catch (java.io.IOException e) {
+                logger.error("Failed to send input to terminal", e);
+            }
+        }
     }
     
     /**
@@ -233,6 +433,58 @@ public class TerminalView extends BorderPane {
             return terminalWidget.getTerminalTextBuffer().getScreenLines();
         }
         return "";
+    }
+    
+    /**
+     * Restores terminal history by writing to temp file first, then displaying it.
+     * This approach shows only one short command line instead of multi-line here-doc.
+     */
+    public void restoreHistory(String history) {
+        if (history == null || history.isEmpty()) {
+            return;
+        }
+        
+        Platform.runLater(() -> {
+            if (ttyConnector != null && ttyConnector.isConnected()) {
+                try {
+                    // Clean up the history - remove excessive empty lines
+                    String cleanHistory = history
+                        .replaceAll("\\n{3,}", "\n\n") // Max 2 consecutive newlines
+                        .trim();
+                    
+                    // Escape for shell (for writing to file via here-doc)
+                    String escapedForFile = cleanHistory;
+                    
+                    // Use a temp file approach - much cleaner!
+                    // 1. Write history to temp file (using very short here-doc 'H')
+                    // 2. Clear screen and cat the file  
+                    // 3. Delete the temp file
+                    // This way only "clear;cat ..." is visible, not the multi-line content
+                    
+                    StringBuilder command = new StringBuilder();
+                    String tmpFile = "/tmp/.kortty_hist_$$"; // $$ = current shell PID (unique)
+                    
+                    // Write to temp file (this command is short)
+                    command.append("cat>").append(tmpFile).append("<<H\n");
+                    command.append(escapedForFile);
+                    if (!escapedForFile.endsWith("\n")) {
+                        command.append("\n");
+                    }
+                    command.append("H\n");
+                    
+                    // Clear screen, show file content, delete file (all in one short line)
+                    command.append("clear;cat ").append(tmpFile).append(";rm ").append(tmpFile).append("\n");
+                    
+                    ttyConnector.write(command.toString());
+                    
+                    logger.info("Restored history ({} bytes)", cleanHistory.length());
+                } catch (Exception e) {
+                    logger.error("Failed to restore terminal history", e);
+                }
+            } else {
+                logger.warn("Cannot restore history: terminal not connected");
+            }
+        });
     }
     
     public ServerConnection getConnection() {

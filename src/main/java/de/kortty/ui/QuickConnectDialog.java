@@ -33,6 +33,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private PasswordField passwordField;
     private CheckBox saveConnectionCheck;
     private TextField connectionNameField;
+    private Spinner<Integer> timeoutSpinner;
+    private Spinner<Integer> retrySpinner;
     
     // Group tab
     private ListView<String> groupListView;
@@ -83,11 +85,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         // Buttons
         ButtonType connectButtonType = new ButtonType("Verbinden", ButtonBar.ButtonData.OK_DONE);
         ButtonType openGroupButtonType = new ButtonType("Gruppe öffnen", ButtonBar.ButtonData.OK_DONE);
-        getDialogPane().getButtonTypes().addAll(connectButtonType, openGroupButtonType, ButtonType.CANCEL);
+        ButtonType loadProjectButtonType = new ButtonType("Projekt laden", ButtonBar.ButtonData.OTHER);
+        getDialogPane().getButtonTypes().addAll(connectButtonType, openGroupButtonType, loadProjectButtonType, ButtonType.CANCEL);
         
         // Show/hide buttons based on selected tab
         Button connectButton = (Button) getDialogPane().lookupButton(connectButtonType);
         Button openGroupButton = (Button) getDialogPane().lookupButton(openGroupButtonType);
+        Button loadProjectButton = (Button) getDialogPane().lookupButton(loadProjectButtonType);
+        
+        // Style the "Projekt laden" button to make it stand out
+        loadProjectButton.setStyle("-fx-font-weight: normal;");
         
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == individualTab) {
@@ -101,9 +108,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 openGroupButton.setVisible(true);
                 openGroupButton.setManaged(true);
             }
+            // "Projekt laden" button is always visible
         });
         
-        // Initially show only connect button
+        // Initially show only connect button (and load project button)
         openGroupButton.setVisible(false);
         openGroupButton.setManaged(false);
         
@@ -126,8 +134,11 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             } else if (dialogButton == openGroupButtonType) {
                 String selectedGroup = groupListView.getSelectionModel().getSelectedItem();
                 if (selectedGroup != null) {
-                    return new ConnectionResult(null, null, false, false, selectedGroup);
+                    return new ConnectionResult(null, null, false, false, selectedGroup, false);
                 }
+            } else if (dialogButton == loadProjectButtonType) {
+                // Special result to signal "load project"
+                return new ConnectionResult(null, null, false, false, null, true);
             }
             return null;
         });
@@ -165,7 +176,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 fillFormWithConnection(conn);
                 setResult(new ConnectionResult(conn, 
                         getConnectionPassword(conn), 
-                        false, true, null));
+                        false, true, null, false));
                 close();
             });
             flowPane.getChildren().add(btn);
@@ -200,6 +211,14 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         connectionNameField = new TextField();
         connectionNameField.setPromptText("Verbindungsname (optional)");
         connectionNameField.setDisable(true);
+        
+        timeoutSpinner = new Spinner<>(1, 300, 15);
+        timeoutSpinner.setEditable(true);
+        timeoutSpinner.setPrefWidth(80);
+        
+        retrySpinner = new Spinner<>(1, 20, 4);
+        retrySpinner.setEditable(true);
+        retrySpinner.setPrefWidth(80);
         
         saveConnectionCheck.selectedProperty().addListener((obs, old, newVal) -> {
             connectionNameField.setDisable(!newVal);
@@ -265,6 +284,18 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         grid.add(new Label("Name:"), 0, 4);
         grid.add(connectionNameField, 1, 4);
         
+        grid.add(new Separator(), 0, 5, 2, 1);
+        
+        grid.add(new Label("Verbindungstimeout:"), 0, 6);
+        HBox timeoutBox = new HBox(10);
+        timeoutBox.getChildren().addAll(timeoutSpinner, new Label("Sekunden"));
+        grid.add(timeoutBox, 1, 6);
+        
+        grid.add(new Label("Wiederholungsversuche:"), 0, 7);
+        HBox retryBox = new HBox(10);
+        retryBox.getChildren().addAll(retrySpinner, new Label("Versuche"));
+        grid.add(retryBox, 1, 7);
+        
         // Add to pane
         if (savedConnections != null && !savedConnections.isEmpty()) {
             Label savedLabel = new Label("Gespeicherte Verbindungen:");
@@ -320,6 +351,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         portSpinner.getValueFactory().setValue(conn.getPort());
         usernameField.setText(conn.getUsername());
         
+        // Set timeout and retry from connection
+        timeoutSpinner.getValueFactory().setValue(conn.getConnectionTimeoutSeconds());
+        retrySpinner.getValueFactory().setValue(conn.getRetryCount());
+        
         // Try to retrieve stored password
         if (passwordVault != null) {
             String storedPassword = getConnectionPassword(conn);
@@ -344,33 +379,40 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             selected.getPort() == portSpinner.getValue() &&
             selected.getUsername().equals(usernameField.getText().trim())) {
             // Using an existing saved connection
-            return new ConnectionResult(selected, passwordField.getText(), false, true, null);
+            return new ConnectionResult(selected, passwordField.getText(), false, true, null, false);
         }
         
         ServerConnection connection = new ServerConnection();
         connection.setHost(hostField.getText().trim());
         connection.setPort(portSpinner.getValue());
         connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
+        connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+        connection.setRetryCount(retrySpinner.getValue());
         
         if (saveConnectionCheck.isSelected()) {
             String name = connectionNameField.getText().trim();
             connection.setName(name.isEmpty() ? connection.getUsername() + "@" + connection.getHost() : name);
         }
         
-        return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false, null);
+        return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false, null, false);
     }
     
     /**
-     * Result containing connection details or group name.
-     * @param connection The server connection details (null for group)
+     * Result containing connection details or group name or load project flag.
+     * @param connection The server connection details (null for group or project load)
      * @param password The password entered
      * @param save Whether to save this as a new connection
      * @param existingSaved Whether this is an existing saved connection
-     * @param groupName The group name to open (null for individual connection)
+     * @param groupName The group name to open (null for individual connection or project load)
+     * @param loadProject Whether to load a project instead of connecting
      */
-    public record ConnectionResult(ServerConnection connection, String password, boolean save, boolean existingSaved, String groupName) {
+    public record ConnectionResult(ServerConnection connection, String password, boolean save, boolean existingSaved, String groupName, boolean loadProject) {
         public boolean isGroupConnection() {
             return groupName != null;
+        }
+        
+        public boolean isLoadProject() {
+            return loadProject;
         }
     }
     

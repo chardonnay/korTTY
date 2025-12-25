@@ -36,7 +36,7 @@ public class ProjectSettingsDialog extends Dialog<Project> {
         nameField = new TextField(project.getName());
         nameField.setPrefWidth(300);
         
-        descriptionField = new TextArea(project.getDescription());
+        descriptionField = new TextArea(project.getDescription() != null ? project.getDescription() : "");
         descriptionField.setPrefRowCount(3);
         descriptionField.setWrapText(true);
         
@@ -82,7 +82,8 @@ public class ProjectSettingsDialog extends Dialog<Project> {
         setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
                 project.setName(nameField.getText().trim());
-                project.setDescription(descriptionField.getText().trim());
+                String description = descriptionField.getText();
+                project.setDescription(description != null ? description.trim() : "");
                 project.setAutoReconnect(autoReconnectCheck.isSelected());
                 return project;
             }

@@ -59,6 +59,8 @@ public class MainWindow {
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
     
+    private volatile boolean quickConnectDialogOpen = false;
+    
     public MainWindow(Stage stage) {
         this.stage = stage;
         this.app = KorTTYApplication.getInstance();
@@ -89,15 +91,61 @@ public class MainWindow {
         // Add "new tab" button tab
         Tab newTabButton = new Tab("+");
         newTabButton.setClosable(false);
-        newTabButton.setOnSelectionChanged(e -> {
-            if (newTabButton.isSelected()) {
+        tabPane.getTabs().add(newTabButton);
+        
+        // Handle clicks on the + tab - works even when already selected
+        tabPane.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 1 && event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                // Check if + tab is selected after the click
                 Platform.runLater(() -> {
-                    tabPane.getSelectionModel().selectPrevious();
+                    Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                    if (selectedTab == newTabButton && !quickConnectDialogOpen) {
+                        // If there are other tabs, select the previous one first
+                        if (tabPane.getTabs().size() > 1) {
+                            tabPane.getSelectionModel().selectPrevious();
+                        }
+                        showQuickConnect();
+                    }
+                });
+            }
+        });
+        
+        // Also handle keyboard navigation to + tab
+        newTabButton.setOnSelectionChanged(e -> {
+            if (newTabButton.isSelected() && !quickConnectDialogOpen) {
+                Platform.runLater(() -> {
+                    if (tabPane.getTabs().size() > 1) {
+                        tabPane.getSelectionModel().selectPrevious();
+                    }
                     showQuickConnect();
                 });
             }
         });
-        tabPane.getTabs().add(newTabButton);
+        
+        // Auto-focus terminal when tab is selected
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab instanceof TerminalTab terminalTab) {
+                Platform.runLater(() -> {
+                    terminalTab.getTerminalView().requestFocus();
+                });
+            }
+        });
+        
+        // Handle double-click on tab for retry
+        tabPane.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_CLICKED, event -> {
+            if (event.getClickCount() == 2) {
+                Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                if (selectedTab instanceof TerminalTab terminalTab) {
+                    // Check if tab is in failed state (dark red)
+                    String style = selectedTab.getStyle();
+                    if (style != null && style.contains("#8B0000")) {
+                        // Retry connection
+                        terminalTab.retryConnection();
+                        event.consume();
+                    }
+                }
+            }
+        });
         
         // Status bar
         VBox statusBar = new VBox(statusLabel);
@@ -364,6 +412,13 @@ public class MainWindow {
      * Opens a new SSH connection in a new tab.
      */
     public void openConnection(ServerConnection connection, String password) {
+        openConnection(connection, password, null);
+    }
+    
+    /**
+     * Opens a new SSH connection in a new tab with optional history restore.
+     */
+    public void openConnection(ServerConnection connection, String password, String historyToRestore) {
         try {
             // Create terminal tab with JediTermFX
             TerminalTab terminalTab = new TerminalTab(connection, password);
@@ -383,6 +438,22 @@ public class MainWindow {
                     Platform.runLater(() -> {
                         updateStatus("Verbunden mit " + connection.getDisplayName());
                         updateDashboard();
+                        
+                        // Restore history after connection is established
+                        if (historyToRestore != null && !historyToRestore.isEmpty()) {
+                            // Wait a bit for terminal to be fully initialized
+                            new Thread(() -> {
+                                try {
+                                    Thread.sleep(500); // Give terminal time to settle
+                                    Platform.runLater(() -> {
+                                        terminalTab.getTerminalView().restoreHistory(historyToRestore);
+                                        logger.info("Terminal history restored for {}", connection.getDisplayName());
+                                    });
+                                } catch (InterruptedException e) {
+                                    logger.error("History restore interrupted", e);
+                                }
+                            }).start();
+                        }
                     });
                 } catch (Exception ex) {
                     logger.error("Connection failed", ex);
@@ -400,16 +471,30 @@ public class MainWindow {
     }
     
     private void showQuickConnect() {
-        // Create password vault for retrieving stored passwords
-        PasswordVault vault = new PasswordVault(
-                app.getMasterPasswordManager().getEncryptionService(),
-                app.getMasterPasswordManager().getMasterPassword()
-        );
+        // Prevent double-opening
+        if (quickConnectDialogOpen) {
+            return;
+        }
         
-        // Pass saved connections and vault to the dialog
-        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
-                app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
-        dialog.showAndWait().ifPresent(result -> {
+        quickConnectDialogOpen = true;
+        
+        try {
+            // Create password vault for retrieving stored passwords
+            PasswordVault vault = new PasswordVault(
+                    app.getMasterPasswordManager().getEncryptionService(),
+                    app.getMasterPasswordManager().getMasterPassword()
+            );
+            
+            // Pass saved connections and vault to the dialog
+            QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
+                    app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
+            dialog.showAndWait().ifPresent(result -> {
+            // Handle load project request
+            if (result.isLoadProject()) {
+                openProject();
+                return;
+            }
+            
             // Handle group connection
             if (result.isGroupConnection()) {
                 openGroupConnections(result.groupName());
@@ -439,7 +524,10 @@ public class MainWindow {
                 }
             }
             openConnection(result.connection(), password);
-        });
+            });
+        } finally {
+            quickConnectDialogOpen = false;
+        }
     }
     
     private void showConnectionManager() {
@@ -721,18 +809,20 @@ public class MainWindow {
                 ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
                 if (connection != null) {
                     if (project.isAutoReconnect()) {
-                        // Get password and reconnect
-                        PasswordVault vault = new PasswordVault(
-                                app.getMasterPasswordManager().getEncryptionService(),
-                                app.getMasterPasswordManager().getMasterPassword()
-                        );
+                        // Get password and reconnect with history restore
                         String password = getConnectionPassword(connection);
                         if (password != null) {
-                            openConnection(connection, password);
+                            String history = sessionState.getTerminalHistory();
+                            openConnection(connection, password, history);
+                            logger.info("Restoring tab for {} with {} chars of history", 
+                                    connection.getDisplayName(), 
+                                    history != null ? history.length() : 0);
                         }
+                    } else {
+                        // TODO: Create read-only tab with history display only (no connection)
+                        logger.info("Auto-reconnect disabled, skipping connection for {}", 
+                                connection.getDisplayName());
                     }
-                    // Restore history if not reconnecting
-                    // TODO: Create tab with history display
                 }
             }
         }

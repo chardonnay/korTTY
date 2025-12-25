@@ -7,6 +7,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
+import javafx.scene.paint.Color;
 
 /**
  * A tab containing a terminal view for an SSH session.
@@ -16,6 +17,7 @@ public class TerminalTab extends Tab {
     private final ServerConnection connection;
     private final TerminalView terminalView;
     private final ConnectionSettings settings;
+    private boolean isConnectionFailed = false;
     
     public TerminalTab(ServerConnection connection, String password) {
         this.connection = connection;
@@ -45,9 +47,54 @@ public class TerminalTab extends Tab {
     }
     
     /**
+     * Sets the tab color to yellow to indicate connection attempt in progress.
+     */
+    private void setTabConnectingColor() {
+        Platform.runLater(() -> {
+            // Set yellow background color with black text for good contrast
+            setStyle("-fx-background-color: #FFD700; -fx-text-fill: black;");
+        });
+    }
+    
+    /**
+     * Sets the tab color to dark red to indicate connection failure or disconnection.
+     */
+    private void setTabErrorColor() {
+        Platform.runLater(() -> {
+            // Set dark red background color
+            setStyle("-fx-background-color: #8B0000; -fx-text-fill: white;");
+        });
+    }
+    
+    /**
+     * Resets the tab color to default.
+     */
+    private void resetTabColor() {
+        Platform.runLater(() -> {
+            setStyle(""); // Reset to default
+        });
+    }
+    
+    /**
+     * Retries the connection.
+     */
+    public void retryConnection() {
+        isConnectionFailed = false;
+        String displayName = connection.getDisplayName();
+        if (displayName == null || displayName.trim().isEmpty()) {
+            displayName = connection.getUsername() + "@" + connection.getHost();
+        }
+        setText(displayName);
+        connect(); // connect() will set tab to yellow automatically
+    }
+    
+    /**
      * Connects to the SSH server.
      */
     public void connect() {
+        // Set tab to yellow color to indicate connection attempt in progress
+        setTabConnectingColor();
+        
         // Register disconnect listener for auto-close on normal exit
         terminalView.setDisconnectListener((reason, wasError) -> {
             Platform.runLater(() -> {
@@ -55,9 +102,24 @@ public class TerminalTab extends Tab {
                     // Normal exit - auto-close the tab
                     closeTabSilently();
                 } else {
-                    // Error - keep tab open and update title
-                    setText(connection.getDisplayName() + " (Getrennt)");
+                    // Error or disconnection - mark as failed and color tab red
+                    isConnectionFailed = true;
+                    setText(connection.getDisplayName() + " (DISCONNECT)");
+                    setTabErrorColor();
                 }
+            });
+        });
+        
+        // Register callback for successful connection
+        terminalView.setOnConnectedCallback(() -> {
+            Platform.runLater(() -> {
+                // Connected successfully - show connection name only
+                String displayName = connection.getDisplayName();
+                if (displayName == null || displayName.trim().isEmpty()) {
+                    displayName = connection.getUsername() + "@" + connection.getHost();
+                }
+                setText(displayName);
+                resetTabColor(); // Reset to default (green/normal)
             });
         });
         
@@ -80,8 +142,12 @@ public class TerminalTab extends Tab {
      * Called when the SSH connection fails.
      */
     public void onConnectionFailed(String error) {
+        isConnectionFailed = true;
         terminalView.showError("Verbindung fehlgeschlagen: " + error);
-        Platform.runLater(() -> setText(connection.getDisplayName() + " (Fehler)"));
+        Platform.runLater(() -> {
+            setText(connection.getDisplayName() + " (DISCONNECT)");
+            setTabErrorColor();
+        });
     }
     
     /**
