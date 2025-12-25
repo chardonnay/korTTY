@@ -91,42 +91,112 @@ public class TerminalView extends BorderPane {
     
     /**
      * Connects to the SSH server and starts the terminal session.
+     * Implements retry logic with configurable timeout and retry count.
      */
     public void connect() {
-        try {
-            // Create TtyConnector
-            ttyConnector = new SshTtyConnector(connection, password);
+        int retryCount = connection.getRetryCount();
+        if (retryCount <= 0) {
+            retryCount = 4; // Default fallback
+        }
+        
+        int attempt = 0;
+        boolean connected = false;
+        String lastError = null;
+        
+        while (attempt < retryCount && !connected) {
+            attempt++;
             
-            // Register disconnect listener
-            ttyConnector.setDisconnectListener((reason, wasError) -> {
-                logger.info("Disconnect event: {} (wasError={})", reason, wasError);
-                
-                // Stop logger if running
-                stopLogger();
-                
-                if (externalDisconnectListener != null) {
-                    externalDisconnectListener.onDisconnect(reason, wasError);
+            try {
+                // Clean up previous attempt if any
+                if (ttyConnector != null) {
+                    try {
+                        ttyConnector.close();
+                    } catch (Exception e) {
+                        // Ignore cleanup errors
+                    }
                 }
-            });
-            
-            // Connect SSH first
-            if (!ttyConnector.connect()) {
-                showError("SSH-Verbindung fehlgeschlagen");
-                return;
+                
+                // Create TtyConnector
+                ttyConnector = new SshTtyConnector(connection, password);
+                
+                // Register disconnect listener
+                ttyConnector.setDisconnectListener((reason, wasError) -> {
+                    logger.info("Disconnect event: {} (wasError={})", reason, wasError);
+                    
+                    // Stop logger if running
+                    stopLogger();
+                    
+                    if (externalDisconnectListener != null) {
+                        externalDisconnectListener.onDisconnect(reason, wasError);
+                    }
+                });
+                
+                // Show retry attempt message
+                if (attempt > 1) {
+                    showError("Verbindungsversuch " + attempt + " von " + retryCount + "...");
+                }
+                
+                // Connect SSH
+                connected = ttyConnector.connect();
+                
+                if (connected) {
+                    // Start terminal logger if enabled
+                    startLogger();
+                    
+                    // Set the connector and start the terminal
+                    terminalWidget.setTtyConnector(ttyConnector);
+                    terminalWidget.start();
+                    
+                    logger.info("Terminal session started for {} (attempt {}/{})", 
+                               connection.getDisplayName(), attempt, retryCount);
+                    return; // Success!
+                } else {
+                    lastError = "SSH-Verbindung fehlgeschlagen";
+                    logger.warn("Connection attempt {}/{} failed for {}", 
+                               attempt, retryCount, connection.getDisplayName());
+                    
+                    // Wait a bit before retry (except on last attempt)
+                    if (attempt < retryCount) {
+                        try {
+                            Thread.sleep(1000); // 1 second delay between retries
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+                
+            } catch (Exception e) {
+                lastError = "Verbindung fehlgeschlagen: " + e.getMessage();
+                logger.error("Failed to start terminal session (attempt {}/{}): {}", 
+                            attempt, retryCount, e.getMessage(), e);
+                
+                // Wait before retry (except on last attempt)
+                if (attempt < retryCount) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
             }
-            
-            // Start terminal logger if enabled
-            startLogger();
-            
-            // Set the connector and start the terminal
-            terminalWidget.setTtyConnector(ttyConnector);
-            terminalWidget.start();
-            
-            logger.info("Terminal session started for {}", connection.getDisplayName());
-            
-        } catch (Exception e) {
-            logger.error("Failed to start terminal session: {}", e.getMessage(), e);
-            showError("Verbindung fehlgeschlagen: " + e.getMessage());
+        }
+        
+        // All retries failed
+        String errorMessage = String.format(
+            "Verbindung nach %d Versuchen fehlgeschlagen. Timeout: %d Sekunden. %s",
+            retryCount, connection.getConnectionTimeoutSeconds(), 
+            lastError != null ? lastError : "Unbekannter Fehler"
+        );
+        showError(errorMessage);
+        logger.error("All connection attempts failed for {}", connection.getDisplayName());
+        
+        // Notify disconnect listener about failure
+        if (externalDisconnectListener != null) {
+            Platform.runLater(() -> {
+                externalDisconnectListener.onDisconnect(errorMessage, true);
+            });
         }
     }
     

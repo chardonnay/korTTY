@@ -33,6 +33,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private PasswordField passwordField;
     private CheckBox saveConnectionCheck;
     private TextField connectionNameField;
+    private Spinner<Integer> timeoutSpinner;
+    private Spinner<Integer> retrySpinner;
     
     // Group tab
     private ListView<String> groupListView;
@@ -210,6 +212,14 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         connectionNameField.setPromptText("Verbindungsname (optional)");
         connectionNameField.setDisable(true);
         
+        timeoutSpinner = new Spinner<>(1, 300, 15);
+        timeoutSpinner.setEditable(true);
+        timeoutSpinner.setPrefWidth(80);
+        
+        retrySpinner = new Spinner<>(1, 20, 4);
+        retrySpinner.setEditable(true);
+        retrySpinner.setPrefWidth(80);
+        
         saveConnectionCheck.selectedProperty().addListener((obs, old, newVal) -> {
             connectionNameField.setDisable(!newVal);
         });
@@ -274,6 +284,18 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         grid.add(new Label("Name:"), 0, 4);
         grid.add(connectionNameField, 1, 4);
         
+        grid.add(new Separator(), 0, 5, 2, 1);
+        
+        grid.add(new Label("Verbindungstimeout:"), 0, 6);
+        HBox timeoutBox = new HBox(10);
+        timeoutBox.getChildren().addAll(timeoutSpinner, new Label("Sekunden"));
+        grid.add(timeoutBox, 1, 6);
+        
+        grid.add(new Label("Wiederholungsversuche:"), 0, 7);
+        HBox retryBox = new HBox(10);
+        retryBox.getChildren().addAll(retrySpinner, new Label("Versuche"));
+        grid.add(retryBox, 1, 7);
+        
         // Add to pane
         if (savedConnections != null && !savedConnections.isEmpty()) {
             Label savedLabel = new Label("Gespeicherte Verbindungen:");
@@ -329,6 +351,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         portSpinner.getValueFactory().setValue(conn.getPort());
         usernameField.setText(conn.getUsername());
         
+        // Set timeout and retry from connection
+        timeoutSpinner.getValueFactory().setValue(conn.getConnectionTimeoutSeconds());
+        retrySpinner.getValueFactory().setValue(conn.getRetryCount());
+        
         // Try to retrieve stored password
         if (passwordVault != null) {
             String storedPassword = getConnectionPassword(conn);
@@ -360,6 +386,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         connection.setHost(hostField.getText().trim());
         connection.setPort(portSpinner.getValue());
         connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
+        connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+        connection.setRetryCount(retrySpinner.getValue());
         
         if (saveConnectionCheck.isSelected()) {
             String name = connectionNameField.getText().trim();

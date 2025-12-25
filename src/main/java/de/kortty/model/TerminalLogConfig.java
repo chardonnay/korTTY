@@ -95,3 +95,6 @@ public class TerminalLogConfig {
         return (long) maxFileSizeMB * 1024 * 1024;
     }
 }
+
+
+

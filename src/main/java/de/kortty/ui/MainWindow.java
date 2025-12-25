@@ -131,6 +131,22 @@ public class MainWindow {
             }
         });
         
+        // Handle double-click on tab for retry
+        tabPane.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_CLICKED, event -> {
+            if (event.getClickCount() == 2) {
+                Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                if (selectedTab instanceof TerminalTab terminalTab) {
+                    // Check if tab is in failed state (dark red)
+                    String style = selectedTab.getStyle();
+                    if (style != null && style.contains("#8B0000")) {
+                        // Retry connection
+                        terminalTab.retryConnection();
+                        event.consume();
+                    }
+                }
+            }
+        });
+        
         // Status bar
         VBox statusBar = new VBox(statusLabel);
         statusBar.setStyle("-fx-padding: 5; -fx-background-color: #2d2d2d;");

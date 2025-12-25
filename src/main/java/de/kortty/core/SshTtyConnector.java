@@ -64,14 +64,20 @@ public class SshTtyConnector implements TtyConnector {
             });
             client.start();
             
+            // Get timeout from connection settings
+            int timeoutSeconds = connection.getConnectionTimeoutSeconds();
+            if (timeoutSeconds <= 0) {
+                timeoutSeconds = 15; // Default fallback
+            }
+            
             // Connect to server
             session = client.connect(connection.getUsername(), connection.getHost(), connection.getPort())
-                    .verify(Duration.ofSeconds(30))
+                    .verify(Duration.ofSeconds(timeoutSeconds))
                     .getSession();
             
             // Authenticate
             session.addPasswordIdentity(password);
-            session.auth().verify(Duration.ofSeconds(30));
+            session.auth().verify(Duration.ofSeconds(timeoutSeconds));
             
             // Create shell channel
             channel = session.createShellChannel();

@@ -61,6 +61,10 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private Spinner<Integer> maxFileSizeMBSpinner;
     private ComboBox<de.kortty.model.TerminalLogConfig.LogFormat> logFormatCombo;
     
+    // Connection timeout
+    private Spinner<Integer> timeoutSpinner;
+    private Spinner<Integer> retrySpinner;
+    
     public ConnectionEditDialog(Stage owner, ServerConnection existingConnection, CredentialManager credentialManager, char[] masterPassword) {
         this.connection = existingConnection != null ? existingConnection : new ServerConnection();
         this.credentialManager = credentialManager;
@@ -141,6 +145,15 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         groupField = new TextField(connection.getGroup());
         groupField.setPromptText("Optional - zur Gruppierung");
         
+        // Connection timeout and retry
+        timeoutSpinner = new Spinner<>(1, 300, connection.getConnectionTimeoutSeconds());
+        timeoutSpinner.setEditable(true);
+        timeoutSpinner.setPrefWidth(80);
+        
+        retrySpinner = new Spinner<>(1, 20, connection.getRetryCount());
+        retrySpinner.setEditable(true);
+        retrySpinner.setPrefWidth(80);
+        
         // Authentication method
         authMethodGroup = new ToggleGroup();
         passwordAuthRadio = new RadioButton("Passwort");
@@ -185,6 +198,18 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         connectionGrid.add(new Label("Gruppe:"), 0, row);
         connectionGrid.add(groupField, 1, row++);
+        
+        connectionGrid.add(new Separator(), 0, row++, 2, 1);
+        
+        connectionGrid.add(new Label("Verbindungstimeout:"), 0, row);
+        HBox timeoutBox = new HBox(10);
+        timeoutBox.getChildren().addAll(timeoutSpinner, new Label("Sekunden"));
+        connectionGrid.add(timeoutBox, 1, row++);
+        
+        connectionGrid.add(new Label("Wiederholungsversuche:"), 0, row);
+        HBox retryBox = new HBox(10);
+        retryBox.getChildren().addAll(retrySpinner, new Label("Versuche"));
+        connectionGrid.add(retryBox, 1, row++);
         
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
         
@@ -242,6 +267,8 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 connection.setPort(portSpinner.getValue());
                 connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
                 connection.setGroup(groupField.getText().trim().isEmpty() ? null : groupField.getText().trim());
+                connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+                connection.setRetryCount(retrySpinner.getValue());
                 
                 // Save credential reference
                 if (savedCredentialsCombo.getValue() != null) {

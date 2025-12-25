@@ -7,6 +7,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
+import javafx.scene.paint.Color;
 
 /**
  * A tab containing a terminal view for an SSH session.
@@ -16,6 +17,7 @@ public class TerminalTab extends Tab {
     private final ServerConnection connection;
     private final TerminalView terminalView;
     private final ConnectionSettings settings;
+    private boolean isConnectionFailed = false;
     
     public TerminalTab(ServerConnection connection, String password) {
         this.connection = connection;
@@ -45,6 +47,35 @@ public class TerminalTab extends Tab {
     }
     
     /**
+     * Sets the tab color to dark red to indicate connection failure or disconnection.
+     */
+    private void setTabErrorColor() {
+        Platform.runLater(() -> {
+            // Set dark red background color
+            setStyle("-fx-background-color: #8B0000; -fx-text-fill: white;");
+        });
+    }
+    
+    /**
+     * Resets the tab color to default.
+     */
+    private void resetTabColor() {
+        Platform.runLater(() -> {
+            setStyle(""); // Reset to default
+        });
+    }
+    
+    /**
+     * Retries the connection.
+     */
+    public void retryConnection() {
+        isConnectionFailed = false;
+        resetTabColor();
+        setText(connection.getDisplayName());
+        connect();
+    }
+    
+    /**
      * Connects to the SSH server.
      */
     public void connect() {
@@ -55,13 +86,31 @@ public class TerminalTab extends Tab {
                     // Normal exit - auto-close the tab
                     closeTabSilently();
                 } else {
-                    // Error - keep tab open and update title
+                    // Error or disconnection - mark as failed and color tab red
+                    isConnectionFailed = true;
                     setText(connection.getDisplayName() + " (Getrennt)");
+                    setTabErrorColor();
                 }
             });
         });
         
         terminalView.connect();
+        
+        // Check connection status after a short delay to detect immediate failures
+        Platform.runLater(() -> {
+            javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(500)
+            );
+            delay.setOnFinished(e -> {
+                if (!terminalView.isConnected()) {
+                    // Connection failed - mark tab as failed
+                    isConnectionFailed = true;
+                    setText(connection.getDisplayName() + " (Fehler)");
+                    setTabErrorColor();
+                }
+            });
+            delay.play();
+        });
     }
     
     /**
@@ -80,8 +129,12 @@ public class TerminalTab extends Tab {
      * Called when the SSH connection fails.
      */
     public void onConnectionFailed(String error) {
+        isConnectionFailed = true;
         terminalView.showError("Verbindung fehlgeschlagen: " + error);
-        Platform.runLater(() -> setText(connection.getDisplayName() + " (Fehler)"));
+        Platform.runLater(() -> {
+            setText(connection.getDisplayName() + " (Fehler)");
+            setTabErrorColor();
+        });
     }
     
     /**

@@ -67,6 +67,12 @@ public class ServerConnection {
     @XmlElement
     private TerminalLogConfig logConfig;
     
+    @XmlElement
+    private int connectionTimeoutSeconds = 15;  // Default: 15 seconds
+    
+    @XmlElement
+    private int retryCount = 4;  // Default: 4 retry attempts
+    
     public ServerConnection() {
         this.id = UUID.randomUUID().toString();
         this.settings = new ConnectionSettings();
@@ -265,5 +271,21 @@ public class ServerConnection {
     
     public void setLogConfig(TerminalLogConfig logConfig) {
         this.logConfig = logConfig;
+    }
+    
+    public int getConnectionTimeoutSeconds() {
+        return connectionTimeoutSeconds;
+    }
+    
+    public void setConnectionTimeoutSeconds(int connectionTimeoutSeconds) {
+        this.connectionTimeoutSeconds = connectionTimeoutSeconds;
+    }
+    
+    public int getRetryCount() {
+        return retryCount;
+    }
+    
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
     }
 }
