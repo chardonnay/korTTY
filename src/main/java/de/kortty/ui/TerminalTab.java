@@ -47,6 +47,16 @@ public class TerminalTab extends Tab {
     }
     
     /**
+     * Sets the tab color to yellow to indicate connection attempt in progress.
+     */
+    private void setTabConnectingColor() {
+        Platform.runLater(() -> {
+            // Set yellow background color with black text for good contrast
+            setStyle("-fx-background-color: #FFD700; -fx-text-fill: black;");
+        });
+    }
+    
+    /**
      * Sets the tab color to dark red to indicate connection failure or disconnection.
      */
     private void setTabErrorColor() {
@@ -70,19 +80,21 @@ public class TerminalTab extends Tab {
      */
     public void retryConnection() {
         isConnectionFailed = false;
-        resetTabColor();
         String displayName = connection.getDisplayName();
         if (displayName == null || displayName.trim().isEmpty()) {
             displayName = connection.getUsername() + "@" + connection.getHost();
         }
         setText(displayName);
-        connect();
+        connect(); // connect() will set tab to yellow automatically
     }
     
     /**
      * Connects to the SSH server.
      */
     public void connect() {
+        // Set tab to yellow color to indicate connection attempt in progress
+        setTabConnectingColor();
+        
         // Register disconnect listener for auto-close on normal exit
         terminalView.setDisconnectListener((reason, wasError) -> {
             Platform.runLater(() -> {
@@ -107,7 +119,7 @@ public class TerminalTab extends Tab {
                     displayName = connection.getUsername() + "@" + connection.getHost();
                 }
                 setText(displayName);
-                resetTabColor(); // Ensure tab is not red
+                resetTabColor(); // Reset to default (green/normal)
             });
         });
         
