@@ -410,19 +410,81 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Applies the zoom by scaling the terminal pane.
-     * Uses Scale transform with pivot at top-left corner (0,0) to keep text aligned.
+     * Applies the zoom by recreating the terminal with the new font size.
+     * This changes the actual font size, not just scales the display.
      */
     private void applyZoom() {
-        if (terminalWidget != null && terminalWidget.getPane() != null) {
-            // Calculate scale factor based on font size ratio
-            double scale = (double) currentFontSize / defaultFontSize;
-            
-            // Clear existing transforms and add scale with pivot at top-left (0,0)
-            javafx.scene.transform.Scale scaleTransform = new javafx.scene.transform.Scale(scale, scale, 0, 0);
-            terminalWidget.getPane().getTransforms().clear();
-            terminalWidget.getPane().getTransforms().add(scaleTransform);
+        if (terminalWidget == null) {
+            return;
         }
+        
+        Platform.runLater(() -> {
+            try {
+                // Save current state
+                boolean wasConnected = ttyConnector != null && ttyConnector.isConnected();
+                SshTtyConnector savedConnector = ttyConnector;
+                
+                // Stop and close old terminal
+                if (terminalWidget != null) {
+                    try {
+                        terminalWidget.stop();
+                    } catch (Exception e) {
+                        logger.debug("Error stopping terminal widget: {}", e.getMessage());
+                    }
+                }
+                
+                // Create new terminal widget with updated font size
+                settingsProvider = new KorTTYSettingsProvider(settings, this);
+                JediTermFxWidget oldWidget = terminalWidget;
+                terminalWidget = new JediTermFxWidget(settingsProvider);
+                
+                // Replace the pane in the BorderPane
+                setCenter(terminalWidget.getPane());
+                
+                // Close old widget
+                if (oldWidget != null) {
+                    try {
+                        oldWidget.close();
+                    } catch (Exception e) {
+                        logger.debug("Error closing old terminal widget: {}", e.getMessage());
+                    }
+                }
+                
+                // Restore connection if it was connected
+                if (wasConnected && savedConnector != null) {
+                    // Re-register disconnect listener
+                    savedConnector.setDisconnectListener((reason, wasError) -> {
+                        logger.info("Disconnect event: {} (wasError={})", reason, wasError);
+                        stopLogger();
+                        if (externalDisconnectListener != null) {
+                            externalDisconnectListener.onDisconnect(reason, wasError);
+                        }
+                    });
+                    
+                    // Re-register data listener for logging
+                    if (terminalLogger != null) {
+                        savedConnector.setDataListener(data -> {
+                            if (terminalLogger != null) {
+                                terminalLogger.log(data);
+                            }
+                        });
+                    }
+                    
+                    // Set connector and start terminal
+                    terminalWidget.setTtyConnector(savedConnector);
+                    terminalWidget.start();
+                    
+                    // Request focus
+                    if (terminalWidget.getPreferredFocusableNode() != null) {
+                        terminalWidget.getPreferredFocusableNode().requestFocus();
+                    }
+                }
+                
+                logger.debug("Terminal recreated with font size: {}", currentFontSize);
+            } catch (Exception e) {
+                logger.error("Failed to apply zoom: {}", e.getMessage(), e);
+            }
+        });
     }
     
     /**
