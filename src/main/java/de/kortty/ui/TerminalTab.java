@@ -24,7 +24,7 @@ public class TerminalTab extends Tab {
         this.settings = connection.getSettings();
         this.terminalView = new TerminalView(connection, password);
         
-        setText(connection.getDisplayName());
+        updateTabTitle();
         setContent(terminalView);
         setClosable(true);
         
@@ -80,11 +80,7 @@ public class TerminalTab extends Tab {
      */
     public void retryConnection() {
         isConnectionFailed = false;
-        String displayName = connection.getDisplayName();
-        if (displayName == null || displayName.trim().isEmpty()) {
-            displayName = connection.getUsername() + "@" + connection.getHost();
-        }
-        setText(displayName);
+        updateTabTitle();
         connect(); // connect() will set tab to yellow automatically
     }
     
@@ -104,7 +100,7 @@ public class TerminalTab extends Tab {
                 } else {
                     // Error or disconnection - mark as failed and color tab red
                     isConnectionFailed = true;
-                    setText(connection.getDisplayName() + " (DISCONNECT)");
+                    updateTabTitle(" (DISCONNECT)");
                     setTabErrorColor();
                 }
             });
@@ -113,12 +109,7 @@ public class TerminalTab extends Tab {
         // Register callback for successful connection
         terminalView.setOnConnectedCallback(() -> {
             Platform.runLater(() -> {
-                // Connected successfully - show connection name only
-                String displayName = connection.getDisplayName();
-                if (displayName == null || displayName.trim().isEmpty()) {
-                    displayName = connection.getUsername() + "@" + connection.getHost();
-                }
-                setText(displayName);
+                updateTabTitle();
                 resetTabColor(); // Reset to default (green/normal)
             });
         });
@@ -145,7 +136,7 @@ public class TerminalTab extends Tab {
         isConnectionFailed = true;
         terminalView.showError("Verbindung fehlgeschlagen: " + error);
         Platform.runLater(() -> {
-            setText(connection.getDisplayName() + " (DISCONNECT)");
+            updateTabTitle(" (DISCONNECT)");
             setTabErrorColor();
         });
     }
@@ -188,5 +179,47 @@ public class TerminalTab extends Tab {
     
     public boolean isConnected() {
         return terminalView.isConnected();
+    }
+    
+    /**
+     * Updates the tab title to include group prefix if group is set.
+     */
+    public void updateTabTitle() {
+        updateTabTitle("");
+    }
+    
+    /**
+     * Updates the tab title to include group prefix if group is set.
+     * @param suffix Additional suffix to append (e.g., " (DISCONNECT)")
+     */
+    private void updateTabTitle(String suffix) {
+        Platform.runLater(() -> {
+            String displayName = connection.getDisplayName();
+            if (displayName == null || displayName.trim().isEmpty()) {
+                displayName = connection.getUsername() + "@" + connection.getHost();
+            }
+            
+            String group = connection.getGroup();
+            if (group != null && !group.trim().isEmpty()) {
+                setText("[" + group + "] " + displayName + suffix);
+            } else {
+                setText(displayName + suffix);
+            }
+        });
+    }
+    
+    /**
+     * Gets the group name for this tab's connection.
+     */
+    public String getGroup() {
+        return connection.getGroup();
+    }
+    
+    /**
+     * Sets the group for this tab's connection and updates the tab title.
+     */
+    public void setGroup(String group) {
+        connection.setGroup(group);
+        updateTabTitle();
     }
 }

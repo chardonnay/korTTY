@@ -424,11 +424,14 @@ public class MainWindow {
             TerminalTab terminalTab = new TerminalTab(connection, password);
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
+                organizeTabsByGroup();
             });
             
-            // Insert before the "+" tab
-            int insertIndex = tabPane.getTabs().size() - 1;
-            tabPane.getTabs().add(insertIndex, terminalTab);
+            // Setup context menu for group assignment
+            setupTabContextMenu(terminalTab);
+            
+            // Insert before the "+" tab, maintaining group order
+            insertTabInGroupOrder(terminalTab);
             tabPane.getSelectionModel().select(terminalTab);
             
             // Connect in background
@@ -1289,6 +1292,216 @@ public class MainWindow {
         Thread thread = new Thread(backupTask);
         thread.setDaemon(true);
         thread.start();
+    }
+    
+    /**
+     * Sets up context menu for a terminal tab to assign/change groups.
+     */
+    private void setupTabContextMenu(TerminalTab terminalTab) {
+        ContextMenu contextMenu = new ContextMenu();
+        
+        // Get all available groups
+        List<String> groups = getAllGroups();
+        String currentGroup = terminalTab.getGroup();
+        
+        // Menu item to remove from group
+        MenuItem removeGroupItem = new MenuItem("Keine Gruppe");
+        removeGroupItem.setOnAction(e -> {
+            terminalTab.setGroup(null);
+            app.getConfigManager().updateConnection(terminalTab.getConnection());
+            try {
+                app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+            } catch (Exception ex) {
+                logger.error("Failed to save connection", ex);
+            }
+            organizeTabsByGroup();
+        });
+        if (currentGroup == null || currentGroup.trim().isEmpty()) {
+            removeGroupItem.setDisable(true);
+        }
+        contextMenu.getItems().add(removeGroupItem);
+        
+        // Separator
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        
+        // Menu items for each group
+        if (!groups.isEmpty()) {
+            for (String group : groups) {
+                MenuItem groupItem = new MenuItem(group);
+                groupItem.setOnAction(e -> {
+                    terminalTab.setGroup(group);
+                    app.getConfigManager().updateConnection(terminalTab.getConnection());
+                    try {
+                        app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+                    } catch (Exception ex) {
+                        logger.error("Failed to save connection", ex);
+                    }
+                    organizeTabsByGroup();
+                });
+                if (group.equals(currentGroup)) {
+                    groupItem.setDisable(true);
+                }
+                contextMenu.getItems().add(groupItem);
+            }
+            contextMenu.getItems().add(new SeparatorMenuItem());
+        }
+        
+        // Menu item to create new group
+        MenuItem newGroupItem = new MenuItem("Neue Gruppe...");
+        newGroupItem.setOnAction(e -> {
+            TextInputDialog dialog = new TextInputDialog();
+            dialog.setTitle("Neue Gruppe");
+            dialog.setHeaderText("Gruppenname eingeben");
+            dialog.setContentText("Gruppenname:");
+            dialog.getEditor().setPromptText("z.B. Production, Development");
+            
+            dialog.showAndWait().ifPresent(groupName -> {
+                if (groupName != null && !groupName.trim().isEmpty()) {
+                    terminalTab.setGroup(groupName.trim());
+                    app.getConfigManager().updateConnection(terminalTab.getConnection());
+                    try {
+                        app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+                    } catch (Exception ex) {
+                        logger.error("Failed to save connection", ex);
+                    }
+                    organizeTabsByGroup();
+                }
+            });
+        });
+        contextMenu.getItems().add(newGroupItem);
+        
+        terminalTab.setContextMenu(contextMenu);
+    }
+    
+    /**
+     * Gets all unique group names from connections.
+     */
+    private List<String> getAllGroups() {
+        List<String> groups = new ArrayList<>();
+        for (ServerConnection conn : app.getConfigManager().getConnections()) {
+            String group = conn.getGroup();
+            if (group != null && !group.trim().isEmpty() && !groups.contains(group)) {
+                groups.add(group);
+            }
+        }
+        // Also get groups from open tabs
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                String group = terminalTab.getGroup();
+                if (group != null && !group.trim().isEmpty() && !groups.contains(group)) {
+                    groups.add(group);
+                }
+            }
+        }
+        groups.sort(String::compareToIgnoreCase);
+        return groups;
+    }
+    
+    /**
+     * Inserts a tab in the correct position based on group ordering.
+     * Tabs are organized: no group first, then grouped tabs alphabetically by group name.
+     */
+    private void insertTabInGroupOrder(TerminalTab newTab) {
+        String newTabGroup = newTab.getGroup();
+        if (newTabGroup == null || newTabGroup.trim().isEmpty()) {
+            newTabGroup = null;
+        }
+        
+        int plusTabIndex = tabPane.getTabs().size() - 1; // "+" tab is always last
+        
+        // Find insertion point
+        int insertIndex = plusTabIndex;
+        for (int i = 0; i < plusTabIndex; i++) {
+            Tab tab = tabPane.getTabs().get(i);
+            if (tab instanceof TerminalTab terminalTab) {
+                String tabGroup = terminalTab.getGroup();
+                if (tabGroup == null || tabGroup.trim().isEmpty()) {
+                    tabGroup = null;
+                }
+                
+                // Compare groups
+                if (newTabGroup == null) {
+                    // New tab has no group - insert before first grouped tab
+                    if (tabGroup != null) {
+                        insertIndex = i;
+                        break;
+                    }
+                } else {
+                    // New tab has group - insert after last tab with same group or before first tab with larger group
+                    if (tabGroup != null && tabGroup.compareToIgnoreCase(newTabGroup) > 0) {
+                        insertIndex = i;
+                        break;
+                    } else if (tabGroup != null && tabGroup.equals(newTabGroup)) {
+                        // Continue until we find the end of this group
+                        insertIndex = i + 1;
+                    }
+                }
+            }
+        }
+        
+        tabPane.getTabs().add(insertIndex, newTab);
+    }
+    
+    /**
+     * Reorganizes all tabs by group order.
+     * Tabs without group come first, then grouped tabs sorted alphabetically by group name.
+     */
+    private void organizeTabsByGroup() {
+        // Get all terminal tabs (excluding "+" tab)
+        List<TerminalTab> terminalTabs = new ArrayList<>();
+        Tab plusTab = null;
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                terminalTabs.add(terminalTab);
+            } else if ("+".equals(tab.getText())) {
+                plusTab = tab;
+            }
+        }
+        
+        // Sort tabs: no group first, then by group name alphabetically
+        terminalTabs.sort((t1, t2) -> {
+            String g1 = t1.getGroup();
+            String g2 = t2.getGroup();
+            
+            if (g1 == null || g1.trim().isEmpty()) {
+                g1 = null;
+            }
+            if (g2 == null || g2.trim().isEmpty()) {
+                g2 = null;
+            }
+            
+            if (g1 == null && g2 == null) {
+                return 0; // Keep original order for tabs without group
+            }
+            if (g1 == null) {
+                return -1; // No group comes first
+            }
+            if (g2 == null) {
+                return 1; // No group comes first
+            }
+            
+            return g1.compareToIgnoreCase(g2);
+        });
+        
+        // Clear all tabs
+        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        tabPane.getTabs().clear();
+        
+        // Re-add sorted tabs
+        for (TerminalTab tab : terminalTabs) {
+            tabPane.getTabs().add(tab);
+            setupTabContextMenu(tab); // Re-setup context menu
+        }
+        
+        // Re-add "+" tab at the end
+        if (plusTab != null) {
+            tabPane.getTabs().add(plusTab);
+        }
+        
+        // Restore selection
+        if (selectedTab != null) {
+            tabPane.getSelectionModel().select(selectedTab);
+        }
     }
 
 }
