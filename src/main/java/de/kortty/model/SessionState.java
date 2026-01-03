@@ -33,6 +33,9 @@ public class SessionState {
     @XmlElement
     private ConnectionSettings settings;
     
+    @XmlElement
+    private String group;
+    
     public SessionState() {
     }
     
@@ -105,6 +108,14 @@ public class SessionState {
     
     public void setSettings(ConnectionSettings settings) {
         this.settings = settings;
+    }
+    
+    public String getGroup() {
+        return group;
+    }
+    
+    public void setGroup(String group) {
+        this.group = group;
     }
     
     /**

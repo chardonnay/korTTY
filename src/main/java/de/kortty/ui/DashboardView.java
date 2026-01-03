@@ -5,6 +5,9 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
@@ -109,7 +112,7 @@ public class DashboardView extends VBox {
     }
     
     /**
-     * Refreshes the dashboard tree with current tabs.
+     * Refreshes the dashboard tree with current tabs, organized by groups.
      */
     public void refresh() {
         TreeItem<DashboardItem> root = new TreeItem<>(new DashboardItem("Projekt", null, true, null));
@@ -124,21 +127,70 @@ public class DashboardView extends VBox {
         );
         windowItem.setExpanded(true);
         
-        // Iterate through tabs
+        // Group tabs by group name
+        java.util.Map<String, java.util.List<TerminalTab>> groups = new java.util.HashMap<>();
+        java.util.List<TerminalTab> ungroupedTabs = new java.util.ArrayList<>();
+        
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
                 totalTabs++;
                 boolean connected = terminalTab.isConnected();
                 if (connected) activeTabs++;
                 
-                // Get server name or IP
-                String displayName = getServerDisplayName(terminalTab);
-                
-                TreeItem<DashboardItem> tabItem = new TreeItem<>(
-                        new DashboardItem(displayName, null, connected, terminalTab)
-                );
-                windowItem.getChildren().add(tabItem);
+                String group = terminalTab.getGroup();
+                if (group != null && !group.trim().isEmpty()) {
+                    groups.computeIfAbsent(group, k -> new java.util.ArrayList<>()).add(terminalTab);
+                } else {
+                    ungroupedTabs.add(terminalTab);
+                }
             }
+        }
+        
+        // Add ungrouped tabs first
+        for (TerminalTab terminalTab : ungroupedTabs) {
+            String displayName = getServerDisplayName(terminalTab);
+            TreeItem<DashboardItem> tabItem = new TreeItem<>(
+                    new DashboardItem(displayName, null, terminalTab.isConnected(), terminalTab)
+            );
+            windowItem.getChildren().add(tabItem);
+        }
+        
+        // Add grouped tabs, sorted by group name
+        List<String> sortedGroups = new java.util.ArrayList<>(groups.keySet());
+        sortedGroups.sort(String::compareToIgnoreCase);
+        
+        for (String groupName : sortedGroups) {
+            java.util.List<TerminalTab> groupTabs = groups.get(groupName);
+            
+            // Count active tabs in group
+            int groupActive = 0;
+            for (TerminalTab tab : groupTabs) {
+                if (tab.isConnected()) {
+                    groupActive++;
+                }
+            }
+            
+            // Create group item
+            TreeItem<DashboardItem> groupItem = new TreeItem<>(
+                    new DashboardItem(
+                            "[" + groupName + "] (" + groupActive + "/" + groupTabs.size() + " aktiv)",
+                            null,
+                            true,
+                            null
+                    )
+            );
+            groupItem.setExpanded(true);
+            
+            // Add tabs in group
+            for (TerminalTab terminalTab : groupTabs) {
+                String displayName = getServerDisplayName(terminalTab);
+                TreeItem<DashboardItem> tabItem = new TreeItem<>(
+                        new DashboardItem(displayName, null, terminalTab.isConnected(), terminalTab)
+                );
+                groupItem.getChildren().add(tabItem);
+            }
+            
+            windowItem.getChildren().add(groupItem);
         }
         
         // Update window title with counts

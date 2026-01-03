@@ -782,6 +782,7 @@ public class MainWindow {
                 );
                 sessionState.setSettings(connection.getSettings());
                 sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
+                sessionState.setGroup(connection.getGroup()); // Save group information
                 windowState.addTab(sessionState);
             }
         }
@@ -811,6 +812,13 @@ public class MainWindow {
             for (SessionState sessionState : windowState.getTabs()) {
                 ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
                 if (connection != null) {
+                    // Restore group information if present
+                    if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
+                        connection.setGroup(sessionState.getGroup());
+                        // Update connection in config if it exists
+                        app.getConfigManager().updateConnection(connection);
+                    }
+                    
                     if (project.isAutoReconnect()) {
                         // Get password and reconnect with history restore
                         String password = getConnectionPassword(connection);
