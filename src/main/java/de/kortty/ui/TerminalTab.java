@@ -110,6 +110,10 @@ public class TerminalTab extends Tab {
         });
         
         // Register callback for successful connection
+        // Store reference to existing callback (if any) to preserve it
+        Runnable existingCallback = null;
+        // Note: We can't retrieve existing callback, so external callbacks set after connect()
+        // will override this. This is acceptable - MainWindow will set its own callback.
         terminalView.setOnConnectedCallback(() -> {
             Platform.runLater(() -> {
                 updateTabTitle();

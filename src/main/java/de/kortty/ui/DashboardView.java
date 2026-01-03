@@ -3,6 +3,7 @@ package de.kortty.ui;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 import java.util.HashMap;

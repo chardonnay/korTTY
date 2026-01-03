@@ -437,48 +437,67 @@ public class MainWindow {
                 updateAllTabContextMenus(); // Update context menus when tab closes
             });
             
+            // Setup context menu for group assignment (before group assignment)
+            setupTabContextMenu(terminalTab);
+            
             // Assign group from connection if present (for initial assignment)
             // This allows connection groups to be used as default for new tabs
+            // Groups are automatically created if they don't exist yet
             if (connection.getGroup() != null && !connection.getGroup().trim().isEmpty()) {
                 terminalTab.setGroup(connection.getGroup().trim());
             }
-            
-            // Setup context menu for group assignment
-            setupTabContextMenu(terminalTab);
             
             // Insert before the "+" tab, maintaining group order
             insertTabInGroupOrder(terminalTab);
             tabPane.getSelectionModel().select(terminalTab);
             
+            // Update dashboard and context menus after group assignment
+            updateDashboard();
+            updateAllTabContextMenus();
+            
             // Connect in background
             new Thread(() -> {
                 try {
                     terminalTab.connect();
-                    Platform.runLater(() -> {
-                        updateStatus("Verbunden mit " + connection.getDisplayName());
-                        updateDashboard();
-                        
-                        // Restore history after connection is established
-                        if (historyToRestore != null && !historyToRestore.isEmpty()) {
-                            // Wait a bit for terminal to be fully initialized
-                            new Thread(() -> {
-                                try {
-                                    Thread.sleep(500); // Give terminal time to settle
-                                    Platform.runLater(() -> {
-                                        terminalTab.getTerminalView().restoreHistory(historyToRestore);
-                                        logger.info("Terminal history restored for {}", connection.getDisplayName());
-                                    });
-                                } catch (InterruptedException e) {
-                                    logger.error("History restore interrupted", e);
-                                }
-                            }).start();
-                        }
+                    
+                    // Set callback AFTER connect() to update dashboard when connection succeeds
+                    // Note: TerminalTab.connect() sets a callback for tab title/color update.
+                    // Since we're overwriting it, we need to also do what TerminalTab's callback does:
+                    // - Update tab title
+                    // - Reset tab color (setStyle(""))
+                    terminalTab.getTerminalView().setOnConnectedCallback(() -> {
+                        Platform.runLater(() -> {
+                            // Update tab title (what TerminalTab's callback does)
+                            terminalTab.updateTabTitle();
+                            // Reset tab color (TerminalTab's resetTabColor() does setStyle(""))
+                            terminalTab.setStyle("");
+                            // Update status and dashboard
+                            updateStatus("Verbunden mit " + connection.getDisplayName());
+                            updateDashboard(); // Update dashboard when connection succeeds
+                        });
                     });
+                    
+                    // Restore history after connection is established
+                    if (historyToRestore != null && !historyToRestore.isEmpty()) {
+                        // Wait a bit for terminal to be fully initialized
+                        new Thread(() -> {
+                            try {
+                                Thread.sleep(500); // Give terminal time to settle
+                                Platform.runLater(() -> {
+                                    terminalTab.getTerminalView().restoreHistory(historyToRestore);
+                                    logger.info("Terminal history restored for {}", connection.getDisplayName());
+                                });
+                            } catch (InterruptedException e) {
+                                logger.error("History restore interrupted", e);
+                            }
+                        }).start();
+                    }
                 } catch (Exception ex) {
                     logger.error("Connection failed", ex);
                     Platform.runLater(() -> {
                         terminalTab.onConnectionFailed(ex.getMessage());
                         updateStatus("Verbindung fehlgeschlagen: " + ex.getMessage());
+                        updateDashboard(); // Update dashboard on failure too
                     });
                 }
             }).start();
