@@ -1396,6 +1396,7 @@ public class MainWindow {
                             renameGroupForAllTabs(currentGroup, trimmedName);
                             organizeTabsByGroup();
                             updateAllTabContextMenus(); // Update all context menus
+                            updateDashboard(); // Refresh dashboard to show renamed group
                         }
                     }
                 });
