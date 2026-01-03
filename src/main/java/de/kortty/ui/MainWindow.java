@@ -419,12 +419,22 @@ public class MainWindow {
      * Opens a new SSH connection in a new tab with optional history restore.
      */
     public void openConnection(ServerConnection connection, String password, String historyToRestore) {
+        openConnectionAndReturnTab(connection, password, historyToRestore);
+    }
+    
+    /**
+     * Opens a new SSH connection in a new tab with optional history restore and returns the tab.
+     * The tab starts with NO group (independent from connection group).
+     */
+    private TerminalTab openConnectionAndReturnTab(ServerConnection connection, String password, String historyToRestore) {
         try {
             // Create terminal tab with JediTermFX
+            // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
             TerminalTab terminalTab = new TerminalTab(connection, password);
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
+                updateAllTabContextMenus(); // Update context menus when tab closes
             });
             
             // Setup context menu for group assignment
@@ -467,9 +477,12 @@ public class MainWindow {
                 }
             }).start();
             
+            updateDashboard();
+            return terminalTab;
         } catch (Exception e) {
             logger.error("Failed to create session", e);
             showError("Verbindungsfehler", "Konnte Sitzung nicht erstellen: " + e.getMessage());
+            return null;
         }
     }
     
@@ -782,7 +795,7 @@ public class MainWindow {
                 );
                 sessionState.setSettings(connection.getSettings());
                 sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
-                sessionState.setGroup(connection.getGroup()); // Save group information
+                sessionState.setGroup(terminalTab.getGroup()); // Save tab group (not connection group)
                 windowState.addTab(sessionState);
             }
         }
@@ -812,19 +825,17 @@ public class MainWindow {
             for (SessionState sessionState : windowState.getTabs()) {
                 ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
                 if (connection != null) {
-                    // Restore group information if present
-                    if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
-                        connection.setGroup(sessionState.getGroup());
-                        // Update connection in config if it exists
-                        app.getConfigManager().updateConnection(connection);
-                    }
-                    
                     if (project.isAutoReconnect()) {
                         // Get password and reconnect with history restore
                         String password = getConnectionPassword(connection);
                         if (password != null) {
                             String history = sessionState.getTerminalHistory();
-                            openConnection(connection, password, history);
+                            TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history);
+                            // Restore tab group (not connection group)
+                            if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
+                                restoredTab.setGroup(sessionState.getGroup());
+                                organizeTabsByGroup();
+                            }
                             logger.info("Restoring tab for {} with {} chars of history", 
                                     connection.getDisplayName(), 
                                     history != null ? history.length() : 0);
@@ -1316,13 +1327,8 @@ public class MainWindow {
         MenuItem removeGroupItem = new MenuItem("Keine Gruppe");
         removeGroupItem.setOnAction(e -> {
             terminalTab.setGroup(null);
-            app.getConfigManager().updateConnection(terminalTab.getConnection());
-            try {
-                app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
-            } catch (Exception ex) {
-                logger.error("Failed to save connection", ex);
-            }
             organizeTabsByGroup();
+            updateAllTabContextMenus(); // Update all context menus to reflect changes
         });
         if (currentGroup == null || currentGroup.trim().isEmpty()) {
             removeGroupItem.setDisable(true);
@@ -1338,13 +1344,8 @@ public class MainWindow {
                 MenuItem groupItem = new MenuItem(group);
                 groupItem.setOnAction(e -> {
                     terminalTab.setGroup(group);
-                    app.getConfigManager().updateConnection(terminalTab.getConnection());
-                    try {
-                        app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
-                    } catch (Exception ex) {
-                        logger.error("Failed to save connection", ex);
-                    }
                     organizeTabsByGroup();
+                    updateAllTabContextMenus(); // Update all context menus to reflect changes
                 });
                 if (group.equals(currentGroup)) {
                     groupItem.setDisable(true);
@@ -1365,34 +1366,48 @@ public class MainWindow {
             
             dialog.showAndWait().ifPresent(groupName -> {
                 if (groupName != null && !groupName.trim().isEmpty()) {
-                    terminalTab.setGroup(groupName.trim());
-                    app.getConfigManager().updateConnection(terminalTab.getConnection());
-                    try {
-                        app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
-                    } catch (Exception ex) {
-                        logger.error("Failed to save connection", ex);
-                    }
+                    String trimmedName = groupName.trim();
+                    terminalTab.setGroup(trimmedName);
                     organizeTabsByGroup();
+                    updateAllTabContextMenus(); // Update all context menus to reflect new group
                 }
             });
         });
         contextMenu.getItems().add(newGroupItem);
         
+        // Menu item to rename current group (if tab has a group)
+        if (currentGroup != null && !currentGroup.trim().isEmpty()) {
+            contextMenu.getItems().add(new SeparatorMenuItem());
+            MenuItem renameGroupItem = new MenuItem("Gruppe umbenennen...");
+            renameGroupItem.setOnAction(e -> {
+                TextInputDialog dialog = new TextInputDialog(currentGroup);
+                dialog.setTitle("Gruppe umbenennen");
+                dialog.setHeaderText("Neuen Gruppenname eingeben");
+                dialog.setContentText("Neuer Gruppenname:");
+                
+                dialog.showAndWait().ifPresent(newGroupName -> {
+                    if (newGroupName != null && !newGroupName.trim().isEmpty()) {
+                        String trimmedName = newGroupName.trim();
+                        if (!trimmedName.equals(currentGroup)) {
+                            renameGroupForAllTabs(currentGroup, trimmedName);
+                            organizeTabsByGroup();
+                            updateAllTabContextMenus(); // Update all context menus
+                        }
+                    }
+                });
+            });
+            contextMenu.getItems().add(renameGroupItem);
+        }
+        
         terminalTab.setContextMenu(contextMenu);
     }
     
     /**
-     * Gets all unique group names from connections.
+     * Gets all unique group names from open tabs (not from connections).
      */
     private List<String> getAllGroups() {
         List<String> groups = new ArrayList<>();
-        for (ServerConnection conn : app.getConfigManager().getConnections()) {
-            String group = conn.getGroup();
-            if (group != null && !group.trim().isEmpty() && !groups.contains(group)) {
-                groups.add(group);
-            }
-        }
-        // Also get groups from open tabs
+        // Get groups from open tabs only (tab groups, not connection groups)
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
                 String group = terminalTab.getGroup();
@@ -1403,6 +1418,31 @@ public class MainWindow {
         }
         groups.sort(String::compareToIgnoreCase);
         return groups;
+    }
+    
+    /**
+     * Renames a group for all tabs that have this group.
+     */
+    private void renameGroupForAllTabs(String oldGroupName, String newGroupName) {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                String group = terminalTab.getGroup();
+                if (oldGroupName.equals(group)) {
+                    terminalTab.setGroup(newGroupName);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Updates context menus for all tabs to reflect current group state.
+     */
+    private void updateAllTabContextMenus() {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                setupTabContextMenu(terminalTab);
+            }
+        }
     }
     
     /**

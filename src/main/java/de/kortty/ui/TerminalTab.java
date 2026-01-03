@@ -19,6 +19,9 @@ public class TerminalTab extends Tab {
     private final ConnectionSettings settings;
     private boolean isConnectionFailed = false;
     
+    // Tab group (independent from connection group)
+    private String tabGroup = null;
+    
     public TerminalTab(ServerConnection connection, String password) {
         this.connection = connection;
         this.settings = connection.getSettings();
@@ -199,7 +202,7 @@ public class TerminalTab extends Tab {
                 displayName = connection.getUsername() + "@" + connection.getHost();
             }
             
-            String group = connection.getGroup();
+            String group = tabGroup; // Use tab group, not connection group
             if (group != null && !group.trim().isEmpty()) {
                 setText("[" + group + "] " + displayName + suffix);
             } else {
@@ -209,17 +212,17 @@ public class TerminalTab extends Tab {
     }
     
     /**
-     * Gets the group name for this tab's connection.
+     * Gets the group name for this tab (independent from connection).
      */
     public String getGroup() {
-        return connection.getGroup();
+        return tabGroup;
     }
     
     /**
-     * Sets the group for this tab's connection and updates the tab title.
+     * Sets the group for this tab (independent from connection) and updates the tab title.
      */
     public void setGroup(String group) {
-        connection.setGroup(group);
+        this.tabGroup = (group != null && !group.trim().isEmpty()) ? group.trim() : null;
         updateTabTitle();
     }
 }
