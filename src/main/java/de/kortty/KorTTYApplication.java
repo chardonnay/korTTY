@@ -30,7 +30,7 @@ public class KorTTYApplication extends Application {
     
     private static final Logger logger = LoggerFactory.getLogger(KorTTYApplication.class);
     private static final String APP_NAME = "KorTTY";
-    private static final String APP_VERSION = "1.0.0";
+    private static final String APP_VERSION = "1.1.0";
     
     private static KorTTYApplication instance;
     

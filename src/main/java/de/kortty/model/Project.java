@@ -1,6 +1,8 @@
 package de.kortty.model;
 
 import jakarta.xml.bind.annotation.*;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import de.kortty.persistence.LocalDateTimeAdapter;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,9 +23,11 @@ public class Project {
     private String description;
     
     @XmlElement
+    @XmlJavaTypeAdapter(LocalDateTimeAdapter.class)
     private LocalDateTime createdAt;
     
     @XmlElement
+    @XmlJavaTypeAdapter(LocalDateTimeAdapter.class)
     private LocalDateTime lastModified;
     
     @XmlElement

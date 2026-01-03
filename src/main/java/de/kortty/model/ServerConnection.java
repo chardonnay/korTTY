@@ -64,9 +64,19 @@ public class ServerConnection {
     @XmlElement
     private String credentialId;  // Reference to StoredCredential
     
+    @XmlElement
+    private TerminalLogConfig logConfig;
+    
+    @XmlElement
+    private int connectionTimeoutSeconds = 15;  // Default: 15 seconds
+    
+    @XmlElement
+    private int retryCount = 4;  // Default: 4 retry attempts
+    
     public ServerConnection() {
         this.id = UUID.randomUUID().toString();
         this.settings = new ConnectionSettings();
+        this.logConfig = new TerminalLogConfig();
     }
     
     public ServerConnection(String name, String host, int port, String username) {
@@ -250,5 +260,32 @@ public class ServerConnection {
     
     public void setJumpServer(JumpServer jumpServer) {
         this.jumpServer = jumpServer;
+    }
+    
+    public TerminalLogConfig getLogConfig() {
+        if (logConfig == null) {
+            logConfig = new TerminalLogConfig();
+        }
+        return logConfig;
+    }
+    
+    public void setLogConfig(TerminalLogConfig logConfig) {
+        this.logConfig = logConfig;
+    }
+    
+    public int getConnectionTimeoutSeconds() {
+        return connectionTimeoutSeconds;
+    }
+    
+    public void setConnectionTimeoutSeconds(int connectionTimeoutSeconds) {
+        this.connectionTimeoutSeconds = connectionTimeoutSeconds;
+    }
+    
+    public int getRetryCount() {
+        return retryCount;
+    }
+    
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
     }
 }

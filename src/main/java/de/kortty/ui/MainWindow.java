@@ -59,6 +59,8 @@ public class MainWindow {
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
     
+    private volatile boolean quickConnectDialogOpen = false;
+    
     public MainWindow(Stage stage) {
         this.stage = stage;
         this.app = KorTTYApplication.getInstance();
@@ -89,15 +91,61 @@ public class MainWindow {
         // Add "new tab" button tab
         Tab newTabButton = new Tab("+");
         newTabButton.setClosable(false);
-        newTabButton.setOnSelectionChanged(e -> {
-            if (newTabButton.isSelected()) {
+        tabPane.getTabs().add(newTabButton);
+        
+        // Handle clicks on the + tab - works even when already selected
+        tabPane.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 1 && event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                // Check if + tab is selected after the click
                 Platform.runLater(() -> {
-                    tabPane.getSelectionModel().selectPrevious();
+                    Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                    if (selectedTab == newTabButton && !quickConnectDialogOpen) {
+                        // If there are other tabs, select the previous one first
+                        if (tabPane.getTabs().size() > 1) {
+                            tabPane.getSelectionModel().selectPrevious();
+                        }
+                        showQuickConnect();
+                    }
+                });
+            }
+        });
+        
+        // Also handle keyboard navigation to + tab
+        newTabButton.setOnSelectionChanged(e -> {
+            if (newTabButton.isSelected() && !quickConnectDialogOpen) {
+                Platform.runLater(() -> {
+                    if (tabPane.getTabs().size() > 1) {
+                        tabPane.getSelectionModel().selectPrevious();
+                    }
                     showQuickConnect();
                 });
             }
         });
-        tabPane.getTabs().add(newTabButton);
+        
+        // Auto-focus terminal when tab is selected
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab instanceof TerminalTab terminalTab) {
+                Platform.runLater(() -> {
+                    terminalTab.getTerminalView().requestFocus();
+                });
+            }
+        });
+        
+        // Handle double-click on tab for retry
+        tabPane.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_CLICKED, event -> {
+            if (event.getClickCount() == 2) {
+                Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                if (selectedTab instanceof TerminalTab terminalTab) {
+                    // Check if tab is in failed state (dark red)
+                    String style = selectedTab.getStyle();
+                    if (style != null && style.contains("#8B0000")) {
+                        // Retry connection
+                        terminalTab.retryConnection();
+                        event.consume();
+                    }
+                }
+            }
+        });
         
         // Status bar
         VBox statusBar = new VBox(statusLabel);
@@ -364,52 +412,131 @@ public class MainWindow {
      * Opens a new SSH connection in a new tab.
      */
     public void openConnection(ServerConnection connection, String password) {
+        openConnection(connection, password, null);
+    }
+    
+    /**
+     * Opens a new SSH connection in a new tab with optional history restore.
+     */
+    public void openConnection(ServerConnection connection, String password, String historyToRestore) {
+        openConnectionAndReturnTab(connection, password, historyToRestore);
+    }
+    
+    /**
+     * Opens a new SSH connection in a new tab with optional history restore and returns the tab.
+     * The tab starts with NO group (independent from connection group).
+     */
+    private TerminalTab openConnectionAndReturnTab(ServerConnection connection, String password, String historyToRestore) {
         try {
             // Create terminal tab with JediTermFX
+            // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
             TerminalTab terminalTab = new TerminalTab(connection, password);
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
+                organizeTabsByGroup();
+                updateAllTabContextMenus(); // Update context menus when tab closes
             });
             
-            // Insert before the "+" tab
-            int insertIndex = tabPane.getTabs().size() - 1;
-            tabPane.getTabs().add(insertIndex, terminalTab);
+            // Setup context menu for group assignment (before group assignment)
+            setupTabContextMenu(terminalTab);
+            
+            // Assign group from connection if present (for initial assignment)
+            // This allows connection groups to be used as default for new tabs
+            // Groups are automatically created if they don't exist yet
+            if (connection.getGroup() != null && !connection.getGroup().trim().isEmpty()) {
+                terminalTab.setGroup(connection.getGroup().trim());
+            }
+            
+            // Insert before the "+" tab, maintaining group order
+            insertTabInGroupOrder(terminalTab);
             tabPane.getSelectionModel().select(terminalTab);
+            
+            // Update dashboard and context menus after group assignment
+            updateDashboard();
+            updateAllTabContextMenus();
             
             // Connect in background
             new Thread(() -> {
                 try {
                     terminalTab.connect();
-                    Platform.runLater(() -> {
-                        updateStatus("Verbunden mit " + connection.getDisplayName());
-                        updateDashboard();
+                    
+                    // Set callback AFTER connect() to update dashboard when connection succeeds
+                    // Note: TerminalTab.connect() sets a callback for tab title/color update.
+                    // Since we're overwriting it, we need to also do what TerminalTab's callback does:
+                    // - Update tab title
+                    // - Reset tab color (setStyle(""))
+                    terminalTab.getTerminalView().setOnConnectedCallback(() -> {
+                        Platform.runLater(() -> {
+                            // Update tab title (what TerminalTab's callback does)
+                            terminalTab.updateTabTitle();
+                            // Reset tab color (TerminalTab's resetTabColor() does setStyle(""))
+                            terminalTab.setStyle("");
+                            // Update status and dashboard
+                            updateStatus("Verbunden mit " + connection.getDisplayName());
+                            updateDashboard(); // Update dashboard when connection succeeds
+                        });
                     });
+                    
+                    // Restore history after connection is established
+                    if (historyToRestore != null && !historyToRestore.isEmpty()) {
+                        // Wait a bit for terminal to be fully initialized
+                        new Thread(() -> {
+                            try {
+                                Thread.sleep(500); // Give terminal time to settle
+                                Platform.runLater(() -> {
+                                    terminalTab.getTerminalView().restoreHistory(historyToRestore);
+                                    logger.info("Terminal history restored for {}", connection.getDisplayName());
+                                });
+                            } catch (InterruptedException e) {
+                                logger.error("History restore interrupted", e);
+                            }
+                        }).start();
+                    }
                 } catch (Exception ex) {
                     logger.error("Connection failed", ex);
                     Platform.runLater(() -> {
                         terminalTab.onConnectionFailed(ex.getMessage());
                         updateStatus("Verbindung fehlgeschlagen: " + ex.getMessage());
+                        updateDashboard(); // Update dashboard on failure too
                     });
                 }
             }).start();
             
+            // Don't update dashboard immediately - wait for connection to establish
+            // Dashboard will be updated after connection succeeds/fails
+            return terminalTab;
         } catch (Exception e) {
             logger.error("Failed to create session", e);
             showError("Verbindungsfehler", "Konnte Sitzung nicht erstellen: " + e.getMessage());
+            return null;
         }
     }
     
     private void showQuickConnect() {
-        // Create password vault for retrieving stored passwords
-        PasswordVault vault = new PasswordVault(
-                app.getMasterPasswordManager().getEncryptionService(),
-                app.getMasterPasswordManager().getMasterPassword()
-        );
+        // Prevent double-opening
+        if (quickConnectDialogOpen) {
+            return;
+        }
         
-        // Pass saved connections and vault to the dialog
-        QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
-                app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
-        dialog.showAndWait().ifPresent(result -> {
+        quickConnectDialogOpen = true;
+        
+        try {
+            // Create password vault for retrieving stored passwords
+            PasswordVault vault = new PasswordVault(
+                    app.getMasterPasswordManager().getEncryptionService(),
+                    app.getMasterPasswordManager().getMasterPassword()
+            );
+            
+            // Pass saved connections and vault to the dialog
+            QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
+                    app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
+            dialog.showAndWait().ifPresent(result -> {
+            // Handle load project request
+            if (result.isLoadProject()) {
+                openProject();
+                return;
+            }
+            
             // Handle group connection
             if (result.isGroupConnection()) {
                 openGroupConnections(result.groupName());
@@ -439,7 +566,10 @@ public class MainWindow {
                 }
             }
             openConnection(result.connection(), password);
-        });
+            });
+        } finally {
+            quickConnectDialogOpen = false;
+        }
     }
     
     private void showConnectionManager() {
@@ -691,6 +821,7 @@ public class MainWindow {
                 );
                 sessionState.setSettings(connection.getSettings());
                 sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
+                sessionState.setGroup(terminalTab.getGroup()); // Save tab group (not connection group)
                 windowState.addTab(sessionState);
             }
         }
@@ -721,18 +852,25 @@ public class MainWindow {
                 ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
                 if (connection != null) {
                     if (project.isAutoReconnect()) {
-                        // Get password and reconnect
-                        PasswordVault vault = new PasswordVault(
-                                app.getMasterPasswordManager().getEncryptionService(),
-                                app.getMasterPasswordManager().getMasterPassword()
-                        );
+                        // Get password and reconnect with history restore
                         String password = getConnectionPassword(connection);
                         if (password != null) {
-                            openConnection(connection, password);
+                            String history = sessionState.getTerminalHistory();
+                            TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history);
+                            // Restore tab group (not connection group)
+                            if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
+                                restoredTab.setGroup(sessionState.getGroup());
+                                organizeTabsByGroup();
+                            }
+                            logger.info("Restoring tab for {} with {} chars of history", 
+                                    connection.getDisplayName(), 
+                                    history != null ? history.length() : 0);
                         }
+                    } else {
+                        // TODO: Create read-only tab with history display only (no connection)
+                        logger.info("Auto-reconnect disabled, skipping connection for {}", 
+                                connection.getDisplayName());
                     }
-                    // Restore history if not reconnecting
-                    // TODO: Create tab with history display
                 }
             }
         }
@@ -1199,6 +1337,249 @@ public class MainWindow {
         Thread thread = new Thread(backupTask);
         thread.setDaemon(true);
         thread.start();
+    }
+    
+    /**
+     * Sets up context menu for a terminal tab to assign/change groups.
+     */
+    private void setupTabContextMenu(TerminalTab terminalTab) {
+        ContextMenu contextMenu = new ContextMenu();
+        
+        // Get all available groups
+        List<String> groups = getAllGroups();
+        String currentGroup = terminalTab.getGroup();
+        
+        // Menu item to remove from group
+        MenuItem removeGroupItem = new MenuItem("Keine Gruppe");
+        removeGroupItem.setOnAction(e -> {
+            terminalTab.setGroup(null);
+            organizeTabsByGroup();
+            updateAllTabContextMenus(); // Update all context menus to reflect changes
+            updateDashboard(); // Refresh dashboard to show group changes
+        });
+        if (currentGroup == null || currentGroup.trim().isEmpty()) {
+            removeGroupItem.setDisable(true);
+        }
+        contextMenu.getItems().add(removeGroupItem);
+        
+        // Separator
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        
+        // Menu items for each group
+        if (!groups.isEmpty()) {
+            for (String group : groups) {
+                MenuItem groupItem = new MenuItem(group);
+                groupItem.setOnAction(e -> {
+                    terminalTab.setGroup(group);
+                    organizeTabsByGroup();
+                    updateAllTabContextMenus(); // Update all context menus to reflect changes
+                    updateDashboard(); // Refresh dashboard to show group changes
+                });
+                if (group.equals(currentGroup)) {
+                    groupItem.setDisable(true);
+                }
+                contextMenu.getItems().add(groupItem);
+            }
+            contextMenu.getItems().add(new SeparatorMenuItem());
+        }
+        
+        // Menu item to create new group
+        MenuItem newGroupItem = new MenuItem("Neue Gruppe...");
+        newGroupItem.setOnAction(e -> {
+            TextInputDialog dialog = new TextInputDialog();
+            dialog.setTitle("Neue Gruppe");
+            dialog.setHeaderText("Gruppenname eingeben");
+            dialog.setContentText("Gruppenname:");
+            dialog.getEditor().setPromptText("z.B. Production, Development");
+            
+            dialog.showAndWait().ifPresent(groupName -> {
+                if (groupName != null && !groupName.trim().isEmpty()) {
+                    String trimmedName = groupName.trim();
+                    terminalTab.setGroup(trimmedName);
+                    organizeTabsByGroup();
+                    updateAllTabContextMenus(); // Update all context menus to reflect new group
+                    updateDashboard(); // Refresh dashboard to show new group
+                }
+            });
+        });
+        contextMenu.getItems().add(newGroupItem);
+        
+        // Menu item to rename current group (if tab has a group)
+        if (currentGroup != null && !currentGroup.trim().isEmpty()) {
+            contextMenu.getItems().add(new SeparatorMenuItem());
+            MenuItem renameGroupItem = new MenuItem("Gruppe umbenennen...");
+            renameGroupItem.setOnAction(e -> {
+                TextInputDialog dialog = new TextInputDialog(currentGroup);
+                dialog.setTitle("Gruppe umbenennen");
+                dialog.setHeaderText("Neuen Gruppenname eingeben");
+                dialog.setContentText("Neuer Gruppenname:");
+                
+                dialog.showAndWait().ifPresent(newGroupName -> {
+                    if (newGroupName != null && !newGroupName.trim().isEmpty()) {
+                        String trimmedName = newGroupName.trim();
+                        if (!trimmedName.equals(currentGroup)) {
+                            renameGroupForAllTabs(currentGroup, trimmedName);
+                            organizeTabsByGroup();
+                            updateAllTabContextMenus(); // Update all context menus
+                            updateDashboard(); // Refresh dashboard to show renamed group
+                        }
+                    }
+                });
+            });
+            contextMenu.getItems().add(renameGroupItem);
+        }
+        
+        terminalTab.setContextMenu(contextMenu);
+    }
+    
+    /**
+     * Gets all unique group names from open tabs (not from connections).
+     */
+    private List<String> getAllGroups() {
+        List<String> groups = new ArrayList<>();
+        // Get groups from open tabs only (tab groups, not connection groups)
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                String group = terminalTab.getGroup();
+                if (group != null && !group.trim().isEmpty() && !groups.contains(group)) {
+                    groups.add(group);
+                }
+            }
+        }
+        groups.sort(String::compareToIgnoreCase);
+        return groups;
+    }
+    
+    /**
+     * Renames a group for all tabs that have this group.
+     */
+    private void renameGroupForAllTabs(String oldGroupName, String newGroupName) {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                String group = terminalTab.getGroup();
+                if (oldGroupName.equals(group)) {
+                    terminalTab.setGroup(newGroupName);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Updates context menus for all tabs to reflect current group state.
+     */
+    private void updateAllTabContextMenus() {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                setupTabContextMenu(terminalTab);
+            }
+        }
+    }
+    
+    /**
+     * Inserts a tab in the correct position based on group ordering.
+     * Tabs are organized: no group first, then grouped tabs alphabetically by group name.
+     */
+    private void insertTabInGroupOrder(TerminalTab newTab) {
+        String newTabGroup = newTab.getGroup();
+        if (newTabGroup == null || newTabGroup.trim().isEmpty()) {
+            newTabGroup = null;
+        }
+        
+        int plusTabIndex = tabPane.getTabs().size() - 1; // "+" tab is always last
+        
+        // Find insertion point
+        int insertIndex = plusTabIndex;
+        for (int i = 0; i < plusTabIndex; i++) {
+            Tab tab = tabPane.getTabs().get(i);
+            if (tab instanceof TerminalTab terminalTab) {
+                String tabGroup = terminalTab.getGroup();
+                if (tabGroup == null || tabGroup.trim().isEmpty()) {
+                    tabGroup = null;
+                }
+                
+                // Compare groups
+                if (newTabGroup == null) {
+                    // New tab has no group - insert before first grouped tab
+                    if (tabGroup != null) {
+                        insertIndex = i;
+                        break;
+                    }
+                } else {
+                    // New tab has group - insert after last tab with same group or before first tab with larger group
+                    if (tabGroup != null && tabGroup.compareToIgnoreCase(newTabGroup) > 0) {
+                        insertIndex = i;
+                        break;
+                    } else if (tabGroup != null && tabGroup.equals(newTabGroup)) {
+                        // Continue until we find the end of this group
+                        insertIndex = i + 1;
+                    }
+                }
+            }
+        }
+        
+        tabPane.getTabs().add(insertIndex, newTab);
+    }
+    
+    /**
+     * Reorganizes all tabs by group order.
+     * Tabs without group come first, then grouped tabs sorted alphabetically by group name.
+     */
+    private void organizeTabsByGroup() {
+        // Get all terminal tabs (excluding "+" tab)
+        List<TerminalTab> terminalTabs = new ArrayList<>();
+        Tab plusTab = null;
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                terminalTabs.add(terminalTab);
+            } else if ("+".equals(tab.getText())) {
+                plusTab = tab;
+            }
+        }
+        
+        // Sort tabs: no group first, then by group name alphabetically
+        terminalTabs.sort((t1, t2) -> {
+            String g1 = t1.getGroup();
+            String g2 = t2.getGroup();
+            
+            if (g1 == null || g1.trim().isEmpty()) {
+                g1 = null;
+            }
+            if (g2 == null || g2.trim().isEmpty()) {
+                g2 = null;
+            }
+            
+            if (g1 == null && g2 == null) {
+                return 0; // Keep original order for tabs without group
+            }
+            if (g1 == null) {
+                return -1; // No group comes first
+            }
+            if (g2 == null) {
+                return 1; // No group comes first
+            }
+            
+            return g1.compareToIgnoreCase(g2);
+        });
+        
+        // Clear all tabs
+        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        tabPane.getTabs().clear();
+        
+        // Re-add sorted tabs
+        for (TerminalTab tab : terminalTabs) {
+            tabPane.getTabs().add(tab);
+            setupTabContextMenu(tab); // Re-setup context menu
+        }
+        
+        // Re-add "+" tab at the end
+        if (plusTab != null) {
+            tabPane.getTabs().add(plusTab);
+        }
+        
+        // Restore selection
+        if (selectedTab != null) {
+            tabPane.getSelectionModel().select(selectedTab);
+        }
     }
 
 }
