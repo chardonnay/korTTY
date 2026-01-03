@@ -437,6 +437,12 @@ public class MainWindow {
                 updateAllTabContextMenus(); // Update context menus when tab closes
             });
             
+            // Assign group from connection if present (for initial assignment)
+            // This allows connection groups to be used as default for new tabs
+            if (connection.getGroup() != null && !connection.getGroup().trim().isEmpty()) {
+                terminalTab.setGroup(connection.getGroup().trim());
+            }
+            
             // Setup context menu for group assignment
             setupTabContextMenu(terminalTab);
             
