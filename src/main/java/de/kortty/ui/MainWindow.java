@@ -477,7 +477,8 @@ public class MainWindow {
                 }
             }).start();
             
-            updateDashboard();
+            // Don't update dashboard immediately - wait for connection to establish
+            // Dashboard will be updated after connection succeeds/fails
             return terminalTab;
         } catch (Exception e) {
             logger.error("Failed to create session", e);
@@ -1329,6 +1330,7 @@ public class MainWindow {
             terminalTab.setGroup(null);
             organizeTabsByGroup();
             updateAllTabContextMenus(); // Update all context menus to reflect changes
+            updateDashboard(); // Refresh dashboard to show group changes
         });
         if (currentGroup == null || currentGroup.trim().isEmpty()) {
             removeGroupItem.setDisable(true);
@@ -1346,6 +1348,7 @@ public class MainWindow {
                     terminalTab.setGroup(group);
                     organizeTabsByGroup();
                     updateAllTabContextMenus(); // Update all context menus to reflect changes
+                    updateDashboard(); // Refresh dashboard to show group changes
                 });
                 if (group.equals(currentGroup)) {
                     groupItem.setDisable(true);
@@ -1370,6 +1373,7 @@ public class MainWindow {
                     terminalTab.setGroup(trimmedName);
                     organizeTabsByGroup();
                     updateAllTabContextMenus(); // Update all context menus to reflect new group
+                    updateDashboard(); // Refresh dashboard to show new group
                 }
             });
         });

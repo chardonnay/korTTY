@@ -131,6 +131,7 @@ public class DashboardView extends VBox {
         java.util.Map<String, java.util.List<TerminalTab>> groups = new java.util.HashMap<>();
         java.util.List<TerminalTab> ungroupedTabs = new java.util.ArrayList<>();
         
+        // First pass: collect all tabs
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
                 totalTabs++;
