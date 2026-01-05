@@ -4,7 +4,9 @@ import de.kortty.model.AuthMethod;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
+import de.kortty.model.SSHKey;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.SSHKeyManager;
 import de.kortty.model.ConnectionSettings;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -17,6 +19,8 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.scene.paint.Color;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
@@ -25,10 +29,14 @@ import java.io.File;
  */
 public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionEditDialog.class);
+    
     private final ServerConnection connection;
     private final CredentialManager credentialManager;
+    private final SSHKeyManager sshKeyManager;
     private final char[] masterPassword;
     private ComboBox<StoredCredential> savedCredentialsCombo;
+    private ComboBox<SSHKey> savedSSHKeysCombo;
 
     private final TextField nameField;
     private final TextField hostField;
@@ -65,9 +73,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private Spinner<Integer> timeoutSpinner;
     private Spinner<Integer> retrySpinner;
     
-    public ConnectionEditDialog(Stage owner, ServerConnection existingConnection, CredentialManager credentialManager, char[] masterPassword) {
+    public ConnectionEditDialog(Stage owner, ServerConnection existingConnection, CredentialManager credentialManager, 
+                               SSHKeyManager sshKeyManager, char[] masterPassword) {
         this.connection = existingConnection != null ? existingConnection : new ServerConnection();
         this.credentialManager = credentialManager;
+        this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
         
         setTitle(existingConnection == null ? "Neue Verbindung" : "Verbindung bearbeiten");
@@ -170,13 +180,52 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         // Key authentication fields
         keyPathField = new TextField(connection.getPrivateKeyPath());
-        keyPathField.setPromptText("Pfad zum privaten Schlüssel");
+        keyPathField.setPromptText("Pfad zum privaten Schlüssel (oder aus Liste wählen)");
         
         browseKeyButton = new Button("...");
         browseKeyButton.setOnAction(e -> browseForKey());
         
         keyPassphraseField = new PasswordField();
         keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
+        
+        savedSSHKeysCombo = new ComboBox<>();
+        savedSSHKeysCombo.setPromptText("Gespeicherten SSH-Key auswählen...");
+        savedSSHKeysCombo.setPrefWidth(300);
+        if (sshKeyManager != null) {
+            savedSSHKeysCombo.getItems().addAll(sshKeyManager.getAllKeys());
+        }
+        
+        // Restore previously selected SSH key
+        if (connection.getSshKeyId() != null && sshKeyManager != null) {
+            sshKeyManager.findKeyById(connection.getSshKeyId()).ifPresent(key -> {
+                savedSSHKeysCombo.setValue(key);
+            });
+        }
+        
+        savedSSHKeysCombo.setOnAction(e -> {
+            SSHKey selected = savedSSHKeysCombo.getValue();
+            if (selected != null && sshKeyManager != null) {
+                keyPathField.setText(sshKeyManager.getEffectiveKeyPath(selected));
+                try {
+                    String passphrase = sshKeyManager.getPassphrase(selected, masterPassword);
+                    if (passphrase != null) {
+                        keyPassphraseField.setText(passphrase);
+                        keyPassphraseField.setPromptText("Aus SSH-Key-Verwaltung: " + selected.getName());
+                    } else {
+                        keyPassphraseField.clear();
+                        keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
+                    }
+                } catch (Exception ex) {
+                    logger.error("Failed to decrypt passphrase", ex);
+                    keyPassphraseField.clear();
+                    keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
+                }
+            } else {
+                keyPathField.clear();
+                keyPassphraseField.clear();
+                keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
+            }
+        });
         
         HBox keyPathBox = new HBox(5, keyPathField, browseKeyButton);
         
@@ -224,6 +273,9 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         connectionGrid.add(new Label("Passwort:"), 0, row);
         connectionGrid.add(passwordField, 1, row++);
+        
+        connectionGrid.add(new Label("Gespeicherte SSH-Keys:"), 0, row);
+        connectionGrid.add(savedSSHKeysCombo, 1, row++);
         
         connectionGrid.add(new Label("Schlüsseldatei:"), 0, row);
         connectionGrid.add(keyPathBox, 1, row++);
@@ -279,10 +331,20 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 
                 if (keyAuthRadio.isSelected()) {
                     connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
-                    connection.setPrivateKeyPath(keyPathField.getText().trim());
+                    // Use key from combo if selected, otherwise use path field
+                    if (savedSSHKeysCombo.getValue() != null) {
+                        connection.setSshKeyId(savedSSHKeysCombo.getValue().getId());
+                        connection.setPrivateKeyPath(sshKeyManager != null ? 
+                            sshKeyManager.getEffectiveKeyPath(savedSSHKeysCombo.getValue()) : 
+                            keyPathField.getText().trim());
+                    } else {
+                        connection.setSshKeyId(null);
+                        connection.setPrivateKeyPath(keyPathField.getText().trim());
+                    }
                     // Note: Key passphrase should be encrypted before saving
                 } else {
                     connection.setAuthMethod(AuthMethod.PASSWORD);
+                    connection.setSshKeyId(null);
                     // Note: Password should be encrypted before saving
                 }
                 
@@ -334,6 +396,8 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private void updateAuthFields() {
         boolean useKey = keyAuthRadio.isSelected();
         passwordField.setDisable(useKey);
+        savedCredentialsCombo.setDisable(useKey);
+        savedSSHKeysCombo.setDisable(!useKey);
         keyPathField.setDisable(!useKey);
         browseKeyButton.setDisable(!useKey);
         keyPassphraseField.setDisable(!useKey);

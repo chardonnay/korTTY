@@ -24,7 +24,8 @@ public class DashboardView extends VBox {
     public enum DashboardAction {
         RECONNECT,
         CLOSE,
-        FOCUS
+        FOCUS,
+        SFTP_MANAGER
     }
     
     public DashboardView(TabPane tabPane, BiConsumer<TerminalTab, DashboardAction> actionHandler) {
@@ -77,11 +78,18 @@ public class DashboardView extends VBox {
                             ContextMenu contextMenu = new ContextMenu();
                             
                             if (item.isConnected()) {
+                                MenuItem sftpItem = new MenuItem("SFTP Manager öffnen");
+                                sftpItem.setOnAction(e -> {
+                                    actionHandler.accept(item.getTerminalTab(), DashboardAction.SFTP_MANAGER);
+                                });
+                                contextMenu.getItems().add(sftpItem);
+                                
+                                SeparatorMenuItem separator = new SeparatorMenuItem();
                                 MenuItem closeItem = new MenuItem("Schließen");
                                 closeItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
                                 });
-                                contextMenu.getItems().add(closeItem);
+                                contextMenu.getItems().addAll(separator, closeItem);
                             } else {
                                 MenuItem reconnectItem = new MenuItem("Wiederverbinden");
                                 reconnectItem.setOnAction(e -> {

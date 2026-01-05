@@ -9,6 +9,7 @@ import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.channel.PtyMode;
+import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,8 @@ public class SSHSession {
     private final String sessionId;
     private final ServerConnection connection;
     private final String password;
+    private SSHKeyManager sshKeyManager;
+    private char[] masterPassword;
     
     private SshClient client;
     private ClientSession session;
@@ -58,6 +61,14 @@ public class SSHSession {
     }
     
     /**
+     * Sets SSHKeyManager and master password for key-based authentication.
+     */
+    public void setSSHKeyManager(SSHKeyManager sshKeyManager, char[] masterPassword) {
+        this.sshKeyManager = sshKeyManager;
+        this.masterPassword = masterPassword;
+    }
+    
+    /**
      * Establishes the SSH connection.
      */
     public void connect() throws Exception {
@@ -79,7 +90,7 @@ public class SSHSession {
                 session.addPasswordIdentity(password);
                 break;
             case PUBLIC_KEY:
-                // TODO: Add key authentication
+                authenticateWithKey(connection);
                 break;
             case KEYBOARD_INTERACTIVE:
                 session.addPasswordIdentity(password);
@@ -237,6 +248,85 @@ public class SSHSession {
             } catch (IOException e) {
                 logger.error("Failed to resize terminal", e);
             }
+        }
+    }
+    
+    /**
+     * Authenticates using a private key file.
+     */
+    private void authenticateWithKey(ServerConnection connection) throws Exception {
+        String[] keyPathRef = new String[1];
+        String[] passphraseRef = new String[1];
+        
+        // Try to get key from SSHKeyManager if sshKeyId is set
+        if (connection.getSshKeyId() != null && sshKeyManager != null && masterPassword != null) {
+            try {
+                sshKeyManager.findKeyById(connection.getSshKeyId()).ifPresent(key -> {
+                    try {
+                        keyPathRef[0] = sshKeyManager.getEffectiveKeyPath(key);
+                        passphraseRef[0] = sshKeyManager.getPassphrase(key, masterPassword);
+                    } catch (Exception e) {
+                        logger.error("Failed to get key from SSHKeyManager", e);
+                    }
+                });
+            } catch (Exception e) {
+                logger.error("Failed to find key by ID", e);
+            }
+        }
+        
+        // Fallback to connection's key path if not found in manager
+        String keyPath = keyPathRef[0];
+        if (keyPath == null || keyPath.trim().isEmpty()) {
+            keyPath = connection.getPrivateKeyPath();
+        }
+        
+        if (keyPath == null || keyPath.trim().isEmpty()) {
+            throw new Exception("Kein SSH-Key-Pfad angegeben");
+        }
+        
+        java.nio.file.Path keyFilePath = java.nio.file.Paths.get(keyPath);
+        if (!java.nio.file.Files.exists(keyFilePath)) {
+            throw new Exception("SSH-Key-Datei existiert nicht: " + keyPath);
+        }
+        
+        // Use passphrase from manager if available, otherwise from connection
+        String passphrase = passphraseRef[0];
+        if (passphrase == null) {
+            passphrase = connection.getPrivateKeyPassphrase();
+        }
+        
+        try {
+            // Load key pair from file using FileKeyPairProvider
+            FileKeyPairProvider keyPairProvider = new FileKeyPairProvider(keyFilePath);
+            
+            // Set passphrase if provided
+            if (passphrase != null && !passphrase.isEmpty()) {
+                final String finalPassphrase = passphrase;
+                keyPairProvider.setPasswordFinder((sess, path, retryIndex) -> finalPassphrase);
+            }
+            
+            // Load the key pair
+            Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(session);
+            
+            if (keyPairs == null) {
+                throw new Exception("Konnte SSH-Key nicht laden: " + keyPath);
+            }
+            
+            // Add all key pairs to session
+            int count = 0;
+            for (java.security.KeyPair keyPair : keyPairs) {
+                session.addPublicKeyIdentity(keyPair);
+                count++;
+            }
+            
+            if (count == 0) {
+                throw new Exception("Keine KeyPairs in SSH-Key-Datei gefunden: " + keyPath);
+            }
+            
+            logger.info("Added {} public key identity/identities from {}", count, keyPath);
+        } catch (Exception e) {
+            logger.error("Failed to load SSH key from " + keyPath, e);
+            throw new Exception("SSH-Key-Authentifizierung fehlgeschlagen: " + e.getMessage(), e);
         }
     }
     

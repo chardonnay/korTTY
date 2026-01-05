@@ -1,24 +1,22 @@
 package de.kortty.ui;
 
-import de.kortty.model.AuthMethod;
-
 import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.model.ServerConnection;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-
-import java.util.Optional;
 
 /**
  * Dialog for managing saved connections.
@@ -31,6 +29,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private final char[] masterPassword;
     private final TableView<ServerConnection> table;
     private final ObservableList<ServerConnection> connections;
+    private final FilteredList<ServerConnection> filteredConnections;
+    private final TextField searchField;
     private final Stage owner;
     
     public ConnectionManagerDialog(Stage owner, KorTTYApplication app) {
@@ -49,8 +49,89 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         // Initialize connections list
         connections = FXCollections.observableArrayList(configManager.getConnections());
         
-        // Create table
-        table = new TableView<>(connections);
+        // Create filtered list for search functionality
+        filteredConnections = new FilteredList<>(connections, p -> true);
+        
+        // Create search field
+        searchField = new TextField();
+        searchField.setPromptText("Suchen nach Name, Host oder IP-Adresse... (* als Wildcard)");
+        searchField.setPrefWidth(300);
+        
+        // Add listener to filter table based on search text
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null || newVal.trim().isEmpty()) {
+                filteredConnections.setPredicate(p -> true);
+            } else {
+                String searchText = newVal.trim();
+                boolean useGlobPattern = searchText.contains("*");
+                
+                // Convert glob pattern to regex if "*" is present
+                java.util.regex.Pattern pattern = null;
+                if (useGlobPattern) {
+                    // Escape regex special characters except *
+                    String regexPattern = searchText
+                        .replace("\\", "\\\\")
+                        .replace(".", "\\.")
+                        .replace("+", "\\+")
+                        .replace("?", "\\?")
+                        .replace("^", "\\^")
+                        .replace("$", "\\$")
+                        .replace("|", "\\|")
+                        .replace("(", "\\(")
+                        .replace(")", "\\)")
+                        .replace("[", "\\[")
+                        .replace("]", "\\]")
+                        .replace("{", "\\{")
+                        .replace("}", "\\}")
+                        .replace("*", ".*"); // Convert * to .* for regex
+                    
+                    try {
+                        pattern = java.util.regex.Pattern.compile(regexPattern, 
+                            java.util.regex.Pattern.CASE_INSENSITIVE);
+                    } catch (java.util.regex.PatternSyntaxException e) {
+                        // Invalid pattern, fall back to simple contains
+                        pattern = null;
+                    }
+                }
+                
+                final java.util.regex.Pattern finalPattern = pattern;
+                final boolean usePattern = useGlobPattern && pattern != null;
+                final String lowerSearchText = searchText.toLowerCase();
+                
+                filteredConnections.setPredicate(connection -> {
+                    // Search in name
+                    if (connection.getName() != null) {
+                        String name = connection.getName();
+                        if (usePattern) {
+                            if (finalPattern.matcher(name).matches()) {
+                                return true;
+                            }
+                        } else {
+                            if (name.toLowerCase().contains(lowerSearchText)) {
+                                return true;
+                            }
+                        }
+                    }
+                    // Search in host
+                    if (connection.getHost() != null) {
+                        String host = connection.getHost();
+                        if (usePattern) {
+                            if (finalPattern.matcher(host).matches()) {
+                                return true;
+                            }
+                        } else {
+                            if (host.toLowerCase().contains(lowerSearchText)) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                });
+            }
+        });
+        
+        // Create table with filtered list
+        table = new TableView<>(filteredConnections);
         table.setPrefSize(600, 400);
         table.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
         
@@ -125,8 +206,20 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         buttonBox.setAlignment(Pos.TOP_CENTER);
         buttonBox.setPadding(new Insets(0, 0, 0, 10));
         
+        // Search field container
+        HBox searchBox = new HBox(10);
+        searchBox.setPadding(new Insets(0, 0, 10, 0));
+        Label searchLabel = new Label("Suchen:");
+        searchBox.getChildren().addAll(searchLabel, searchField);
+        HBox.setHgrow(searchField, Priority.ALWAYS);
+        
+        // Table container with search
+        VBox tableContainer = new VBox(10);
+        tableContainer.getChildren().addAll(searchBox, table);
+        VBox.setVgrow(table, Priority.ALWAYS);
+        
         BorderPane content = new BorderPane();
-        content.setCenter(table);
+        content.setCenter(tableContainer);
         content.setRight(buttonBox);
         content.setPadding(new Insets(10));
         
@@ -152,7 +245,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     }
     
     private void addConnection() {
-        ConnectionEditDialog dialog = new ConnectionEditDialog(owner, null, credentialManager, masterPassword);
+        ConnectionEditDialog dialog = new ConnectionEditDialog(owner, null, credentialManager, 
+            app.getSSHKeyManager(), masterPassword);
         dialog.showAndWait().ifPresent(connection -> {
             connections.add(connection);
             configManager.addConnection(connection);
@@ -164,7 +258,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private void editConnection() {
         ServerConnection selected = table.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected, credentialManager, masterPassword);
+            ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected, credentialManager, 
+                app.getSSHKeyManager(), masterPassword);
             dialog.showAndWait().ifPresent(connection -> {
                 int index = connections.indexOf(selected);
                 connections.set(index, connection);
@@ -332,7 +427,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
 
     
     private void importConnections() {
-        ConnectionImportDialog dialog = new ConnectionImportDialog(owner, credentialManager, configManager);
+        ConnectionImportDialog dialog = new ConnectionImportDialog(owner, credentialManager, 
+            app.getSSHKeyManager(), configManager);
         dialog.showAndWait().ifPresent(result -> {
             try {
                 java.util.List<ServerConnection> importedConnections = importConnectionsFromFile(result);
@@ -418,7 +514,20 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             imported.setHost(conn.getHost());
             imported.setPort(conn.getPort());
             imported.setAuthMethod(conn.getAuthMethod());
-            imported.setPrivateKeyPath(conn.getPrivateKeyPath());
+            
+            // SSH Key (conditional or replaced)
+            if (result.replaceSSHKey && result.replacementSSHKey != null) {
+                // Replace with selected SSH key
+                imported.setSshKeyId(result.replacementSSHKey.getId());
+                imported.setPrivateKeyPath(app.getSSHKeyManager() != null ? 
+                    app.getSSHKeyManager().getEffectiveKeyPath(result.replacementSSHKey) : 
+                    result.replacementSSHKey.getKeyPath());
+                imported.setPrivateKeyPassphrase(null);  // Use key manager instead
+            } else {
+                imported.setPrivateKeyPath(conn.getPrivateKeyPath());
+                imported.setSshKeyId(conn.getSshKeyId());
+                imported.setPrivateKeyPassphrase(conn.getPrivateKeyPassphrase());
+            }
             
             // Group assignment (target group overrides original group)
             if (result.assignToGroup && result.targetGroup != null && !result.targetGroup.trim().isEmpty()) {

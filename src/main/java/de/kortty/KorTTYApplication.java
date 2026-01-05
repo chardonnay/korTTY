@@ -4,6 +4,7 @@ import de.kortty.core.ConfigurationManager;
 import de.kortty.core.SessionManager;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.SSHKeyManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.BackupManager;
 import de.kortty.jmx.SSHClientMonitor;
@@ -39,6 +40,7 @@ public class KorTTYApplication extends Application {
     private MasterPasswordManager masterPasswordManager;
     private GPGKeyManager gpgKeyManager;
     private CredentialManager credentialManager;
+    private SSHKeyManager sshKeyManager;
     private GlobalSettingsManager globalSettingsManager;
     private BackupManager backupManager;
     
@@ -71,6 +73,7 @@ public class KorTTYApplication extends Application {
         masterPasswordManager = new MasterPasswordManager(configDir);
         gpgKeyManager = new GPGKeyManager(configDir);
         credentialManager = new CredentialManager(configDir);
+        sshKeyManager = new SSHKeyManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
         
         // Register JMX MBean
@@ -112,10 +115,11 @@ public class KorTTYApplication extends Application {
             // Load configuration
             configManager.load(masterPasswordManager.getDerivedKey());
             
-            // Load GPG keys and credentials
+            // Load GPG keys, credentials, and SSH keys
             try {
                 gpgKeyManager.load();
                 credentialManager.load();
+                sshKeyManager.load();
                 globalSettingsManager.load();
                 
                 // Initialize BackupManager after settings are loaded
@@ -157,6 +161,9 @@ public class KorTTYApplication extends Application {
             }
             if (credentialManager != null) {
                 credentialManager.save();
+            }
+            if (sshKeyManager != null) {
+                sshKeyManager.save();
             }
             if (globalSettingsManager != null) {
                 globalSettingsManager.save();
@@ -225,6 +232,10 @@ public class KorTTYApplication extends Application {
     
     public CredentialManager getCredentialManager() {
         return credentialManager;
+    }
+    
+    public SSHKeyManager getSSHKeyManager() {
+        return sshKeyManager;
     }
     
     public GlobalSettingsManager getGlobalSettingsManager() {

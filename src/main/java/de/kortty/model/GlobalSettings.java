@@ -27,6 +27,18 @@ public class GlobalSettings {
     @XmlElement
     private String backupGpgKeyId; // Selected GPG key for GPG encryption
     
+    @XmlElement
+    private boolean rememberWindowGeometry = true; // Remember last window geometry
+    
+    @XmlElement
+    private WindowGeometry lastWindowGeometry; // Last saved window geometry
+    
+    @XmlElement
+    private boolean rememberDashboardState = true; // Remember dashboard visibility
+    
+    @XmlElement
+    private boolean dashboardVisible = false; // Last dashboard visibility state
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -81,5 +93,37 @@ public class GlobalSettings {
     
     public void setBackupGpgKeyId(String backupGpgKeyId) {
         this.backupGpgKeyId = backupGpgKeyId;
+    }
+    
+    public boolean isRememberWindowGeometry() {
+        return rememberWindowGeometry;
+    }
+    
+    public void setRememberWindowGeometry(boolean rememberWindowGeometry) {
+        this.rememberWindowGeometry = rememberWindowGeometry;
+    }
+    
+    public WindowGeometry getLastWindowGeometry() {
+        return lastWindowGeometry;
+    }
+    
+    public void setLastWindowGeometry(WindowGeometry lastWindowGeometry) {
+        this.lastWindowGeometry = lastWindowGeometry;
+    }
+    
+    public boolean isRememberDashboardState() {
+        return rememberDashboardState;
+    }
+    
+    public void setRememberDashboardState(boolean rememberDashboardState) {
+        this.rememberDashboardState = rememberDashboardState;
+    }
+    
+    public boolean isDashboardVisible() {
+        return dashboardVisible;
+    }
+    
+    public void setDashboardVisible(boolean dashboardVisible) {
+        this.dashboardVisible = dashboardVisible;
     }
 }
