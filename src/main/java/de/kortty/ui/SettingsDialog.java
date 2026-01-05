@@ -1,12 +1,15 @@
 package de.kortty.ui;
 
+import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
+import de.kortty.security.PasswordVault;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -25,6 +28,7 @@ import java.util.ArrayList;
  */
 public class SettingsDialog extends Dialog<ConnectionSettings> {
     
+    private final KorTTYApplication app;
     private final ConfigurationManager configManager;
     private final ConnectionSettings settings;
     private final GlobalSettings globalSettings;
@@ -58,8 +62,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ComboBox<StoredCredential> backupCredentialCombo;
     private final ComboBox<GPGKey> backupGpgKeyCombo;
     
-    public SettingsDialog(Stage owner, ConfigurationManager configManager, GlobalSettings globalSettings,
-                          CredentialManager credentialManager, GPGKeyManager gpgKeyManager) {
+    public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
+                          GlobalSettings globalSettings, CredentialManager credentialManager, 
+                          GPGKeyManager gpgKeyManager) {
+        this.app = app;
         this.configManager = configManager;
         this.settings = new ConnectionSettings(configManager.getGlobalSettings());
         this.globalSettings = globalSettings;
@@ -347,7 +353,34 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         backupTab.setContent(backupGrid);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab);
+        // Security tab
+        Tab securityTab = new Tab("Sicherheit");
+        GridPane securityGrid = new GridPane();
+        securityGrid.setHgap(10);
+        securityGrid.setVgap(10);
+        securityGrid.setPadding(new Insets(20));
+        
+        int securityRow = 0;
+        
+        Label securityHeader = new Label("Master-Passwort");
+        securityHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        securityGrid.add(securityHeader, 0, securityRow++, 2, 1);
+        
+        Label passwordInfoLabel = new Label(
+            "Das Master-Passwort wird verwendet, um alle gespeicherten Verbindungspasswörter zu verschlüsseln.\n" +
+            "Wenn Sie das Master-Passwort ändern, werden alle gespeicherten Passwörter automatisch neu verschlüsselt."
+        );
+        passwordInfoLabel.setWrapText(true);
+        passwordInfoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        securityGrid.add(passwordInfoLabel, 0, securityRow++, 2, 1);
+        
+        Button changePasswordButton = new Button("Master-Passwort ändern...");
+        changePasswordButton.setOnAction(e -> changeMasterPassword());
+        securityGrid.add(changePasswordButton, 0, securityRow++, 2, 1);
+        
+        securityTab.setContent(securityGrid);
+        
+        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, securityTab);
         
         VBox content = new VBox(tabPane);
         content.setPrefSize(500, 400);
@@ -439,5 +472,171 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         for (Runnable listener : changeListeners) {
             listener.run();
         }
+    }
+    
+    /**
+     * Shows dialog to change master password and re-encrypts all stored passwords.
+     */
+    private void changeMasterPassword() {
+        Dialog<char[]> passwordDialog = new Dialog<>();
+        passwordDialog.setTitle("Master-Passwort ändern");
+        passwordDialog.setHeaderText("Geben Sie das aktuelle und das neue Master-Passwort ein");
+        passwordDialog.initModality(Modality.WINDOW_MODAL);
+        passwordDialog.initOwner(getDialogPane().getScene().getWindow());
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        
+        PasswordField oldPasswordField = new PasswordField();
+        oldPasswordField.setPromptText("Aktuelles Passwort");
+        oldPasswordField.setPrefWidth(250);
+        
+        PasswordField newPasswordField = new PasswordField();
+        newPasswordField.setPromptText("Neues Passwort (mindestens 6 Zeichen)");
+        newPasswordField.setPrefWidth(250);
+        
+        PasswordField confirmPasswordField = new PasswordField();
+        confirmPasswordField.setPromptText("Neues Passwort bestätigen");
+        confirmPasswordField.setPrefWidth(250);
+        
+        Label errorLabel = new Label();
+        errorLabel.setStyle("-fx-text-fill: red;");
+        errorLabel.setVisible(false);
+        
+        int row = 0;
+        grid.add(new Label("Aktuelles Passwort:"), 0, row);
+        grid.add(oldPasswordField, 1, row++);
+        grid.add(new Label("Neues Passwort:"), 0, row);
+        grid.add(newPasswordField, 1, row++);
+        grid.add(new Label("Passwort bestätigen:"), 0, row);
+        grid.add(confirmPasswordField, 1, row++);
+        grid.add(errorLabel, 0, row++, 2, 1);
+        
+        passwordDialog.getDialogPane().setContent(grid);
+        
+        ButtonType changeButtonType = new ButtonType("Ändern", ButtonBar.ButtonData.OK_DONE);
+        passwordDialog.getDialogPane().getButtonTypes().addAll(changeButtonType, ButtonType.CANCEL);
+        
+        Button changeButton = (Button) passwordDialog.getDialogPane().lookupButton(changeButtonType);
+        changeButton.setDisable(true);
+        
+        // Validate fields
+        Runnable validator = () -> {
+            boolean valid = !oldPasswordField.getText().isEmpty() &&
+                           !newPasswordField.getText().isEmpty() &&
+                           !confirmPasswordField.getText().isEmpty() &&
+                           newPasswordField.getText().length() >= 6;
+            changeButton.setDisable(!valid);
+        };
+        
+        oldPasswordField.textProperty().addListener((obs, old, newVal) -> validator.run());
+        newPasswordField.textProperty().addListener((obs, old, newVal) -> validator.run());
+        confirmPasswordField.textProperty().addListener((obs, old, newVal) -> validator.run());
+        
+        passwordDialog.setResultConverter(buttonType -> {
+            if (buttonType == changeButtonType) {
+                String oldPassword = oldPasswordField.getText();
+                String newPassword = newPasswordField.getText();
+                String confirmPassword = confirmPasswordField.getText();
+                
+                // Validate
+                if (oldPassword.isEmpty()) {
+                    errorLabel.setText("Bitte aktuelles Passwort eingeben");
+                    errorLabel.setVisible(true);
+                    return null;
+                }
+                
+                if (newPassword.length() < 6) {
+                    errorLabel.setText("Neues Passwort muss mindestens 6 Zeichen haben");
+                    errorLabel.setVisible(true);
+                    return null;
+                }
+                
+                if (!newPassword.equals(confirmPassword)) {
+                    errorLabel.setText("Neue Passwörter stimmen nicht überein");
+                    errorLabel.setVisible(true);
+                    return null;
+                }
+                
+                return newPassword.toCharArray();
+            }
+            return null;
+        });
+        
+        passwordDialog.showAndWait().ifPresent(newPasswordChars -> {
+            try {
+                // Verify old password and change to new password
+                char[] oldPasswordChars = oldPasswordField.getText().toCharArray();
+                
+                // Change master password
+                app.getMasterPasswordManager().changePassword(oldPasswordChars, newPasswordChars);
+                
+                // Re-encrypt all connection passwords
+                PasswordVault oldVault = new PasswordVault(
+                    app.getMasterPasswordManager().getEncryptionService(),
+                    oldPasswordChars
+                );
+                
+                PasswordVault newVault = new PasswordVault(
+                    app.getMasterPasswordManager().getEncryptionService(),
+                    newPasswordChars
+                );
+                
+                List<ServerConnection> allConnections = configManager.getConnections();
+                int reEncryptedCount = 0;
+                
+                for (ServerConnection connection : allConnections) {
+                    try {
+                        // Re-encrypt password if exists
+                        String plainPassword = oldVault.retrievePassword(connection);
+                        if (plainPassword != null) {
+                            newVault.storePassword(connection, plainPassword);
+                            reEncryptedCount++;
+                        }
+                        
+                        // Re-encrypt key passphrase if exists
+                        String plainPassphrase = oldVault.retrieveKeyPassphrase(connection);
+                        if (plainPassphrase != null) {
+                            newVault.storeKeyPassphrase(connection, plainPassphrase);
+                        }
+                    } catch (Exception e) {
+                        org.slf4j.LoggerFactory.getLogger(getClass())
+                            .warn("Failed to re-encrypt password for connection: {}", connection.getName(), e);
+                    }
+                }
+                
+                // Save connections with new encryption
+                configManager.save(app.getMasterPasswordManager().getDerivedKey());
+                
+                // Clear sensitive data
+                java.util.Arrays.fill(oldPasswordChars, '\0');
+                java.util.Arrays.fill(newPasswordChars, '\0');
+                
+                Alert success = new Alert(Alert.AlertType.INFORMATION);
+                success.setTitle("Passwort geändert");
+                success.setHeaderText("Master-Passwort erfolgreich geändert");
+                success.setContentText(String.format(
+                    "Das Master-Passwort wurde geändert und %d Verbindungspasswörter wurden neu verschlüsselt.",
+                    reEncryptedCount
+                ));
+                success.showAndWait();
+                
+            } catch (SecurityException e) {
+                Alert error = new Alert(Alert.AlertType.ERROR);
+                error.setTitle("Fehler");
+                error.setHeaderText("Passwort-Änderung fehlgeschlagen");
+                error.setContentText("Das aktuelle Passwort ist falsch: " + e.getMessage());
+                error.showAndWait();
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(getClass()).error("Failed to change master password", e);
+                Alert error = new Alert(Alert.AlertType.ERROR);
+                error.setTitle("Fehler");
+                error.setHeaderText("Passwort-Änderung fehlgeschlagen");
+                error.setContentText("Ein Fehler ist aufgetreten: " + e.getMessage());
+                error.showAndWait();
+            }
+        });
     }
 }
