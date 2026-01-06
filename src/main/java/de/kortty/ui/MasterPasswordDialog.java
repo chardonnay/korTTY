@@ -193,8 +193,8 @@ public class MasterPasswordDialog {
                 return;
             }
             
-            if (password.length() < 8) {
-                errorLabel.setText("Passwort muss mindestens 8 Zeichen haben");
+            if (password.length() < 6) {
+                errorLabel.setText("Passwort muss mindestens 6 Zeichen haben");
                 errorLabel.setVisible(true);
                 return;
             }

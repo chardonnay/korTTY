@@ -1,7 +1,10 @@
 package de.kortty.ui;
 
 import de.kortty.model.ServerConnection;
+import de.kortty.model.SSHKey;
+import de.kortty.model.AuthMethod;
 import de.kortty.security.PasswordVault;
+import de.kortty.core.SSHKeyManager;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -22,6 +25,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private final List<ServerConnection> savedConnections;
     private final PasswordVault passwordVault;
     private final de.kortty.core.CredentialManager credentialManager;
+    private final SSHKeyManager sshKeyManager;
     private final char[] masterPassword;
     private final int topConnectionsCount;
     
@@ -31,6 +35,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private Spinner<Integer> portSpinner;
     private TextField usernameField;
     private PasswordField passwordField;
+    private ToggleGroup authMethodGroup;
+    private RadioButton passwordAuthRadio;
+    private RadioButton keyAuthRadio;
+    private ComboBox<SSHKey> savedSSHKeysCombo;
     private CheckBox saveConnectionCheck;
     private TextField connectionNameField;
     private Spinner<Integer> timeoutSpinner;
@@ -40,10 +48,12 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private ListView<String> groupListView;
     
     public QuickConnectDialog(Stage owner, List<ServerConnection> savedConnections, PasswordVault passwordVault, 
-                              de.kortty.core.CredentialManager credentialManager, char[] masterPassword, int topConnectionsCount) {
+                              de.kortty.core.CredentialManager credentialManager, SSHKeyManager sshKeyManager,
+                              char[] masterPassword, int topConnectionsCount) {
         this.savedConnections = savedConnections;
         this.passwordVault = passwordVault;
         this.credentialManager = credentialManager;
+        this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
         this.topConnectionsCount = topConnectionsCount;
         
@@ -206,6 +216,31 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         passwordField = new PasswordField();
         passwordField.setPromptText("Passwort");
         
+        // Authentication method
+        authMethodGroup = new ToggleGroup();
+        passwordAuthRadio = new RadioButton("Passwort");
+        passwordAuthRadio.setToggleGroup(authMethodGroup);
+        passwordAuthRadio.setSelected(true);
+        
+        keyAuthRadio = new RadioButton("Privater Schlüssel");
+        keyAuthRadio.setToggleGroup(authMethodGroup);
+        
+        // SSH Key selection
+        savedSSHKeysCombo = new ComboBox<>();
+        savedSSHKeysCombo.setPromptText("Gespeicherten SSH-Key auswählen...");
+        savedSSHKeysCombo.setPrefWidth(300);
+        savedSSHKeysCombo.setDisable(true);
+        if (sshKeyManager != null) {
+            savedSSHKeysCombo.getItems().addAll(sshKeyManager.getAllKeys());
+        }
+        
+        // Update field states based on auth method
+        authMethodGroup.selectedToggleProperty().addListener((obs, old, newVal) -> {
+            boolean useKey = keyAuthRadio.isSelected();
+            passwordField.setDisable(useKey);
+            savedSSHKeysCombo.setDisable(!useKey);
+        });
+        
         saveConnectionCheck = new CheckBox("Verbindung speichern");
         
         connectionNameField = new TextField();
@@ -276,25 +311,32 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         grid.add(new Label("Benutzer:"), 0, 1);
         grid.add(usernameField, 1, 1);
         
-        grid.add(new Label("Passwort:"), 0, 2);
-        grid.add(passwordField, 1, 2);
+        grid.add(new Label("Authentifizierung:"), 0, 2);
+        HBox authBox = new HBox(15, passwordAuthRadio, keyAuthRadio);
+        grid.add(authBox, 1, 2);
         
-        grid.add(saveConnectionCheck, 1, 3);
+        grid.add(new Label("Passwort:"), 0, 3);
+        grid.add(passwordField, 1, 3);
         
-        grid.add(new Label("Name:"), 0, 4);
-        grid.add(connectionNameField, 1, 4);
+        grid.add(new Label("SSH-Key:"), 0, 4);
+        grid.add(savedSSHKeysCombo, 1, 4);
         
-        grid.add(new Separator(), 0, 5, 2, 1);
+        grid.add(saveConnectionCheck, 1, 5);
         
-        grid.add(new Label("Verbindungstimeout:"), 0, 6);
+        grid.add(new Label("Name:"), 0, 6);
+        grid.add(connectionNameField, 1, 6);
+        
+        grid.add(new Separator(), 0, 7, 2, 1);
+        
+        grid.add(new Label("Verbindungstimeout:"), 0, 8);
         HBox timeoutBox = new HBox(10);
         timeoutBox.getChildren().addAll(timeoutSpinner, new Label("Sekunden"));
-        grid.add(timeoutBox, 1, 6);
+        grid.add(timeoutBox, 1, 8);
         
-        grid.add(new Label("Wiederholungsversuche:"), 0, 7);
+        grid.add(new Label("Wiederholungsversuche:"), 0, 9);
         HBox retryBox = new HBox(10);
         retryBox.getChildren().addAll(retrySpinner, new Label("Versuche"));
-        grid.add(retryBox, 1, 7);
+        grid.add(retryBox, 1, 9);
         
         // Add to pane
         if (savedConnections != null && !savedConnections.isEmpty()) {
@@ -355,18 +397,30 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         timeoutSpinner.getValueFactory().setValue(conn.getConnectionTimeoutSeconds());
         retrySpinner.getValueFactory().setValue(conn.getRetryCount());
         
-        // Try to retrieve stored password
-        if (passwordVault != null) {
-            String storedPassword = getConnectionPassword(conn);
-            if (storedPassword != null && !storedPassword.isEmpty()) {
-                passwordField.setText(storedPassword);
+        // Set authentication method
+        if (conn.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
+            keyAuthRadio.setSelected(true);
+            // Try to find and select SSH key
+            if (conn.getSshKeyId() != null && sshKeyManager != null) {
+                sshKeyManager.findKeyById(conn.getSshKeyId()).ifPresent(key -> {
+                    savedSSHKeysCombo.setValue(key);
+                });
+            }
+        } else {
+            passwordAuthRadio.setSelected(true);
+            // Try to retrieve stored password
+            if (passwordVault != null) {
+                String storedPassword = getConnectionPassword(conn);
+                if (storedPassword != null && !storedPassword.isEmpty()) {
+                    passwordField.setText(storedPassword);
+                } else {
+                    passwordField.clear();
+                    passwordField.requestFocus();
+                }
             } else {
                 passwordField.clear();
                 passwordField.requestFocus();
             }
-        } else {
-            passwordField.clear();
-            passwordField.requestFocus();
         }
         saveConnectionCheck.setSelected(false);
     }
@@ -379,6 +433,44 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             selected.getPort() == portSpinner.getValue() &&
             selected.getUsername().equals(usernameField.getText().trim())) {
             // Using an existing saved connection
+            // But if auth method changed, create a modified copy
+            if (keyAuthRadio.isSelected() && selected.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
+                // User switched to key auth, need to update connection
+                ServerConnection modified = new ServerConnection();
+                modified.setId(selected.getId());
+                modified.setName(selected.getName());
+                modified.setHost(selected.getHost());
+                modified.setPort(selected.getPort());
+                modified.setUsername(selected.getUsername());
+                modified.setGroup(selected.getGroup());
+                modified.setSettings(selected.getSettings());
+                modified.setConnectionTimeoutSeconds(selected.getConnectionTimeoutSeconds());
+                modified.setRetryCount(selected.getRetryCount());
+                modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                if (savedSSHKeysCombo.getValue() != null) {
+                    modified.setSshKeyId(savedSSHKeysCombo.getValue().getId());
+                    modified.setPrivateKeyPath(sshKeyManager != null ? 
+                        sshKeyManager.getEffectiveKeyPath(savedSSHKeysCombo.getValue()) : 
+                        savedSSHKeysCombo.getValue().getKeyPath());
+                }
+                return new ConnectionResult(modified, null, false, true, null, false);
+            } else if (passwordAuthRadio.isSelected() && selected.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
+                // User switched to password auth
+                ServerConnection modified = new ServerConnection();
+                modified.setId(selected.getId());
+                modified.setName(selected.getName());
+                modified.setHost(selected.getHost());
+                modified.setPort(selected.getPort());
+                modified.setUsername(selected.getUsername());
+                modified.setGroup(selected.getGroup());
+                modified.setSettings(selected.getSettings());
+                modified.setConnectionTimeoutSeconds(selected.getConnectionTimeoutSeconds());
+                modified.setRetryCount(selected.getRetryCount());
+                modified.setAuthMethod(AuthMethod.PASSWORD);
+                modified.setSshKeyId(null);
+                return new ConnectionResult(modified, passwordField.getText(), false, true, null, false);
+            }
+            // Using an existing saved connection as-is
             return new ConnectionResult(selected, passwordField.getText(), false, true, null, false);
         }
         
@@ -388,6 +480,20 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
         connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
         connection.setRetryCount(retrySpinner.getValue());
+        
+        // Set authentication method
+        if (keyAuthRadio.isSelected()) {
+            connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
+            // Set SSH key if selected
+            if (savedSSHKeysCombo.getValue() != null) {
+                connection.setSshKeyId(savedSSHKeysCombo.getValue().getId());
+                connection.setPrivateKeyPath(sshKeyManager != null ? 
+                    sshKeyManager.getEffectiveKeyPath(savedSSHKeysCombo.getValue()) : 
+                    savedSSHKeysCombo.getValue().getKeyPath());
+            }
+        } else {
+            connection.setAuthMethod(AuthMethod.PASSWORD);
+        }
         
         if (saveConnectionCheck.isSelected()) {
             String name = connectionNameField.getText().trim();

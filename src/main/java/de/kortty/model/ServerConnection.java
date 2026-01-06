@@ -65,6 +65,9 @@ public class ServerConnection {
     private String credentialId;  // Reference to StoredCredential
     
     @XmlElement
+    private String sshKeyId;  // Reference to SSHKey
+    
+    @XmlElement
     private TerminalLogConfig logConfig;
     
     @XmlElement
@@ -231,6 +234,14 @@ public class ServerConnection {
     
     public void setCredentialId(String credentialId) {
         this.credentialId = credentialId;
+    }
+    
+    public String getSshKeyId() {
+        return sshKeyId;
+    }
+    
+    public void setSshKeyId(String sshKeyId) {
+        this.sshKeyId = sshKeyId;
     }
     
     public void incrementUsageCount() {

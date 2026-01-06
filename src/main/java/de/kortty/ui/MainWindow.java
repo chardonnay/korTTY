@@ -252,6 +252,28 @@ public class MainWindow {
         
         // Window close handling
         stage.setOnCloseRequest(e -> {
+            // Save window geometry on close if enabled
+            GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+            if (globalSettings.isRememberWindowGeometry()) {
+                WindowGeometry geo = new WindowGeometry(
+                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()
+                );
+                geo.setMaximized(stage.isMaximized());
+                globalSettings.setLastWindowGeometry(geo);
+            }
+            
+            // Save dashboard state on close if enabled
+            if (globalSettings.isRememberDashboardState()) {
+                globalSettings.setDashboardVisible(dashboardVisible);
+            }
+            
+            // Save settings
+            try {
+                app.getGlobalSettingsManager().save();
+            } catch (Exception ex) {
+                logger.error("Failed to save window settings", ex);
+            }
+            
             if (!confirmClose()) {
                 e.consume();
             } else {
@@ -323,6 +345,24 @@ public class MainWindow {
         
         editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), settings, createBackup);
         
+        // Verbindungen Menu
+        Menu connectionsMenu = new Menu("Verbindungen");
+        
+        MenuItem quickConnect = new MenuItem("Schnellverbindung...");
+        quickConnect.setOnAction(e -> showQuickConnect());
+        
+        MenuItem manageConnections = new MenuItem("Verbindungen verwalten...");
+        manageConnections.setOnAction(e -> showConnectionManager());
+        
+        MenuItem importConnections = new MenuItem("Importieren...");
+        importConnections.setOnAction(e -> importConnections());
+        
+        MenuItem exportConnections = new MenuItem("Exportieren...");
+        exportConnections.setOnAction(e -> exportConnections());
+        
+        connectionsMenu.getItems().addAll(quickConnect, manageConnections,
+                new SeparatorMenuItem(), importConnections, exportConnections);
+        
         // Verwaltung Menu
         Menu managementMenu = new Menu("Verwaltung");
         
@@ -332,7 +372,18 @@ public class MainWindow {
         MenuItem manageGPGKeys = new MenuItem("GPG-Schlüssel verwalten...");
         manageGPGKeys.setOnAction(e -> showGPGKeyManagement());
         
-        managementMenu.getItems().addAll(manageCredentials, manageGPGKeys);
+        MenuItem manageSSHKeys = new MenuItem("SSH-Keys verwalten...");
+        manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
+        
+        managementMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys);
+        
+        // Tools Menu
+        Menu sftpMenu = new Menu("Tools");
+        
+        MenuItem openSFTPManager = new MenuItem("SFTP Manager öffnen...");
+        openSFTPManager.setOnAction(e -> showSFTPManager());
+        
+        sftpMenu.getItems().add(openSFTPManager);
         
         // Ansicht Menu
         Menu viewMenu = new Menu("Ansicht");
@@ -360,24 +411,6 @@ public class MainWindow {
         viewMenu.getItems().addAll(showDashboard, new SeparatorMenuItem(),
                 zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
         
-        // Verbindungen Menu
-        Menu connectionsMenu = new Menu("Verbindungen");
-        
-        MenuItem quickConnect = new MenuItem("Schnellverbindung...");
-        quickConnect.setOnAction(e -> showQuickConnect());
-        
-        MenuItem manageConnections = new MenuItem("Verbindungen verwalten...");
-        manageConnections.setOnAction(e -> showConnectionManager());
-        
-        MenuItem importConnections = new MenuItem("Importieren...");
-        importConnections.setOnAction(e -> importConnections());
-        
-        MenuItem exportConnections = new MenuItem("Exportieren...");
-        exportConnections.setOnAction(e -> exportConnections());
-        
-        connectionsMenu.getItems().addAll(quickConnect, manageConnections,
-                new SeparatorMenuItem(), importConnections, exportConnections);
-        
         // Hilfe Menu
         Menu helpMenu = new Menu("Hilfe");
         
@@ -386,7 +419,8 @@ public class MainWindow {
         
         helpMenu.getItems().add(about);
         
-        menuBar.getMenus().addAll(fileMenu, editMenu, managementMenu, viewMenu, connectionsMenu, helpMenu);
+        // Menu order: Datei, Bearbeiten, Verbindungen, Verwaltung, Tools, Ansicht, Hilfe
+        menuBar.getMenus().addAll(fileMenu, editMenu, connectionsMenu, managementMenu, sftpMenu, viewMenu, helpMenu);
         root.setTop(menuBar);
     }
     
@@ -405,7 +439,26 @@ public class MainWindow {
     }
     
     public void show() {
+        // Restore window geometry if enabled
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        if (globalSettings.isRememberWindowGeometry() && globalSettings.getLastWindowGeometry() != null) {
+            WindowGeometry geo = globalSettings.getLastWindowGeometry();
+            stage.setX(geo.getX());
+            stage.setY(geo.getY());
+            stage.setWidth(geo.getWidth());
+            stage.setHeight(geo.getHeight());
+            if (geo.isMaximized()) {
+                stage.setMaximized(true);
+            }
+        }
         stage.show();
+        
+        // Restore dashboard state if enabled
+        if (globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible()) {
+            Platform.runLater(() -> {
+                toggleDashboard(true);
+            });
+        }
     }
     
     /**
@@ -529,7 +582,8 @@ public class MainWindow {
             
             // Pass saved connections and vault to the dialog
             QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault, 
-                    app.getCredentialManager(), app.getMasterPasswordManager().getMasterPassword(), 10);
+                    app.getCredentialManager(), app.getSSHKeyManager(), 
+                    app.getMasterPasswordManager().getMasterPassword(), 10);
             dialog.showAndWait().ifPresent(result -> {
             // Handle load project request
             if (result.isLoadProject()) {
@@ -600,7 +654,7 @@ public class MainWindow {
     }
     
     private void showSettings() {
-        SettingsDialog dialog = new SettingsDialog(stage, app.getConfigManager(), 
+        SettingsDialog dialog = new SettingsDialog(stage, app, app.getConfigManager(), 
                 app.getGlobalSettingsManager().getSettings(),
                 app.getCredentialManager(), app.getGpgKeyManager());
         
@@ -746,6 +800,15 @@ public class MainWindow {
                         updateStatus("Wiederverbindung fehlgeschlagen: " + e.getMessage());
                     }
                 });
+                break;
+                
+            case SFTP_MANAGER:
+                // Open SFTP Manager for this connection
+                if (terminalTab.isConnected()) {
+                    openSFTPManagerForConnection(terminalTab.getConnection());
+                } else {
+                    showError("Nicht verbunden", "Bitte verbinden Sie sich zuerst mit dem Server.");
+                }
                 break;
         }
     }
@@ -1200,6 +1263,87 @@ public class MainWindow {
         } catch (Exception e) {
             logger.error("Failed to show GPG key management", e);
             showError("Fehler", "GPG-Schlüssel-Verwaltung konnte nicht geöffnet werden: " + e.getMessage());
+        }
+    }
+    
+    private void showSSHKeyManagement() {
+        try {
+            SSHKeyManagementDialog dialog = new SSHKeyManagementDialog(
+                app.getSSHKeyManager(),
+                app.getMasterPasswordManager().getMasterPassword()
+            );
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to show SSH key management", e);
+            showError("Fehler", "SSH-Key-Verwaltung konnte nicht geöffnet werden: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Shows SFTP Manager dialog. If a connection is selected, opens it directly.
+     * Otherwise, shows a dialog to select a connection.
+     */
+    private void showSFTPManager() {
+        // Check if there's an active connection in the current tab
+        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab instanceof TerminalTab terminalTab && terminalTab.isConnected()) {
+            // Use current connection
+            openSFTPManagerForConnection(terminalTab.getConnection());
+            return;
+        }
+        
+        // Show connection selection dialog
+        ConnectionSelectionDialog dialog = new ConnectionSelectionDialog(
+            stage, 
+            app.getConfigManager().getConnections(),
+            "SFTP Manager - Verbindung auswählen"
+        );
+        
+        dialog.showAndWait().ifPresent(connection -> {
+            openSFTPManagerForConnection(connection);
+        });
+    }
+    
+    /**
+     * Opens SFTP Manager for a specific connection.
+     */
+    private void openSFTPManagerForConnection(ServerConnection connection) {
+        try {
+            String password = getConnectionPassword(connection);
+            if (password == null) {
+                // Ask for password using a simple dialog
+                Dialog<String> pwdDialog = new Dialog<>();
+                pwdDialog.setTitle("Passwort erforderlich");
+                pwdDialog.setHeaderText("Passwort für " + connection.getDisplayName());
+                pwdDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+                
+                PasswordField passwordField = new PasswordField();
+                passwordField.setPromptText("Passwort");
+                VBox content = new VBox(10);
+                content.setPadding(new javafx.geometry.Insets(20));
+                content.getChildren().addAll(new Label("Bitte geben Sie das Passwort ein:"), passwordField);
+                pwdDialog.getDialogPane().setContent(content);
+                
+                pwdDialog.setResultConverter(buttonType -> {
+                    if (buttonType == ButtonType.OK) {
+                        return passwordField.getText();
+                    }
+                    return null;
+                });
+                
+                Optional<String> result = pwdDialog.showAndWait();
+                if (result.isPresent() && !result.get().isEmpty()) {
+                    password = result.get();
+                } else {
+                    return; // User cancelled
+                }
+            }
+            
+            SFTPManagerDialog sftpDialog = new SFTPManagerDialog(stage, app, connection, password);
+            sftpDialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to open SFTP manager", e);
+            showError("Fehler", "SFTP Manager konnte nicht geöffnet werden: " + e.getMessage());
         }
     }
 

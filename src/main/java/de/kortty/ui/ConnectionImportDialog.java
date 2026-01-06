@@ -2,7 +2,9 @@ package de.kortty.ui;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
+import de.kortty.model.SSHKey;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ConfigurationManager;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -25,6 +27,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     
     private final Stage owner;
     private final CredentialManager credentialManager;
+    private final SSHKeyManager sshKeyManager;
     private final ConfigurationManager configManager;
     
     private final CheckBox importUsernameCheck;
@@ -33,6 +36,8 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     private final CheckBox importJumpServerCheck;
     private final CheckBox replaceCredentialsCheck;
     private final ComboBox<StoredCredential> credentialCombo;
+    private final CheckBox replaceSSHKeyCheck;
+    private final ComboBox<SSHKey> sshKeyCombo;
     private final CheckBox filterGroupsCheck;
     private final ListView<String> groupListView;
     private final CheckBox assignToGroupCheck;
@@ -50,6 +55,8 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         public final boolean importJumpServer;
         public final boolean replaceCredentials;
         public final StoredCredential replacementCredential;
+        public final boolean replaceSSHKey;
+        public final SSHKey replacementSSHKey;
         public final boolean filterGroups;
         public final List<String> selectedGroups;
         public final boolean assignToGroup;
@@ -59,6 +66,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
                           boolean importUsername, boolean importPassword,
                           boolean importTunnels, boolean importJumpServer,
                           boolean replaceCredentials, StoredCredential replacementCredential,
+                          boolean replaceSSHKey, SSHKey replacementSSHKey,
                           boolean filterGroups, List<String> selectedGroups,
                           boolean assignToGroup, String targetGroup) {
             this.importFile = importFile;
@@ -68,6 +76,8 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
             this.importJumpServer = importJumpServer;
             this.replaceCredentials = replaceCredentials;
             this.replacementCredential = replacementCredential;
+            this.replaceSSHKey = replaceSSHKey;
+            this.replacementSSHKey = replacementSSHKey;
             this.filterGroups = filterGroups;
             this.selectedGroups = selectedGroups;
             this.assignToGroup = assignToGroup;
@@ -76,9 +86,10 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     }
     
     public ConnectionImportDialog(Stage owner, CredentialManager credentialManager, 
-                                 ConfigurationManager configManager) {
+                                 SSHKeyManager sshKeyManager, ConfigurationManager configManager) {
         this.owner = owner;
         this.credentialManager = credentialManager;
+        this.sshKeyManager = sshKeyManager;
         this.configManager = configManager;
         
         setTitle("Verbindungen importieren");
@@ -199,6 +210,43 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
             credentialCombo.setDisable(!selected);
         });
         
+        // SSH Key replacement
+        replaceSSHKeyCheck = new CheckBox("SSH-Key durch gespeicherten SSH-Key ersetzen");
+        replaceSSHKeyCheck.setSelected(false);
+        grid.add(replaceSSHKeyCheck, 0, row++, 3, 1);
+        
+        Label sshKeyLabel = new Label("  Gespeicherte SSH-Keys:");
+        sshKeyCombo = new ComboBox<>();
+        sshKeyCombo.setPromptText("SSH-Key auswählen...");
+        sshKeyCombo.setPrefWidth(300);
+        sshKeyCombo.setDisable(true);
+        
+        sshKeyCombo.setCellFactory(lv -> new ListCell<SSHKey>() {
+            @Override
+            protected void updateItem(SSHKey item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        sshKeyCombo.setButtonCell(new ListCell<SSHKey>() {
+            @Override
+            protected void updateItem(SSHKey item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        
+        if (sshKeyManager != null) {
+            sshKeyCombo.getItems().addAll(sshKeyManager.getAllKeys());
+        }
+        
+        grid.add(sshKeyLabel, 0, row);
+        grid.add(sshKeyCombo, 1, row++, 2, 1);
+        
+        replaceSSHKeyCheck.selectedProperty().addListener((obs, old, selected) -> {
+            sshKeyCombo.setDisable(!selected);
+        });
+        
         // Section: Target group assignment
         Label targetGroupHeader = new Label("Ziel-Gruppe:");
         targetGroupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
@@ -261,6 +309,12 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
                     return null;
                 }
                 
+                if (replaceSSHKeyCheck.isSelected() && sshKeyCombo.getValue() == null) {
+                    showWarning("Kein SSH-Key ausgewählt", 
+                               "Bitte wählen Sie einen SSH-Key aus oder deaktivieren Sie die Option.");
+                    return null;
+                }
+                
                 // Validate group assignment
                 if (assignToGroupCheck.isSelected() && 
                     (targetGroupCombo.getValue() == null || targetGroupCombo.getValue().trim().isEmpty())) {
@@ -280,6 +334,8 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
                     importJumpServerCheck.isSelected(),
                     replaceCredentialsCheck.isSelected(),
                     credentialCombo.getValue(),
+                    replaceSSHKeyCheck.isSelected(),
+                    sshKeyCombo.getValue(),
                     filterGroupsCheck.isSelected(),
                     selectedGroups,
                     assignToGroupCheck.isSelected(),

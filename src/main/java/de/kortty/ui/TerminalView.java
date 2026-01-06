@@ -140,6 +140,17 @@ public class TerminalView extends BorderPane {
                     // Create TtyConnector
                     ttyConnector = new SshTtyConnector(connection, password);
                     
+                    // Set SSHKeyManager if available
+                    if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                        if (app != null && app.getSSHKeyManager() != null) {
+                            ttyConnector.setSSHKeyManager(
+                                app.getSSHKeyManager(),
+                                app.getMasterPasswordManager().getMasterPassword()
+                            );
+                        }
+                    }
+                    
                     // Register disconnect listener
                     ttyConnector.setDisconnectListener((reason, wasError) -> {
                         logger.info("Disconnect event: {} (wasError={})", reason, wasError);
