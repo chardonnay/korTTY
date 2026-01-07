@@ -14,6 +14,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import net.lingala.zip4j.ZipFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.List;
@@ -24,6 +27,8 @@ import java.util.stream.Collectors;
  * Dialog for importing connections with options.
  */
 public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.ImportResult> {
+    
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionImportDialog.class);
     
     private final Stage owner;
     private final CredentialManager credentialManager;
@@ -350,7 +355,10 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Import-Datei auswählen");
         fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("KorTTY-Dateien", "*.xml", "*.zip", "*.gpg"),
             new FileChooser.ExtensionFilter("XML-Dateien", "*.xml"),
+            new FileChooser.ExtensionFilter("ZIP-Dateien", "*.zip"),
+            new FileChooser.ExtensionFilter("GPG-verschlüsselte Dateien", "*.gpg"),
             new FileChooser.ExtensionFilter("Alle Dateien", "*.*")
         );
         
@@ -362,7 +370,14 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     }
     
     private void loadGroupsFromFile() {
+        if (selectedFile == null) {
+            return;
+        }
+        
         try {
+            // Extract/decrypt file to get XML if needed
+            java.io.File actualXmlFile = extractOrDecryptFileForReading(selectedFile);
+            
             // Read XML and extract groups
             jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
                 de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
@@ -378,7 +393,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
             jakarta.xml.bind.Unmarshaller unmarshaller = context.createUnmarshaller();
             de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper wrapper = 
                 (de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper) 
-                unmarshaller.unmarshal(selectedFile);
+                unmarshaller.unmarshal(actualXmlFile);
             
             // Extract unique groups
             availableGroupsFromFile = wrapper.getConnections().stream()
@@ -400,8 +415,98 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
             groupListView.getItems().addAll(availableGroupsFromFile);
             
         } catch (Exception e) {
-            showWarning("Fehler beim Laden der Gruppen", 
-                       "Die Gruppen konnten nicht aus der Datei gelesen werden: " + e.getMessage());
+            // Silently fail - groups will be empty, user can still import
+            groupListView.getItems().clear();
+            availableGroupsFromFile.clear();
+        }
+    }
+    
+    /**
+     * Extracts or decrypts a file (ZIP/GPG) to get the actual XML file for reading.
+     * Returns the original file if it's already XML.
+     */
+    private java.io.File extractOrDecryptFileForReading(java.io.File file) throws Exception {
+        String fileName = file.getName().toLowerCase();
+        java.nio.file.Path tempFile = null;
+        
+        try {
+            // Handle GPG-encrypted files
+            if (fileName.endsWith(".gpg")) {
+                // Decrypt GPG file first
+                tempFile = java.nio.file.Files.createTempFile("kortty-read-", ".zip");
+                
+                ProcessBuilder pb = new ProcessBuilder(
+                    "gpg",
+                    "--batch",
+                    "--yes",
+                    "--no-tty",
+                    "--quiet",
+                    "--decrypt",
+                    "--output", tempFile.toString(),
+                    file.getAbsolutePath()
+                );
+                
+                pb.redirectErrorStream(true);
+                String osName = System.getProperty("os.name").toLowerCase();
+                java.io.File nullFile = new java.io.File(osName.contains("win") ? "NUL" : "/dev/null");
+                pb.redirectInput(java.lang.ProcessBuilder.Redirect.from(nullFile));
+                
+                java.lang.Process process = pb.start();
+                
+                StringBuilder output = new StringBuilder();
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
+                }
+                
+                int exitCode = process.waitFor();
+                if (exitCode != 0) {
+                    throw new Exception("GPG-Entschlüsselung fehlgeschlagen: " + output.toString());
+                }
+                
+                file = tempFile.toFile();
+            }
+            
+            // Handle ZIP files
+            if (fileName.endsWith(".zip") || (fileName.endsWith(".gpg") && tempFile != null)) {
+                java.nio.file.Path zipPath = file.toPath();
+                
+                net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(zipPath.toFile());
+                
+                // Check if ZIP is password protected
+                if (zipFile.isEncrypted()) {
+                    // For group loading, we can't ask for password yet, so skip
+                    throw new Exception("ZIP ist passwortgeschützt - Gruppen können erst nach Passworteingabe geladen werden");
+                }
+                
+                // Extract to temp directory
+                java.nio.file.Path extractDir = java.nio.file.Files.createTempDirectory("kortty-read-extract-");
+                
+                zipFile.extractAll(extractDir.toString());
+                
+                // Find XML file in extracted directory
+                java.util.List<java.nio.file.Path> xmlFiles = java.nio.file.Files.walk(extractDir)
+                    .filter(p -> p.toString().toLowerCase().endsWith(".xml"))
+                    .collect(java.util.stream.Collectors.toList());
+                
+                if (xmlFiles.isEmpty()) {
+                    throw new Exception("Keine XML-Datei im ZIP-Archiv gefunden");
+                }
+                
+                return xmlFiles.get(0).toFile();
+            }
+            
+            // Plain XML file
+            return file;
+            
+        } catch (Exception e) {
+            if (tempFile != null) {
+                java.nio.file.Files.deleteIfExists(tempFile);
+            }
+            throw e;
         }
     }
     
