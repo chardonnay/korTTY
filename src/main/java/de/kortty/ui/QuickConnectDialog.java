@@ -155,19 +155,19 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     }
     
     private VBox createTopConnectionsSection() {
-        // Get top N most used connections
-        List<ServerConnection> topConnections = savedConnections.stream()
-                .filter(c -> c.getUsageCount() > 0)
+        // Get recently used connections (last used > 0), sorted by frequency then last used
+        List<ServerConnection> recentConnections = savedConnections.stream()
+                .filter(c -> c.getLastUsed() > 0)
                 .sorted((a, b) -> {
-                    // Sort by usage count descending, then by last used descending
+                    // Sort by usage count descending first, then by last used descending
                     int usageCompare = Integer.compare(b.getUsageCount(), a.getUsageCount());
                     if (usageCompare != 0) return usageCompare;
                     return Long.compare(b.getLastUsed(), a.getLastUsed());
                 })
-                .limit(topConnectionsCount)
+                .limit(10)
                 .collect(Collectors.toList());
         
-        if (topConnections.isEmpty()) {
+        if (recentConnections.isEmpty()) {
             return null;
         }
         
@@ -175,12 +175,17 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         Label label = new Label("Häufig genutzte Verbindungen:");
         label.setStyle("-fx-font-weight: bold;");
         
-        FlowPane flowPane = new FlowPane(8, 8);
+        // Create horizontal scrollable container
+        HBox buttonContainer = new HBox(8);
+        buttonContainer.setPadding(new Insets(5));
         
-        for (ServerConnection conn : topConnections) {
+        for (ServerConnection conn : recentConnections) {
             Button btn = new Button(conn.getName());
+            btn.setPrefWidth(150);
+            btn.setMaxWidth(Double.MAX_VALUE);
             btn.setTooltip(new Tooltip(conn.getUsername() + "@" + conn.getHost() + ":" + conn.getPort() + 
-                    "\nVerwendet: " + conn.getUsageCount() + "x"));
+                    "\nVerwendet: " + conn.getUsageCount() + "x" +
+                    "\nZuletzt: " + new java.util.Date(conn.getLastUsed())));
             btn.setOnAction(e -> {
                 // Fill in the form and close dialog
                 fillFormWithConnection(conn);
@@ -189,10 +194,20 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                         false, true, null, false));
                 close();
             });
-            flowPane.getChildren().add(btn);
+            buttonContainer.getChildren().add(btn);
         }
         
-        box.getChildren().addAll(label, flowPane);
+        // Wrap in ScrollPane for horizontal scrolling
+        ScrollPane scrollPane = new ScrollPane(buttonContainer);
+        scrollPane.setFitToHeight(true);
+        scrollPane.setFitToWidth(false);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setPrefHeight(60);
+        scrollPane.setMinHeight(60);
+        scrollPane.setMaxHeight(60);
+        
+        box.getChildren().addAll(label, scrollPane);
         return box;
     }
     
