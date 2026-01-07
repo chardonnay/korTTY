@@ -17,11 +17,19 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import net.lingala.zip4j.ZipFile;
+import net.lingala.zip4j.model.ZipParameters;
+import net.lingala.zip4j.model.enums.CompressionLevel;
+import net.lingala.zip4j.model.enums.EncryptionMethod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Dialog for managing saved connections.
  */
 public class ConnectionManagerDialog extends Dialog<ServerConnection> {
+    
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionManagerDialog.class);
     
     private final KorTTYApplication app;
     private final ConfigurationManager configManager;
@@ -170,13 +178,22 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             return row;
         });
         
-        // Buttons
+        // Buttons - set uniform width for all buttons
         Button addButton = new Button("Neu...");
         Button editButton = new Button("Bearbeiten...");
         Button deleteButton = new Button("Löschen");
         Button duplicateButton = new Button("Duplizieren");
         Button exportButton = new Button("Exportieren...");
         Button importButton = new Button("Importieren...");
+        
+        // Set uniform width for all buttons (use the widest button as reference)
+        double buttonWidth = 120;
+        addButton.setPrefWidth(buttonWidth);
+        editButton.setPrefWidth(buttonWidth);
+        deleteButton.setPrefWidth(buttonWidth);
+        duplicateButton.setPrefWidth(buttonWidth);
+        exportButton.setPrefWidth(buttonWidth);
+        importButton.setPrefWidth(buttonWidth);
         
         editButton.setDisable(true);
         deleteButton.setDisable(true);
@@ -465,22 +482,124 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     }
     
     private java.util.List<ServerConnection> importConnectionsFromFile(ConnectionImportDialog.ImportResult result) throws Exception {
-        // Read XML file
-        jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
-            de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
-            ServerConnection.class,
-            de.kortty.model.SSHTunnel.class,
-            de.kortty.model.JumpServer.class,
-            de.kortty.model.AuthMethod.class,
-            de.kortty.model.TunnelType.class,
-            de.kortty.model.TerminalLogConfig.class,
-            de.kortty.model.TerminalLogConfig.LogFormat.class
-        );
+        // Determine file type and extract/decrypt if needed
+        java.io.File actualXmlFile = result.importFile;
+        java.nio.file.Path tempFile = null;
+        boolean needsCleanup = false;
         
-        jakarta.xml.bind.Unmarshaller unmarshaller = context.createUnmarshaller();
-        de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper wrapper = 
-            (de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper) 
-            unmarshaller.unmarshal(result.importFile);
+        try {
+            String fileName = result.importFile.getName().toLowerCase();
+            
+            // Handle GPG-encrypted files
+            if (fileName.endsWith(".gpg")) {
+                // Decrypt GPG file first
+                tempFile = java.nio.file.Files.createTempFile("kortty-import-", ".zip");
+                needsCleanup = true;
+                
+                // Decrypt GPG file
+                ProcessBuilder pb = new ProcessBuilder(
+                    "gpg",
+                    "--batch",
+                    "--yes",
+                    "--no-tty",
+                    "--quiet",
+                    "--decrypt",
+                    "--output", tempFile.toString(),
+                    result.importFile.getAbsolutePath()
+                );
+                
+                pb.redirectErrorStream(true);
+                String osName = System.getProperty("os.name").toLowerCase();
+                java.io.File nullFile = new java.io.File(osName.contains("win") ? "NUL" : "/dev/null");
+                pb.redirectInput(java.lang.ProcessBuilder.Redirect.from(nullFile));
+                
+                java.lang.Process process = pb.start();
+                
+                StringBuilder output = new StringBuilder();
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
+                }
+                
+                int exitCode = process.waitFor();
+                if (exitCode != 0) {
+                    throw new Exception("GPG-Entschlüsselung fehlgeschlagen (Exit Code: " + exitCode + ")\n" +
+                                       "Output: " + output.toString() + "\n" +
+                                       "Stellen Sie sicher, dass GPG installiert ist und der Schlüssel verfügbar ist.");
+                }
+                
+                // After GPG decryption, we should have a ZIP file
+                actualXmlFile = tempFile.toFile();
+            }
+            
+            // Handle ZIP files (password-protected or not)
+            if (fileName.endsWith(".zip") || (fileName.endsWith(".gpg") && tempFile != null)) {
+                java.nio.file.Path zipTempFile = tempFile != null ? tempFile : result.importFile.toPath();
+                
+                // Try to extract ZIP
+                net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(zipTempFile.toFile());
+                
+                // Check if ZIP is password protected
+                if (zipFile.isEncrypted()) {
+                    // Ask for password
+                    TextInputDialog passwordDialog = new TextInputDialog();
+                    passwordDialog.setTitle("ZIP-Passwort erforderlich");
+                    passwordDialog.setHeaderText("Das ZIP-Archiv ist passwortgeschützt");
+                    passwordDialog.setContentText("Passwort:");
+                    passwordDialog.getEditor().setPromptText("ZIP-Passwort eingeben");
+                    
+                    // Try to use master password as default
+                    java.util.Optional<String> passwordOpt = passwordDialog.showAndWait();
+                    if (!passwordOpt.isPresent() || passwordOpt.get().trim().isEmpty()) {
+                        throw new Exception("ZIP-Entschlüsselung abgebrochen: Kein Passwort eingegeben");
+                    }
+                    
+                    zipFile.setPassword(passwordOpt.get().toCharArray());
+                }
+                
+                // Extract to temp directory
+                java.nio.file.Path extractDir = java.nio.file.Files.createTempDirectory("kortty-import-extract-");
+                needsCleanup = true;
+                
+                zipFile.extractAll(extractDir.toString());
+                
+                // Find XML file in extracted directory
+                java.util.List<java.nio.file.Path> xmlFiles = java.nio.file.Files.walk(extractDir)
+                    .filter(p -> p.toString().toLowerCase().endsWith(".xml"))
+                    .collect(java.util.stream.Collectors.toList());
+                
+                if (xmlFiles.isEmpty()) {
+                    throw new Exception("Keine XML-Datei im ZIP-Archiv gefunden");
+                }
+                
+                actualXmlFile = xmlFiles.get(0).toFile();
+                
+                // Clean up temp file if it was created for GPG
+                if (tempFile != null && !tempFile.equals(zipTempFile)) {
+                    java.nio.file.Files.deleteIfExists(tempFile);
+                }
+                tempFile = extractDir; // Mark extractDir for cleanup
+            }
+            
+            // Read XML file
+            jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
+                de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
+                ServerConnection.class,
+                de.kortty.model.SSHTunnel.class,
+                de.kortty.model.JumpServer.class,
+                de.kortty.model.AuthMethod.class,
+                de.kortty.model.TunnelType.class,
+                de.kortty.model.TerminalLogConfig.class,
+                de.kortty.model.TerminalLogConfig.LogFormat.class
+            );
+            
+            jakarta.xml.bind.Unmarshaller unmarshaller = context.createUnmarshaller();
+            de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper wrapper = 
+                (de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper) 
+                unmarshaller.unmarshal(actualXmlFile);
         
         java.util.List<ServerConnection> importList = new java.util.ArrayList<>();
         
@@ -576,6 +695,30 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         }
         
         return importList;
+        } finally {
+            // Clean up temporary files
+            if (needsCleanup && tempFile != null) {
+                try {
+                    if (java.nio.file.Files.isDirectory(tempFile)) {
+                        // Recursively delete directory
+                        java.nio.file.Files.walk(tempFile)
+                            .sorted(java.util.Comparator.reverseOrder())
+                            .forEach(p -> {
+                                try {
+                                    java.nio.file.Files.delete(p);
+                                } catch (Exception e) {
+                                    // Ignore cleanup errors
+                                }
+                            });
+                    } else {
+                        java.nio.file.Files.deleteIfExists(tempFile);
+                    }
+                } catch (Exception e) {
+                    // Ignore cleanup errors
+                    logger.warn("Failed to cleanup temp file: {}", tempFile, e);
+                }
+            }
+        }
     }
 
 }
