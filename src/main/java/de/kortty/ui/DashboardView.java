@@ -43,11 +43,7 @@ public class DashboardView extends VBox {
         titleLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #cccccc;");
         
         Button refreshButton = new Button("⟳");
-<<<<<<< HEAD
-        refreshButton.setStyle("-fx-text-fill: #cccccc; -fx-background-color: #3d3d3d; -fx-font-size: 16px; -fx-padding: 5 10 5 10;");
-=======
         refreshButton.setStyle("-fx-text-fill: #cccccc; -fx-background-color: #3d3d3d; -fx-font-size: 32px; -fx-padding: 5 10 5 10;");
->>>>>>> 62d0701
         refreshButton.setTooltip(new Tooltip("Aktualisieren"));
         refreshButton.setOnAction(e -> refresh());
         
