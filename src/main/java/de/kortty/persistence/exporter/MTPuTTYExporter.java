@@ -91,6 +91,49 @@ public class MTPuTTYExporter implements ConnectionExporter {
                 serverElement.appendChild(folder);
             }
             
+            // SSH Tunnels (Port Forwarding)
+            if (connection.getSshTunnels() != null && !connection.getSshTunnels().isEmpty()) {
+                Element tunnelsElement = doc.createElement("SSHTunnels");
+                serverElement.appendChild(tunnelsElement);
+                
+                for (de.kortty.model.SSHTunnel tunnel : connection.getSshTunnels()) {
+                    Element tunnelElement = doc.createElement("SSHTunnel");
+                    tunnelsElement.appendChild(tunnelElement);
+                    
+                    Element enabled = doc.createElement("Enabled");
+                    enabled.setTextContent(String.valueOf(tunnel.isEnabled()));
+                    tunnelElement.appendChild(enabled);
+                    
+                    Element type = doc.createElement("Type");
+                    type.setTextContent(tunnel.getType().name());
+                    tunnelElement.appendChild(type);
+                    
+                    Element localHost = doc.createElement("LocalHost");
+                    localHost.setTextContent(tunnel.getLocalHost() != null ? tunnel.getLocalHost() : "localhost");
+                    tunnelElement.appendChild(localHost);
+                    
+                    Element localPort = doc.createElement("LocalPort");
+                    localPort.setTextContent(String.valueOf(tunnel.getLocalPort()));
+                    tunnelElement.appendChild(localPort);
+                    
+                    if (tunnel.getType() != de.kortty.model.TunnelType.DYNAMIC) {
+                        Element remoteHost = doc.createElement("RemoteHost");
+                        remoteHost.setTextContent(tunnel.getRemoteHost() != null ? tunnel.getRemoteHost() : "localhost");
+                        tunnelElement.appendChild(remoteHost);
+                        
+                        Element remotePort = doc.createElement("RemotePort");
+                        remotePort.setTextContent(String.valueOf(tunnel.getRemotePort()));
+                        tunnelElement.appendChild(remotePort);
+                    }
+                    
+                    if (tunnel.getDescription() != null && !tunnel.getDescription().trim().isEmpty()) {
+                        Element description = doc.createElement("Description");
+                        description.setTextContent(tunnel.getDescription());
+                        tunnelElement.appendChild(description);
+                    }
+                }
+            }
+            
             // Note: We don't export passwords for security reasons
         }
         

@@ -78,6 +78,35 @@ public class MobaXTermExporter implements ConnectionExporter {
                     String line = formatConnection(conn);
                     writer.write(line);
                     writer.newLine();
+                    
+                    // Add SSH tunnel information as comment lines
+                    if (conn.getSshTunnels() != null && !conn.getSshTunnels().isEmpty()) {
+                        for (de.kortty.model.SSHTunnel tunnel : conn.getSshTunnels()) {
+                            if (tunnel.isEnabled()) {
+                                writer.write("# Tunnel: ");
+                                switch (tunnel.getType()) {
+                                    case LOCAL:
+                                        writer.write(String.format("LOCAL %s:%d -> %s:%d", 
+                                            tunnel.getLocalHost(), tunnel.getLocalPort(),
+                                            tunnel.getRemoteHost(), tunnel.getRemotePort()));
+                                        break;
+                                    case REMOTE:
+                                        writer.write(String.format("REMOTE %s:%d -> %s:%d", 
+                                            tunnel.getRemoteHost(), tunnel.getRemotePort(),
+                                            tunnel.getLocalHost(), tunnel.getLocalPort()));
+                                        break;
+                                    case DYNAMIC:
+                                        writer.write(String.format("DYNAMIC (SOCKS) %s:%d", 
+                                            tunnel.getLocalHost(), tunnel.getLocalPort()));
+                                        break;
+                                }
+                                if (tunnel.getDescription() != null && !tunnel.getDescription().trim().isEmpty()) {
+                                    writer.write(" - " + tunnel.getDescription());
+                                }
+                                writer.newLine();
+                            }
+                        }
+                    }
                 }
                 
                 writer.newLine();
