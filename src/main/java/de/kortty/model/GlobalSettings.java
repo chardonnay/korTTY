@@ -39,6 +39,9 @@ public class GlobalSettings {
     @XmlElement
     private boolean dashboardVisible = false; // Last dashboard visibility state
     
+    @XmlElement
+    private double dashboardDividerPosition = 0.2; // Last dashboard divider position (0.0-1.0)
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -125,5 +128,13 @@ public class GlobalSettings {
     
     public void setDashboardVisible(boolean dashboardVisible) {
         this.dashboardVisible = dashboardVisible;
+    }
+    
+    public double getDashboardDividerPosition() {
+        return dashboardDividerPosition;
+    }
+    
+    public void setDashboardDividerPosition(double dashboardDividerPosition) {
+        this.dashboardDividerPosition = dashboardDividerPosition;
     }
 }

@@ -156,6 +156,27 @@ public class MainWindow {
         splitPane.setOrientation(Orientation.HORIZONTAL);
         splitPane.getItems().add(tabPane);
         
+        // Listen for divider position changes to save dashboard geometry
+        splitPane.getDividers().addListener((javafx.collections.ListChangeListener.Change<? extends SplitPane.Divider> c) -> {
+            while (c.next()) {
+                if (c.wasAdded()) {
+                    for (SplitPane.Divider divider : c.getAddedSubList()) {
+                        divider.positionProperty().addListener((obs, oldVal, newVal) -> {
+                            GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+                            if (globalSettings.isRememberDashboardState() && dashboardVisible) {
+                                globalSettings.setDashboardDividerPosition(newVal.doubleValue());
+                                try {
+                                    app.getGlobalSettingsManager().save();
+                                } catch (Exception e) {
+                                    logger.warn("Failed to save dashboard divider position", e);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+        
         root.setCenter(splitPane);
         root.setBottom(statusBar);
         
@@ -265,6 +286,13 @@ public class MainWindow {
             // Save dashboard state on close if enabled
             if (globalSettings.isRememberDashboardState()) {
                 globalSettings.setDashboardVisible(dashboardVisible);
+                // Save dashboard divider position if dashboard is visible
+                if (dashboardVisible && splitPane.getItems().size() > 1) {
+                    double[] positions = splitPane.getDividerPositions();
+                    if (positions.length > 0) {
+                        globalSettings.setDashboardDividerPosition(positions[0]);
+                    }
+                }
             }
             
             // Save settings
@@ -457,6 +485,11 @@ public class MainWindow {
         if (globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible()) {
             Platform.runLater(() -> {
                 toggleDashboard(true);
+                // Restore dashboard divider position
+                double savedPosition = globalSettings.getDashboardDividerPosition();
+                if (savedPosition > 0.0 && savedPosition < 1.0) {
+                    splitPane.setDividerPositions(savedPosition);
+                }
             });
         }
     }
@@ -760,7 +793,16 @@ public class MainWindow {
                 dashboardView = new DashboardView(tabPane, this::handleDashboardAction);
             }
             splitPane.getItems().add(0, dashboardView);
-            splitPane.setDividerPositions(0.2);
+            
+            // Restore saved divider position or use default
+            GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+            double savedPosition = globalSettings.getDashboardDividerPosition();
+            if (savedPosition > 0.0 && savedPosition < 1.0) {
+                splitPane.setDividerPositions(savedPosition);
+            } else {
+                splitPane.setDividerPositions(0.2); // Default: 20%
+            }
+            
             dashboardVisible = true;
         } else if (!show && dashboardVisible) {
             splitPane.getItems().remove(dashboardView);
