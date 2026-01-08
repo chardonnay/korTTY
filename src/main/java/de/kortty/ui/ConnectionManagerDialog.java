@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.StoredCredential;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -544,14 +545,100 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 
                 // Check if ZIP is password protected
                 if (zipFile.isEncrypted()) {
-                    // Ask for password
-                    TextInputDialog passwordDialog = new TextInputDialog();
+                    // Ask for password using custom dialog with password field and stored credentials
+                    Dialog<String> passwordDialog = new Dialog<>();
                     passwordDialog.setTitle("ZIP-Passwort erforderlich");
                     passwordDialog.setHeaderText("Das ZIP-Archiv ist passwortgeschützt");
-                    passwordDialog.setContentText("Passwort:");
-                    passwordDialog.getEditor().setPromptText("ZIP-Passwort eingeben");
+                    passwordDialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
+                    passwordDialog.initOwner(owner);
                     
-                    // Try to use master password as default
+                    javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+                    grid.setHgap(10);
+                    grid.setVgap(10);
+                    grid.setPadding(new javafx.geometry.Insets(20));
+                    
+                    Label passwordLabel = new Label("Passwort:");
+                    PasswordField passwordField = new PasswordField();
+                    passwordField.setPromptText("ZIP-Passwort eingeben");
+                    passwordField.setPrefWidth(300);
+                    
+                    Label storedLabel = new Label("Oder auswählen:");
+                    ComboBox<StoredCredential> storedCredentialCombo = new ComboBox<>();
+                    storedCredentialCombo.setPromptText("Gespeichertes Passwort auswählen...");
+                    storedCredentialCombo.setPrefWidth(300);
+                    
+                    storedCredentialCombo.setCellFactory(lv -> new ListCell<StoredCredential>() {
+                        @Override
+                        protected void updateItem(StoredCredential item, boolean empty) {
+                            super.updateItem(item, empty);
+                            setText(empty || item == null ? null : item.getName() + " (" + item.getUsername() + ")");
+                        }
+                    });
+                    storedCredentialCombo.setButtonCell(new ListCell<StoredCredential>() {
+                        @Override
+                        protected void updateItem(StoredCredential item, boolean empty) {
+                            super.updateItem(item, empty);
+                            setText(empty || item == null ? null : item.getName() + " (" + item.getUsername() + ")");
+                        }
+                    });
+                    
+                    // Load stored credentials
+                    if (credentialManager != null) {
+                        storedCredentialCombo.getItems().addAll(credentialManager.getAllCredentials());
+                    }
+                    
+                    // When a stored credential is selected, decrypt and fill password field
+                    storedCredentialCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+                        if (newVal != null && credentialManager != null && masterPassword != null) {
+                            try {
+                                String decryptedPassword = credentialManager.getPassword(newVal, masterPassword);
+                                if (decryptedPassword != null && !decryptedPassword.isEmpty()) {
+                                    passwordField.setText(decryptedPassword);
+                                }
+                            } catch (Exception e) {
+                                logger.warn("Failed to decrypt password for credential: {}", newVal.getName(), e);
+                                Alert alert = new Alert(Alert.AlertType.WARNING);
+                                alert.setTitle("Passwort-Entschlüsselung fehlgeschlagen");
+                                alert.setHeaderText("Das gespeicherte Passwort konnte nicht entschlüsselt werden");
+                                alert.setContentText("Bitte geben Sie das Passwort manuell ein.\n\n" + 
+                                                   "Fehler: " + e.getMessage());
+                                alert.showAndWait();
+                                passwordField.clear();
+                            }
+                        }
+                    });
+                    
+                    grid.add(passwordLabel, 0, 0);
+                    grid.add(passwordField, 1, 0);
+                    grid.add(storedLabel, 0, 1);
+                    grid.add(storedCredentialCombo, 1, 1);
+                    
+                    javafx.scene.layout.GridPane.setHgrow(passwordField, javafx.scene.layout.Priority.ALWAYS);
+                    javafx.scene.layout.GridPane.setHgrow(storedCredentialCombo, javafx.scene.layout.Priority.ALWAYS);
+                    
+                    passwordDialog.getDialogPane().setContent(grid);
+                    
+                    ButtonType okButtonType = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
+                    passwordDialog.getDialogPane().getButtonTypes().addAll(okButtonType, ButtonType.CANCEL);
+                    
+                    Button okButton = (Button) passwordDialog.getDialogPane().lookupButton(okButtonType);
+                    okButton.setDisable(true);
+                    
+                    // Enable OK button only when password is entered
+                    passwordField.textProperty().addListener((obs, oldVal, newVal) -> {
+                        okButton.setDisable(newVal == null || newVal.trim().isEmpty());
+                    });
+                    
+                    passwordDialog.setResultConverter(buttonType -> {
+                        if (buttonType == okButtonType) {
+                            return passwordField.getText();
+                        }
+                        return null;
+                    });
+                    
+                    // Focus password field when dialog is shown
+                    passwordField.requestFocus();
+                    
                     java.util.Optional<String> passwordOpt = passwordDialog.showAndWait();
                     if (!passwordOpt.isPresent() || passwordOpt.get().trim().isEmpty()) {
                         throw new Exception("ZIP-Entschlüsselung abgebrochen: Kein Passwort eingegeben");
