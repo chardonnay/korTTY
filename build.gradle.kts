@@ -62,6 +62,27 @@ application {
     mainClass.set("de.kortty.KorTTYApplication")
 }
 
+tasks.named<JavaExec>("run") {
+    // JVM-Argumente zur Unterdrückung von JavaFX-Warnungen
+    jvmArgs = listOf(
+        // Öffne Zugriff auf interne JavaFX-Module (reduziert Warnungen über restricted methods)
+        "--add-opens=javafx.graphics/com.sun.glass.utils=ALL-UNNAMED",
+        "--add-opens=javafx.graphics/com.sun.javafx.tk.quantum=ALL-UNNAMED",
+        "--add-opens=javafx.graphics/com.sun.marlin=ALL-UNNAMED",
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+        "--add-opens=java.base/java.security=ALL-UNNAMED",
+        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+        "--add-opens=java.base/java.io=ALL-UNNAMED",
+        "--add-opens=java.base/java.nio=ALL-UNNAMED",
+        // Aktiviere native Zugriffe für JavaFX (verhindert Warnungen über System::load)
+        "--enable-native-access=javafx.graphics",
+        // Unterdrücke Warnungen über sun.misc.Unsafe::allocateMemory (von JavaFX intern verwendet)
+        // Diese Warnungen kommen von JavaFX's Marlin Renderer und sind harmlos
+        "--sun-misc-unsafe-memory-access=allow",
+        "-Djava.awt.headless=false"
+    )
+}
+
 tasks.test {
     useJUnitPlatform()
 }
