@@ -10,6 +10,7 @@ import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.channel.PtyMode;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.common.util.net.SshdSocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,6 +99,51 @@ public class SSHSession {
         }
         
         session.auth().verify(Duration.ofSeconds(30));
+        
+        // Set up SSH tunnels (port forwarding) if configured
+        if (connection.getSshTunnels() != null && !connection.getSshTunnels().isEmpty()) {
+            for (de.kortty.model.SSHTunnel tunnel : connection.getSshTunnels()) {
+                if (!tunnel.isEnabled()) {
+                    continue; // Skip disabled tunnels
+                }
+                
+                try {
+                    SshdSocketAddress localAddress = 
+                        new SshdSocketAddress(tunnel.getLocalHost(), tunnel.getLocalPort());
+                    
+                    switch (tunnel.getType()) {
+                        case LOCAL:
+                            // Local port forwarding: -L localPort:remoteHost:remotePort
+                            SshdSocketAddress remoteAddress = 
+                                new SshdSocketAddress(tunnel.getRemoteHost(), tunnel.getRemotePort());
+                            session.startLocalPortForwarding(localAddress, remoteAddress);
+                            logger.info("Started local port forwarding: {} -> {}:{}", 
+                                localAddress, tunnel.getRemoteHost(), tunnel.getRemotePort());
+                            break;
+                            
+                        case REMOTE:
+                            // Remote port forwarding: -R remotePort:localHost:localPort
+                            SshdSocketAddress remoteBindAddress = 
+                                new SshdSocketAddress("0.0.0.0", tunnel.getRemotePort());
+                            SshdSocketAddress localBindAddress = 
+                                new SshdSocketAddress(tunnel.getLocalHost(), tunnel.getLocalPort());
+                            session.startRemotePortForwarding(remoteBindAddress, localBindAddress);
+                            logger.info("Started remote port forwarding: {} -> {}:{}", 
+                                remoteBindAddress, tunnel.getLocalHost(), tunnel.getLocalPort());
+                            break;
+                            
+                        case DYNAMIC:
+                            // Dynamic port forwarding (SOCKS): -D localPort
+                            session.startDynamicPortForwarding(localAddress);
+                            logger.info("Started dynamic port forwarding (SOCKS): {}", localAddress);
+                            break;
+                    }
+                } catch (Exception e) {
+                    logger.error("Failed to start SSH tunnel {}: {}", tunnel, e.getMessage(), e);
+                    // Continue with other tunnels even if one fails
+                }
+            }
+        }
         
         // Open shell channel
         channel = session.createShellChannel();

@@ -5,6 +5,8 @@ import de.kortty.model.AuthMethod;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.SSHKey;
+import de.kortty.model.SSHTunnel;
+import de.kortty.model.TunnelType;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.model.ConnectionSettings;
@@ -546,14 +548,35 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         enableTunnelsCheck = new CheckBox("SSH-Tunnel aktivieren");
         enableTunnelsCheck.setSelected(!connection.getSshTunnels().isEmpty());
         
-        // Tunnel list
+        // Tunnel list with better display
         Label label = new Label("Konfigurierte Tunnel:");
-        ListView<String> tunnelList = new ListView<>();
+        ListView<de.kortty.model.SSHTunnel> tunnelList = new ListView<>();
+        tunnelList.setCellFactory(lv -> new ListCell<de.kortty.model.SSHTunnel>() {
+            @Override
+            protected void updateItem(de.kortty.model.SSHTunnel tunnel, boolean empty) {
+                super.updateItem(tunnel, empty);
+                if (empty || tunnel == null) {
+                    setText(null);
+                } else {
+                    String status = tunnel.isEnabled() ? "✓" : "○";
+                    String desc = tunnel.getDescription() != null && !tunnel.getDescription().trim().isEmpty() 
+                        ? " - " + tunnel.getDescription() 
+                        : "";
+                    
+                    if (tunnel.getType() == de.kortty.model.TunnelType.DYNAMIC) {
+                        setText(String.format("%s %s: SOCKS-Proxy auf %s:%d%s", 
+                            status, tunnel.getType(), tunnel.getLocalHost(), tunnel.getLocalPort(), desc));
+                    } else {
+                        setText(String.format("%s %s: %s:%d -> %s:%d%s", 
+                            status, tunnel.getType(), tunnel.getLocalHost(), tunnel.getLocalPort(),
+                            tunnel.getRemoteHost(), tunnel.getRemotePort(), desc));
+                    }
+                }
+            }
+        });
         
-        // Simple display of existing tunnels
-        for (de.kortty.model.SSHTunnel tunnel : connection.getSshTunnels()) {
-            tunnelList.getItems().add(tunnel.toString());
-        }
+        // Load existing tunnels
+        tunnelList.getItems().addAll(connection.getSshTunnels());
         
         // Buttons for add/edit/remove
         HBox buttonBox = new HBox(10);
@@ -562,12 +585,12 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         Button removeButton = new Button("Entfernen");
         
         addButton.setOnAction(e -> {
-            // TODO: Show tunnel edit dialog
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("SSH-Tunnel");
-            alert.setHeaderText("Funktion in Entwicklung");
-            alert.setContentText("Die SSH-Tunnel-Konfiguration wird in einer späteren Version vollständig implementiert.");
-            alert.showAndWait();
+            TunnelEditDialog dialog = new TunnelEditDialog((Stage) getDialogPane().getScene().getWindow(), null);
+            dialog.showAndWait().ifPresent(newTunnel -> {
+                connection.getSshTunnels().add(newTunnel);
+                tunnelList.getItems().add(newTunnel);
+                enableTunnelsCheck.setSelected(true);
+            });
         });
         
         editButton.setDisable(true);
@@ -579,12 +602,56 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             removeButton.setDisable(!selected);
         });
         
+        editButton.setOnAction(e -> {
+            de.kortty.model.SSHTunnel selected = tunnelList.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                // Create a copy for editing
+                de.kortty.model.SSHTunnel copy = new de.kortty.model.SSHTunnel();
+                copy.setEnabled(selected.isEnabled());
+                copy.setType(selected.getType());
+                copy.setLocalHost(selected.getLocalHost());
+                copy.setLocalPort(selected.getLocalPort());
+                copy.setRemoteHost(selected.getRemoteHost());
+                copy.setRemotePort(selected.getRemotePort());
+                copy.setDescription(selected.getDescription());
+                
+                TunnelEditDialog dialog = new TunnelEditDialog((Stage) getDialogPane().getScene().getWindow(), copy);
+                dialog.showAndWait().ifPresent(editedTunnel -> {
+                    int index = tunnelList.getSelectionModel().getSelectedIndex();
+                    connection.getSshTunnels().set(index, editedTunnel);
+                    tunnelList.getItems().set(index, editedTunnel);
+                });
+            }
+        });
+        
+        removeButton.setOnAction(e -> {
+            de.kortty.model.SSHTunnel selected = tunnelList.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                confirm.setTitle("Tunnel entfernen");
+                confirm.setHeaderText("Tunnel wirklich entfernen?");
+                confirm.setContentText("Der Tunnel wird dauerhaft gelöscht.");
+                
+                confirm.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == ButtonType.OK) {
+                        int index = tunnelList.getSelectionModel().getSelectedIndex();
+                        connection.getSshTunnels().remove(index);
+                        tunnelList.getItems().remove(index);
+                        
+                        if (connection.getSshTunnels().isEmpty()) {
+                            enableTunnelsCheck.setSelected(false);
+                        }
+                    }
+                });
+            }
+        });
+        
         buttonBox.getChildren().addAll(addButton, editButton, removeButton);
         
         Label infoLabel = new Label("SSH-Tunnel ermöglichen Port-Forwarding durch den SSH-Server.\n" +
-                "Local: -L localPort:remoteHost:remotePort\n" +
-                "Remote: -R remotePort:localHost:localPort\n" +
-                "Dynamic (SOCKS): -D localPort");
+                "Local (-L): Lokaler Port wird zu Remote-Host:Port weitergeleitet\n" +
+                "Remote (-R): Remote-Port wird zu lokalem Host:Port weitergeleitet\n" +
+                "Dynamic (-D): Erstellt einen SOCKS-Proxy auf lokalem Port");
         infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         
