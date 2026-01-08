@@ -32,6 +32,9 @@ dependencies {
     implementation("org.apache.sshd:sshd-common:2.12.0")
     implementation("org.apache.sshd:sshd-sftp:2.12.0")
     
+    // ED25519 (EdDSA) key support for SSH
+    implementation("net.i2p.crypto:eddsa:0.3.0")
+    
     // JediTermFX - Professional terminal emulator for JavaFX (backup)
     implementation("com.techsenger.jeditermfx:jeditermfx-core:1.1.0")
     implementation("com.techsenger.jeditermfx:jeditermfx-ui:1.1.0")
