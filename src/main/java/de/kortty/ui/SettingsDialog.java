@@ -9,6 +9,7 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
+import de.kortty.model.WindowGeometry;
 import de.kortty.security.PasswordVault;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -65,6 +66,11 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     // Window settings
     private final CheckBox rememberWindowGeometryCheck;
     private final CheckBox rememberDashboardStateCheck;
+    private final CheckBox useFixedGeometryCheck;
+    private final Spinner<Integer> fixedWidthSpinner;
+    private final Spinner<Integer> fixedHeightSpinner;
+    private final Spinner<Integer> fixedXSpinner;
+    private final Spinner<Integer> fixedYSpinner;
     
     public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
                           GlobalSettings globalSettings, CredentialManager credentialManager, 
@@ -388,6 +394,77 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         dashboardInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         windowGrid.add(dashboardInfoLabel, 0, windowRow++, 2, 1);
         
+        // Fixed geometry section
+        windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
+        
+        Label fixedGeometryHeader = new Label("Feste Fenstergeometrie");
+        fixedGeometryHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        windowGrid.add(fixedGeometryHeader, 0, windowRow++, 2, 1);
+        
+        useFixedGeometryCheck = new CheckBox("Feste Fenstergeometrie verwenden");
+        useFixedGeometryCheck.setSelected(globalSettings != null && globalSettings.isUseFixedWindowGeometry());
+        useFixedGeometryCheck.setTooltip(new Tooltip("Fenster wird immer mit der angegebenen Größe und Position geöffnet"));
+        windowGrid.add(useFixedGeometryCheck, 0, windowRow++, 2, 1);
+        
+        // Get current or default values
+        WindowGeometry fixedGeo = globalSettings != null ? globalSettings.getFixedWindowGeometry() : null;
+        int currentWidth = fixedGeo != null ? (int)fixedGeo.getWidth() : 1200;
+        int currentHeight = fixedGeo != null ? (int)fixedGeo.getHeight() : 800;
+        int currentX = fixedGeo != null ? (int)fixedGeo.getX() : 100;
+        int currentY = fixedGeo != null ? (int)fixedGeo.getY() : 100;
+        
+        // Width and Height
+        Label sizeLabel = new Label("Größe:");
+        fixedWidthSpinner = new Spinner<>(400, 4000, currentWidth);
+        fixedWidthSpinner.setEditable(true);
+        fixedWidthSpinner.setPrefWidth(100);
+        fixedWidthSpinner.setDisable(!useFixedGeometryCheck.isSelected());
+        
+        fixedHeightSpinner = new Spinner<>(300, 3000, currentHeight);
+        fixedHeightSpinner.setEditable(true);
+        fixedHeightSpinner.setPrefWidth(100);
+        fixedHeightSpinner.setDisable(!useFixedGeometryCheck.isSelected());
+        
+        HBox sizeBox = new HBox(10);
+        sizeBox.getChildren().addAll(new Label("Breite:"), fixedWidthSpinner, new Label("Höhe:"), fixedHeightSpinner);
+        
+        windowGrid.add(sizeLabel, 0, windowRow);
+        windowGrid.add(sizeBox, 1, windowRow++);
+        
+        // Position
+        Label posLabel = new Label("Position:");
+        fixedXSpinner = new Spinner<>(0, 5000, currentX);
+        fixedXSpinner.setEditable(true);
+        fixedXSpinner.setPrefWidth(100);
+        fixedXSpinner.setDisable(!useFixedGeometryCheck.isSelected());
+        
+        fixedYSpinner = new Spinner<>(0, 3000, currentY);
+        fixedYSpinner.setEditable(true);
+        fixedYSpinner.setPrefWidth(100);
+        fixedYSpinner.setDisable(!useFixedGeometryCheck.isSelected());
+        
+        HBox posBox = new HBox(10);
+        posBox.getChildren().addAll(new Label("X:"), fixedXSpinner, new Label("Y:"), fixedYSpinner);
+        
+        windowGrid.add(posLabel, 0, windowRow);
+        windowGrid.add(posBox, 1, windowRow++);
+        
+        // Enable/disable spinners based on checkbox
+        useFixedGeometryCheck.selectedProperty().addListener((obs, old, newVal) -> {
+            fixedWidthSpinner.setDisable(!newVal);
+            fixedHeightSpinner.setDisable(!newVal);
+            fixedXSpinner.setDisable(!newVal);
+            fixedYSpinner.setDisable(!newVal);
+            rememberWindowGeometryCheck.setDisable(newVal);
+        });
+        
+        // Disable remember checkbox when fixed geometry is enabled
+        rememberWindowGeometryCheck.setDisable(useFixedGeometryCheck.isSelected());
+        
+        Label fixedGeometryInfoLabel = new Label("(Deaktiviert 'Fenstergeometrie merken' - Fenster öffnet immer an angegebener Position)");
+        fixedGeometryInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        windowGrid.add(fixedGeometryInfoLabel, 0, windowRow++, 2, 1);
+        
         windowTab.setContent(windowGrid);
         
         // Security tab
@@ -488,6 +565,17 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             // Save window settings
             globalSettings.setRememberWindowGeometry(rememberWindowGeometryCheck.isSelected());
             globalSettings.setRememberDashboardState(rememberDashboardStateCheck.isSelected());
+            
+            // Save fixed geometry settings
+            globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());
+            if (useFixedGeometryCheck.isSelected()) {
+                WindowGeometry fixedGeo = new WindowGeometry();
+                fixedGeo.setWidth(fixedWidthSpinner.getValue());
+                fixedGeo.setHeight(fixedHeightSpinner.getValue());
+                fixedGeo.setX(fixedXSpinner.getValue());
+                fixedGeo.setY(fixedYSpinner.getValue());
+                globalSettings.setFixedWindowGeometry(fixedGeo);
+            }
         }
     }
     

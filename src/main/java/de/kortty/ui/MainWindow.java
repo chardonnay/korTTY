@@ -470,16 +470,28 @@ public class MainWindow {
     public void show() {
         // Restore window geometry if enabled
         GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
-        if (globalSettings.isRememberWindowGeometry() && globalSettings.getLastWindowGeometry() != null) {
-            WindowGeometry geo = globalSettings.getLastWindowGeometry();
-            stage.setX(geo.getX());
-            stage.setY(geo.getY());
-            stage.setWidth(geo.getWidth());
-            stage.setHeight(geo.getHeight());
-            if (geo.isMaximized()) {
+        
+        // Determine which geometry to use
+        WindowGeometry geoToUse = null;
+        
+        if (globalSettings.isUseFixedWindowGeometry() && globalSettings.getFixedWindowGeometry() != null) {
+            // Use fixed geometry
+            geoToUse = globalSettings.getFixedWindowGeometry();
+        } else if (globalSettings.isRememberWindowGeometry() && globalSettings.getLastWindowGeometry() != null) {
+            // Use last geometry
+            geoToUse = globalSettings.getLastWindowGeometry();
+        }
+        
+        if (geoToUse != null) {
+            stage.setX(geoToUse.getX());
+            stage.setY(geoToUse.getY());
+            stage.setWidth(geoToUse.getWidth());
+            stage.setHeight(geoToUse.getHeight());
+            if (geoToUse.isMaximized()) {
                 stage.setMaximized(true);
             }
         }
+        
         stage.show();
         
         // Restore dashboard state if enabled

@@ -31,6 +31,12 @@ public class GlobalSettings {
     private boolean rememberWindowGeometry = true; // Remember last window geometry
     
     @XmlElement
+    private boolean useFixedWindowGeometry = false; // Use fixed geometry instead of last used
+    
+    @XmlElement
+    private WindowGeometry fixedWindowGeometry; // Fixed window geometry (when useFixedWindowGeometry is true)
+    
+    @XmlElement
     private WindowGeometry lastWindowGeometry; // Last saved window geometry
     
     @XmlElement
@@ -108,6 +114,22 @@ public class GlobalSettings {
     
     public void setRememberWindowGeometry(boolean rememberWindowGeometry) {
         this.rememberWindowGeometry = rememberWindowGeometry;
+    }
+    
+    public boolean isUseFixedWindowGeometry() {
+        return useFixedWindowGeometry;
+    }
+    
+    public void setUseFixedWindowGeometry(boolean useFixedWindowGeometry) {
+        this.useFixedWindowGeometry = useFixedWindowGeometry;
+    }
+    
+    public WindowGeometry getFixedWindowGeometry() {
+        return fixedWindowGeometry;
+    }
+    
+    public void setFixedWindowGeometry(WindowGeometry fixedWindowGeometry) {
+        this.fixedWindowGeometry = fixedWindowGeometry;
     }
     
     public WindowGeometry getLastWindowGeometry() {
