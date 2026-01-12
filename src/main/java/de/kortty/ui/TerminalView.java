@@ -60,15 +60,33 @@ public class TerminalView extends BorderPane {
         // Filter KEY_TYPED events with empty character to prevent StringIndexOutOfBoundsException
         // ESCAPE and other control keys produce KEY_TYPED events with empty string,
         // which causes TerminalPanel.processTerminalKeyTyped to crash when accessing charAt(0)
-        // For ESCAPE, we need to let it pass through KEY_PRESSED, but filter KEY_TYPED
         terminalPane.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
             String character = event.getCharacter();
             if (character != null && character.isEmpty()) {
                 // Consume empty KEY_TYPED events to prevent TerminalPanel crash
-                // This prevents the StringIndexOutOfBoundsException
-                // ESCAPE will be handled via KEY_PRESSED events by JediTermFX itself
                 event.consume();
                 logger.debug("Filtered empty KEY_TYPED event (key: {}) to prevent TerminalPanel crash", event.getCode());
+            }
+        });
+        
+        // Handle ESCAPE key via KEY_PRESSED to send ESC character through TTY connector
+        // We need to send ESC explicitly because KEY_TYPED events are filtered
+        terminalPane.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
+                // Send ESC character (\u001B) through TTY connector if available
+                if (ttyConnector != null && ttyConnector.isConnected()) {
+                    try {
+                        ttyConnector.write("\u001B");
+                        logger.debug("Sent ESCAPE character via TTY connector");
+                    } catch (java.io.IOException e) {
+                        logger.error("Failed to send ESCAPE character", e);
+                    }
+                } else if (terminalWidget != null && terminalWidget.getTerminal() != null) {
+                    // Fallback: send via terminal widget if TTY connector not ready
+                    terminalWidget.getTerminal().writeCharacters("\u001B");
+                    logger.debug("Sent ESCAPE character via terminal widget");
+                }
+                event.consume(); // Consume to prevent duplicate processing
             }
         });
         
