@@ -430,7 +430,19 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
                 applySettings();
+                
+                // Save settings to both ConnectionSettings and GlobalSettings
                 configManager.setGlobalSettings(settings);
+                globalSettings.setDefaultTerminalSettings(new ConnectionSettings(settings));
+                
+                // Save global settings
+                try {
+                    app.getGlobalSettingsManager().save();
+                } catch (Exception e) {
+                    org.slf4j.LoggerFactory.getLogger(getClass())
+                        .error("Failed to save global settings", e);
+                }
+                
                 return settings;
             }
             return null;

@@ -10,6 +10,7 @@ import de.kortty.model.TunnelType;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.model.ConnectionSettings;
+import de.kortty.model.GlobalSettings;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
@@ -77,7 +78,25 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     public ConnectionEditDialog(Stage owner, ServerConnection existingConnection, CredentialManager credentialManager, 
                                SSHKeyManager sshKeyManager, char[] masterPassword) {
-        this.connection = existingConnection != null ? existingConnection : new ServerConnection();
+        // For new connections, apply default terminal settings
+        if (existingConnection == null) {
+            ServerConnection newConnection = new ServerConnection();
+            // Try to load default settings from global settings
+            try {
+                de.kortty.core.GlobalSettingsManager gsm = 
+                    de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+                GlobalSettings globalSettings = gsm.getSettings();
+                if (globalSettings != null && globalSettings.getDefaultTerminalSettings() != null) {
+                    newConnection.setSettings(new ConnectionSettings(globalSettings.getDefaultTerminalSettings()));
+                }
+            } catch (Exception e) {
+                // Ignore, use default settings
+            }
+            this.connection = newConnection;
+        } else {
+            this.connection = existingConnection;
+        }
+        
         this.credentialManager = credentialManager;
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
