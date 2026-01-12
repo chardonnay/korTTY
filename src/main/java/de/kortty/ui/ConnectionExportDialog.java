@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.model.ServerConnection;
+import de.kortty.persistence.exporter.*;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -10,22 +11,44 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Dialog for exporting selected connections with options.
+ * Dialog for exporting selected connections with options and format selection.
  */
 public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.ExportResult> {
     
     private final Stage owner;
     private final List<ServerConnection> connections;
     
+    private final ComboBox<ExportFormat> formatComboBox;
     private final CheckBox includeUsernameCheck;
     private final CheckBox includePasswordCheck;
     private final CheckBox includeTunnelsCheck;
     private final CheckBox includeJumpServerCheck;
     private final TextField exportPathField;
     private File selectedFile;
+    
+    /**
+     * Represents an export format with its exporter.
+     */
+    public static class ExportFormat {
+        private final ConnectionExporter exporter;
+        
+        public ExportFormat(ConnectionExporter exporter) {
+            this.exporter = exporter;
+        }
+        
+        public ConnectionExporter getExporter() {
+            return exporter;
+        }
+        
+        @Override
+        public String toString() {
+            return exporter.getName();
+        }
+    }
     
     public static class ExportResult {
         public final List<ServerConnection> connections;
@@ -34,16 +57,19 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         public final boolean includePassword;
         public final boolean includeTunnels;
         public final boolean includeJumpServer;
+        public final ConnectionExporter exporter;
         
         public ExportResult(List<ServerConnection> connections, File exportFile,
                           boolean includeUsername, boolean includePassword,
-                          boolean includeTunnels, boolean includeJumpServer) {
+                          boolean includeTunnels, boolean includeJumpServer,
+                          ConnectionExporter exporter) {
             this.connections = connections;
             this.exportFile = exportFile;
             this.includeUsername = includeUsername;
             this.includePassword = includePassword;
             this.includeTunnels = includeTunnels;
             this.includeJumpServer = includeJumpServer;
+            this.exporter = exporter;
         }
     }
     
@@ -65,6 +91,27 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         
         int row = 0;
         
+        // Export format selection
+        Label formatLabel = new Label("Export-Format:");
+        formatComboBox = new ComboBox<>();
+        formatComboBox.setPrefWidth(300);
+        
+        // Add all available exporters
+        List<ExportFormat> formats = new ArrayList<>();
+        formats.add(new ExportFormat(new KorTTYExporter()));
+        formats.add(new ExportFormat(new MobaXTermExporter()));
+        formats.add(new ExportFormat(new MTPuTTYExporter()));
+        formats.add(new ExportFormat(new PuTTYCMExporter()));
+        
+        formatComboBox.getItems().addAll(formats);
+        formatComboBox.getSelectionModel().select(0); // Default: KorTTY
+        
+        // Update file extension when format changes
+        formatComboBox.setOnAction(e -> updateFileExtension());
+        
+        grid.add(formatLabel, 0, row);
+        grid.add(formatComboBox, 1, row++, 2, 1);
+        
         // Export path
         Label pathLabel = new Label("Export-Pfad:");
         exportPathField = new TextField();
@@ -78,6 +125,10 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         grid.add(pathLabel, 0, row);
         grid.add(exportPathField, 1, row);
         grid.add(browseButton, 2, row++);
+        
+        // Add separator
+        Separator separator1 = new Separator();
+        grid.add(separator1, 0, row++, 3, 1);
         
         // Section: Authentication data
         Label authHeader = new Label("Authentifizierungs-Daten:");
@@ -109,6 +160,11 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         includeJumpServerCheck.setSelected(true);
         grid.add(includeJumpServerCheck, 0, row++, 3, 1);
         
+        // Add info about format compatibility
+        Label compatInfo = new Label("Hinweis: Nicht alle Formate unterstützen alle Optionen.");
+        compatInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: #666666; -fx-font-style: italic;");
+        grid.add(compatInfo, 0, row++, 3, 1);
+        
         VBox content = new VBox(grid);
         getDialogPane().setContent(content);
         
@@ -127,13 +183,15 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         // Result converter
         setResultConverter(dialogButton -> {
             if (dialogButton == exportButtonType && selectedFile != null) {
+                ExportFormat selectedFormat = formatComboBox.getSelectionModel().getSelectedItem();
                 return new ExportResult(
                     connections,
                     selectedFile,
                     includeUsernameCheck.isSelected(),
                     includePasswordCheck.isSelected(),
                     includeTunnelsCheck.isSelected(),
-                    includeJumpServerCheck.isSelected()
+                    includeJumpServerCheck.isSelected(),
+                    selectedFormat != null ? selectedFormat.getExporter() : new KorTTYExporter()
                 );
             }
             return null;
@@ -143,15 +201,54 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
     private void selectExportFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Export-Datei auswählen");
-        fileChooser.setInitialFileName("kortty-export.xml");
-        fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("XML-Dateien", "*.xml"),
+        
+        ExportFormat selectedFormat = formatComboBox.getSelectionModel().getSelectedItem();
+        if (selectedFormat != null) {
+            ConnectionExporter exporter = selectedFormat.getExporter();
+            
+            // Set initial file name based on format
+            String defaultName = "kortty-export." + exporter.getFileExtension();
+            fileChooser.setInitialFileName(defaultName);
+            
+            // Set extension filter
+            fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(
+                    exporter.getFileDescription(),
+                    "*." + exporter.getFileExtension()
+                )
+            );
+        }
+        
+        fileChooser.getExtensionFilters().add(
             new FileChooser.ExtensionFilter("Alle Dateien", "*.*")
         );
         
         selectedFile = fileChooser.showSaveDialog(owner);
         if (selectedFile != null) {
             exportPathField.setText(selectedFile.getAbsolutePath());
+        }
+    }
+    
+    /**
+     * Updates the file extension when format is changed and a file is already selected.
+     */
+    private void updateFileExtension() {
+        if (selectedFile != null) {
+            ExportFormat selectedFormat = formatComboBox.getSelectionModel().getSelectedItem();
+            if (selectedFormat != null) {
+                String currentPath = selectedFile.getAbsolutePath();
+                String extension = selectedFormat.getExporter().getFileExtension();
+                
+                // Replace extension
+                int lastDot = currentPath.lastIndexOf('.');
+                if (lastDot > 0) {
+                    currentPath = currentPath.substring(0, lastDot);
+                }
+                currentPath += "." + extension;
+                
+                selectedFile = new File(currentPath);
+                exportPathField.setText(selectedFile.getAbsolutePath());
+            }
         }
     }
 }

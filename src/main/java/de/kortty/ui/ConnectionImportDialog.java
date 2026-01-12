@@ -359,6 +359,8 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
             new FileChooser.ExtensionFilter("XML-Dateien", "*.xml"),
             new FileChooser.ExtensionFilter("ZIP-Dateien", "*.zip"),
             new FileChooser.ExtensionFilter("GPG-verschlüsselte Dateien", "*.gpg"),
+            new FileChooser.ExtensionFilter("MobaXterm/PuTTY CM", "*.ini", "*.mxtsessions", "*.csv"),
+            new FileChooser.ExtensionFilter("CSV-Dateien (PuTTY CM)", "*.csv"),
             new FileChooser.ExtensionFilter("Alle Dateien", "*.*")
         );
         
