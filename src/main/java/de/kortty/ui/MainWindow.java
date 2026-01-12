@@ -62,6 +62,7 @@ public class MainWindow {
     
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean allowAutoQuickConnect = false; // Only allow QuickConnect via explicit user action
+    private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
     
     public MainWindow(Stage stage) {
         this.stage = stage;
@@ -109,7 +110,7 @@ public class MainWindow {
                         (node instanceof javafx.scene.control.Label && "+".equals(((javafx.scene.control.Label)node).getText()))) {
                         
                         // This is a click on the + tab
-                        if (!quickConnectDialogOpen) {
+                        if (!quickConnectDialogOpen && startupComplete) {
                             event.consume(); // Prevent selection
                             Platform.runLater(() -> {
                                 // Select previous tab if possible
@@ -509,6 +510,13 @@ public class MainWindow {
         }
         
         stage.show();
+        
+        // Mark startup as complete after a short delay to allow UI to settle
+        Platform.runLater(() -> {
+            Platform.runLater(() -> {
+                startupComplete = true;
+            });
+        });
         
         // Restore dashboard state if enabled
         if (globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible()) {
