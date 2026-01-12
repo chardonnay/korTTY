@@ -39,7 +39,12 @@ public class GlobalSettingsManager {
         }
         
         try {
-            JAXBContext context = JAXBContext.newInstance(GlobalSettings.class);
+            // Include all nested classes in context
+            JAXBContext context = JAXBContext.newInstance(
+                GlobalSettings.class, 
+                de.kortty.model.ConnectionSettings.class,
+                de.kortty.model.WindowGeometry.class
+            );
             Unmarshaller unmarshaller = context.createUnmarshaller();
             this.settings = (GlobalSettings) unmarshaller.unmarshal(settingsFile.toFile());
             logger.info("Loaded global settings from {}", settingsFile);
@@ -55,7 +60,12 @@ public class GlobalSettingsManager {
     public void save() throws Exception {
         Path settingsFile = configDir.resolve(SETTINGS_FILE);
         
-        JAXBContext context = JAXBContext.newInstance(GlobalSettings.class);
+        // Include all nested classes in context
+        JAXBContext context = JAXBContext.newInstance(
+            GlobalSettings.class,
+            de.kortty.model.ConnectionSettings.class,
+            de.kortty.model.WindowGeometry.class
+        );
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         marshaller.marshal(settings, settingsFile.toFile());
