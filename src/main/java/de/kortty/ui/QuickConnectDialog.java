@@ -44,6 +44,12 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private Spinner<Integer> timeoutSpinner;
     private Spinner<Integer> retrySpinner;
     
+    // Terminal appearance
+    private ComboBox<String> fontFamilyCombo;
+    private Spinner<Integer> fontSizeSpinner;
+    private ColorPicker foregroundColorPicker;
+    private ColorPicker backgroundColorPicker;
+    
     // Group tab
     private ListView<String> groupListView;
     
@@ -348,10 +354,46 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         timeoutBox.getChildren().addAll(timeoutSpinner, new Label("Sekunden"));
         grid.add(timeoutBox, 1, 8);
         
-        grid.add(new Label("Wiederholungsversuche:"), 0, 9);
+        grid.add(new Label("Wiederholungen:"), 0, 9);
         HBox retryBox = new HBox(10);
         retryBox.getChildren().addAll(retrySpinner, new Label("Versuche"));
         grid.add(retryBox, 1, 9);
+        
+        // Terminal appearance section
+        grid.add(new Separator(), 0, 10, 2, 1);
+        
+        Label appearanceLabel = new Label("Terminal-Darstellung:");
+        appearanceLabel.setStyle("-fx-font-weight: bold;");
+        grid.add(appearanceLabel, 0, 11, 2, 1);
+        
+        // Font family
+        fontFamilyCombo = new ComboBox<>();
+        fontFamilyCombo.getItems().addAll(getMonospaceFonts());
+        fontFamilyCombo.setValue("Monospaced");
+        fontFamilyCombo.setPrefWidth(200);
+        
+        // Font size
+        fontSizeSpinner = new Spinner<>(8, 72, 14);
+        fontSizeSpinner.setEditable(true);
+        fontSizeSpinner.setPrefWidth(80);
+        
+        grid.add(new Label("Schriftart:"), 0, 12);
+        HBox fontBox = new HBox(10);
+        fontBox.getChildren().addAll(fontFamilyCombo, new Label("Größe:"), fontSizeSpinner);
+        grid.add(fontBox, 1, 12);
+        
+        // Colors
+        foregroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#FFFFFF"));
+        backgroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#1E1E1E"));
+        
+        grid.add(new Label("Textfarbe:"), 0, 13);
+        grid.add(foregroundColorPicker, 1, 13);
+        
+        grid.add(new Label("Hintergrund:"), 0, 14);
+        grid.add(backgroundColorPicker, 1, 14);
+        
+        // Load default settings from GlobalSettings
+        loadDefaultTerminalSettings();
         
         // Add to pane
         if (savedConnections != null && !savedConnections.isEmpty()) {
@@ -515,6 +557,9 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             connection.setName(name.isEmpty() ? connection.getUsername() + "@" + connection.getHost() : name);
         }
         
+        // Apply terminal settings from the dialog
+        applyTerminalSettings(connection);
+        
         return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false, null, false);
     }
     
@@ -561,6 +606,84 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         // Fall back to stored password
         return passwordVault != null ? passwordVault.retrievePassword(conn) : "";
+    }
+    
+    /**
+     * Loads default terminal settings from GlobalSettings.
+     */
+    private void loadDefaultTerminalSettings() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = 
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings globalSettings = gsm.getSettings();
+            
+            if (globalSettings != null && globalSettings.getDefaultTerminalSettings() != null) {
+                de.kortty.model.ConnectionSettings settings = globalSettings.getDefaultTerminalSettings();
+                
+                // Apply font settings
+                if (settings.getFontFamily() != null) {
+                    fontFamilyCombo.setValue(settings.getFontFamily());
+                }
+                fontSizeSpinner.getValueFactory().setValue(settings.getFontSize());
+                
+                // Apply color settings
+                if (settings.getForegroundColor() != null) {
+                    foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
+                }
+                if (settings.getBackgroundColor() != null) {
+                    backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
+                }
+            }
+        } catch (Exception e) {
+            // Ignore, use default values
+        }
+    }
+    
+    /**
+     * Returns a list of monospace fonts available on the system.
+     */
+    private List<String> getMonospaceFonts() {
+        java.util.Set<String> monoFonts = new java.util.LinkedHashSet<>();
+        monoFonts.add("Monospaced");
+        monoFonts.add("Courier New");
+        monoFonts.add("Monaco");
+        monoFonts.add("Menlo");
+        monoFonts.add("Consolas");
+        monoFonts.add("DejaVu Sans Mono");
+        monoFonts.add("Liberation Mono");
+        monoFonts.add("Ubuntu Mono");
+        monoFonts.add("Fira Code");
+        monoFonts.add("JetBrains Mono");
+        monoFonts.add("Source Code Pro");
+        
+        // Filter available fonts
+        return monoFonts.stream()
+            .filter(font -> javafx.scene.text.Font.getFamilies().contains(font))
+            .collect(java.util.stream.Collectors.toList());
+    }
+    
+    /**
+     * Applies terminal settings to a connection.
+     */
+    private void applyTerminalSettings(ServerConnection connection) {
+        if (connection.getSettings() == null) {
+            connection.setSettings(new de.kortty.model.ConnectionSettings());
+        }
+        
+        connection.getSettings().setFontFamily(fontFamilyCombo.getValue());
+        connection.getSettings().setFontSize(fontSizeSpinner.getValue());
+        connection.getSettings().setForegroundColor(toHex(foregroundColorPicker.getValue()));
+        connection.getSettings().setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+    }
+    
+    /**
+     * Converts Color to hex string.
+     */
+    private String toHex(javafx.scene.paint.Color color) {
+        return String.format("#%02X%02X%02X",
+                (int) (color.getRed() * 255),
+                (int) (color.getGreen() * 255),
+                (int) (color.getBlue() * 255));
     }
 
 }

@@ -42,6 +42,10 @@ public class GlobalSettings {
     @XmlElement
     private double dashboardDividerPosition = 0.2; // Last dashboard divider position (0.0-1.0)
     
+    // Default terminal settings for new connections
+    @XmlElement
+    private ConnectionSettings defaultTerminalSettings;
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -136,5 +140,16 @@ public class GlobalSettings {
     
     public void setDashboardDividerPosition(double dashboardDividerPosition) {
         this.dashboardDividerPosition = dashboardDividerPosition;
+    }
+    
+    public ConnectionSettings getDefaultTerminalSettings() {
+        if (defaultTerminalSettings == null) {
+            defaultTerminalSettings = new ConnectionSettings();
+        }
+        return defaultTerminalSettings;
+    }
+    
+    public void setDefaultTerminalSettings(ConnectionSettings defaultTerminalSettings) {
+        this.defaultTerminalSettings = defaultTerminalSettings;
     }
 }
