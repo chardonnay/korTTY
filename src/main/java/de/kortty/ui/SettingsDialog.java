@@ -455,13 +455,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             fixedHeightSpinner.setDisable(!newVal);
             fixedXSpinner.setDisable(!newVal);
             fixedYSpinner.setDisable(!newVal);
-            rememberWindowGeometryCheck.setDisable(newVal);
         });
         
-        // Disable remember checkbox when fixed geometry is enabled
-        rememberWindowGeometryCheck.setDisable(useFixedGeometryCheck.isSelected());
-        
-        Label fixedGeometryInfoLabel = new Label("(Deaktiviert 'Fenstergeometrie merken' - Fenster öffnet immer an angegebener Position)");
+        Label fixedGeometryInfoLabel = new Label("(Hat Vorrang vor 'Fenstergeometrie merken' - Fenster öffnet immer an angegebener Position)");
         fixedGeometryInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         windowGrid.add(fixedGeometryInfoLabel, 0, windowRow++, 2, 1);
         
