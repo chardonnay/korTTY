@@ -63,6 +63,30 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         formatCombo.getSelectionModel().selectFirst();
         formatCombo.setMaxWidth(Double.MAX_VALUE);
         
+        // Use getName() for display
+        formatCombo.setButtonCell(new ListCell<ConnectionExporter>() {
+            @Override
+            protected void updateItem(ConnectionExporter item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName());
+                }
+            }
+        });
+        formatCombo.setCellFactory(lv -> new ListCell<ConnectionExporter>() {
+            @Override
+            protected void updateItem(ConnectionExporter item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName());
+                }
+            }
+        });
+        
         HBox formatBox = new HBox(10, formatLabel, formatCombo);
         formatBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         HBox.setHgrow(formatCombo, Priority.ALWAYS);
