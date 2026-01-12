@@ -25,7 +25,8 @@ public class DashboardView extends VBox {
         RECONNECT,
         CLOSE,
         FOCUS,
-        SFTP_MANAGER
+        SFTP_MANAGER,
+        DUPLICATE
     }
     
     public DashboardView(TabPane tabPane, BiConsumer<TerminalTab, DashboardAction> actionHandler) {
@@ -78,32 +79,41 @@ public class DashboardView extends VBox {
                         if (item.getTerminalTab() != null) {
                             ContextMenu contextMenu = new ContextMenu();
                             
+                            // Duplizieren-Menüpunkt (immer verfügbar)
+                            MenuItem duplicateItem = new MenuItem("Duplizieren");
+                            duplicateItem.setOnAction(e -> {
+                                actionHandler.accept(item.getTerminalTab(), DashboardAction.DUPLICATE);
+                            });
+                            contextMenu.getItems().add(duplicateItem);
+                            
+                            SeparatorMenuItem separator1 = new SeparatorMenuItem();
+                            
                             if (item.isConnected()) {
                                 MenuItem sftpItem = new MenuItem("SFTP Manager öffnen");
                                 sftpItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.SFTP_MANAGER);
                                 });
-                                contextMenu.getItems().add(sftpItem);
+                                contextMenu.getItems().addAll(separator1, sftpItem);
                                 
-                                SeparatorMenuItem separator = new SeparatorMenuItem();
+                                SeparatorMenuItem separator2 = new SeparatorMenuItem();
                                 MenuItem closeItem = new MenuItem("Schließen");
                                 closeItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
                                 });
-                                contextMenu.getItems().addAll(separator, closeItem);
+                                contextMenu.getItems().addAll(separator2, closeItem);
                             } else {
                                 MenuItem reconnectItem = new MenuItem("Wiederverbinden");
                                 reconnectItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.RECONNECT);
                                 });
-                                contextMenu.getItems().add(reconnectItem);
+                                contextMenu.getItems().addAll(separator1, reconnectItem);
                                 
-                                SeparatorMenuItem separator = new SeparatorMenuItem();
+                                SeparatorMenuItem separator2 = new SeparatorMenuItem();
                                 MenuItem closeItem = new MenuItem("Schließen");
                                 closeItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
                                 });
-                                contextMenu.getItems().addAll(separator, closeItem);
+                                contextMenu.getItems().addAll(separator2, closeItem);
                             }
                             
                             setContextMenu(contextMenu);

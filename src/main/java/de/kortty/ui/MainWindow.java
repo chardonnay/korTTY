@@ -852,6 +852,11 @@ public class MainWindow {
                     showError("Nicht verbunden", "Bitte verbinden Sie sich zuerst mit dem Server.");
                 }
                 break;
+                
+            case DUPLICATE:
+                // Duplicate the tab
+                duplicateTab(terminalTab);
+                break;
         }
     }
     
@@ -1424,6 +1429,117 @@ public class MainWindow {
         );
         return vault.retrievePassword(connection);
     }
+    
+    /**
+     * Dupliziert einen Tab mit denselben Verbindungsdetails.
+     * Der neue Tab wird direkt rechts daneben eingefügt.
+     */
+    private void duplicateTab(TerminalTab sourceTab) {
+        ServerConnection connection = sourceTab.getConnection();
+        String password = getConnectionPassword(connection);
+        
+        if (password == null) {
+            // Passwort nicht verfügbar, Dialog anzeigen
+            TextInputDialog pwDialog = new TextInputDialog();
+            pwDialog.setTitle("Passwort erforderlich");
+            pwDialog.setHeaderText("Passwort für " + connection.getDisplayName());
+            pwDialog.setContentText("Passwort:");
+            pwDialog.getEditor().setPromptText("Passwort eingeben");
+            
+            pwDialog.showAndWait().ifPresent(pw -> {
+                if (pw != null && !pw.trim().isEmpty()) {
+                    createDuplicateTab(sourceTab, connection, pw.trim());
+                }
+            });
+        } else {
+            createDuplicateTab(sourceTab, connection, password);
+        }
+    }
+    
+    /**
+     * Erstellt einen duplizierten Tab direkt rechts neben dem Quell-Tab.
+     */
+    private void createDuplicateTab(TerminalTab sourceTab, ServerConnection connection, String password) {
+        try {
+            // Finde die Position des Quell-Tabs
+            int sourceIndex = tabPane.getTabs().indexOf(sourceTab);
+            if (sourceIndex == -1) {
+                logger.warn("Source tab not found in tab pane");
+                return;
+            }
+            
+            // Erstelle neuen Tab mit derselben Verbindung
+            TerminalTab newTab = new TerminalTab(connection, password);
+            newTab.setOnClosed(e -> {
+                updateDashboard();
+                organizeTabsByGroup();
+                updateAllTabContextMenus();
+            });
+            
+            // Setup context menu
+            setupTabContextMenu(newTab);
+            
+            // Übernehme die Tab-Gruppe vom Quell-Tab (falls vorhanden)
+            String sourceGroup = sourceTab.getGroup();
+            if (sourceGroup != null && !sourceGroup.trim().isEmpty()) {
+                newTab.setGroup(sourceGroup);
+            }
+            
+            // Finde die Position des "+" Tabs
+            int plusTabIndex = -1;
+            for (int i = 0; i < tabPane.getTabs().size(); i++) {
+                Tab tab = tabPane.getTabs().get(i);
+                if (tab.getText().equals("+")) {
+                    plusTabIndex = i;
+                    break;
+                }
+            }
+            
+            // Füge den neuen Tab direkt rechts neben dem Quell-Tab ein
+            // Berücksichtige, dass der "+" Tab immer am Ende sein sollte
+            int insertIndex = sourceIndex + 1;
+            if (plusTabIndex != -1 && insertIndex > plusTabIndex) {
+                insertIndex = plusTabIndex;
+            }
+            
+            tabPane.getTabs().add(insertIndex, newTab);
+            tabPane.getSelectionModel().select(newTab);
+            
+            // Update dashboard und context menus
+            updateDashboard();
+            updateAllTabContextMenus();
+            
+            // Verbinde den neuen Tab
+            new Thread(() -> {
+                try {
+                    newTab.connect();
+                    
+                    // Set callback to update dashboard and reset tab color when connection succeeds
+                    // This callback will be called AFTER TerminalTab.connect() sets its own callback,
+                    // so we need to ensure the color is reset
+                    newTab.getTerminalView().setOnConnectedCallback(() -> {
+                        Platform.runLater(() -> {
+                            // Update tab title
+                            newTab.updateTabTitle();
+                            // Reset tab color (remove yellow connecting color)
+                            newTab.setStyle("");
+                            // Update status and dashboard
+                            updateStatus("Verbunden mit " + connection.getDisplayName());
+                            updateDashboard();
+                        });
+                    });
+                } catch (Exception e) {
+                    logger.error("Failed to connect duplicated tab", e);
+                }
+            }).start();
+            
+            logger.info("Tab duplicated: {} -> {}", sourceTab.getConnection().getDisplayName(), 
+                        newTab.getConnection().getDisplayName());
+        } catch (Exception e) {
+            logger.error("Failed to duplicate tab", e);
+            showError("Fehler", "Tab konnte nicht dupliziert werden: " + e.getMessage());
+        }
+    }
 
     
     /**
@@ -1530,6 +1646,16 @@ public class MainWindow {
      */
     private void setupTabContextMenu(TerminalTab terminalTab) {
         ContextMenu contextMenu = new ContextMenu();
+        
+        // Duplizieren-Menüpunkt
+        MenuItem duplicateItem = new MenuItem("Duplizieren");
+        duplicateItem.setOnAction(e -> {
+            duplicateTab(terminalTab);
+        });
+        contextMenu.getItems().add(duplicateItem);
+        
+        // Separator
+        contextMenu.getItems().add(new SeparatorMenuItem());
         
         // Get all available groups
         List<String> groups = getAllGroups();
