@@ -49,6 +49,13 @@ public class ConnectionSettings {
     @XmlElement
     private boolean closeWithoutConfirmation = false;
     
+    // SSH Keep-Alive settings
+    @XmlElement
+    private boolean sshKeepAliveEnabled = true; // Default: enabled
+    
+    @XmlElement
+    private int sshKeepAliveInterval = 60; // Default: 60 seconds
+    
     // ANSI Colors
     @XmlElement
     private String ansiBlack = "#000000";
@@ -102,6 +109,8 @@ public class ConnectionSettings {
         this.boldAsBright = other.boldAsBright;
         this.encoding = other.encoding;
         this.closeWithoutConfirmation = other.closeWithoutConfirmation;
+        this.sshKeepAliveEnabled = other.sshKeepAliveEnabled;
+        this.sshKeepAliveInterval = other.sshKeepAliveInterval;
         copyAnsiColors(other);
     }
     
@@ -228,6 +237,22 @@ public class ConnectionSettings {
     
     public void setCloseWithoutConfirmation(boolean closeWithoutConfirmation) {
         this.closeWithoutConfirmation = closeWithoutConfirmation;
+    }
+    
+    public boolean isSshKeepAliveEnabled() {
+        return sshKeepAliveEnabled;
+    }
+    
+    public void setSshKeepAliveEnabled(boolean sshKeepAliveEnabled) {
+        this.sshKeepAliveEnabled = sshKeepAliveEnabled;
+    }
+    
+    public int getSshKeepAliveInterval() {
+        return sshKeepAliveInterval;
+    }
+    
+    public void setSshKeepAliveInterval(int sshKeepAliveInterval) {
+        this.sshKeepAliveInterval = sshKeepAliveInterval;
     }
     
     public String getAnsiColor(int index, boolean bright) {
