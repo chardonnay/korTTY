@@ -63,10 +63,15 @@ public class TerminalView extends BorderPane {
         terminalPane.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
             String character = event.getCharacter();
             if (character != null && character.isEmpty()) {
-                // Consume empty KEY_TYPED events to prevent TerminalPanel crash
-                // Control keys like ESCAPE should only use KEY_PRESSED, not KEY_TYPED
-                event.consume();
-                logger.debug("Filtered empty KEY_TYPED event (key: {}) to prevent TerminalPanel crash", event.getCode());
+                // Only filter if this is NOT ESCAPE - ESCAPE should work via KEY_PRESSED
+                // For ESCAPE, we let KEY_PRESSED handle it and just prevent the crash
+                if (event.getCode() != javafx.scene.input.KeyCode.ESCAPE) {
+                    event.consume();
+                    logger.debug("Filtered empty KEY_TYPED event (key: {}) to prevent TerminalPanel crash", event.getCode());
+                } else {
+                    // For ESCAPE: consume to prevent crash, but don't log (too verbose)
+                    event.consume();
+                }
             }
         });
         
