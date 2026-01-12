@@ -56,6 +56,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final CheckBox boldAsBrightCheck;
     private final ComboBox<String> encodingCombo;
     
+    // SSH Keep-Alive settings
+    private final CheckBox sshKeepAliveCheck;
+    private final Spinner<Integer> sshKeepAliveIntervalSpinner;
+    
     // Backup settings
     private final Spinner<Integer> maxBackupSpinner;
     private final javafx.scene.control.RadioButton passwordEncryptionRadio;
@@ -203,6 +207,22 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         encodingCombo.getItems().addAll("UTF-8", "ISO-8859-1", "ISO-8859-15", "Windows-1252");
         encodingCombo.setValue(settings.getEncoding());
         
+        // SSH Keep-Alive settings
+        sshKeepAliveCheck = new CheckBox("SSH Keep-Alive aktivieren");
+        sshKeepAliveCheck.setSelected(settings.isSshKeepAliveEnabled());
+        sshKeepAliveCheck.setTooltip(new Tooltip("Verhindert Timeouts bei inaktiven Verbindungen durch regelmäßige Keep-Alive-Pakete"));
+        
+        sshKeepAliveIntervalSpinner = new Spinner<>(5, 600, settings.getSshKeepAliveInterval(), 5);
+        sshKeepAliveIntervalSpinner.setEditable(true);
+        sshKeepAliveIntervalSpinner.setPrefWidth(100);
+        sshKeepAliveIntervalSpinner.setDisable(!sshKeepAliveCheck.isSelected());
+        sshKeepAliveIntervalSpinner.setTooltip(new Tooltip("Intervall in Sekunden zwischen Keep-Alive-Paketen"));
+        
+        // Enable/disable spinner based on checkbox
+        sshKeepAliveCheck.selectedProperty().addListener((obs, old, newVal) -> {
+            sshKeepAliveIntervalSpinner.setDisable(!newVal);
+        });
+        
         terminalGrid.add(new Label("Spalten:"), 0, 0);
         terminalGrid.add(columnsSpinner, 1, 0);
         terminalGrid.add(new Label("Zeilen:"), 0, 1);
@@ -212,6 +232,15 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         terminalGrid.add(new Label("Kodierung:"), 0, 3);
         terminalGrid.add(encodingCombo, 1, 3);
         terminalGrid.add(boldAsBrightCheck, 0, 4, 2, 1);
+        
+        // SSH Keep-Alive section
+        terminalGrid.add(new Separator(), 0, 5, 2, 1);
+        terminalGrid.add(new Label("SSH Keep-Alive:"), 0, 6, 2, 1);
+        terminalGrid.add(sshKeepAliveCheck, 0, 7, 2, 1);
+        terminalGrid.add(new Label("Intervall (Sekunden):"), 0, 8);
+        HBox keepAliveBox = new HBox(10);
+        keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label("Sekunden"));
+        terminalGrid.add(keepAliveBox, 1, 8);
         
         terminalTab.setContent(terminalGrid);
         
@@ -534,6 +563,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         settings.setScrollbackLines(scrollbackSpinner.getValue());
         settings.setBoldAsBright(boldAsBrightCheck.isSelected());
         settings.setEncoding(encodingCombo.getValue());
+        settings.setSshKeepAliveEnabled(sshKeepAliveCheck.isSelected());
+        settings.setSshKeepAliveInterval(sshKeepAliveIntervalSpinner.getValue());
         
         // Save backup settings to GlobalSettings
         if (globalSettings != null) {
