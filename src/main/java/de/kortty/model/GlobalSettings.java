@@ -5,7 +5,7 @@ import jakarta.xml.bind.annotation.*;
 /**
  * Global application settings.
  */
-@XmlRootElement(name = "settings")
+@XmlRootElement(name = "globalSettings")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class GlobalSettings {
     
