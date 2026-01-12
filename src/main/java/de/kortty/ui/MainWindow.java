@@ -61,6 +61,7 @@ public class MainWindow {
     private static final List<MainWindow> openWindows = new ArrayList<>();
     
     private volatile boolean quickConnectDialogOpen = false;
+    private volatile boolean allowAutoQuickConnect = false; // Only allow QuickConnect via explicit user action
     
     public MainWindow(Stage stage) {
         this.stage = stage;
@@ -95,6 +96,7 @@ public class MainWindow {
         tabPane.getTabs().add(newTabButton);
         
         // Handle clicks on the + tab - works even when already selected
+        // Only explicit mouse clicks should open QuickConnect
         tabPane.setOnMouseClicked(event -> {
             if (event.getClickCount() == 1 && event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
                 // Check if + tab is selected after the click
@@ -105,22 +107,19 @@ public class MainWindow {
                         if (tabPane.getTabs().size() > 1) {
                             tabPane.getSelectionModel().selectPrevious();
                         }
+                        // Only open QuickConnect if user explicitly clicked (not automatic selection)
+                        allowAutoQuickConnect = true;
                         showQuickConnect();
                     }
                 });
             }
         });
         
-        // Also handle keyboard navigation to + tab
+        // Keyboard navigation to + tab should NOT auto-open QuickConnect
+        // Only explicit actions (menu, shortcut, click) should open it
         newTabButton.setOnSelectionChanged(e -> {
-            if (newTabButton.isSelected() && !quickConnectDialogOpen) {
-                Platform.runLater(() -> {
-                    if (tabPane.getTabs().size() > 1) {
-                        tabPane.getSelectionModel().selectPrevious();
-                    }
-                    showQuickConnect();
-                });
-            }
+            // Do nothing - prevent auto-opening QuickConnect when + tab is selected
+            // This prevents opening on startup and when all tabs are closed
         });
         
         // Auto-focus terminal when tab is selected
@@ -277,13 +276,15 @@ public class MainWindow {
             // Save window geometry on close if enabled (not when using fixed geometry)
             GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
             
-            // Always save last geometry when not using fixed geometry
-            if (!globalSettings.isUseFixedWindowGeometry() && globalSettings.isRememberWindowGeometry()) {
+            // Always save last geometry (for next session) unless fixed geometry is used
+            if (!globalSettings.isUseFixedWindowGeometry()) {
                 WindowGeometry geo = new WindowGeometry(
                     stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()
                 );
                 geo.setMaximized(stage.isMaximized());
                 globalSettings.setLastWindowGeometry(geo);
+                logger.info("Saving window geometry: x={}, y={}, w={}, h={}, maximized={}", 
+                    geo.getX(), geo.getY(), geo.getWidth(), geo.getHeight(), geo.isMaximized());
             }
             
             // Save dashboard state on close if enabled
@@ -298,9 +299,10 @@ public class MainWindow {
                 }
             }
             
-            // Save settings
+            // Save settings BEFORE confirmClose (which might exit the app)
             try {
                 app.getGlobalSettingsManager().save();
+                logger.info("Window settings saved successfully");
             } catch (Exception ex) {
                 logger.error("Failed to save window settings", ex);
             }
