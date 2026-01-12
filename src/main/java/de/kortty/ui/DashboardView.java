@@ -40,16 +40,13 @@ public class DashboardView extends VBox {
         HBox titleBox = new HBox(10);
         titleBox.setPadding(new Insets(0, 0, 5, 0));
         
-        Label titleLabel = new Label("Dashboard");
-        titleLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #cccccc;");
-        
         Button refreshButton = new Button("⟳");
         refreshButton.setStyle("-fx-text-fill: #cccccc; -fx-background-color: #3d3d3d; -fx-font-size: 32px; -fx-padding: 5 10 5 10;");
         refreshButton.setTooltip(new Tooltip("Aktualisieren"));
         refreshButton.setOnAction(e -> refresh());
         
-        titleBox.getChildren().addAll(titleLabel, refreshButton);
-        HBox.setHgrow(titleLabel, javafx.scene.layout.Priority.ALWAYS);
+        titleBox.getChildren().add(refreshButton);
+        HBox.setHgrow(refreshButton, javafx.scene.layout.Priority.NEVER);
         
         treeView = new TreeView<>();
         treeView.setShowRoot(false);

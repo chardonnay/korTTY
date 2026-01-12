@@ -11,6 +11,7 @@ import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.WindowGeometry;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
@@ -75,6 +76,14 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     // Connection timeout
     private Spinner<Integer> timeoutSpinner;
     private Spinner<Integer> retrySpinner;
+    
+    // Window geometry (per connection)
+    private CheckBox useCustomGeometryCheck;
+    private Spinner<Integer> customWidthSpinner;
+    private Spinner<Integer> customHeightSpinner;
+    private Spinner<Integer> customXSpinner;
+    private Spinner<Integer> customYSpinner;
+    private CheckBox maximizedCheck;
     
     public ConnectionEditDialog(Stage owner, ServerConnection existingConnection, CredentialManager credentialManager, 
                                SSHKeyManager sshKeyManager, char[] masterPassword) {
@@ -318,7 +327,10 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         // Tab 5: Terminal Logging
         Tab loggingTab = createLoggingTab();
         
-        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab, loggingTab);
+        // Tab 6: Window Geometry
+        Tab geometryTab = createGeometryTab();
+        
+        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab, loggingTab, geometryTab);
         getDialogPane().setContent(tabPane);
         
         // Buttons
@@ -428,6 +440,19 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                             logConfig.setFormat(logFormatCombo.getValue());
                         }
                     }
+                }
+                
+                // Save window geometry settings
+                if (useCustomGeometryCheck != null && useCustomGeometryCheck.isSelected()) {
+                    WindowGeometry customGeo = new WindowGeometry();
+                    customGeo.setWidth(customWidthSpinner.getValue());
+                    customGeo.setHeight(customHeightSpinner.getValue());
+                    customGeo.setX(customXSpinner.getValue());
+                    customGeo.setY(customYSpinner.getValue());
+                    customGeo.setMaximized(maximizedCheck.isSelected());
+                    connection.setWindowGeometry(customGeo);
+                } else {
+                    connection.setWindowGeometry(null); // Use global settings
                 }
                 
                 return connection;
@@ -868,6 +893,96 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 savedCredentialsCombo.setValue(currentSelection);
             }
         }
+    }
+    
+    private Tab createGeometryTab() {
+        Tab tab = new Tab("Fenstergeometrie");
+        tab.setClosable(false);
+        
+        VBox vbox = new VBox(15);
+        vbox.setPadding(new Insets(20));
+        
+        // Use custom geometry checkbox
+        useCustomGeometryCheck = new CheckBox("Spezifische Fenstergeometrie für diese Verbindung verwenden");
+        WindowGeometry connGeo = connection.getWindowGeometry();
+        useCustomGeometryCheck.setSelected(connGeo != null);
+        
+        Label infoLabel = new Label(
+            "Wenn aktiviert, wird das Terminal-Fenster für diese Verbindung immer mit der angegebenen Größe und Position geöffnet.\n" +
+            "Ansonsten werden die globalen Einstellungen verwendet."
+        );
+        infoLabel.setWrapText(true);
+        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        
+        // Get current or default values
+        int currentWidth = connGeo != null ? (int)connGeo.getWidth() : 1200;
+        int currentHeight = connGeo != null ? (int)connGeo.getHeight() : 800;
+        int currentX = connGeo != null ? (int)connGeo.getX() : 100;
+        int currentY = connGeo != null ? (int)connGeo.getY() : 100;
+        boolean isMaximized = connGeo != null && connGeo.isMaximized();
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(10));
+        
+        int row = 0;
+        
+        // Width and Height
+        Label sizeLabel = new Label("Fenstergröße:");
+        customWidthSpinner = new Spinner<>(400, 4000, currentWidth);
+        customWidthSpinner.setEditable(true);
+        customWidthSpinner.setPrefWidth(100);
+        customWidthSpinner.setDisable(!useCustomGeometryCheck.isSelected());
+        
+        customHeightSpinner = new Spinner<>(300, 3000, currentHeight);
+        customHeightSpinner.setEditable(true);
+        customHeightSpinner.setPrefWidth(100);
+        customHeightSpinner.setDisable(!useCustomGeometryCheck.isSelected());
+        
+        HBox sizeBox = new HBox(10);
+        sizeBox.getChildren().addAll(new Label("Breite:"), customWidthSpinner, new Label("Höhe:"), customHeightSpinner, new Label("px"));
+        
+        grid.add(sizeLabel, 0, row);
+        grid.add(sizeBox, 1, row++);
+        
+        // Position
+        Label posLabel = new Label("Fensterposition:");
+        customXSpinner = new Spinner<>(0, 5000, currentX);
+        customXSpinner.setEditable(true);
+        customXSpinner.setPrefWidth(100);
+        customXSpinner.setDisable(!useCustomGeometryCheck.isSelected());
+        
+        customYSpinner = new Spinner<>(0, 3000, currentY);
+        customYSpinner.setEditable(true);
+        customYSpinner.setPrefWidth(100);
+        customYSpinner.setDisable(!useCustomGeometryCheck.isSelected());
+        
+        HBox posBox = new HBox(10);
+        posBox.getChildren().addAll(new Label("X:"), customXSpinner, new Label("Y:"), customYSpinner, new Label("px"));
+        
+        grid.add(posLabel, 0, row);
+        grid.add(posBox, 1, row++);
+        
+        // Maximized checkbox
+        maximizedCheck = new CheckBox("Fenster maximiert öffnen");
+        maximizedCheck.setSelected(isMaximized);
+        maximizedCheck.setDisable(!useCustomGeometryCheck.isSelected());
+        grid.add(maximizedCheck, 1, row++);
+        
+        // Enable/disable fields based on checkbox
+        useCustomGeometryCheck.selectedProperty().addListener((obs, old, newVal) -> {
+            customWidthSpinner.setDisable(!newVal);
+            customHeightSpinner.setDisable(!newVal);
+            customXSpinner.setDisable(!newVal);
+            customYSpinner.setDisable(!newVal);
+            maximizedCheck.setDisable(!newVal);
+        });
+        
+        vbox.getChildren().addAll(useCustomGeometryCheck, infoLabel, new Separator(), grid);
+        
+        tab.setContent(vbox);
+        return tab;
     }
 
 }
