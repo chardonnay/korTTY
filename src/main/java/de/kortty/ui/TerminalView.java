@@ -63,15 +63,24 @@ public class TerminalView extends BorderPane {
         terminalPane.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
             String character = event.getCharacter();
             if (character != null && character.isEmpty()) {
-                // Only filter if this is NOT ESCAPE - ESCAPE should work via KEY_PRESSED
-                // For ESCAPE, we let KEY_PRESSED handle it and just prevent the crash
-                if (event.getCode() != javafx.scene.input.KeyCode.ESCAPE) {
-                    event.consume();
-                    logger.debug("Filtered empty KEY_TYPED event (key: {}) to prevent TerminalPanel crash", event.getCode());
-                } else {
-                    // For ESCAPE: consume to prevent crash, but don't log (too verbose)
-                    event.consume();
-                }
+                // Consume empty KEY_TYPED events to prevent TerminalPanel crash
+                event.consume();
+                logger.debug("Filtered empty KEY_TYPED event (key: {}) to prevent TerminalPanel crash", event.getCode());
+            }
+        });
+        
+        // Handle ESCAPE key via KEY_PRESSED to send ESC character to terminal
+        // We need to send ESC explicitly because KEY_TYPED events are filtered
+        terminalPane.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
+                // Send ESC character (\u001B) to terminal via terminal widget
+                Platform.runLater(() -> {
+                    if (terminalWidget != null && terminalWidget.getTerminal() != null) {
+                        terminalWidget.getTerminal().writeCharacters("\u001B");
+                        logger.debug("Sent ESCAPE character via KEY_PRESSED event");
+                    }
+                });
+                event.consume(); // Consume to prevent duplicate processing
             }
         });
         
