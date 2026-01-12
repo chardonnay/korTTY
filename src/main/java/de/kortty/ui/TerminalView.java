@@ -65,7 +65,6 @@ public class TerminalView extends BorderPane {
             if (character != null && character.isEmpty()) {
                 // Consume empty KEY_TYPED events to prevent TerminalPanel crash
                 event.consume();
-                logger.debug("Filtered empty KEY_TYPED event (key: {}) to prevent TerminalPanel crash", event.getCode());
             }
         });
         
@@ -77,14 +76,12 @@ public class TerminalView extends BorderPane {
                 if (ttyConnector != null && ttyConnector.isConnected()) {
                     try {
                         ttyConnector.write("\u001B");
-                        logger.debug("Sent ESCAPE character via TTY connector");
                     } catch (java.io.IOException e) {
                         logger.error("Failed to send ESCAPE character", e);
                     }
                 } else if (terminalWidget != null && terminalWidget.getTerminal() != null) {
                     // Fallback: send via terminal widget if TTY connector not ready
                     terminalWidget.getTerminal().writeCharacters("\u001B");
-                    logger.debug("Sent ESCAPE character via terminal widget");
                 }
                 event.consume(); // Consume to prevent duplicate processing
             }
