@@ -57,7 +57,8 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         formatCombo.getItems().addAll(
             new KorTTYExporter(),
             new MTPuTTYExporter(),
-            new MobaXTermExporter()
+            new MobaXTermExporter(),
+            new de.kortty.persistence.exporter.PuTTYCMExporter()
         );
         formatCombo.getSelectionModel().selectFirst();
         formatCombo.setMaxWidth(Double.MAX_VALUE);
