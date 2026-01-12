@@ -54,8 +54,22 @@ public class TerminalView extends BorderPane {
         // Create terminal widget
         terminalWidget = new JediTermFxWidget(settingsProvider);
         
+        // Get the terminal pane
+        javafx.scene.layout.Pane terminalPane = terminalWidget.getPane();
+        
+        // Filter KEY_TYPED events for ESCAPE key to prevent StringIndexOutOfBoundsException
+        // ESCAPE key produces KEY_TYPED events with empty string, which causes TerminalPanel to crash
+        terminalPane.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
+            if (event.getCharacter() != null && event.getCharacter().isEmpty() && 
+                event.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
+                // Consume empty ESCAPE KEY_TYPED events to prevent TerminalPanel crash
+                event.consume();
+                logger.debug("Filtered empty ESCAPE KEY_TYPED event to prevent TerminalPanel crash");
+            }
+        });
+        
         // Set the terminal pane as center content
-        setCenter(terminalWidget.getPane());
+        setCenter(terminalPane);
         
         // Request focus on the terminal
         Platform.runLater(() -> {
