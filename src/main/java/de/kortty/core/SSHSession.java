@@ -18,6 +18,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
@@ -99,6 +100,19 @@ public class SSHSession {
         }
         
         session.auth().verify(Duration.ofSeconds(30));
+        
+        // Configure SSH Keep-Alive if enabled
+        if (connection.getSettings() != null && connection.getSettings().isSshKeepAliveEnabled()) {
+            int intervalSeconds = connection.getSettings().getSshKeepAliveInterval();
+            if (intervalSeconds > 0) {
+                // Use session heartbeat to send SSH_MSG_IGNORE messages at regular intervals
+                session.setSessionHeartbeat(org.apache.sshd.common.session.SessionHeartbeatController.HeartbeatType.IGNORE, 
+                    TimeUnit.SECONDS, intervalSeconds);
+                logger.info("SSH Keep-Alive enabled with interval: {} seconds", intervalSeconds);
+            }
+        } else {
+            logger.debug("SSH Keep-Alive disabled for connection: {}", connection.getDisplayName());
+        }
         
         // Set up SSH tunnels (port forwarding) if configured
         if (connection.getSshTunnels() != null && !connection.getSshTunnels().isEmpty()) {
