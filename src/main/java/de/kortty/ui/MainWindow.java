@@ -715,6 +715,7 @@ public class MainWindow {
     }
     
     private void showConnectionManager() {
+        logger.info("showConnectionManager() called - Opening Connection Manager");
         ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
         dialog.showAndWait().ifPresent(connection -> {
             // Ask for password if needed
@@ -1386,13 +1387,18 @@ public class MainWindow {
      * Otherwise, shows a dialog to select a connection.
      */
     private void showSFTPManager() {
+        logger.info("showSFTPManager() called - Opening SFTP Manager");
+        
         // Check if there's an active connection in the current tab
         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
         if (selectedTab instanceof TerminalTab terminalTab && terminalTab.isConnected()) {
             // Use current connection
+            logger.info("Using active connection: {}", terminalTab.getConnection().getDisplayName());
             openSFTPManagerForConnection(terminalTab.getConnection());
             return;
         }
+        
+        logger.info("No active connection - showing connection selection dialog");
         
         // Show connection selection dialog
         ConnectionSelectionDialog dialog = new ConnectionSelectionDialog(
@@ -1402,6 +1408,7 @@ public class MainWindow {
         );
         
         dialog.showAndWait().ifPresent(connection -> {
+            logger.info("Connection selected: {}", connection.getDisplayName());
             openSFTPManagerForConnection(connection);
         });
     }
