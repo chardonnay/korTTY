@@ -98,19 +98,37 @@ public class MainWindow {
         
         // Handle clicks ONLY on the + tab by intercepting the event early
         tabPane.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
-            if (event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+            if (event.getButton() == javafx.scene.input.MouseButton.PRIMARY && startupComplete) {
                 // Check if the click target is within the + tab's area
                 javafx.scene.Node target = (javafx.scene.Node) event.getTarget();
                 
                 // Walk up the scene graph to find if we clicked on a tab header
                 javafx.scene.Node node = target;
+                boolean isInTabPane = false;
+                
+                // First, verify we're actually clicking within the TabPane area
+                javafx.scene.Node checkNode = target;
+                while (checkNode != null) {
+                    if (checkNode == tabPane) {
+                        isInTabPane = true;
+                        break;
+                    }
+                    checkNode = checkNode.getParent();
+                }
+                
+                // Only proceed if click was inside TabPane (not in menu bar or other areas)
+                if (!isInTabPane) {
+                    return;
+                }
+                
+                // Now check if we clicked on the + tab
                 while (node != null && !(node instanceof javafx.scene.control.TabPane)) {
                     // Check if parent is a tab header area with the text "+"
                     if (node.getClass().getSimpleName().equals("TabHeaderSkin") || 
                         (node instanceof javafx.scene.control.Label && "+".equals(((javafx.scene.control.Label)node).getText()))) {
                         
                         // This is a click on the + tab
-                        if (!quickConnectDialogOpen && startupComplete) {
+                        if (!quickConnectDialogOpen) {
                             event.consume(); // Prevent selection
                             Platform.runLater(() -> {
                                 // Select previous tab if possible
