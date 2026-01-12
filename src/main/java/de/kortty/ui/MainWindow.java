@@ -95,31 +95,43 @@ public class MainWindow {
         newTabButton.setClosable(false);
         tabPane.getTabs().add(newTabButton);
         
-        // Handle clicks on the + tab - works even when already selected
-        // Only explicit mouse clicks should open QuickConnect
-        tabPane.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 1 && event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
-                // Check if + tab is selected after the click
-                Platform.runLater(() -> {
-                    Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
-                    if (selectedTab == newTabButton && !quickConnectDialogOpen) {
-                        // If there are other tabs, select the previous one first
-                        if (tabPane.getTabs().size() > 1) {
-                            tabPane.getSelectionModel().selectPrevious();
+        // Handle clicks ONLY on the + tab by intercepting the event early
+        tabPane.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+            if (event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                // Check if the click target is within the + tab's area
+                javafx.scene.Node target = (javafx.scene.Node) event.getTarget();
+                
+                // Walk up the scene graph to find if we clicked on a tab header
+                javafx.scene.Node node = target;
+                while (node != null && !(node instanceof javafx.scene.control.TabPane)) {
+                    // Check if parent is a tab header area with the text "+"
+                    if (node.getClass().getSimpleName().equals("TabHeaderSkin") || 
+                        (node instanceof javafx.scene.control.Label && "+".equals(((javafx.scene.control.Label)node).getText()))) {
+                        
+                        // This is a click on the + tab
+                        if (!quickConnectDialogOpen) {
+                            event.consume(); // Prevent selection
+                            Platform.runLater(() -> {
+                                // Select previous tab if possible
+                                if (tabPane.getTabs().size() > 1) {
+                                    int currentIndex = tabPane.getTabs().indexOf(newTabButton);
+                                    if (currentIndex > 0) {
+                                        tabPane.getSelectionModel().select(currentIndex - 1);
+                                    }
+                                }
+                                showQuickConnect();
+                            });
                         }
-                        // Only open QuickConnect if user explicitly clicked (not automatic selection)
-                        allowAutoQuickConnect = true;
-                        showQuickConnect();
+                        return;
                     }
-                });
+                    node = node.getParent();
+                }
             }
         });
         
-        // Keyboard navigation to + tab should NOT auto-open QuickConnect
-        // Only explicit actions (menu, shortcut, click) should open it
+        // Prevent + tab from being selected (always show Quick Connect instead)
         newTabButton.setOnSelectionChanged(e -> {
-            // Do nothing - prevent auto-opening QuickConnect when + tab is selected
-            // This prevents opening on startup and when all tabs are closed
+            // Do nothing - this prevents auto-selection behavior
         });
         
         // Auto-focus terminal when tab is selected
