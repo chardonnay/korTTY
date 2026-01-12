@@ -8,6 +8,7 @@ import de.kortty.model.*;
 import de.kortty.persistence.importer.ConnectionImporter;
 import de.kortty.persistence.importer.MTPuTTYImporter;
 import de.kortty.persistence.importer.MobaXTermImporter;
+import de.kortty.persistence.importer.PuTTYCMImporter;
 import de.kortty.persistence.exporter.ConnectionExporter;
 import de.kortty.persistence.exporter.KorTTYExporter;
 import de.kortty.persistence.exporter.MTPuTTYExporter;
@@ -68,7 +69,7 @@ public class MainWindow {
         this.projectManager = new ProjectManager(KorTTYApplication.getConfigDirectory());
         
         // Initialize importers
-        this.importers = List.of(new MTPuTTYImporter(), new MobaXTermImporter());
+        this.importers = List.of(new MTPuTTYImporter(), new MobaXTermImporter(), new PuTTYCMImporter());
         
         // Create UI components
         this.root = new BorderPane();

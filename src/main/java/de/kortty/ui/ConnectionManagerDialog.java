@@ -580,6 +580,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             copy.setGroup(conn.getGroup());
             copy.setAuthMethod(conn.getAuthMethod());
             copy.setPrivateKeyPath(conn.getPrivateKeyPath());
+            copy.setSshKeyId(conn.getSshKeyId());
             
             // Username (optional)
             if (result.includeUsername) {
@@ -615,11 +616,19 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             exportList.add(copy);
         }
         
-        // Export to XML using XMLConnectionRepository
-        de.kortty.persistence.XMLConnectionRepository repo = 
-            new de.kortty.persistence.XMLConnectionRepository(result.exportFile.getParentFile().toPath());
-        
-        // Write directly to the selected file
+        // Use the selected exporter
+        if (result.exporter != null) {
+            result.exporter.exportConnections(exportList, result.exportFile.toPath());
+        } else {
+            // Fallback to KorTTY XML format
+            exportToKorTTYFormat(exportList, result.exportFile);
+        }
+    }
+    
+    /**
+     * Exports connections to KorTTY XML format (fallback/default).
+     */
+    private void exportToKorTTYFormat(List<ServerConnection> exportList, java.io.File exportFile) throws Exception {
         jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
             de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
             ServerConnection.class,
@@ -637,7 +646,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         
         jakarta.xml.bind.Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(jakarta.xml.bind.Marshaller.JAXB_FORMATTED_OUTPUT, true);
-        marshaller.marshal(wrapper, result.exportFile);
+        marshaller.marshal(wrapper, exportFile);
     }
     
     private void importConnections() {
