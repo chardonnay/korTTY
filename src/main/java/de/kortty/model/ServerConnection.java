@@ -195,6 +195,16 @@ public class ServerConnection {
         return username + "@" + host;
     }
     
+    /**
+     * Checks if this is a placeholder connection for an empty group.
+     * Placeholder connections are used to make empty groups visible in the tree view.
+     */
+    public boolean isPlaceholder() {
+        return "placeholder".equals(host) &&
+               name != null &&
+               name.startsWith("(Ordner:");
+    }
+    
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

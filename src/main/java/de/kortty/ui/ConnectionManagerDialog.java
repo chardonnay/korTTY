@@ -3,30 +3,31 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
+import de.kortty.model.GroupPath;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import net.lingala.zip4j.ZipFile;
-import net.lingala.zip4j.model.ZipParameters;
-import net.lingala.zip4j.model.enums.CompressionLevel;
-import net.lingala.zip4j.model.enums.EncryptionMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
 /**
- * Dialog for managing saved connections.
+ * Dialog for managing saved connections with tree view.
  */
 public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     
@@ -36,11 +37,13 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private final ConfigurationManager configManager;
     private final CredentialManager credentialManager;
     private final char[] masterPassword;
-    private final TableView<ServerConnection> table;
     private final ObservableList<ServerConnection> connections;
-    private final FilteredList<ServerConnection> filteredConnections;
     private final TextField searchField;
     private final Stage owner;
+    private ConnectionManagerTreeView treeView;
+    private Button undoButton;
+    private Button renameGroupButton;
+    private final TableView<ServerConnection> table; // Keep for compatibility, but hide it
     
     public ConnectionManagerDialog(Stage owner, KorTTYApplication app) {
         this.app = app;
@@ -58,26 +61,31 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         // Initialize connections list
         connections = FXCollections.observableArrayList(configManager.getConnections());
         
-        // Create filtered list for search functionality
-        filteredConnections = new FilteredList<>(connections, p -> true);
+        // Create hidden table for compatibility
+        table = new TableView<>();
+        table.setVisible(false);
+        table.setManaged(false);
+        
+        // Create TreeView
+        treeView = new ConnectionManagerTreeView(connections);
+        treeView.setPrefSize(600, 400);
         
         // Create search field
         searchField = new TextField();
         searchField.setPromptText("Suchen nach Name, Host oder IP-Adresse... (* als Wildcard)");
         searchField.setPrefWidth(300);
         
-        // Add listener to filter table based on search text
+        // Add listener to filter tree based on search text
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null || newVal.trim().isEmpty()) {
-                filteredConnections.setPredicate(p -> true);
+                treeView.filterTree(null);
             } else {
                 String searchText = newVal.trim();
                 boolean useGlobPattern = searchText.contains("*");
                 
                 // Convert glob pattern to regex if "*" is present
-                java.util.regex.Pattern pattern = null;
+                Pattern pattern = null;
                 if (useGlobPattern) {
-                    // Escape regex special characters except *
                     String regexPattern = searchText
                         .replace("\\", "\\\\")
                         .replace(".", "\\.")
@@ -92,23 +100,20 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                         .replace("]", "\\]")
                         .replace("{", "\\{")
                         .replace("}", "\\}")
-                        .replace("*", ".*"); // Convert * to .* for regex
+                        .replace("*", ".*");
                     
                     try {
-                        pattern = java.util.regex.Pattern.compile(regexPattern, 
-                            java.util.regex.Pattern.CASE_INSENSITIVE);
+                        pattern = Pattern.compile(regexPattern, Pattern.CASE_INSENSITIVE);
                     } catch (java.util.regex.PatternSyntaxException e) {
-                        // Invalid pattern, fall back to simple contains
                         pattern = null;
                     }
                 }
                 
-                final java.util.regex.Pattern finalPattern = pattern;
+                final Pattern finalPattern = pattern;
                 final boolean usePattern = useGlobPattern && pattern != null;
                 final String lowerSearchText = searchText.toLowerCase();
                 
-                filteredConnections.setPredicate(connection -> {
-                    // Search in name
+                treeView.filterTree(connection -> {
                     if (connection.getName() != null) {
                         String name = connection.getName();
                         if (usePattern) {
@@ -121,7 +126,6 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                             }
                         }
                     }
-                    // Search in host
                     if (connection.getHost() != null) {
                         String host = connection.getHost();
                         if (usePattern) {
@@ -139,45 +143,21 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             }
         });
         
-        // Create table with filtered list
-        table = new TableView<>(filteredConnections);
-        table.setPrefSize(600, 400);
-        table.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
-        
-        TableColumn<ServerConnection, String> nameColumn = new TableColumn<>("Name");
-        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        nameColumn.setPrefWidth(150);
-        
-        TableColumn<ServerConnection, String> hostColumn = new TableColumn<>("Host");
-        hostColumn.setCellValueFactory(new PropertyValueFactory<>("host"));
-        hostColumn.setPrefWidth(150);
-        
-        TableColumn<ServerConnection, Integer> portColumn = new TableColumn<>("Port");
-        portColumn.setCellValueFactory(new PropertyValueFactory<>("port"));
-        portColumn.setPrefWidth(60);
-        
-        TableColumn<ServerConnection, String> userColumn = new TableColumn<>("Benutzer");
-        userColumn.setCellValueFactory(new PropertyValueFactory<>("username"));
-        userColumn.setPrefWidth(100);
-        
-        TableColumn<ServerConnection, String> groupColumn = new TableColumn<>("Gruppe");
-        groupColumn.setCellValueFactory(new PropertyValueFactory<>("group"));
-        groupColumn.setPrefWidth(100);
-        
-        table.getColumns().addAll(nameColumn, hostColumn, portColumn, userColumn, groupColumn);
-        table.setPlaceholder(new Label("Keine Verbindungen gespeichert"));
-        
-        // Double-click to connect
-        table.setRowFactory(tv -> {
-            TableRow<ServerConnection> row = new TableRow<>();
-            row.setOnMouseClicked(e -> {
-                if (e.getClickCount() == 2 && !row.isEmpty()) {
-                    setResult(row.getItem());
-                    close();
-                }
-            });
-            return row;
+        // Register TreeView callbacks
+        treeView.setOnCreateGroup(this::createNewGroup);
+        treeView.setOnRenameGroup(this::renameGroup);
+        treeView.setOnDeleteGroup(this::deleteGroup);
+        treeView.setOnDoubleClick(() -> {
+            List<ServerConnection> selected = treeView.getSelectedConnections();
+            if (!selected.isEmpty()) {
+                setResult(selected.get(0));
+                close();
+            }
         });
+        treeView.setOnEditConnection(this::editConnection);
+        treeView.setOnExportConnections(this::exportConnections);
+        treeView.setOnDeleteConnections(this::deleteConnections);
+        treeView.setOnExportGroup(this::exportGroup);
         
         // Buttons - set uniform width for all buttons
         Button addButton = new Button("Neu...");
@@ -186,41 +166,69 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         Button duplicateButton = new Button("Duplizieren");
         Button exportButton = new Button("Exportieren...");
         Button importButton = new Button("Importieren...");
+        undoButton = new Button("Rückgängig");
+        renameGroupButton = new Button("Ordner umbenennen");
         
-        // Set uniform width for all buttons (use the widest button as reference)
-        double buttonWidth = 120;
+        // Set uniform width for all buttons
+        double buttonWidth = 140;
         addButton.setPrefWidth(buttonWidth);
         editButton.setPrefWidth(buttonWidth);
         deleteButton.setPrefWidth(buttonWidth);
         duplicateButton.setPrefWidth(buttonWidth);
         exportButton.setPrefWidth(buttonWidth);
         importButton.setPrefWidth(buttonWidth);
+        undoButton.setPrefWidth(buttonWidth);
+        renameGroupButton.setPrefWidth(buttonWidth);
         
         editButton.setDisable(true);
         deleteButton.setDisable(true);
         duplicateButton.setDisable(true);
         exportButton.setDisable(true);
-        // importButton always enabled
+        undoButton.setDisable(true);
+        renameGroupButton.setDisable(true);
         
-        table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
-            boolean hasSelection = selected != null;
-            boolean multipleSelection = table.getSelectionModel().getSelectedItems().size() > 1;
+        // Set undo button for treeView
+        treeView.setUndoButton(undoButton);
+        
+        // Selection listener for buttons
+        treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            List<ServerConnection> selectedConnections = treeView.getSelectedConnections();
+            List<GroupPath> selectedGroups = treeView.getSelectedGroups();
             
-            editButton.setDisable(!hasSelection || multipleSelection);  // Only single selection
-            deleteButton.setDisable(!hasSelection);
-            duplicateButton.setDisable(!hasSelection || multipleSelection);  // Only single selection
-            exportButton.setDisable(!hasSelection);  // Allow multiple selection
+            boolean hasSingleConnection = selectedConnections.size() == 1;
+            boolean hasConnections = !selectedConnections.isEmpty();
+            boolean hasSingleGroup = selectedGroups.size() == 1 && selectedConnections.isEmpty();
+            boolean hasMultipleSelection = selectedConnections.size() > 1;
+            
+            editButton.setDisable(!hasSingleConnection);
+            deleteButton.setDisable(!hasConnections);
+            duplicateButton.setDisable(!hasSingleConnection);
+            exportButton.setDisable(!hasConnections);
+            renameGroupButton.setDisable(!hasSingleGroup);
         });
         
         addButton.setOnAction(e -> addConnection());
-        editButton.setOnAction(e -> editConnection());
-        deleteButton.setOnAction(e -> deleteConnection());
+        editButton.setOnAction(e -> editConnection(null));
+        deleteButton.setOnAction(e -> {
+            List<ServerConnection> selected = treeView.getSelectedConnections();
+            if (!selected.isEmpty()) {
+                deleteConnections(selected);
+            }
+        });
         duplicateButton.setOnAction(e -> duplicateConnection());
         exportButton.setOnAction(e -> exportConnections());
         importButton.setOnAction(e -> importConnections());
+        undoButton.setOnAction(e -> treeView.undoLastMove());
+        renameGroupButton.setOnAction(e -> {
+            List<GroupPath> selected = treeView.getSelectedGroups();
+            if (!selected.isEmpty()) {
+                renameGroup(selected.get(0));
+            }
+        });
         
         VBox buttonBox = new VBox(10, addButton, editButton, deleteButton, duplicateButton, 
-                              new javafx.scene.control.Separator(), exportButton, importButton);
+                              new Separator(), exportButton, importButton,
+                              new Separator(), undoButton, renameGroupButton);
         buttonBox.setAlignment(Pos.TOP_CENTER);
         buttonBox.setPadding(new Insets(0, 0, 0, 10));
         
@@ -231,13 +239,13 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         searchBox.getChildren().addAll(searchLabel, searchField);
         HBox.setHgrow(searchField, Priority.ALWAYS);
         
-        // Table container with search
-        VBox tableContainer = new VBox(10);
-        tableContainer.getChildren().addAll(searchBox, table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+        // TreeView container with search
+        VBox treeContainer = new VBox(10);
+        treeContainer.getChildren().addAll(searchBox, treeView);
+        VBox.setVgrow(treeView, Priority.ALWAYS);
         
         BorderPane content = new BorderPane();
-        content.setCenter(tableContainer);
+        content.setCenter(treeContainer);
         content.setRight(buttonBox);
         content.setPadding(new Insets(10));
         
@@ -250,65 +258,112 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         Button connectButton = (Button) getDialogPane().lookupButton(connectButtonType);
         connectButton.setDisable(true);
         
-        table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
-            connectButton.setDisable(selected == null);
+        treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            List<ServerConnection> selectedConnections = treeView.getSelectedConnections();
+            connectButton.setDisable(selectedConnections.isEmpty());
         });
         
         setResultConverter(dialogButton -> {
             if (dialogButton == connectButtonType) {
-                return table.getSelectionModel().getSelectedItem();
+                List<ServerConnection> selected = treeView.getSelectedConnections();
+                if (!selected.isEmpty()) {
+                    return selected.get(0);
+                }
             }
             return null;
         });
     }
     
+    /**
+     * Gets the currently selected single non-placeholder connection.
+     */
+    private ServerConnection getSelectedConnection() {
+        List<ServerConnection> selected = treeView.getSelectedConnections();
+        if (selected.size() == 1) {
+            return selected.get(0);
+        }
+        return null;
+    }
+    
     private void addConnection() {
+        // Determine target group from selection
+        String targetGroup = "";
+        List<GroupPath> selectedGroups = treeView.getSelectedGroups();
+        if (!selectedGroups.isEmpty()) {
+            targetGroup = selectedGroups.get(0).getPath();
+        }
+        
+        final String finalTargetGroup = targetGroup;
+        
         ConnectionEditDialog dialog = new ConnectionEditDialog(owner, null, credentialManager, 
             app.getSSHKeyManager(), masterPassword);
         dialog.showAndWait().ifPresent(connection -> {
+            if (finalTargetGroup != null && !finalTargetGroup.isEmpty()) {
+                connection.setGroup(finalTargetGroup);
+            }
             connections.add(connection);
             configManager.addConnection(connection);
-            table.getSelectionModel().select(connection);
+            treeView.refreshTree();
             saveConnections();
         });
     }
     
-    private void editConnection() {
-        ServerConnection selected = table.getSelectionModel().getSelectedItem();
-        if (selected != null) {
+    private void editConnection(ServerConnection connection) {
+        ServerConnection selected = connection != null ? connection : getSelectedConnection();
+        if (selected != null && !selected.isPlaceholder()) {
             ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected, credentialManager, 
                 app.getSSHKeyManager(), masterPassword);
-            dialog.showAndWait().ifPresent(connection -> {
+            dialog.showAndWait().ifPresent(editedConnection -> {
                 int index = connections.indexOf(selected);
-                connections.set(index, connection);
-                configManager.updateConnection(connection);
-                table.getSelectionModel().select(connection);
+                connections.set(index, editedConnection);
+                configManager.updateConnection(editedConnection);
+                treeView.refreshTree();
                 saveConnections();
             });
         }
     }
     
     private void deleteConnection() {
-        ServerConnection selected = table.getSelectionModel().getSelectedItem();
+        ServerConnection selected = getSelectedConnection();
         if (selected != null) {
-            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Verbindung löschen");
-            confirm.setHeaderText("Verbindung \"" + selected.getDisplayName() + "\" löschen?");
-            confirm.setContentText("Diese Aktion kann nicht rückgängig gemacht werden.");
-            
-            confirm.showAndWait().ifPresent(result -> {
-                if (result == ButtonType.OK) {
-                    connections.remove(selected);
-                    configManager.removeConnection(selected);
-                    saveConnections();
-                }
-            });
+            deleteConnections(List.of(selected));
         }
     }
     
+    private void deleteConnections(List<ServerConnection> connectionsToDelete) {
+        if (connectionsToDelete.isEmpty()) {
+            return;
+        }
+        
+        // Filter out placeholders
+        final List<ServerConnection> filteredConnections = connectionsToDelete.stream()
+            .filter(conn -> !conn.isPlaceholder())
+            .collect(Collectors.toList());
+        
+        if (filteredConnections.isEmpty()) {
+            return;
+        }
+        
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Verbindungen löschen");
+        confirm.setHeaderText(String.format("%d Verbindung(en) löschen?", filteredConnections.size()));
+        confirm.setContentText("Diese Aktion kann nicht rückgängig gemacht werden.");
+        
+        confirm.showAndWait().ifPresent(result -> {
+            if (result == ButtonType.OK) {
+                for (ServerConnection conn : filteredConnections) {
+                    connections.remove(conn);
+                    configManager.removeConnection(conn);
+                }
+                treeView.refreshTree();
+                saveConnections();
+            }
+        });
+    }
+    
     private void duplicateConnection() {
-        ServerConnection selected = table.getSelectionModel().getSelectedItem();
-        if (selected != null) {
+        ServerConnection selected = getSelectedConnection();
+        if (selected != null && !selected.isPlaceholder()) {
             ServerConnection copy = new ServerConnection();
             copy.setName(selected.getName() + " (Kopie)");
             copy.setHost(selected.getHost());
@@ -324,17 +379,125 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             
             connections.add(copy);
             configManager.addConnection(copy);
-            table.getSelectionModel().select(copy);
+            treeView.refreshTree();
             saveConnections();
         }
+    }
+    
+    private void createNewGroup(GroupPath parentPath) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Neuer Ordner");
+        dialog.setHeaderText("Neuen Ordner erstellen" + 
+            (parentPath.isRoot() ? "" : " in \"" + parentPath.getName() + "\""));
+        dialog.setContentText("Ordnername:");
+        dialog.initOwner(owner);
+        dialog.initModality(Modality.WINDOW_MODAL);
+        
+        dialog.showAndWait().ifPresent(name -> {
+            if (name != null && !name.trim().isEmpty()) {
+                GroupPath newGroupPath = parentPath.isRoot() ? new GroupPath(name) : parentPath.append(name);
+                
+                // Create placeholder connection for empty group
+                ServerConnection placeholder = new ServerConnection();
+                placeholder.setName("(Ordner: " + newGroupPath.getName() + ")");
+                placeholder.setHost("placeholder");
+                placeholder.setPort(22);
+                placeholder.setUsername("");
+                placeholder.setGroup(newGroupPath.getPath());
+                
+                connections.add(placeholder);
+                configManager.addConnection(placeholder);
+                treeView.refreshTree();
+                saveConnections();
+            }
+        });
+    }
+    
+    private void renameGroup(GroupPath oldPath) {
+        TextInputDialog dialog = new TextInputDialog(oldPath.getName());
+        dialog.setTitle("Ordner umbenennen");
+        dialog.setHeaderText("Ordner \"" + oldPath.getName() + "\" umbenennen");
+        dialog.setContentText("Neuer Name:");
+        dialog.initOwner(owner);
+        dialog.initModality(Modality.WINDOW_MODAL);
+        
+        dialog.showAndWait().ifPresent(newName -> {
+            if (newName != null && !newName.trim().isEmpty() && !newName.equals(oldPath.getName())) {
+                GroupPath parentPath = oldPath.getParent();
+                GroupPath newPath = parentPath == null || parentPath.isRoot() ? 
+                    new GroupPath(newName) : parentPath.append(newName);
+                
+                // Update all connections in this group and sub-groups
+                for (ServerConnection conn : connections) {
+                    if (conn.getGroup() != null) {
+                        GroupPath connPath = new GroupPath(conn.getGroup());
+                        if (connPath.equals(oldPath) || connPath.isChildOf(oldPath)) {
+                            // Replace old path segment with new one
+                            String oldPathStr = oldPath.getPath();
+                            String newPathStr = newPath.getPath();
+                            String connGroup = conn.getGroup();
+                            
+                            if (connGroup.equals(oldPathStr)) {
+                                conn.setGroup(newPathStr);
+                            } else if (connGroup.startsWith(oldPathStr + GroupPath.SEPARATOR)) {
+                                conn.setGroup(newPathStr + connGroup.substring(oldPathStr.length()));
+                            }
+                            
+                            configManager.updateConnection(conn);
+                        }
+                    }
+                }
+                
+                treeView.refreshTree();
+                saveConnections();
+            }
+        });
+    }
+    
+    private void deleteGroup(GroupPath groupPath) {
+        // Count connections in this group (and sub-groups)
+        long count = connections.stream()
+            .filter(conn -> {
+                if (conn.getGroup() == null) return false;
+                GroupPath connPath = new GroupPath(conn.getGroup());
+                return connPath.equals(groupPath) || connPath.isChildOf(groupPath);
+            })
+            .filter(conn -> !conn.isPlaceholder())
+            .count();
+        
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Ordner löschen");
+        confirm.setHeaderText("Ordner \"" + groupPath.getName() + "\" löschen?");
+        confirm.setContentText(String.format("Dieser Ordner enthält %d Verbindung(en). " +
+            "Alle Verbindungen werden ebenfalls gelöscht.\nDiese Aktion kann nicht rückgängig gemacht werden.", count));
+        
+        confirm.showAndWait().ifPresent(result -> {
+            if (result == ButtonType.OK) {
+                List<ServerConnection> toRemove = connections.stream()
+                    .filter(conn -> {
+                        if (conn.getGroup() == null) return false;
+                        GroupPath connPath = new GroupPath(conn.getGroup());
+                        return connPath.equals(groupPath) || connPath.isChildOf(groupPath);
+                    })
+                    .collect(Collectors.toList());
+                
+                for (ServerConnection conn : toRemove) {
+                    connections.remove(conn);
+                    configManager.removeConnection(conn);
+                }
+                
+                treeView.refreshTree();
+                saveConnections();
+            }
+        });
     }
     
     private void saveConnections() {
         try {
             configManager.save(app.getMasterPasswordManager().getDerivedKey());
-            org.slf4j.LoggerFactory.getLogger(getClass()).info("Connections saved successfully");
+            logger.info("Connections saved successfully");
         } catch (Exception e) {
-            org.slf4j.LoggerFactory.getLogger(getClass()).error("Failed to save connections", e);
+            logger.error("Failed to save connections", e);
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Fehler");
             alert.setHeaderText("Speichern fehlgeschlagen");
@@ -344,21 +507,34 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     }
     
     private void exportConnections() {
-        java.util.List<ServerConnection> selectedConnections = 
-            new java.util.ArrayList<>(table.getSelectionModel().getSelectedItems());
-        
-        if (selectedConnections.isEmpty()) {
+        List<ServerConnection> selectedConnections = treeView.getSelectedConnections();
+        if (!selectedConnections.isEmpty()) {
+            exportConnections(selectedConnections);
+        }
+    }
+    
+    private void exportConnections(List<ServerConnection> connectionsToExport) {
+        if (connectionsToExport.isEmpty()) {
             return;
         }
         
-        ConnectionExportDialog dialog = new ConnectionExportDialog(owner, selectedConnections);
+        // Filter out placeholders
+        final List<ServerConnection> finalConnectionsToExport = connectionsToExport.stream()
+            .filter(conn -> !conn.isPlaceholder())
+            .collect(Collectors.toList());
+        
+        if (finalConnectionsToExport.isEmpty()) {
+            return;
+        }
+        
+        ConnectionExportDialog dialog = new ConnectionExportDialog(owner, finalConnectionsToExport);
         dialog.showAndWait().ifPresent(result -> {
             try {
                 exportConnectionsToFile(result);
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
                 success.setTitle("Export erfolgreich");
-                success.setHeaderText(String.format("%d Verbindung(en) exportiert", selectedConnections.size()));
+                success.setHeaderText(String.format("%d Verbindung(en) exportiert", finalConnectionsToExport.size()));
                 success.setContentText("Datei: " + result.exportFile.getAbsolutePath());
                 success.showAndWait();
             } catch (Exception e) {
@@ -371,9 +547,30 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         });
     }
     
+    private void exportGroup(GroupPath groupPath) {
+        // Collect all non-placeholder connections in this group and sub-groups
+        List<ServerConnection> connectionsInGroup = connections.stream()
+            .filter(conn -> {
+                if (conn.getGroup() == null || conn.isPlaceholder()) return false;
+                GroupPath connPath = new GroupPath(conn.getGroup());
+                return connPath.equals(groupPath) || connPath.isChildOf(groupPath);
+            })
+            .collect(Collectors.toList());
+        
+        if (!connectionsInGroup.isEmpty()) {
+            exportConnections(connectionsInGroup);
+        } else {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Keine Verbindungen");
+            alert.setHeaderText("Ordner ist leer");
+            alert.setContentText("Der Ordner \"" + groupPath.getName() + "\" enthält keine Verbindungen.");
+            alert.showAndWait();
+        }
+    }
+    
     private void exportConnectionsToFile(ConnectionExportDialog.ExportResult result) throws Exception {
         // Create copies of connections and filter based on options
-        java.util.List<ServerConnection> exportList = new java.util.ArrayList<>();
+        List<ServerConnection> exportList = new ArrayList<>();
         
         for (ServerConnection conn : result.connections) {
             ServerConnection copy = new ServerConnection();
@@ -388,7 +585,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             if (result.includeUsername) {
                 copy.setUsername(conn.getUsername());
             } else {
-                copy.setUsername("");  // Empty but field exists
+                copy.setUsername("");
             }
             
             // Password/CredentialId (optional)
@@ -402,7 +599,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             
             // SSH Tunnels (optional)
             if (result.includeTunnels && conn.getSshTunnels() != null) {
-                copy.setSshTunnels(new java.util.ArrayList<>(conn.getSshTunnels()));
+                copy.setSshTunnels(new ArrayList<>(conn.getSshTunnels()));
             }
             
             // Jump Server (optional)
@@ -442,14 +639,13 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         marshaller.setProperty(jakarta.xml.bind.Marshaller.JAXB_FORMATTED_OUTPUT, true);
         marshaller.marshal(wrapper, result.exportFile);
     }
-
     
     private void importConnections() {
         ConnectionImportDialog dialog = new ConnectionImportDialog(owner, credentialManager, 
             app.getSSHKeyManager(), configManager);
         dialog.showAndWait().ifPresent(result -> {
             try {
-                java.util.List<ServerConnection> importedConnections = importConnectionsFromFile(result);
+                List<ServerConnection> importedConnections = importConnectionsFromFile(result);
                 
                 // Add to connections list and config
                 int successCount = 0;
@@ -459,7 +655,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                     successCount++;
                 }
                 
-                // Save
+                // Refresh tree and save
+                treeView.refreshTree();
                 saveConnections();
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
@@ -467,11 +664,6 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 success.setHeaderText(String.format("%d Verbindung(en) importiert", successCount));
                 success.setContentText("Die Verbindungen wurden erfolgreich hinzugefügt.");
                 success.showAndWait();
-                
-                // Select first imported connection
-                if (!importedConnections.isEmpty()) {
-                    table.getSelectionModel().select(importedConnections.get(0));
-                }
             } catch (Exception e) {
                 Alert error = new Alert(Alert.AlertType.ERROR);
                 error.setTitle("Import fehlgeschlagen");
@@ -482,7 +674,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         });
     }
     
-    private java.util.List<ServerConnection> importConnectionsFromFile(ConnectionImportDialog.ImportResult result) throws Exception {
+    private List<ServerConnection> importConnectionsFromFile(ConnectionImportDialog.ImportResult result) throws Exception {
         // Determine file type and extract/decrypt if needed
         java.io.File actualXmlFile = result.importFile;
         java.nio.file.Path tempFile = null;
@@ -512,9 +704,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 pb.redirectErrorStream(true);
                 String osName = System.getProperty("os.name").toLowerCase();
                 java.io.File nullFile = new java.io.File(osName.contains("win") ? "NUL" : "/dev/null");
-                pb.redirectInput(java.lang.ProcessBuilder.Redirect.from(nullFile));
+                pb.redirectInput(ProcessBuilder.Redirect.from(nullFile));
                 
-                java.lang.Process process = pb.start();
+                Process process = pb.start();
                 
                 StringBuilder output = new StringBuilder();
                 try (java.io.BufferedReader reader = new java.io.BufferedReader(
@@ -549,7 +741,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                     Dialog<String> passwordDialog = new Dialog<>();
                     passwordDialog.setTitle("ZIP-Passwort erforderlich");
                     passwordDialog.setHeaderText("Das ZIP-Archiv ist passwortgeschützt");
-                    passwordDialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
+                    passwordDialog.initModality(Modality.WINDOW_MODAL);
                     passwordDialog.initOwner(owner);
                     
                     javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
@@ -639,7 +831,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                     // Focus password field when dialog is shown
                     passwordField.requestFocus();
                     
-                    java.util.Optional<String> passwordOpt = passwordDialog.showAndWait();
+                    Optional<String> passwordOpt = passwordDialog.showAndWait();
                     if (!passwordOpt.isPresent() || passwordOpt.get().trim().isEmpty()) {
                         throw new Exception("ZIP-Entschlüsselung abgebrochen: Kein Passwort eingegeben");
                     }
@@ -654,7 +846,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 zipFile.extractAll(extractDir.toString());
                 
                 // Find XML file in extracted directory
-                java.util.List<java.nio.file.Path> xmlFiles = java.nio.file.Files.walk(extractDir)
+                List<java.nio.file.Path> xmlFiles = java.nio.file.Files.walk(extractDir)
                     .filter(p -> p.toString().toLowerCase().endsWith(".xml"))
                     .collect(java.util.stream.Collectors.toList());
                 
@@ -688,100 +880,100 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 (de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper) 
                 unmarshaller.unmarshal(actualXmlFile);
         
-        java.util.List<ServerConnection> importList = new java.util.ArrayList<>();
+            List<ServerConnection> importList = new ArrayList<>();
         
-        for (ServerConnection conn : wrapper.getConnections()) {
-            // Group filtering
-            if (result.filterGroups && !result.selectedGroups.isEmpty()) {
-                String connGroup = conn.getGroup();
-                boolean isNoGroup = connGroup == null || connGroup.trim().isEmpty();
-                
-                // Check if connection matches selected groups
-                boolean matchesFilter = false;
-                for (String selectedGroup : result.selectedGroups) {
-                    if (selectedGroup.equals("(keine Gruppe)") && isNoGroup) {
-                        matchesFilter = true;
-                        break;
-                    } else if (!isNoGroup && selectedGroup.equals(connGroup)) {
-                        matchesFilter = true;
-                        break;
+            for (ServerConnection conn : wrapper.getConnections()) {
+                // Group filtering
+                if (result.filterGroups && !result.selectedGroups.isEmpty()) {
+                    String connGroup = conn.getGroup();
+                    boolean isNoGroup = connGroup == null || connGroup.trim().isEmpty();
+                    
+                    // Check if connection matches selected groups
+                    boolean matchesFilter = false;
+                    for (String selectedGroup : result.selectedGroups) {
+                        if (selectedGroup.equals("(keine Gruppe)") && isNoGroup) {
+                            matchesFilter = true;
+                            break;
+                        } else if (!isNoGroup && selectedGroup.equals(connGroup)) {
+                            matchesFilter = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!matchesFilter) {
+                        continue;  // Skip this connection
                     }
                 }
                 
-                if (!matchesFilter) {
-                    continue;  // Skip this connection
+                ServerConnection imported = new ServerConnection();
+                
+                // Always import basic data
+                imported.setName(conn.getName());
+                imported.setHost(conn.getHost());
+                imported.setPort(conn.getPort());
+                imported.setAuthMethod(conn.getAuthMethod());
+                
+                // SSH Key (conditional or replaced)
+                if (result.replaceSSHKey && result.replacementSSHKey != null) {
+                    // Replace with selected SSH key
+                    imported.setSshKeyId(result.replacementSSHKey.getId());
+                    imported.setPrivateKeyPath(app.getSSHKeyManager() != null ? 
+                        app.getSSHKeyManager().getEffectiveKeyPath(result.replacementSSHKey) : 
+                        result.replacementSSHKey.getKeyPath());
+                    imported.setPrivateKeyPassphrase(null);  // Use key manager instead
+                } else {
+                    imported.setPrivateKeyPath(conn.getPrivateKeyPath());
+                    imported.setSshKeyId(conn.getSshKeyId());
+                    imported.setPrivateKeyPassphrase(conn.getPrivateKeyPassphrase());
                 }
+                
+                // Group assignment (target group overrides original group)
+                if (result.assignToGroup && result.targetGroup != null && !result.targetGroup.trim().isEmpty()) {
+                    imported.setGroup(result.targetGroup);
+                } else {
+                    imported.setGroup(conn.getGroup());
+                }
+                
+                // Username (conditional)
+                if (result.importUsername) {
+                    imported.setUsername(conn.getUsername());
+                } else {
+                    imported.setUsername("");
+                }
+                
+                // Password (conditional or replaced)
+                if (result.replaceCredentials && result.replacementCredential != null) {
+                    // Replace with selected credential
+                    imported.setUsername(result.replacementCredential.getUsername());
+                    imported.setCredentialId(result.replacementCredential.getId());
+                    imported.setEncryptedPassword(null);  // Use credential instead
+                } else if (result.importPassword) {
+                    imported.setEncryptedPassword(conn.getEncryptedPassword());
+                    imported.setCredentialId(conn.getCredentialId());
+                } else {
+                    imported.setEncryptedPassword(null);
+                    imported.setCredentialId(null);
+                }
+                
+                // SSH Tunnels (conditional)
+                if (result.importTunnels && conn.getSshTunnels() != null) {
+                    imported.setSshTunnels(new ArrayList<>(conn.getSshTunnels()));
+                }
+                
+                // Jump Server (conditional)
+                if (result.importJumpServer && conn.getJumpServer() != null) {
+                    imported.setJumpServer(conn.getJumpServer());
+                }
+                
+                // Copy settings
+                if (conn.getSettings() != null) {
+                    imported.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
+                }
+                
+                importList.add(imported);
             }
             
-            ServerConnection imported = new ServerConnection();
-            
-            // Always import basic data
-            imported.setName(conn.getName());
-            imported.setHost(conn.getHost());
-            imported.setPort(conn.getPort());
-            imported.setAuthMethod(conn.getAuthMethod());
-            
-            // SSH Key (conditional or replaced)
-            if (result.replaceSSHKey && result.replacementSSHKey != null) {
-                // Replace with selected SSH key
-                imported.setSshKeyId(result.replacementSSHKey.getId());
-                imported.setPrivateKeyPath(app.getSSHKeyManager() != null ? 
-                    app.getSSHKeyManager().getEffectiveKeyPath(result.replacementSSHKey) : 
-                    result.replacementSSHKey.getKeyPath());
-                imported.setPrivateKeyPassphrase(null);  // Use key manager instead
-            } else {
-                imported.setPrivateKeyPath(conn.getPrivateKeyPath());
-                imported.setSshKeyId(conn.getSshKeyId());
-                imported.setPrivateKeyPassphrase(conn.getPrivateKeyPassphrase());
-            }
-            
-            // Group assignment (target group overrides original group)
-            if (result.assignToGroup && result.targetGroup != null && !result.targetGroup.trim().isEmpty()) {
-                imported.setGroup(result.targetGroup);
-            } else {
-                imported.setGroup(conn.getGroup());
-            }
-            
-            // Username (conditional)
-            if (result.importUsername) {
-                imported.setUsername(conn.getUsername());
-            } else {
-                imported.setUsername("");
-            }
-            
-            // Password (conditional or replaced)
-            if (result.replaceCredentials && result.replacementCredential != null) {
-                // Replace with selected credential
-                imported.setUsername(result.replacementCredential.getUsername());
-                imported.setCredentialId(result.replacementCredential.getId());
-                imported.setEncryptedPassword(null);  // Use credential instead
-            } else if (result.importPassword) {
-                imported.setEncryptedPassword(conn.getEncryptedPassword());
-                imported.setCredentialId(conn.getCredentialId());
-            } else {
-                imported.setEncryptedPassword(null);
-                imported.setCredentialId(null);
-            }
-            
-            // SSH Tunnels (conditional)
-            if (result.importTunnels && conn.getSshTunnels() != null) {
-                imported.setSshTunnels(new java.util.ArrayList<>(conn.getSshTunnels()));
-            }
-            
-            // Jump Server (conditional)
-            if (result.importJumpServer && conn.getJumpServer() != null) {
-                imported.setJumpServer(conn.getJumpServer());
-            }
-            
-            // Copy settings
-            if (conn.getSettings() != null) {
-                imported.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
-            }
-            
-            importList.add(imported);
-        }
-        
-        return importList;
+            return importList;
         } finally {
             // Clean up temporary files
             if (needsCleanup && tempFile != null) {
@@ -807,5 +999,4 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             }
         }
     }
-
 }

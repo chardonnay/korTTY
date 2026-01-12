@@ -428,7 +428,8 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     }
     
     private void validateForm(Button saveButton) {
-        boolean valid = !hostField.getText().trim().isEmpty();
+        String hostText = hostField.getText();
+        boolean valid = hostText != null && !hostText.trim().isEmpty();
         saveButton.setDisable(!valid);
     }
     
