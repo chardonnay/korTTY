@@ -274,9 +274,11 @@ public class MainWindow {
         
         // Window close handling
         stage.setOnCloseRequest(e -> {
-            // Save window geometry on close if enabled
+            // Save window geometry on close if enabled (not when using fixed geometry)
             GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
-            if (globalSettings.isRememberWindowGeometry()) {
+            
+            // Always save last geometry when not using fixed geometry
+            if (!globalSettings.isUseFixedWindowGeometry() && globalSettings.isRememberWindowGeometry()) {
                 WindowGeometry geo = new WindowGeometry(
                     stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()
                 );
