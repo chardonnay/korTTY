@@ -35,19 +35,23 @@ Ein moderner SSH-Client mit JavaFX-Oberfläche, Tab-Unterstützung und JMX-Monit
 ./gradlew run
 ```
 
-## macOS Release erstellen
+## Native Release erstellen
 
-KorTTY kann mit `jpackage` als native macOS App (.app) oder als DMG Installer gebaut werden.
+KorTTY kann mit `jpackage` als native App für macOS, Windows und Linux gebaut werden. Die Build-Tasks erkennen automatisch das Betriebssystem und erstellen die passende Distribution.
 
 ### Voraussetzungen
 
 - **Java 25 oder höher** (mit jpackage Tool)
-- **macOS** (für native Builds)
-- **Xcode Command Line Tools** (für Code-Signing, optional)
+- **Plattform-spezifisch:**
+  - **macOS**: Xcode Command Line Tools (für Code-Signing, optional)
+  - **Windows**: WiX Toolset (für MSI-Installer, optional)
+  - **Linux**: fakeroot, rpmbuild oder dpkg (für DEB/RPM Packages, optional)
 
-### macOS App (.app) erstellen
+### macOS
 
-Erstellt eine eigenständige macOS App, die eine gebündelte JVM enthält:
+#### App (.app) erstellen
+
+Erstellt eine eigenständige macOS App:
 
 ```bash
 ./gradlew jpackage
@@ -59,43 +63,146 @@ build/jpackage/korTTY.app
 ```
 
 **Installation:**
-- Die App kann per Drag & Drop in `/Applications` kopiert werden
-- Oder direkt aus dem `build/jpackage/` Verzeichnis gestartet werden
+- Per Drag & Drop in `/Applications` kopieren
+- Oder direkt aus `build/jpackage/` starten
 
-### DMG Installer erstellen
+#### DMG Installer erstellen
 
-Erstellt einen DMG Installer für einfache Verteilung:
+Erstellt einen DMG Installer:
 
 ```bash
 ./gradlew jpackageDmg
 ```
 
-Die erstellte DMG-Datei befindet sich unter:
+Die DMG-Datei befindet sich unter:
 ```
 build/jpackage/korTTY-1.1.0.dmg
 ```
 
-**Verteilung:**
-- Die DMG-Datei kann an Benutzer verteilt werden
-- Benutzer öffnen die DMG und ziehen die App in den Applications-Ordner
+**Icon:** `src/main/resources/icon/kortty_icon.icns`
+
+### Windows
+
+#### App (.exe) erstellen
+
+Erstellt eine eigenständige Windows App:
+
+```bash
+gradlew.bat jpackage
+```
+
+Die App befindet sich unter:
+```
+build\jpackage\korTTY\
+```
+
+**Features:**
+- Windows Startmenü-Eintrag
+- Desktop-Verknüpfung
+- Installationsverzeichnis-Auswahl
+
+#### MSI Installer erstellen
+
+Erstellt einen MSI Installer (erfordert WiX Toolset):
+
+```bash
+gradlew.bat jpackageMsi
+```
+
+Die MSI-Datei befindet sich unter:
+```
+build\jpackage\korTTY-1.1.0.msi
+```
+
+**Icon:** `src/main/resources/icon/kortty_icon.ico` (falls vorhanden, sonst PNG)
+
+### Linux
+
+#### App-Image erstellen
+
+Erstellt ein eigenständiges App-Image:
+
+```bash
+./gradlew jpackage
+```
+
+Das App-Image befindet sich unter:
+```
+build/jpackage/korTTY/
+```
+
+**Ausführung:**
+```bash
+./build/jpackage/korTTY/bin/korTTY
+```
+
+#### DEB Package erstellen
+
+Erstellt ein Debian/Ubuntu Package (erfordert dpkg):
+
+```bash
+./gradlew jpackageDeb
+```
+
+Das DEB-Package befindet sich unter:
+```
+build/jpackage/korTTY-1.1.0.deb
+```
+
+**Installation:**
+```bash
+sudo dpkg -i build/jpackage/korTTY-1.1.0.deb
+```
+
+#### RPM Package erstellen
+
+Erstellt ein Red Hat/Fedora Package (erfordert rpmbuild):
+
+```bash
+./gradlew jpackageRpm
+```
+
+Das RPM-Package befindet sich unter:
+```
+build/jpackage/korTTY-1.1.0.rpm
+```
+
+**Installation:**
+```bash
+sudo rpm -i build/jpackage/korTTY-1.1.0.rpm
+```
+
+**Icon:** `src/main/resources/icon/kortty_icon.png`
 
 ### Technische Details
 
 - **Launcher-Klasse**: Die App verwendet `de.kortty.Launcher` als Entry-Point, um JavaFX Runtime-Checks zu umgehen
 - **Gebündelte JVM**: Die App enthält eine vollständige JVM (ca. 150-200 MB)
-- **Icon**: Das App-Icon wird automatisch aus `src/main/resources/icon/kortty_icon.icns` geladen
+- **Plattform-Erkennung**: Build-Tasks erkennen automatisch das Betriebssystem
 - **Dependencies**: Alle Dependencies (JavaFX, Apache SSHD, etc.) werden automatisch eingebunden
+- **Icon-Verwaltung**: Das korTTY Icon wird immer verwendet:
+  - **macOS**: `kortty_icon.icns` (Fallback: `kortty_icon.png`)
+  - **Windows**: `kortty_icon.ico` (Fallback: `kortty_icon.png`)
+  - **Linux**: `kortty_icon.png` (erforderlich)
 
 ### Troubleshooting
 
-**App öffnet nicht:**
-- Prüfe die System-Logs: `log show --predicate 'process == "korTTY"' --last 5m`
-- Teste die App direkt: `build/jpackage/korTTY.app/Contents/MacOS/korTTY`
+**macOS - App öffnet nicht:**
+- System-Logs prüfen: `log show --predicate 'process == "korTTY"' --last 5m`
+- App direkt testen: `build/jpackage/korTTY.app/Contents/MacOS/korTTY`
 
-**Gatekeeper-Warnung:**
-- Nicht signierte Apps können eine Warnung beim ersten Start zeigen
+**macOS - Gatekeeper-Warnung:**
+- Nicht signierte Apps zeigen eine Warnung beim ersten Start
 - Rechtsklick → "Öffnen" umgeht die Warnung
 - Für Verteilung: App mit Developer-ID signieren (erfordert Apple Developer Account)
+
+**Windows - MSI Build fehlgeschlagen:**
+- WiX Toolset installieren: https://wixtoolset.org/
+- WiX bin-Verzeichnis zum PATH hinzufügen
+
+**Linux - DEB/RPM Build fehlgeschlagen:**
+- DEB: `sudo apt-get install fakeroot dpkg-dev`
+- RPM: `sudo yum install rpm-build` oder `sudo dnf install rpm-build`
 
 ## JMX-Monitoring
 

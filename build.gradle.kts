@@ -67,6 +67,12 @@ application {
 val jpackageDir = layout.buildDirectory.dir("jpackage")
 val jpackageInput = layout.buildDirectory.dir("jpackage-input")
 
+// Betriebssystem erkennen
+val osName = System.getProperty("os.name").lowercase()
+val isWindows = osName.contains("windows")
+val isMac = osName.contains("mac")
+val isLinux = osName.contains("linux")
+
 // Task zum Sammeln aller Dependencies in einem Verzeichnis
 tasks.register<Copy>("copyDependencies") {
     from(configurations.runtimeClasspath)
@@ -85,74 +91,253 @@ tasks.register("prepareJpackage") {
     dependsOn("copyDependencies", "copyJar")
 }
 
-// jpackage Task für macOS .app
-tasks.register<Exec>("jpackage") {
-    dependsOn("prepareJpackage")
-    
-    val appName = "korTTY"
-    val appVersion = project.version.toString().replace("-SNAPSHOT", "")
-    val mainJar = tasks.jar.get().archiveFileName.get()
-    val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
-    val outputDir = jpackageDir.get().asFile.absolutePath
-    val iconFile = file("src/main/resources/icon/kortty_icon.icns")
-    
-    doFirst {
-        // Erstelle Output-Verzeichnis
-        file(outputDir).mkdirs()
-    }
-    
-    commandLine(
+// Gemeinsame jpackage Parameter
+fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, inputDir: String, outputDir: String): MutableList<String> {
+    val args = mutableListOf(
         "jpackage",
-        "--type", "app-image",
         "--name", appName,
         "--app-version", appVersion,
         "--vendor", "korTTY",
-        "--description", "SSH Client für macOS",
+        "--description", "SSH Client",
         "--input", inputDir,
         "--main-jar", mainJar,
-        // Launcher-Klasse statt JavaFX Application (umgeht JavaFX Runtime-Check)
         "--main-class", "de.kortty.Launcher",
         "--dest", outputDir,
-        // macOS spezifische Optionen
-        "--mac-package-name", appName,
-        "--icon", iconFile.absolutePath,
-        // JVM Optionen
         "--java-options", "-Djava.awt.headless=false"
     )
+    return args
 }
 
-// jpackage Task für macOS .dmg Installer
-tasks.register<Exec>("jpackageDmg") {
-    dependsOn("prepareJpackage")
-    
-    val appName = "korTTY"
-    val appVersion = project.version.toString().replace("-SNAPSHOT", "")
-    val mainJar = tasks.jar.get().archiveFileName.get()
-    val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
-    val outputDir = jpackageDir.get().asFile.absolutePath
-    val iconFile = file("src/main/resources/icon/kortty_icon.icns")
-    
-    doFirst {
-        file(outputDir).mkdirs()
+// ==================== macOS ====================
+if (isMac) {
+    // Icon-Funktion für macOS: Versuche .icns, sonst verwende PNG
+    fun getMacIcon(): File {
+        val icnsFile = file("src/main/resources/icon/kortty_icon.icns")
+        val pngFile = file("src/main/resources/icon/kortty_icon.png")
+        
+        return when {
+            icnsFile.exists() -> icnsFile
+            pngFile.exists() -> {
+                println("WARNUNG: .icns Icon nicht gefunden, verwende PNG. Für bessere Ergebnisse erstelle ein .icns Icon.")
+                pngFile
+            }
+            else -> throw GradleException("korTTY Icon nicht gefunden! Bitte erstelle src/main/resources/icon/kortty_icon.icns oder kortty_icon.png")
+        }
     }
     
-    commandLine(
-        "jpackage",
-        "--type", "dmg",
-        "--name", appName,
-        "--app-version", appVersion,
-        "--vendor", "korTTY",
-        "--description", "SSH Client für macOS",
-        "--input", inputDir,
-        "--main-jar", mainJar,
-        // Launcher-Klasse statt JavaFX Application (umgeht JavaFX Runtime-Check)
-        "--main-class", "de.kortty.Launcher",
-        "--dest", outputDir,
-        "--mac-package-name", appName,
-        "--icon", iconFile.absolutePath,
-        // JVM Optionen
-        "--java-options", "-Djava.awt.headless=false"
-    )
+    // jpackage Task für macOS .app
+    tasks.register<Exec>("jpackage") {
+        dependsOn("prepareJpackage")
+        
+        val appName = "korTTY"
+        val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+        val mainJar = tasks.jar.get().archiveFileName.get()
+        val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+        val outputDir = jpackageDir.get().asFile.absolutePath
+        val iconFile = getMacIcon()
+        
+        doFirst {
+            file(outputDir).mkdirs()
+        }
+        
+        val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
+        args.addAll(listOf(
+            "--type", "app-image",
+            "--mac-package-name", appName,
+            "--icon", iconFile.absolutePath
+        ))
+        
+        commandLine(args)
+    }
+    
+    // jpackage Task für macOS .dmg Installer
+    tasks.register<Exec>("jpackageDmg") {
+        dependsOn("prepareJpackage")
+        
+        val appName = "korTTY"
+        val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+        val mainJar = tasks.jar.get().archiveFileName.get()
+        val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+        val outputDir = jpackageDir.get().asFile.absolutePath
+        val iconFile = getMacIcon()
+        
+        doFirst {
+            file(outputDir).mkdirs()
+        }
+        
+        val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
+        args.addAll(listOf(
+            "--type", "dmg",
+            "--mac-package-name", appName,
+            "--icon", iconFile.absolutePath
+        ))
+        
+        commandLine(args)
+    }
+}
+
+// ==================== Windows ====================
+if (isWindows) {
+    // Icon-Funktion für Windows: Versuche .ico, sonst verwende PNG
+    fun getWindowsIcon(): File {
+        val icoFile = file("src/main/resources/icon/kortty_icon.ico")
+        val pngFile = file("src/main/resources/icon/kortty_icon.png")
+        
+        return when {
+            icoFile.exists() -> icoFile
+            pngFile.exists() -> {
+                println("INFO: .ico Icon nicht gefunden, verwende PNG Icon (kortty_icon.png)")
+                pngFile
+            }
+            else -> throw GradleException("korTTY Icon nicht gefunden! Bitte erstelle src/main/resources/icon/kortty_icon.ico oder kortty_icon.png")
+        }
+    }
+    
+    // jpackage Task für Windows .exe
+    tasks.register<Exec>("jpackage") {
+        dependsOn("prepareJpackage")
+        
+        val appName = "korTTY"
+        val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+        val mainJar = tasks.jar.get().archiveFileName.get()
+        val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+        val outputDir = jpackageDir.get().asFile.absolutePath
+        val iconFile = getWindowsIcon()
+        
+        doFirst {
+            file(outputDir).mkdirs()
+        }
+        
+        val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
+        args.addAll(listOf(
+            "--type", "app-image",
+            "--win-dir-chooser",
+            "--win-menu",
+            "--win-shortcut",
+            "--icon", iconFile.absolutePath
+        ))
+        
+        commandLine(args)
+    }
+    
+    // jpackage Task für Windows .msi Installer
+    tasks.register<Exec>("jpackageMsi") {
+        dependsOn("prepareJpackage")
+        
+        val appName = "korTTY"
+        val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+        val mainJar = tasks.jar.get().archiveFileName.get()
+        val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+        val outputDir = jpackageDir.get().asFile.absolutePath
+        val iconFile = getWindowsIcon()
+        
+        doFirst {
+            file(outputDir).mkdirs()
+        }
+        
+        val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
+        args.addAll(listOf(
+            "--type", "msi",
+            "--win-dir-chooser",
+            "--win-menu",
+            "--win-shortcut",
+            "--icon", iconFile.absolutePath
+        ))
+        
+        commandLine(args)
+    }
+}
+
+// ==================== Linux ====================
+if (isLinux) {
+    // Icon-Funktion für Linux: Verwende PNG Icon
+    fun getLinuxIcon(): File {
+        val pngFile = file("src/main/resources/icon/kortty_icon.png")
+        
+        if (!pngFile.exists()) {
+            throw GradleException("korTTY Icon nicht gefunden! Bitte erstelle src/main/resources/icon/kortty_icon.png")
+        }
+        
+        return pngFile
+    }
+    
+    // jpackage Task für Linux App-Image
+    tasks.register<Exec>("jpackage") {
+        dependsOn("prepareJpackage")
+        
+        val appName = "korTTY"
+        val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+        val mainJar = tasks.jar.get().archiveFileName.get()
+        val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+        val outputDir = jpackageDir.get().asFile.absolutePath
+        val iconFile = getLinuxIcon()
+        
+        doFirst {
+            file(outputDir).mkdirs()
+        }
+        
+        val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
+        args.addAll(listOf(
+            "--type", "app-image",
+            "--linux-package-name", appName.lowercase(),
+            "--linux-shortcut",
+            "--icon", iconFile.absolutePath
+        ))
+        
+        commandLine(args)
+    }
+    
+    // jpackage Task für Linux .deb Package
+    tasks.register<Exec>("jpackageDeb") {
+        dependsOn("prepareJpackage")
+        
+        val appName = "korTTY"
+        val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+        val mainJar = tasks.jar.get().archiveFileName.get()
+        val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+        val outputDir = jpackageDir.get().asFile.absolutePath
+        val iconFile = getLinuxIcon()
+        
+        doFirst {
+            file(outputDir).mkdirs()
+        }
+        
+        val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
+        args.addAll(listOf(
+            "--type", "deb",
+            "--linux-package-name", appName.lowercase(),
+            "--linux-shortcut",
+            "--icon", iconFile.absolutePath
+        ))
+        
+        commandLine(args)
+    }
+    
+    // jpackage Task für Linux .rpm Package
+    tasks.register<Exec>("jpackageRpm") {
+        dependsOn("prepareJpackage")
+        
+        val appName = "korTTY"
+        val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+        val mainJar = tasks.jar.get().archiveFileName.get()
+        val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+        val outputDir = jpackageDir.get().asFile.absolutePath
+        val iconFile = getLinuxIcon()
+        
+        doFirst {
+            file(outputDir).mkdirs()
+        }
+        
+        val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
+        args.addAll(listOf(
+            "--type", "rpm",
+            "--linux-package-name", appName.lowercase(),
+            "--linux-shortcut",
+            "--icon", iconFile.absolutePath
+        ))
+        
+        commandLine(args)
+    }
 }
 
 tasks.named<JavaExec>("run") {
