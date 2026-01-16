@@ -1,0 +1,19 @@
+{
+  "resources": {
+    "includes": [
+      {"pattern": ".*\\.fxml$"},
+      {"pattern": ".*\\.css$"},
+      {"pattern": ".*\\.png$"},
+      {"pattern": ".*\\.jpg$"},
+      {"pattern": ".*\\.jpeg$"},
+      {"pattern": ".*\\.gif$"},
+      {"pattern": ".*\\.properties$"},
+      {"pattern": ".*\\.xml$"},
+      {"pattern": "logback\\.xml$"},
+      {"pattern": "icon/.*"},
+      {"pattern": "styles/.*"},
+      {"pattern": "META-INF/.*"}
+    ]
+  },
+  "bundles": []
+}

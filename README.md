@@ -35,6 +35,68 @@ Ein moderner SSH-Client mit JavaFX-Oberfläche, Tab-Unterstützung und JMX-Monit
 ./gradlew run
 ```
 
+## macOS Release erstellen
+
+KorTTY kann mit `jpackage` als native macOS App (.app) oder als DMG Installer gebaut werden.
+
+### Voraussetzungen
+
+- **Java 25 oder höher** (mit jpackage Tool)
+- **macOS** (für native Builds)
+- **Xcode Command Line Tools** (für Code-Signing, optional)
+
+### macOS App (.app) erstellen
+
+Erstellt eine eigenständige macOS App, die eine gebündelte JVM enthält:
+
+```bash
+./gradlew jpackage
+```
+
+Die erstellte App befindet sich unter:
+```
+build/jpackage/korTTY.app
+```
+
+**Installation:**
+- Die App kann per Drag & Drop in `/Applications` kopiert werden
+- Oder direkt aus dem `build/jpackage/` Verzeichnis gestartet werden
+
+### DMG Installer erstellen
+
+Erstellt einen DMG Installer für einfache Verteilung:
+
+```bash
+./gradlew jpackageDmg
+```
+
+Die erstellte DMG-Datei befindet sich unter:
+```
+build/jpackage/korTTY-1.1.0.dmg
+```
+
+**Verteilung:**
+- Die DMG-Datei kann an Benutzer verteilt werden
+- Benutzer öffnen die DMG und ziehen die App in den Applications-Ordner
+
+### Technische Details
+
+- **Launcher-Klasse**: Die App verwendet `de.kortty.Launcher` als Entry-Point, um JavaFX Runtime-Checks zu umgehen
+- **Gebündelte JVM**: Die App enthält eine vollständige JVM (ca. 150-200 MB)
+- **Icon**: Das App-Icon wird automatisch aus `src/main/resources/icon/kortty_icon.icns` geladen
+- **Dependencies**: Alle Dependencies (JavaFX, Apache SSHD, etc.) werden automatisch eingebunden
+
+### Troubleshooting
+
+**App öffnet nicht:**
+- Prüfe die System-Logs: `log show --predicate 'process == "korTTY"' --last 5m`
+- Teste die App direkt: `build/jpackage/korTTY.app/Contents/MacOS/korTTY`
+
+**Gatekeeper-Warnung:**
+- Nicht signierte Apps können eine Warnung beim ersten Start zeigen
+- Rechtsklick → "Öffnen" umgeht die Warnung
+- Für Verteilung: App mit Developer-ID signieren (erfordert Apple Developer Account)
+
 ## JMX-Monitoring
 
 Der SSH-Client registriert ein JMX MBean unter `de.kortty:type=SSHClient`.

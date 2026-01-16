@@ -62,6 +62,99 @@ application {
     mainClass.set("de.kortty.KorTTYApplication")
 }
 
+// ==================== jpackage Konfiguration ====================
+
+val jpackageDir = layout.buildDirectory.dir("jpackage")
+val jpackageInput = layout.buildDirectory.dir("jpackage-input")
+
+// Task zum Sammeln aller Dependencies in einem Verzeichnis
+tasks.register<Copy>("copyDependencies") {
+    from(configurations.runtimeClasspath)
+    into(jpackageInput.map { it.dir("libs") })
+}
+
+// Task zum Kopieren des eigenen JARs
+tasks.register<Copy>("copyJar") {
+    dependsOn(tasks.jar)
+    from(tasks.jar.map { it.archiveFile })
+    into(jpackageInput.map { it.dir("libs") })
+}
+
+// Task zum Vorbereiten der jpackage Eingabe
+tasks.register("prepareJpackage") {
+    dependsOn("copyDependencies", "copyJar")
+}
+
+// jpackage Task für macOS .app
+tasks.register<Exec>("jpackage") {
+    dependsOn("prepareJpackage")
+    
+    val appName = "korTTY"
+    val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+    val mainJar = tasks.jar.get().archiveFileName.get()
+    val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+    val outputDir = jpackageDir.get().asFile.absolutePath
+    val iconFile = file("src/main/resources/icon/kortty_icon.icns")
+    
+    doFirst {
+        // Erstelle Output-Verzeichnis
+        file(outputDir).mkdirs()
+    }
+    
+    commandLine(
+        "jpackage",
+        "--type", "app-image",
+        "--name", appName,
+        "--app-version", appVersion,
+        "--vendor", "korTTY",
+        "--description", "SSH Client für macOS",
+        "--input", inputDir,
+        "--main-jar", mainJar,
+        // Launcher-Klasse statt JavaFX Application (umgeht JavaFX Runtime-Check)
+        "--main-class", "de.kortty.Launcher",
+        "--dest", outputDir,
+        // macOS spezifische Optionen
+        "--mac-package-name", appName,
+        "--icon", iconFile.absolutePath,
+        // JVM Optionen
+        "--java-options", "-Djava.awt.headless=false"
+    )
+}
+
+// jpackage Task für macOS .dmg Installer
+tasks.register<Exec>("jpackageDmg") {
+    dependsOn("prepareJpackage")
+    
+    val appName = "korTTY"
+    val appVersion = project.version.toString().replace("-SNAPSHOT", "")
+    val mainJar = tasks.jar.get().archiveFileName.get()
+    val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
+    val outputDir = jpackageDir.get().asFile.absolutePath
+    val iconFile = file("src/main/resources/icon/kortty_icon.icns")
+    
+    doFirst {
+        file(outputDir).mkdirs()
+    }
+    
+    commandLine(
+        "jpackage",
+        "--type", "dmg",
+        "--name", appName,
+        "--app-version", appVersion,
+        "--vendor", "korTTY",
+        "--description", "SSH Client für macOS",
+        "--input", inputDir,
+        "--main-jar", mainJar,
+        // Launcher-Klasse statt JavaFX Application (umgeht JavaFX Runtime-Check)
+        "--main-class", "de.kortty.Launcher",
+        "--dest", outputDir,
+        "--mac-package-name", appName,
+        "--icon", iconFile.absolutePath,
+        // JVM Optionen
+        "--java-options", "-Djava.awt.headless=false"
+    )
+}
+
 tasks.named<JavaExec>("run") {
     // JVM-Argumente zur Unterdrückung von JavaFX-Warnungen
     jvmArgs = listOf(
@@ -92,7 +185,9 @@ tasks.jar {
         attributes(
             "Main-Class" to "de.kortty.KorTTYApplication",
             "Implementation-Title" to project.name,
-            "Implementation-Version" to project.version
+            "Implementation-Version" to project.version,
+            // Class-Path für alle Dependencies
+            "Class-Path" to configurations.runtimeClasspath.get().files.joinToString(" ") { it.name }
         )
     }
 }
