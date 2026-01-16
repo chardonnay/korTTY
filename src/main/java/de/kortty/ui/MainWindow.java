@@ -347,8 +347,13 @@ public class MainWindow {
                 // If this was the last window, exit the application
                 if (openWindows.isEmpty()) {
                     logger.info("Last window closed, exiting application");
+                    // Close all sessions before exiting
+                    if (app.getSessionManager() != null) {
+                        app.getSessionManager().closeAllSessions();
+                    }
+                    // Use Platform.exit() - it will call Application.stop() which handles cleanup
+                    // After stop() completes, System.exit() will be called to ensure all threads terminate
                     Platform.exit();
-                    System.exit(0);
                 }
             }
         });
@@ -597,7 +602,7 @@ public class MainWindow {
             updateAllTabContextMenus();
             
             // Connect in background
-            new Thread(() -> {
+            Thread connectThread = new Thread(() -> {
                 try {
                     terminalTab.connect();
                     
@@ -641,7 +646,9 @@ public class MainWindow {
                         updateDashboard(); // Update dashboard on failure too
                     });
                 }
-            }).start();
+            });
+            connectThread.setDaemon(true);
+            connectThread.start();
             
             // Don't update dashboard immediately - wait for connection to establish
             // Dashboard will be updated after connection succeeds/fails
@@ -774,7 +781,11 @@ public class MainWindow {
     private void closeAllTabs() {
         List<Tab> tabsToClose = new ArrayList<>(tabPane.getTabs());
         for (Tab tab : tabsToClose) {
-            if (tab instanceof TerminalTab) {
+            if (tab instanceof TerminalTab terminalTab) {
+                // Temporarily disable close confirmation to avoid dialogs when closing all tabs
+                terminalTab.setOnCloseRequest(null);
+                // Cleanup terminal view before removing tab to ensure SSH connections are closed
+                terminalTab.getTerminalView().cleanup();
                 tabPane.getTabs().remove(tab);
             }
         }

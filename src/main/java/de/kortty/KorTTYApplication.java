@@ -144,14 +144,27 @@ public class KorTTYApplication extends Application {
     public void stop() throws Exception {
         logger.info("Shutting down {}...", APP_NAME);
         
-        // Close all SSH sessions
+        // Close all SSH sessions first (this may take a moment)
         if (sessionManager != null) {
-            sessionManager.closeAllSessions();
+            try {
+                sessionManager.closeAllSessions();
+                // Give sessions a moment to close gracefully
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.warn("Interrupted while closing sessions");
+            } catch (Exception e) {
+                logger.error("Error closing sessions", e);
+            }
         }
         
         // Save configuration
-        if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
-            configManager.save(masterPasswordManager.getDerivedKey());
+        try {
+            if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
+                configManager.save(masterPasswordManager.getDerivedKey());
+            }
+        } catch (Exception e) {
+            logger.error("Failed to save configuration", e);
         }
         
         // Save GPG keys and credentials
@@ -173,6 +186,10 @@ public class KorTTYApplication extends Application {
         }
         
         logger.info("{} shutdown complete", APP_NAME);
+        
+        // Force exit to ensure all threads (including non-daemon threads from Apache SSHD) terminate
+        // This prevents the application from hanging after Platform.exit()
+        System.exit(0);
     }
     
     private boolean handleMasterPassword(Stage ownerStage) {

@@ -396,14 +396,29 @@ public class SSHSession {
     public void disconnect() {
         connected.set(false);
         
-        if (readerThread != null) {
-            readerThread.interrupt();
-        }
-        
+        // Close channel first to unblock reader thread
         try {
             if (channel != null) {
                 channel.close();
             }
+        } catch (IOException e) {
+            logger.debug("Error closing channel", e);
+        }
+        
+        // Interrupt reader thread and wait for it to finish
+        if (readerThread != null && readerThread.isAlive()) {
+            readerThread.interrupt();
+            try {
+                // Wait up to 2 seconds for thread to finish
+                readerThread.join(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.warn("Interrupted while waiting for reader thread to finish");
+            }
+        }
+        
+        // Close session and client
+        try {
             if (session != null) {
                 session.close();
             }
