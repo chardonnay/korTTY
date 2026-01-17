@@ -48,6 +48,9 @@ public class GlobalSettings {
     @XmlElement
     private double dashboardDividerPosition = 0.2; // Last dashboard divider position (0.0-1.0)
     
+    @XmlElement
+    private boolean showTerminalScrollbar = true; // Show scrollbar in terminal view
+    
     // Default terminal settings for new connections
     @XmlElement
     private ConnectionSettings defaultTerminalSettings;
@@ -162,6 +165,14 @@ public class GlobalSettings {
     
     public void setDashboardDividerPosition(double dashboardDividerPosition) {
         this.dashboardDividerPosition = dashboardDividerPosition;
+    }
+    
+    public boolean isShowTerminalScrollbar() {
+        return showTerminalScrollbar;
+    }
+    
+    public void setShowTerminalScrollbar(boolean showTerminalScrollbar) {
+        this.showTerminalScrollbar = showTerminalScrollbar;
     }
     
     public ConnectionSettings getDefaultTerminalSettings() {

@@ -87,7 +87,7 @@ public class TerminalView extends BorderPane {
             }
         });
         
-        // Set the terminal pane as center content
+        // Use terminal pane directly
         setCenter(terminalPane);
         
         // Request focus on the terminal

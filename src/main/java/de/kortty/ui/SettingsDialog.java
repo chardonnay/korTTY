@@ -55,6 +55,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     // Other settings
     private final CheckBox boldAsBrightCheck;
     private final ComboBox<String> encodingCombo;
+    private final CheckBox showTerminalScrollbarCheck;
     
     // SSH Keep-Alive settings
     private final CheckBox sshKeepAliveCheck;
@@ -207,6 +208,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         encodingCombo.getItems().addAll("UTF-8", "ISO-8859-1", "ISO-8859-15", "Windows-1252");
         encodingCombo.setValue(settings.getEncoding());
         
+        showTerminalScrollbarCheck = new CheckBox("Scroll-Leiste im Terminal anzeigen");
+        showTerminalScrollbarCheck.setSelected(globalSettings != null ? globalSettings.isShowTerminalScrollbar() : true);
+        showTerminalScrollbarCheck.setTooltip(new Tooltip("Zeigt eine Scroll-Leiste auf der rechten Seite des Terminal-Fensters an"));
+        
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox("SSH Keep-Alive aktivieren");
         sshKeepAliveCheck.setSelected(settings.isSshKeepAliveEnabled());
@@ -232,15 +237,16 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         terminalGrid.add(new Label("Kodierung:"), 0, 3);
         terminalGrid.add(encodingCombo, 1, 3);
         terminalGrid.add(boldAsBrightCheck, 0, 4, 2, 1);
+        terminalGrid.add(showTerminalScrollbarCheck, 0, 5, 2, 1);
         
         // SSH Keep-Alive section
-        terminalGrid.add(new Separator(), 0, 5, 2, 1);
-        terminalGrid.add(new Label("SSH Keep-Alive:"), 0, 6, 2, 1);
-        terminalGrid.add(sshKeepAliveCheck, 0, 7, 2, 1);
-        terminalGrid.add(new Label("Intervall (Sekunden):"), 0, 8);
+        terminalGrid.add(new Separator(), 0, 6, 2, 1);
+        terminalGrid.add(new Label("SSH Keep-Alive:"), 0, 7, 2, 1);
+        terminalGrid.add(sshKeepAliveCheck, 0, 8, 2, 1);
+        terminalGrid.add(new Label("Intervall (Sekunden):"), 0, 9);
         HBox keepAliveBox = new HBox(10);
         keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label("Sekunden"));
-        terminalGrid.add(keepAliveBox, 1, 8);
+        terminalGrid.add(keepAliveBox, 1, 9);
         
         terminalTab.setContent(terminalGrid);
         
@@ -545,6 +551,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                         .error("Failed to save global settings", e);
                 }
                 
+                // Notify listeners about settings change
+                notifyListeners();
+                
                 return settings;
             }
             return null;
@@ -568,6 +577,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         // Save backup settings to GlobalSettings
         if (globalSettings != null) {
+            globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
             
             // Save encryption settings

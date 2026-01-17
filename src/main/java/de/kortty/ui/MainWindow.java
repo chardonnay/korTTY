@@ -102,6 +102,22 @@ public class MainWindow {
                 // Check if the click target is within the + tab's area
                 javafx.scene.Node target = (javafx.scene.Node) event.getTarget();
                 
+                // First, check if this is a click on a close button (X) - if so, ignore
+                javafx.scene.Node checkCloseButton = target;
+                while (checkCloseButton != null && !(checkCloseButton instanceof javafx.scene.control.TabPane)) {
+                    // The close button is typically a Button or a StackPane/Region with specific styling
+                    if (checkCloseButton instanceof javafx.scene.control.Button) {
+                        // This is a click on a close button - don't interfere
+                        return;
+                    }
+                    // Also check for common close button class names/styles
+                    String styleClass = checkCloseButton.getStyleClass().toString();
+                    if (styleClass.contains("close-button") || styleClass.contains("tab-close-button")) {
+                        return;
+                    }
+                    checkCloseButton = checkCloseButton.getParent();
+                }
+                
                 // Walk up the scene graph to find if we clicked on a tab header
                 javafx.scene.Node node = target;
                 boolean isInTabPane = false;
@@ -121,25 +137,52 @@ public class MainWindow {
                     return;
                 }
                 
+                // Find which tab was clicked by checking the scene graph
+                Tab clickedTab = null;
+                javafx.scene.Node findTabNode = target;
+                while (findTabNode != null && !(findTabNode instanceof javafx.scene.control.TabPane)) {
+                    // Try to find the Tab by checking parent nodes
+                    // The TabHeaderSkin contains a reference to the Tab
+                    if (findTabNode.getClass().getSimpleName().equals("TabHeaderSkin")) {
+                        try {
+                            // Use reflection to get the tab from TabHeaderSkin
+                            java.lang.reflect.Field tabField = findTabNode.getClass().getDeclaredField("tab");
+                            tabField.setAccessible(true);
+                            clickedTab = (Tab) tabField.get(findTabNode);
+                        } catch (Exception e) {
+                            // Reflection failed, try alternative approach
+                        }
+                    }
+                    findTabNode = findTabNode.getParent();
+                }
+                
+                // If we clicked on a tab that is NOT the + tab, don't interfere
+                if (clickedTab != null && clickedTab != newTabButton) {
+                    return;
+                }
+                
                 // Now check if we clicked on the + tab
                 while (node != null && !(node instanceof javafx.scene.control.TabPane)) {
                     // Check if parent is a tab header area with the text "+"
                     if (node.getClass().getSimpleName().equals("TabHeaderSkin") || 
                         (node instanceof javafx.scene.control.Label && "+".equals(((javafx.scene.control.Label)node).getText()))) {
                         
-                        // This is a click on the + tab
-                        if (!quickConnectDialogOpen) {
-                            event.consume(); // Prevent selection
-                            Platform.runLater(() -> {
-                                // Select previous tab if possible
-                                if (tabPane.getTabs().size() > 1) {
-                                    int currentIndex = tabPane.getTabs().indexOf(newTabButton);
-                                    if (currentIndex > 0) {
-                                        tabPane.getSelectionModel().select(currentIndex - 1);
+                        // Verify this is actually the + tab
+                        if (clickedTab == null || clickedTab == newTabButton) {
+                            // This is a click on the + tab
+                            if (!quickConnectDialogOpen) {
+                                event.consume(); // Prevent selection
+                                Platform.runLater(() -> {
+                                    // Select previous tab if possible
+                                    if (tabPane.getTabs().size() > 1) {
+                                        int currentIndex = tabPane.getTabs().indexOf(newTabButton);
+                                        if (currentIndex > 0) {
+                                            tabPane.getSelectionModel().select(currentIndex - 1);
+                                        }
                                     }
-                                }
-                                showQuickConnect();
-                            });
+                                    showQuickConnect();
+                                });
+                            }
                         }
                         return;
                     }
@@ -159,6 +202,18 @@ public class MainWindow {
                 Platform.runLater(() -> {
                     terminalTab.getTerminalView().requestFocus();
                 });
+            }
+        });
+        
+        // Listen for tab removals to update dashboard
+        tabPane.getTabs().addListener((javafx.collections.ListChangeListener.Change<? extends Tab> change) -> {
+            while (change.next()) {
+                if (change.wasRemoved()) {
+                    // Tab was removed - update dashboard
+                    Platform.runLater(() -> {
+                        updateDashboard();
+                    });
+                }
             }
         });
         
@@ -756,9 +811,15 @@ public class MainWindow {
         
         // Add listener to apply settings changes immediately to all open terminals
         dialog.addChangeListener(() -> {
-            logger.info("Settings changed, notifying user");
+            logger.info("Settings changed, updating all terminal views");
             Platform.runLater(() -> {
-                updateStatus("Globale Einstellungen gespeichert - wirksam bei neuen Verbindungen");
+                // Update scrollbar visibility for all open terminal views
+                for (Tab tab : tabPane.getTabs()) {
+                    if (tab instanceof TerminalTab terminalTab) {
+                        // Scrollbar functionality removed
+                    }
+                }
+                updateStatus("Globale Einstellungen gespeichert");
             });
         });
         
