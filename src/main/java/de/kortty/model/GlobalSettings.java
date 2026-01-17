@@ -51,6 +51,9 @@ public class GlobalSettings {
     @XmlElement
     private boolean showTerminalScrollbar = true; // Show scrollbar in terminal view
     
+    @XmlElement
+    private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
+    
     // Default terminal settings for new connections
     @XmlElement
     private ConnectionSettings defaultTerminalSettings;
@@ -173,6 +176,14 @@ public class GlobalSettings {
     
     public void setShowTerminalScrollbar(boolean showTerminalScrollbar) {
         this.showTerminalScrollbar = showTerminalScrollbar;
+    }
+    
+    public boolean isRequireMasterPasswordOnStartup() {
+        return requireMasterPasswordOnStartup;
+    }
+    
+    public void setRequireMasterPasswordOnStartup(boolean requireMasterPasswordOnStartup) {
+        this.requireMasterPasswordOnStartup = requireMasterPasswordOnStartup;
     }
     
     public ConnectionSettings getDefaultTerminalSettings() {

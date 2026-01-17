@@ -57,6 +57,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ComboBox<String> encodingCombo;
     private final CheckBox showTerminalScrollbarCheck;
     
+    // Security settings
+    private final CheckBox requireMasterPasswordOnStartupCheck;
+    
     // SSH Keep-Alive settings
     private final CheckBox sshKeepAliveCheck;
     private final Spinner<Integer> sshKeepAliveIntervalSpinner;
@@ -523,6 +526,34 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         changePasswordButton.setOnAction(e -> changeMasterPassword());
         securityGrid.add(changePasswordButton, 0, securityRow++, 2, 1);
         
+        // Separator
+        securityGrid.add(new Separator(), 0, securityRow++, 2, 1);
+        
+        // Master password on startup option
+        requireMasterPasswordOnStartupCheck = new CheckBox("Master-Passwort beim Programmstart anfordern");
+        requireMasterPasswordOnStartupCheck.setSelected(globalSettings != null ? globalSettings.isRequireMasterPasswordOnStartup() : true);
+        requireMasterPasswordOnStartupCheck.setTooltip(new Tooltip(
+            "Wenn deaktiviert, wird beim Programmstart kein Master-Passwort-Dialog angezeigt.\n" +
+            "⚠️ WARNUNG: Dies ist unsicher, da verschlüsselte Daten ohne Passwort-Eingabe nicht entschlüsselt werden können."
+        ));
+        
+        Label masterPasswordWarningLabel = new Label(
+            "⚠️ WARNUNG: Wenn diese Option deaktiviert ist, können verschlüsselte Passwörter und Schlüssel " +
+            "beim Programmstart nicht automatisch geladen werden. Sie müssen das Master-Passwort manuell " +
+            "eingeben, wenn Sie auf verschlüsselte Daten zugreifen möchten."
+        );
+        masterPasswordWarningLabel.setWrapText(true);
+        masterPasswordWarningLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
+        masterPasswordWarningLabel.setVisible(!requireMasterPasswordOnStartupCheck.isSelected());
+        
+        // Show/hide warning based on checkbox state
+        requireMasterPasswordOnStartupCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            masterPasswordWarningLabel.setVisible(!newVal);
+        });
+        
+        securityGrid.add(requireMasterPasswordOnStartupCheck, 0, securityRow++, 2, 1);
+        securityGrid.add(masterPasswordWarningLabel, 0, securityRow++, 2, 1);
+        
         securityTab.setContent(securityGrid);
         
         tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab);
@@ -578,6 +609,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         // Save backup settings to GlobalSettings
         if (globalSettings != null) {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
+            globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
             
             // Save encryption settings

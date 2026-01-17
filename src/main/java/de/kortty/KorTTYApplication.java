@@ -106,10 +106,33 @@ public class KorTTYApplication extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
+            // Load global settings first (they are not encrypted) to check if master password is required
+            try {
+                globalSettingsManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load global settings, using defaults", e);
+            }
+            
             // Check if master password needs to be set up or verified
-            if (!handleMasterPassword(primaryStage)) {
-                Platform.exit();
-                return;
+            // Always show dialog if password is not set (first time setup)
+            // Otherwise, check the setting
+            boolean passwordNotSet = !masterPasswordManager.isPasswordSet();
+            boolean requirePasswordOnStartup = globalSettingsManager.getSettings().isRequireMasterPasswordOnStartup();
+            
+            if (passwordNotSet || requirePasswordOnStartup) {
+                // Show master password dialog
+                if (!handleMasterPassword(primaryStage)) {
+                    Platform.exit();
+                    return;
+                }
+            } else {
+                // Password is set but not required on startup
+                // We still need the derived key for decryption, but we can't get it without the password
+                // So we'll skip the dialog and try to proceed - if decryption fails later, 
+                // the user will need to enter the password when needed
+                logger.info("Master password required on startup is disabled, skipping dialog");
+                // Note: We can't decrypt credentials/keys without the password, so those features
+                // will require password entry when first used
             }
             
             // Load configuration
@@ -120,6 +143,7 @@ public class KorTTYApplication extends Application {
                 gpgKeyManager.load();
                 credentialManager.load();
                 sshKeyManager.load();
+                // Reload global settings to ensure we have the latest version
                 globalSettingsManager.load();
                 
                 // Initialize BackupManager after settings are loaded
