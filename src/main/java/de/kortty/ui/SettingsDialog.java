@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.ui.I18n;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.GPGKeyManager;
@@ -93,8 +94,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         this.credentialManager = credentialManager;
         this.gpgKeyManager = gpgKeyManager;
         
-        setTitle("Einstellungen");
-        setHeaderText("Globale Terminal-Einstellungen");
+        setTitle(I18n.get("settings.title"));
+        setHeaderText(I18n.get("settings.header"));
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         setResizable(true);
@@ -104,7 +105,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         
         // Font tab
-        Tab fontTab = new Tab("Schrift");
+        Tab fontTab = new Tab(I18n.get("settings.tab.font"));
         GridPane fontGrid = new GridPane();
         fontGrid.setHgap(10);
         fontGrid.setVgap(10);
@@ -119,9 +120,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         fontSizeSpinner.setEditable(true);
         fontSizeSpinner.setPrefWidth(80);
         
-        fontGrid.add(new Label("Schriftart:"), 0, 0);
+        fontGrid.add(new Label(I18n.get("settings.font.family")), 0, 0);
         fontGrid.add(fontFamilyCombo, 1, 0);
-        fontGrid.add(new Label("Schriftgröße:"), 0, 1);
+        fontGrid.add(new Label(I18n.get("settings.font.size")), 0, 1);
         fontGrid.add(fontSizeSpinner, 1, 1);
         
         // Preview
@@ -133,13 +134,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         fontFamilyCombo.valueProperty().addListener((obs, old, newVal) -> updatePreviewFont(previewLabel));
         fontSizeSpinner.valueProperty().addListener((obs, old, newVal) -> updatePreviewFont(previewLabel));
         
-        fontGrid.add(new Label("Vorschau:"), 0, 2);
+        fontGrid.add(new Label(I18n.get("settings.font.preview")), 0, 2);
         fontGrid.add(previewLabel, 1, 2);
         
         fontTab.setContent(fontGrid);
         
         // Colors tab
-        Tab colorsTab = new Tab("Farben");
+        Tab colorsTab = new Tab(I18n.get("settings.tab.colors"));
         GridPane colorsGrid = new GridPane();
         colorsGrid.setHgap(10);
         colorsGrid.setVgap(10);
@@ -150,18 +151,18 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         cursorColorPicker = new ColorPicker(Color.web(settings.getCursorColor()));
         selectionColorPicker = new ColorPicker(Color.web(settings.getSelectionColor()));
         
-        colorsGrid.add(new Label("Textfarbe:"), 0, 0);
+        colorsGrid.add(new Label(I18n.get("settings.colors.foreground")), 0, 0);
         colorsGrid.add(foregroundColorPicker, 1, 0);
-        colorsGrid.add(new Label("Hintergrund:"), 0, 1);
+        colorsGrid.add(new Label(I18n.get("settings.colors.background")), 0, 1);
         colorsGrid.add(backgroundColorPicker, 1, 1);
-        colorsGrid.add(new Label("Cursor:"), 0, 2);
+        colorsGrid.add(new Label(I18n.get("settings.colors.cursor")), 0, 2);
         colorsGrid.add(cursorColorPicker, 1, 2);
-        colorsGrid.add(new Label("Auswahl:"), 0, 3);
+        colorsGrid.add(new Label(I18n.get("settings.colors.selection")), 0, 3);
         colorsGrid.add(selectionColorPicker, 1, 3);
         
         // ANSI Colors section
         colorsGrid.add(new Separator(), 0, 4, 2, 1);
-        colorsGrid.add(new Label("ANSI-Farben:"), 0, 5, 2, 1);
+        colorsGrid.add(new Label(I18n.get("settings.colors.ansi")), 0, 5, 2, 1);
         
         String[] colorNames = {"Schwarz", "Rot", "Grün", "Gelb", "Blau", "Magenta", "Cyan", "Weiß"};
         HBox normalColorsBox = new HBox(5);
@@ -181,15 +182,15 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             brightColorsBox.getChildren().add(brightPicker);
         }
         
-        colorsGrid.add(new Label("Normal:"), 0, 6);
+        colorsGrid.add(new Label(I18n.get("settings.colors.normal")), 0, 6);
         colorsGrid.add(normalColorsBox, 1, 6);
-        colorsGrid.add(new Label("Hell:"), 0, 7);
+        colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 7);
         colorsGrid.add(brightColorsBox, 1, 7);
         
         colorsTab.setContent(colorsGrid);
         
         // Terminal tab
-        Tab terminalTab = new Tab("Terminal");
+        Tab terminalTab = new Tab(I18n.get("settings.tab.terminal"));
         GridPane terminalGrid = new GridPane();
         terminalGrid.setHgap(10);
         terminalGrid.setVgap(10);
@@ -207,57 +208,57 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         scrollbackSpinner.setEditable(true);
         scrollbackSpinner.setPrefWidth(100);
         
-        boldAsBrightCheck = new CheckBox("Fett als helle Farbe anzeigen");
+        boldAsBrightCheck = new CheckBox(I18n.get("settings.terminal.boldAsBright"));
         boldAsBrightCheck.setSelected(settings.isBoldAsBright());
         
         encodingCombo = new ComboBox<>();
         encodingCombo.getItems().addAll("UTF-8", "ISO-8859-1", "ISO-8859-15", "Windows-1252");
         encodingCombo.setValue(settings.getEncoding());
         
-        showTerminalScrollbarCheck = new CheckBox("Scroll-Leiste im Terminal anzeigen");
+        showTerminalScrollbarCheck = new CheckBox(I18n.get("settings.terminal.scrollbar"));
         showTerminalScrollbarCheck.setSelected(globalSettings != null ? globalSettings.isShowTerminalScrollbar() : true);
-        showTerminalScrollbarCheck.setTooltip(new Tooltip("Zeigt eine Scroll-Leiste auf der rechten Seite des Terminal-Fensters an"));
+        showTerminalScrollbarCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.scrollbar.tooltip")));
         
         // SSH Keep-Alive settings
-        sshKeepAliveCheck = new CheckBox("SSH Keep-Alive aktivieren");
+        sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
         sshKeepAliveCheck.setSelected(settings.isSshKeepAliveEnabled());
-        sshKeepAliveCheck.setTooltip(new Tooltip("Verhindert Timeouts bei inaktiven Verbindungen durch regelmäßige Keep-Alive-Pakete"));
+        sshKeepAliveCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.sshKeepAlive.tooltip")));
         
         sshKeepAliveIntervalSpinner = new Spinner<>(5, 600, settings.getSshKeepAliveInterval(), 5);
         sshKeepAliveIntervalSpinner.setEditable(true);
         sshKeepAliveIntervalSpinner.setPrefWidth(100);
         sshKeepAliveIntervalSpinner.setDisable(!sshKeepAliveCheck.isSelected());
-        sshKeepAliveIntervalSpinner.setTooltip(new Tooltip("Intervall in Sekunden zwischen Keep-Alive-Paketen"));
+        sshKeepAliveIntervalSpinner.setTooltip(new Tooltip(I18n.get("settings.terminal.sshKeepAliveInterval.tooltip")));
         
         // Enable/disable spinner based on checkbox
         sshKeepAliveCheck.selectedProperty().addListener((obs, old, newVal) -> {
             sshKeepAliveIntervalSpinner.setDisable(!newVal);
         });
         
-        terminalGrid.add(new Label("Spalten:"), 0, 0);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
         terminalGrid.add(columnsSpinner, 1, 0);
-        terminalGrid.add(new Label("Zeilen:"), 0, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.rows")), 0, 1);
         terminalGrid.add(rowsSpinner, 1, 1);
-        terminalGrid.add(new Label("Scrollback:"), 0, 2);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.scrollback")), 0, 2);
         terminalGrid.add(scrollbackSpinner, 1, 2);
-        terminalGrid.add(new Label("Kodierung:"), 0, 3);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.encoding")), 0, 3);
         terminalGrid.add(encodingCombo, 1, 3);
         terminalGrid.add(boldAsBrightCheck, 0, 4, 2, 1);
         terminalGrid.add(showTerminalScrollbarCheck, 0, 5, 2, 1);
         
         // SSH Keep-Alive section
         terminalGrid.add(new Separator(), 0, 6, 2, 1);
-        terminalGrid.add(new Label("SSH Keep-Alive:"), 0, 7, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, 7, 2, 1);
         terminalGrid.add(sshKeepAliveCheck, 0, 8, 2, 1);
-        terminalGrid.add(new Label("Intervall (Sekunden):"), 0, 9);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, 9);
         HBox keepAliveBox = new HBox(10);
-        keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label("Sekunden"));
+        keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label(I18n.get("common.seconds")));
         terminalGrid.add(keepAliveBox, 1, 9);
         
         terminalTab.setContent(terminalGrid);
         
         // Backup tab
-        Tab backupTab = new Tab("Backup");
+        Tab backupTab = new Tab(I18n.get("settings.tab.backup"));
         GridPane backupGrid = new GridPane();
         backupGrid.setHgap(10);
         backupGrid.setVgap(10);
@@ -265,34 +266,34 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         int backupRow = 0;
         
-        Label backupHeader = new Label("Backup-Einstellungen");
+        Label backupHeader = new Label(I18n.get("settings.backup.header"));
         backupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
         backupGrid.add(backupHeader, 0, backupRow++, 2, 1);
         
         // Max backup count
-        Label maxBackupLabel = new Label("Maximale Anzahl Backups:");
-        maxBackupLabel.setTooltip(new Tooltip("0 = unbegrenzt, sonst werden älteste Backups gelöscht"));
+        Label maxBackupLabel = new Label(I18n.get("settings.backup.maxCount"));
+        maxBackupLabel.setTooltip(new Tooltip(I18n.get("settings.backup.maxCount.tooltip")));
         
         maxBackupSpinner = new Spinner<>(0, 100, globalSettings != null ? globalSettings.getMaxBackupCount() : 10);
         maxBackupSpinner.setEditable(true);
         maxBackupSpinner.setPrefWidth(150);
-        maxBackupSpinner.setTooltip(new Tooltip("0 = unbegrenzt"));
+        maxBackupSpinner.setTooltip(new Tooltip(I18n.get("settings.backup.maxCount.tooltip")));
         
         backupGrid.add(maxBackupLabel, 0, backupRow);
         backupGrid.add(maxBackupSpinner, 1, backupRow++);
         
-        Label infoLabel = new Label("(0 = unbegrenzt, älteste Backups werden automatisch gelöscht)");
+        Label infoLabel = new Label(I18n.get("settings.backup.maxCount.info"));
         infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         backupGrid.add(infoLabel, 0, backupRow++, 2, 1);
         
-        // Verschlüsselung (PFLICHT!)
-        Label encryptionHeader = new Label("Verschlüsselung (Pflicht)");
+        // Encryption (REQUIRED!)
+        Label encryptionHeader = new Label(I18n.get("settings.backup.encryption.header"));
         encryptionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
         backupGrid.add(encryptionHeader, 0, backupRow++, 2, 1);
         
         javafx.scene.control.ToggleGroup encryptionGroup = new javafx.scene.control.ToggleGroup();
         
-        passwordEncryptionRadio = new javafx.scene.control.RadioButton("ZIP mit Passwort");
+        passwordEncryptionRadio = new javafx.scene.control.RadioButton(I18n.get("settings.backup.encryption.password"));
         passwordEncryptionRadio.setToggleGroup(encryptionGroup);
         passwordEncryptionRadio.setSelected(globalSettings == null || 
             globalSettings.getBackupEncryptionType() == GlobalSettings.BackupEncryptionType.PASSWORD);
@@ -300,7 +301,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         // Password credential combo
         backupCredentialCombo = new ComboBox<>();
-        backupCredentialCombo.setPromptText("Passwort aus Verwaltung wählen...");
+        backupCredentialCombo.setPromptText(I18n.get("settings.backup.credential.select"));
         backupCredentialCombo.setPrefWidth(300);
         backupCredentialCombo.setCellFactory(lv -> new javafx.scene.control.ListCell<StoredCredential>() {
             @Override
@@ -324,11 +325,11 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                     .ifPresent(backupCredentialCombo::setValue);
             }
         }
-        backupGrid.add(new Label("  Passwort:"), 0, backupRow);
+        backupGrid.add(new Label("  " + I18n.get("settings.backup.credential")), 0, backupRow);
         backupGrid.add(backupCredentialCombo, 1, backupRow++);
         
         // GPG encryption
-        gpgEncryptionRadio = new javafx.scene.control.RadioButton("GPG-Verschlüsselung");
+        gpgEncryptionRadio = new javafx.scene.control.RadioButton(I18n.get("settings.backup.encryption.gpg"));
         gpgEncryptionRadio.setToggleGroup(encryptionGroup);
         gpgEncryptionRadio.setSelected(globalSettings != null && 
             globalSettings.getBackupEncryptionType() == GlobalSettings.BackupEncryptionType.GPG);
@@ -336,7 +337,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         // GPG key combo
         backupGpgKeyCombo = new ComboBox<>();
-        backupGpgKeyCombo.setPromptText("GPG-Schlüssel wählen...");
+        backupGpgKeyCombo.setPromptText(I18n.get("settings.backup.gpgKey.select"));
         backupGpgKeyCombo.setPrefWidth(300);
         backupGpgKeyCombo.setCellFactory(lv -> new javafx.scene.control.ListCell<GPGKey>() {
             @Override
@@ -362,7 +363,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                     .ifPresent(backupGpgKeyCombo::setValue);
             }
         }
-        backupGrid.add(new Label("  GPG-Schlüssel:"), 0, backupRow);
+        backupGrid.add(new Label("  " + I18n.get("settings.backup.gpgKey")), 0, backupRow);
         backupGrid.add(backupGpgKeyCombo, 1, backupRow++);
         
         // Dynamic enable/disable based on radio selection
@@ -378,13 +379,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         });
         
         // Warning message
-        Label warningLabel = new Label("⚠ Backups sind IMMER verschlüsselt!");
+        Label warningLabel = new Label(I18n.get("settings.backup.warning"));
         warningLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #d97706; -fx-font-weight: bold;");
         backupGrid.add(warningLabel, 0, backupRow++, 2, 1);
         
         // Show last backup info
         if (globalSettings != null && globalSettings.getLastBackupTime() > 0) {
-            Label lastBackupLabel = new Label("Letztes Backup:");
+            Label lastBackupLabel = new Label(I18n.get("settings.backup.lastBackup"));
             java.time.LocalDateTime lastBackup = java.time.LocalDateTime.ofInstant(
                 java.time.Instant.ofEpochMilli(globalSettings.getLastBackupTime()),
                 java.time.ZoneId.systemDefault()
@@ -405,7 +406,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         backupTab.setContent(backupGrid);
         
         // Window tab
-        Tab windowTab = new Tab("Fenster");
+        Tab windowTab = new Tab(I18n.get("settings.tab.window"));
         GridPane windowGrid = new GridPane();
         windowGrid.setHgap(10);
         windowGrid.setVgap(10);
@@ -413,38 +414,38 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         int windowRow = 0;
         
-        Label windowHeader = new Label("Fenster-Einstellungen");
+        Label windowHeader = new Label(I18n.get("settings.window.header"));
         windowHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
         windowGrid.add(windowHeader, 0, windowRow++, 2, 1);
         
-        rememberWindowGeometryCheck = new CheckBox("Fenstergeometrie merken");
+        rememberWindowGeometryCheck = new CheckBox(I18n.get("settings.window.rememberGeometry"));
         rememberWindowGeometryCheck.setSelected(globalSettings != null ? globalSettings.isRememberWindowGeometry() : true);
-        rememberWindowGeometryCheck.setTooltip(new Tooltip("Speichert Position und Größe des Hauptfensters beim Schließen"));
+        rememberWindowGeometryCheck.setTooltip(new Tooltip(I18n.get("settings.window.rememberGeometry.tooltip")));
         windowGrid.add(rememberWindowGeometryCheck, 0, windowRow++, 2, 1);
         
-        Label windowInfoLabel = new Label("(Beim nächsten Start wird das Fenster an der letzten Position geöffnet)");
+        Label windowInfoLabel = new Label(I18n.get("settings.window.rememberGeometry.info"));
         windowInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         windowGrid.add(windowInfoLabel, 0, windowRow++, 2, 1);
         
-        rememberDashboardStateCheck = new CheckBox("Dashboard-Status merken");
+        rememberDashboardStateCheck = new CheckBox(I18n.get("settings.window.rememberDashboard"));
         rememberDashboardStateCheck.setSelected(globalSettings != null ? globalSettings.isRememberDashboardState() : true);
-        rememberDashboardStateCheck.setTooltip(new Tooltip("Speichert, ob das Dashboard beim Schließen geöffnet war"));
+        rememberDashboardStateCheck.setTooltip(new Tooltip(I18n.get("settings.window.rememberDashboard.tooltip")));
         windowGrid.add(rememberDashboardStateCheck, 0, windowRow++, 2, 1);
         
-        Label dashboardInfoLabel = new Label("(Beim nächsten Start wird das Dashboard wieder angezeigt, wenn es zuvor geöffnet war)");
+        Label dashboardInfoLabel = new Label(I18n.get("settings.window.rememberDashboard.info"));
         dashboardInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         windowGrid.add(dashboardInfoLabel, 0, windowRow++, 2, 1);
         
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
         
-        Label fixedGeometryHeader = new Label("Feste Fenstergeometrie");
+        Label fixedGeometryHeader = new Label(I18n.get("settings.window.fixedGeometry.header"));
         fixedGeometryHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
         windowGrid.add(fixedGeometryHeader, 0, windowRow++, 2, 1);
         
-        useFixedGeometryCheck = new CheckBox("Feste Fenstergeometrie verwenden");
+        useFixedGeometryCheck = new CheckBox(I18n.get("settings.window.fixedGeometry"));
         useFixedGeometryCheck.setSelected(globalSettings != null && globalSettings.isUseFixedWindowGeometry());
-        useFixedGeometryCheck.setTooltip(new Tooltip("Fenster wird immer mit der angegebenen Größe und Position geöffnet"));
+        useFixedGeometryCheck.setTooltip(new Tooltip(I18n.get("settings.window.fixedGeometry.tooltip")));
         windowGrid.add(useFixedGeometryCheck, 0, windowRow++, 2, 1);
         
         // Get current or default values
@@ -455,7 +456,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         int currentY = fixedGeo != null ? (int)fixedGeo.getY() : 100;
         
         // Width and Height
-        Label sizeLabel = new Label("Größe:");
+        Label sizeLabel = new Label(I18n.get("common.size") + ":");
         fixedWidthSpinner = new Spinner<>(400, 4000, currentWidth);
         fixedWidthSpinner.setEditable(true);
         fixedWidthSpinner.setPrefWidth(100);
@@ -467,13 +468,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         fixedHeightSpinner.setDisable(!useFixedGeometryCheck.isSelected());
         
         HBox sizeBox = new HBox(10);
-        sizeBox.getChildren().addAll(new Label("Breite:"), fixedWidthSpinner, new Label("Höhe:"), fixedHeightSpinner);
+        sizeBox.getChildren().addAll(new Label(I18n.get("settings.window.fixedWidth")), fixedWidthSpinner, new Label(I18n.get("settings.window.fixedHeight")), fixedHeightSpinner);
         
         windowGrid.add(sizeLabel, 0, windowRow);
         windowGrid.add(sizeBox, 1, windowRow++);
         
         // Position
-        Label posLabel = new Label("Position:");
+        Label posLabel = new Label(I18n.get("common.position") + ":");
         fixedXSpinner = new Spinner<>(0, 5000, currentX);
         fixedXSpinner.setEditable(true);
         fixedXSpinner.setPrefWidth(100);
@@ -485,7 +486,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         fixedYSpinner.setDisable(!useFixedGeometryCheck.isSelected());
         
         HBox posBox = new HBox(10);
-        posBox.getChildren().addAll(new Label("X:"), fixedXSpinner, new Label("Y:"), fixedYSpinner);
+        posBox.getChildren().addAll(new Label(I18n.get("settings.window.fixedX")), fixedXSpinner, new Label(I18n.get("settings.window.fixedY")), fixedYSpinner);
         
         windowGrid.add(posLabel, 0, windowRow);
         windowGrid.add(posBox, 1, windowRow++);
@@ -498,14 +499,14 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             fixedYSpinner.setDisable(!newVal);
         });
         
-        Label fixedGeometryInfoLabel = new Label("(Hat Vorrang vor 'Fenstergeometrie merken' - Fenster öffnet immer an angegebener Position)");
+        Label fixedGeometryInfoLabel = new Label(I18n.get("settings.window.fixedGeometry.info"));
         fixedGeometryInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         windowGrid.add(fixedGeometryInfoLabel, 0, windowRow++, 2, 1);
         
         windowTab.setContent(windowGrid);
         
         // Security tab
-        Tab securityTab = new Tab("Sicherheit");
+        Tab securityTab = new Tab(I18n.get("settings.tab.security"));
         GridPane securityGrid = new GridPane();
         securityGrid.setHgap(10);
         securityGrid.setVgap(10);
@@ -513,19 +514,16 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         int securityRow = 0;
         
-        Label securityHeader = new Label("Master-Passwort");
+        Label securityHeader = new Label(I18n.get("settings.security.masterPassword"));
         securityHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
         securityGrid.add(securityHeader, 0, securityRow++, 2, 1);
         
-        Label passwordInfoLabel = new Label(
-            "Das Master-Passwort wird verwendet, um alle gespeicherten Verbindungspasswörter zu verschlüsseln.\n" +
-            "Wenn Sie das Master-Passwort ändern, werden alle gespeicherten Passwörter automatisch neu verschlüsselt."
-        );
+        Label passwordInfoLabel = new Label(I18n.get("settings.security.masterPassword.info"));
         passwordInfoLabel.setWrapText(true);
         passwordInfoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         securityGrid.add(passwordInfoLabel, 0, securityRow++, 2, 1);
         
-        Button changePasswordButton = new Button("Master-Passwort ändern...");
+        Button changePasswordButton = new Button(I18n.get("settings.security.masterPassword.change"));
         changePasswordButton.setOnAction(e -> changeMasterPassword());
         securityGrid.add(changePasswordButton, 0, securityRow++, 2, 1);
         
@@ -533,18 +531,11 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         securityGrid.add(new Separator(), 0, securityRow++, 2, 1);
         
         // Master password on startup option
-        requireMasterPasswordOnStartupCheck = new CheckBox("Master-Passwort beim Programmstart anfordern");
+        requireMasterPasswordOnStartupCheck = new CheckBox(I18n.get("settings.security.masterPassword.requireOnStartup"));
         requireMasterPasswordOnStartupCheck.setSelected(globalSettings != null ? globalSettings.isRequireMasterPasswordOnStartup() : true);
-        requireMasterPasswordOnStartupCheck.setTooltip(new Tooltip(
-            "Wenn deaktiviert, wird beim Programmstart kein Master-Passwort-Dialog angezeigt.\n" +
-            "⚠️ WARNUNG: Dies ist unsicher, da verschlüsselte Daten ohne Passwort-Eingabe nicht entschlüsselt werden können."
-        ));
+        requireMasterPasswordOnStartupCheck.setTooltip(new Tooltip(I18n.get("settings.security.masterPassword.requireOnStartup.tooltip")));
         
-        Label masterPasswordWarningLabel = new Label(
-            "⚠️ WARNUNG: Wenn diese Option deaktiviert ist, können verschlüsselte Passwörter und Schlüssel " +
-            "beim Programmstart nicht automatisch geladen werden. Sie müssen das Master-Passwort manuell " +
-            "eingeben, wenn Sie auf verschlüsselte Daten zugreifen möchten."
-        );
+        Label masterPasswordWarningLabel = new Label(I18n.get("settings.security.masterPassword.warning"));
         masterPasswordWarningLabel.setWrapText(true);
         masterPasswordWarningLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
         masterPasswordWarningLabel.setVisible(!requireMasterPasswordOnStartupCheck.isSelected());
@@ -560,48 +551,46 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         securityTab.setContent(securityGrid);
         
         // Language tab
-        Tab languageTab = new Tab("Sprache");
+        Tab languageTab = new Tab(I18n.get("settings.tab.language"));
         GridPane languageGrid = new GridPane();
         languageGrid.setHgap(10);
         languageGrid.setVgap(10);
         languageGrid.setPadding(new Insets(20));
         
         languageCombo = new ComboBox<>();
-        languageCombo.getItems().add("Auto (System)");
-        languageCombo.getItems().add("English");
-        languageCombo.getItems().add("Deutsch");
-        languageCombo.getItems().add("Italiano");
-        languageCombo.getItems().add("Español");
-        languageCombo.getItems().add("Português");
-        languageCombo.getItems().add("Français");
-        languageCombo.getItems().add("Hrvatski");
-        languageCombo.getItems().add("Nederlands");
+        languageCombo.getItems().add(I18n.get("settings.language.autoDetect"));
+        languageCombo.getItems().add(I18n.get("settings.language.english"));
+        languageCombo.getItems().add(I18n.get("settings.language.german"));
+        languageCombo.getItems().add(I18n.get("settings.language.italian"));
+        languageCombo.getItems().add(I18n.get("settings.language.spanish"));
+        languageCombo.getItems().add(I18n.get("settings.language.portuguese"));
+        languageCombo.getItems().add(I18n.get("settings.language.french"));
+        languageCombo.getItems().add(I18n.get("settings.language.croatian"));
+        languageCombo.getItems().add(I18n.get("settings.language.dutch"));
         
         // Set current language
         String currentLang = globalSettings != null ? globalSettings.getLanguage() : null;
         if (currentLang == null || currentLang.isEmpty()) {
-            languageCombo.setValue("Auto (System)");
+            languageCombo.setValue(I18n.get("settings.language.autoDetect"));
         } else {
             // Map language codes to display names
             switch (currentLang.toLowerCase()) {
-                case "en": languageCombo.setValue("English"); break;
-                case "de": languageCombo.setValue("Deutsch"); break;
-                case "it": languageCombo.setValue("Italiano"); break;
-                case "es": languageCombo.setValue("Español"); break;
-                case "pt": languageCombo.setValue("Português"); break;
-                case "fr": languageCombo.setValue("Français"); break;
-                case "hr": languageCombo.setValue("Hrvatski"); break;
-                case "nl": languageCombo.setValue("Nederlands"); break;
-                default: languageCombo.setValue("Auto (System)");
+                case "en": languageCombo.setValue(I18n.get("settings.language.english")); break;
+                case "de": languageCombo.setValue(I18n.get("settings.language.german")); break;
+                case "it": languageCombo.setValue(I18n.get("settings.language.italian")); break;
+                case "es": languageCombo.setValue(I18n.get("settings.language.spanish")); break;
+                case "pt": languageCombo.setValue(I18n.get("settings.language.portuguese")); break;
+                case "fr": languageCombo.setValue(I18n.get("settings.language.french")); break;
+                case "hr": languageCombo.setValue(I18n.get("settings.language.croatian")); break;
+                case "nl": languageCombo.setValue(I18n.get("settings.language.dutch")); break;
+                default: languageCombo.setValue(I18n.get("settings.language.autoDetect"));
             }
         }
         
-        languageGrid.add(new Label("Sprache auswählen:"), 0, 0);
+        languageGrid.add(new Label(I18n.get("settings.language.select")), 0, 0);
         languageGrid.add(languageCombo, 1, 0);
         
-        Label languageInfo = new Label(
-            "Die Spracheinstellung wird nach dem Neustart der Anwendung wirksam."
-        );
+        Label languageInfo = new Label(I18n.get("settings.language.info"));
         languageInfo.setWrapText(true);
         languageInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         languageGrid.add(languageInfo, 0, 1, 2, 1);
@@ -615,7 +604,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         getDialogPane().setContent(content);
         
         // Buttons
-        ButtonType saveButtonType = new ButtonType("Speichern", ButtonBar.ButtonData.OK_DONE);
+        ButtonType saveButtonType = new ButtonType(I18n.get("settings.save"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
         
         setResultConverter(dialogButton -> {
@@ -665,21 +654,20 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             
             // Save language setting
             String selectedLanguage = languageCombo.getValue();
-            if (selectedLanguage == null || selectedLanguage.equals("Auto (System)")) {
+            String autoDetectText = I18n.get("settings.language.autoDetect");
+            if (selectedLanguage == null || selectedLanguage.equals(autoDetectText)) {
                 globalSettings.setLanguage(null); // null means auto-detect
             } else {
                 // Map display names to language codes
                 String langCode = null;
-                switch (selectedLanguage) {
-                    case "English": langCode = "en"; break;
-                    case "Deutsch": langCode = "de"; break;
-                    case "Italiano": langCode = "it"; break;
-                    case "Español": langCode = "es"; break;
-                    case "Português": langCode = "pt"; break;
-                    case "Français": langCode = "fr"; break;
-                    case "Hrvatski": langCode = "hr"; break;
-                    case "Nederlands": langCode = "nl"; break;
-                }
+                if (selectedLanguage.equals(I18n.get("settings.language.english"))) langCode = "en";
+                else if (selectedLanguage.equals(I18n.get("settings.language.german"))) langCode = "de";
+                else if (selectedLanguage.equals(I18n.get("settings.language.italian"))) langCode = "it";
+                else if (selectedLanguage.equals(I18n.get("settings.language.spanish"))) langCode = "es";
+                else if (selectedLanguage.equals(I18n.get("settings.language.portuguese"))) langCode = "pt";
+                else if (selectedLanguage.equals(I18n.get("settings.language.french"))) langCode = "fr";
+                else if (selectedLanguage.equals(I18n.get("settings.language.croatian"))) langCode = "hr";
+                else if (selectedLanguage.equals(I18n.get("settings.language.dutch"))) langCode = "nl";
                 globalSettings.setLanguage(langCode);
             }
             

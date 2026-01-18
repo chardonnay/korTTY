@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.security.MasterPasswordManager;
+import de.kortty.ui.I18n;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -48,28 +49,28 @@ public class MasterPasswordDialog {
     }
     
     private void setupLoginDialog() {
-        dialog.setTitle("KorTTY - Anmeldung");
+        dialog.setTitle(I18n.get("masterPassword.title"));
         
         VBox root = new VBox(15);
         root.setPadding(new Insets(20));
         root.setAlignment(Pos.CENTER);
         
-        Label titleLabel = new Label("Master-Passwort eingeben");
+        Label titleLabel = new Label(I18n.get("masterPassword.enter"));
         titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
         
         PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Master-Passwort");
+        passwordField.setPromptText(I18n.get("masterPassword.password"));
         passwordField.setPrefWidth(250);
         
         Label errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: red;");
         errorLabel.setVisible(false);
         
-        Button loginButton = new Button("Anmelden");
+        Button loginButton = new Button(I18n.get("masterPassword.loginButton"));
         loginButton.setDefaultButton(true);
         loginButton.setPrefWidth(100);
         
-        Button cancelButton = new Button("Abbrechen");
+        Button cancelButton = new Button(I18n.get("dialog.cancel"));
         cancelButton.setCancelButton(true);
         cancelButton.setPrefWidth(100);
         
@@ -81,7 +82,7 @@ public class MasterPasswordDialog {
         loginButton.setOnAction(e -> {
             String password = passwordField.getText();
             if (password.isEmpty()) {
-                errorLabel.setText("Bitte Passwort eingeben");
+                errorLabel.setText(I18n.get("masterPassword.error.empty"));
                 errorLabel.setVisible(true);
                 return;
             }
@@ -91,13 +92,13 @@ public class MasterPasswordDialog {
                     result = true;
                     dialog.close();
                 } else {
-                    errorLabel.setText("Falsches Passwort");
+                    errorLabel.setText(I18n.get("masterPassword.error.wrong"));
                     errorLabel.setVisible(true);
                     passwordField.clear();
                     passwordField.requestFocus();
                 }
             } catch (Exception ex) {
-                errorLabel.setText("Fehler: " + ex.getMessage());
+                errorLabel.setText(I18n.get("error.title") + ": " + ex.getMessage());
                 errorLabel.setVisible(true);
             }
         });
@@ -113,18 +114,16 @@ public class MasterPasswordDialog {
     }
     
     private void setupSetupDialog() {
-        dialog.setTitle("KorTTY - Master-Passwort einrichten");
+        dialog.setTitle(I18n.get("masterPassword.setup"));
         
         VBox root = new VBox(15);
         root.setPadding(new Insets(20));
         root.setAlignment(Pos.CENTER);
         
-        Label titleLabel = new Label("Master-Passwort einrichten");
+        Label titleLabel = new Label(I18n.get("masterPassword.setup"));
         titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
         
-        Label infoLabel = new Label(
-                "Dieses Passwort wird verwendet, um Ihre\ngespeicherten Verbindungspasswörter zu schützen."
-        );
+        Label infoLabel = new Label(I18n.get("masterPassword.setup.info"));
         infoLabel.setStyle("-fx-text-fill: #666;");
         
         GridPane grid = new GridPane();
@@ -133,16 +132,16 @@ public class MasterPasswordDialog {
         grid.setAlignment(Pos.CENTER);
         
         PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Passwort");
+        passwordField.setPromptText(I18n.get("masterPassword.password"));
         passwordField.setPrefWidth(200);
         
         PasswordField confirmField = new PasswordField();
-        confirmField.setPromptText("Passwort bestätigen");
+        confirmField.setPromptText(I18n.get("masterPassword.confirm"));
         confirmField.setPrefWidth(200);
         
-        grid.add(new Label("Passwort:"), 0, 0);
+        grid.add(new Label(I18n.get("masterPassword.password")), 0, 0);
         grid.add(passwordField, 1, 0);
-        grid.add(new Label("Bestätigen:"), 0, 1);
+        grid.add(new Label(I18n.get("masterPassword.confirm")), 0, 1);
         grid.add(confirmField, 1, 1);
         
         Label errorLabel = new Label();
@@ -152,7 +151,7 @@ public class MasterPasswordDialog {
         // Password strength indicator
         ProgressBar strengthBar = new ProgressBar(0);
         strengthBar.setPrefWidth(200);
-        Label strengthLabel = new Label("Passwortstärke");
+        Label strengthLabel = new Label(I18n.get("masterPassword.strength"));
         
         passwordField.textProperty().addListener((obs, old, newVal) -> {
             double strength = calculatePasswordStrength(newVal);
@@ -167,11 +166,11 @@ public class MasterPasswordDialog {
             }
         });
         
-        Button setupButton = new Button("Einrichten");
+        Button setupButton = new Button(I18n.get("masterPassword.setupButton"));
         setupButton.setDefaultButton(true);
         setupButton.setPrefWidth(100);
         
-        Button cancelButton = new Button("Abbrechen");
+        Button cancelButton = new Button(I18n.get("dialog.cancel"));
         cancelButton.setCancelButton(true);
         cancelButton.setPrefWidth(100);
         
@@ -188,19 +187,19 @@ public class MasterPasswordDialog {
             String confirm = confirmField.getText();
             
             if (password.isEmpty()) {
-                errorLabel.setText("Bitte Passwort eingeben");
+                errorLabel.setText(I18n.get("masterPassword.error.empty"));
                 errorLabel.setVisible(true);
                 return;
             }
             
-            if (password.length() < 6) {
-                errorLabel.setText("Passwort muss mindestens 6 Zeichen haben");
+            if (password.length() < 8) {
+                errorLabel.setText(I18n.get("masterPassword.error.weak"));
                 errorLabel.setVisible(true);
                 return;
             }
             
             if (!password.equals(confirm)) {
-                errorLabel.setText("Passwörter stimmen nicht überein");
+                errorLabel.setText(I18n.get("masterPassword.error.mismatch"));
                 errorLabel.setVisible(true);
                 return;
             }

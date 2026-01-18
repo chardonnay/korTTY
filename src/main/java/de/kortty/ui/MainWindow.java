@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.ui.I18n;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.SSHSession;
 import de.kortty.core.SessionManager;
@@ -76,7 +77,7 @@ public class MainWindow {
         // Create UI components
         this.root = new BorderPane();
         this.tabPane = new TabPane();
-        this.statusLabel = new Label("Bereit");
+        this.statusLabel = new Label(I18n.get("app.ready"));
         this.splitPane = new SplitPane();
         
         setupUI();
@@ -417,30 +418,30 @@ public class MainWindow {
     private void setupMenuBar() {
         MenuBar menuBar = new MenuBar();
         
-        // Datei Menu
-        Menu fileMenu = new Menu("Datei");
+        // File Menu
+        Menu fileMenu = new Menu(I18n.get("menu.file"));
         
-        MenuItem newWindow = new MenuItem("Neues Fenster");
+        MenuItem newWindow = new MenuItem(I18n.get("menu.file.newWindow"));
         newWindow.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         newWindow.setOnAction(e -> openNewWindow());
         
-        MenuItem newTab = new MenuItem("Neuer Tab");
+        MenuItem newTab = new MenuItem(I18n.get("menu.file.newTab"));
         newTab.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
         newTab.setOnAction(e -> showQuickConnect());
         
-        MenuItem openProject = new MenuItem("Projekt öffnen...");
+        MenuItem openProject = new MenuItem(I18n.get("menu.file.openProject"));
         openProject.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
         openProject.setOnAction(e -> openProject());
         
-        MenuItem saveProject = new MenuItem("Projekt speichern...");
+        MenuItem saveProject = new MenuItem(I18n.get("menu.file.saveProject"));
         saveProject.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         saveProject.setOnAction(e -> saveProject());
         
-        MenuItem closeTab = new MenuItem("Tab schließen");
+        MenuItem closeTab = new MenuItem(I18n.get("menu.file.closeTab"));
         closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
         closeTab.setOnAction(e -> closeCurrentTab());
         
-        MenuItem quit = new MenuItem("Beenden");
+        MenuItem quit = new MenuItem(I18n.get("menu.file.quit"));
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
         quit.setOnAction(e -> Platform.exit());
         
@@ -448,97 +449,97 @@ public class MainWindow {
                 openProject, saveProject, new SeparatorMenuItem(),
                 closeTab, new SeparatorMenuItem(), quit);
         
-        // Bearbeiten Menu
-        Menu editMenu = new Menu("Bearbeiten");
+        // Edit Menu
+        Menu editMenu = new Menu(I18n.get("menu.edit"));
         
-        MenuItem copy = new MenuItem("Kopieren");
+        MenuItem copy = new MenuItem(I18n.get("menu.edit.copy"));
         copy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         copy.setOnAction(e -> copyFromTerminal());
         
-        MenuItem paste = new MenuItem("Einfügen");
+        MenuItem paste = new MenuItem(I18n.get("menu.edit.paste"));
         paste.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
         paste.setOnAction(e -> pasteToTerminal());
         
-        MenuItem settings = new MenuItem("Einstellungen...");
+        MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
         settings.setOnAction(e -> showSettings());
         
-        MenuItem createBackup = new MenuItem("Backup erstellen...");
+        MenuItem createBackup = new MenuItem(I18n.get("menu.edit.createBackup"));
         createBackup.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         createBackup.setOnAction(e -> createBackup());
         
         editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), settings, createBackup);
         
-        // Verbindungen Menu
-        Menu connectionsMenu = new Menu("Verbindungen");
+        // Connections Menu
+        Menu connectionsMenu = new Menu(I18n.get("menu.connections"));
         
-        MenuItem quickConnect = new MenuItem("Schnellverbindung...");
+        MenuItem quickConnect = new MenuItem(I18n.get("menu.connections.quickConnect"));
         quickConnect.setOnAction(e -> showQuickConnect());
         
-        MenuItem manageConnections = new MenuItem("Verbindungen verwalten...");
+        MenuItem manageConnections = new MenuItem(I18n.get("menu.connections.manage"));
         manageConnections.setOnAction(e -> showConnectionManager());
         
-        MenuItem importConnections = new MenuItem("Importieren...");
+        MenuItem importConnections = new MenuItem(I18n.get("menu.connections.import"));
         importConnections.setOnAction(e -> importConnections());
         
-        MenuItem exportConnections = new MenuItem("Exportieren...");
+        MenuItem exportConnections = new MenuItem(I18n.get("menu.connections.export"));
         exportConnections.setOnAction(e -> exportConnections());
         
         connectionsMenu.getItems().addAll(quickConnect, manageConnections,
                 new SeparatorMenuItem(), importConnections, exportConnections);
         
-        // Verwaltung Menu
-        Menu managementMenu = new Menu("Verwaltung");
+        // Management Menu
+        Menu managementMenu = new Menu(I18n.get("menu.management"));
         
-        MenuItem manageCredentials = new MenuItem("Zugangsdaten verwalten...");
+        MenuItem manageCredentials = new MenuItem(I18n.get("menu.management.credentials"));
         manageCredentials.setOnAction(e -> showCredentialManagement());
         
-        MenuItem manageGPGKeys = new MenuItem("GPG-Schlüssel verwalten...");
+        MenuItem manageGPGKeys = new MenuItem(I18n.get("menu.management.gpgKeys"));
         manageGPGKeys.setOnAction(e -> showGPGKeyManagement());
         
-        MenuItem manageSSHKeys = new MenuItem("SSH-Keys verwalten...");
+        MenuItem manageSSHKeys = new MenuItem(I18n.get("menu.management.sshKeys"));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
         
         managementMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys);
         
         // Tools Menu
-        Menu sftpMenu = new Menu("Tools");
+        Menu sftpMenu = new Menu(I18n.get("menu.tools"));
         
-        MenuItem openSFTPManager = new MenuItem("SFTP Manager öffnen...");
+        MenuItem openSFTPManager = new MenuItem(I18n.get("menu.tools.sftpManager"));
         openSFTPManager.setOnAction(e -> showSFTPManager());
         
         sftpMenu.getItems().add(openSFTPManager);
         
-        // Ansicht Menu
-        Menu viewMenu = new Menu("Ansicht");
+        // View Menu
+        Menu viewMenu = new Menu(I18n.get("menu.view"));
         
-        CheckMenuItem showDashboard = new CheckMenuItem("Dashboard anzeigen");
+        CheckMenuItem showDashboard = new CheckMenuItem(I18n.get("menu.view.dashboard"));
         showDashboard.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         showDashboard.setOnAction(e -> toggleDashboard(showDashboard.isSelected()));
         
-        MenuItem zoomIn = new MenuItem("Vergrößern");
+        MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
         
-        MenuItem zoomOut = new MenuItem("Verkleinern");
+        MenuItem zoomOut = new MenuItem(I18n.get("menu.view.zoomOut"));
         zoomOut.setAccelerator(new KeyCodeCombination(KeyCode.MINUS, KeyCombination.ALT_DOWN));
         zoomOut.setOnAction(e -> zoomTerminal(-1));
         
-        MenuItem resetZoom = new MenuItem("Zoom zurücksetzen");
+        MenuItem resetZoom = new MenuItem(I18n.get("menu.view.resetZoom"));
         resetZoom.setAccelerator(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.ALT_DOWN));
         resetZoom.setOnAction(e -> resetTerminalZoom());
         
-        MenuItem fullscreen = new MenuItem("Vollbild");
+        MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
         
         viewMenu.getItems().addAll(showDashboard, new SeparatorMenuItem(),
                 zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
         
-        // Hilfe Menu
-        Menu helpMenu = new Menu("Hilfe");
+        // Help Menu
+        Menu helpMenu = new Menu(I18n.get("menu.help"));
         
-        MenuItem about = new MenuItem("Über " + KorTTYApplication.getAppName());
+        MenuItem about = new MenuItem(I18n.get("menu.help.about") + " " + KorTTYApplication.getAppName());
         about.setOnAction(e -> showAbout());
         
         helpMenu.getItems().add(about);
@@ -789,10 +790,10 @@ public class MainWindow {
             String password = getConnectionPassword(connection);
             if (password == null) {
                 TextInputDialog pwDialog = new TextInputDialog();
-                pwDialog.setTitle("Passwort erforderlich");
-                pwDialog.setHeaderText("Passwort für " + connection.getDisplayName());
-                pwDialog.setContentText("Passwort:");
-                pwDialog.getEditor().setPromptText("Passwort eingeben");
+                pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
+                pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
+                pwDialog.setContentText(I18n.get("common.password") + ":");
+                pwDialog.getEditor().setPromptText(I18n.get("dialog.enterPassword"));
                 
                 // Make it a password field
                 pwDialog.showAndWait().ifPresent(pw -> {
@@ -867,9 +868,9 @@ public class MainWindow {
         
         // Show confirmation for active connections
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Fenster schließen");
-        alert.setHeaderText("Aktive SSH-Verbindungen");
-        alert.setContentText("Es gibt " + activeConnections + " aktive SSH-Verbindung(en).\nWirklich schließen?");
+        alert.setTitle(I18n.get("dialog.closeWindow"));
+        alert.setHeaderText(I18n.get("dialog.activeConnections"));
+        alert.setContentText(I18n.get("dialog.activeConnectionsMessage", activeConnections));
         
         return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
@@ -990,7 +991,7 @@ public class MainWindow {
     
     private void openProject() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Projekt öffnen");
+        fileChooser.setTitle(I18n.get("menu.file.openProject"));
         fileChooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("KorTTY Projekte", "*" + ProjectManager.getProjectExtension())
         );
@@ -1010,7 +1011,7 @@ public class MainWindow {
     
     private void saveProject() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Projekt speichern");
+        fileChooser.setTitle(I18n.get("menu.file.saveProject"));
         fileChooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("KorTTY Projekte", "*" + ProjectManager.getProjectExtension())
         );
@@ -1119,7 +1120,7 @@ public class MainWindow {
     
     private void importConnections() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Verbindungen importieren");
+        fileChooser.setTitle(I18n.get("menu.connections.import"));
         
         // Add filters for each importer
         for (ConnectionImporter importer : importers) {
@@ -1180,7 +1181,7 @@ public class MainWindow {
         
         // File chooser
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Verbindungen exportieren als " + exportResult.exporter.getName());
+        fileChooser.setTitle(I18n.get("menu.connections.export") + " " + I18n.get("dialog.as") + " " + exportResult.exporter.getName());
         
         if (exportResult.encryptionType == ExportDialog.EncryptionType.PASSWORD) {
             fileChooser.getExtensionFilters().add(
@@ -1324,11 +1325,11 @@ public class MainWindow {
     
     private void showAbout() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Über " + KorTTYApplication.getAppName());
+        alert.setTitle(I18n.get("dialog.about") + " " + KorTTYApplication.getAppName());
         alert.setHeaderText(KorTTYApplication.getAppName() + " v" + KorTTYApplication.getAppVersion());
-        alert.setContentText("Ein SSH-Client mit Tab-Unterstützung.\n\n" +
-                "Entwickelt mit JavaFX und Apache MINA SSHD.\n\n" +
-                "JMX-Monitoring verfügbar unter:\n" +
+        alert.setContentText(I18n.get("dialog.aboutText") + "\n\n" +
+                I18n.get("dialog.aboutDeveloped") + "\n\n" +
+                I18n.get("dialog.aboutJMX") + "\n" +
                 "de.kortty:type=SSHClient");
         alert.showAndWait();
     }
@@ -1494,15 +1495,15 @@ public class MainWindow {
             if (password == null) {
                 // Ask for password using a simple dialog
                 Dialog<String> pwdDialog = new Dialog<>();
-                pwdDialog.setTitle("Passwort erforderlich");
-                pwdDialog.setHeaderText("Passwort für " + connection.getDisplayName());
+                pwdDialog.setTitle(I18n.get("dialog.passwordRequired"));
+                pwdDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
                 pwdDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
                 
                 PasswordField passwordField = new PasswordField();
-                passwordField.setPromptText("Passwort");
+                passwordField.setPromptText(I18n.get("common.password"));
                 VBox content = new VBox(10);
                 content.setPadding(new javafx.geometry.Insets(20));
-                content.getChildren().addAll(new Label("Bitte geben Sie das Passwort ein:"), passwordField);
+                content.getChildren().addAll(new Label(I18n.get("dialog.pleaseEnterPassword")), passwordField);
                 pwdDialog.getDialogPane().setContent(content);
                 
                 pwdDialog.setResultConverter(buttonType -> {
@@ -1573,12 +1574,12 @@ public class MainWindow {
         String password = getConnectionPassword(connection);
         
         if (password == null) {
-            // Passwort nicht verfügbar, Dialog anzeigen
+            // Password not available, show dialog
             TextInputDialog pwDialog = new TextInputDialog();
-            pwDialog.setTitle("Passwort erforderlich");
-            pwDialog.setHeaderText("Passwort für " + connection.getDisplayName());
-            pwDialog.setContentText("Passwort:");
-            pwDialog.getEditor().setPromptText("Passwort eingeben");
+            pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
+            pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
+            pwDialog.setContentText(I18n.get("common.password") + ":");
+            pwDialog.getEditor().setPromptText(I18n.get("dialog.enterPassword"));
             
             pwDialog.showAndWait().ifPresent(pw -> {
                 if (pw != null && !pw.trim().isEmpty()) {
@@ -1682,7 +1683,7 @@ public class MainWindow {
     private void createBackup() {
         // Show directory chooser
         javafx.stage.DirectoryChooser dirChooser = new javafx.stage.DirectoryChooser();
-        dirChooser.setTitle("Backup-Ziel auswählen");
+        dirChooser.setTitle(I18n.get("backup.selectDestination"));
         
         // Use last backup path as initial directory if available
         String lastPath = app.getGlobalSettingsManager().getSettings().getLastBackupPath();
@@ -1705,7 +1706,7 @@ public class MainWindow {
         javafx.concurrent.Task<java.nio.file.Path> backupTask = new javafx.concurrent.Task<>() {
             @Override
             protected java.nio.file.Path call() throws Exception {
-                updateMessage("Erstelle Backup...");
+                updateMessage(I18n.get("backup.creating"));
                 return app.getBackupManager().createBackup(
                     selectedDir.toPath(),
                     app.getCredentialManager(),
@@ -1721,25 +1722,20 @@ public class MainWindow {
                 long fileSize = java.nio.file.Files.size(backupFile) / 1024; // KB
                 
                 // Determine encryption description
-                String encryptionDesc = "Unbekannt";
+                String encryptionDesc = I18n.get("backup.encryption.unknown");
                 if (app.getGlobalSettingsManager().getSettings().getBackupEncryptionType() 
                     == de.kortty.model.GlobalSettings.BackupEncryptionType.PASSWORD) {
-                    encryptionDesc = "ZIP mit Passwort";
+                    encryptionDesc = I18n.get("backup.encryption.password");
                 } else if (app.getGlobalSettingsManager().getSettings().getBackupEncryptionType() 
                            == de.kortty.model.GlobalSettings.BackupEncryptionType.GPG) {
-                    encryptionDesc = "GPG-Verschlüsselung";
+                    encryptionDesc = I18n.get("backup.encryption.gpg");
                 }
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
-                success.setTitle("Backup erstellt");
-                success.setHeaderText("Backup erfolgreich erstellt");
+                success.setTitle(I18n.get("backup.created"));
+                success.setHeaderText(I18n.get("backup.createdSuccess"));
                 success.setContentText(String.format(
-                    "Backup wurde erstellt:\n\n" +
-                    "Datei: %s\n" +
-                    "Größe: %d KB\n" +
-                    "Verschlüsselung: %s\n\n" +
-                    "Das Backup enthält alle Verbindungen, Zugangsdaten,\n" +
-                    "GPG-Schlüssel und Einstellungen.",
+                    I18n.get("backup.createdMessage"),
                     backupFile.getFileName(),
                     fileSize,
                     encryptionDesc
@@ -1749,7 +1745,7 @@ public class MainWindow {
                 // Save global settings (updated by BackupManager)
                 app.getGlobalSettingsManager().save();
                 
-                updateStatus("Backup erfolgreich erstellt: " + backupFile.getFileName());
+                updateStatus(I18n.get("backup.createdSuccess") + ": " + backupFile.getFileName());
                 
             } catch (Exception ex) {
                 logger.error("Failed to get backup file size", ex);
@@ -1761,14 +1757,14 @@ public class MainWindow {
             logger.error("Backup creation failed", ex);
             
             Alert error = new Alert(Alert.AlertType.ERROR);
-            error.setTitle("Fehler");
-            error.setHeaderText("Backup fehlgeschlagen");
-            error.setContentText("Backup konnte nicht erstellt werden:\n" + ex.getMessage());
+            error.setTitle(I18n.get("error.title"));
+            error.setHeaderText(I18n.get("backup.failed"));
+            error.setContentText(I18n.get("backup.failedMessage") + "\n" + ex.getMessage());
             error.showAndWait();
         });
         
         // Update status and run task
-        updateStatus("Erstelle Backup...");
+        updateStatus(I18n.get("backup.creating"));
         
         Thread thread = new Thread(backupTask);
         thread.setDaemon(true);
@@ -1830,13 +1826,13 @@ public class MainWindow {
         }
         
         // Menu item to create new group
-        MenuItem newGroupItem = new MenuItem("Neue Gruppe...");
+        MenuItem newGroupItem = new MenuItem(I18n.get("group.new"));
         newGroupItem.setOnAction(e -> {
             TextInputDialog dialog = new TextInputDialog();
-            dialog.setTitle("Neue Gruppe");
-            dialog.setHeaderText("Gruppenname eingeben");
-            dialog.setContentText("Gruppenname:");
-            dialog.getEditor().setPromptText("z.B. Production, Development");
+            dialog.setTitle(I18n.get("group.new"));
+            dialog.setHeaderText(I18n.get("group.enterName"));
+            dialog.setContentText(I18n.get("group.name") + ":");
+            dialog.getEditor().setPromptText(I18n.get("group.nameExample"));
             
             dialog.showAndWait().ifPresent(groupName -> {
                 if (groupName != null && !groupName.trim().isEmpty()) {
@@ -1853,12 +1849,12 @@ public class MainWindow {
         // Menu item to rename current group (if tab has a group)
         if (currentGroup != null && !currentGroup.trim().isEmpty()) {
             contextMenu.getItems().add(new SeparatorMenuItem());
-            MenuItem renameGroupItem = new MenuItem("Gruppe umbenennen...");
+            MenuItem renameGroupItem = new MenuItem(I18n.get("group.rename"));
             renameGroupItem.setOnAction(e -> {
                 TextInputDialog dialog = new TextInputDialog(currentGroup);
-                dialog.setTitle("Gruppe umbenennen");
-                dialog.setHeaderText("Neuen Gruppenname eingeben");
-                dialog.setContentText("Neuer Gruppenname:");
+                dialog.setTitle(I18n.get("group.rename"));
+                dialog.setHeaderText(I18n.get("group.enterNewName"));
+                dialog.setContentText(I18n.get("group.newName") + ":");
                 
                 dialog.showAndWait().ifPresent(newGroupName -> {
                     if (newGroupName != null && !newGroupName.trim().isEmpty()) {
