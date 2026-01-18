@@ -54,6 +54,9 @@ public class GlobalSettings {
     @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
     
+    @XmlElement
+    private String language; // Language code (e.g., "en", "de", "fr") - null means auto-detect
+    
     // Default terminal settings for new connections
     @XmlElement
     private ConnectionSettings defaultTerminalSettings;
@@ -184,6 +187,14 @@ public class GlobalSettings {
     
     public void setRequireMasterPasswordOnStartup(boolean requireMasterPasswordOnStartup) {
         this.requireMasterPasswordOnStartup = requireMasterPasswordOnStartup;
+    }
+    
+    public String getLanguage() {
+        return language;
+    }
+    
+    public void setLanguage(String language) {
+        this.language = language;
     }
     
     public ConnectionSettings getDefaultTerminalSettings() {

@@ -146,6 +146,9 @@ public class KorTTYApplication extends Application {
                 // Reload global settings to ensure we have the latest version
                 globalSettingsManager.load();
                 
+                // Initialize language manager with settings
+                de.kortty.core.LanguageManager.getInstance().initialize(globalSettingsManager.getSettings());
+                
                 // Initialize BackupManager after settings are loaded
                 backupManager = new BackupManager(getConfigDirectory(), globalSettingsManager.getSettings());
             } catch (Exception e) {

@@ -80,6 +80,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final Spinner<Integer> fixedXSpinner;
     private final Spinner<Integer> fixedYSpinner;
     
+    // Language settings
+    private final ComboBox<String> languageCombo;
+    
     public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
                           GlobalSettings globalSettings, CredentialManager credentialManager, 
                           GPGKeyManager gpgKeyManager) {
@@ -556,7 +559,56 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         securityTab.setContent(securityGrid);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab);
+        // Language tab
+        Tab languageTab = new Tab("Sprache");
+        GridPane languageGrid = new GridPane();
+        languageGrid.setHgap(10);
+        languageGrid.setVgap(10);
+        languageGrid.setPadding(new Insets(20));
+        
+        languageCombo = new ComboBox<>();
+        languageCombo.getItems().add("Auto (System)");
+        languageCombo.getItems().add("English");
+        languageCombo.getItems().add("Deutsch");
+        languageCombo.getItems().add("Italiano");
+        languageCombo.getItems().add("Español");
+        languageCombo.getItems().add("Português");
+        languageCombo.getItems().add("Français");
+        languageCombo.getItems().add("Hrvatski");
+        languageCombo.getItems().add("Nederlands");
+        
+        // Set current language
+        String currentLang = globalSettings != null ? globalSettings.getLanguage() : null;
+        if (currentLang == null || currentLang.isEmpty()) {
+            languageCombo.setValue("Auto (System)");
+        } else {
+            // Map language codes to display names
+            switch (currentLang.toLowerCase()) {
+                case "en": languageCombo.setValue("English"); break;
+                case "de": languageCombo.setValue("Deutsch"); break;
+                case "it": languageCombo.setValue("Italiano"); break;
+                case "es": languageCombo.setValue("Español"); break;
+                case "pt": languageCombo.setValue("Português"); break;
+                case "fr": languageCombo.setValue("Français"); break;
+                case "hr": languageCombo.setValue("Hrvatski"); break;
+                case "nl": languageCombo.setValue("Nederlands"); break;
+                default: languageCombo.setValue("Auto (System)");
+            }
+        }
+        
+        languageGrid.add(new Label("Sprache auswählen:"), 0, 0);
+        languageGrid.add(languageCombo, 1, 0);
+        
+        Label languageInfo = new Label(
+            "Die Spracheinstellung wird nach dem Neustart der Anwendung wirksam."
+        );
+        languageInfo.setWrapText(true);
+        languageInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        languageGrid.add(languageInfo, 0, 1, 2, 1);
+        
+        languageTab.setContent(languageGrid);
+        
+        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, languageTab);
         
         VBox content = new VBox(tabPane);
         content.setPrefSize(500, 400);
@@ -610,6 +662,27 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         if (globalSettings != null) {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
+            
+            // Save language setting
+            String selectedLanguage = languageCombo.getValue();
+            if (selectedLanguage == null || selectedLanguage.equals("Auto (System)")) {
+                globalSettings.setLanguage(null); // null means auto-detect
+            } else {
+                // Map display names to language codes
+                String langCode = null;
+                switch (selectedLanguage) {
+                    case "English": langCode = "en"; break;
+                    case "Deutsch": langCode = "de"; break;
+                    case "Italiano": langCode = "it"; break;
+                    case "Español": langCode = "es"; break;
+                    case "Português": langCode = "pt"; break;
+                    case "Français": langCode = "fr"; break;
+                    case "Hrvatski": langCode = "hr"; break;
+                    case "Nederlands": langCode = "nl"; break;
+                }
+                globalSettings.setLanguage(langCode);
+            }
+            
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
             
             // Save encryption settings
