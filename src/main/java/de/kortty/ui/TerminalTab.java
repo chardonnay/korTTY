@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.model.ConnectionSettings;
+import de.kortty.ui.I18n;
 import de.kortty.model.ServerConnection;
 import javafx.application.Platform;
 import javafx.scene.control.TabPane;
@@ -36,9 +37,9 @@ public class TerminalTab extends Tab {
             if (terminalView.isConnected() && !settings.isCloseWithoutConfirmation()) {
                 // Show confirmation dialog
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Verbindung schließen");
-                alert.setHeaderText("SSH-Verbindung beenden?");
-                alert.setContentText("Die Verbindung zu " + connection.getDisplayName() + " wird getrennt.");
+                alert.setTitle(I18n.get("dialog.closeConnection"));
+                alert.setHeaderText(I18n.get("dialog.closeConnectionQuestion"));
+                alert.setContentText(I18n.get("dialog.closeConnectionMessage", connection.getDisplayName()));
                 
                 if (alert.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
                     event.consume(); // Cancel the close
