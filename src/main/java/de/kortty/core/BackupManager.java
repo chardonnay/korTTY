@@ -281,4 +281,207 @@ public class BackupManager {
             }
         }
     }
+    
+    /**
+     * Imports a backup from an encrypted backup file.
+     * Supports both password-encrypted ZIP files and GPG-encrypted files.
+     * 
+     * @param backupFile Path to the backup file to import
+     * @param password Password for password-encrypted backups (null if GPG-encrypted)
+     * @param overwriteExisting If true, existing files will be overwritten
+     * @return Number of files imported
+     * @throws Exception if import fails
+     */
+    public int importBackup(Path backupFile, String password, boolean overwriteExisting) throws Exception {
+        logger.info("Importing backup from: {}", backupFile);
+        
+        if (!Files.exists(backupFile)) {
+            throw new Exception("Backup file not found: " + backupFile);
+        }
+        
+        String fileName = backupFile.getFileName().toString().toLowerCase();
+        Path tempZipFile = null;
+        boolean isGPGEncrypted = fileName.endsWith(".gpg");
+        
+        try {
+            // Handle GPG-encrypted backups
+            if (isGPGEncrypted) {
+                tempZipFile = Files.createTempFile("kortty-backup-import-", ".zip");
+                
+                // Decrypt GPG file
+                ProcessBuilder pb = new ProcessBuilder(
+                    "gpg",
+                    "--batch",
+                    "--yes",
+                    "--no-tty",
+                    "--quiet",
+                    "--decrypt",
+                    "--output", tempZipFile.toString(),
+                    backupFile.toString()
+                );
+                
+                pb.redirectErrorStream(true);
+                String osName = System.getProperty("os.name").toLowerCase();
+                File nullFile = new File(osName.contains("win") ? "NUL" : "/dev/null");
+                pb.redirectInput(ProcessBuilder.Redirect.from(nullFile));
+                
+                Process process = pb.start();
+                
+                StringBuilder output = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
+                }
+                
+                int exitCode = process.waitFor();
+                if (exitCode != 0) {
+                    throw new Exception("GPG decryption failed: " + output.toString());
+                }
+                
+                logger.info("GPG decryption successful");
+            } else {
+                tempZipFile = backupFile;
+            }
+            
+            // Extract ZIP file
+            Path extractDir = Files.createTempDirectory("kortty-backup-extract-");
+            try {
+                if (isGPGEncrypted || password != null) {
+                    // Password-protected ZIP
+                    if (password == null) {
+                        throw new Exception("Password required for password-encrypted backup");
+                    }
+                    
+                    ZipFile zipFile = new ZipFile(tempZipFile.toFile(), password.toCharArray());
+                    zipFile.extractAll(extractDir.toString());
+                    logger.info("Extracted password-protected ZIP");
+                } else {
+                    // Unencrypted ZIP (shouldn't happen for backups, but handle it)
+                    try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(
+                            Files.newInputStream(tempZipFile))) {
+                        java.util.zip.ZipEntry entry;
+                        while ((entry = zis.getNextEntry()) != null) {
+                            Path entryPath = extractDir.resolve(entry.getName());
+                            if (entry.isDirectory()) {
+                                Files.createDirectories(entryPath);
+                            } else {
+                                Files.createDirectories(entryPath.getParent());
+                                Files.copy(zis, entryPath, StandardCopyOption.REPLACE_EXISTING);
+                            }
+                            zis.closeEntry();
+                        }
+                    }
+                    logger.info("Extracted unencrypted ZIP");
+                }
+                
+                // Copy files to config directory
+                int filesImported = copyBackupFiles(extractDir, overwriteExisting);
+                
+                logger.info("Backup imported successfully: {} files", filesImported);
+                return filesImported;
+                
+            } finally {
+                // Cleanup extract directory
+                if (Files.exists(extractDir)) {
+                    try (var stream = Files.walk(extractDir)) {
+                        stream.sorted(Comparator.reverseOrder())
+                            .forEach(path -> {
+                                try {
+                                    Files.delete(path);
+                                } catch (IOException e) {
+                                    logger.warn("Failed to delete temp file: {}", path, e);
+                                }
+                            });
+                    }
+                }
+            }
+            
+        } finally {
+            // Cleanup temp GPG decrypted file
+            if (isGPGEncrypted && tempZipFile != null && Files.exists(tempZipFile)) {
+                Files.deleteIfExists(tempZipFile);
+            }
+        }
+    }
+    
+    /**
+     * Copies backup files from extract directory to config directory.
+     */
+    private int copyBackupFiles(Path extractDir, boolean overwriteExisting) throws IOException {
+        int filesImported = 0;
+        
+        // List of files to import
+        String[] filesToImport = {
+            "connections.xml",
+            "credentials.xml",
+            "gpg-keys.xml",
+            "global-settings.xml",
+            "master-password-hash"
+        };
+        
+        // Copy individual files
+        for (String fileName : filesToImport) {
+            Path sourceFile = extractDir.resolve(fileName);
+            if (Files.exists(sourceFile)) {
+                Path targetFile = configDir.resolve(fileName);
+                
+                if (Files.exists(targetFile) && !overwriteExisting) {
+                    logger.debug("Skipping existing file: {}", fileName);
+                    continue;
+                }
+                
+                Files.createDirectories(targetFile.getParent());
+                Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                filesImported++;
+                logger.debug("Imported: {}", fileName);
+            }
+        }
+        
+        // Copy projects directory if it exists
+        Path sourceProjectsDir = extractDir.resolve("projects");
+        if (Files.exists(sourceProjectsDir) && Files.isDirectory(sourceProjectsDir)) {
+            Path targetProjectsDir = configDir.resolve("projects");
+            
+            if (Files.exists(targetProjectsDir) && !overwriteExisting) {
+                logger.debug("Skipping existing projects directory");
+            } else {
+                if (Files.exists(targetProjectsDir)) {
+                    // Delete existing projects directory
+                    try (var stream = Files.walk(targetProjectsDir)) {
+                        stream.sorted(Comparator.reverseOrder())
+                            .forEach(path -> {
+                                try {
+                                    Files.delete(path);
+                                } catch (IOException e) {
+                                    logger.warn("Failed to delete existing project file: {}", path, e);
+                                }
+                            });
+                    }
+                }
+                
+                // Copy projects directory
+                try (var stream = Files.walk(sourceProjectsDir)) {
+                    stream.forEach(source -> {
+                        try {
+                            Path target = targetProjectsDir.resolve(extractDir.relativize(source));
+                            if (Files.isDirectory(source)) {
+                                Files.createDirectories(target);
+                            } else {
+                                Files.createDirectories(target.getParent());
+                                Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+                                filesImported++;
+                            }
+                        } catch (IOException e) {
+                            logger.warn("Failed to copy project file: {}", source, e);
+                        }
+                    });
+                }
+                logger.debug("Imported projects directory");
+            }
+        }
+        
+        return filesImported;
+    }
 }

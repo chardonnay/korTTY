@@ -468,7 +468,10 @@ public class MainWindow {
         createBackup.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         createBackup.setOnAction(e -> createBackup());
         
-        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), settings, createBackup);
+        MenuItem importBackup = new MenuItem(I18n.get("menu.edit.importBackup"));
+        importBackup.setOnAction(e -> importBackup());
+        
+        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), settings, createBackup, importBackup);
         
         // Connections Menu
         Menu connectionsMenu = new Menu(I18n.get("menu.connections"));
@@ -1767,6 +1770,127 @@ public class MainWindow {
         updateStatus(I18n.get("backup.creating"));
         
         Thread thread = new Thread(backupTask);
+        thread.setDaemon(true);
+        thread.start();
+    }
+    
+    /**
+     * Imports a backup from an encrypted backup file.
+     */
+    private void importBackup() {
+        // Show file chooser
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle(I18n.get("backup.import.selectFile"));
+        
+        // Add filters for backup files
+        fileChooser.getExtensionFilters().add(
+            new javafx.stage.FileChooser.ExtensionFilter("Backup Files", "*.zip", "*.gpg")
+        );
+        fileChooser.getExtensionFilters().add(
+            new javafx.stage.FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+        
+        // Use last backup path as initial directory if available
+        String lastPath = app.getGlobalSettingsManager().getSettings().getLastBackupPath();
+        if (lastPath != null) {
+            java.io.File lastDir = new java.io.File(lastPath);
+            if (lastDir.exists() && lastDir.isDirectory()) {
+                fileChooser.setInitialDirectory(lastDir);
+            }
+        } else {
+            // Default to user home
+            fileChooser.setInitialDirectory(new java.io.File(System.getProperty("user.home")));
+        }
+        
+        java.io.File backupFile = fileChooser.showOpenDialog(stage);
+        if (backupFile == null) {
+            return; // User cancelled
+        }
+        
+        // Check if file is GPG-encrypted or password-encrypted
+        String fileName = backupFile.getName().toLowerCase();
+        boolean isGPGEncrypted = fileName.endsWith(".gpg");
+        String password = null;
+        
+        if (!isGPGEncrypted) {
+            // Ask for password
+            javafx.scene.control.TextInputDialog passwordDialog = new javafx.scene.control.TextInputDialog();
+            passwordDialog.setTitle(I18n.get("backup.import.password.title"));
+            passwordDialog.setHeaderText(I18n.get("backup.import.password.header"));
+            passwordDialog.setContentText(I18n.get("backup.import.password.content"));
+            
+            java.util.Optional<String> passwordResult = passwordDialog.showAndWait();
+            if (!passwordResult.isPresent() || passwordResult.get().isEmpty()) {
+                return; // User cancelled or entered empty password
+            }
+            password = passwordResult.get();
+        }
+        
+        // Ask if existing files should be overwritten
+        javafx.scene.control.Alert overwriteDialog = new javafx.scene.control.Alert(
+            javafx.scene.control.Alert.AlertType.CONFIRMATION
+        );
+        overwriteDialog.setTitle(I18n.get("backup.import.overwrite.title"));
+        overwriteDialog.setHeaderText(I18n.get("backup.import.overwrite.header"));
+        overwriteDialog.setContentText(I18n.get("backup.import.overwrite.content"));
+        
+        java.util.Optional<javafx.scene.control.ButtonType> overwriteResult = overwriteDialog.showAndWait();
+        boolean overwriteExisting = overwriteResult.isPresent() && 
+            overwriteResult.get() == javafx.scene.control.ButtonType.OK;
+        
+        // Import backup in background
+        javafx.concurrent.Task<Integer> importTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected Integer call() throws Exception {
+                updateMessage(I18n.get("backup.import.importing"));
+                return app.getBackupManager().importBackup(
+                    backupFile.toPath(),
+                    password,
+                    overwriteExisting
+                );
+            }
+        };
+        
+        importTask.setOnSucceeded(e -> {
+            int filesImported = importTask.getValue();
+            
+            Alert success = new Alert(Alert.AlertType.INFORMATION);
+            success.setTitle(I18n.get("backup.import.success"));
+            success.setHeaderText(I18n.get("backup.import.successHeader"));
+            success.setContentText(String.format(
+                I18n.get("backup.import.successMessage"),
+                filesImported
+            ));
+            success.showAndWait();
+            
+            // Reload all managers to reflect imported data
+            try {
+                app.getConfigManager().load(app.getMasterPasswordManager().getDerivedKey());
+                app.getCredentialManager().load();
+                app.getGpgKeyManager().load();
+                app.getGlobalSettingsManager().load();
+            } catch (Exception ex) {
+                logger.error("Failed to reload managers after backup import", ex);
+            }
+            
+            updateStatus(I18n.get("backup.import.successHeader") + ": " + filesImported + " " + I18n.get("backup.import.files"));
+        });
+        
+        importTask.setOnFailed(e -> {
+            Throwable ex = importTask.getException();
+            logger.error("Backup import failed", ex);
+            
+            Alert error = new Alert(Alert.AlertType.ERROR);
+            error.setTitle(I18n.get("error.title"));
+            error.setHeaderText(I18n.get("backup.import.failed"));
+            error.setContentText(I18n.get("backup.import.failedMessage") + "\n" + ex.getMessage());
+            error.showAndWait();
+        });
+        
+        // Update status and run task
+        updateStatus(I18n.get("backup.import.importing"));
+        
+        Thread thread = new Thread(importTask);
         thread.setDaemon(true);
         thread.start();
     }

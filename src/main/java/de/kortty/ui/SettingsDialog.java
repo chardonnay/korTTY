@@ -618,6 +618,17 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 // Save global settings
                 try {
                     app.getGlobalSettingsManager().save();
+                    
+                    // Update language manager if language was changed
+                    if (globalSettings != null && globalSettings.getLanguage() != null) {
+                        de.kortty.core.LanguageManager.getInstance().setLocale(globalSettings.getLanguage());
+                        de.kortty.ui.I18n.updateLanguageManager();
+                    } else if (globalSettings != null && globalSettings.getLanguage() == null) {
+                        // Auto-detect: use system locale
+                        java.util.Locale systemLocale = java.util.Locale.getDefault();
+                        de.kortty.core.LanguageManager.getInstance().setLocale(systemLocale);
+                        de.kortty.ui.I18n.updateLanguageManager();
+                    }
                 } catch (Exception e) {
                     org.slf4j.LoggerFactory.getLogger(getClass())
                         .error("Failed to save global settings", e);
