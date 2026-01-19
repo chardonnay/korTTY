@@ -480,6 +480,7 @@ public class MainWindow {
         quickConnect.setOnAction(e -> showQuickConnect());
         
         MenuItem manageConnections = new MenuItem(I18n.get("menu.connections.manage"));
+        manageConnections.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN));
         manageConnections.setOnAction(e -> showConnectionManager());
         
         MenuItem importConnections = new MenuItem(I18n.get("menu.connections.import"));

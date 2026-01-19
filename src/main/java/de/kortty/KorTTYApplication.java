@@ -7,6 +7,7 @@ import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.BackupManager;
+import de.kortty.model.GlobalSettings;
 import de.kortty.jmx.SSHClientMonitor;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.ui.MainWindow;
@@ -148,10 +149,14 @@ public class KorTTYApplication extends Application {
                 credentialManager.load();
                 sshKeyManager.load();
                 // Reload global settings to ensure we have the latest version
+                // Note: This reload should preserve the language setting from the file
                 globalSettingsManager.load();
                 
-                // Re-initialize language manager in case settings changed during reload
-                de.kortty.core.LanguageManager.getInstance().initialize(globalSettingsManager.getSettings());
+                // Re-initialize language manager with the loaded settings
+                // This ensures the language from the saved settings is applied
+                GlobalSettings loadedSettings = globalSettingsManager.getSettings();
+                logger.info("Re-initializing language manager with language: '{}'", loadedSettings.getLanguage());
+                de.kortty.core.LanguageManager.getInstance().initialize(loadedSettings);
                 
                 // Initialize BackupManager after settings are loaded
                 backupManager = new BackupManager(getConfigDirectory(), globalSettingsManager.getSettings());
