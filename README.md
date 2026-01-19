@@ -19,6 +19,11 @@ A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
 - **Dashboard State Storage**: Automatic restoration of dashboard state
 - **Backup & Restore**: Create encrypted backups (password or GPG) and import them
 - **Multilanguage Support**: Available in English, German, Italian, Spanish, Portuguese, French, Croatian, and Dutch
+- **Quick Connect**: Fast connection dialog with frequently used connections and group support
+- **SSH Tunnels**: Local and remote port forwarding (SSH tunnels)
+- **Jump Server**: Support for bastion hosts (SSH hopping)
+- **Terminal Logging**: Automatic logging of terminal sessions
+- **GPG Key Management**: Manage GPG keys for backup encryption
 
 ## Requirements
 
@@ -244,6 +249,7 @@ jconsole
 | Ctrl+0 | Reset Zoom |
 | Ctrl+Shift+B | Create Backup |
 | Ctrl+Q | Quit |
+| Ctrl+K | Quick Connect |
 
 ## Configuration Files
 
@@ -381,6 +387,175 @@ Configure backup settings in **Settings → Backup**:
 - **Encryption Type**: Choose between password-protected ZIP or GPG encryption
 - **Credential/GPG Key**: Select the credential or GPG key for encryption
 - **Maximum Backups**: Set how many old backups to keep (0 = unlimited)
+
+## Quick Connect
+
+KorTTY provides a quick connection dialog for fast access to your most frequently used connections:
+
+### Features
+
+- **Frequently Used Connections**: Shows top 10 most frequently used connections as quick-access buttons
+- **Individual Connection**: Connect to a single server with full configuration options
+- **Group Connection**: Open all connections in a selected group at once
+- **Connection History**: Tracks usage count and last used timestamp
+- **Save New Connections**: Option to save new connections directly from the dialog
+
+### Usage
+
+1. **Open Quick Connect**:
+   - **File → Quick Connect...** or press `Ctrl+K`
+   - Or use the menu: **Connections → Quick Connect...**
+
+2. **Quick Access**:
+   - Click on any frequently used connection button at the top
+   - Connection opens immediately with saved credentials
+
+3. **Individual Connection**:
+   - Select "Individual Connection" tab
+   - Choose from saved connections or enter new connection details
+   - Configure authentication, terminal appearance, and other settings
+   - Optionally save the connection for future use
+
+4. **Group Connection**:
+   - Select "Open Group" tab
+   - Choose a group from the list
+   - All connections in the group open in separate tabs
+
+## GPG Key Management
+
+KorTTY provides management for GPG keys used for backup encryption:
+
+### Features
+
+- **Centralized Management**: Manage all GPG keys in one place
+- **System Import**: Import GPG keys directly from your system's GPG keyring
+- **Manual Entry**: Add GPG keys manually with key ID and email
+- **Backup Encryption**: Use GPG keys to encrypt backups instead of password-protected ZIP
+
+### Usage
+
+1. **Add GPG Key**:
+   - **Management → Manage GPG Keys...**
+   - Click "Add" to manually enter key details
+   - Or click "Import from GPG" to import from your system's GPG keyring
+
+2. **Edit/Remove Keys**:
+   - Select a key from the list
+   - Click "Edit" to modify key details
+   - Click "Delete" to remove a key
+
+3. **Use for Backup**:
+   - Configure backup settings in **Settings → Backup**
+   - Select "GPG Encryption" as encryption type
+   - Choose the GPG key to use for encryption
+
+## SSH Tunnels (Port Forwarding)
+
+KorTTY supports SSH port forwarding for secure tunneling:
+
+### Features
+
+- **Local Port Forwarding**: Forward local ports to remote hosts (`-L`)
+- **Remote Port Forwarding**: Forward remote ports to local hosts (`-R`)
+- **Multiple Tunnels**: Configure multiple tunnels per connection
+- **Enable/Disable**: Toggle tunnels on/off without deleting configuration
+
+### Usage
+
+1. **Configure Tunnel**:
+   - When creating/editing a connection, go to "Tunnels" tab
+   - Click "Add Tunnel"
+   - Select tunnel type (Local or Remote)
+   - Enter local host/port and remote host/port
+   - Add optional description
+   - Enable/disable the tunnel as needed
+
+2. **Local Port Forwarding**:
+   - Forwards a local port to a remote host:port
+   - Example: `localhost:8080 → remote-server:80`
+   - Access `localhost:8080` to reach `remote-server:80` through the SSH tunnel
+
+3. **Remote Port Forwarding**:
+   - Forwards a remote port to a local host:port
+   - Example: `remote-server:8080 → localhost:80`
+   - Access `remote-server:8080` to reach `localhost:80` through the SSH tunnel
+
+## Jump Server (Bastion Host)
+
+KorTTY supports SSH hopping through jump servers (bastion hosts):
+
+### Features
+
+- **SSH Hopping**: Connect to servers through an intermediate jump server
+- **Flexible Authentication**: Use password or SSH key for jump server
+- **Auto Command**: Execute commands automatically after connecting to jump server
+
+### Usage
+
+1. **Configure Jump Server**:
+   - When creating/editing a connection, go to "Advanced" tab
+   - Enable "Jump Server"
+   - Enter jump server host, port, and username
+   - Select authentication method (password or SSH key)
+   - Optionally configure auto-command to execute after jump
+
+2. **Connection Flow**:
+   - First connects to the jump server
+   - Then establishes connection to the target server through the jump server
+   - All traffic is routed through the jump server
+
+## Terminal Logging
+
+KorTTY can automatically log terminal sessions for audit and debugging purposes:
+
+### Features
+
+- **Automatic Logging**: Log all terminal output to files
+- **Compressed Storage**: Logs are stored compressed in `~/.kortty/history/`
+- **Per-Connection Configuration**: Enable/disable logging per connection
+- **Timestamped Logs**: Each session creates a timestamped log file
+
+### Usage
+
+1. **Enable Logging**:
+   - When creating/editing a connection, go to "Advanced" tab
+   - Enable "Terminal Logging"
+   - Logs are automatically saved to `~/.kortty/history/`
+
+2. **Log Files**:
+   - Logs are stored as compressed files
+   - Format: `{connection-name}_{timestamp}.log.gz`
+   - Located in `~/.kortty/history/`
+
+## Connection Settings
+
+KorTTY provides advanced connection settings for better control and reliability:
+
+### SSH Keep-Alive
+
+Prevents SSH connections from timing out due to inactivity:
+
+- **Enable/Disable**: Toggle SSH Keep-Alive on/off per connection
+- **Configurable Interval**: Set keep-alive interval (5-600 seconds, default: 60 seconds)
+- **Heartbeat Messages**: Sends SSH_MSG_IGNORE messages at regular intervals to keep connection alive
+
+**Usage:**
+- When creating/editing a connection, go to "Terminal" tab
+- Enable "SSH Keep-Alive"
+- Set the interval in seconds
+- Configure in **Settings → Terminal** for global defaults
+
+### Connection Timeout and Retry
+
+Configure connection behavior for unreliable networks:
+
+- **Connection Timeout**: Maximum time to wait for connection (default: 15 seconds)
+- **Retry Count**: Number of retry attempts on connection failure (default: 4 attempts)
+
+**Usage:**
+- When creating/editing a connection, configure in "Advanced" tab
+- Set connection timeout in seconds
+- Set number of retry attempts
 
 ## Multilanguage Support
 
