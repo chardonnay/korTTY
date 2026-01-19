@@ -24,15 +24,15 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         this.masterPassword = masterPassword;
         this.credentialListView = new ListView<>();
         
-        setTitle("Zugangsdaten-Verwaltung");
-        setHeaderText("Verwalten Sie umgebungsspezifische Zugangsdaten");
+        setTitle(I18n.get("menu.management.credentials"));
+        setHeaderText("Manage environment-specific credentials");
         
         VBox content = new VBox(15);
         content.setPadding(new Insets(20));
         content.setPrefWidth(750);
         content.setPrefHeight(550);
         
-        Label listLabel = new Label("Gespeicherte Zugangsdaten:");
+        Label listLabel = new Label("Stored Credentials:");
         
         credentialListView.setCellFactory(lv -> new ListCell<StoredCredential>() {
             @Override
@@ -55,9 +55,9 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         refreshCredentialList();
         
         HBox buttonBox = new HBox(10);
-        Button addButton = new Button("Hinzufügen");
-        Button editButton = new Button("Bearbeiten");
-        Button removeButton = new Button("Entfernen");
+        Button addButton = new Button(I18n.get("dialog.add"));
+        Button editButton = new Button(I18n.get("dialog.edit"));
+        Button removeButton = new Button(I18n.get("dialog.delete"));
         
         addButton.setOnAction(e -> addCredential());
         editButton.setOnAction(e -> editCredential());
@@ -69,9 +69,9 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         buttonBox.getChildren().addAll(addButton, editButton, removeButton);
         
         Label infoLabel = new Label(
-            "Zugangsdaten können umgebungsspezifisch (Produktion, Entwicklung, Test, Staging) und\n" +
-            "server-spezifisch (über Muster wie '*.example.com' oder '10.0.0.*') hinterlegt werden.\n" +
-            "Diese können später in Verbindungseinstellungen ausgewählt werden."
+            "Credentials can be stored environment-specifically (Production, Development, Test, Staging) and\n" +
+            "server-specifically (via patterns like '*.example.com' or '10.0.0.*').\n" +
+            "These can later be selected in connection settings."
         );
         infoLabel.setWrapText(true);
         infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
@@ -89,7 +89,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
                     return true;
                 } catch (Exception e) {
                     logger.error("Failed to save credentials", e);
-                    showError("Fehler beim Speichern", "Zugangsdaten konnten nicht gespeichert werden: " + e.getMessage());
+                    showError(I18n.get("error.saveFailed"), I18n.get("error.title") + ": " + e.getMessage());
                     return false;
                 }
             }
@@ -110,7 +110,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
                     credentialManager.setPassword(result.credential, result.password, masterPassword);
                 } catch (Exception e) {
                     logger.error("Failed to encrypt password", e);
-                    showError("Fehler", "Passwort konnte nicht verschlüsselt werden: " + e.getMessage());
+                    showError(I18n.get("error.title"), "Password could not be encrypted: " + e.getMessage());
                 }
             }
             refreshCredentialList();
@@ -128,7 +128,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
                         credentialManager.setPassword(result.credential, result.password, masterPassword);
                     } catch (Exception e) {
                         logger.error("Failed to encrypt password", e);
-                        showError("Fehler", "Passwort konnte nicht verschlüsselt werden: " + e.getMessage());
+                        showError(I18n.get("error.title"), "Password could not be encrypted: " + e.getMessage());
                     }
                 }
                 refreshCredentialList();
@@ -140,9 +140,9 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         StoredCredential selected = credentialListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Löschen bestätigen");
-            confirm.setHeaderText("Zugangsdaten löschen");
-            confirm.setContentText("Möchten Sie '" + selected.getName() + "' wirklich löschen?");
+            confirm.setTitle("Confirm Deletion");
+            confirm.setHeaderText("Delete Credential");
+            confirm.setContentText("Do you really want to delete '" + selected.getName() + "'?");
             
             confirm.showAndWait().ifPresent(response -> {
                 if (response == ButtonType.OK) {

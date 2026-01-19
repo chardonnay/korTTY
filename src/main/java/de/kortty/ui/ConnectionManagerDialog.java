@@ -160,14 +160,14 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         treeView.setOnExportGroup(this::exportGroup);
         
         // Buttons - set uniform width for all buttons
-        Button addButton = new Button("Neu...");
-        Button editButton = new Button("Bearbeiten...");
-        Button deleteButton = new Button("Löschen");
-        Button duplicateButton = new Button("Duplizieren");
-        Button exportButton = new Button("Exportieren...");
-        Button importButton = new Button("Importieren...");
-        undoButton = new Button("Rückgängig");
-        renameGroupButton = new Button("Ordner umbenennen");
+        Button addButton = new Button(I18n.get("connectionManager.new"));
+        Button editButton = new Button(I18n.get("connectionManager.edit"));
+        Button deleteButton = new Button(I18n.get("connectionManager.delete"));
+        Button duplicateButton = new Button(I18n.get("connectionManager.duplicate"));
+        Button exportButton = new Button(I18n.get("connectionManager.export"));
+        Button importButton = new Button(I18n.get("connectionManager.import"));
+        undoButton = new Button(I18n.get("connectionManager.undo"));
+        renameGroupButton = new Button(I18n.get("connectionManager.renameFolder"));
         
         // Set uniform width for all buttons
         double buttonWidth = 140;
@@ -345,9 +345,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         }
         
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Verbindungen löschen");
-        confirm.setHeaderText(String.format("%d Verbindung(en) löschen?", filteredConnections.size()));
-        confirm.setContentText("Diese Aktion kann nicht rückgängig gemacht werden.");
+        confirm.setTitle(I18n.get("connection.delete.title"));
+        confirm.setHeaderText(I18n.get("connection.delete.header", filteredConnections.size()));
+        confirm.setContentText(I18n.get("connection.delete.content"));
         
         confirm.showAndWait().ifPresent(result -> {
             if (result == ButtonType.OK) {
@@ -466,10 +466,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             .count();
         
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Ordner löschen");
-        confirm.setHeaderText("Ordner \"" + groupPath.getName() + "\" löschen?");
-        confirm.setContentText(String.format("Dieser Ordner enthält %d Verbindung(en). " +
-            "Alle Verbindungen werden ebenfalls gelöscht.\nDiese Aktion kann nicht rückgängig gemacht werden.", count));
+        confirm.setTitle(I18n.get("connection.deleteFolder.title"));
+        confirm.setHeaderText(I18n.get("connection.deleteFolder.header", groupPath.getName()));
+        confirm.setContentText(I18n.get("connection.deleteFolder.content", count));
         
         confirm.showAndWait().ifPresent(result -> {
             if (result == ButtonType.OK) {
@@ -561,9 +560,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             exportConnections(connectionsInGroup);
         } else {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Keine Verbindungen");
-            alert.setHeaderText("Ordner ist leer");
-            alert.setContentText("Der Ordner \"" + groupPath.getName() + "\" enthält keine Verbindungen.");
+            alert.setTitle("No Connections");
+            alert.setHeaderText("Folder is empty");
+            alert.setContentText(I18n.get("connection.emptyFolder", groupPath.getName()));
             alert.showAndWait();
         }
     }
@@ -669,9 +668,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 saveConnections();
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
-                success.setTitle("Import erfolgreich");
-                success.setHeaderText(String.format("%d Verbindung(en) importiert", successCount));
-                success.setContentText("Die Verbindungen wurden erfolgreich hinzugefügt.");
+                success.setTitle(I18n.get("info.importSuccessful", successCount, ""));
+                success.setHeaderText(String.format("%d connection(s) imported", successCount));
+                success.setContentText(I18n.get("info.importSuccessful", successCount, ""));
                 success.showAndWait();
             } catch (Exception e) {
                 Alert error = new Alert(Alert.AlertType.ERROR);
@@ -728,9 +727,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 
                 int exitCode = process.waitFor();
                 if (exitCode != 0) {
-                    throw new Exception("GPG-Entschlüsselung fehlgeschlagen (Exit Code: " + exitCode + ")\n" +
-                                       "Output: " + output.toString() + "\n" +
-                                       "Stellen Sie sicher, dass GPG installiert ist und der Schlüssel verfügbar ist.");
+                    throw new Exception(I18n.get("error.gpgEncryptionFailed", exitCode, output.toString(), "key"));
                 }
                 
                 // After GPG decryption, we should have a ZIP file
@@ -748,8 +745,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 if (zipFile.isEncrypted()) {
                     // Ask for password using custom dialog with password field and stored credentials
                     Dialog<String> passwordDialog = new Dialog<>();
-                    passwordDialog.setTitle("ZIP-Passwort erforderlich");
-                    passwordDialog.setHeaderText("Das ZIP-Archiv ist passwortgeschützt");
+                    passwordDialog.setTitle(I18n.get("dialog.passwordRequired"));
+                    passwordDialog.setHeaderText("The ZIP archive is password protected");
                     passwordDialog.initModality(Modality.WINDOW_MODAL);
                     passwordDialog.initOwner(owner);
                     
@@ -758,14 +755,14 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                     grid.setVgap(10);
                     grid.setPadding(new javafx.geometry.Insets(20));
                     
-                    Label passwordLabel = new Label("Passwort:");
+                    Label passwordLabel = new Label(I18n.get("common.password") + ":");
                     PasswordField passwordField = new PasswordField();
-                    passwordField.setPromptText("ZIP-Passwort eingeben");
+                    passwordField.setPromptText(I18n.get("dialog.enterPassword"));
                     passwordField.setPrefWidth(300);
                     
-                    Label storedLabel = new Label("Oder auswählen:");
+                    Label storedLabel = new Label("Or select:");
                     ComboBox<StoredCredential> storedCredentialCombo = new ComboBox<>();
-                    storedCredentialCombo.setPromptText("Gespeichertes Passwort auswählen...");
+                    storedCredentialCombo.setPromptText("Select stored password...");
                     storedCredentialCombo.setPrefWidth(300);
                     
                     storedCredentialCombo.setCellFactory(lv -> new ListCell<StoredCredential>() {
@@ -799,10 +796,10 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                             } catch (Exception e) {
                                 logger.warn("Failed to decrypt password for credential: {}", newVal.getName(), e);
                                 Alert alert = new Alert(Alert.AlertType.WARNING);
-                                alert.setTitle("Passwort-Entschlüsselung fehlgeschlagen");
-                                alert.setHeaderText("Das gespeicherte Passwort konnte nicht entschlüsselt werden");
-                                alert.setContentText("Bitte geben Sie das Passwort manuell ein.\n\n" + 
-                                                   "Fehler: " + e.getMessage());
+                                alert.setTitle(I18n.get("error.title"));
+                                alert.setHeaderText("Stored password could not be decrypted");
+                                alert.setContentText("Please enter the password manually.\n\n" + 
+                                                   "Error: " + e.getMessage());
                                 alert.showAndWait();
                                 passwordField.clear();
                             }
@@ -842,7 +839,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                     
                     Optional<String> passwordOpt = passwordDialog.showAndWait();
                     if (!passwordOpt.isPresent() || passwordOpt.get().trim().isEmpty()) {
-                        throw new Exception("ZIP-Entschlüsselung abgebrochen: Kein Passwort eingegeben");
+                        throw new Exception("ZIP decryption cancelled: No password entered");
                     }
                     
                     zipFile.setPassword(passwordOpt.get().toCharArray());

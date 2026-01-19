@@ -8,26 +8,31 @@ import de.kortty.core.LanguageManager;
  */
 public class I18n {
     
-    private static LanguageManager languageManager = LanguageManager.getInstance();
-    
     /**
      * Gets a translated string for the given key.
+     * Always uses the current LanguageManager instance to ensure
+     * the correct language is used even after language changes.
      */
     public static String get(String key) {
-        return languageManager.getString(key);
+        return LanguageManager.getInstance().getString(key);
     }
     
     /**
      * Gets a translated string with parameters.
+     * Always uses the current LanguageManager instance to ensure
+     * the correct language is used even after language changes.
      */
     public static String get(String key, Object... args) {
-        return languageManager.getString(key, args);
+        return LanguageManager.getInstance().getString(key, args);
     }
     
     /**
      * Updates the language manager reference (used when language changes).
+     * This method is kept for backwards compatibility but is no longer needed
+     * since get() always uses the current instance.
      */
+    @Deprecated
     public static void updateLanguageManager() {
-        languageManager = LanguageManager.getInstance();
+        // No-op: get() always uses LanguageManager.getInstance() directly
     }
 }

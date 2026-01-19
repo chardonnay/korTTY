@@ -109,6 +109,10 @@ public class KorTTYApplication extends Application {
             // Load global settings first (they are not encrypted) to check if master password is required
             try {
                 globalSettingsManager.load();
+                
+                // Initialize language manager EARLY with settings, before any UI is created
+                // This ensures the correct language is used from the start
+                de.kortty.core.LanguageManager.getInstance().initialize(globalSettingsManager.getSettings());
             } catch (Exception e) {
                 logger.warn("Failed to load global settings, using defaults", e);
             }
@@ -146,7 +150,7 @@ public class KorTTYApplication extends Application {
                 // Reload global settings to ensure we have the latest version
                 globalSettingsManager.load();
                 
-                // Initialize language manager with settings
+                // Re-initialize language manager in case settings changed during reload
                 de.kortty.core.LanguageManager.getInstance().initialize(globalSettingsManager.getSettings());
                 
                 // Initialize BackupManager after settings are loaded
@@ -163,7 +167,7 @@ public class KorTTYApplication extends Application {
             
         } catch (Exception e) {
             logger.error("Failed to start application", e);
-            showErrorAndExit("Fehler beim Starten der Anwendung: " + e.getMessage());
+            showErrorAndExit(de.kortty.ui.I18n.get("error.title") + ": " + e.getMessage());
         }
     }
     
@@ -238,7 +242,7 @@ public class KorTTYApplication extends Application {
     
     private void showErrorAndExit(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Fehler");
+        alert.setTitle(de.kortty.ui.I18n.get("error.title"));
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();

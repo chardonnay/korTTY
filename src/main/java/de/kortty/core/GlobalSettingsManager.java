@@ -47,7 +47,7 @@ public class GlobalSettingsManager {
             );
             Unmarshaller unmarshaller = context.createUnmarshaller();
             this.settings = (GlobalSettings) unmarshaller.unmarshal(settingsFile.toFile());
-            logger.info("Loaded global settings from {}", settingsFile);
+            logger.info("Loaded global settings from {} - language: '{}'", settingsFile, this.settings.getLanguage());
         } catch (Exception e) {
             logger.error("Failed to load settings, using defaults", e);
             this.settings = new GlobalSettings();

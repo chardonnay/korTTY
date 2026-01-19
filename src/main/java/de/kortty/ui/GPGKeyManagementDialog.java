@@ -29,8 +29,8 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
         this.keyManager = keyManager;
         this.keyListView = new ListView<>();
         
-        setTitle("GPG-Schlüsselverwaltung");
-        setHeaderText("Verwalten Sie Ihre GPG-Schlüssel für verschlüsselte Exporte");
+        setTitle(I18n.get("gpg.title"));
+        setHeaderText(I18n.get("gpg.header"));
         
         // Create UI
         VBox content = new VBox(15);
@@ -39,7 +39,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
         content.setPrefHeight(500);
         
         // Key list
-        Label listLabel = new Label("Gespeicherte GPG-Schlüssel:");
+        Label listLabel = new Label(I18n.get("gpg.storedKeys"));
         
         keyListView.setCellFactory(lv -> new ListCell<GPGKey>() {
             @Override
@@ -60,10 +60,10 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
         
         // Buttons
         HBox buttonBox = new HBox(10);
-        Button addButton = new Button("Hinzufügen");
-        Button editButton = new Button("Bearbeiten");
-        Button removeButton = new Button("Entfernen");
-        Button importButton = new Button("Aus GPG importieren");
+        Button addButton = new Button(I18n.get("gpg.add"));
+        Button editButton = new Button(I18n.get("dialog.edit"));
+        Button removeButton = new Button(I18n.get("dialog.delete"));
+        Button importButton = new Button(I18n.get("gpg.import"));
         
         addButton.setOnAction(e -> addKey());
         editButton.setOnAction(e -> editKey());
@@ -76,10 +76,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
         buttonBox.getChildren().addAll(addButton, editButton, removeButton, importButton);
         
         // Info text
-        Label infoLabel = new Label(
-            "GPG-Schlüssel werden für die Verschlüsselung von Exporten verwendet.\n" +
-            "Sie können Schlüssel manuell hinzufügen oder aus Ihrer GPG-Installation importieren."
-        );
+        Label infoLabel = new Label(I18n.get("gpg.info"));
         infoLabel.setWrapText(true);
         infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         
@@ -96,7 +93,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
                     return true;
                 } catch (Exception e) {
                     logger.error("Failed to save GPG keys", e);
-                    showError("Fehler beim Speichern", "GPG-Schlüssel konnten nicht gespeichert werden: " + e.getMessage());
+                    showError(I18n.get("error.saveFailed"), "GPG keys could not be saved: " + e.getMessage());
                     return false;
                 }
             }
@@ -131,9 +128,9 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
         GPGKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Löschen bestätigen");
-            confirm.setHeaderText("GPG-Schlüssel löschen");
-            confirm.setContentText("Möchten Sie den Schlüssel '" + selected.getName() + "' wirklich löschen?");
+            confirm.setTitle(I18n.get("gpg.deleteConfirm.title"));
+            confirm.setHeaderText(I18n.get("gpg.deleteConfirm.header"));
+            confirm.setContentText(I18n.get("gpg.deleteConfirm.content", selected.getName()));
             
             confirm.showAndWait().ifPresent(response -> {
                 if (response == ButtonType.OK) {
@@ -186,27 +183,27 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
             process.waitFor();
             
             if (importedKeys.isEmpty()) {
-                showInfo("Keine Schlüssel gefunden", "Es wurden keine GPG-Schlüssel auf Ihrem System gefunden.");
+                showInfo(I18n.get("gpg.importNoKeys"), I18n.get("gpg.importNoKeysMessage"));
             } else {
                 // Show selection dialog
                 ChoiceDialog<GPGKey> dialog = new ChoiceDialog<>(importedKeys.get(0), importedKeys);
-                dialog.setTitle("GPG-Schlüssel importieren");
-                dialog.setHeaderText("Wählen Sie einen Schlüssel zum Importieren");
-                dialog.setContentText("Schlüssel:");
+                dialog.setTitle(I18n.get("gpg.import.title"));
+                dialog.setHeaderText(I18n.get("gpg.import.header"));
+                dialog.setContentText(I18n.get("gpg.import.content"));
                 
                 dialog.showAndWait().ifPresent(selectedKey -> {
                     keyManager.addKey(selectedKey);
                     refreshKeyList();
-                    showInfo("Import erfolgreich", "Schlüssel wurde erfolgreich importiert.");
+                    showInfo(I18n.get("gpg.import.successful"), I18n.get("gpg.import.successfulMessage"));
                 });
             }
             
         } catch (Exception e) {
             logger.error("Failed to import GPG keys", e);
-            showError("Import fehlgeschlagen", 
-                "GPG-Schlüssel konnten nicht importiert werden.\n" +
-                "Stellen Sie sicher, dass GPG installiert ist.\n\n" +
-                "Fehler: " + e.getMessage());
+            showError(I18n.get("error.importFailed"), 
+                I18n.get("gpg.import.failed", 
+                "Please ensure GPG is installed.\n\n" +
+                "Error: " + e.getMessage()));
         }
     }
     

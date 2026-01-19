@@ -187,7 +187,7 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         gpgPane.add(gpgKeyCombo, 1, 0);
         GridPane.setHgrow(gpgKeyCombo, Priority.ALWAYS);
         
-        // Wenn keine GPG-Schlüssel vorhanden, deaktiviere GPG-Option
+        // If no GPG keys are available, disable GPG option
         if (gpgKeyCombo.getItems().isEmpty()) {
             gpgEncryptionRadio.setDisable(true);
             Label noKeysLabel = new Label("(Keine GPG-Schlüssel vorhanden)");

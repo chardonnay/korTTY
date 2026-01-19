@@ -1,27 +1,29 @@
 # KorTTY - SSH Client
 
-Ein moderner SSH-Client mit JavaFX-Oberfläche, Tab-Unterstützung und JMX-Monitoring.
+A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
 
 ## Features
 
-- **GUI-basiert**: Moderne JavaFX-Oberfläche mit dunklem Theme
-- **Tab-Unterstützung**: Mehrere SSH-Verbindungen in einem Fenster
-- **Multi-Window**: Öffnen Sie mehrere Fenster für verschiedene Projekte
-- **Verschlüsselte Passwörter**: AES-256-GCM Verschlüsselung mit Master-Passwort
-- **SSH-Key-Verwaltung**: Zentrale Verwaltung privater SSH-Keys mit verschlüsselten Passphrases
-- **Einstellbare Darstellung**: Schriftgröße, Farben (global oder pro Verbindung)
-- **Projekt-Management**: Speichern und laden Sie Verbindungs-Sets mit Historie
-- **Import/Export**: Importieren Sie Verbindungen von MTPuTTY und MobaXterm
-- **JMX-Monitoring**: Überwachen Sie aktive Verbindungen, Speicherverbrauch, etc.
-- **Dashboard**: Übersicht aller geöffneten Verbindungen im Projekt
-- **SFTP Manager**: Dateiübertragung zwischen lokalem System und entfernten Servern
-- **Fenstergeometrie-Speicherung**: Automatische Wiederherstellung von Fensterposition und -größe
-- **Dashboard-Status-Speicherung**: Automatische Wiederherstellung des Dashboard-Zustands
+- **GUI-based**: Modern JavaFX interface with dark theme
+- **Tab Support**: Multiple SSH connections in one window
+- **Multi-Window**: Open multiple windows for different projects
+- **Encrypted Passwords**: AES-256-GCM encryption with master password
+- **SSH Key Management**: Centralized management of private SSH keys with encrypted passphrases
+- **Customizable Display**: Font size, colors (global or per connection)
+- **Project Management**: Save and load connection sets with history
+- **Import/Export**: Import connections from MTPuTTY, MobaXterm, and PuTTY Connection Manager
+- **JMX Monitoring**: Monitor active connections, memory usage, etc.
+- **Dashboard**: Overview of all open connections in the project
+- **SFTP Manager**: File transfer between local system and remote servers
+- **Window Geometry Storage**: Automatic restoration of window position and size
+- **Dashboard State Storage**: Automatic restoration of dashboard state
+- **Backup & Restore**: Create encrypted backups (password or GPG) and import them
+- **Multilanguage Support**: Available in English, German, Italian, Spanish, Portuguese, French, Croatian, and Dutch
 
-## Voraussetzungen
+## Requirements
 
-- Java 25 oder höher
-- Gradle 9.x (wird automatisch über den Wrapper heruntergeladen)
+- Java 25 or higher
+- Gradle 9.x (automatically downloaded via wrapper)
 
 ## Build
 
@@ -29,52 +31,52 @@ Ein moderner SSH-Client mit JavaFX-Oberfläche, Tab-Unterstützung und JMX-Monit
 ./gradlew build
 ```
 
-## Ausführen
+## Run
 
 ```bash
 ./gradlew run
 ```
 
-## Native Release erstellen
+## Create Native Release
 
-KorTTY kann mit `jpackage` als native App für macOS, Windows und Linux gebaut werden. Die Build-Tasks erkennen automatisch das Betriebssystem und erstellen die passende Distribution.
+KorTTY can be built with `jpackage` as a native app for macOS, Windows, and Linux. The build tasks automatically detect the operating system and create the appropriate distribution.
 
-### Voraussetzungen
+### Requirements
 
-- **Java 25 oder höher** (mit jpackage Tool)
-- **Plattform-spezifisch:**
-  - **macOS**: Xcode Command Line Tools (für Code-Signing, optional)
-  - **Windows**: WiX Toolset (für MSI-Installer, optional)
-  - **Linux**: fakeroot, rpmbuild oder dpkg (für DEB/RPM Packages, optional)
+- **Java 25 or higher** (with jpackage tool)
+- **Platform-specific:**
+  - **macOS**: Xcode Command Line Tools (for code signing, optional)
+  - **Windows**: WiX Toolset (for MSI installer, optional)
+  - **Linux**: fakeroot, rpmbuild or dpkg (for DEB/RPM packages, optional)
 
 ### macOS
 
-#### App (.app) erstellen
+#### Create App (.app)
 
-Erstellt eine eigenständige macOS App:
+Creates a standalone macOS app:
 
 ```bash
 ./gradlew jpackage
 ```
 
-Die erstellte App befindet sich unter:
+The created app is located at:
 ```
 build/jpackage/korTTY.app
 ```
 
 **Installation:**
-- Per Drag & Drop in `/Applications` kopieren
-- Oder direkt aus `build/jpackage/` starten
+- Drag & drop into `/Applications`
+- Or run directly from `build/jpackage/`
 
-#### DMG Installer erstellen
+#### Create DMG Installer
 
-Erstellt einen DMG Installer:
+Creates a DMG installer:
 
 ```bash
 ./gradlew jpackageDmg
 ```
 
-Die DMG-Datei befindet sich unter:
+The DMG file is located at:
 ```
 build/jpackage/korTTY-1.1.0.dmg
 ```
@@ -83,68 +85,68 @@ build/jpackage/korTTY-1.1.0.dmg
 
 ### Windows
 
-#### App (.exe) erstellen
+#### Create App (.exe)
 
-Erstellt eine eigenständige Windows App:
+Creates a standalone Windows app:
 
 ```bash
 gradlew.bat jpackage
 ```
 
-Die App befindet sich unter:
+The app is located at:
 ```
 build\jpackage\korTTY\
 ```
 
 **Features:**
-- Windows Startmenü-Eintrag
-- Desktop-Verknüpfung
-- Installationsverzeichnis-Auswahl
+- Windows Start menu entry
+- Desktop shortcut
+- Installation directory selection
 
-#### MSI Installer erstellen
+#### Create MSI Installer
 
-Erstellt einen MSI Installer (erfordert WiX Toolset):
+Creates an MSI installer (requires WiX Toolset):
 
 ```bash
 gradlew.bat jpackageMsi
 ```
 
-Die MSI-Datei befindet sich unter:
+The MSI file is located at:
 ```
 build\jpackage\korTTY-1.1.0.msi
 ```
 
-**Icon:** `src/main/resources/icon/kortty_icon.ico` (falls vorhanden, sonst PNG)
+**Icon:** `src/main/resources/icon/kortty_icon.ico` (if available, otherwise PNG)
 
 ### Linux
 
-#### App-Image erstellen
+#### Create App Image
 
-Erstellt ein eigenständiges App-Image:
+Creates a standalone app image:
 
 ```bash
 ./gradlew jpackage
 ```
 
-Das App-Image befindet sich unter:
+The app image is located at:
 ```
 build/jpackage/korTTY/
 ```
 
-**Ausführung:**
+**Execution:**
 ```bash
 ./build/jpackage/korTTY/bin/korTTY
 ```
 
-#### DEB Package erstellen
+#### Create DEB Package
 
-Erstellt ein Debian/Ubuntu Package (erfordert dpkg):
+Creates a Debian/Ubuntu package (requires dpkg):
 
 ```bash
 ./gradlew jpackageDeb
 ```
 
-Das DEB-Package befindet sich unter:
+The DEB package is located at:
 ```
 build/jpackage/korTTY-1.1.0.deb
 ```
@@ -154,15 +156,15 @@ build/jpackage/korTTY-1.1.0.deb
 sudo dpkg -i build/jpackage/korTTY-1.1.0.deb
 ```
 
-#### RPM Package erstellen
+#### Create RPM Package
 
-Erstellt ein Red Hat/Fedora Package (erfordert rpmbuild):
+Creates a Red Hat/Fedora package (requires rpmbuild):
 
 ```bash
 ./gradlew jpackageRpm
 ```
 
-Das RPM-Package befindet sich unter:
+The RPM package is located at:
 ```
 build/jpackage/korTTY-1.1.0.rpm
 ```
@@ -174,210 +176,274 @@ sudo rpm -i build/jpackage/korTTY-1.1.0.rpm
 
 **Icon:** `src/main/resources/icon/kortty_icon.png`
 
-### Technische Details
+### Technical Details
 
-- **Launcher-Klasse**: Die App verwendet `de.kortty.Launcher` als Entry-Point, um JavaFX Runtime-Checks zu umgehen
-- **Gebündelte JVM**: Die App enthält eine vollständige JVM (ca. 150-200 MB)
-- **Plattform-Erkennung**: Build-Tasks erkennen automatisch das Betriebssystem
-- **Dependencies**: Alle Dependencies (JavaFX, Apache SSHD, etc.) werden automatisch eingebunden
-- **Icon-Verwaltung**: Das korTTY Icon wird immer verwendet:
-  - **macOS**: `kortty_icon.icns` (Fallback: `kortty_icon.png`)
-  - **Windows**: `kortty_icon.ico` (Fallback: `kortty_icon.png`)
-  - **Linux**: `kortty_icon.png` (erforderlich)
+- **Launcher Class**: The app uses `de.kortty.Launcher` as entry point to bypass JavaFX runtime checks
+- **Bundled JVM**: The app contains a complete JVM (approx. 150-200 MB)
+- **Platform Detection**: Build tasks automatically detect the operating system
+- **Dependencies**: All dependencies (JavaFX, Apache SSHD, etc.) are automatically bundled
+- **Icon Management**: The KorTTY icon is always used:
+  - **macOS**: `kortty_icon.icns` (fallback: `kortty_icon.png`)
+  - **Windows**: `kortty_icon.ico` (fallback: `kortty_icon.png`)
+  - **Linux**: `kortty_icon.png` (required)
 
 ### Troubleshooting
 
-**macOS - App öffnet nicht:**
-- System-Logs prüfen: `log show --predicate 'process == "korTTY"' --last 5m`
-- App direkt testen: `build/jpackage/korTTY.app/Contents/MacOS/korTTY`
+**macOS - App won't open:**
+- Check system logs: `log show --predicate 'process == "korTTY"' --last 5m`
+- Test app directly: `build/jpackage/korTTY.app/Contents/MacOS/korTTY`
 
-**macOS - Gatekeeper-Warnung:**
-- Nicht signierte Apps zeigen eine Warnung beim ersten Start
-- Rechtsklick → "Öffnen" umgeht die Warnung
-- Für Verteilung: App mit Developer-ID signieren (erfordert Apple Developer Account)
+**macOS - Gatekeeper warning:**
+- Unsigned apps show a warning on first launch
+- Right-click → "Open" bypasses the warning
+- For distribution: Sign app with Developer ID (requires Apple Developer account)
 
-**Windows - MSI Build fehlgeschlagen:**
-- WiX Toolset installieren: https://wixtoolset.org/
-- WiX bin-Verzeichnis zum PATH hinzufügen
+**Windows - MSI build failed:**
+- Install WiX Toolset: https://wixtoolset.org/
+- Add WiX bin directory to PATH
 
-**Linux - DEB/RPM Build fehlgeschlagen:**
+**Linux - DEB/RPM build failed:**
 - DEB: `sudo apt-get install fakeroot dpkg-dev`
-- RPM: `sudo yum install rpm-build` oder `sudo dnf install rpm-build`
+- RPM: `sudo yum install rpm-build` or `sudo dnf install rpm-build`
 
-## JMX-Monitoring
+## JMX Monitoring
 
-Der SSH-Client registriert ein JMX MBean unter `de.kortty:type=SSHClient`.
+The SSH client registers a JMX MBean under `de.kortty:type=SSHClient`.
 
-Verfügbare Attribute:
-- `ActiveConnectionCount`: Anzahl aktiver Verbindungen
-- `UsedMemoryBytes`: Verwendeter Speicher
-- `BufferedTextSize`: Größe des gepufferten Terminal-Texts
-- `ActiveConnectionNames`: Liste der aktiven Verbindungsnamen
-- `UptimeSeconds`: Laufzeit der Anwendung
+Available attributes:
+- `ActiveConnectionCount`: Number of active connections
+- `UsedMemoryBytes`: Used memory
+- `BufferedTextSize`: Size of buffered terminal text
+- `ActiveConnectionNames`: List of active connection names
+- `UptimeSeconds`: Application uptime
 
-Um das JMX-Monitoring zu nutzen, starten Sie die Anwendung mit:
+To use JMX monitoring, start the application with:
 ```bash
 ./gradlew run --args="-Dcom.sun.management.jmxremote"
 ```
 
-Oder verbinden Sie sich mit JConsole:
+Or connect with JConsole:
 ```bash
 jconsole
 ```
 
-## Tastenkürzel
+## Keyboard Shortcuts
 
-| Tastenkürzel | Aktion |
-|--------------|--------|
-| Ctrl+T | Neuer Tab |
-| Ctrl+Shift+N | Neues Fenster |
-| Ctrl+W | Tab schließen |
-| Ctrl+Tab | Nächster Tab |
-| Ctrl+Shift+Tab | Vorheriger Tab |
-| Ctrl+O | Projekt öffnen |
-| Ctrl+S | Projekt speichern |
-| Ctrl+Shift+D | Dashboard ein/aus |
-| Ctrl+Plus | Vergrößern |
-| Ctrl+Minus | Verkleinern |
-| Ctrl+0 | Zoom zurücksetzen |
-| Ctrl+Q | Beenden |
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+T | New Tab |
+| Ctrl+Shift+N | New Window |
+| Ctrl+W | Close Tab |
+| Ctrl+Tab | Next Tab |
+| Ctrl+Shift+Tab | Previous Tab |
+| Ctrl+O | Open Project |
+| Ctrl+S | Save Project |
+| Ctrl+Shift+D | Toggle Dashboard |
+| Ctrl+Plus | Zoom In |
+| Ctrl+Minus | Zoom Out |
+| Ctrl+0 | Reset Zoom |
+| Ctrl+Shift+B | Create Backup |
+| Ctrl+Q | Quit |
 
-## Konfigurationsdateien
+## Configuration Files
 
-Alle Konfigurationsdateien werden unter `~/.kortty/` gespeichert:
+All configuration files are stored under `~/.kortty/`:
 
 ```
 ~/.kortty/
-├── config.xml           # Globale Einstellungen
-├── connections.xml      # Gespeicherte Verbindungen
-├── credentials.xml      # Gespeicherte Zugangsdaten
-├── ssh-keys.xml         # SSH-Key-Verwaltung
-├── gpg-keys.xml         # GPG-Schlüssel für Backup-Verschlüsselung
-├── global-settings.xml  # Globale Anwendungseinstellungen
-├── master.key           # Master-Passwort-Hash
-├── kortty.log           # Log-Datei
-├── history/             # Terminal-Historie (komprimiert)
-├── projects/            # Projektdateien (.kortty)
-└── ssh-keys/            # Kopierte SSH-Keys (optional)
+├── connections.xml      # Saved connections
+├── credentials.xml     # Stored credentials
+├── ssh-keys.xml        # SSH key management
+├── gpg-keys.xml        # GPG keys for backup encryption
+├── global-settings.xml # Global application settings
+├── master-password-hash # Master password hash
+├── kortty.log          # Log file
+├── history/            # Terminal history (compressed)
+├── projects/           # Project files (.kortty)
+└── ssh-keys/           # Copied SSH keys (optional)
 ```
 
-## Import von anderen Programmen
+## Import from Other Programs
 
 ### MTPuTTY
 
-Exportieren Sie Ihre Verbindungen aus MTPuTTY als `servers.xml` und importieren Sie diese über:
-**Verbindungen → Importieren → MTPuTTY Server-Dateien (*.xml)**
+Export your connections from MTPuTTY as `servers.xml` and import them via:
+**Connections → Import → MTPuTTY Server Files (*.xml)**
 
 ### MobaXterm
 
-Kopieren Sie die `MobaXterm.ini` Datei und importieren Sie diese über:
-**Verbindungen → Importieren → MobaXterm Session-Dateien (*.ini)**
+Copy the `MobaXterm.ini` file and import it via:
+**Connections → Import → MobaXterm Session Files (*.ini)**
 
-**Hinweis:** Passwörter werden aus Sicherheitsgründen nicht importiert. Sie müssen diese nach dem Import erneut eingeben.
+### PuTTY Connection Manager
 
-## Zugangsdaten-Verwaltung
+Export your connections from PuTTY Connection Manager and import them via:
+**Connections → Import → PuTTY Connection Manager Files (*.xml)**
 
-KorTTY bietet eine zentrale Verwaltung für Zugangsdaten (Benutzername/Passwort):
+**Note:** Passwords are not imported for security reasons. You must re-enter them after import.
 
-### Features
+## Credential Management
 
-- **Umgebungsspezifisch**: Zugangsdaten können für Produktion, Entwicklung, Test oder Staging gespeichert werden
-- **Server-Pattern**: Automatische Zuordnung zu Servern über Glob-Pattern (z.B. `*.example.com` oder `10.0.0.*`)
-- **Verschlüsselte Speicherung**: Passwörter werden mit AES-256-GCM verschlüsselt
-- **Automatische Verwendung**: Zugangsdaten können direkt in Verbindungseinstellungen ausgewählt werden
-
-### Verwendung
-
-1. **Zugangsdaten hinzufügen**:
-   - **Verwaltung → Zugangsdaten verwalten...**
-   - Klicken Sie auf "Hinzufügen"
-   - Geben Sie Name, Benutzername, Umgebung und optional ein Server-Pattern ein
-   - Geben Sie das Passwort ein (wird verschlüsselt gespeichert)
-
-2. **Zugangsdaten in Verbindung verwenden**:
-   - Beim Erstellen/Bearbeiten einer Verbindung
-   - Wählen Sie die passenden Zugangsdaten aus der Dropdown-Liste
-   - Benutzername und Passwort werden automatisch eingetragen
-
-### Import/Export
-
-Beim Import von Verbindungen können Sie wählen:
-- Ob Zugangsdaten importiert werden sollen
-- Ob importierte Zugangsdaten durch gespeicherte Zugangsdaten ersetzt werden sollen
-
-## SSH-Key-Verwaltung
-
-KorTTY bietet eine umfassende Verwaltung für private SSH-Keys:
+KorTTY provides centralized management for credentials (username/password):
 
 ### Features
 
-- **Zentrale Verwaltung**: Alle SSH-Keys an einem Ort verwalten
-- **Verschlüsselte Passphrases**: Key-Passphrases werden verschlüsselt gespeichert
-- **Key-Kopierung**: Keys können ins KorTTY-Verzeichnis kopiert werden für einfachen Umzug
-- **Glob-Suche**: Schnelle Suche nach Keys mit Wildcard-Pattern (`*`)
-- **Automatische Verwendung**: Keys können direkt in Verbindungseinstellungen ausgewählt werden
+- **Environment-specific**: Credentials can be stored for Production, Development, Test, or Staging
+- **Server Pattern**: Automatic assignment to servers via glob patterns (e.g., `*.example.com` or `10.0.0.*`)
+- **Encrypted Storage**: Passwords are encrypted with AES-256-GCM
+- **Automatic Usage**: Credentials can be directly selected in connection settings
 
-### Verwendung
+### Usage
 
-1. **SSH-Key hinzufügen**: 
-   - **Verwaltung → SSH-Keys verwalten...**
-   - Klicken Sie auf "Hinzufügen"
-   - Wählen Sie den Pfad zu Ihrem privaten SSH-Key
-   - Optional: Geben Sie die Passphrase ein (wird verschlüsselt gespeichert)
+1. **Add credentials**:
+   - **Management → Manage Credentials...**
+   - Click "Add"
+   - Enter name, username, environment, and optionally a server pattern
+   - Enter the password (will be encrypted and stored)
 
-2. **Key in Verbindung verwenden**:
-   - Beim Erstellen/Bearbeiten einer Verbindung
-   - Wählen Sie "Privater Schlüssel" als Authentifizierungsmethode
-   - Wählen Sie den gewünschten Key aus der Dropdown-Liste
-   - Der Key-Pfad und die Passphrase werden automatisch eingetragen
-
-3. **Key ins User-Verzeichnis kopieren**:
-   - In der SSH-Key-Verwaltung einen Key auswählen
-   - Klicken Sie auf "Ins User-Verzeichnis kopieren"
-   - Der Key wird nach `~/.kortty/ssh-keys/` kopiert und bei Backups mitgespeichert
+2. **Use credentials in connection**:
+   - When creating/editing a connection
+   - Select the appropriate credentials from the dropdown list
+   - Username and password are automatically filled in
 
 ### Import/Export
 
-Beim Import von Verbindungen können Sie wählen:
-- Ob SSH-Keys importiert werden sollen
-- Ob importierte Keys durch gespeicherte Keys aus der Verwaltung ersetzt werden sollen
+When importing connections, you can choose:
+- Whether credentials should be imported
+- Whether imported credentials should be replaced by stored credentials
+
+## SSH Key Management
+
+KorTTY provides comprehensive management for private SSH keys:
+
+### Features
+
+- **Centralized Management**: Manage all SSH keys in one place
+- **Encrypted Passphrases**: Key passphrases are stored encrypted
+- **Key Copying**: Keys can be copied to the KorTTY directory for easy migration
+- **Glob Search**: Quick search for keys with wildcard patterns (`*`)
+- **Automatic Usage**: Keys can be directly selected in connection settings
+
+### Usage
+
+1. **Add SSH key**: 
+   - **Management → Manage SSH Keys...**
+   - Click "Add"
+   - Select the path to your private SSH key
+   - Optional: Enter the passphrase (will be encrypted and stored)
+
+2. **Use key in connection**:
+   - When creating/editing a connection
+   - Select "Private Key" as authentication method
+   - Select the desired key from the dropdown list
+   - The key path and passphrase are automatically filled in
+
+3. **Copy key to user directory**:
+   - In SSH key management, select a key
+   - Click "Copy to User Directory"
+   - The key is copied to `~/.kortty/ssh-keys/` and included in backups
+
+### Import/Export
+
+When importing connections, you can choose:
+- Whether SSH keys should be imported
+- Whether imported keys should be replaced by stored keys from management
+
+## Backup & Restore
+
+KorTTY provides encrypted backup functionality to save and restore all your settings:
+
+### Features
+
+- **Encrypted Backups**: All backups are encrypted (password-protected ZIP or GPG-encrypted)
+- **Complete Backup**: Includes all connections, credentials, GPG keys, SSH keys, and settings
+- **Backup Import**: Restore from previously created backups
+- **Automatic Rotation**: Old backups are automatically rotated when creating new ones
+- **Configurable Retention**: Set maximum number of backups to keep (0 = unlimited)
+
+### Usage
+
+1. **Create Backup**:
+   - **Edit → Create Backup...**
+   - Select destination directory
+   - Backup is created with encryption method configured in settings
+
+2. **Import Backup**:
+   - **Edit → Import Backup...**
+   - Select backup file (.zip or .gpg)
+   - Enter password if required
+   - Choose whether to overwrite existing files
+   - All settings are restored from the backup
+
+### Backup Settings
+
+Configure backup settings in **Settings → Backup**:
+- **Encryption Type**: Choose between password-protected ZIP or GPG encryption
+- **Credential/GPG Key**: Select the credential or GPG key for encryption
+- **Maximum Backups**: Set how many old backups to keep (0 = unlimited)
+
+## Multilanguage Support
+
+KorTTY supports multiple languages and automatically detects your system language:
+
+### Supported Languages
+
+- English (default)
+- German
+- Italian
+- Spanish
+- Portuguese
+- French
+- Croatian
+- Dutch
+
+### Usage
+
+1. **Change Language**:
+   - **Settings → Language**
+   - Select desired language from dropdown
+   - Language change takes effect after application restart
+
+2. **Auto-Detect**:
+   - Select "Auto-detect (System Language)" to use your system's language
+   - The application will automatically detect and use your system language
 
 ## SFTP Manager
 
-Der integrierte SFTP Manager ermöglicht direkte Dateiübertragungen:
+The integrated SFTP Manager enables direct file transfers:
 
 ### Features
 
-- **Zwei-Panel-Ansicht**: Lokale und entfernte Dateien nebeneinander
-- **Drag & Drop**: Einfaches Verschieben von Dateien
-- **Dateioperationen**: Löschen, Umbenennen, Kopieren von Dateien und Verzeichnissen
-- **Berechtigungen**: Anpassung von Dateiberechtigungen (chmod) mit Checkbox-Interface
-- **ZIP-Archivierung**: Erstellen von ZIP-Archiven aus mehreren Dateien/Verzeichnissen
-- **Suche**: Glob-Pattern-Suche (`*`) in beiden Panels
-- **Sortierung**: Sortierbare Tabellenspalten (Name, Größe, Datum)
+- **Two-Panel View**: Local and remote files side by side
+- **Drag & Drop**: Easy file moving
+- **File Operations**: Delete, rename, copy files and directories
+- **Permissions**: Adjust file permissions (chmod) with checkbox interface
+- **ZIP Archiving**: Create ZIP archives from multiple files/directories
+- **Search**: Glob pattern search (`*`) in both panels
+- **Sorting**: Sortable table columns (Name, Size, Date)
 
-### Zugriff
+### Access
 
-- **Dashboard**: Rechtsklick auf einen Server → "SFTP Manager öffnen"
-- **Menü**: **Tools → SFTP Manager öffnen...**
+- **Dashboard**: Right-click on a server → "Open SFTP Manager"
+- **Menu**: **Tools → Open SFTP Manager...**
 
-## Fenster- und Dashboard-Verwaltung
+## Window and Dashboard Management
 
-KorTTY merkt sich automatisch:
+KorTTY automatically remembers:
 
-- **Fenstergeometrie**: Position, Größe und Maximized-Status des Hauptfensters
-- **Dashboard-Status**: Ob das Dashboard beim Schließen geöffnet war
+- **Window Geometry**: Position, size, and maximized status of the main window
+- **Dashboard State**: Whether the dashboard was open when closing
 
-Diese Funktionen können in den Einstellungen (**Einstellungen → Fenster**) deaktiviert werden.
+These features can be disabled in settings (**Settings → Window**).
 
-## Sicherheit
+## Security
 
-- Master-Passwort wird mit PBKDF2 (310.000 Iterationen) gehasht
-- Verbindungspasswörter werden mit AES-256-GCM verschlüsselt
-- Private SSH-Key-Passphrases werden ebenfalls verschlüsselt gespeichert
-- Passwörter werden niemals im Klartext gespeichert
-- SSH-Keys können optional ins User-Verzeichnis kopiert werden (bei Backups inkludiert)
+- Master password is hashed with PBKDF2 (310,000 iterations)
+- Connection passwords are encrypted with AES-256-GCM
+- Private SSH key passphrases are also stored encrypted
+- Passwords are never stored in plain text
+- SSH keys can optionally be copied to user directory (included in backups)
 
-## Lizenz
+## License
 
 MIT License

@@ -87,19 +87,19 @@ public class BackupManager {
     private void validateEncryptionSettings(CredentialManager credentialManager, GPGKeyManager gpgKeyManager) throws Exception {
         if (settings.getBackupEncryptionType() == GlobalSettings.BackupEncryptionType.PASSWORD) {
             if (settings.getBackupCredentialId() == null) {
-                throw new Exception("Kein Passwort für Backup-Verschlüsselung ausgewählt!");
+                throw new Exception("No password selected for backup encryption!");
             }
             if (credentialManager == null || credentialManager.findCredentialById(settings.getBackupCredentialId()).isEmpty()) {
-                throw new Exception("Ausgewähltes Passwort nicht gefunden!");
+                throw new Exception("Selected password not found!");
             }
         } else if (settings.getBackupEncryptionType() == GlobalSettings.BackupEncryptionType.GPG) {
             if (settings.getBackupGpgKeyId() == null) {
-                throw new Exception("Kein GPG-Schlüssel für Backup-Verschlüsselung ausgewählt!");
+                throw new Exception("No GPG key selected for backup encryption!");
             }
             GPGKey key = gpgKeyManager.getAllKeys().stream()
                 .filter(k -> k.getId().equals(settings.getBackupGpgKeyId()))
                 .findFirst()
-                .orElseThrow(() -> new Exception("Ausgewählter GPG-Schlüssel nicht gefunden!"));
+                .orElseThrow(() -> new Exception("Selected GPG key not found!"));
         }
     }
     
@@ -113,7 +113,7 @@ public class BackupManager {
             .orElseThrow(() -> new Exception("Credential not found"));
         String password = credentialManager.getPassword(credential, masterPassword);
         if (password == null || password.isEmpty()) {
-            throw new Exception("Passwort konnte nicht entschlüsselt werden!");
+            throw new Exception("Password could not be decrypted!");
         }
         
         // Create password-protected ZIP using zip4j
@@ -410,7 +410,7 @@ public class BackupManager {
      * Copies backup files from extract directory to config directory.
      */
     private int copyBackupFiles(Path extractDir, boolean overwriteExisting) throws IOException {
-        int filesImported = 0;
+        final int[] filesImported = {0}; // Use array to allow modification in lambda
         
         // List of files to import
         String[] filesToImport = {
@@ -434,7 +434,7 @@ public class BackupManager {
                 
                 Files.createDirectories(targetFile.getParent());
                 Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
-                filesImported++;
+                filesImported[0]++;
                 logger.debug("Imported: {}", fileName);
             }
         }
@@ -471,7 +471,7 @@ public class BackupManager {
                             } else {
                                 Files.createDirectories(target.getParent());
                                 Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-                                filesImported++;
+                                filesImported[0]++;
                             }
                         } catch (IOException e) {
                             logger.warn("Failed to copy project file: {}", source, e);
@@ -482,6 +482,6 @@ public class BackupManager {
             }
         }
         
-        return filesImported;
+        return filesImported[0];
     }
 }

@@ -20,6 +20,7 @@ public class LanguageManager {
     private static LanguageManager instance;
     private Locale currentLocale;
     private ResourceBundle resourceBundle;
+    private boolean initialized = false;
     
     // Supported locales
     public static final Locale[] SUPPORTED_LOCALES = {
@@ -34,9 +35,9 @@ public class LanguageManager {
     };
     
     private LanguageManager() {
-        // Detect system locale
-        Locale systemLocale = Locale.getDefault();
-        currentLocale = detectSupportedLocale(systemLocale);
+        // Don't set locale in constructor - wait for initialize() to be called
+        // Use English as temporary fallback until initialize() is called
+        currentLocale = Locale.ENGLISH;
         loadResourceBundle();
     }
     
@@ -53,20 +54,53 @@ public class LanguageManager {
     /**
      * Initializes the language manager with settings from GlobalSettings.
      * Should be called after GlobalSettings are loaded.
+     * If language is null or empty, uses system locale (auto-detect).
      */
     public void initialize(GlobalSettings settings) {
-        if (settings != null && settings.getLanguage() != null && !settings.getLanguage().isEmpty()) {
-            try {
-                String[] parts = settings.getLanguage().split("_");
-                if (parts.length == 2) {
-                    setLocale(new Locale(parts[0], parts[1]));
-                } else {
-                    setLocale(new Locale(parts[0]));
+        initialized = true;
+        
+        if (settings != null) {
+            String languageSetting = settings.getLanguage();
+            logger.debug("Initializing LanguageManager with language setting: '{}' (null: {}, empty: {})", 
+                languageSetting, languageSetting == null, languageSetting != null && languageSetting.isEmpty());
+            
+            if (languageSetting != null && !languageSetting.isEmpty()) {
+                try {
+                    String[] parts = languageSetting.split("_");
+                    Locale localeToSet;
+                    if (parts.length == 2) {
+                        localeToSet = new Locale(parts[0], parts[1]);
+                    } else {
+                        localeToSet = new Locale(parts[0]);
+                    }
+                    logger.info("Language set from settings: '{}' -> locale: {}", languageSetting, localeToSet);
+                    setLocale(localeToSet);
+                } catch (Exception e) {
+                    logger.warn("Failed to set locale from settings: {}", languageSetting, e);
+                    // Fall back to system locale
+                    Locale systemLocale = Locale.getDefault();
+                    setLocale(detectSupportedLocale(systemLocale));
                 }
-            } catch (Exception e) {
-                logger.warn("Failed to set locale from settings: {}", settings.getLanguage(), e);
+            } else {
+                // Auto-detect: use system locale
+                Locale systemLocale = Locale.getDefault();
+                Locale detectedLocale = detectSupportedLocale(systemLocale);
+                logger.info("Language auto-detected from system: {} (language setting was null or empty)", detectedLocale);
+                setLocale(detectedLocale);
             }
+        } else {
+            logger.warn("GlobalSettings is null, using system locale");
+            Locale systemLocale = Locale.getDefault();
+            Locale detectedLocale = detectSupportedLocale(systemLocale);
+            setLocale(detectedLocale);
         }
+    }
+    
+    /**
+     * Checks if the language manager has been initialized.
+     */
+    public boolean isInitialized() {
+        return initialized;
     }
     
     /**
@@ -93,6 +127,7 @@ public class LanguageManager {
         
         // Verify locale is supported
         boolean supported = false;
+        Locale previousLocale = currentLocale;
         for (Locale supportedLocale : SUPPORTED_LOCALES) {
             if (supportedLocale.getLanguage().equals(locale.getLanguage())) {
                 supported = true;
@@ -106,7 +141,13 @@ public class LanguageManager {
             currentLocale = Locale.ENGLISH;
         }
         
-        loadResourceBundle();
+        // Only reload if locale actually changed
+        if (previousLocale == null || !previousLocale.getLanguage().equals(currentLocale.getLanguage())) {
+            logger.debug("Locale changed from {} to {}, reloading resource bundle", previousLocale, currentLocale);
+            loadResourceBundle();
+        } else {
+            logger.debug("Locale unchanged: {}, skipping resource bundle reload", currentLocale);
+        }
     }
     
     /**
@@ -124,13 +165,19 @@ public class LanguageManager {
     
     /**
      * Loads the resource bundle for the current locale.
+     * Clears the ResourceBundle cache to ensure the correct locale is used.
      */
     private void loadResourceBundle() {
         try {
+            // Clear ResourceBundle cache to force reload with new locale
+            // This is important when changing languages at runtime
+            java.util.ResourceBundle.clearCache();
+            
             resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, currentLocale);
-            logger.info("Loaded resource bundle for locale: {}", currentLocale);
+            logger.info("Loaded resource bundle for locale: {} (language: {})", currentLocale, currentLocale.getLanguage());
         } catch (MissingResourceException e) {
             logger.error("Failed to load resource bundle for locale: {}, falling back to English", currentLocale, e);
+            java.util.ResourceBundle.clearCache();
             resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, Locale.ENGLISH);
         }
     }
@@ -138,8 +185,20 @@ public class LanguageManager {
     /**
      * Gets a translated string for the given key.
      * Returns the key itself if translation is not found.
+     * If not yet initialized, uses English as fallback (will be overridden by initialize()).
      */
     public String getString(String key) {
+        // If not initialized yet, this should not happen in normal flow
+        // but we use English as safe fallback
+        if (!initialized) {
+            logger.warn("LanguageManager.getString() called before initialize() - using English fallback. Key: {}", key);
+            // Don't set initialized=true here, let initialize() handle it properly
+            if (resourceBundle == null || !currentLocale.equals(Locale.ENGLISH)) {
+                currentLocale = Locale.ENGLISH;
+                loadResourceBundle();
+            }
+        }
+        
         if (resourceBundle == null) {
             logger.warn("Resource bundle not loaded, returning key: {}", key);
             return key;

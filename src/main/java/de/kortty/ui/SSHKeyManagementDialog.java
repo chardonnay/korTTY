@@ -142,10 +142,10 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         });
         
         HBox buttonBox = new HBox(10);
-        Button addButton = new Button("Hinzufügen");
-        Button editButton = new Button("Bearbeiten");
-        Button removeButton = new Button("Entfernen");
-        Button copyButton = new Button("Ins User-Verzeichnis kopieren");
+        Button addButton = new Button(I18n.get("ssh.add"));
+        Button editButton = new Button(I18n.get("dialog.edit"));
+        Button removeButton = new Button(I18n.get("dialog.delete"));
+        Button copyButton = new Button(I18n.get("ssh.copyToUserDir"));
         
         addButton.setOnAction(e -> addKey());
         editButton.setOnAction(e -> editKey());
@@ -158,11 +158,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         
         buttonBox.getChildren().addAll(addButton, editButton, removeButton, copyButton);
         
-        Label infoLabel = new Label(
-            "Verwalten Sie Ihre privaten SSH-Keys. Sie können Keys ins KorTTY User-Verzeichnis kopieren,\n" +
-            "damit sie bei einem Umzug auf einen anderen Computer mitgenommen werden können.\n" +
-            "Passphrases werden verschlüsselt gespeichert und müssen nicht bei jeder Verbindung eingegeben werden."
-        );
+        Label infoLabel = new Label(I18n.get("ssh.info"));
         infoLabel.setWrapText(true);
         infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         
@@ -179,7 +175,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
                     return true;
                 } catch (Exception e) {
                     logger.error("Failed to save SSH keys", e);
-                    showError("Fehler beim Speichern", "SSH-Keys konnten nicht gespeichert werden: " + e.getMessage());
+                    showError(I18n.get("error.saveFailed"), "SSH keys could not be saved: " + e.getMessage());
                     return false;
                 }
             }
@@ -200,7 +196,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
                     sshKeyManager.setPassphrase(result.key, result.passphrase, masterPassword);
                 } catch (Exception e) {
                     logger.error("Failed to encrypt passphrase", e);
-                    showError("Fehler", "Passphrase konnte nicht verschlüsselt werden: " + e.getMessage());
+                    showError(I18n.get("error.title"), "Passphrase could not be encrypted: " + e.getMessage());
                 }
             }
             refreshKeyList();
@@ -218,7 +214,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
                         sshKeyManager.setPassphrase(result.key, result.passphrase, masterPassword);
                     } catch (Exception e) {
                         logger.error("Failed to encrypt passphrase", e);
-                        showError("Fehler", "Passphrase konnte nicht verschlüsselt werden: " + e.getMessage());
+                        showError(I18n.get("error.title"), "Passphrase could not be encrypted: " + e.getMessage());
                     }
                 }
                 refreshKeyList();
@@ -230,9 +226,9 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         SSHKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Löschen bestätigen");
-            confirm.setHeaderText("SSH-Key löschen");
-            confirm.setContentText("Möchten Sie '" + selected.getName() + "' wirklich löschen?");
+            confirm.setTitle(I18n.get("ssh.deleteConfirm.title"));
+            confirm.setHeaderText(I18n.get("ssh.deleteConfirm.header"));
+            confirm.setContentText(I18n.get("ssh.deleteConfirm.content", selected.getName()));
             
             confirm.showAndWait().ifPresent(response -> {
                 if (response == ButtonType.OK) {
@@ -253,7 +249,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
                 showInfo("Erfolg", "SSH-Key wurde ins User-Verzeichnis kopiert.");
             } catch (Exception e) {
                 logger.error("Failed to copy key to user directory", e);
-                showError("Fehler", "Key konnte nicht kopiert werden: " + e.getMessage());
+                showError(I18n.get("error.title"), "Key could not be copied: " + e.getMessage());
             }
         }
     }
@@ -304,8 +300,8 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
             this.sshKeyManager = sshKeyManager;
             this.masterPassword = masterPassword;
             
-            setTitle(existingKey == null ? "SSH-Key hinzufügen" : "SSH-Key bearbeiten");
-            setHeaderText(existingKey == null ? "Neuen SSH-Key hinzufügen" : "SSH-Key bearbeiten");
+            setTitle(existingKey == null ? I18n.get("ssh.edit.addTitle") : I18n.get("ssh.edit.editTitle"));
+            setHeaderText(existingKey == null ? I18n.get("ssh.edit.addHeader") : I18n.get("ssh.edit.editHeader"));
             
             GridPane grid = new GridPane();
             grid.setHgap(10);
@@ -326,7 +322,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
             int row = 0;
             
             nameField = new TextField(existingKey != null ? existingKey.getName() : "");
-            nameField.setPromptText("Name für diesen Key");
+            nameField.setPromptText(I18n.get("ssh.edit.namePrompt"));
             grid.add(new Label("Name:"), 0, row);
             grid.add(nameField, 1, row++);
             
@@ -340,7 +336,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
             grid.add(keyPathBox, 1, row++);
             
             passphraseField = new PasswordField();
-            passphraseField.setPromptText("Passphrase (optional)");
+            passphraseField.setPromptText(I18n.get("ssh.edit.passphrasePrompt"));
             if (existingKey != null && existingKey.getEncryptedPassphrase() != null) {
                 try {
                     String passphrase = sshKeyManager.getPassphrase(existingKey, masterPassword);
@@ -366,11 +362,11 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
             setResultConverter(buttonType -> {
                 if (buttonType == ButtonType.OK) {
                     if (nameField.getText().trim().isEmpty()) {
-                        showError("Fehler", "Name ist erforderlich");
+                        showError(I18n.get("error.title"), I18n.get("error.invalidInput") + ": Name is required");
                         return null;
                     }
                     if (keyPathField.getText().trim().isEmpty()) {
-                        showError("Fehler", "Key-Pfad ist erforderlich");
+                        showError(I18n.get("error.title"), I18n.get("error.invalidInput") + ": Key path is required");
                         return null;
                     }
                     
@@ -392,7 +388,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         
         private void browseForKey() {
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Privaten SSH-Key auswählen");
+            fileChooser.setTitle(I18n.get("ssh.edit.selectKey"));
             File sshDir = new File(System.getProperty("user.home"), ".ssh");
             if (sshDir.exists()) {
                 fileChooser.setInitialDirectory(sshDir);

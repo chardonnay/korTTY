@@ -139,7 +139,7 @@ public class LanternaTerminalView extends BorderPane {
             }
         } catch (Exception e) {
             logger.error("Failed to connect", e);
-            showError("Fehler: " + e.getMessage());
+            showError(I18n.get("error.title") + ": " + e.getMessage());
         }
     }
     

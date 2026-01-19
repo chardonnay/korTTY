@@ -547,7 +547,7 @@ public class MainWindow {
         
         helpMenu.getItems().add(about);
         
-        // Menu order: Datei, Bearbeiten, Verbindungen, Verwaltung, Tools, Ansicht, Hilfe
+        // Menu order: File, Edit, Connections, Management, Tools, View, Help
         menuBar.getMenus().addAll(fileMenu, editMenu, connectionsMenu, managementMenu, sftpMenu, viewMenu, helpMenu);
         root.setTop(menuBar);
     }
@@ -701,7 +701,7 @@ public class MainWindow {
                     logger.error("Connection failed", ex);
                     Platform.runLater(() -> {
                         terminalTab.onConnectionFailed(ex.getMessage());
-                        updateStatus("Verbindung fehlgeschlagen: " + ex.getMessage());
+                        updateStatus(I18n.get("status.connectionFailed", ex.getMessage()));
                         updateDashboard(); // Update dashboard on failure too
                     });
                 }
@@ -714,7 +714,7 @@ public class MainWindow {
             return terminalTab;
         } catch (Exception e) {
             logger.error("Failed to create session", e);
-            showError("Verbindungsfehler", "Konnte Sitzung nicht erstellen: " + e.getMessage());
+            showError(I18n.get("error.connectionError"), I18n.get("status.sessionCreationFailed", e.getMessage()));
             return null;
         }
     }
@@ -823,7 +823,7 @@ public class MainWindow {
                         // Scrollbar functionality removed
                     }
                 }
-                updateStatus("Globale Einstellungen gespeichert");
+                updateStatus(I18n.get("status.globalSettingsSaved"));
             });
         });
         
@@ -959,7 +959,7 @@ public class MainWindow {
                 // Close the tab
                 tabPane.getTabs().remove(terminalTab);
                 updateDashboard();
-                updateStatus("Tab geschlossen: " + terminalTab.getConnection().getDisplayName());
+                updateStatus(I18n.get("status.tabClosed", terminalTab.getConnection().getDisplayName()));
                 break;
                 
             case RECONNECT:
@@ -968,10 +968,10 @@ public class MainWindow {
                     try {
                         terminalTab.connect();
                         updateDashboard();
-                        updateStatus("Wiederverbinde mit " + terminalTab.getConnection().getDisplayName());
+                        updateStatus(I18n.get("status.reconnecting", terminalTab.getConnection().getDisplayName()));
                     } catch (Exception e) {
                         logger.error("Reconnect failed", e);
-                        updateStatus("Wiederverbindung fehlgeschlagen: " + e.getMessage());
+                        updateStatus(I18n.get("status.reconnectionFailed", e.getMessage()));
                     }
                 });
                 break;
@@ -981,7 +981,7 @@ public class MainWindow {
                 if (terminalTab.isConnected()) {
                     openSFTPManagerForConnection(terminalTab.getConnection());
                 } else {
-                    showError("Nicht verbunden", "Bitte verbinden Sie sich zuerst mit dem Server.");
+                    showError(I18n.get("error.notConnected"), I18n.get("error.notConnectedMessage"));
                 }
                 break;
                 
@@ -1004,10 +1004,10 @@ public class MainWindow {
             try {
                 Project project = projectManager.loadProject(file.toPath());
                 loadProject(project);
-                updateStatus("Projekt geladen: " + project.getName());
+                updateStatus(I18n.get("status.projectLoaded", project.getName()));
             } catch (Exception e) {
                 logger.error("Failed to load project", e);
-                showError("Fehler", "Projekt konnte nicht geladen werden: " + e.getMessage());
+                showError(I18n.get("error.title"), I18n.get("error.projectLoadFailed", e.getMessage()));
             }
         }
     }
@@ -1036,17 +1036,17 @@ public class MainWindow {
                 
                 if (result.isPresent()) {
                     projectManager.saveProject(result.get(), file.toPath());
-                    updateStatus("Projekt gespeichert: " + file.getName());
+                    updateStatus(I18n.get("status.projectSaved", file.getName()));
                 }
             } catch (Exception e) {
                 logger.error("Failed to save project", e);
-                showError("Fehler", "Projekt konnte nicht gespeichert werden: " + e.getMessage());
+                showError(I18n.get("error.title"), I18n.get("error.projectSaveFailed", e.getMessage()));
             }
         }
     }
     
     private Project createProjectFromCurrentState() {
-        Project project = new Project("Neues Projekt");
+        Project project = new Project("New Project");
         
         WindowState windowState = new WindowState(UUID.randomUUID().toString());
         windowState.setGeometry(new WindowGeometry(
@@ -1150,17 +1150,16 @@ public class MainWindow {
                         }
                         app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
                         
-                        showInfo("Import erfolgreich", 
-                                imported.size() + " Verbindungen aus " + importer.getName() + " importiert.");
+                        showInfo(I18n.get("info.importSuccessful", imported.size(), importer.getName()), "");
                         return;
                     } catch (Exception e) {
                         logger.error("Import failed", e);
-                        showError("Import fehlgeschlagen", e.getMessage());
+                        showError(I18n.get("error.importFailed"), e.getMessage());
                         return;
                     }
                 }
             }
-            showError("Import fehlgeschlagen", "Dateiformat wird nicht unterstützt.");
+            showError(I18n.get("error.importFailed"), I18n.get("error.importUnsupportedFormat"));
         }
     }
     
@@ -1168,7 +1167,7 @@ public class MainWindow {
         List<ServerConnection> allConnections = app.getConfigManager().getConnections();
         
         if (allConnections.isEmpty()) {
-            showInfo("Keine Verbindungen", "Es sind keine Verbindungen zum Exportieren vorhanden.");
+            showInfo(I18n.get("error.noConnectionsToExport"), "");
             return;
         }
         
@@ -1213,13 +1212,13 @@ public class MainWindow {
                     exportResult.exporter.exportConnections(exportResult.connections, file.toPath());
                 }
                 
-                showInfo("Export erfolgreich", 
-                        exportResult.connections.size() + " Verbindungen exportiert nach " + file.getName() + 
+                showInfo(I18n.get("info.exportSuccessful", 
+                        exportResult.connections.size(), file.getName(),
                         "\n\nFormat: " + exportResult.exporter.getName() +
-                        (exportResult.encrypted() ? "\nVerschlüsselt: Ja" : ""));
+                        (exportResult.encrypted() ? "\n" + I18n.get("info.encrypted") : "")), "");
             } catch (Exception e) {
                 logger.error("Export failed", e);
-                showError("Export fehlgeschlagen", e.getMessage());
+                showError(I18n.get("error.exportFailed"), e.getMessage());
             }
         }
     }
@@ -1289,9 +1288,7 @@ public class MainWindow {
             int exitCode = process.waitFor();
             
             if (exitCode != 0) {
-                throw new Exception("GPG-Verschlüsselung fehlgeschlagen (Exit Code: " + exitCode + ")\n" +
-                                   "Output: " + output.toString() + "\n" +
-                                   "Stellen Sie sicher, dass GPG installiert ist und der Schlüssel " + keyId + " vorhanden ist.");
+                throw new Exception(I18n.get("error.gpgEncryptionFailed", exitCode, output.toString(), keyId));
             }
             
             logger.info("File encrypted with GPG using key {}: {}", keyId, gpgFile);
@@ -1417,7 +1414,7 @@ public class MainWindow {
             logger.error("Failed to save usage counts", e);
         }
         
-        updateStatus("Gruppe '" + groupName + "' geöffnet: " + groupConnections.size() + " Verbindungen");
+        updateStatus(I18n.get("status.groupOpened", groupName, groupConnections.size()));
         updateDashboard();
     }
     
@@ -1431,7 +1428,7 @@ public class MainWindow {
             dialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to show credential management", e);
-            showError("Fehler", "Zugangsdaten-Verwaltung konnte nicht geöffnet werden: " + e.getMessage());
+            showError(I18n.get("error.title"), I18n.get("error.credentialManagementFailed", e.getMessage()));
         }
     }
     
@@ -1441,7 +1438,7 @@ public class MainWindow {
             dialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to show GPG key management", e);
-            showError("Fehler", "GPG-Schlüssel-Verwaltung konnte nicht geöffnet werden: " + e.getMessage());
+            showError(I18n.get("error.title"), I18n.get("error.gpgKeyManagementFailed", e.getMessage()));
         }
     }
     
@@ -1454,7 +1451,7 @@ public class MainWindow {
             dialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to show SSH key management", e);
-            showError("Fehler", "SSH-Key-Verwaltung konnte nicht geöffnet werden: " + e.getMessage());
+            showError(I18n.get("error.title"), I18n.get("error.sshKeyManagementFailed", e.getMessage()));
         }
     }
     
@@ -1480,7 +1477,7 @@ public class MainWindow {
         ConnectionSelectionDialog dialog = new ConnectionSelectionDialog(
             stage, 
             app.getConfigManager().getConnections(),
-            "SFTP Manager - Verbindung auswählen"
+            I18n.get("sftp.selectConnection")
         );
         
         dialog.showAndWait().ifPresent(connection -> {
@@ -1528,7 +1525,7 @@ public class MainWindow {
             sftpDialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to open SFTP manager", e);
-            showError("Fehler", "SFTP Manager konnte nicht geöffnet werden: " + e.getMessage());
+            showError(I18n.get("error.title"), I18n.get("error.sftpManagerFailed", e.getMessage()));
         }
     }
 
@@ -1569,8 +1566,8 @@ public class MainWindow {
     }
     
     /**
-     * Dupliziert einen Tab mit denselben Verbindungsdetails.
-     * Der neue Tab wird direkt rechts daneben eingefügt.
+     * Duplicates a tab with the same connection details.
+     * The new tab is inserted directly to the right of the source tab.
      */
     private void duplicateTab(TerminalTab sourceTab) {
         ServerConnection connection = sourceTab.getConnection();
@@ -1595,18 +1592,18 @@ public class MainWindow {
     }
     
     /**
-     * Erstellt einen duplizierten Tab direkt rechts neben dem Quell-Tab.
+     * Creates a duplicated tab directly to the right of the source tab.
      */
     private void createDuplicateTab(TerminalTab sourceTab, ServerConnection connection, String password) {
         try {
-            // Finde die Position des Quell-Tabs
+            // Find the position of the source tab
             int sourceIndex = tabPane.getTabs().indexOf(sourceTab);
             if (sourceIndex == -1) {
                 logger.warn("Source tab not found in tab pane");
                 return;
             }
             
-            // Erstelle neuen Tab mit derselben Verbindung
+            // Create new tab with the same connection
             TerminalTab newTab = new TerminalTab(connection, password);
             newTab.setOnClosed(e -> {
                 updateDashboard();
@@ -1617,13 +1614,13 @@ public class MainWindow {
             // Setup context menu
             setupTabContextMenu(newTab);
             
-            // Übernehme die Tab-Gruppe vom Quell-Tab (falls vorhanden)
+            // Take over the tab group from the source tab (if present)
             String sourceGroup = sourceTab.getGroup();
             if (sourceGroup != null && !sourceGroup.trim().isEmpty()) {
                 newTab.setGroup(sourceGroup);
             }
             
-            // Finde die Position des "+" Tabs
+            // Find the position of the "+" tab
             int plusTabIndex = -1;
             for (int i = 0; i < tabPane.getTabs().size(); i++) {
                 Tab tab = tabPane.getTabs().get(i);
@@ -1675,7 +1672,7 @@ public class MainWindow {
                         newTab.getConnection().getDisplayName());
         } catch (Exception e) {
             logger.error("Failed to duplicate tab", e);
-            showError("Fehler", "Tab konnte nicht dupliziert werden: " + e.getMessage());
+            showError(I18n.get("error.title"), I18n.get("error.tabDuplicateFailed", e.getMessage()));
         }
     }
 
@@ -1810,7 +1807,7 @@ public class MainWindow {
         // Check if file is GPG-encrypted or password-encrypted
         String fileName = backupFile.getName().toLowerCase();
         boolean isGPGEncrypted = fileName.endsWith(".gpg");
-        String password = null;
+        final String[] password = {null}; // Use array to allow modification in lambda
         
         if (!isGPGEncrypted) {
             // Ask for password
@@ -1823,7 +1820,7 @@ public class MainWindow {
             if (!passwordResult.isPresent() || passwordResult.get().isEmpty()) {
                 return; // User cancelled or entered empty password
             }
-            password = passwordResult.get();
+            password[0] = passwordResult.get();
         }
         
         // Ask if existing files should be overwritten
@@ -1835,17 +1832,18 @@ public class MainWindow {
         overwriteDialog.setContentText(I18n.get("backup.import.overwrite.content"));
         
         java.util.Optional<javafx.scene.control.ButtonType> overwriteResult = overwriteDialog.showAndWait();
-        boolean overwriteExisting = overwriteResult.isPresent() && 
+        final boolean overwriteExisting = overwriteResult.isPresent() && 
             overwriteResult.get() == javafx.scene.control.ButtonType.OK;
         
         // Import backup in background
+        final java.nio.file.Path backupFilePath = backupFile.toPath();
         javafx.concurrent.Task<Integer> importTask = new javafx.concurrent.Task<>() {
             @Override
             protected Integer call() throws Exception {
                 updateMessage(I18n.get("backup.import.importing"));
                 return app.getBackupManager().importBackup(
-                    backupFile.toPath(),
-                    password,
+                    backupFilePath,
+                    password[0],
                     overwriteExisting
                 );
             }
@@ -1901,7 +1899,7 @@ public class MainWindow {
     private void setupTabContextMenu(TerminalTab terminalTab) {
         ContextMenu contextMenu = new ContextMenu();
         
-        // Duplizieren-Menüpunkt
+        // Duplicate menu item
         MenuItem duplicateItem = new MenuItem("Duplizieren");
         duplicateItem.setOnAction(e -> {
             duplicateTab(terminalTab);

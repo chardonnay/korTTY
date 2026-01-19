@@ -76,7 +76,7 @@ public class DashboardView extends VBox {
                         if (item.getTerminalTab() != null) {
                             ContextMenu contextMenu = new ContextMenu();
                             
-                            // Duplizieren-Menüpunkt (immer verfügbar)
+                            // Duplicate menu item (always available)
                             MenuItem duplicateItem = new MenuItem("Duplizieren");
                             duplicateItem.setOnAction(e -> {
                                 actionHandler.accept(item.getTerminalTab(), DashboardAction.DUPLICATE);
