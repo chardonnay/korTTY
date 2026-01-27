@@ -4,12 +4,16 @@ plugins {
     id("org.openjfx.javafxplugin") version "0.1.0"
 }
 
+import org.gradle.jvm.toolchain.JvmVendorSpec
+
 group = "de.kortty"
 version = "1.1.0-SNAPSHOT"
 
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(25))
+        // Explicitly avoid IBM_SEMERU which is not supported in Gradle 9.2.1
+        vendor.set(JvmVendorSpec.ADOPTIUM)
     }
 }
 
