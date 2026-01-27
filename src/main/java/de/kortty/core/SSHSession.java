@@ -10,6 +10,7 @@ import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.channel.PtyMode;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.common.signature.BuiltinSignatures;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +79,10 @@ public class SSHSession {
                 connection.getUsername(), connection.getHost(), connection.getPort());
         
         client = SshClient.setUpDefaultClient();
+        
+        // Note: EdDSA signature support is automatically enabled when the eddsa dependency
+        // is on the classpath. The client will detect and use EdDSA signatures automatically.
+        
         client.start();
         
         session = client.connect(
@@ -413,9 +418,12 @@ public class SSHSession {
                 logger.info("Loaded temporary SSH key - Algorithm: {}, Format: {}, Key size: {} bytes", 
                     keyAlgorithm, keyFormat, keyPair.getPublic().getEncoded().length);
                 
-                // Key identity provider is now set on the session
-                // The session will use this provider during authentication
-                logger.info("Set temporary SSH key identity provider on session (key type: {})", keyAlgorithm);
+                // Set key identity provider AND add the key directly
+                // Using both methods ensures compatibility with all SSH servers
+                session.setKeyIdentityProvider(keyPairProvider);
+                session.addPublicKeyIdentity(keyPair);
+                
+                logger.info("Set temporary SSH key identity provider and added key to session (key type: {})", keyAlgorithm);
                 return;
             } catch (Exception e) {
                 logger.error("Failed to load temporary SSH key from file: {}", 
