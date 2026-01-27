@@ -65,7 +65,7 @@ public class DashboardView extends VBox {
                         setContextMenu(null);
                     } else {
                         String statusIcon = item.isConnected() ? "●" : "○";
-                        String statusText = item.isConnected() ? "Aktiv" : "Beendet";
+                        String statusText = item.isConnected() ? I18n.get("dashboard.status.active") : I18n.get("dashboard.status.ended");
                         setText(statusIcon + " " + item.getDisplayName() + " (" + statusText + ")");
                         
                         // Color: green for active, red for disconnected
@@ -86,27 +86,27 @@ public class DashboardView extends VBox {
                             SeparatorMenuItem separator1 = new SeparatorMenuItem();
                             
                             if (item.isConnected()) {
-                                MenuItem sftpItem = new MenuItem("SFTP Manager öffnen");
+                                MenuItem sftpItem = new MenuItem(I18n.get("menu.tools.sftpManager"));
                                 sftpItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.SFTP_MANAGER);
                                 });
                                 contextMenu.getItems().addAll(separator1, sftpItem);
                                 
                                 SeparatorMenuItem separator2 = new SeparatorMenuItem();
-                                MenuItem closeItem = new MenuItem("Schließen");
+                                MenuItem closeItem = new MenuItem(I18n.get("dialog.close"));
                                 closeItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
                                 });
                                 contextMenu.getItems().addAll(separator2, closeItem);
                             } else {
-                                MenuItem reconnectItem = new MenuItem("Wiederverbinden");
+                                MenuItem reconnectItem = new MenuItem(I18n.get("dashboard.reconnect"));
                                 reconnectItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.RECONNECT);
                                 });
                                 contextMenu.getItems().addAll(separator1, reconnectItem);
                                 
                                 SeparatorMenuItem separator2 = new SeparatorMenuItem();
-                                MenuItem closeItem = new MenuItem("Schließen");
+                                MenuItem closeItem = new MenuItem(I18n.get("dialog.close"));
                                 closeItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
                                 });
@@ -150,7 +150,7 @@ public class DashboardView extends VBox {
         
         // Create window item
         TreeItem<DashboardItem> windowItem = new TreeItem<>(
-                new DashboardItem("Hauptfenster", null, true, null)
+                new DashboardItem(I18n.get("dashboard.mainWindowTitle"), null, true, null)
         );
         windowItem.setExpanded(true);
         
@@ -201,7 +201,7 @@ public class DashboardView extends VBox {
             // Create group item
             TreeItem<DashboardItem> groupItem = new TreeItem<>(
                     new DashboardItem(
-                            "[" + groupName + "] (" + groupActive + "/" + groupTabs.size() + " aktiv)",
+                            "[" + groupName + "] (" + groupActive + "/" + groupTabs.size() + " " + I18n.get("dashboard.active") + ")",
                             null,
                             true,
                             null
@@ -224,7 +224,7 @@ public class DashboardView extends VBox {
         // Update window title with counts
         if (totalTabs > 0) {
             windowItem.setValue(new DashboardItem(
-                    "Hauptfenster (" + activeTabs + "/" + totalTabs + " aktiv)",
+                    I18n.get("dashboard.mainWindow", activeTabs, totalTabs),
                     null,
                     true,
                     null

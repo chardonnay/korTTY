@@ -618,25 +618,32 @@ public class MainWindow {
      * Opens a new SSH connection in a new tab.
      */
     public void openConnection(ServerConnection connection, String password) {
-        openConnection(connection, password, null);
+        openConnection(connection, password, null, null);
     }
     
     /**
      * Opens a new SSH connection in a new tab with optional history restore.
      */
     public void openConnection(ServerConnection connection, String password, String historyToRestore) {
-        openConnectionAndReturnTab(connection, password, historyToRestore);
+        openConnection(connection, password, historyToRestore, null);
+    }
+    
+    /**
+     * Opens a new SSH connection in a new tab with optional history restore and temporary SSH key.
+     */
+    public void openConnection(ServerConnection connection, String password, String historyToRestore, de.kortty.model.TemporarySSHKey temporarySSHKey) {
+        openConnectionAndReturnTab(connection, password, historyToRestore, temporarySSHKey);
     }
     
     /**
      * Opens a new SSH connection in a new tab with optional history restore and returns the tab.
      * The tab starts with NO group (independent from connection group).
      */
-    private TerminalTab openConnectionAndReturnTab(ServerConnection connection, String password, String historyToRestore) {
+    private TerminalTab openConnectionAndReturnTab(ServerConnection connection, String password, String historyToRestore, de.kortty.model.TemporarySSHKey temporarySSHKey) {
         try {
             // Create terminal tab with JediTermFX
             // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
-            TerminalTab terminalTab = new TerminalTab(connection, password);
+            TerminalTab terminalTab = new TerminalTab(connection, password, temporarySSHKey);
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -678,7 +685,7 @@ public class MainWindow {
                             // Reset tab color (TerminalTab's resetTabColor() does setStyle(""))
                             terminalTab.setStyle("");
                             // Update status and dashboard
-                            updateStatus("Verbunden mit " + connection.getDisplayName());
+                            updateStatus(I18n.get("status.connectedTo", connection.getDisplayName()));
                             updateDashboard(); // Update dashboard when connection succeeds
                         });
                     });
@@ -774,7 +781,8 @@ public class MainWindow {
                     logger.error("Failed to save connection", e);
                 }
             }
-            openConnection(result.connection(), password);
+            // Pass temporary SSH key if available
+            openConnection(result.connection(), password, null, result.temporarySSHKey());
             });
         } finally {
             quickConnectDialogOpen = false;
@@ -1099,7 +1107,7 @@ public class MainWindow {
                         String password = getConnectionPassword(connection);
                         if (password != null) {
                             String history = sessionState.getTerminalHistory();
-                            TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history);
+                            TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history, null);
                             // Restore tab group (not connection group)
                             if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
                                 restoredTab.setGroup(sessionState.getGroup());
@@ -1188,12 +1196,12 @@ public class MainWindow {
         
         if (exportResult.encryptionType == ExportDialog.EncryptionType.PASSWORD) {
             fileChooser.getExtensionFilters().add(
-                    new FileChooser.ExtensionFilter("Verschlüsselte ZIP-Datei", "*.zip")
+                    new FileChooser.ExtensionFilter(I18n.get("backup.encryption.password") + " (*.zip)", "*.zip")
             );
             fileChooser.setInitialFileName("connections.zip");
         } else if (exportResult.encryptionType == ExportDialog.EncryptionType.GPG) {
             fileChooser.getExtensionFilters().add(
-                    new FileChooser.ExtensionFilter("GPG-verschlüsselte Datei", "*.gpg")
+                    new FileChooser.ExtensionFilter(I18n.get("backup.encryption.gpg") + " (*.gpg)", "*.gpg")
             );
             fileChooser.setInitialFileName("connections." + exportResult.exporter.getFileExtension() + ".gpg");
         } else {
@@ -1631,8 +1639,8 @@ public class MainWindow {
                 }
             }
             
-            // Füge den neuen Tab direkt rechts neben dem Quell-Tab ein
-            // Berücksichtige, dass der "+" Tab immer am Ende sein sollte
+            // Insert the new tab directly to the right of the source tab
+            // Consider that the "+" tab should always be at the end
             int insertIndex = sourceIndex + 1;
             if (plusTabIndex != -1 && insertIndex > plusTabIndex) {
                 insertIndex = plusTabIndex;
@@ -1660,7 +1668,7 @@ public class MainWindow {
                             // Reset tab color (remove yellow connecting color)
                             newTab.setStyle("");
                             // Update status and dashboard
-                            updateStatus("Verbunden mit " + connection.getDisplayName());
+                            updateStatus(I18n.get("status.connectedTo", connection.getDisplayName()));
                             updateDashboard();
                         });
                     });

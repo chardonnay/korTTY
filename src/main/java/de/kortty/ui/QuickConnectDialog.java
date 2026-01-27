@@ -3,13 +3,19 @@ package de.kortty.ui;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SSHKey;
 import de.kortty.model.AuthMethod;
+import de.kortty.model.TemporarySSHKey;
 import de.kortty.security.PasswordVault;
 import de.kortty.core.SSHKeyManager;
+import de.kortty.core.TemporarySSHKeyManager;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.concurrent.Task;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,7 +44,13 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private ToggleGroup authMethodGroup;
     private RadioButton passwordAuthRadio;
     private RadioButton keyAuthRadio;
+    private RadioButton temporaryKeyAuthRadio;
     private ComboBox<SSHKey> savedSSHKeysCombo;
+    private TextArea temporaryKeyArea;
+    private Spinner<Integer> expirationMinutesSpinner;
+    private Label remainingTimeLabel;
+    private Timeline expirationTimer;
+    private TemporarySSHKey currentTemporaryKey;
     private CheckBox saveConnectionCheck;
     private TextField connectionNameField;
     private Spinner<Integer> timeoutSpinner;
@@ -63,7 +75,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         this.masterPassword = masterPassword;
         this.topConnectionsCount = topConnectionsCount;
         
-        setTitle("Schnellverbindung");
+        setTitle(I18n.get("quickConnect.title"));
         setHeaderText(null);
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
@@ -71,7 +83,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         VBox mainContent = new VBox(10);
         mainContent.setPadding(new Insets(15));
-        mainContent.setPrefWidth(500);
+        mainContent.setPrefWidth(750);
+        mainContent.setMinWidth(700);
         
         // Top N most used connections
         if (savedConnections != null && !savedConnections.isEmpty()) {
@@ -86,10 +99,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         
-        Tab individualTab = new Tab("Einzelverbindung");
+        Tab individualTab = new Tab(I18n.get("quickConnect.individualConnection"));
         individualTab.setContent(createIndividualConnectionPane());
         
-        Tab groupTab = new Tab("Gruppe öffnen");
+        Tab groupTab = new Tab(I18n.get("quickConnect.openGroup"));
         groupTab.setContent(createGroupSelectionPane());
         
         tabPane.getTabs().addAll(individualTab, groupTab);
@@ -97,11 +110,13 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         mainContent.getChildren().add(tabPane);
         
         getDialogPane().setContent(mainContent);
+        getDialogPane().setMinWidth(700);
+        getDialogPane().setPrefWidth(750);
         
         // Buttons
-        ButtonType connectButtonType = new ButtonType("Verbinden", ButtonBar.ButtonData.OK_DONE);
-        ButtonType openGroupButtonType = new ButtonType("Gruppe öffnen", ButtonBar.ButtonData.OK_DONE);
-        ButtonType loadProjectButtonType = new ButtonType("Projekt laden", ButtonBar.ButtonData.OTHER);
+        ButtonType connectButtonType = new ButtonType(I18n.get("quickConnect.connect"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType openGroupButtonType = new ButtonType(I18n.get("quickConnect.openGroup"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType loadProjectButtonType = new ButtonType(I18n.get("quickConnect.loadProject"), ButtonBar.ButtonData.OTHER);
         getDialogPane().getButtonTypes().addAll(connectButtonType, openGroupButtonType, loadProjectButtonType, ButtonType.CANCEL);
         
         // Show/hide buttons based on selected tab
@@ -145,18 +160,26 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         // Result converter
         setResultConverter(dialogButton -> {
+            QuickConnectDialog.ConnectionResult result = null;
+            
             if (dialogButton == connectButtonType) {
-                return createIndividualResult();
+                result = createIndividualResult();
             } else if (dialogButton == openGroupButtonType) {
                 String selectedGroup = groupListView.getSelectionModel().getSelectedItem();
                 if (selectedGroup != null) {
-                    return new ConnectionResult(null, null, false, false, selectedGroup, false);
+                    result = new ConnectionResult(null, null, false, false, selectedGroup, false, null);
                 }
             } else if (dialogButton == loadProjectButtonType) {
                 // Special result to signal "load project"
-                return new ConnectionResult(null, null, false, false, null, true);
+                result = new ConnectionResult(null, null, false, false, null, true, null);
             }
-            return null;
+            
+            // Save terminal settings when dialog is closed (except cancel)
+            if (result != null && dialogButton != ButtonType.CANCEL) {
+                saveTerminalSettings();
+            }
+            
+            return result;
         });
     }
     
@@ -178,7 +201,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         }
         
         VBox box = new VBox(8);
-        Label label = new Label("Häufig genutzte Verbindungen:");
+        Label label = new Label(I18n.get("quickConnect.frequentlyUsed"));
         label.setStyle("-fx-font-weight: bold;");
         
         // Create horizontal scrollable container
@@ -197,7 +220,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 fillFormWithConnection(conn);
                 setResult(new ConnectionResult(conn, 
                         getConnectionPassword(conn), 
-                        false, true, null, false));
+                        false, true, null, false, null));
                 close();
             });
             buttonContainer.getChildren().add(btn);
@@ -223,7 +246,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         // Create form fields
         hostField = new TextField();
-        hostField.setPromptText("hostname oder IP");
+        hostField.setPromptText("hostname or IP");
         hostField.setPrefWidth(250);
         
         portSpinner = new Spinner<>(1, 65535, 22);
@@ -235,37 +258,100 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         usernameField.setText("root");
         
         passwordField = new PasswordField();
-        passwordField.setPromptText("Passwort");
+        passwordField.setPromptText(I18n.get("quickConnect.password"));
         
         // Authentication method
         authMethodGroup = new ToggleGroup();
-        passwordAuthRadio = new RadioButton("Passwort");
+        passwordAuthRadio = new RadioButton(I18n.get("quickConnect.authPassword"));
         passwordAuthRadio.setToggleGroup(authMethodGroup);
         passwordAuthRadio.setSelected(true);
         
-        keyAuthRadio = new RadioButton("Privater Schlüssel");
+        keyAuthRadio = new RadioButton(I18n.get("quickConnect.authKey"));
         keyAuthRadio.setToggleGroup(authMethodGroup);
+        
+        temporaryKeyAuthRadio = new RadioButton(I18n.get("quickConnect.authTemporaryKey"));
+        temporaryKeyAuthRadio.setToggleGroup(authMethodGroup);
         
         // SSH Key selection
         savedSSHKeysCombo = new ComboBox<>();
-        savedSSHKeysCombo.setPromptText("Gespeicherten SSH-Key auswählen...");
+        savedSSHKeysCombo.setPromptText(I18n.get("quickConnect.sshKey") + " " + I18n.get("quickConnect.selectSaved"));
         savedSSHKeysCombo.setPrefWidth(300);
         savedSSHKeysCombo.setDisable(true);
         if (sshKeyManager != null) {
             savedSSHKeysCombo.getItems().addAll(sshKeyManager.getAllKeys());
         }
         
+        // Temporary SSH Key fields
+        temporaryKeyArea = new TextArea();
+        temporaryKeyArea.setPromptText(I18n.get("quickConnect.temporarySSHKeyPrompt"));
+        temporaryKeyArea.setPrefRowCount(5);
+        temporaryKeyArea.setWrapText(true);
+        temporaryKeyArea.setDisable(true);
+        
+        expirationMinutesSpinner = new Spinner<>(1, 1440, 15); // 1 minute to 24 hours, default 15 minutes
+        expirationMinutesSpinner.setEditable(true);
+        expirationMinutesSpinner.setPrefWidth(80);
+        expirationMinutesSpinner.setDisable(true);
+        
+        remainingTimeLabel = new Label();
+        remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
+        remainingTimeLabel.setDisable(true);
+        
+        // Check for existing temporary key
+        TemporarySSHKey existingKey = TemporarySSHKeyManager.getInstance().getCurrentTemporaryKey();
+        if (existingKey != null && existingKey.isValid()) {
+            temporaryKeyArea.setText(existingKey.getKeyContent());
+            expirationMinutesSpinner.getValueFactory().setValue((int)existingKey.getExpirationMinutes());
+            currentTemporaryKey = existingKey;
+            temporaryKeyAuthRadio.setSelected(true);
+            startExpirationTimer();
+        }
+        
         // Update field states based on auth method
         authMethodGroup.selectedToggleProperty().addListener((obs, old, newVal) -> {
             boolean useKey = keyAuthRadio.isSelected();
-            passwordField.setDisable(useKey);
-            savedSSHKeysCombo.setDisable(!useKey);
+            boolean useTemporaryKey = temporaryKeyAuthRadio.isSelected();
+            passwordField.setDisable(useKey || useTemporaryKey);
+            savedSSHKeysCombo.setDisable(!useKey || useTemporaryKey);
+            temporaryKeyArea.setDisable(!useTemporaryKey);
+            expirationMinutesSpinner.setDisable(!useTemporaryKey);
+            remainingTimeLabel.setDisable(!useTemporaryKey);
+            
+            if (useTemporaryKey && temporaryKeyArea.getText().isEmpty() && currentTemporaryKey == null) {
+                // User selected temporary key but no key is entered yet
+                temporaryKeyArea.requestFocus();
+            }
         });
         
-        saveConnectionCheck = new CheckBox("Verbindung speichern");
+        // Start timer when temporary key is entered
+        temporaryKeyArea.textProperty().addListener((obs, old, newVal) -> {
+            if (temporaryKeyAuthRadio.isSelected() && newVal != null && !newVal.trim().isEmpty()) {
+                // Store temporary key when entered
+                long expirationMinutes = expirationMinutesSpinner.getValue();
+                currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                    newVal.trim(), expirationMinutes);
+                startExpirationTimer();
+            } else if (newVal == null || newVal.trim().isEmpty()) {
+                stopExpirationTimer();
+                currentTemporaryKey = null;
+            }
+        });
+        
+        // Update expiration time when spinner changes
+        expirationMinutesSpinner.valueProperty().addListener((obs, old, newVal) -> {
+            if (temporaryKeyAuthRadio.isSelected() && newVal != null && 
+                temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
+                // Update temporary key with new expiration
+                currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                    temporaryKeyArea.getText().trim(), newVal);
+                startExpirationTimer();
+            }
+        });
+        
+        saveConnectionCheck = new CheckBox(I18n.get("quickConnect.saveConnection"));
         
         connectionNameField = new TextField();
-        connectionNameField.setPromptText("Verbindungsname (optional)");
+        connectionNameField.setPromptText(I18n.get("quickConnect.connectionNamePrompt"));
         connectionNameField.setDisable(true);
         
         timeoutSpinner = new Spinner<>(1, 300, 15);
@@ -282,7 +368,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         // Saved connections dropdown
         savedConnectionsCombo = new ComboBox<>();
-        savedConnectionsCombo.setPromptText("-- Gespeicherte Verbindung auswählen --");
+        savedConnectionsCombo.setPromptText(I18n.get("quickConnect.selectSaved"));
         savedConnectionsCombo.setPrefWidth(400);
         savedConnectionsCombo.setCellFactory(lv -> new ListCell<>() {
             @Override
@@ -324,47 +410,74 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         grid.setHgap(10);
         grid.setVgap(10);
         
-        grid.add(new Label("Host:"), 0, 0);
+        // Set column constraints to ensure labels are fully visible
+        ColumnConstraints labelColumn = new ColumnConstraints();
+        labelColumn.setMinWidth(200);
+        labelColumn.setPrefWidth(220);
+        labelColumn.setHgrow(Priority.NEVER);
+        
+        ColumnConstraints inputColumn = new ColumnConstraints();
+        inputColumn.setHgrow(Priority.ALWAYS);
+        inputColumn.setMinWidth(400);
+        
+        grid.getColumnConstraints().addAll(labelColumn, inputColumn);
+        
+        grid.add(new Label(I18n.get("quickConnect.host")), 0, 0);
         HBox hostBox = new HBox(10);
-        hostBox.getChildren().addAll(hostField, new Label("Port:"), portSpinner);
+        hostBox.getChildren().addAll(hostField, new Label(I18n.get("quickConnect.port")), portSpinner);
         grid.add(hostBox, 1, 0);
         
-        grid.add(new Label("Benutzer:"), 0, 1);
+        grid.add(new Label(I18n.get("quickConnect.username")), 0, 1);
         grid.add(usernameField, 1, 1);
         
-        grid.add(new Label("Authentifizierung:"), 0, 2);
-        HBox authBox = new HBox(15, passwordAuthRadio, keyAuthRadio);
+        grid.add(new Label(I18n.get("quickConnect.authentication")), 0, 2);
+        VBox authBox = new VBox(5);
+        authBox.getChildren().addAll(passwordAuthRadio, keyAuthRadio, temporaryKeyAuthRadio);
         grid.add(authBox, 1, 2);
         
-        grid.add(new Label("Passwort:"), 0, 3);
+        grid.add(new Label(I18n.get("quickConnect.password")), 0, 3);
         grid.add(passwordField, 1, 3);
         
-        grid.add(new Label("SSH-Key:"), 0, 4);
+        grid.add(new Label(I18n.get("quickConnect.sshKey")), 0, 4);
         grid.add(savedSSHKeysCombo, 1, 4);
         
-        grid.add(saveConnectionCheck, 1, 5);
+        // Temporary SSH Key section
+        grid.add(new Label(I18n.get("quickConnect.temporarySSHKey")), 0, 5);
+        VBox tempKeyBox = new VBox(5);
+        tempKeyBox.getChildren().add(temporaryKeyArea);
+        HBox expirationBox = new HBox(10);
+        expirationBox.getChildren().addAll(
+            new Label(I18n.get("quickConnect.expirationTime")),
+            expirationMinutesSpinner,
+            new Label(I18n.get("quickConnect.expirationMinutes"))
+        );
+        tempKeyBox.getChildren().add(expirationBox);
+        tempKeyBox.getChildren().add(remainingTimeLabel);
+        grid.add(tempKeyBox, 1, 5);
         
-        grid.add(new Label("Name:"), 0, 6);
-        grid.add(connectionNameField, 1, 6);
+        grid.add(saveConnectionCheck, 1, 6);
         
-        grid.add(new Separator(), 0, 7, 2, 1);
+        grid.add(new Label(I18n.get("quickConnect.connectionName")), 0, 7);
+        grid.add(connectionNameField, 1, 7);
         
-        grid.add(new Label("Verbindungstimeout:"), 0, 8);
+        grid.add(new Separator(), 0, 8, 2, 1);
+        
+        grid.add(new Label(I18n.get("quickConnect.connectionTimeout")), 0, 9);
         HBox timeoutBox = new HBox(10);
-        timeoutBox.getChildren().addAll(timeoutSpinner, new Label("Sekunden"));
-        grid.add(timeoutBox, 1, 8);
+        timeoutBox.getChildren().addAll(timeoutSpinner, new Label(I18n.get("common.seconds")));
+        grid.add(timeoutBox, 1, 9);
         
-        grid.add(new Label("Wiederholungen:"), 0, 9);
+        grid.add(new Label(I18n.get("quickConnect.retries")), 0, 10);
         HBox retryBox = new HBox(10);
-        retryBox.getChildren().addAll(retrySpinner, new Label("Versuche"));
-        grid.add(retryBox, 1, 9);
+        retryBox.getChildren().addAll(retrySpinner, new Label("attempts"));
+        grid.add(retryBox, 1, 10);
         
         // Terminal appearance section
-        grid.add(new Separator(), 0, 10, 2, 1);
+        grid.add(new Separator(), 0, 11, 2, 1);
         
-        Label appearanceLabel = new Label("Terminal-Darstellung:");
+        Label appearanceLabel = new Label(I18n.get("quickConnect.terminalAppearance"));
         appearanceLabel.setStyle("-fx-font-weight: bold;");
-        grid.add(appearanceLabel, 0, 11, 2, 1);
+        grid.add(appearanceLabel, 0, 12, 2, 1);
         
         // Font family
         fontFamilyCombo = new ComboBox<>();
@@ -377,27 +490,34 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         fontSizeSpinner.setEditable(true);
         fontSizeSpinner.setPrefWidth(80);
         
-        grid.add(new Label("Schriftart:"), 0, 12);
+        grid.add(new Label(I18n.get("quickConnect.font")), 0, 13);
         HBox fontBox = new HBox(10);
-        fontBox.getChildren().addAll(fontFamilyCombo, new Label("Größe:"), fontSizeSpinner);
-        grid.add(fontBox, 1, 12);
+        fontBox.getChildren().addAll(fontFamilyCombo, new Label(I18n.get("quickConnect.fontSize")), fontSizeSpinner);
+        grid.add(fontBox, 1, 13);
         
         // Colors
         foregroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#FFFFFF"));
         backgroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#1E1E1E"));
         
-        grid.add(new Label("Textfarbe:"), 0, 13);
-        grid.add(foregroundColorPicker, 1, 13);
+        grid.add(new Label(I18n.get("quickConnect.textColor")), 0, 14);
+        grid.add(foregroundColorPicker, 1, 14);
         
-        grid.add(new Label("Hintergrund:"), 0, 14);
-        grid.add(backgroundColorPicker, 1, 14);
+        grid.add(new Label(I18n.get("quickConnect.background")), 0, 15);
+        grid.add(backgroundColorPicker, 1, 15);
         
-        // Load default settings from GlobalSettings
-        loadDefaultTerminalSettings();
+        // Reset button to restore global default settings
+        Button resetButton = new Button(I18n.get("quickConnect.resetToDefaults"));
+        resetButton.setOnAction(e -> resetToDefaultSettings());
+        HBox buttonBox = new HBox(10);
+        buttonBox.getChildren().add(resetButton);
+        grid.add(buttonBox, 1, 16);
+        
+        // Load last used settings or default settings from GlobalSettings
+        loadTerminalSettings();
         
         // Add to pane
         if (savedConnections != null && !savedConnections.isEmpty()) {
-            Label savedLabel = new Label("Gespeicherte Verbindungen:");
+            Label savedLabel = new Label(I18n.get("quickConnect.savedConnections"));
             pane.getChildren().addAll(savedLabel, savedConnectionsCombo, new Separator());
         }
         pane.getChildren().add(grid);
@@ -409,7 +529,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         VBox pane = new VBox(10);
         pane.setPadding(new Insets(15));
         
-        Label label = new Label("Wählen Sie eine Gruppe, um alle Verbindungen dieser Gruppe zu öffnen:");
+        Label label = new Label(I18n.get("quickConnect.selectGroup"));
         
         groupListView = new ListView<>();
         
@@ -510,7 +630,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                         sshKeyManager.getEffectiveKeyPath(savedSSHKeysCombo.getValue()) : 
                         savedSSHKeysCombo.getValue().getKeyPath());
                 }
-                return new ConnectionResult(modified, null, false, true, null, false);
+                return new ConnectionResult(modified, null, false, true, null, false, null);
             } else if (passwordAuthRadio.isSelected() && selected.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
                 // User switched to password auth
                 ServerConnection modified = new ServerConnection();
@@ -525,10 +645,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setRetryCount(selected.getRetryCount());
                 modified.setAuthMethod(AuthMethod.PASSWORD);
                 modified.setSshKeyId(null);
-                return new ConnectionResult(modified, passwordField.getText(), false, true, null, false);
+                return new ConnectionResult(modified, passwordField.getText(), false, true, null, false, null);
             }
             // Using an existing saved connection as-is
-            return new ConnectionResult(selected, passwordField.getText(), false, true, null, false);
+            return new ConnectionResult(selected, passwordField.getText(), false, true, null, false, null);
         }
         
         ServerConnection connection = new ServerConnection();
@@ -539,7 +659,22 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         connection.setRetryCount(retrySpinner.getValue());
         
         // Set authentication method
-        if (keyAuthRadio.isSelected()) {
+        TemporarySSHKey tempKey = null;
+        if (temporaryKeyAuthRadio.isSelected()) {
+            connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
+            // Use temporary SSH key
+            if (currentTemporaryKey != null && currentTemporaryKey.isValid()) {
+                tempKey = currentTemporaryKey;
+                // Store key content temporarily in privateKeyPath (will be handled in TerminalView)
+                connection.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
+            } else if (temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
+                // Store new temporary key
+                long expirationMinutes = expirationMinutesSpinner.getValue();
+                tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                    temporaryKeyArea.getText().trim(), expirationMinutes);
+                connection.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
+            }
+        } else if (keyAuthRadio.isSelected()) {
             connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
             // Set SSH key if selected
             if (savedSSHKeysCombo.getValue() != null) {
@@ -560,7 +695,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         // Apply terminal settings from the dialog
         applyTerminalSettings(connection);
         
-        return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false, null, false);
+        return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false, null, false, tempKey);
     }
     
     /**
@@ -571,8 +706,9 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
      * @param existingSaved Whether this is an existing saved connection
      * @param groupName The group name to open (null for individual connection or project load)
      * @param loadProject Whether to load a project instead of connecting
+     * @param temporarySSHKey The temporary SSH key if used (null otherwise)
      */
-    public record ConnectionResult(ServerConnection connection, String password, boolean save, boolean existingSaved, String groupName, boolean loadProject) {
+    public record ConnectionResult(ServerConnection connection, String password, boolean save, boolean existingSaved, String groupName, boolean loadProject, TemporarySSHKey temporarySSHKey) {
         public boolean isGroupConnection() {
             return groupName != null;
         }
@@ -609,9 +745,50 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     }
     
     /**
-     * Loads default terminal settings from GlobalSettings.
+     * Loads terminal settings from GlobalSettings.
+     * First tries to load last QuickConnect settings, otherwise uses default terminal settings.
      */
-    private void loadDefaultTerminalSettings() {
+    private void loadTerminalSettings() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = 
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings globalSettings = gsm.getSettings();
+            
+            de.kortty.model.ConnectionSettings settings = null;
+            
+            // Try to load last QuickConnect settings first
+            if (globalSettings != null && globalSettings.getLastQuickConnectTerminalSettings() != null) {
+                settings = globalSettings.getLastQuickConnectTerminalSettings();
+            }
+            // Fall back to default terminal settings
+            else if (globalSettings != null && globalSettings.getDefaultTerminalSettings() != null) {
+                settings = globalSettings.getDefaultTerminalSettings();
+            }
+            
+            if (settings != null) {
+                // Apply font settings
+                if (settings.getFontFamily() != null) {
+                    fontFamilyCombo.setValue(settings.getFontFamily());
+                }
+                fontSizeSpinner.getValueFactory().setValue(settings.getFontSize());
+                
+                // Apply color settings
+                if (settings.getForegroundColor() != null) {
+                    foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
+                }
+                if (settings.getBackgroundColor() != null) {
+                    backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
+                }
+            }
+        } catch (Exception e) {
+            // Ignore, use default values
+        }
+    }
+    
+    /**
+     * Resets terminal settings to global default settings.
+     */
+    private void resetToDefaultSettings() {
         try {
             de.kortty.core.GlobalSettingsManager gsm = 
                 de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
@@ -635,7 +812,31 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 }
             }
         } catch (Exception e) {
-            // Ignore, use default values
+            // Ignore
+        }
+    }
+    
+    /**
+     * Saves current terminal settings as last QuickConnect settings.
+     */
+    private void saveTerminalSettings() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = 
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings globalSettings = gsm.getSettings();
+            
+            if (globalSettings != null) {
+                de.kortty.model.ConnectionSettings settings = new de.kortty.model.ConnectionSettings();
+                settings.setFontFamily(fontFamilyCombo.getValue());
+                settings.setFontSize(fontSizeSpinner.getValue());
+                settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
+                settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+                
+                globalSettings.setLastQuickConnectTerminalSettings(settings);
+                gsm.save();
+            }
+        } catch (Exception e) {
+            // Ignore, settings will be saved next time
         }
     }
     
@@ -684,6 +885,55 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 (int) (color.getRed() * 255),
                 (int) (color.getGreen() * 255),
                 (int) (color.getBlue() * 255));
+    }
+    
+    /**
+     * Starts the expiration timer to update the remaining time label.
+     */
+    private void startExpirationTimer() {
+        stopExpirationTimer();
+        
+        if (currentTemporaryKey == null) {
+            return;
+        }
+        
+        expirationTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            if (currentTemporaryKey != null && currentTemporaryKey.isValid()) {
+                long remainingSeconds = currentTemporaryKey.getRemainingSeconds();
+                long minutes = remainingSeconds / 60;
+                long seconds = remainingSeconds % 60;
+                remainingTimeLabel.setText(I18n.get("quickConnect.remainingTime", String.format("%02d:%02d", minutes, seconds)));
+                
+                // Change color based on remaining time
+                if (remainingSeconds < 60) {
+                    remainingTimeLabel.setStyle("-fx-text-fill: #ff0000; -fx-font-weight: bold;");
+                } else if (remainingSeconds < 300) {
+                    remainingTimeLabel.setStyle("-fx-text-fill: #ffaa00; -fx-font-weight: bold;");
+                } else {
+                    remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
+                }
+            } else {
+                // Key expired
+                remainingTimeLabel.setText(I18n.get("quickConnect.keyExpired"));
+                remainingTimeLabel.setStyle("-fx-text-fill: #ff0000; -fx-font-weight: bold;");
+                temporaryKeyArea.clear();
+                currentTemporaryKey = null;
+                stopExpirationTimer();
+            }
+        }));
+        expirationTimer.setCycleCount(Timeline.INDEFINITE);
+        expirationTimer.play();
+    }
+    
+    /**
+     * Stops the expiration timer.
+     */
+    private void stopExpirationTimer() {
+        if (expirationTimer != null) {
+            expirationTimer.stop();
+            expirationTimer = null;
+        }
+        remainingTimeLabel.setText("");
     }
 
 }

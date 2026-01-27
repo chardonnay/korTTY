@@ -1,14 +1,22 @@
 package de.kortty.ui;
 
 import de.kortty.model.ConnectionSettings;
-import de.kortty.ui.I18n;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.TemporarySSHKey;
+import de.kortty.ui.I18n;
 import javafx.application.Platform;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
+import java.time.Instant;
 
 /**
  * A tab containing a terminal view for an SSH session.
@@ -18,18 +26,40 @@ public class TerminalTab extends Tab {
     private final ServerConnection connection;
     private final TerminalView terminalView;
     private final ConnectionSettings settings;
+    private final TemporarySSHKey temporarySSHKey;
     private boolean isConnectionFailed = false;
+    private Instant connectionStartTime;
+    private Timeline statusBarTimer;
+    private Label statusBarLabel;
     
     // Tab group (independent from connection group)
     private String tabGroup = null;
     
     public TerminalTab(ServerConnection connection, String password) {
+        this(connection, password, null);
+    }
+    
+    public TerminalTab(ServerConnection connection, String password, TemporarySSHKey temporarySSHKey) {
         this.connection = connection;
         this.settings = connection.getSettings();
+        this.temporarySSHKey = temporarySSHKey;
+        this.connectionStartTime = Instant.now();
         this.terminalView = new TerminalView(connection, password);
         
+        // Create status bar
+        createStatusBar();
+        
         updateTabTitle();
-        setContent(terminalView);
+        
+        // Create container with terminal view and status bar
+        javafx.scene.layout.VBox container = new javafx.scene.layout.VBox();
+        container.getChildren().add(terminalView);
+        if (statusBarLabel != null) {
+            container.getChildren().add(statusBarLabel);
+        }
+        javafx.scene.layout.VBox.setVgrow(terminalView, Priority.ALWAYS);
+        
+        setContent(container);
         setClosable(true);
         
         // Handle tab close
@@ -47,6 +77,109 @@ public class TerminalTab extends Tab {
                 }
             }
             terminalView.cleanup();
+        stopStatusBarTimer();
+        });
+    }
+    
+    /**
+     * Creates the status bar showing SSH key validity and connection duration.
+     */
+    private void createStatusBar() {
+        if (temporarySSHKey == null && connection.getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY) {
+            // No status bar needed if no temporary key and not using key auth
+            return;
+        }
+        
+        statusBarLabel = new Label();
+        statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+        
+        // Start timer to update status bar
+        startStatusBarTimer();
+    }
+    
+    /**
+     * Starts the status bar timer to update connection duration and key validity.
+     */
+    private void startStatusBarTimer() {
+        stopStatusBarTimer();
+        
+        statusBarTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            updateStatusBar();
+        }));
+        statusBarTimer.setCycleCount(Timeline.INDEFINITE);
+        statusBarTimer.play();
+    }
+    
+    /**
+     * Stops the status bar timer.
+     */
+    private void stopStatusBarTimer() {
+        if (statusBarTimer != null) {
+            statusBarTimer.stop();
+            statusBarTimer = null;
+        }
+    }
+    
+    /**
+     * Updates the status bar with current information.
+     */
+    private void updateStatusBar() {
+        if (statusBarLabel == null) {
+            return;
+        }
+        
+        StringBuilder status = new StringBuilder();
+        
+        // Show temporary SSH key validity if available
+        if (temporarySSHKey != null) {
+            if (temporarySSHKey.isValid()) {
+                long remainingSeconds = temporarySSHKey.getRemainingSeconds();
+                long minutes = remainingSeconds / 60;
+                long secs = remainingSeconds % 60;
+                String timeStr = String.format("%02d:%02d", minutes, secs);
+                
+                if (remainingSeconds < 60) {
+                    status.append(I18n.get("statusBar.sshKeyValidCritical", timeStr));
+                } else if (remainingSeconds < 300) {
+                    status.append(I18n.get("statusBar.sshKeyValidWarning", timeStr));
+                } else {
+                    status.append(I18n.get("statusBar.sshKeyValid", timeStr));
+                }
+            } else if (temporarySSHKey != null) {
+                status.append(I18n.get("statusBar.sshKeyExpired"));
+            }
+        }
+        
+        // Show connection duration
+        if (connectionStartTime != null) {
+            long durationSeconds = Instant.now().getEpochSecond() - connectionStartTime.getEpochSecond();
+            long hours = durationSeconds / 3600;
+            long minutes = (durationSeconds % 3600) / 60;
+            long secs = durationSeconds % 60;
+            
+            if (status.length() > 0) {
+                status.append(" | ");
+            }
+            String durationStr;
+            if (hours > 0) {
+                durationStr = String.format("%d:%02d:%02d", hours, minutes, secs);
+            } else {
+                durationStr = String.format("%02d:%02d", minutes, secs);
+            }
+            status.append(I18n.get("statusBar.connectionDuration", durationStr));
+        }
+        
+        Platform.runLater(() -> {
+            statusBarLabel.setText(status.toString());
+            
+            // Update color based on key validity
+            if (temporarySSHKey != null && !temporarySSHKey.isValid()) {
+                statusBarLabel.setStyle("-fx-background-color: #8B0000; -fx-text-fill: #ffffff; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+            } else if (temporarySSHKey != null && temporarySSHKey.getRemainingSeconds() < 60) {
+                statusBarLabel.setStyle("-fx-background-color: #8B4500; -fx-text-fill: #ffffff; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+            } else {
+                statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+            }
         });
     }
     
@@ -142,7 +275,7 @@ public class TerminalTab extends Tab {
      */
     public void onConnectionFailed(String error) {
         isConnectionFailed = true;
-        terminalView.showError("Verbindung fehlgeschlagen: " + error);
+        terminalView.showError(I18n.get("status.connectionFailed", error));
         Platform.runLater(() -> {
             updateTabTitle(" (DISCONNECT)");
             setTabErrorColor();

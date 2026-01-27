@@ -61,6 +61,10 @@ public class GlobalSettings {
     @XmlElement
     private ConnectionSettings defaultTerminalSettings;
     
+    // Last terminal settings used in QuickConnect dialog
+    @XmlElement
+    private ConnectionSettings lastQuickConnectTerminalSettings;
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -206,5 +210,13 @@ public class GlobalSettings {
     
     public void setDefaultTerminalSettings(ConnectionSettings defaultTerminalSettings) {
         this.defaultTerminalSettings = defaultTerminalSettings;
+    }
+    
+    public ConnectionSettings getLastQuickConnectTerminalSettings() {
+        return lastQuickConnectTerminalSettings;
+    }
+    
+    public void setLastQuickConnectTerminalSettings(ConnectionSettings lastQuickConnectTerminalSettings) {
+        this.lastQuickConnectTerminalSettings = lastQuickConnectTerminalSettings;
     }
 }

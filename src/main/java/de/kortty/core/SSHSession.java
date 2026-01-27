@@ -344,6 +344,43 @@ public class SSHSession {
             throw new Exception("Kein SSH-Key-Pfad angegeben");
         }
         
+        // Check if this is a temporary SSH key (starts with "TEMPORARY:")
+        if (keyPath.startsWith("TEMPORARY:")) {
+            String keyContent = keyPath.substring("TEMPORARY:".length());
+            try {
+                // Write temporary key to a temporary file
+                java.io.File tempFile = java.io.File.createTempFile("kortty_temp_key_", ".key");
+                tempFile.deleteOnExit();
+                
+                try (java.io.FileWriter writer = new java.io.FileWriter(tempFile)) {
+                    writer.write(keyContent);
+                }
+                
+                // Load key pair from temporary file using FileKeyPairProvider
+                FileKeyPairProvider keyPairProvider = new FileKeyPairProvider(tempFile.toPath());
+                
+                // Load the key pair
+                Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(session);
+                
+                if (keyPairs == null) {
+                    throw new Exception("Konnte temporären SSH-Key nicht laden");
+                }
+                
+                // Use the first key pair
+                java.security.KeyPair keyPair = keyPairs.iterator().next();
+                if (keyPair == null) {
+                    throw new Exception("Konnte temporären SSH-Key nicht parsen");
+                }
+                
+                session.addPublicKeyIdentity(keyPair);
+                logger.info("Using temporary SSH key for authentication");
+                return;
+            } catch (Exception e) {
+                logger.error("Failed to load temporary SSH key", e);
+                throw new Exception("Fehler beim Laden des temporären SSH-Keys: " + e.getMessage());
+            }
+        }
+        
         java.nio.file.Path keyFilePath = java.nio.file.Paths.get(keyPath);
         if (!java.nio.file.Files.exists(keyFilePath)) {
             throw new Exception("SSH-Key-Datei existiert nicht: " + keyPath);
