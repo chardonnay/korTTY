@@ -614,6 +614,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             selected.getUsername().equals(usernameField.getText().trim())) {
             // Using an existing saved connection
             // But if auth method changed, create a modified copy
+            // Also update timeout and retries from spinner values
             if (keyAuthRadio.isSelected() && selected.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
                 // User switched to key auth, need to update connection
                 ServerConnection modified = new ServerConnection();
@@ -624,8 +625,9 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setUsername(selected.getUsername());
                 modified.setGroup(selected.getGroup());
                 modified.setSettings(selected.getSettings());
-                modified.setConnectionTimeoutSeconds(selected.getConnectionTimeoutSeconds());
-                modified.setRetryCount(selected.getRetryCount());
+                // Use values from spinners, not from saved connection
+                modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+                modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
                 if (savedSSHKeysCombo.getValue() != null) {
                     modified.setSshKeyId(savedSSHKeysCombo.getValue().getId());
@@ -644,14 +646,29 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setUsername(selected.getUsername());
                 modified.setGroup(selected.getGroup());
                 modified.setSettings(selected.getSettings());
-                modified.setConnectionTimeoutSeconds(selected.getConnectionTimeoutSeconds());
-                modified.setRetryCount(selected.getRetryCount());
+                // Use values from spinners, not from saved connection
+                modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+                modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PASSWORD);
                 modified.setSshKeyId(null);
                 return new ConnectionResult(modified, passwordField.getText(), false, true, null, false, null);
             }
-            // Using an existing saved connection as-is
-            return new ConnectionResult(selected, passwordField.getText(), false, true, null, false, null);
+            // Using an existing saved connection, but update timeout and retries from spinners
+            ServerConnection modified = new ServerConnection();
+            modified.setId(selected.getId());
+            modified.setName(selected.getName());
+            modified.setHost(selected.getHost());
+            modified.setPort(selected.getPort());
+            modified.setUsername(selected.getUsername());
+            modified.setGroup(selected.getGroup());
+            modified.setSettings(selected.getSettings());
+            modified.setAuthMethod(selected.getAuthMethod());
+            modified.setSshKeyId(selected.getSshKeyId());
+            modified.setPrivateKeyPath(selected.getPrivateKeyPath());
+            // Use values from spinners, not from saved connection
+            modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+            modified.setRetryCount(retrySpinner.getValue());
+            return new ConnectionResult(modified, passwordField.getText(), false, true, null, false, null);
         }
         
         ServerConnection connection = new ServerConnection();

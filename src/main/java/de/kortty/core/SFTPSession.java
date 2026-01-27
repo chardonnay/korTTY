@@ -381,9 +381,14 @@ public class SFTPSession {
                 }
                 
                 // Load key pair from temporary file using FileKeyPairProvider
+                // Use setKeyIdentityProvider instead of addPublicKeyIdentity for better EdDSA support
                 FileKeyPairProvider keyPairProvider = new FileKeyPairProvider(tempFile.toPath());
                 
-                // Load the key pair
+                // Set the key identity provider on the session - this is the recommended approach
+                // for FileKeyPairProvider and works better with EdDSA keys
+                session.setKeyIdentityProvider(keyPairProvider);
+                
+                // Also verify that we can load at least one key pair
                 Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(session);
                 
                 if (keyPairs == null) {
@@ -396,7 +401,7 @@ public class SFTPSession {
                     throw new Exception("Could not parse temporary SSH key: no key pairs found");
                 }
                 
-                // Use the first key pair
+                // Use the first key pair for logging
                 java.security.KeyPair keyPair = iterator.next();
                 if (keyPair == null) {
                     throw new Exception("Could not parse temporary SSH key: keyPair is null");
@@ -407,9 +412,15 @@ public class SFTPSession {
                     throw new Exception("Invalid temporary SSH key: missing private or public key component");
                 }
                 
-                session.addPublicKeyIdentity(keyPair);
-                logger.info("Using temporary SSH key for authentication (key type: {})", 
-                    keyPair.getPublic().getAlgorithm());
+                // Log key details for debugging
+                String keyAlgorithm = keyPair.getPublic().getAlgorithm();
+                String keyFormat = keyPair.getPublic().getFormat();
+                logger.info("Loaded temporary SSH key - Algorithm: {}, Format: {}, Key size: {} bytes", 
+                    keyAlgorithm, keyFormat, keyPair.getPublic().getEncoded().length);
+                
+                // Key identity provider is now set on the session
+                // The session will use this provider during authentication
+                logger.info("Set temporary SSH key identity provider on session (key type: {})", keyAlgorithm);
                 return;
             } catch (Exception e) {
                 logger.error("Failed to load temporary SSH key from file: {}", 
