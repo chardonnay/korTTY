@@ -65,6 +65,13 @@ public class GlobalSettings {
     @XmlElement
     private ConnectionSettings lastQuickConnectTerminalSettings;
     
+    // Last connection timeout and retries used in QuickConnect dialog
+    @XmlElement
+    private Integer lastQuickConnectTimeout;
+    
+    @XmlElement
+    private Integer lastQuickConnectRetries;
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -218,5 +225,21 @@ public class GlobalSettings {
     
     public void setLastQuickConnectTerminalSettings(ConnectionSettings lastQuickConnectTerminalSettings) {
         this.lastQuickConnectTerminalSettings = lastQuickConnectTerminalSettings;
+    }
+    
+    public Integer getLastQuickConnectTimeout() {
+        return lastQuickConnectTimeout;
+    }
+    
+    public void setLastQuickConnectTimeout(Integer lastQuickConnectTimeout) {
+        this.lastQuickConnectTimeout = lastQuickConnectTimeout;
+    }
+    
+    public Integer getLastQuickConnectRetries() {
+        return lastQuickConnectRetries;
+    }
+    
+    public void setLastQuickConnectRetries(Integer lastQuickConnectRetries) {
+        this.lastQuickConnectRetries = lastQuickConnectRetries;
     }
 }

@@ -347,13 +347,32 @@ public class SSHSession {
         // Check if this is a temporary SSH key (starts with "TEMPORARY:")
         if (keyPath.startsWith("TEMPORARY:")) {
             String keyContent = keyPath.substring("TEMPORARY:".length());
+            java.io.File tempFile = null;
             try {
                 // Write temporary key to a temporary file
-                java.io.File tempFile = java.io.File.createTempFile("kortty_temp_key_", ".key");
+                tempFile = java.io.File.createTempFile("kortty_temp_key_", ".key");
                 tempFile.deleteOnExit();
                 
-                try (java.io.FileWriter writer = new java.io.FileWriter(tempFile)) {
+                // Write key content to file
+                try (java.io.FileWriter writer = new java.io.FileWriter(tempFile, java.nio.charset.StandardCharsets.UTF_8)) {
                     writer.write(keyContent);
+                }
+                
+                // Set file permissions to 600 (read/write for owner only) - required by SSH
+                try {
+                    java.nio.file.Files.setPosixFilePermissions(
+                        tempFile.toPath(),
+                        java.util.Set.of(
+                            java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                            java.nio.file.attribute.PosixFilePermission.OWNER_WRITE
+                        )
+                    );
+                } catch (UnsupportedOperationException e) {
+                    // Windows doesn't support POSIX permissions, try alternative
+                    tempFile.setReadable(false, false);
+                    tempFile.setReadable(true, true);
+                    tempFile.setWritable(false, false);
+                    tempFile.setWritable(true, true);
                 }
                 
                 // Load key pair from temporary file using FileKeyPairProvider
@@ -363,21 +382,34 @@ public class SSHSession {
                 Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(session);
                 
                 if (keyPairs == null) {
-                    throw new Exception("Konnte temporären SSH-Key nicht laden");
+                    throw new Exception("Could not load temporary SSH key: keyPairs is null");
+                }
+                
+                // Get iterator and check if it has elements
+                java.util.Iterator<java.security.KeyPair> iterator = keyPairs.iterator();
+                if (!iterator.hasNext()) {
+                    throw new Exception("Could not parse temporary SSH key: no key pairs found");
                 }
                 
                 // Use the first key pair
-                java.security.KeyPair keyPair = keyPairs.iterator().next();
+                java.security.KeyPair keyPair = iterator.next();
                 if (keyPair == null) {
-                    throw new Exception("Konnte temporären SSH-Key nicht parsen");
+                    throw new Exception("Could not parse temporary SSH key: keyPair is null");
+                }
+                
+                // Verify key pair has both private and public key
+                if (keyPair.getPrivate() == null || keyPair.getPublic() == null) {
+                    throw new Exception("Invalid temporary SSH key: missing private or public key component");
                 }
                 
                 session.addPublicKeyIdentity(keyPair);
-                logger.info("Using temporary SSH key for authentication");
+                logger.info("Using temporary SSH key for authentication (key type: {})", 
+                    keyPair.getPublic().getAlgorithm());
                 return;
             } catch (Exception e) {
-                logger.error("Failed to load temporary SSH key", e);
-                throw new Exception("Fehler beim Laden des temporären SSH-Keys: " + e.getMessage());
+                logger.error("Failed to load temporary SSH key from file: {}", 
+                    tempFile != null ? tempFile.getAbsolutePath() : "unknown", e);
+                throw new Exception("Error loading temporary SSH key: " + e.getMessage(), e);
             }
         }
         

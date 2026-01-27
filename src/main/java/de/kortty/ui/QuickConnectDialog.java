@@ -362,6 +362,9 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         retrySpinner.setEditable(true);
         retrySpinner.setPrefWidth(80);
         
+        // Load last used timeout and retries values
+        loadConnectionSettings();
+        
         saveConnectionCheck.selectedProperty().addListener((obs, old, newVal) -> {
             connectionNameField.setDisable(!newVal);
         });
@@ -745,6 +748,31 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     }
     
     /**
+     * Loads connection settings (timeout and retries) from GlobalSettings.
+     */
+    private void loadConnectionSettings() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = 
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings globalSettings = gsm.getSettings();
+            
+            if (globalSettings != null) {
+                // Load timeout
+                if (globalSettings.getLastQuickConnectTimeout() != null) {
+                    timeoutSpinner.getValueFactory().setValue(globalSettings.getLastQuickConnectTimeout());
+                }
+                
+                // Load retries
+                if (globalSettings.getLastQuickConnectRetries() != null) {
+                    retrySpinner.getValueFactory().setValue(globalSettings.getLastQuickConnectRetries());
+                }
+            }
+        } catch (Exception e) {
+            // Ignore, use default values
+        }
+    }
+    
+    /**
      * Loads terminal settings from GlobalSettings.
      * First tries to load last QuickConnect settings, otherwise uses default terminal settings.
      */
@@ -817,7 +845,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     }
     
     /**
-     * Saves current terminal settings as last QuickConnect settings.
+     * Saves current terminal settings and connection settings as last QuickConnect settings.
      */
     private void saveTerminalSettings() {
         try {
@@ -826,6 +854,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             de.kortty.model.GlobalSettings globalSettings = gsm.getSettings();
             
             if (globalSettings != null) {
+                // Save terminal settings
                 de.kortty.model.ConnectionSettings settings = new de.kortty.model.ConnectionSettings();
                 settings.setFontFamily(fontFamilyCombo.getValue());
                 settings.setFontSize(fontSizeSpinner.getValue());
@@ -833,6 +862,11 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
                 
                 globalSettings.setLastQuickConnectTerminalSettings(settings);
+                
+                // Save connection settings (timeout and retries)
+                globalSettings.setLastQuickConnectTimeout(timeoutSpinner.getValue());
+                globalSettings.setLastQuickConnectRetries(retrySpinner.getValue());
+                
                 gsm.save();
             }
         } catch (Exception e) {
