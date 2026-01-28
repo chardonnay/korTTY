@@ -172,14 +172,8 @@ public class TerminalTab extends Tab {
         Platform.runLater(() -> {
             statusBarLabel.setText(status.toString());
             
-            // Update color based on key validity
-            if (temporarySSHKey != null && !temporarySSHKey.isValid()) {
-                statusBarLabel.setStyle("-fx-background-color: #8B0000; -fx-text-fill: #ffffff; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
-            } else if (temporarySSHKey != null && temporarySSHKey.getRemainingSeconds() < 60) {
-                statusBarLabel.setStyle("-fx-background-color: #8B4500; -fx-text-fill: #ffffff; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
-            } else {
-                statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
-            }
+            // Always use standard colors - don't change color for expired keys
+            statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
         });
     }
     
@@ -198,8 +192,8 @@ public class TerminalTab extends Tab {
      */
     private void setTabErrorColor() {
         Platform.runLater(() -> {
-            // Set dark red background color
-            setStyle("-fx-background-color: #8B0000; -fx-text-fill: white;");
+            // Set dark red background color with black text for better readability
+            setStyle("-fx-background-color: #8B0000; -fx-text-fill: black;");
         });
     }
     
