@@ -4,7 +4,6 @@ import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.core.util.TermSize;
 import de.kortty.model.ServerConnection;
 import org.apache.sshd.client.SshClient;
-import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
@@ -73,43 +72,10 @@ public class SshTtyConnector implements TtyConnector {
             // Create and start SSH client
             client = SshClient.setUpDefaultClient();
             
-            // Enable public key AND keyboard-interactive authentication
-            // Keyboard-interactive is required for CyberArk and other PAM systems
-            // that use 2FA (publickey first, then keyboard-interactive)
+            // Enable public key authentication
             client.setUserAuthFactories(java.util.Arrays.asList(
-                new UserAuthPublicKeyFactory(),
-                new UserAuthKeyboardInteractiveFactory()
+                new UserAuthPublicKeyFactory()
             ));
-            
-            // Set up keyboard-interactive handler for 2FA systems
-            // For CyberArk, we typically just need to provide empty responses
-            client.setUserInteraction(new org.apache.sshd.client.auth.keyboard.UserInteraction() {
-                @Override
-                public boolean isInteractionAllowed(ClientSession session) {
-                    return true;
-                }
-                
-                @Override
-                public String[] interactive(ClientSession session, String name, String instruction, 
-                                           String lang, String[] prompt, boolean[] echo) {
-                    logger.debug("Keyboard-interactive request: name='{}', instruction='{}', prompts={}", 
-                        name, instruction, prompt != null ? prompt.length : 0);
-                    
-                    // Return empty strings for each prompt
-                    // This works for CyberArk which just needs to see keyboard-interactive was attempted
-                    String[] responses = new String[prompt != null ? prompt.length : 0];
-                    for (int i = 0; i < responses.length; i++) {
-                        responses[i] = "";
-                        logger.debug("  Prompt[{}]: '{}' (echo={})", i, prompt[i], echo[i]);
-                    }
-                    return responses;
-                }
-                
-                @Override
-                public String getUpdatedPassword(ClientSession session, String prompt, String lang) {
-                    return null;
-                }
-            });
             
             // Note: EdDSA signature support is automatically enabled when the eddsa dependency
             // is on the classpath. The client will detect and use EdDSA signatures automatically.
