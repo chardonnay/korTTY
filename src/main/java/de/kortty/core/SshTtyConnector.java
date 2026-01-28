@@ -4,6 +4,7 @@ import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.core.util.TermSize;
 import de.kortty.model.ServerConnection;
 import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.channel.PtyMode;
@@ -70,6 +71,12 @@ public class SshTtyConnector implements TtyConnector {
             
             // Create and start SSH client
             client = SshClient.setUpDefaultClient();
+            
+            // Explicitly enable public key authentication
+            // This is required to ensure the client offers publickey as an authentication method
+            client.setUserAuthFactories(java.util.Arrays.asList(
+                new UserAuthPublicKeyFactory()
+            ));
             
             // Note: EdDSA signature support is automatically enabled when the eddsa dependency
             // is on the classpath. The client will detect and use EdDSA signatures automatically.

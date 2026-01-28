@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.ServerConnection;
 import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
@@ -54,6 +55,12 @@ public class SFTPSession {
                 connection.getUsername(), connection.getHost(), connection.getPort());
         
         client = SshClient.setUpDefaultClient();
+        
+        // Explicitly enable public key authentication
+        // This is required to ensure the client offers publickey as an authentication method
+        client.setUserAuthFactories(java.util.Arrays.asList(
+            new UserAuthPublicKeyFactory()
+        ));
         
         // Note: EdDSA signature support is automatically enabled when the eddsa dependency
         // is on the classpath. The client will detect and use EdDSA signatures automatically.
