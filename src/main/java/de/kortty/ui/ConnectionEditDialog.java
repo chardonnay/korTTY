@@ -51,9 +51,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private final ToggleGroup authMethodGroup;
     private final RadioButton passwordAuthRadio;
     private final RadioButton keyAuthRadio;
+    private final RadioButton temporaryKeyAuthRadio;
     private final TextField keyPathField;
     private final Button browseKeyButton;
     private final PasswordField keyPassphraseField;
+    private final TextArea temporaryKeyArea;
+    private final Spinner<Integer> temporaryKeyExpirationSpinner;
+    private final CheckBox temporaryKeyPermanentCheck;
     
     // Connection-specific settings
     private CheckBox useCustomSettingsCheck;
@@ -202,7 +206,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         keyAuthRadio = new RadioButton("Privater Schlüssel");
         keyAuthRadio.setToggleGroup(authMethodGroup);
         
-        if (connection.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
+        temporaryKeyAuthRadio = new RadioButton("Temporärer SSH-Key");
+        temporaryKeyAuthRadio.setToggleGroup(authMethodGroup);
+        
+        // Determine initial selection
+        if (connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
+            temporaryKeyAuthRadio.setSelected(true);
+        } else if (connection.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
             keyAuthRadio.setSelected(true);
         } else {
             passwordAuthRadio.setSelected(true);
@@ -257,6 +267,30 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             }
         });
         
+        // Temporary SSH Key fields
+        temporaryKeyArea = new TextArea();
+        temporaryKeyArea.setPromptText("SSH-Key hier einfügen...");
+        temporaryKeyArea.setPrefRowCount(5);
+        temporaryKeyArea.setWrapText(true);
+        
+        // Load existing temporary key if present
+        if (connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
+            temporaryKeyArea.setText(connection.getTemporaryKeyContent());
+        }
+        
+        temporaryKeyExpirationSpinner = new Spinner<>(1, 1440, 
+            connection.getTemporaryKeyExpirationMinutes() != null ? 
+                connection.getTemporaryKeyExpirationMinutes().intValue() : 60);
+        temporaryKeyExpirationSpinner.setEditable(true);
+        temporaryKeyExpirationSpinner.setPrefWidth(100);
+        
+        temporaryKeyPermanentCheck = new CheckBox("Temporärer SSH-Key permanent aktivieren");
+        temporaryKeyPermanentCheck.setSelected(connection.isTemporaryKeyPermanent());
+        temporaryKeyPermanentCheck.setTooltip(new Tooltip(
+            "Wenn aktiviert, wird dieser temporäre SSH-Key automatisch verwendet, " +
+            "solange er gültig ist. Nach Ablauf muss ein neuer Key eingegeben werden."
+        ));
+        
         HBox keyPathBox = new HBox(5, keyPathField, browseKeyButton);
         
         // Update field states based on auth method
@@ -293,7 +327,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
         
         connectionGrid.add(new Label("Authentifizierung:"), 0, row);
-        HBox authBox = new HBox(15, passwordAuthRadio, keyAuthRadio);
+        HBox authBox = new HBox(15, passwordAuthRadio, keyAuthRadio, temporaryKeyAuthRadio);
         connectionGrid.add(authBox, 1, row++);
         
         
@@ -312,6 +346,21 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         connectionGrid.add(new Label("Passphrase:"), 0, row);
         connectionGrid.add(keyPassphraseField, 1, row++);
+        
+        // Temporary SSH Key section
+        connectionGrid.add(new Separator(), 0, row++, 2, 1);
+        connectionGrid.add(new Label("Temporärer SSH-Key:"), 0, row);
+        VBox tempKeyBox = new VBox(5);
+        tempKeyBox.getChildren().add(temporaryKeyArea);
+        connectionGrid.add(tempKeyBox, 1, row++);
+        
+        connectionGrid.add(new Label("Ablaufzeit:"), 0, row);
+        HBox expirationBox = new HBox(10);
+        expirationBox.getChildren().addAll(temporaryKeyExpirationSpinner, new Label("Minuten"));
+        connectionGrid.add(expirationBox, 1, row++);
+        
+        connectionGrid.add(new Label(""), 0, row);
+        connectionGrid.add(temporaryKeyPermanentCheck, 1, row++);
         
         connectionTab.setContent(connectionGrid);
         
@@ -368,8 +417,38 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     connection.setCredentialId(null);
                 }
                 
-                if (keyAuthRadio != null && keyAuthRadio.isSelected()) {
+                if (temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected()) {
+                    // Temporary SSH Key authentication
                     connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                    connection.setSshKeyId(null);
+                    
+                    String tempKeyContent = temporaryKeyArea != null && temporaryKeyArea.getText() != null ? 
+                        temporaryKeyArea.getText().trim() : "";
+                    
+                    if (!tempKeyContent.isEmpty()) {
+                        connection.setTemporaryKeyContent(tempKeyContent);
+                        connection.setTemporaryKeyExpirationMinutes(
+                            temporaryKeyExpirationSpinner != null ? 
+                                (long) temporaryKeyExpirationSpinner.getValue() : 60L);
+                        connection.setTemporaryKeyPermanent(
+                            temporaryKeyPermanentCheck != null && temporaryKeyPermanentCheck.isSelected());
+                        
+                        // Set privateKeyPath to TEMPORARY: prefix for compatibility
+                        connection.setPrivateKeyPath("TEMPORARY:" + tempKeyContent);
+                    } else {
+                        // Clear temporary key if empty
+                        connection.setTemporaryKeyContent(null);
+                        connection.setTemporaryKeyExpirationMinutes(null);
+                        connection.setTemporaryKeyPermanent(false);
+                        connection.setPrivateKeyPath(null);
+                    }
+                } else if (keyAuthRadio != null && keyAuthRadio.isSelected()) {
+                    connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                    // Clear temporary key fields
+                    connection.setTemporaryKeyContent(null);
+                    connection.setTemporaryKeyExpirationMinutes(null);
+                    connection.setTemporaryKeyPermanent(false);
+                    
                     // Use key from combo if selected, otherwise use path field
                     if (savedSSHKeysCombo != null && savedSSHKeysCombo.getValue() != null) {
                         connection.setSshKeyId(savedSSHKeysCombo.getValue().getId());
@@ -384,6 +463,10 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 } else {
                     connection.setAuthMethod(AuthMethod.PASSWORD);
                     connection.setSshKeyId(null);
+                    // Clear temporary key fields
+                    connection.setTemporaryKeyContent(null);
+                    connection.setTemporaryKeyExpirationMinutes(null);
+                    connection.setTemporaryKeyPermanent(false);
                     // Note: Password should be encrypted before saving
                 }
                 
@@ -463,12 +546,19 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     private void updateAuthFields() {
         boolean useKey = keyAuthRadio.isSelected();
-        passwordField.setDisable(useKey);
-        savedCredentialsCombo.setDisable(useKey);
-        savedSSHKeysCombo.setDisable(!useKey);
-        keyPathField.setDisable(!useKey);
-        browseKeyButton.setDisable(!useKey);
-        keyPassphraseField.setDisable(!useKey);
+        boolean useTemporaryKey = temporaryKeyAuthRadio.isSelected();
+        boolean usePassword = passwordAuthRadio.isSelected();
+        
+        passwordField.setDisable(useKey || useTemporaryKey);
+        savedCredentialsCombo.setDisable(useKey || useTemporaryKey);
+        savedSSHKeysCombo.setDisable(!useKey || useTemporaryKey);
+        keyPathField.setDisable(!useKey || useTemporaryKey);
+        browseKeyButton.setDisable(!useKey || useTemporaryKey);
+        keyPassphraseField.setDisable(!useKey || useTemporaryKey);
+        
+        temporaryKeyArea.setDisable(!useTemporaryKey);
+        temporaryKeyExpirationSpinner.setDisable(!useTemporaryKey);
+        temporaryKeyPermanentCheck.setDisable(!useTemporaryKey);
     }
     
     private void validateForm(Button saveButton) {

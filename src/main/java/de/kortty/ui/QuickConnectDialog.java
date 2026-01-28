@@ -578,7 +578,26 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         retrySpinner.getValueFactory().setValue(conn.getRetryCount());
         
         // Set authentication method
-        if (conn.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
+        if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
+            // Connection has a temporary key - use it
+            temporaryKeyAuthRadio.setSelected(true);
+            temporaryKeyArea.setText(conn.getTemporaryKeyContent());
+            if (conn.getTemporaryKeyExpirationMinutes() != null) {
+                expirationMinutesSpinner.getValueFactory().setValue(conn.getTemporaryKeyExpirationMinutes().intValue());
+            }
+            // Try to get existing key from manager, or create/store it
+            TemporarySSHKey existingKey = TemporarySSHKeyManager.getInstance().getTemporaryKey(conn.getTemporaryKeyContent());
+            if (existingKey != null && existingKey.isValid()) {
+                currentTemporaryKey = existingKey;
+            } else {
+                // Store the key in manager
+                long expirationMinutes = conn.getTemporaryKeyExpirationMinutes() != null ? 
+                    conn.getTemporaryKeyExpirationMinutes() : 60L;
+                currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                    conn.getTemporaryKeyContent(), expirationMinutes);
+            }
+            startExpirationTimer();
+        } else if (conn.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
             keyAuthRadio.setSelected(true);
             // Try to find and select SSH key
             if (conn.getSshKeyId() != null && sshKeyManager != null) {
@@ -637,6 +656,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                     long expirationMinutes = expirationMinutesSpinner.getValue();
                     tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
                         temporaryKeyArea.getText().trim(), expirationMinutes);
+                    // Store key content in connection for persistence
+                    modified.setTemporaryKeyContent(tempKey.getKeyContent());
+                    modified.setTemporaryKeyExpirationMinutes(expirationMinutes);
+                    modified.setTemporaryKeyPermanent(selected.isTemporaryKeyPermanent()); // Preserve permanent setting
                     modified.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
                 }
                 return new ConnectionResult(modified, null, false, true, null, false, tempKey);
@@ -712,6 +735,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             // Use temporary SSH key
             if (currentTemporaryKey != null && currentTemporaryKey.isValid()) {
                 tempKey = currentTemporaryKey;
+                // Store key content in connection for persistence
+                connection.setTemporaryKeyContent(tempKey.getKeyContent());
+                connection.setTemporaryKeyExpirationMinutes(tempKey.getExpirationMinutes());
+                connection.setTemporaryKeyPermanent(false); // Not permanent by default in QuickConnect
                 // Store key content temporarily in privateKeyPath (will be handled in TerminalView)
                 connection.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
             } else if (temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
@@ -719,6 +746,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 long expirationMinutes = expirationMinutesSpinner.getValue();
                 tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
                     temporaryKeyArea.getText().trim(), expirationMinutes);
+                // Store key content in connection for persistence
+                connection.setTemporaryKeyContent(tempKey.getKeyContent());
+                connection.setTemporaryKeyExpirationMinutes(expirationMinutes);
+                connection.setTemporaryKeyPermanent(false); // Not permanent by default in QuickConnect
                 connection.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
             }
         } else if (keyAuthRadio.isSelected()) {

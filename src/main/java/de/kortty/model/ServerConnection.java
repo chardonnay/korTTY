@@ -76,6 +76,16 @@ public class ServerConnection {
     @XmlElement
     private int retryCount = 4;  // Default: 4 retry attempts
     
+    // Temporary SSH Key settings
+    @XmlElement
+    private String temporaryKeyContent;  // The SSH key content (not the path)
+    
+    @XmlElement
+    private Long temporaryKeyExpirationMinutes;  // Expiration time in minutes
+    
+    @XmlElement
+    private boolean temporaryKeyPermanent = false;  // Whether temporary key is permanently enabled
+    
     public ServerConnection() {
         this.id = UUID.randomUUID().toString();
         this.settings = new ConnectionSettings();
@@ -308,5 +318,29 @@ public class ServerConnection {
     
     public void setRetryCount(int retryCount) {
         this.retryCount = retryCount;
+    }
+    
+    public String getTemporaryKeyContent() {
+        return temporaryKeyContent;
+    }
+    
+    public void setTemporaryKeyContent(String temporaryKeyContent) {
+        this.temporaryKeyContent = temporaryKeyContent;
+    }
+    
+    public Long getTemporaryKeyExpirationMinutes() {
+        return temporaryKeyExpirationMinutes;
+    }
+    
+    public void setTemporaryKeyExpirationMinutes(Long temporaryKeyExpirationMinutes) {
+        this.temporaryKeyExpirationMinutes = temporaryKeyExpirationMinutes;
+    }
+    
+    public boolean isTemporaryKeyPermanent() {
+        return temporaryKeyPermanent;
+    }
+    
+    public void setTemporaryKeyPermanent(boolean temporaryKeyPermanent) {
+        this.temporaryKeyPermanent = temporaryKeyPermanent;
     }
 }
