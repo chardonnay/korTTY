@@ -360,14 +360,33 @@ public class SshTtyConnector implements TtyConnector {
             String keyContent = keyPath.substring("TEMPORARY:".length());
             java.io.File tempFile = null;
             try {
+                // DEBUG: Log key content details for troubleshooting
+                logger.debug("Temporary SSH key content length: {} chars", keyContent.length());
+                if (keyContent.length() > 100) {
+                    logger.debug("Key content starts with: {}", keyContent.substring(0, 50).replace("\n", "\\n"));
+                    logger.debug("Key content ends with: {}", keyContent.substring(keyContent.length() - 50).replace("\n", "\\n"));
+                }
+                
+                // DEBUG: Save a copy to a known location for inspection
+                java.io.File debugFile = new java.io.File(System.getProperty("user.home"), ".kortty/debug_temp_key.pem");
+                try (java.io.FileWriter debugWriter = new java.io.FileWriter(debugFile, java.nio.charset.StandardCharsets.UTF_8)) {
+                    debugWriter.write(keyContent);
+                    logger.info("DEBUG: Saved temporary key to {} for inspection", debugFile.getAbsolutePath());
+                } catch (Exception debugEx) {
+                    logger.warn("DEBUG: Could not save debug key file: {}", debugEx.getMessage());
+                }
+                
                 // Write temporary key to a temporary file
                 tempFile = java.io.File.createTempFile("kortty_temp_key_", ".key");
                 tempFile.deleteOnExit();
                 
-                // Write key content to file
+                // Write key content to file - ensure proper line endings
                 try (java.io.FileWriter writer = new java.io.FileWriter(tempFile, java.nio.charset.StandardCharsets.UTF_8)) {
                     writer.write(keyContent);
                 }
+                
+                // DEBUG: Log temp file path
+                logger.debug("Temporary key file: {}", tempFile.getAbsolutePath());
                 
                 // Set file permissions to 600 (read/write for owner only) - required by SSH
                 try {
@@ -419,17 +438,26 @@ public class SshTtyConnector implements TtyConnector {
                 }
                 
                 // Log key details for debugging
-                String keyAlgorithm = keyPair.getPublic().getAlgorithm();
-                String keyFormat = keyPair.getPublic().getFormat();
-                logger.info("Loaded temporary SSH key - Algorithm: {}, Format: {}, Key size: {} bytes", 
-                    keyAlgorithm, keyFormat, keyPair.getPublic().getEncoded().length);
+                String pubKeyAlgorithm = keyPair.getPublic().getAlgorithm();
+                String pubKeyFormat = keyPair.getPublic().getFormat();
+                String privKeyAlgorithm = keyPair.getPrivate().getAlgorithm();
+                String privKeyFormat = keyPair.getPrivate().getFormat();
+                String pubKeyClass = keyPair.getPublic().getClass().getName();
+                String privKeyClass = keyPair.getPrivate().getClass().getName();
+                
+                logger.info("Loaded temporary SSH key details:");
+                logger.info("  Public key - Algorithm: {}, Format: {}, Size: {} bytes, Class: {}", 
+                    pubKeyAlgorithm, pubKeyFormat, keyPair.getPublic().getEncoded().length, pubKeyClass);
+                logger.info("  Private key - Algorithm: {}, Format: {}, Class: {}", 
+                    privKeyAlgorithm, privKeyFormat, privKeyClass);
                 
                 // Set key identity provider AND add the key directly
                 // Using both methods ensures compatibility with all SSH servers
                 session.setKeyIdentityProvider(keyPairProvider);
                 session.addPublicKeyIdentity(keyPair);
                 
-                logger.info("Set temporary SSH key identity provider and added key to session (key type: {})", keyAlgorithm);
+                logger.info("Added key to session. Session identities count: {}", 
+                    session.getRegisteredIdentities() != null ? "available" : "null");
                 return;
             } catch (Exception e) {
                 logger.error("Failed to load temporary SSH key from file: {}", 
