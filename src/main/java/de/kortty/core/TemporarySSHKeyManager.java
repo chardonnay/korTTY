@@ -36,11 +36,18 @@ public class TemporarySSHKeyManager {
     
     /**
      * Stores a temporary SSH key.
+     * Only one temporary key is stored at a time - storing a new key removes any existing keys.
      * @param keyContent The SSH key content
      * @param expirationMinutes Expiration time in minutes
      * @return The stored TemporarySSHKey
      */
     public TemporarySSHKey storeTemporaryKey(String keyContent, long expirationMinutes) {
+        // Clear all existing temporary keys - we only want one at a time
+        if (!temporaryKeys.isEmpty()) {
+            logger.debug("Clearing {} existing temporary key(s) before storing new one", temporaryKeys.size());
+            temporaryKeys.clear();
+        }
+        
         TemporarySSHKey tempKey = new TemporarySSHKey(keyContent, expirationMinutes);
         temporaryKeys.put(keyContent, tempKey);
         logger.info("Stored temporary SSH key, expires in {} minutes", expirationMinutes);
