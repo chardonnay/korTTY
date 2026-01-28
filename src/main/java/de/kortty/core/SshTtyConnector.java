@@ -4,6 +4,7 @@ import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.core.util.TermSize;
 import de.kortty.model.ServerConnection;
 import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
@@ -72,10 +73,79 @@ public class SshTtyConnector implements TtyConnector {
             // Create and start SSH client
             client = SshClient.setUpDefaultClient();
             
-            // Enable public key authentication
+            // Enable public key AND keyboard-interactive authentication
+            // CyberArk requires keyboard-interactive AFTER publickey for access reason
             client.setUserAuthFactories(java.util.Arrays.asList(
-                new UserAuthPublicKeyFactory()
+                new UserAuthPublicKeyFactory(),
+                new UserAuthKeyboardInteractiveFactory()
             ));
+            
+            // Set up keyboard-interactive handler for CyberArk prompts
+            // CyberArk asks for "reason for this operation" after SSH key auth succeeds
+            client.setUserInteraction(new org.apache.sshd.client.auth.keyboard.UserInteraction() {
+                @Override
+                public boolean isInteractionAllowed(ClientSession session) {
+                    return true;
+                }
+                
+                @Override
+                public String[] interactive(ClientSession session, String name, String instruction, 
+                                           String lang, String[] prompt, boolean[] echo) {
+                    logger.info("Keyboard-interactive request: name='{}', instruction='{}'", name, instruction);
+                    
+                    if (prompt == null || prompt.length == 0) {
+                        return new String[0];
+                    }
+                    
+                    String[] responses = new String[prompt.length];
+                    
+                    // Use JavaFX dialog to get user input for each prompt
+                    final String[] finalResponses = responses;
+                    final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+                    
+                    javafx.application.Platform.runLater(() -> {
+                        try {
+                            for (int i = 0; i < prompt.length; i++) {
+                                logger.debug("  Prompt[{}]: '{}' (echo={})", i, prompt[i], echo[i]);
+                                
+                                // Create dialog for each prompt
+                                javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+                                dialog.setTitle("SSH Authentication");
+                                dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
+                                dialog.setContentText(prompt[i]);
+                                
+                                // If echo is false, we should use a password field, but TextInputDialog doesn't support that
+                                // For now, we'll use the regular text field
+                                
+                                java.util.Optional<String> result = dialog.showAndWait();
+                                finalResponses[i] = result.orElse("");
+                            }
+                        } catch (Exception e) {
+                            logger.error("Error showing keyboard-interactive dialog: {}", e.getMessage());
+                            for (int i = 0; i < prompt.length; i++) {
+                                finalResponses[i] = "";
+                            }
+                        } finally {
+                            latch.countDown();
+                        }
+                    });
+                    
+                    try {
+                        // Wait for UI thread to complete (max 5 minutes for user input)
+                        latch.await(5, java.util.concurrent.TimeUnit.MINUTES);
+                    } catch (InterruptedException e) {
+                        logger.warn("Keyboard-interactive dialog interrupted");
+                        Thread.currentThread().interrupt();
+                    }
+                    
+                    return finalResponses;
+                }
+                
+                @Override
+                public String getUpdatedPassword(ClientSession session, String prompt, String lang) {
+                    return null;
+                }
+            });
             
             // Note: EdDSA signature support is automatically enabled when the eddsa dependency
             // is on the classpath. The client will detect and use EdDSA signatures automatically.
