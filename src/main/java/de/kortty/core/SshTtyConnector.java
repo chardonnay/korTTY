@@ -4,6 +4,7 @@ import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.core.util.TermSize;
 import de.kortty.model.ServerConnection;
 import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
@@ -72,11 +73,43 @@ public class SshTtyConnector implements TtyConnector {
             // Create and start SSH client
             client = SshClient.setUpDefaultClient();
             
-            // Explicitly enable public key authentication
-            // This is required to ensure the client offers publickey as an authentication method
+            // Enable public key AND keyboard-interactive authentication
+            // Keyboard-interactive is required for CyberArk and other PAM systems
+            // that use 2FA (publickey first, then keyboard-interactive)
             client.setUserAuthFactories(java.util.Arrays.asList(
-                new UserAuthPublicKeyFactory()
+                new UserAuthPublicKeyFactory(),
+                new UserAuthKeyboardInteractiveFactory()
             ));
+            
+            // Set up keyboard-interactive handler for 2FA systems
+            // For CyberArk, we typically just need to provide empty responses
+            client.setUserInteraction(new org.apache.sshd.client.auth.keyboard.UserInteraction() {
+                @Override
+                public boolean isInteractionAllowed(ClientSession session) {
+                    return true;
+                }
+                
+                @Override
+                public String[] interactive(ClientSession session, String name, String instruction, 
+                                           String lang, String[] prompt, boolean[] echo) {
+                    logger.debug("Keyboard-interactive request: name='{}', instruction='{}', prompts={}", 
+                        name, instruction, prompt != null ? prompt.length : 0);
+                    
+                    // Return empty strings for each prompt
+                    // This works for CyberArk which just needs to see keyboard-interactive was attempted
+                    String[] responses = new String[prompt != null ? prompt.length : 0];
+                    for (int i = 0; i < responses.length; i++) {
+                        responses[i] = "";
+                        logger.debug("  Prompt[{}]: '{}' (echo={})", i, prompt[i], echo[i]);
+                    }
+                    return responses;
+                }
+                
+                @Override
+                public String getUpdatedPassword(ClientSession session, String prompt, String lang) {
+                    return null;
+                }
+            });
             
             // Note: EdDSA signature support is automatically enabled when the eddsa dependency
             // is on the classpath. The client will detect and use EdDSA signatures automatically.
@@ -389,7 +422,23 @@ public class SshTtyConnector implements TtyConnector {
                 java.io.File debugFile = new java.io.File(System.getProperty("user.home"), ".kortty/debug_temp_key.pem");
                 try (java.io.FileWriter debugWriter = new java.io.FileWriter(debugFile, java.nio.charset.StandardCharsets.UTF_8)) {
                     debugWriter.write(keyContentFixed);
-                    logger.info("DEBUG: Saved temporary key to {} for inspection", debugFile.getAbsolutePath());
+                    // Set permissions to 600 (owner read/write only)
+                    try {
+                        java.nio.file.Files.setPosixFilePermissions(
+                            debugFile.toPath(),
+                            java.util.Set.of(
+                                java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                                java.nio.file.attribute.PosixFilePermission.OWNER_WRITE
+                            )
+                        );
+                    } catch (UnsupportedOperationException permEx) {
+                        // Windows fallback
+                        debugFile.setReadable(false, false);
+                        debugFile.setReadable(true, true);
+                        debugFile.setWritable(false, false);
+                        debugFile.setWritable(true, true);
+                    }
+                    logger.info("DEBUG: Saved temporary key to {} for inspection (chmod 600)", debugFile.getAbsolutePath());
                 } catch (Exception debugEx) {
                     logger.warn("DEBUG: Could not save debug key file: {}", debugEx.getMessage());
                 }
