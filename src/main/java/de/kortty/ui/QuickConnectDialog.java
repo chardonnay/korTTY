@@ -613,8 +613,35 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             selected.getPort() == portSpinner.getValue() &&
             selected.getUsername().equals(usernameField.getText().trim())) {
             // Using an existing saved connection
-            // But if auth method changed, create a modified copy
+            // But if auth method changed OR using temporary key, create a modified copy
             // Also update timeout and retries from spinner values
+            
+            // Handle temporary key auth - ALWAYS use current key content from text area
+            if (temporaryKeyAuthRadio.isSelected()) {
+                ServerConnection modified = new ServerConnection();
+                modified.setId(selected.getId());
+                modified.setName(selected.getName());
+                modified.setHost(selected.getHost());
+                modified.setPort(selected.getPort());
+                modified.setUsername(selected.getUsername());
+                modified.setGroup(selected.getGroup());
+                modified.setSettings(selected.getSettings());
+                modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+                modified.setRetryCount(retrySpinner.getValue());
+                modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                
+                // Use the CURRENT key content from the text area (not from saved connection)
+                TemporarySSHKey tempKey = null;
+                if (temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
+                    // Always store and use the current text area content
+                    long expirationMinutes = expirationMinutesSpinner.getValue();
+                    tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                        temporaryKeyArea.getText().trim(), expirationMinutes);
+                    modified.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
+                }
+                return new ConnectionResult(modified, null, false, true, null, false, tempKey);
+            }
+            
             if (keyAuthRadio.isSelected() && selected.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
                 // User switched to key auth, need to update connection
                 ServerConnection modified = new ServerConnection();
