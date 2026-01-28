@@ -96,10 +96,20 @@ public class SshTtyConnector implements TtyConnector {
             // Connect to server
             String username = connection.getUsername();
             logger.debug("Connecting with username: '{}'", username);
+            logger.debug("Username length: {}, contains @: {}", username.length(), username.contains("@"));
+            
+            // Clear default key identity provider on client to avoid loading ~/.ssh keys
+            client.setKeyIdentityProvider(null);
             
             session = client.connect(username, connection.getHost(), connection.getPort())
                     .verify(Duration.ofSeconds(timeoutSeconds))
                     .getSession();
+            
+            // Verify the session username is exactly what we set
+            logger.debug("Session username after connect: '{}'", session.getUsername());
+            
+            // Clear any default key identity providers to avoid interference
+            session.setKeyIdentityProvider(null);
             
             // Authenticate
             if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
@@ -459,13 +469,15 @@ public class SshTtyConnector implements TtyConnector {
                 logger.info("  Private key - Algorithm: {}, Format: {}, Class: {}", 
                     privKeyAlgorithm, privKeyFormat, privKeyClass);
                 
-                // Set key identity provider AND add the key directly
-                // Using both methods ensures compatibility with all SSH servers
-                session.setKeyIdentityProvider(keyPairProvider);
+                // Clear any existing key identities and add ONLY our temporary key
+                // This ensures no other keys interfere with authentication
+                session.setKeyIdentityProvider(null);
                 session.addPublicKeyIdentity(keyPair);
                 
-                logger.info("Added key to session. Session identities count: {}", 
-                    session.getRegisteredIdentities() != null ? "available" : "null");
+                logger.info("Added temporary key to session:");
+                logger.info("  Public key: {}", keyPair.getPublic());
+                logger.info("  Session username: '{}'", session.getUsername());
+                logger.info("  Session host: '{}'", session.getConnectAddress());
                 return;
             } catch (Exception e) {
                 logger.error("Failed to load temporary SSH key from file: {}", 
