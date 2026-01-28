@@ -65,6 +65,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final CheckBox sshKeepAliveCheck;
     private final Spinner<Integer> sshKeepAliveIntervalSpinner;
     
+    // Connection settings
+    private final CheckBox connectionRetriesEnabledCheck;
+    
     // Backup settings
     private final Spinner<Integer> maxBackupSpinner;
     private final javafx.scene.control.RadioButton passwordEncryptionRadio;
@@ -235,6 +238,11 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             sshKeepAliveIntervalSpinner.setDisable(!newVal);
         });
         
+        // Connection retry settings
+        connectionRetriesEnabledCheck = new CheckBox(I18n.get("settings.connection.retriesEnabled"));
+        connectionRetriesEnabledCheck.setSelected(globalSettings != null ? globalSettings.isConnectionRetriesEnabled() : true);
+        connectionRetriesEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.connection.retriesEnabled.tooltip")));
+        
         terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
         terminalGrid.add(columnsSpinner, 1, 0);
         terminalGrid.add(new Label(I18n.get("settings.terminal.rows")), 0, 1);
@@ -254,6 +262,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         HBox keepAliveBox = new HBox(10);
         keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label(I18n.get("common.seconds")));
         terminalGrid.add(keepAliveBox, 1, 9);
+        
+        // Connection section
+        terminalGrid.add(new Separator(), 0, 10, 2, 1);
+        Label connectionHeader = new Label(I18n.get("settings.connection.header"));
+        connectionHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(connectionHeader, 0, 11, 2, 1);
+        terminalGrid.add(connectionRetriesEnabledCheck, 0, 12, 2, 1);
         
         terminalTab.setContent(terminalGrid);
         
@@ -657,6 +672,11 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         settings.setEncoding(encodingCombo.getValue());
         settings.setSshKeepAliveEnabled(sshKeepAliveCheck.isSelected());
         settings.setSshKeepAliveInterval(sshKeepAliveIntervalSpinner.getValue());
+        
+        // Save connection settings to GlobalSettings
+        if (globalSettings != null) {
+            globalSettings.setConnectionRetriesEnabled(connectionRetriesEnabledCheck.isSelected());
+        }
         
         // Save backup settings to GlobalSettings
         if (globalSettings != null) {

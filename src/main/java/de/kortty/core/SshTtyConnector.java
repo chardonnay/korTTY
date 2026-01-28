@@ -66,7 +66,7 @@ public class SshTtyConnector implements TtyConnector {
      * Initializes the SSH connection.
      * This should be called before start() on the terminal widget.
      */
-    public boolean connect() {
+    public boolean connect() throws AuthenticationException {
         try {
             logger.info("Connecting to {}@{}:{}", connection.getUsername(), connection.getHost(), connection.getPort());
             
@@ -108,17 +108,22 @@ public class SshTtyConnector implements TtyConnector {
                             for (int i = 0; i < prompt.length; i++) {
                                 logger.debug("  Prompt[{}]: '{}' (echo={})", i, prompt[i], echo[i]);
                                 
-                                // Create dialog for each prompt
-                                javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
-                                dialog.setTitle("SSH Authentication");
-                                dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
-                                dialog.setContentText(prompt[i]);
+                                // Check if this is an access reason prompt (contains "reason")
+                                boolean isAccessReasonPrompt = prompt[i].toLowerCase().contains("reason");
                                 
-                                // If echo is false, we should use a password field, but TextInputDialog doesn't support that
-                                // For now, we'll use the regular text field
-                                
-                                java.util.Optional<String> result = dialog.showAndWait();
-                                finalResponses[i] = result.orElse("");
+                                if (isAccessReasonPrompt) {
+                                    // Use custom dialog with ComboBox for access reason history
+                                    finalResponses[i] = showAccessReasonDialog(instruction, prompt[i]);
+                                } else {
+                                    // Use standard TextInputDialog for other prompts
+                                    javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+                                    dialog.setTitle("SSH Authentication");
+                                    dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
+                                    dialog.setContentText(prompt[i]);
+                                    
+                                    java.util.Optional<String> result = dialog.showAndWait();
+                                    finalResponses[i] = result.orElse("");
+                                }
                             }
                         } catch (Exception e) {
                             logger.error("Error showing keyboard-interactive dialog: {}", e.getMessage());
@@ -225,10 +230,34 @@ public class SshTtyConnector implements TtyConnector {
             
             return true;
             
+        } catch (org.apache.sshd.common.SshException e) {
+            // Check if this is an authentication error
+            String message = e.getMessage();
+            if (message != null && (message.contains("authentication") || 
+                                    message.contains("No more authentication methods"))) {
+                logger.error("Authentication failed for {}: {}", connection.getDisplayName(), message);
+                close();
+                // Throw a specific exception for auth failures - these should NOT be retried
+                throw new AuthenticationException("Authentication failed: " + message, e);
+            }
+            logger.error("Failed to connect to {}: {}", connection.getDisplayName(), e.getMessage(), e);
+            close();
+            return false;
         } catch (Exception e) {
             logger.error("Failed to connect to {}: {}", connection.getDisplayName(), e.getMessage(), e);
             close();
             return false;
+        }
+    }
+    
+    /**
+     * Exception thrown when SSH authentication fails.
+     * This indicates a configuration issue (wrong key, wrong user, etc.)
+     * and should NOT trigger connection retries.
+     */
+    public static class AuthenticationException extends Exception {
+        public AuthenticationException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
     
@@ -615,6 +644,92 @@ public class SshTtyConnector implements TtyConnector {
             logger.error("Failed to load SSH key from " + keyPath, e);
             throw new Exception("SSH-Key-Authentifizierung fehlgeschlagen: " + e.getMessage(), e);
         }
+    }
+    
+    /**
+     * Shows a dialog for entering the access reason with history from previous entries.
+     * Uses a ComboBox that allows both selection from history and text input.
+     */
+    private String showAccessReasonDialog(String instruction, String promptText) {
+        // Create custom dialog
+        javafx.scene.control.Dialog<String> dialog = new javafx.scene.control.Dialog<>();
+        dialog.setTitle("SSH Authentication - Access Reason");
+        dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
+        
+        // Set the button types
+        javafx.scene.control.ButtonType okButtonType = new javafx.scene.control.ButtonType("OK", 
+            javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(okButtonType, javafx.scene.control.ButtonType.CANCEL);
+        
+        // Create the ComboBox with editable text field
+        javafx.scene.control.ComboBox<String> reasonComboBox = new javafx.scene.control.ComboBox<>();
+        reasonComboBox.setEditable(true);
+        reasonComboBox.setPromptText("Enter or select access reason...");
+        reasonComboBox.setPrefWidth(400);
+        
+        // Load history from GlobalSettings
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            if (gsm != null && gsm.getSettings() != null) {
+                java.util.List<String> history = gsm.getSettings().getAccessReasonHistory();
+                if (history != null && !history.isEmpty()) {
+                    reasonComboBox.getItems().addAll(history);
+                    // Pre-select the most recent entry
+                    reasonComboBox.setValue(history.get(0));
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not load access reason history: {}", e.getMessage());
+        }
+        
+        // Create layout
+        javafx.scene.layout.VBox content = new javafx.scene.layout.VBox(10);
+        content.getChildren().addAll(
+            new javafx.scene.control.Label(promptText),
+            reasonComboBox
+        );
+        content.setPadding(new javafx.geometry.Insets(20, 20, 10, 20));
+        
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setMinWidth(450);
+        
+        // Focus on the ComboBox editor
+        javafx.application.Platform.runLater(() -> {
+            reasonComboBox.requestFocus();
+            if (reasonComboBox.getEditor() != null) {
+                reasonComboBox.getEditor().selectAll();
+            }
+        });
+        
+        // Convert the result
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == okButtonType) {
+                String value = reasonComboBox.getValue();
+                if (value == null || value.trim().isEmpty()) {
+                    value = reasonComboBox.getEditor().getText();
+                }
+                return value != null ? value.trim() : "";
+            }
+            return "";
+        });
+        
+        java.util.Optional<String> result = dialog.showAndWait();
+        String reason = result.orElse("");
+        
+        // Save to history if not empty
+        if (!reason.isEmpty()) {
+            try {
+                de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+                if (gsm != null && gsm.getSettings() != null) {
+                    gsm.getSettings().addAccessReason(reason);
+                    gsm.save();
+                }
+            } catch (Exception e) {
+                logger.warn("Could not save access reason to history: {}", e.getMessage());
+            }
+        }
+        
+        return reason;
     }
     
     /**

@@ -72,6 +72,15 @@ public class GlobalSettings {
     @XmlElement
     private Integer lastQuickConnectRetries;
     
+    // Enable/disable connection retries globally
+    @XmlElement
+    private boolean connectionRetriesEnabled = true;
+    
+    // History of access reasons for CyberArk (max 5 entries)
+    @XmlElementWrapper(name = "accessReasonHistory")
+    @XmlElement(name = "reason")
+    private java.util.List<String> accessReasonHistory;
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -241,5 +250,42 @@ public class GlobalSettings {
     
     public void setLastQuickConnectRetries(Integer lastQuickConnectRetries) {
         this.lastQuickConnectRetries = lastQuickConnectRetries;
+    }
+    
+    public boolean isConnectionRetriesEnabled() {
+        return connectionRetriesEnabled;
+    }
+    
+    public void setConnectionRetriesEnabled(boolean connectionRetriesEnabled) {
+        this.connectionRetriesEnabled = connectionRetriesEnabled;
+    }
+    
+    public java.util.List<String> getAccessReasonHistory() {
+        if (accessReasonHistory == null) {
+            accessReasonHistory = new java.util.ArrayList<>();
+        }
+        return accessReasonHistory;
+    }
+    
+    public void setAccessReasonHistory(java.util.List<String> accessReasonHistory) {
+        this.accessReasonHistory = accessReasonHistory;
+    }
+    
+    /**
+     * Adds a new access reason to the history (keeps max 5 entries).
+     */
+    public void addAccessReason(String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            return;
+        }
+        java.util.List<String> history = getAccessReasonHistory();
+        // Remove if already exists (to move to front)
+        history.remove(reason);
+        // Add at front
+        history.add(0, reason);
+        // Keep only last 5
+        while (history.size() > 5) {
+            history.remove(history.size() - 1);
+        }
     }
 }

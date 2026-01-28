@@ -138,20 +138,39 @@ public class TerminalView extends BorderPane {
     public void connect() {
         // Run connection in background thread to prevent UI blocking
         Thread connectThread = new Thread(() -> {
-            int retryCount = connection.getRetryCount();
+            // Check if retries are enabled globally
+            boolean retriesEnabled = true;
+            try {
+                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                if (app != null && app.getGlobalSettingsManager() != null) {
+                    de.kortty.model.GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+                    if (globalSettings != null) {
+                        retriesEnabled = globalSettings.isConnectionRetriesEnabled();
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Could not check global retry setting: {}", e.getMessage());
+            }
+            
+            int retryCount = retriesEnabled ? connection.getRetryCount() : 1;
             if (retryCount <= 0) {
-                retryCount = 4; // Default fallback
+                retryCount = retriesEnabled ? 4 : 1; // Default fallback
             }
             
             int attempt = 0;
             boolean connected = false;
             String lastError = null;
+            boolean authenticationFailed = false;
             
             // Clear terminal before first attempt
             clearTerminal();
-            showMessage("Verbindungsversuch " + 1 + " von " + retryCount + "...");
+            if (retryCount > 1) {
+                showMessage("Verbindungsversuch " + 1 + " von " + retryCount + "...");
+            } else {
+                showMessage("Verbinde...");
+            }
             
-            while (attempt < retryCount && !connected) {
+            while (attempt < retryCount && !connected && !authenticationFailed) {
                 attempt++;
                 
                 try {
@@ -236,6 +255,24 @@ public class TerminalView extends BorderPane {
                         }
                     }
                     
+                } catch (SshTtyConnector.AuthenticationException e) {
+                    // Authentication failed - do NOT retry
+                    authenticationFailed = true;
+                    lastError = e.getMessage();
+                    logger.error("Authentication failed for {} - NOT retrying: {}", 
+                                connection.getDisplayName(), e.getMessage());
+                    
+                    // Show clear error message
+                    clearTerminal();
+                    showMessage("Authentifizierung fehlgeschlagen!");
+                    showMessage("");
+                    showMessage("Mögliche Ursachen:");
+                    showMessage("  - Kein SSH-Key ausgewählt");
+                    showMessage("  - SSH-Key nicht auf dem Server autorisiert");
+                    showMessage("  - Falscher Benutzername");
+                    showMessage("");
+                    showMessage("Fehler: " + e.getMessage());
+                    
                 } catch (Exception e) {
                     lastError = "Verbindung fehlgeschlagen: " + e.getMessage();
                     logger.error("Failed to start terminal session (attempt {}/{}): {}", 
@@ -245,7 +282,7 @@ public class TerminalView extends BorderPane {
                     showMessage("Verbindungsversuch " + attempt + " fehlgeschlagen: " + e.getMessage());
                     
                     // Wait before retry (except on last attempt)
-                    if (attempt < retryCount) {
+                    if (attempt < retryCount && !authenticationFailed) {
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException ie) {
@@ -256,16 +293,26 @@ public class TerminalView extends BorderPane {
                 }
             }
             
-            // All retries failed
-            clearTerminal();
-            showMessage("Verbindung nach " + retryCount + " Versuchen fehlgeschlagen.");
-            showMessage("Timeout: " + connection.getConnectionTimeoutSeconds() + " Sekunden.");
-            String finalError = lastError != null && !lastError.isEmpty() ? lastError : "Unbekannter Fehler";
-            showMessage(finalError);
+            // All retries failed (or auth failed)
+            if (!authenticationFailed) {
+                clearTerminal();
+                if (retryCount > 1) {
+                    showMessage("Verbindung nach " + retryCount + " Versuchen fehlgeschlagen.");
+                } else {
+                    showMessage("Verbindung fehlgeschlagen.");
+                }
+                showMessage("Timeout: " + connection.getConnectionTimeoutSeconds() + " Sekunden.");
+                String finalError = lastError != null && !lastError.isEmpty() ? lastError : "Unbekannter Fehler";
+                showMessage(finalError);
+            }
             logger.error("All connection attempts failed for {}", connection.getDisplayName());
             
             // Notify disconnect listener about failure
-            String errorMessage = "Verbindung nach " + retryCount + " Versuchen fehlgeschlagen";
+            String errorMessage = authenticationFailed 
+                ? "Authentifizierung fehlgeschlagen" 
+                : (retryCount > 1 
+                    ? "Verbindung nach " + retryCount + " Versuchen fehlgeschlagen" 
+                    : "Verbindung fehlgeschlagen");
             if (externalDisconnectListener != null) {
                 Platform.runLater(() -> {
                     externalDisconnectListener.onDisconnect(errorMessage, true);
