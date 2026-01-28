@@ -366,13 +366,20 @@ public class SFTPSession {
             String keyContent = keyPath.substring("TEMPORARY:".length());
             java.io.File tempFile = null;
             try {
+                // Ensure key content ends with a newline - OpenSSH keys MUST end with a newline character
+                String keyContentFixed = keyContent;
+                if (!keyContent.endsWith("\n")) {
+                    keyContentFixed = keyContent + "\n";
+                    logger.debug("Added missing trailing newline to key content");
+                }
+                
                 // Write temporary key to a temporary file
                 tempFile = java.io.File.createTempFile("kortty_temp_key_", ".key");
                 tempFile.deleteOnExit();
                 
                 // Write key content to file
                 try (java.io.FileWriter writer = new java.io.FileWriter(tempFile, java.nio.charset.StandardCharsets.UTF_8)) {
-                    writer.write(keyContent);
+                    writer.write(keyContentFixed);
                 }
                 
                 // Set file permissions to 600 (read/write for owner only) - required by SSH

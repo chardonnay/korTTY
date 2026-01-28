@@ -360,17 +360,25 @@ public class SshTtyConnector implements TtyConnector {
             String keyContent = keyPath.substring("TEMPORARY:".length());
             java.io.File tempFile = null;
             try {
+                // Ensure key content ends with a newline - OpenSSH keys MUST end with a newline character
+                String keyContentFixed = keyContent;
+                if (!keyContent.endsWith("\n")) {
+                    keyContentFixed = keyContent + "\n";
+                    logger.debug("Added missing trailing newline to key content");
+                }
+                
                 // DEBUG: Log key content details for troubleshooting
-                logger.debug("Temporary SSH key content length: {} chars", keyContent.length());
-                if (keyContent.length() > 100) {
-                    logger.debug("Key content starts with: {}", keyContent.substring(0, 50).replace("\n", "\\n"));
-                    logger.debug("Key content ends with: {}", keyContent.substring(keyContent.length() - 50).replace("\n", "\\n"));
+                logger.debug("Temporary SSH key content length: {} chars (after fix: {} chars)", 
+                    keyContent.length(), keyContentFixed.length());
+                if (keyContentFixed.length() > 100) {
+                    logger.debug("Key content starts with: {}", keyContentFixed.substring(0, 50).replace("\n", "\\n"));
+                    logger.debug("Key content ends with: {}", keyContentFixed.substring(keyContentFixed.length() - 50).replace("\n", "\\n"));
                 }
                 
                 // DEBUG: Save a copy to a known location for inspection
                 java.io.File debugFile = new java.io.File(System.getProperty("user.home"), ".kortty/debug_temp_key.pem");
                 try (java.io.FileWriter debugWriter = new java.io.FileWriter(debugFile, java.nio.charset.StandardCharsets.UTF_8)) {
-                    debugWriter.write(keyContent);
+                    debugWriter.write(keyContentFixed);
                     logger.info("DEBUG: Saved temporary key to {} for inspection", debugFile.getAbsolutePath());
                 } catch (Exception debugEx) {
                     logger.warn("DEBUG: Could not save debug key file: {}", debugEx.getMessage());
@@ -380,9 +388,9 @@ public class SshTtyConnector implements TtyConnector {
                 tempFile = java.io.File.createTempFile("kortty_temp_key_", ".key");
                 tempFile.deleteOnExit();
                 
-                // Write key content to file - ensure proper line endings
+                // Write key content to file
                 try (java.io.FileWriter writer = new java.io.FileWriter(tempFile, java.nio.charset.StandardCharsets.UTF_8)) {
-                    writer.write(keyContent);
+                    writer.write(keyContentFixed);
                 }
                 
                 // DEBUG: Log temp file path
