@@ -1453,9 +1453,19 @@ public class MainWindow {
      */
     private void openSFTPManagerForConnection(ServerConnection connection, de.kortty.model.TemporarySSHKey temporarySSHKey) {
         try {
-            String password = getConnectionPassword(connection);
-            if (password == null) {
-                // Ask for password using a simple dialog
+            // When tab was connected with temp key: use it only if still valid
+            if (temporarySSHKey != null && !temporarySSHKey.isValid()) {
+                showError(I18n.get("error.title"), I18n.get("sftp.tempKeyExpired"));
+                return;
+            }
+            
+            // When using valid temporary SSH key, no password needed - skip password dialog
+            String password = null;
+            if (temporarySSHKey == null) {
+                password = getConnectionPassword(connection);
+            }
+            if (password == null && temporarySSHKey == null) {
+                // Ask for password using a simple dialog (only when NOT using temp key)
                 Dialog<String> pwdDialog = new Dialog<>();
                 pwdDialog.setTitle(I18n.get("dialog.passwordRequired"));
                 pwdDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
@@ -1483,7 +1493,9 @@ public class MainWindow {
                 }
             }
             
-            SFTPManagerDialog sftpDialog = new SFTPManagerDialog(stage, app, connection, password, temporarySSHKey);
+            // Use empty password when temp key auth - SFTPSession uses key, not password
+            String passwordToUse = (temporarySSHKey != null && temporarySSHKey.isValid()) ? "" : (password != null ? password : "");
+            SFTPManagerDialog sftpDialog = new SFTPManagerDialog(stage, app, connection, passwordToUse, temporarySSHKey);
             sftpDialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to open SFTP manager", e);
