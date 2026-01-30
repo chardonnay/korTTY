@@ -931,7 +931,9 @@ public class MainWindow {
             case SFTP_MANAGER:
                 // Open SFTP Manager for this connection
                 if (terminalTab.isConnected()) {
-                    openSFTPManagerForConnection(terminalTab.getConnection());
+                    de.kortty.model.TemporarySSHKey tempKey = terminalTab.getTemporarySSHKey() != null ?
+                        de.kortty.core.TemporarySSHKeyManager.getInstance().getCurrentTemporaryKey() : null;
+                    openSFTPManagerForConnection(terminalTab.getConnection(), tempKey);
                 } else {
                     showError(I18n.get("error.notConnected"), I18n.get("error.notConnectedMessage"));
                 }
@@ -1417,9 +1419,14 @@ public class MainWindow {
         // Check if there's an active connection in the current tab
         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
         if (selectedTab instanceof TerminalTab terminalTab && terminalTab.isConnected()) {
-            // Use current connection
+            // Use current connection - pass temporary key if tab was connected with one
             logger.info("Using active connection: {}", terminalTab.getConnection().getDisplayName());
-            openSFTPManagerForConnection(terminalTab.getConnection());
+            de.kortty.model.TemporarySSHKey tempKey = null;
+            if (terminalTab.getTemporarySSHKey() != null) {
+                // Tab was connected with temp key - use current global key (may have been updated)
+                tempKey = de.kortty.core.TemporarySSHKeyManager.getInstance().getCurrentTemporaryKey();
+            }
+            openSFTPManagerForConnection(terminalTab.getConnection(), tempKey);
             return;
         }
         
@@ -1434,14 +1441,17 @@ public class MainWindow {
         
         dialog.showAndWait().ifPresent(connection -> {
             logger.info("Connection selected: {}", connection.getDisplayName());
-            openSFTPManagerForConnection(connection);
+            // Connection selection - do NOT use temp key (only when opened from tab with temp key)
+            openSFTPManagerForConnection(connection, null);
         });
     }
     
     /**
      * Opens SFTP Manager for a specific connection.
+     * @param connection The connection to use
+     * @param temporarySSHKey Optional temporary SSH key (only when opened from tab that used temp key)
      */
-    private void openSFTPManagerForConnection(ServerConnection connection) {
+    private void openSFTPManagerForConnection(ServerConnection connection, de.kortty.model.TemporarySSHKey temporarySSHKey) {
         try {
             String password = getConnectionPassword(connection);
             if (password == null) {
@@ -1473,7 +1483,7 @@ public class MainWindow {
                 }
             }
             
-            SFTPManagerDialog sftpDialog = new SFTPManagerDialog(stage, app, connection, password);
+            SFTPManagerDialog sftpDialog = new SFTPManagerDialog(stage, app, connection, password, temporarySSHKey);
             sftpDialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to open SFTP manager", e);

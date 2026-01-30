@@ -455,7 +455,22 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             new Label(I18n.get("quickConnect.expirationMinutes"))
         );
         tempKeyBox.getChildren().add(expirationBox);
-        tempKeyBox.getChildren().add(remainingTimeLabel);
+        HBox updateBox = new HBox(10);
+        updateBox.getChildren().add(remainingTimeLabel);
+        Button updateTempKeyButton = new Button(I18n.get("quickConnect.updateTempKey"));
+        updateTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.updateTempKey.tooltip")));
+        updateTempKeyButton.setOnAction(e -> {
+            if (temporaryKeyAuthRadio.isSelected() && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
+                long expirationMinutes = expirationMinutesSpinner.getValue();
+                currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                    temporaryKeyArea.getText().trim(), expirationMinutes);
+                if (currentTemporaryKey != null) {
+                    startExpirationTimer();
+                }
+            }
+        });
+        updateBox.getChildren().add(updateTempKeyButton);
+        tempKeyBox.getChildren().add(updateBox);
         grid.add(tempKeyBox, 1, 5);
         
         grid.add(saveConnectionCheck, 1, 6);

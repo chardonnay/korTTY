@@ -36,21 +36,45 @@ public class TemporarySSHKeyManager {
     
     /**
      * Stores a temporary SSH key.
-     * Only one temporary key is stored at a time - storing a new key removes any existing keys.
+     * Only one temporary key is stored at a time.
+     * IMPORTANT: Expiration is only reset when a NEW (different) key is pasted.
+     * If the same key content is stored again, the existing expiration is preserved.
      * @param keyContent The SSH key content
-     * @param expirationMinutes Expiration time in minutes
+     * @param expirationMinutes Expiration time in minutes (used only for new keys)
      * @return The stored TemporarySSHKey
      */
     public TemporarySSHKey storeTemporaryKey(String keyContent, long expirationMinutes) {
-        // Clear all existing temporary keys - we only want one at a time
+        if (keyContent == null || keyContent.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = keyContent.trim();
+        
+        // Only store if it looks like a complete SSH key (has BEGIN and END markers)
+        if (!trimmed.contains("-----BEGIN") || !trimmed.contains("-----END")) {
+            logger.debug("Key content does not look complete - not storing");
+            return getCurrentTemporaryKey();
+        }
+        
+        // If we already have this exact key content, do NOT replace - preserve expiration
+        TemporarySSHKey existing = temporaryKeys.get(trimmed);
+        if (existing != null) {
+            if (existing.isValid()) {
+                logger.debug("Same key content already stored - preserving expiration");
+                return existing;
+            }
+            // Key expired - remove it, will store new below
+            temporaryKeys.remove(trimmed);
+        }
+        
+        // New/different key - clear all existing and store
         if (!temporaryKeys.isEmpty()) {
             logger.debug("Clearing {} existing temporary key(s) before storing new one", temporaryKeys.size());
             temporaryKeys.clear();
         }
         
-        TemporarySSHKey tempKey = new TemporarySSHKey(keyContent, expirationMinutes);
-        temporaryKeys.put(keyContent, tempKey);
-        logger.info("Stored temporary SSH key, expires in {} minutes", expirationMinutes);
+        TemporarySSHKey tempKey = new TemporarySSHKey(trimmed, expirationMinutes);
+        temporaryKeys.put(trimmed, tempKey);
+        logger.info("Stored new temporary SSH key, expires in {} minutes", expirationMinutes);
         return tempKey;
     }
     

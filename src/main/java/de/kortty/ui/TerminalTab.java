@@ -317,6 +317,14 @@ public class TerminalTab extends Tab {
     }
     
     /**
+     * Returns the temporary SSH key if this tab was connected with one.
+     * Used by SFTP Manager to use the same key for file transfers.
+     */
+    public TemporarySSHKey getTemporarySSHKey() {
+        return temporarySSHKey;
+    }
+    
+    /**
      * Updates the tab title to include group prefix if group is set.
      */
     public void updateTabTitle() {

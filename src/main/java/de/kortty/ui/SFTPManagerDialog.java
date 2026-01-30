@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SFTPSession;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.TemporarySSHKey;
 import de.kortty.security.PasswordVault;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -43,6 +44,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
     private final KorTTYApplication app;
     private final ServerConnection connection;
     private final String password;
+    private final TemporarySSHKey temporarySSHKey;  // When opened from tab that used temp key
     private SFTPSession sftpSession;
     
     private TableView<FileItem> localTable;
@@ -62,9 +64,14 @@ public class SFTPManagerDialog extends Dialog<Void> {
     private ObservableList<FileItem> remoteItems;
     
     public SFTPManagerDialog(Stage owner, KorTTYApplication app, ServerConnection connection, String password) {
+        this(owner, app, connection, password, null);
+    }
+    
+    public SFTPManagerDialog(Stage owner, KorTTYApplication app, ServerConnection connection, String password, TemporarySSHKey temporarySSHKey) {
         this.app = app;
         this.connection = connection;
         this.password = password;
+        this.temporarySSHKey = temporarySSHKey;
         
         setTitle("SFTP Manager - " + connection.getDisplayName());
         setHeaderText("Dateiübertragung zwischen lokalem System und Server");
@@ -515,10 +522,25 @@ public class SFTPManagerDialog extends Dialog<Void> {
     private void connectToSFTP() {
         new Thread(() -> {
             try {
-                sftpSession = new SFTPSession(connection, password);
+                // When opened from tab with temp key, use it for SFTP connection
+                ServerConnection connToUse = connection;
+                if (temporarySSHKey != null && temporarySSHKey.isValid()) {
+                    connToUse = new ServerConnection();
+                    connToUse.setId(connection.getId());
+                    connToUse.setName(connection.getName());
+                    connToUse.setHost(connection.getHost());
+                    connToUse.setPort(connection.getPort());
+                    connToUse.setUsername(connection.getUsername());
+                    connToUse.setSettings(connection.getSettings());
+                    connToUse.setConnectionTimeoutSeconds(connection.getConnectionTimeoutSeconds());
+                    connToUse.setAuthMethod(de.kortty.model.AuthMethod.PUBLIC_KEY);
+                    connToUse.setPrivateKeyPath("TEMPORARY:" + temporarySSHKey.getKeyContent());
+                }
                 
-                // Set SSHKeyManager if available
-                if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                sftpSession = new SFTPSession(connToUse, password);
+                
+                // Set SSHKeyManager if available (for permanent keys, not temp)
+                if (temporarySSHKey == null && connToUse.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
                     de.kortty.KorTTYApplication appInstance = de.kortty.KorTTYApplication.getInstance();
                     if (appInstance != null && appInstance.getSSHKeyManager() != null) {
                         sftpSession.setSSHKeyManager(

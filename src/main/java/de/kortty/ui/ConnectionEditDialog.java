@@ -352,6 +352,17 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         connectionGrid.add(new Label("Temporärer SSH-Key:"), 0, row);
         VBox tempKeyBox = new VBox(5);
         tempKeyBox.getChildren().add(temporaryKeyArea);
+        Button updateTempKeyButton = new Button("Key aktualisieren");
+        updateTempKeyButton.setTooltip(new Tooltip("Aktualisiert den temporären SSH-Key ohne erneute Verbindung. " +
+            "Der neue Key wird sofort für SFTP und weitere Verbindungen verwendet."));
+        updateTempKeyButton.setOnAction(e -> {
+            if (temporaryKeyAuthRadio.isSelected() && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
+                long expirationMinutes = temporaryKeyExpirationSpinner.getValue();
+                de.kortty.core.TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                    temporaryKeyArea.getText().trim(), expirationMinutes);
+            }
+        });
+        tempKeyBox.getChildren().add(updateTempKeyButton);
         connectionGrid.add(tempKeyBox, 1, row++);
         
         connectionGrid.add(new Label("Ablaufzeit:"), 0, row);
