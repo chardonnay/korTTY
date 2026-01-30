@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.ServerConnection;
 import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.sftp.client.SftpClient;
@@ -56,11 +57,85 @@ public class SFTPSession {
         
         client = SshClient.setUpDefaultClient();
         
-        // Explicitly enable public key authentication
-        // This is required to ensure the client offers publickey as an authentication method
+        // Enable public key AND keyboard-interactive (CyberArk requires access reason after key auth)
         client.setUserAuthFactories(java.util.Arrays.asList(
-            new UserAuthPublicKeyFactory()
+            new UserAuthPublicKeyFactory(),
+            new UserAuthKeyboardInteractiveFactory()
         ));
+        
+        // Set up keyboard-interactive handler - use last access reason from TAB connection
+        client.setUserInteraction(new org.apache.sshd.client.auth.keyboard.UserInteraction() {
+            @Override
+            public boolean isInteractionAllowed(org.apache.sshd.client.session.ClientSession sess) {
+                return true;
+            }
+            
+            @Override
+            public String[] interactive(org.apache.sshd.client.session.ClientSession sess, String name, String instruction,
+                                       String lang, String[] prompt, boolean[] echo) {
+                logger.info("Keyboard-interactive request: name='{}', instruction='{}'", name, instruction);
+                if (prompt == null || prompt.length == 0) return new String[0];
+                
+                String[] responses = new String[prompt.length];
+                final String[] finalResponses = responses;
+                final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+                
+                for (int i = 0; i < prompt.length; i++) {
+                    boolean isAccessReason = prompt[i] != null && prompt[i].toLowerCase().contains("reason");
+                    if (isAccessReason) {
+                        String lastReason = getLastAccessReason();
+                        if (lastReason != null && !lastReason.trim().isEmpty()) {
+                            // Use same reason as TAB - no dialog needed
+                            finalResponses[i] = lastReason;
+                        } else {
+                            // No history - show dialog (must run on JavaFX thread)
+                            final int idx = i;
+                            final String promptText = prompt[i];
+                            javafx.application.Platform.runLater(() -> {
+                                try {
+                                    javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+                                    dialog.setTitle("SSH Authentication - Access Reason");
+                                    dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
+                                    dialog.setContentText(promptText);
+                                    java.util.Optional<String> result = dialog.showAndWait();
+                                    String reason = result.orElse("");
+                                    finalResponses[idx] = reason;
+                                    if (reason != null && !reason.trim().isEmpty()) {
+                                        try {
+                                            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+                                            if (gsm != null && gsm.getSettings() != null) {
+                                                gsm.getSettings().addAccessReason(reason);
+                                                gsm.save();
+                                            }
+                                        } catch (Exception e) {
+                                            logger.warn("Could not save access reason: {}", e.getMessage());
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    logger.error("Error showing access reason dialog: {}", e.getMessage());
+                                    finalResponses[idx] = "";
+                                } finally {
+                                    latch.countDown();
+                                }
+                            });
+                            try {
+                                latch.await(5, java.util.concurrent.TimeUnit.MINUTES);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                    } else {
+                        finalResponses[i] = "";
+                    }
+                }
+                return responses;
+            }
+            
+            @Override
+            public String getUpdatedPassword(org.apache.sshd.client.session.ClientSession sess, String prompt, String lang) {
+                return null;
+            }
+        });
         
         // Note: EdDSA signature support is automatically enabled when the eddsa dependency
         // is on the classpath. The client will detect and use EdDSA signatures automatically.
@@ -326,6 +401,25 @@ public class SFTPSession {
     
     public ServerConnection getConnection() {
         return connection;
+    }
+    
+    /**
+     * Gets the last access reason used (e.g. for CyberArk).
+     * Uses the most recent entry from GlobalSettings - the one the user entered for the TAB connection.
+     */
+    private String getLastAccessReason() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            if (gsm != null && gsm.getSettings() != null) {
+                java.util.List<String> history = gsm.getSettings().getAccessReasonHistory();
+                if (history != null && !history.isEmpty()) {
+                    return history.get(0);
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not get last access reason: {}", e.getMessage());
+        }
+        return null;
     }
     
     /**
