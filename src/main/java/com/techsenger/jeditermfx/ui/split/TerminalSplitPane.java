@@ -141,15 +141,8 @@ public class TerminalSplitPane extends StackPane {
                 focusedWidget = widget;
             }
         });
-        // Optional API in newer JediTermFX builds: context menu extender
-        try {
-            var method = widget.getClass().getMethod("setContextMenuExtender", java.util.function.Consumer.class);
-            method.invoke(widget, (java.util.function.Consumer<ContextMenu>) menu -> addSplitMenuItems(menu, widget));
-        } catch (NoSuchMethodException e) {
-            logger.debug("setContextMenuExtender not available (upstream JediTermFX)");
-        } catch (Exception e) {
-            logger.debug("Failed to set context menu extender: {}", e.getMessage());
-        }
+        // Add split menu via right-click on the widget pane
+        setupContextMenu(widget);
         
         // Broadcast mode: register event filters on the WIDGET'S OUTER PANE
         // This is the outermost container (myInnerPanel), ensuring our filter runs 
@@ -177,6 +170,22 @@ public class TerminalSplitPane extends StackPane {
             if (sequence != null) {
                 broadcastToOthers(widget, sequence);
             }
+        });
+    }
+
+    /**
+     * Sets up the context menu for a widget with split options.
+     * Uses setOnContextMenuRequested on the pane since upstream JediTermFX
+     * doesn't have setContextMenuExtender.
+     */
+    private void setupContextMenu(@NotNull JediTermFxWidget widget) {
+        var widgetPane = widget.getPane();
+        widgetPane.setOnContextMenuRequested(event -> {
+            focusedWidget = widget;
+            ContextMenu menu = new ContextMenu();
+            addSplitMenuItems(menu, widget);
+            menu.show(widgetPane, event.getScreenX(), event.getScreenY());
+            event.consume();
         });
     }
 
