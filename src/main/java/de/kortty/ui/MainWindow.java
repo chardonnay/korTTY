@@ -16,7 +16,8 @@ import de.kortty.persistence.exporter.MTPuTTYExporter;
 import de.kortty.persistence.exporter.MobaXTermExporter;
 import de.kortty.security.PasswordVault;
 import javafx.application.Platform;
-import javafx.geometry.Orientation;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
@@ -50,7 +51,7 @@ public class MainWindow {
     private final BorderPane root;
     private final TabPane tabPane;
     private final Label statusLabel;
-    private final SplitPane splitPane;
+    private final HBox mainContentBox;
     private DashboardView dashboardView;
     private boolean dashboardVisible = false;
     
@@ -78,7 +79,7 @@ public class MainWindow {
         this.root = new BorderPane();
         this.tabPane = new TabPane();
         this.statusLabel = new Label(I18n.get("app.ready"));
-        this.splitPane = new SplitPane();
+        this.mainContentBox = new HBox();
         
         setupUI();
         setupMenuBar();
@@ -155,32 +156,11 @@ public class MainWindow {
         statusBar.setStyle("-fx-padding: 5; -fx-background-color: #2d2d2d;");
         statusLabel.setStyle("-fx-text-fill: #cccccc;");
         
-        // Split pane for dashboard
-        splitPane.setOrientation(Orientation.HORIZONTAL);
-        splitPane.getItems().add(tabPane);
+        // HBox for dashboard (fixed width) + tab pane (grows with window)
+        mainContentBox.getChildren().add(tabPane);
+        HBox.setHgrow(tabPane, Priority.ALWAYS);
         
-        // Listen for divider position changes to save dashboard geometry
-        splitPane.getDividers().addListener((javafx.collections.ListChangeListener.Change<? extends SplitPane.Divider> c) -> {
-            while (c.next()) {
-                if (c.wasAdded()) {
-                    for (SplitPane.Divider divider : c.getAddedSubList()) {
-                        divider.positionProperty().addListener((obs, oldVal, newVal) -> {
-                            GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
-                            if (globalSettings.isRememberDashboardState() && dashboardVisible) {
-                                globalSettings.setDashboardDividerPosition(newVal.doubleValue());
-                                try {
-                                    app.getGlobalSettingsManager().save();
-                                } catch (Exception e) {
-                                    logger.warn("Failed to save dashboard divider position", e);
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-        });
-        
-        root.setCenter(splitPane);
+        root.setCenter(mainContentBox);
         root.setBottom(statusBar);
         
         // Scene setup
@@ -293,13 +273,6 @@ public class MainWindow {
             // Save dashboard state on close if enabled
             if (globalSettings.isRememberDashboardState()) {
                 globalSettings.setDashboardVisible(dashboardVisible);
-                // Save dashboard divider position if dashboard is visible
-                if (dashboardVisible && splitPane.getItems().size() > 1) {
-                    double[] positions = splitPane.getDividerPositions();
-                    if (positions.length > 0) {
-                        globalSettings.setDashboardDividerPosition(positions[0]);
-                    }
-                }
             }
             
             // Save settings BEFORE confirmClose (which might exit the app)
@@ -519,14 +492,7 @@ public class MainWindow {
         
         // Restore dashboard state if enabled
         if (globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible()) {
-            Platform.runLater(() -> {
-                toggleDashboard(true);
-                // Restore dashboard divider position
-                double savedPosition = globalSettings.getDashboardDividerPosition();
-                if (savedPosition > 0.0 && savedPosition < 1.0) {
-                    splitPane.setDividerPositions(savedPosition);
-                }
-            });
+            Platform.runLater(() -> toggleDashboard(true));
         }
     }
     
@@ -935,25 +901,21 @@ public class MainWindow {
         }
     }
     
+    private static final int DASHBOARD_FIXED_WIDTH = 300;
+    
     private void toggleDashboard(boolean show) {
         if (show && !dashboardVisible) {
             if (dashboardView == null) {
                 dashboardView = new DashboardView(tabPane, this::handleDashboardAction);
+                // Fixed width - dashboard does not resize when main window resizes
+                dashboardView.setMinWidth(DASHBOARD_FIXED_WIDTH);
+                dashboardView.setMaxWidth(DASHBOARD_FIXED_WIDTH);
+                dashboardView.setPrefWidth(DASHBOARD_FIXED_WIDTH);
             }
-            splitPane.getItems().add(0, dashboardView);
-            
-            // Restore saved divider position or use default
-            GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
-            double savedPosition = globalSettings.getDashboardDividerPosition();
-            if (savedPosition > 0.0 && savedPosition < 1.0) {
-                splitPane.setDividerPositions(savedPosition);
-            } else {
-                splitPane.setDividerPositions(0.2); // Default: 20%
-            }
-            
+            mainContentBox.getChildren().add(0, dashboardView);
             dashboardVisible = true;
         } else if (!show && dashboardVisible) {
-            splitPane.getItems().remove(dashboardView);
+            mainContentBox.getChildren().remove(dashboardView);
             dashboardVisible = false;
         }
     }
@@ -1072,6 +1034,9 @@ public class MainWindow {
         ));
         windowState.getGeometry().setMaximized(stage.isMaximized());
         
+        // Save dashboard state (visibility)
+        windowState.setDashboardVisible(dashboardVisible);
+        
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
                 ServerConnection connection = terminalTab.getConnection();
@@ -1082,6 +1047,11 @@ public class MainWindow {
                 sessionState.setSettings(connection.getSettings());
                 sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
                 sessionState.setGroup(terminalTab.getGroup()); // Save tab group (not connection group)
+                // Save current font size (zoom level) - may differ from settings when user zoomed
+                int currentFontSize = terminalTab.getTerminalView().getCurrentFontSize();
+                if (currentFontSize != connection.getSettings().getFontSize()) {
+                    sessionState.setFontSizeOverride(currentFontSize);
+                }
                 windowState.addTab(sessionState);
             }
         }
@@ -1122,6 +1092,11 @@ public class MainWindow {
                                 restoredTab.setGroup(sessionState.getGroup());
                                 organizeTabsByGroup();
                             }
+                            // Restore font size (zoom level) if saved
+                            Integer fontSizeOverride = sessionState.getFontSizeOverride();
+                            if (fontSizeOverride != null && fontSizeOverride > 0) {
+                                restoredTab.getTerminalView().setFontSize(fontSizeOverride);
+                            }
                             logger.info("Restoring tab for {} with {} chars of history", 
                                     connection.getDisplayName(), 
                                     history != null ? history.length() : 0);
@@ -1135,8 +1110,11 @@ public class MainWindow {
             }
         }
         
-        // Show dashboard for projects
-        toggleDashboard(true);
+        // Restore dashboard state from project (visibility)
+        WindowState firstWindow = project.getWindows().isEmpty() ? null : project.getWindows().get(0);
+        if (firstWindow != null && Boolean.TRUE.equals(firstWindow.getDashboardVisible())) {
+            toggleDashboard(true);
+        }
     }
     
     private void importConnections() {

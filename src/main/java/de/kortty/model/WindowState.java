@@ -24,6 +24,14 @@ public class WindowState {
     @XmlElement
     private int activeTabIndex = 0;
     
+    /** Dashboard visibility when project was saved. */
+    @XmlElement
+    private Boolean dashboardVisible;
+    
+    /** Dashboard divider position (0.0-1.0) when project was saved. */
+    @XmlElement
+    private Double dashboardDividerPosition;
+    
     public WindowState() {
         this.geometry = new WindowGeometry();
     }
@@ -69,6 +77,22 @@ public class WindowState {
     
     public void setActiveTabIndex(int activeTabIndex) {
         this.activeTabIndex = activeTabIndex;
+    }
+    
+    public Boolean getDashboardVisible() {
+        return dashboardVisible;
+    }
+    
+    public void setDashboardVisible(Boolean dashboardVisible) {
+        this.dashboardVisible = dashboardVisible;
+    }
+    
+    public Double getDashboardDividerPosition() {
+        return dashboardDividerPosition;
+    }
+    
+    public void setDashboardDividerPosition(Double dashboardDividerPosition) {
+        this.dashboardDividerPosition = dashboardDividerPosition;
     }
     
     @Override

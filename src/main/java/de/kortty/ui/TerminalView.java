@@ -252,9 +252,9 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Gets the current font size from the settings provider.
+     * Gets the current font size from the settings provider (includes zoom level).
      */
-    int getCurrentFontSize() {
+    public int getCurrentFontSize() {
         return (int) settingsProvider.getFontSize();
     }
     
@@ -642,6 +642,14 @@ public class TerminalView extends BorderPane {
     public void resetZoom() {
         settingsProvider.setFontSize(defaultFontSize);
         logger.debug("Zoom reset to default font size: {}", defaultFontSize);
+    }
+    
+    /**
+     * Sets the terminal font size (e.g. when restoring project zoom level).
+     */
+    public void setFontSize(int fontSize) {
+        settingsProvider.setFontSize(fontSize);
+        logger.debug("Font size set to: {}", fontSize);
     }
     
     /**

@@ -36,6 +36,10 @@ public class SessionState {
     @XmlElement
     private String group;
     
+    /** Current font size (zoom level) - may differ from settings.fontSize when user zoomed. Null = use default. */
+    @XmlElement
+    private Integer fontSizeOverride;
+    
     public SessionState() {
     }
     
@@ -116,6 +120,14 @@ public class SessionState {
     
     public void setGroup(String group) {
         this.group = group;
+    }
+    
+    public Integer getFontSizeOverride() {
+        return fontSizeOverride;
+    }
+    
+    public void setFontSizeOverride(Integer fontSizeOverride) {
+        this.fontSizeOverride = fontSizeOverride;
     }
     
     /**
