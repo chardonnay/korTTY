@@ -6,6 +6,8 @@ A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
 
 - **GUI-based**: Modern JavaFX interface with dark theme
 - **Tab Support**: Multiple SSH connections in one window
+- **Font Size Adjustment**: Zoom in/out in running terminal (Ctrl+Plus, Ctrl+Minus, Ctrl+0)
+- **Split-Screen with Broadcast**: Split terminal view and broadcast input to all panes
 - **Multi-Window**: Open multiple windows for different projects
 - **Encrypted Passwords**: AES-256-GCM encryption with master password
 - **SSH Key Management**: Centralized management of private SSH keys with encrypted passphrases
@@ -83,7 +85,7 @@ Creates a DMG installer:
 
 The DMG file is located at:
 ```
-build/jpackage/korTTY-1.1.0.dmg
+build/jpackage/korTTY-1.2.0.dmg
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.icns`
@@ -118,7 +120,7 @@ gradlew.bat jpackageMsi
 
 The MSI file is located at:
 ```
-build\jpackage\korTTY-1.1.0.msi
+build\jpackage\korTTY-1.2.0.msi
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.ico` (if available, otherwise PNG)
@@ -153,12 +155,12 @@ Creates a Debian/Ubuntu package (requires dpkg):
 
 The DEB package is located at:
 ```
-build/jpackage/korTTY-1.1.0.deb
+build/jpackage/korTTY-1.2.0.deb
 ```
 
 **Installation:**
 ```bash
-sudo dpkg -i build/jpackage/korTTY-1.1.0.deb
+sudo dpkg -i build/jpackage/korTTY-1.2.0.deb
 ```
 
 #### Create RPM Package
@@ -171,12 +173,12 @@ Creates a Red Hat/Fedora package (requires rpmbuild):
 
 The RPM package is located at:
 ```
-build/jpackage/korTTY-1.1.0.rpm
+build/jpackage/korTTY-1.2.0.rpm
 ```
 
 **Installation:**
 ```bash
-sudo rpm -i build/jpackage/korTTY-1.1.0.rpm
+sudo rpm -i build/jpackage/korTTY-1.2.0.rpm
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.png`
@@ -231,6 +233,29 @@ Or connect with JConsole:
 ```bash
 jconsole
 ```
+
+## Font Size and Split-Screen
+
+### Font Size Adjustment in Running Terminal
+
+Adjust the font size of the active terminal without reconnecting:
+
+- **Ctrl+Plus** / **Ctrl+=**: Zoom in (increase font size)
+- **Ctrl+Minus**: Zoom out (decrease font size)
+- **Ctrl+0**: Reset zoom to default
+
+The zoom level applies to the currently focused terminal tab.
+
+### Split-Screen with Broadcast
+
+Split the terminal view to display multiple connections side by side:
+
+- **Split Pane**: Create horizontal or vertical splits within a tab
+- **Broadcast Mode**: When enabled, keyboard input is sent to all visible panes simultaneously
+- **Independent Sessions**: Each pane can show a different SSH connection
+- **Resizable Panes**: Drag dividers to adjust pane sizes
+
+Useful for running the same commands on multiple servers at once.
 
 ## Keyboard Shortcuts
 

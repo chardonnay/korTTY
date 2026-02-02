@@ -1103,11 +1103,19 @@ public class MainWindow {
                             if (fontSizeOverride != null && fontSizeOverride > 0) {
                                 restoredTab.getTerminalView().setFontSize(fontSizeOverride);
                             }
-                            // Restore split pane structure if saved
+                            // Restore split pane structure if saved (delayed until connection is ready)
                             de.kortty.model.SplitPaneState splitState = sessionState.getSplitPaneState();
                             if (splitState != null) {
-                                restoredTab.getTerminalView().restoreSplitState(splitState);
-                                logger.info("Restoring split structure for tab: {}", connection.getDisplayName());
+                                logger.info("Scheduling split structure restoration for tab: {}", connection.getDisplayName());
+                                // Wait for initial connection to be fully established before restoring splits
+                                Platform.runLater(() -> {
+                                    try {
+                                        Thread.sleep(1000); // Give time for initial connection
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                    restoredTab.getTerminalView().restoreSplitState(splitState);
+                                });
                             }
                             logger.info("Restoring tab for {} with {} chars of history", 
                                     connection.getDisplayName(), 

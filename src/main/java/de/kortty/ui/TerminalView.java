@@ -807,24 +807,241 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Restores split pane structure from saved state (currently not implemented).
-     * Split restoration would require recreating the entire split tree with new SSH connections,
-     * which is complex and may not be desirable for all use cases.
-     * 
-     * TODO: Implement split restoration if needed in future versions.
+     * Restores split pane structure from saved state.
+     * Recreates the split tree with new SSH connections for each widget.
      */
     public void restoreSplitState(de.kortty.model.SplitPaneState splitState) {
         if (splitState == null || !splitState.isSplit()) {
-            return; // No splits to restore
+            logger.debug("No split structure to restore");
+            return;
         }
         
-        logger.warn("Split pane restoration not yet implemented - only primary terminal will be restored");
-        // Note: Full split restoration would require:
-        // 1. Creating new SSH connections for each split widget
-        // 2. Rebuilding the SplitCell tree structure
-        // 3. Setting divider positions
-        // 4. Connecting all widgets
-        // This is left for future implementation if needed.
+        logger.info("Restoring split structure: {}", splitState);
+        
+        // We need to restore splits after the initial connection is established
+        // Schedule split restoration for after the current terminal is connected
+        Platform.runLater(() -> {
+            try {
+                // Count total number of widgets needed
+                int totalWidgets = countWidgets(splitState);
+                logger.info("Split structure requires {} total widgets", totalWidgets);
+                
+                // Create all required splits (we already have 1, need totalWidgets-1 more)
+                for (int i = 1; i < totalWidgets; i++) {
+                    // Create a simple horizontal split to generate new widgets
+                    splitPane.split(SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, Orientation.HORIZONTAL);
+                    
+                    // Give it time to create the connection
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                
+                // Now we have all widgets - rebuild the tree structure
+                logger.info("Created {} widgets, now rebuilding split structure", splitPane.getWidgetCount());
+                
+                // Wait a bit more for all connections to stabilize
+                Thread.sleep(500);
+                
+                // Rebuild the actual split structure
+                rebuildSplitStructure(splitState);
+                
+            } catch (Exception e) {
+                logger.error("Failed to restore split structure: {}", e.getMessage(), e);
+            }
+        });
+    }
+    
+    /**
+     * Counts the total number of widgets in a split tree.
+     */
+    private int countWidgets(de.kortty.model.SplitPaneState state) {
+        if (state == null) {
+            return 0;
+        }
+        if (state.isLeaf()) {
+            return 1;
+        }
+        return countWidgets(state.getLeftChild()) + countWidgets(state.getRightChild());
+    }
+    
+    /**
+     * Rebuilds the split structure to match the saved state.
+     * This is a simplified approach - creates the splits in the right order.
+     */
+    private void rebuildSplitStructure(de.kortty.model.SplitPaneState state) {
+        logger.info("Rebuilding split structure to match saved layout");
+        
+        // Get all current widgets
+        List<JediTermFxWidget> allWidgets = splitPane.getAllWidgets();
+        logger.info("Available widgets: {}", allWidgets.size());
+        
+        // Close all but the first widget
+        for (int i = allWidgets.size() - 1; i > 0; i--) {
+            JediTermFxWidget widget = allWidgets.get(i);
+            closeWidget(widget);
+        }
+        
+        // Wait for cleanup
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Now rebuild from scratch using the saved structure
+        List<JediTermFxWidget> availableWidgets = new java.util.ArrayList<>();
+        availableWidgets.add(splitPane.getFocusedWidget());
+        
+        // We'll need to create widgets as we go
+        restoreSplitRecursive(state, availableWidgets);
+    }
+    
+    /**
+     * Recursively restores the split structure by creating splits as needed.
+     */
+    private void restoreSplitRecursive(de.kortty.model.SplitPaneState state, 
+                                       List<JediTermFxWidget> availableWidgets) {
+        if (state == null || state.isLeaf() || availableWidgets.isEmpty()) {
+            return;
+        }
+        
+        // This is a split node
+        Orientation orientation = state.getOrientationEnum();
+        if (orientation == null) {
+            logger.warn("Invalid orientation in split state: {}", state.getOrientation());
+            return;
+        }
+        
+        logger.debug("Creating split: orientation={}, dividerPos={}", orientation, state.getDividerPosition());
+        
+        // Get the widget to split
+        JediTermFxWidget widgetToSplit = availableWidgets.get(0);
+        
+        // Focus on this widget first
+        Platform.runLater(() -> {
+            if (widgetToSplit.getPreferredFocusableNode() != null) {
+                widgetToSplit.getPreferredFocusableNode().requestFocus();
+            }
+        });
+        
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Perform the split
+        splitPane.split(SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, orientation);
+        
+        // Wait for split to complete
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Get the new widget (should be the last one now)
+        List<JediTermFxWidget> allWidgets = splitPane.getAllWidgets();
+        JediTermFxWidget newWidget = allWidgets.get(allWidgets.size() - 1);
+        
+        // Set divider position
+        setDividerPositionForLastSplit(state.getDividerPosition());
+        
+        // Process left child (uses the original widget)
+        if (state.getLeftChild() != null && state.getLeftChild().isSplit()) {
+            List<JediTermFxWidget> leftWidgets = new java.util.ArrayList<>();
+            leftWidgets.add(widgetToSplit);
+            restoreSplitRecursive(state.getLeftChild(), leftWidgets);
+        }
+        
+        // Process right child (uses the new widget)
+        if (state.getRightChild() != null && state.getRightChild().isSplit()) {
+            List<JediTermFxWidget> rightWidgets = new java.util.ArrayList<>();
+            rightWidgets.add(newWidget);
+            restoreSplitRecursive(state.getRightChild(), rightWidgets);
+        }
+    }
+    
+    /**
+     * Closes a widget (used during rebuild).
+     */
+    private void closeWidget(JediTermFxWidget widget) {
+        try {
+            if (widget.getTtyConnector() != null) {
+                widget.getTtyConnector().close();
+            }
+            widget.close();
+        } catch (Exception e) {
+            logger.debug("Error closing widget: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * Sets the divider position for the most recently created split.
+     */
+    private void setDividerPositionForLastSplit(double position) {
+        Platform.runLater(() -> {
+            try {
+                // Get rootCell from TerminalSplitPane
+                var rootCellField = splitPane.getClass().getDeclaredField("rootCell");
+                rootCellField.setAccessible(true);
+                Object rootCell = rootCellField.get(splitPane);
+                
+                if (rootCell != null) {
+                    // Find all SplitPanes in the tree and set the last one
+                    List<javafx.scene.control.SplitPane> splitPanes = new java.util.ArrayList<>();
+                    collectSplitPanes(rootCell, splitPanes);
+                    
+                    if (!splitPanes.isEmpty()) {
+                        javafx.scene.control.SplitPane lastSplit = splitPanes.get(splitPanes.size() - 1);
+                        lastSplit.setDividerPositions(position);
+                        logger.debug("Set divider position to: {}", position);
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("Could not set divider position: {}", e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Collects all SplitPane instances from the cell tree.
+     */
+    private void collectSplitPanes(Object cell, List<javafx.scene.control.SplitPane> splitPanes) {
+        try {
+            Class<?> cellClass = cell.getClass();
+            
+            // Check if this cell has a splitPane
+            var splitPaneField = cellClass.getDeclaredField("splitPane");
+            splitPaneField.setAccessible(true);
+            javafx.scene.control.SplitPane sp = (javafx.scene.control.SplitPane) splitPaneField.get(cell);
+            
+            if (sp != null) {
+                splitPanes.add(sp);
+                
+                // Recurse into children
+                var leftCellField = cellClass.getDeclaredField("leftCell");
+                leftCellField.setAccessible(true);
+                Object leftCell = leftCellField.get(cell);
+                
+                var rightCellField = cellClass.getDeclaredField("rightCell");
+                rightCellField.setAccessible(true);
+                Object rightCell = rightCellField.get(cell);
+                
+                if (leftCell != null) {
+                    collectSplitPanes(leftCell, splitPanes);
+                }
+                if (rightCell != null) {
+                    collectSplitPanes(rightCell, splitPanes);
+                }
+            }
+        } catch (Exception e) {
+            // Ignore - might be a leaf cell
+        }
     }
     
     /**
