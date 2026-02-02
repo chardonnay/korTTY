@@ -176,57 +176,64 @@ public class TerminalSplitPane extends StackPane {
 
     /**
      * Sets up the context menu for a widget with split options.
-     * Intercepts the context menu event and adds an "Extras" submenu
-     * with split and font options to the existing JediTermFX menu.
+     * Creates a complete context menu that replaces the JediTermFX default,
+     * including Copy, Paste, Clear Buffer, Find, and an "Extras" submenu.
      */
     private void setupContextMenu(@NotNull JediTermFxWidget widget) {
         var widgetPane = widget.getPane();
         
-        // Use event filter (capturing phase) to intercept context menu before JediTermFX handles it
+        // Use event filter (capturing phase) to intercept and replace the context menu
         widgetPane.addEventFilter(javafx.scene.input.ContextMenuEvent.CONTEXT_MENU_REQUESTED, event -> {
             focusedWidget = widget;
             
-            // Let JediTermFX create its menu first, then add our extras
-            // We need to delay slightly to let the original menu appear
-            Platform.runLater(() -> {
-                // Find any existing context menu and add to it, or create new one
-                javafx.scene.control.ContextMenu existingMenu = findContextMenu(widgetPane);
-                if (existingMenu != null && existingMenu.isShowing()) {
-                    // Add "Extras" submenu to the existing menu
-                    addExtrasSubmenu(existingMenu, widget);
-                }
-            });
+            // Create our complete context menu
+            ContextMenu menu = createFullContextMenu(widget);
+            menu.show(widgetPane, event.getScreenX(), event.getScreenY());
+            
+            // Consume the event to prevent JediTermFX from showing its own menu
+            event.consume();
         });
     }
     
     /**
-     * Finds an active context menu associated with a node.
+     * Creates a full context menu with standard terminal actions plus Extras submenu.
      */
-    private @Nullable ContextMenu findContextMenu(@NotNull javafx.scene.layout.Pane pane) {
-        // Check if there's a popup window (context menu) showing
-        for (javafx.stage.Window window : javafx.stage.Window.getWindows()) {
-            if (window instanceof ContextMenu) {
-                ContextMenu menu = (ContextMenu) window;
-                if (menu.isShowing()) {
-                    return menu;
-                }
-            }
-        }
-        return null;
+    private @NotNull ContextMenu createFullContextMenu(@NotNull JediTermFxWidget widget) {
+        ContextMenu menu = new ContextMenu();
+        var terminalPanel = widget.getTerminalPanel();
+        
+        // Copy
+        MenuItem copy = new MenuItem("Copy");
+        copy.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "handleCopy", null));
+        
+        // Paste
+        MenuItem paste = new MenuItem("Paste");
+        paste.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "pasteFromClipboard", false));
+        
+        // Clear Buffer
+        MenuItem clearBuffer = new MenuItem("Clear Buffer");
+        clearBuffer.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "clearBuffer", null));
+        
+        // Find
+        MenuItem find = new MenuItem("Find");
+        find.setOnAction(e -> invokeWidgetMethod(widget, "showFindComponent"));
+        
+        menu.getItems().addAll(copy, paste, clearBuffer, find);
+        
+        // Separator before Extras
+        menu.getItems().add(new SeparatorMenuItem());
+        
+        // Extras submenu
+        Menu extrasMenu = createExtrasSubmenu(widget);
+        menu.getItems().add(extrasMenu);
+        
+        return menu;
     }
     
     /**
-     * Adds the "Extras" submenu with split and font options to an existing context menu.
+     * Creates the "Extras" submenu with split and font options.
      */
-    private void addExtrasSubmenu(@NotNull ContextMenu menu, @NotNull JediTermFxWidget widget) {
-        // Check if we already added the extras menu (avoid duplicates)
-        for (MenuItem item : menu.getItems()) {
-            if ("Extras".equals(item.getText())) {
-                return; // Already added
-            }
-        }
-        
-        // Create "Extras" submenu
+    private @NotNull Menu createExtrasSubmenu(@NotNull JediTermFxWidget widget) {
         Menu extrasMenu = new Menu("Extras");
         
         // Font size submenu
@@ -264,9 +271,53 @@ public class TerminalSplitPane extends StackPane {
         // Add all to Extras menu
         extrasMenu.getItems().addAll(fontMenu, splitMenu, new SeparatorMenuItem(), broadcastToggle);
         
-        // Add separator and Extras menu to the context menu
-        menu.getItems().add(new SeparatorMenuItem());
-        menu.getItems().add(extrasMenu);
+        return extrasMenu;
+    }
+    
+    /**
+     * Invokes a method on the TerminalPanel via reflection.
+     */
+    private void invokeTerminalPanelMethod(@NotNull Object terminalPanel, @NotNull String methodName, @Nullable Object arg) {
+        try {
+            if (arg == null) {
+                // Try no-arg method first
+                try {
+                    var method = terminalPanel.getClass().getDeclaredMethod(methodName);
+                    method.setAccessible(true);
+                    method.invoke(terminalPanel);
+                    return;
+                } catch (NoSuchMethodException ignored) {}
+                
+                // Try KeyEvent arg (for handleCopy)
+                try {
+                    var method = terminalPanel.getClass().getDeclaredMethod(methodName, KeyEvent.class);
+                    method.setAccessible(true);
+                    method.invoke(terminalPanel, (KeyEvent) null);
+                    return;
+                } catch (NoSuchMethodException ignored) {}
+            } else if (arg instanceof Boolean) {
+                var method = terminalPanel.getClass().getDeclaredMethod(methodName, boolean.class);
+                method.setAccessible(true);
+                method.invoke(terminalPanel, arg);
+                return;
+            }
+            logger.warn("Could not find method {} on TerminalPanel", methodName);
+        } catch (Exception e) {
+            logger.warn("Failed to invoke {} on TerminalPanel: {}", methodName, e.getMessage());
+        }
+    }
+    
+    /**
+     * Invokes a no-arg method on the JediTermFxWidget via reflection.
+     */
+    private void invokeWidgetMethod(@NotNull JediTermFxWidget widget, @NotNull String methodName) {
+        try {
+            var method = widget.getClass().getDeclaredMethod(methodName);
+            method.setAccessible(true);
+            method.invoke(widget);
+        } catch (Exception e) {
+            logger.warn("Failed to invoke {} on JediTermFxWidget: {}", methodName, e.getMessage());
+        }
     }
 
     /**
