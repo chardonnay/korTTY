@@ -395,13 +395,16 @@ tasks.test {
 }
 
 tasks.jar {
-    manifest {
-        attributes(
-            "Main-Class" to "de.kortty.KorTTYApplication",
-            "Implementation-Title" to project.name,
-            "Implementation-Version" to project.version,
-            // Class-Path für alle Dependencies
-            "Class-Path" to configurations.runtimeClasspath.get().files.joinToString(" ") { it.name }
-        )
+    dependsOn("installJeditermfxLocal")
+    doFirst {
+        manifest {
+            attributes(
+                "Main-Class" to "de.kortty.KorTTYApplication",
+                "Implementation-Title" to project.name,
+                "Implementation-Version" to project.version,
+                // Class-Path for all dependencies (resolved at execution time)
+                "Class-Path" to configurations.runtimeClasspath.get().files.joinToString(" ") { it.name }
+            )
+        }
     }
 }
