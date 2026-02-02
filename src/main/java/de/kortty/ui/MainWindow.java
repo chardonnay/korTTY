@@ -587,6 +587,10 @@ public class MainWindow {
             // Create terminal tab with JediTermFX
             // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
             TerminalTab terminalTab = new TerminalTab(connection, password, keyToUse);
+            
+            // Set callback for "Split with new connection" feature
+            terminalTab.getTerminalView().setNewConnectionCallback(this::requestNewConnectionForSplit);
+            
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -729,6 +733,66 @@ public class MainWindow {
             });
         } finally {
             quickConnectDialogOpen = false;
+        }
+    }
+    
+    /**
+     * Opens QuickConnect dialog for split terminal and returns the connection result.
+     * Used by TerminalView when user requests "Split with new connection".
+     */
+    private TerminalView.ConnectionResult requestNewConnectionForSplit() {
+        logger.info("requestNewConnectionForSplit() called - Opening QuickConnect for split");
+        
+        try {
+            // Create password vault for retrieving stored passwords
+            PasswordVault vault = new PasswordVault(
+                    app.getMasterPasswordManager().getEncryptionService(),
+                    app.getMasterPasswordManager().getMasterPassword()
+            );
+            
+            // Open QuickConnect dialog
+            QuickConnectDialog dialog = new QuickConnectDialog(stage, app.getConfigManager().getConnections(), vault,
+                    app.getCredentialManager(), app.getSSHKeyManager(),
+                    app.getMasterPasswordManager().getMasterPassword(), 10);
+            
+            var optResult = dialog.showAndWait();
+            if (optResult.isEmpty()) {
+                return null; // User cancelled
+            }
+            
+            var result = optResult.get();
+            
+            // Don't handle load project or group connection for splits
+            if (result.isLoadProject() || result.isGroupConnection()) {
+                return null;
+            }
+            
+            String password = result.password();
+            
+            // Increment usage count for existing connection
+            if (result.existingSaved() && result.connection() != null) {
+                result.connection().incrementUsageCount();
+                app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+            }
+            
+            // Save connection if requested (for new connections)
+            if (result.save() && !result.existingSaved()) {
+                if (password != null && !password.isEmpty()) {
+                    vault.storePassword(result.connection(), password);
+                }
+                app.getConfigManager().addConnection(result.connection());
+                try {
+                    app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+                    logger.info("Connection saved: {}", result.connection().getDisplayName());
+                } catch (Exception e) {
+                    logger.error("Failed to save connection", e);
+                }
+            }
+            
+            return new TerminalView.ConnectionResult(result.connection(), password);
+        } catch (Exception e) {
+            logger.error("Failed to request new connection for split", e);
+            return null;
         }
     }
     

@@ -2,8 +2,12 @@ package de.kortty.ui;
 
 import com.techsenger.jeditermfx.core.TerminalColor;
 import com.techsenger.jeditermfx.core.TextStyle;
+import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.ui.JediTermFxWidget;
-import com.techsenger.jeditermfx.ui.settings.DefaultSettingsProvider;
+import com.techsenger.jeditermfx.ui.settings.DynamicFontSizeSettingsProvider;
+import com.techsenger.jeditermfx.ui.split.SplitConnectorFactory;
+import com.techsenger.jeditermfx.ui.split.SplitRequest;
+import com.techsenger.jeditermfx.ui.split.TerminalSplitPane;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.DisconnectListener;
 import de.kortty.model.ConnectionSettings;
@@ -13,6 +17,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,86 +28,234 @@ public class TerminalView extends BorderPane {
     
     private static final Logger logger = LoggerFactory.getLogger(TerminalView.class);
     
+    /**
+     * Callback interface for creating new connections (e.g., via QuickConnect dialog).
+     * Used when user requests a split with a new connection to a different server.
+     */
+    @FunctionalInterface
+    public interface NewConnectionCallback {
+        /**
+         * Called when user requests a split with a new connection.
+         * Implementation should show a connection dialog and return the result.
+         * @return ConnectionResult with connection details, or null if cancelled
+         */
+        @Nullable ConnectionResult requestNewConnection();
+    }
+    
+    /**
+     * Result of a new connection request.
+     */
+    public static class ConnectionResult {
+        public final ServerConnection connection;
+        public final String password;
+        
+        public ConnectionResult(ServerConnection connection, String password) {
+            this.connection = connection;
+            this.password = password;
+        }
+    }
+    
     private final ServerConnection connection;
     private final ConnectionSettings settings;
     private final String password;
     
-    private JediTermFxWidget terminalWidget;
+    private TerminalSplitPane splitPane;
+    private JediTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
     private SshTtyConnector ttyConnector;
     private KorTTYSettingsProvider settingsProvider;
-    private int currentFontSize;
     private final int defaultFontSize;
     
     private DisconnectListener externalDisconnectListener;
     private Runnable onConnectedCallback;
     private de.kortty.core.TerminalLogger terminalLogger;
+    private NewConnectionCallback newConnectionCallback;
     
     public TerminalView(ServerConnection connection, String password) {
         this.connection = connection;
         this.settings = connection.getSettings();
         this.password = password;
         this.defaultFontSize = settings.getFontSize();
-        this.currentFontSize = defaultFontSize;
         
         initializeTerminal();
     }
     
     private void initializeTerminal() {
-        // Create settings provider with our custom settings
-        settingsProvider = new KorTTYSettingsProvider(settings, this);
+        // Create settings provider with dynamic font size support (enables Cmd+Plus/Minus zoom)
+        settingsProvider = new KorTTYSettingsProvider(settings, defaultFontSize);
         
-        // Create terminal widget
-        terminalWidget = new JediTermFxWidget(settingsProvider);
+        // Create SplitConnectorFactory that creates new SSH connections for splits
+        SplitConnectorFactory connectorFactory = this::createSplitConnector;
         
-        // Get the terminal pane
-        javafx.scene.layout.Pane terminalPane = terminalWidget.getPane();
-        
-        // Filter KEY_TYPED events with empty character to prevent StringIndexOutOfBoundsException
-        // ESCAPE and other control keys produce KEY_TYPED events with empty string,
-        // which causes TerminalPanel.processTerminalKeyTyped to crash when accessing charAt(0)
-        terminalPane.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
-            String character = event.getCharacter();
-            if (character != null && character.isEmpty()) {
-                // Consume empty KEY_TYPED events to prevent TerminalPanel crash
-                event.consume();
-            }
+        // Create TerminalSplitPane with split support
+        // Right-click context menu will show: Font size options + Split right/down + Close split
+        splitPane = new TerminalSplitPane(settingsProvider, connectorFactory, widget -> {
+            // Configure each new widget in the split
+            setupWidgetEventHandlers(widget);
         });
         
-        // Handle ESCAPE key via KEY_PRESSED to send ESC character through TTY connector
-        // We need to send ESC explicitly because KEY_TYPED events are filtered
-        terminalPane.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
-            if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
-                // Send ESC character (\u001B) through TTY connector if available
-                if (ttyConnector != null && ttyConnector.isConnected()) {
-                    try {
-                        ttyConnector.write("\u001B");
-                    } catch (java.io.IOException e) {
-                        logger.error("Failed to send ESCAPE character", e);
-                    }
-                } else if (terminalWidget != null && terminalWidget.getTerminal() != null) {
-                    // Fallback: send via terminal widget if TTY connector not ready
-                    terminalWidget.getTerminal().writeCharacters("\u001B");
-                }
-                event.consume(); // Consume to prevent duplicate processing
-            }
-        });
+        // Get the primary terminal widget (first one created by TerminalSplitPane)
+        terminalWidget = splitPane.getFocusedWidget();
         
-        // Use terminal pane directly
-        setCenter(terminalPane);
+        // Use split pane as the main content
+        setCenter(splitPane);
         
         // Request focus on the terminal
         Platform.runLater(() -> {
-            if (terminalWidget.getPreferredFocusableNode() != null) {
-                terminalWidget.getPreferredFocusableNode().requestFocus();
+            JediTermFxWidget focused = splitPane.getFocusedWidget();
+            if (focused != null && focused.getPreferredFocusableNode() != null) {
+                focused.getPreferredFocusableNode().requestFocus();
             }
         });
     }
     
     /**
-     * Gets the current font size for the settings provider.
+     * Sets the callback for requesting new connections (for "Split with new connection" feature).
+     */
+    public void setNewConnectionCallback(NewConnectionCallback callback) {
+        this.newConnectionCallback = callback;
+    }
+    
+    /**
+     * Creates a new SSH TtyConnector for a split terminal.
+     * Each split gets its own independent SSH session to the same server.
+     * For the initial terminal (request == null), returns null - connection is made later via connect().
+     */
+    private @Nullable TtyConnector createSplitConnector(@Nullable SplitRequest request) {
+        // Initial terminal: return null, will be connected later via connect()
+        if (request == null) {
+            return null;
+        }
+        
+        // Handle NEW_CONNECTION mode - ask user for a new connection
+        if (request.getSplitMode() == SplitRequest.SplitMode.NEW_CONNECTION) {
+            return createNewConnectionForSplit();
+        }
+        
+        // SAME_SERVER_NEW_SHELL mode - create new SSH session to same server
+        return createSameServerConnection();
+    }
+    
+    /**
+     * Creates a new SSH connection to the same server (for same-server splits).
+     */
+    private @Nullable TtyConnector createSameServerConnection() {
+        try {
+            logger.info("Creating new SSH connection for split to {}@{}:{}",
+                    connection.getUsername(), connection.getHost(), connection.getPort());
+            
+            SshTtyConnector newConnector = new SshTtyConnector(connection, password);
+            
+            // Set SSHKeyManager if using public key authentication
+            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                if (app != null && app.getSSHKeyManager() != null) {
+                    newConnector.setSSHKeyManager(
+                            app.getSSHKeyManager(),
+                            app.getMasterPasswordManager().getMasterPassword()
+                    );
+                }
+            }
+            
+            // Connect the new session
+            newConnector.connect();
+            return newConnector;
+        } catch (Exception e) {
+            logger.error("Failed to create split SSH connection: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    /**
+     * Creates a new SSH connection to a different server (via QuickConnect dialog).
+     */
+    private @Nullable TtyConnector createNewConnectionForSplit() {
+        if (newConnectionCallback == null) {
+            logger.warn("No new connection callback set - cannot create new connection for split");
+            return null;
+        }
+        
+        // Call the callback on JavaFX thread and wait for result
+        final TtyConnector[] result = new TtyConnector[1];
+        if (Platform.isFxApplicationThread()) {
+            result[0] = doCreateNewConnectionForSplit();
+        } else {
+            try {
+                java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+                Platform.runLater(() -> {
+                    result[0] = doCreateNewConnectionForSplit();
+                    latch.countDown();
+                });
+                latch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+        return result[0];
+    }
+    
+    private @Nullable TtyConnector doCreateNewConnectionForSplit() {
+        ConnectionResult connResult = newConnectionCallback.requestNewConnection();
+        if (connResult == null) {
+            logger.info("User cancelled new connection for split");
+            return null;
+        }
+        
+        try {
+            logger.info("Creating new SSH connection for split to {}@{}:{}",
+                    connResult.connection.getUsername(), 
+                    connResult.connection.getHost(), 
+                    connResult.connection.getPort());
+            
+            SshTtyConnector newConnector = new SshTtyConnector(connResult.connection, connResult.password);
+            
+            // Set SSHKeyManager if using public key authentication
+            if (connResult.connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                if (app != null && app.getSSHKeyManager() != null) {
+                    newConnector.setSSHKeyManager(
+                            app.getSSHKeyManager(),
+                            app.getMasterPasswordManager().getMasterPassword()
+                    );
+                }
+            }
+            
+            // Connect the new session
+            newConnector.connect();
+            return newConnector;
+        } catch (Exception e) {
+            logger.error("Failed to create new connection for split: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    /**
+     * Sets up event handlers for a terminal widget (used for each widget in split).
+     */
+    private void setupWidgetEventHandlers(JediTermFxWidget widget) {
+        // Handle ESCAPE key via KEY_PRESSED to send ESC character
+        widget.getPane().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
+                TtyConnector connector = widget.getTtyConnector();
+                if (connector != null && connector.isConnected()) {
+                    try {
+                        connector.write("\u001B");
+                    } catch (java.io.IOException e) {
+                        logger.error("Failed to send ESCAPE character", e);
+                    }
+                } else if (widget.getTerminal() != null) {
+                    widget.getTerminal().writeCharacters("\u001B");
+                }
+                event.consume();
+            }
+        });
+    }
+    
+    /**
+     * Gets the current font size from the settings provider.
      */
     int getCurrentFontSize() {
-        return currentFontSize;
+        return (int) settingsProvider.getFontSize();
     }
     
     /**
@@ -405,7 +558,7 @@ public class TerminalView extends BorderPane {
         // Stop logger first
         stopLogger();
         
-        // Close connection
+        // Close primary connection
         if (ttyConnector != null) {
             try {
                 ttyConnector.close();
@@ -415,27 +568,17 @@ public class TerminalView extends BorderPane {
             ttyConnector = null;
         }
         
-        // Stop terminal widget - catch JediTermFX bug
-        if (terminalWidget != null) {
+        // Close all splits (this closes all SSH connections in the split pane)
+        if (splitPane != null) {
             try {
-                terminalWidget.stop();
-                // Give terminal time to process stop before closing
-                Platform.runLater(() -> {
-                    try {
-                        if (terminalWidget != null) {
-                            terminalWidget.close();
-                        }
-                    } catch (Exception e) {
-                        // Known JediTermFX bug: ClassCastException in WeakRedrawTimer
-                        // This is harmless and can be ignored
-                        logger.debug("Ignoring JediTermFX cleanup exception (known bug): {}", e.getMessage());
-                    }
-                });
+                splitPane.closeAll();
             } catch (Exception e) {
-                logger.debug("Ignoring JediTermFX cleanup exception (known bug): {}", e.getMessage());
+                logger.debug("Ignoring split pane cleanup exception: {}", e.getMessage());
             }
-            terminalWidget = null;
+            splitPane = null;
         }
+        
+        terminalWidget = null;
     }
     
     /**
@@ -462,9 +605,10 @@ public class TerminalView extends BorderPane {
      * Copies selected text to clipboard.
      */
     public void copyToClipboard() {
-        if (terminalWidget != null && terminalWidget.getTerminalPanel() != null) {
+        JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (focused != null && focused.getTerminalPanel() != null) {
             // handleCopy(withCustomSelectors, byKeyStroke)
-            terminalWidget.getTerminalPanel().handleCopy(false, false);
+            focused.getTerminalPanel().handleCopy(false, false);
         }
     }
     
@@ -472,60 +616,32 @@ public class TerminalView extends BorderPane {
      * Pastes from clipboard.
      */
     public void pasteFromClipboard() {
-        if (terminalWidget != null && terminalWidget.getTerminalPanel() != null) {
-            terminalWidget.getTerminalPanel().handlePaste();
+        JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (focused != null && focused.getTerminalPanel() != null) {
+            focused.getTerminalPanel().handlePaste();
         }
     }
     
     /**
      * Zooms the terminal font.
+     * Uses JediTermFX 1.2.0's native dynamic font size support.
      */
     public void zoom(int delta) {
-        int newSize = Math.max(8, Math.min(72, currentFontSize + delta));
-        if (newSize != currentFontSize) {
-            currentFontSize = newSize;
-            applyZoom();
-            logger.debug("Zoom changed to font size: {}", currentFontSize);
+        if (delta > 0) {
+            settingsProvider.increaseFontSize(delta);
+        } else if (delta < 0) {
+            settingsProvider.decreaseFontSize(-delta);
         }
+        logger.debug("Zoom changed to font size: {}", settingsProvider.getFontSize());
     }
     
     /**
-     * Resets the terminal font size.
+     * Resets the terminal font size to default.
+     * Uses JediTermFX 1.2.0's native dynamic font size support.
      */
     public void resetZoom() {
-        if (currentFontSize != defaultFontSize) {
-            currentFontSize = defaultFontSize;
-            applyZoom();
-            logger.debug("Zoom reset to default font size: {}", currentFontSize);
-        }
-    }
-    
-    /**
-     * Applies the zoom by scaling the terminal pane.
-     * Uses Scale transform with pivot at top-left corner (0,0) to keep text aligned.
-     * 
-     * Note: We use scaling instead of recreating the terminal because recreating
-     * would close the SSH connection. This is a limitation of JediTermFX - font
-     * size can only be set during initialization.
-     */
-    private void applyZoom() {
-        if (terminalWidget != null && terminalWidget.getPane() != null) {
-            Platform.runLater(() -> {
-                try {
-                    // Calculate scale factor based on font size ratio
-                    double scale = (double) currentFontSize / defaultFontSize;
-                    
-                    // Clear existing transforms and add scale with pivot at top-left (0,0)
-                    javafx.scene.transform.Scale scaleTransform = new javafx.scene.transform.Scale(scale, scale, 0, 0);
-                    terminalWidget.getPane().getTransforms().clear();
-                    terminalWidget.getPane().getTransforms().add(scaleTransform);
-                    
-                    logger.debug("Zoom applied: scale factor {} (font size {}/{})", scale, currentFontSize, defaultFontSize);
-                } catch (Exception e) {
-                    logger.error("Failed to apply zoom: {}", e.getMessage(), e);
-                }
-            });
-        }
+        settingsProvider.setFontSize(defaultFontSize);
+        logger.debug("Zoom reset to default font size: {}", defaultFontSize);
     }
     
     /**
@@ -599,46 +715,43 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Custom settings provider for KorTTY.
+     * Custom settings provider for KorTTY with dynamic font size support.
+     * Extends DynamicFontSizeSettingsProvider to enable:
+     * - Font zoom via Cmd+Plus/Minus (or Ctrl+Plus/Minus)
+     * - Font zoom via right-click context menu
      */
-    private static class KorTTYSettingsProvider extends DefaultSettingsProvider {
+    private static class KorTTYSettingsProvider extends DynamicFontSizeSettingsProvider {
         
         private final ConnectionSettings settings;
-        private final TerminalView terminalView;
         
-        public KorTTYSettingsProvider(ConnectionSettings settings, TerminalView terminalView) {
+        public KorTTYSettingsProvider(ConnectionSettings settings, int initialFontSize) {
+            super(initialFontSize);
             this.settings = settings;
-            this.terminalView = terminalView;
         }
         
         @Override
         public @NotNull Font getTerminalFont() {
-            int fontSize = terminalView != null ? terminalView.getCurrentFontSize() : settings.getFontSize();
-            return Font.font(settings.getFontFamily(), fontSize);
+            return Font.font(settings.getFontFamily(), getFontSize());
         }
         
         @Override
-        public float getTerminalFontSize() {
-            return terminalView != null ? terminalView.getCurrentFontSize() : settings.getFontSize();
-        }
-        
-        @Override
-        public @NotNull TextStyle getDefaultStyle() {
+        public @NotNull TerminalColor getDefaultForeground() {
             Color fgColor = Color.web(settings.getForegroundColor());
-            Color bgColor = Color.web(settings.getBackgroundColor());
-            
-            TerminalColor fg = TerminalColor.rgb(
+            return TerminalColor.rgb(
                     (int) (fgColor.getRed() * 255),
                     (int) (fgColor.getGreen() * 255),
                     (int) (fgColor.getBlue() * 255)
             );
-            TerminalColor bg = TerminalColor.rgb(
+        }
+        
+        @Override
+        public @NotNull TerminalColor getDefaultBackground() {
+            Color bgColor = Color.web(settings.getBackgroundColor());
+            return TerminalColor.rgb(
                     (int) (bgColor.getRed() * 255),
                     (int) (bgColor.getGreen() * 255),
                     (int) (bgColor.getBlue() * 255)
             );
-            
-            return new TextStyle(fg, bg);
         }
         
         @Override
