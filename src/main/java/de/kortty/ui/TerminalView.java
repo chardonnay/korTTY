@@ -839,6 +839,21 @@ public class TerminalView extends BorderPane {
     }
     
     /**
+     * Sets the focusedWidget field in TerminalSplitPane using reflection.
+     * This is necessary because split() always uses getFocusedWidget().
+     */
+    private void setFocusedWidget(JediTermFxWidget widget) {
+        try {
+            var focusedWidgetField = splitPane.getClass().getDeclaredField("focusedWidget");
+            focusedWidgetField.setAccessible(true);
+            focusedWidgetField.set(splitPane, widget);
+            logger.debug("Set focusedWidget to: {}", widget.hashCode());
+        } catch (Exception e) {
+            logger.error("Failed to set focusedWidget: {}", e.getMessage());
+        }
+    }
+    
+    /**
      * Recursively restores the split structure by creating splits as needed.
      * This method traverses the split tree and creates splits in the correct order and orientation.
      * 
@@ -862,23 +877,12 @@ public class TerminalView extends BorderPane {
             return;
         }
         
-        logger.debug("Creating split: orientation={}, dividerPos={} on widget {}", 
+        logger.info("Creating split: orientation={}, dividerPos={} on widget {}", 
                      orientation, state.getDividerPosition(), widgetToSplit.hashCode());
         
-        // Focus on the specific widget before splitting
-        final JediTermFxWidget finalWidgetToSplit = widgetToSplit;
-        Platform.runLater(() -> {
-            if (finalWidgetToSplit.getPreferredFocusableNode() != null) {
-                finalWidgetToSplit.getPreferredFocusableNode().requestFocus();
-            }
-        });
-        
-        // Wait for focus to take effect
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        // CRITICAL: Set the focusedWidget directly using reflection
+        // because split() uses getFocusedWidget() internally
+        setFocusedWidget(widgetToSplit);
         
         // Remember the number of widgets before split
         int widgetCountBefore = splitPane.getAllWidgets().size();
@@ -888,13 +892,10 @@ public class TerminalView extends BorderPane {
         
         // Wait for split to complete and connection to establish
         try {
-            Thread.sleep(400);
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
-        // Set divider position for this split
-        setDividerPositionForLastSplit(state.getDividerPosition());
         
         // Get all widgets after the split
         List<JediTermFxWidget> allWidgets = splitPane.getAllWidgets();
@@ -908,18 +909,21 @@ public class TerminalView extends BorderPane {
         // The new widget is the last one in the list
         JediTermFxWidget newWidget = allWidgets.get(allWidgets.size() - 1);
         
-        logger.debug("Split created: leftWidget={}, rightWidget={}", 
-                     finalWidgetToSplit.hashCode(), newWidget.hashCode());
+        logger.info("Split created: leftWidget={}, rightWidget={}, totalWidgets={}", 
+                     widgetToSplit.hashCode(), newWidget.hashCode(), widgetCountAfter);
+        
+        // Set divider position for this split
+        setDividerPositionForLastSplit(state.getDividerPosition());
         
         // Process left child (the original widget that was split)
         if (state.getLeftChild() != null && state.getLeftChild().isSplit()) {
-            logger.debug("Processing left child (original widget)");
-            restoreSplitRecursive(state.getLeftChild(), finalWidgetToSplit);
+            logger.debug("Processing left child");
+            restoreSplitRecursive(state.getLeftChild(), widgetToSplit);
         }
         
         // Process right child (the newly created widget)
         if (state.getRightChild() != null && state.getRightChild().isSplit()) {
-            logger.debug("Processing right child (new widget)");
+            logger.debug("Processing right child");
             restoreSplitRecursive(state.getRightChild(), newWidget);
         }
     }

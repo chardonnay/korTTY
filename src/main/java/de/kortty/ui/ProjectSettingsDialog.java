@@ -56,12 +56,29 @@ public class ProjectSettingsDialog extends Dialog<Project> {
         infoBox.setPadding(new Insets(10, 0, 0, 0));
         
         Label windowsLabel = new Label("Fenster: " + project.getWindows().size());
+        
+        // Count tabs (actual tab entries in the tab bar)
         int totalTabs = project.getWindows().stream()
                 .mapToInt(w -> w.getTabs().size())
                 .sum();
         Label tabsLabel = new Label("Tabs: " + totalTabs);
         
-        infoBox.getChildren().addAll(new Separator(), windowsLabel, tabsLabel);
+        // Count total terminal sessions including splits
+        int totalTerminals = project.getWindows().stream()
+                .flatMap(w -> w.getTabs().stream())
+                .mapToInt(session -> {
+                    var splitState = session.getSplitPaneState();
+                    return splitState != null ? countTerminalsInSplit(splitState) : 1;
+                })
+                .sum();
+        
+        // Only show terminal count if it differs from tab count (i.e., there are splits)
+        if (totalTerminals > totalTabs) {
+            Label terminalsLabel = new Label("Terminals (inkl. Splits): " + totalTerminals);
+            infoBox.getChildren().addAll(new Separator(), windowsLabel, tabsLabel, terminalsLabel);
+        } else {
+            infoBox.getChildren().addAll(new Separator(), windowsLabel, tabsLabel);
+        }
         
         VBox content = new VBox(10, grid, infoBox);
         getDialogPane().setContent(content);
@@ -89,5 +106,20 @@ public class ProjectSettingsDialog extends Dialog<Project> {
             }
             return null;
         });
+    }
+    
+    /**
+     * Recursively counts the number of terminals in a split state.
+     * Leaf nodes count as 1 terminal each.
+     */
+    private int countTerminalsInSplit(de.kortty.model.SplitPaneState state) {
+        if (state == null) {
+            return 1;
+        }
+        if (state.isLeaf()) {
+            return 1;
+        }
+        // Split node: count terminals in both children
+        return countTerminalsInSplit(state.getLeftChild()) + countTerminalsInSplit(state.getRightChild());
     }
 }
