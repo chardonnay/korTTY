@@ -86,6 +86,9 @@ public class TerminalView extends BorderPane {
         // Create settings provider with dynamic font size support (enables Cmd+Plus/Minus zoom)
         settingsProvider = new KorTTYSettingsProvider(settings, defaultFontSize);
         
+        // Add listener to re-render terminals when font size changes
+        settingsProvider.addFontSizeListener(this::updateAllTerminalFonts);
+        
         // Create SplitConnectorFactory that creates new SSH connections for splits
         SplitConnectorFactory connectorFactory = this::createSplitConnector;
         
@@ -107,6 +110,27 @@ public class TerminalView extends BorderPane {
             JediTermFxWidget focused = splitPane.getFocusedWidget();
             if (focused != null && focused.getPreferredFocusableNode() != null) {
                 focused.getPreferredFocusableNode().requestFocus();
+            }
+        });
+    }
+    
+    /**
+     * Updates the font rendering for all terminal widgets when font size changes.
+     * Calls reinitFontAndResize() on each TerminalPanel via reflection since it's protected.
+     */
+    private void updateAllTerminalFonts() {
+        if (splitPane == null) return;
+        
+        Platform.runLater(() -> {
+            for (JediTermFxWidget widget : splitPane.getAllWidgets()) {
+                try {
+                    var terminalPanel = widget.getTerminalPanel();
+                    var method = terminalPanel.getClass().getDeclaredMethod("reinitFontAndResize");
+                    method.setAccessible(true);
+                    method.invoke(terminalPanel);
+                } catch (Exception e) {
+                    logger.warn("Failed to update font for terminal widget: {}", e.getMessage());
+                }
             }
         });
     }
