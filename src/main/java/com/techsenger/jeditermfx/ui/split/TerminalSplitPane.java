@@ -7,6 +7,7 @@ import javafx.application.Platform;
 import javafx.geometry.Orientation;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
@@ -175,68 +176,97 @@ public class TerminalSplitPane extends StackPane {
 
     /**
      * Sets up the context menu for a widget with split options.
-     * Uses setOnContextMenuRequested on the pane since upstream JediTermFX
-     * doesn't have setContextMenuExtender.
+     * Intercepts the context menu event and adds an "Extras" submenu
+     * with split and font options to the existing JediTermFX menu.
      */
     private void setupContextMenu(@NotNull JediTermFxWidget widget) {
         var widgetPane = widget.getPane();
-        widgetPane.setOnContextMenuRequested(event -> {
+        
+        // Use event filter (capturing phase) to intercept context menu before JediTermFX handles it
+        widgetPane.addEventFilter(javafx.scene.input.ContextMenuEvent.CONTEXT_MENU_REQUESTED, event -> {
             focusedWidget = widget;
-            ContextMenu menu = new ContextMenu();
-            addSplitMenuItems(menu, widget);
-            menu.show(widgetPane, event.getScreenX(), event.getScreenY());
-            event.consume();
+            
+            // Let JediTermFX create its menu first, then add our extras
+            // We need to delay slightly to let the original menu appear
+            Platform.runLater(() -> {
+                // Find any existing context menu and add to it, or create new one
+                javafx.scene.control.ContextMenu existingMenu = findContextMenu(widgetPane);
+                if (existingMenu != null && existingMenu.isShowing()) {
+                    // Add "Extras" submenu to the existing menu
+                    addExtrasSubmenu(existingMenu, widget);
+                }
+            });
         });
     }
-
-    private void addSplitMenuItems(@NotNull ContextMenu menu, @NotNull JediTermFxWidget widget) {
-        focusedWidget = widget;
-
-        // Font size - same pattern as split items; widget methods no-op when not supported
-        MenuItem increaseFont = new MenuItem("Increase font size");
-        increaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "increaseFontSize", 2));
-        MenuItem decreaseFont = new MenuItem("Decrease font size");
-        decreaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "decreaseFontSize", 2));
-        MenuItem resetFont = new MenuItem("Reset font size");
-        resetFont.setOnAction(e -> invokeWidgetFontMethod(widget, "resetFontSize", null));
-        menu.getItems().add(new SeparatorMenuItem());
-        menu.getItems().addAll(increaseFont, decreaseFont, resetFont);
-        menu.getItems().add(new SeparatorMenuItem());
+    
+    /**
+     * Finds an active context menu associated with a node.
+     */
+    private @Nullable ContextMenu findContextMenu(@NotNull javafx.scene.layout.Pane pane) {
+        // Check if there's a popup window (context menu) showing
+        for (javafx.stage.Window window : javafx.stage.Window.getWindows()) {
+            if (window instanceof ContextMenu) {
+                ContextMenu menu = (ContextMenu) window;
+                if (menu.isShowing()) {
+                    return menu;
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Adds the "Extras" submenu with split and font options to an existing context menu.
+     */
+    private void addExtrasSubmenu(@NotNull ContextMenu menu, @NotNull JediTermFxWidget widget) {
+        // Check if we already added the extras menu (avoid duplicates)
+        for (MenuItem item : menu.getItems()) {
+            if ("Extras".equals(item.getText())) {
+                return; // Already added
+            }
+        }
         
-        // Broadcast mode toggle
-        CheckMenuItem broadcastToggle = new CheckMenuItem("Broadcast mode (type in all terminals)");
-        broadcastToggle.setSelected(broadcastMode);
-        broadcastToggle.setOnAction(e -> {
-            setBroadcastMode(broadcastToggle.isSelected());
-        });
-        // Only enable when there are multiple terminals
-        broadcastToggle.setDisable(rootCell.countWidgets() <= 1);
-        menu.getItems().add(broadcastToggle);
-        menu.getItems().add(new SeparatorMenuItem());
-
-        MenuItem splitRightSame = new MenuItem("Split right (same server)");
+        // Create "Extras" submenu
+        Menu extrasMenu = new Menu("Extras");
+        
+        // Font size submenu
+        Menu fontMenu = new Menu("Font Size");
+        MenuItem increaseFont = new MenuItem("Increase");
+        increaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "increaseFontSize", 2));
+        MenuItem decreaseFont = new MenuItem("Decrease");
+        decreaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "decreaseFontSize", 2));
+        MenuItem resetFont = new MenuItem("Reset");
+        resetFont.setOnAction(e -> invokeWidgetFontMethod(widget, "resetFontSize", null));
+        fontMenu.getItems().addAll(increaseFont, decreaseFont, resetFont);
+        
+        // Split submenu
+        Menu splitMenu = new Menu("Split Terminal");
+        MenuItem splitRightSame = new MenuItem("Split Right (same server)");
         splitRightSame.setOnAction(e -> split(SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, Orientation.HORIZONTAL));
-
-        MenuItem splitRightNew = new MenuItem("Split right (new connection)");
+        MenuItem splitRightNew = new MenuItem("Split Right (new connection)");
         splitRightNew.setOnAction(e -> split(SplitRequest.SplitMode.NEW_CONNECTION, Orientation.HORIZONTAL));
-
-        MenuItem splitDownSame = new MenuItem("Split down (same server)");
+        MenuItem splitDownSame = new MenuItem("Split Down (same server)");
         splitDownSame.setOnAction(e -> split(SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, Orientation.VERTICAL));
-
-        MenuItem splitDownNew = new MenuItem("Split down (new connection)");
+        MenuItem splitDownNew = new MenuItem("Split Down (new connection)");
         splitDownNew.setOnAction(e -> split(SplitRequest.SplitMode.NEW_CONNECTION, Orientation.VERTICAL));
-
-        MenuItem closeSplit = new MenuItem("Close split");
+        MenuItem closeSplit = new MenuItem("Close Split");
         closeSplit.setOnAction(e -> closeSplit(widget));
         closeSplit.setDisable(rootCell.countWidgets() <= 1);
-
-        menu.getItems().addAll(
-                splitRightSame, splitRightNew,
-                new SeparatorMenuItem(),
-                splitDownSame, splitDownNew,
-                new SeparatorMenuItem(),
-                closeSplit
-        );
+        splitMenu.getItems().addAll(splitRightSame, splitRightNew, new SeparatorMenuItem(),
+                                    splitDownSame, splitDownNew, new SeparatorMenuItem(), closeSplit);
+        
+        // Broadcast mode
+        CheckMenuItem broadcastToggle = new CheckMenuItem("Broadcast Mode");
+        broadcastToggle.setSelected(broadcastMode);
+        broadcastToggle.setOnAction(e -> setBroadcastMode(broadcastToggle.isSelected()));
+        broadcastToggle.setDisable(rootCell.countWidgets() <= 1);
+        
+        // Add all to Extras menu
+        extrasMenu.getItems().addAll(fontMenu, splitMenu, new SeparatorMenuItem(), broadcastToggle);
+        
+        // Add separator and Extras menu to the context menu
+        menu.getItems().add(new SeparatorMenuItem());
+        menu.getItems().add(extrasMenu);
     }
 
     /**
