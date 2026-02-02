@@ -1052,6 +1052,12 @@ public class MainWindow {
                 if (currentFontSize != connection.getSettings().getFontSize()) {
                     sessionState.setFontSizeOverride(currentFontSize);
                 }
+                // Save split pane structure (if terminal has splits)
+                de.kortty.model.SplitPaneState splitState = terminalTab.getTerminalView().getSplitState();
+                if (splitState != null) {
+                    sessionState.setSplitPaneState(splitState);
+                    logger.info("Saving split structure for tab: {}", connection.getDisplayName());
+                }
                 windowState.addTab(sessionState);
             }
         }
@@ -1096,6 +1102,12 @@ public class MainWindow {
                             Integer fontSizeOverride = sessionState.getFontSizeOverride();
                             if (fontSizeOverride != null && fontSizeOverride > 0) {
                                 restoredTab.getTerminalView().setFontSize(fontSizeOverride);
+                            }
+                            // Restore split pane structure if saved
+                            de.kortty.model.SplitPaneState splitState = sessionState.getSplitPaneState();
+                            if (splitState != null) {
+                                restoredTab.getTerminalView().restoreSplitState(splitState);
+                                logger.info("Restoring split structure for tab: {}", connection.getDisplayName());
                             }
                             logger.info("Restoring tab for {} with {} chars of history", 
                                     connection.getDisplayName(), 

@@ -16,10 +16,13 @@ import javafx.application.Platform;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.geometry.Orientation;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * Terminal view component using JediTermFX for professional terminal emulation.
@@ -653,6 +656,87 @@ public class TerminalView extends BorderPane {
     }
     
     /**
+     * Gets the split pane structure for saving to project.
+     * Returns null if there are no splits (single terminal).
+     */
+    public de.kortty.model.SplitPaneState getSplitState() {
+        if (splitPane == null) {
+            return null;
+        }
+        
+        int widgetCount = splitPane.getWidgetCount();
+        if (widgetCount <= 1) {
+            return null; // No splits
+        }
+        
+        // Build state from rootCell
+        return buildSplitState(getRootCell(), splitPane.getAllWidgets());
+    }
+    
+    /**
+     * Recursively builds SplitPaneState from the cell tree structure.
+     */
+    private de.kortty.model.SplitPaneState buildSplitState(Object cell, List<JediTermFxWidget> allWidgets) {
+        // Use reflection to access private SplitCell fields
+        try {
+            Class<?> cellClass = cell.getClass();
+            
+            // Check if it's a leaf (has widget)
+            var widgetField = cellClass.getDeclaredField("widget");
+            widgetField.setAccessible(true);
+            JediTermFxWidget widget = (JediTermFxWidget) widgetField.get(cell);
+            
+            if (widget != null) {
+                // Leaf node - find widget index
+                int index = allWidgets.indexOf(widget);
+                return de.kortty.model.SplitPaneState.createLeaf(index);
+            }
+            
+            // Split node - get orientation, divider, and children
+            var splitPaneField = cellClass.getDeclaredField("splitPane");
+            splitPaneField.setAccessible(true);
+            javafx.scene.control.SplitPane splitPaneObj = (javafx.scene.control.SplitPane) splitPaneField.get(cell);
+            
+            var leftCellField = cellClass.getDeclaredField("leftCell");
+            leftCellField.setAccessible(true);
+            Object leftCell = leftCellField.get(cell);
+            
+            var rightCellField = cellClass.getDeclaredField("rightCell");
+            rightCellField.setAccessible(true);
+            Object rightCell = rightCellField.get(cell);
+            
+            if (splitPaneObj != null && leftCell != null && rightCell != null) {
+                Orientation ori = splitPaneObj.getOrientation();
+                double[] positions = splitPaneObj.getDividerPositions();
+                double dividerPos = positions.length > 0 ? positions[0] : 0.5;
+                
+                de.kortty.model.SplitPaneState leftState = buildSplitState(leftCell, allWidgets);
+                de.kortty.model.SplitPaneState rightState = buildSplitState(rightCell, allWidgets);
+                
+                return de.kortty.model.SplitPaneState.createSplit(ori, dividerPos, leftState, rightState);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to build split state: {}", e.getMessage(), e);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Gets the rootCell from TerminalSplitPane using reflection.
+     */
+    private Object getRootCell() {
+        try {
+            var rootCellField = splitPane.getClass().getDeclaredField("rootCell");
+            rootCellField.setAccessible(true);
+            return rootCellField.get(splitPane);
+        } catch (Exception e) {
+            logger.error("Failed to get rootCell: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    /**
      * Gets the terminal history/buffer.
      */
     public String getTerminalHistory() {
@@ -720,6 +804,27 @@ public class TerminalView extends BorderPane {
     
     public SshTtyConnector getTtyConnector() {
         return ttyConnector;
+    }
+    
+    /**
+     * Restores split pane structure from saved state (currently not implemented).
+     * Split restoration would require recreating the entire split tree with new SSH connections,
+     * which is complex and may not be desirable for all use cases.
+     * 
+     * TODO: Implement split restoration if needed in future versions.
+     */
+    public void restoreSplitState(de.kortty.model.SplitPaneState splitState) {
+        if (splitState == null || !splitState.isSplit()) {
+            return; // No splits to restore
+        }
+        
+        logger.warn("Split pane restoration not yet implemented - only primary terminal will be restored");
+        // Note: Full split restoration would require:
+        // 1. Creating new SSH connections for each split widget
+        // 2. Rebuilding the SplitCell tree structure
+        // 3. Setting divider positions
+        // 4. Connecting all widgets
+        // This is left for future implementation if needed.
     }
     
     /**

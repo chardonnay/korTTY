@@ -40,6 +40,10 @@ public class SessionState {
     @XmlElement
     private Integer fontSizeOverride;
     
+    /** Split pane structure (if terminal has splits). */
+    @XmlElement
+    private SplitPaneState splitPaneState;
+    
     public SessionState() {
     }
     
@@ -128,6 +132,14 @@ public class SessionState {
     
     public void setFontSizeOverride(Integer fontSizeOverride) {
         this.fontSizeOverride = fontSizeOverride;
+    }
+    
+    public SplitPaneState getSplitPaneState() {
+        return splitPaneState;
+    }
+    
+    public void setSplitPaneState(SplitPaneState splitPaneState) {
+        this.splitPaneState = splitPaneState;
     }
     
     /**
