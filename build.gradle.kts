@@ -7,7 +7,7 @@ plugins {
 import org.gradle.jvm.toolchain.JvmVendorSpec
 
 group = "de.kortty"
-version = "1.2.0-SNAPSHOT"
+version = "1.1.0-SNAPSHOT"
 
 java {
     toolchain {
@@ -18,7 +18,6 @@ java {
 }
 
 repositories {
-    mavenLocal()  // For local JediTermFX SNAPSHOT builds
     mavenCentral()
     // JetBrains repository for pty4j and its dependencies
     maven {
@@ -40,10 +39,9 @@ dependencies {
     // ED25519 (EdDSA) key support for SSH
     implementation("net.i2p.crypto:eddsa:0.3.0")
     
-    // JediTermFX - Professional terminal emulator for JavaFX
-    // Using local SNAPSHOT for testing font zoom and split features
-    implementation("com.techsenger.jeditermfx:jeditermfx-core:1.2.0-SNAPSHOT")
-    implementation("com.techsenger.jeditermfx:jeditermfx-ui:1.2.0-SNAPSHOT")
+    // JediTermFX - Professional terminal emulator for JavaFX (backup)
+    implementation("com.techsenger.jeditermfx:jeditermfx-core:1.1.0")
+    implementation("com.techsenger.jeditermfx:jeditermfx-ui:1.1.0")
     
     // Lanterna - Text-based terminal emulator with better zoom support
     implementation("com.googlecode.lanterna:lanterna:3.1.2")
