@@ -26,6 +26,29 @@ repositories {
     }
 }
 
+// JediTermFX is integrated as a git submodule (vendor/jeditermfx).
+// The build will auto-init the submodule and install SNAPSHOTs into mavenLocal().
+val jeditermfxDir = rootProject.file("vendor/jeditermfx")
+
+tasks.register<Exec>("initJeditermfxSubmodule") {
+    description = "Initializes the JediTermFX submodule (if missing)"
+    workingDir = rootProject.projectDir
+    commandLine("git", "submodule", "update", "--init", "--recursive", "vendor/jeditermfx")
+    onlyIf { !jeditermfxDir.resolve("pom.xml").exists() }
+}
+
+tasks.register<Exec>("installJeditermfxLocal") {
+    description = "Builds and installs local JediTermFX SNAPSHOT into mavenLocal()"
+    workingDir = jeditermfxDir
+    commandLine("mvn", "-q", "-DskipTests", "install")
+    dependsOn("initJeditermfxSubmodule")
+    onlyIf { jeditermfxDir.resolve("pom.xml").exists() }
+}
+
+tasks.named("compileJava") {
+    dependsOn("installJeditermfxLocal")
+}
+
 javafx {
     version = "21"
     modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.swing")

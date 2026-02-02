@@ -44,6 +44,19 @@ A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
 ./gradlew run
 ```
 
+## JediTermFX Integration (Submodule)
+
+JediTermFX is integrated as a git submodule under `vendor/jeditermfx`.
+You do not need to clone it manually.
+
+During the build, korTTY will automatically:
+
+1. Initialize the submodule (if missing)
+2. Run `mvn -q -DskipTests install` inside `vendor/jeditermfx`
+3. Resolve the SNAPSHOTs via `mavenLocal()`
+
+This ensures you always build against the exact JediTermFX version tracked by the repository.
+
 ## Create Native Release
 
 KorTTY can be built with `jpackage` as a native app for macOS, Windows, and Linux. The build tasks automatically detect the operating system and create the appropriate distribution.

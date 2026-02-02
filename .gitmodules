@@ -1,0 +1,3 @@
+[submodule "vendor/jeditermfx"]
+	path = vendor/jeditermfx
+	url = https://github.com/techsenger/jeditermfx.git
