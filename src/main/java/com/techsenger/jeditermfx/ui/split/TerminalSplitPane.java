@@ -180,18 +180,23 @@ public class TerminalSplitPane extends StackPane {
      * including Copy, Paste, Clear Buffer, Find, and an "Extras" submenu.
      */
     private void setupContextMenu(@NotNull JediTermFxWidget widget) {
-        var widgetPane = widget.getPane();
+        // Get the canvas directly from TerminalPanel - this is where JediTermFX handles mouse events
+        var terminalPanel = widget.getTerminalPanel();
+        var canvas = terminalPanel.getCanvas();
         
-        // Use event filter (capturing phase) to intercept and replace the context menu
-        widgetPane.addEventFilter(javafx.scene.input.ContextMenuEvent.CONTEXT_MENU_REQUESTED, event -> {
-            focusedWidget = widget;
-            
-            // Create our complete context menu
-            ContextMenu menu = createFullContextMenu(widget);
-            menu.show(widgetPane, event.getScreenX(), event.getScreenY());
-            
-            // Consume the event to prevent JediTermFX from showing its own menu
-            event.consume();
+        // Use event filter on MOUSE_CLICKED with SECONDARY button (right-click)
+        // This intercepts the event BEFORE JediTermFX's handler processes it
+        canvas.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_CLICKED, event -> {
+            if (event.getButton() == MouseButton.SECONDARY) {
+                focusedWidget = widget;
+                
+                // Create and show our complete context menu
+                ContextMenu menu = createFullContextMenu(widget);
+                menu.show(canvas, event.getScreenX(), event.getScreenY());
+                
+                // Consume the event to prevent JediTermFX from showing its own menu
+                event.consume();
+            }
         });
     }
     
