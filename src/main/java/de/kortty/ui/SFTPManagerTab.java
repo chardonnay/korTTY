@@ -1094,52 +1094,50 @@ public class SFTPManagerTab extends Tab {
         
         new Thread(() -> {
             try {
-                // Build the zip command
+                // Build the zip command using absolute paths
+                // We cd to the parent directory and use relative file names for cleaner archive structure
                 StringBuilder cmd = new StringBuilder();
                 
-                // Check if zip with password is supported
+                // Determine the working directory (use current remote path)
+                String workDir = currentRemotePath;
+                
+                // Build file list with relative names (relative to workDir)
+                List<String> relativeNames = new java.util.ArrayList<>();
+                for (String fullPath : filesToZip) {
+                    String relativeName;
+                    if (fullPath.startsWith(workDir + "/")) {
+                        relativeName = fullPath.substring(workDir.length() + 1);
+                    } else if (fullPath.startsWith(workDir) && fullPath.length() > workDir.length()) {
+                        relativeName = fullPath.substring(workDir.length());
+                        if (relativeName.startsWith("/")) {
+                            relativeName = relativeName.substring(1);
+                        }
+                    } else {
+                        // Use just the filename
+                        relativeName = fullPath.contains("/") ? fullPath.substring(fullPath.lastIndexOf('/') + 1) : fullPath;
+                    }
+                    relativeNames.add(relativeName);
+                }
+                
+                // Build the command: cd to workDir, then zip
+                cmd.append("cd '").append(workDir.replace("'", "'\\''")).append("' && ");
+                
                 if (password != null && !password.isEmpty()) {
-                    // Use zip with -P option for password (less secure but widely available)
-                    cmd.append("zip -r -").append(compression).append(" -P '").append(password.replace("'", "'\\''")).append("' ");
+                    cmd.append("zip -r -").append(compression)
+                       .append(" -P '").append(password.replace("'", "'\\''")).append("' ");
                 } else {
                     cmd.append("zip -r -").append(compression).append(" ");
                 }
                 
-                // Add destination path
+                // Add destination path (absolute)
                 cmd.append("'").append(zipPath.replace("'", "'\\''")).append("' ");
                 
-                // Add source files/directories
-                for (String file : filesToZip) {
-                    // Use relative paths if in same directory
-                    String fileName = file.contains("/") ? file.substring(file.lastIndexOf('/') + 1) : file;
-                    String dirPath = file.contains("/") ? file.substring(0, file.lastIndexOf('/')) : currentRemotePath;
-                    
-                    // Change to directory and zip from there for cleaner paths
-                    if (filesToZip.size() == 1) {
-                        cmd = new StringBuilder();
-                        if (password != null && !password.isEmpty()) {
-                            cmd.append("cd '").append(dirPath.replace("'", "'\\''")).append("' && zip -r -")
-                               .append(compression).append(" -P '").append(password.replace("'", "'\\''")).append("' '")
-                               .append(zipPath.replace("'", "'\\''")).append("' '")
-                               .append(fileName.replace("'", "'\\''")).append("'");
-                        } else {
-                            cmd.append("cd '").append(dirPath.replace("'", "'\\''")).append("' && zip -r -")
-                               .append(compression).append(" '")
-                               .append(zipPath.replace("'", "'\\''")).append("' '")
-                               .append(fileName.replace("'", "'\\''")).append("'");
-                        }
-                    } else {
-                        cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
-                    }
+                // Add all files/directories (relative to workDir)
+                for (String name : relativeNames) {
+                    cmd.append("'").append(name.replace("'", "'\\''")).append("' ");
                 }
                 
-                // For multiple files, cd to common parent first
-                if (filesToZip.size() > 1) {
-                    String finalCmd = "cd '" + currentRemotePath.replace("'", "'\\''") + "' && " + cmd;
-                    cmd = new StringBuilder(finalCmd);
-                }
-                
-                final String zipCommand = cmd.toString();
+                final String zipCommand = cmd.toString().trim();
                 logger.info("Executing remote ZIP command: {}", zipCommand.replaceAll("-P '[^']*'", "-P '***'"));
                 
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.createZip.creating")));
