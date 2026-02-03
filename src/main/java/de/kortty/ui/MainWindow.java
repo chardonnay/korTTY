@@ -102,15 +102,21 @@ public class MainWindow {
         // Only trigger when the + tab is selected, and immediately switch back to previous tab
         newTabButton.setOnSelectionChanged(e -> {
             if (newTabButton.isSelected() && startupComplete && !quickConnectDialogOpen) {
-                // Switch to previous tab first
-                Platform.runLater(() -> {
-                    int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
-                    if (plusTabIndex > 0) {
+                // Check if this selection was caused by user click or by tab close
+                // Don't trigger if we have other non-plus tabs available
+                int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
+                int totalTabs = tabPane.getTabs().size();
+                
+                // Only show QuickConnect if there are other tabs (user clicked +)
+                // Don't show if + tab was auto-selected after closing last real tab
+                if (plusTabIndex > 0) {
+                    // Switch to previous tab first
+                    Platform.runLater(() -> {
                         tabPane.getSelectionModel().select(plusTabIndex - 1);
-                    }
-                    // Show QuickConnect dialog
-                    showQuickConnect();
-                });
+                        // Show QuickConnect dialog
+                        showQuickConnect();
+                    });
+                }
             }
         });
         

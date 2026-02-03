@@ -117,6 +117,9 @@ public class FileEditorTab extends Tab {
         // Initial highlighting
         codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
         
+        // Context menu for right-click
+        codeArea.setContextMenu(createContextMenu());
+        
         // Status bar
         statusLabel = new Label(I18n.get("editor.status.ready"));
         statusLabel.setStyle("-fx-padding: 5px;");
@@ -177,6 +180,9 @@ public class FileEditorTab extends Tab {
         // Initial highlighting
         codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
         
+        // Context menu for right-click
+        codeArea.setContextMenu(createContextMenu());
+        
         // Status bar
         statusLabel = new Label(I18n.get("editor.status.ready"));
         statusLabel.setStyle("-fx-padding: 5px;");
@@ -224,6 +230,9 @@ public class FileEditorTab extends Tab {
         Button saveAsBtn = new Button(I18n.get("editor.saveAs"));
         saveAsBtn.setOnAction(e -> saveAs());
         
+        Button closeBtn = new Button(I18n.get("editor.close"));
+        closeBtn.setOnAction(e -> closeTab());
+        
         Button findBtn = new Button(I18n.get("editor.find"));
         findBtn.setOnAction(e -> toggleSearchPanel());
         
@@ -233,7 +242,7 @@ public class FileEditorTab extends Tab {
         Button lintBtn = new Button(I18n.get("editor.lint"));
         lintBtn.setOnAction(e -> runLinter());
         
-        return new ToolBar(saveBtn, saveAsBtn, new Separator(), findBtn, replaceBtn, new Separator(), lintBtn);
+        return new ToolBar(saveBtn, saveAsBtn, closeBtn, new Separator(), findBtn, replaceBtn, new Separator(), lintBtn);
     }
     
     private VBox createSearchPanel() {
@@ -276,17 +285,27 @@ public class FileEditorTab extends Tab {
         // Options row
         regexCheckBox = new CheckBox(I18n.get("editor.search.regex"));
         caseSensitiveCheckBox = new CheckBox(I18n.get("editor.search.caseSensitive"));
+        CheckBox selectionOnlyCheckBox = new CheckBox(I18n.get("editor.search.selectionOnly"));
         
         Button closeBtn = new Button(I18n.get("editor.search.close"));
         closeBtn.setOnAction(e -> toggleSearchPanel());
         
-        HBox optionsRow = new HBox(10, regexCheckBox, caseSensitiveCheckBox, closeBtn);
+        HBox optionsRow = new HBox(10, regexCheckBox, caseSensitiveCheckBox, selectionOnlyCheckBox, closeBtn);
         optionsRow.setStyle("-fx-alignment: center-left;");
         
         // Search on text change
-        searchField.textProperty().addListener((obs, oldVal, newVal) -> performSearch());
-        regexCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> performSearch());
-        caseSensitiveCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> performSearch());
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            performSearch(selectionOnlyCheckBox.isSelected());
+        });
+        regexCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            performSearch(selectionOnlyCheckBox.isSelected());
+        });
+        caseSensitiveCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            performSearch(selectionOnlyCheckBox.isSelected());
+        });
+        selectionOnlyCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            performSearch(newVal);
+        });
         
         panel.getChildren().addAll(searchRow, replaceRow, optionsRow);
         return panel;
@@ -303,8 +322,70 @@ public class FileEditorTab extends Tab {
             } else if (new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_DOWN).match(event)) {
                 toggleSearchPanel();
                 event.consume();
+            } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN).match(event)) {
+                closeTab();
+                event.consume();
             }
         });
+    }
+    
+    private ContextMenu createContextMenu() {
+        ContextMenu contextMenu = new ContextMenu();
+        
+        MenuItem cutItem = new MenuItem(I18n.get("editor.context.cut"));
+        cutItem.setOnAction(e -> codeArea.cut());
+        
+        MenuItem copyItem = new MenuItem(I18n.get("editor.context.copy"));
+        copyItem.setOnAction(e -> codeArea.copy());
+        
+        MenuItem pasteItem = new MenuItem(I18n.get("editor.context.paste"));
+        pasteItem.setOnAction(e -> codeArea.paste());
+        
+        MenuItem deleteItem = new MenuItem(I18n.get("editor.context.delete"));
+        deleteItem.setOnAction(e -> codeArea.replaceSelection(""));
+        
+        MenuItem selectAllItem = new MenuItem(I18n.get("editor.context.selectAll"));
+        selectAllItem.setOnAction(e -> codeArea.selectAll());
+        
+        contextMenu.getItems().addAll(cutItem, copyItem, pasteItem, deleteItem, new SeparatorMenuItem(), selectAllItem);
+        
+        // Enable/disable based on selection
+        contextMenu.setOnShowing(e -> {
+            boolean hasSelection = codeArea.getSelection().getLength() > 0;
+            cutItem.setDisable(!hasSelection);
+            copyItem.setDisable(!hasSelection);
+            deleteItem.setDisable(!hasSelection);
+        });
+        
+        return contextMenu;
+    }
+    
+    private void closeTab() {
+        if (isModified) {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle(I18n.get("editor.close.title"));
+            alert.setHeaderText(I18n.get("editor.close.header"));
+            alert.setContentText(I18n.get("editor.close.unsaved"));
+            
+            ButtonType saveBtn = new ButtonType(I18n.get("editor.close.save"));
+            ButtonType discardBtn = new ButtonType(I18n.get("editor.close.discard"));
+            ButtonType cancelBtn = new ButtonType(I18n.get("editor.close.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+            
+            alert.getButtonTypes().setAll(saveBtn, discardBtn, cancelBtn);
+            
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent()) {
+                if (result.get() == saveBtn) {
+                    save();
+                    getTabPane().getTabs().remove(this);
+                } else if (result.get() == discardBtn) {
+                    getTabPane().getTabs().remove(this);
+                }
+                // Cancel: do nothing
+            }
+        } else {
+            getTabPane().getTabs().remove(this);
+        }
     }
     
     private void toggleSearchPanel() {
@@ -321,7 +402,7 @@ public class FileEditorTab extends Tab {
         }
     }
     
-    private void performSearch() {
+    private void performSearch(boolean selectionOnly) {
         String searchText = searchField.getText();
         if (searchText == null || searchText.isEmpty()) {
             searchMatches.clear();
@@ -330,7 +411,16 @@ public class FileEditorTab extends Tab {
         }
         
         searchMatches.clear();
-        String content = codeArea.getText();
+        String content;
+        int searchOffset = 0;
+        
+        if (selectionOnly && codeArea.getSelection().getLength() > 0) {
+            // Search only in selection
+            content = codeArea.getSelectedText();
+            searchOffset = codeArea.getSelection().getStart();
+        } else {
+            content = codeArea.getText();
+        }
         
         try {
             if (regexCheckBox.isSelected()) {
@@ -338,14 +428,14 @@ public class FileEditorTab extends Tab {
                 Pattern pattern = Pattern.compile(searchText, flags);
                 Matcher matcher = pattern.matcher(content);
                 while (matcher.find()) {
-                    searchMatches.add(matcher.start());
+                    searchMatches.add(matcher.start() + searchOffset);
                 }
             } else {
                 String searchLower = caseSensitiveCheckBox.isSelected() ? searchText : searchText.toLowerCase();
                 String contentLower = caseSensitiveCheckBox.isSelected() ? content : content.toLowerCase();
                 int index = 0;
                 while ((index = contentLower.indexOf(searchLower, index)) != -1) {
-                    searchMatches.add(index);
+                    searchMatches.add(index + searchOffset);
                     index += searchText.length();
                 }
             }
@@ -364,7 +454,7 @@ public class FileEditorTab extends Tab {
     
     private void findNext() {
         if (searchMatches.isEmpty()) {
-            performSearch();
+            performSearch(false);
             return;
         }
         
@@ -375,7 +465,7 @@ public class FileEditorTab extends Tab {
     
     private void findPrevious() {
         if (searchMatches.isEmpty()) {
-            performSearch();
+            performSearch(false);
             return;
         }
         
@@ -397,7 +487,7 @@ public class FileEditorTab extends Tab {
     
     private void replaceOne() {
         if (searchMatches.isEmpty() || currentSearchIndex < 0) {
-            performSearch();
+            performSearch(false);
             return;
         }
         
@@ -408,13 +498,13 @@ public class FileEditorTab extends Tab {
         codeArea.replaceText(start, start + searchText.length(), replaceText);
         
         // Re-search after replacement
-        performSearch();
+        performSearch(false);
     }
     
     private void replaceAll() {
         String replaceText = replaceField.getText();
         if (searchMatches.isEmpty()) {
-            performSearch();
+            performSearch(false);
             return;
         }
         
@@ -428,7 +518,7 @@ public class FileEditorTab extends Tab {
         }
         
         statusLabel.setText(I18n.get("editor.status.replaced", replacedCount));
-        performSearch();
+        performSearch(false);
     }
     
     private void save() {
