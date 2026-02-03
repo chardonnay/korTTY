@@ -377,15 +377,35 @@ public class FileEditorTab extends Tab {
             if (result.isPresent()) {
                 if (result.get() == saveBtn) {
                     save();
-                    getTabPane().getTabs().remove(this);
+                    removeTabSafely();
                 } else if (result.get() == discardBtn) {
-                    getTabPane().getTabs().remove(this);
+                    removeTabSafely();
                 }
                 // Cancel: do nothing
             }
         } else {
-            getTabPane().getTabs().remove(this);
+            removeTabSafely();
         }
+    }
+    
+    private void removeTabSafely() {
+        TabPane tabPane = getTabPane();
+        int currentIndex = tabPane.getTabs().indexOf(this);
+        
+        // Select a different tab before removing this one to avoid selecting the "+" tab
+        if (currentIndex > 0) {
+            // Select previous tab
+            tabPane.getSelectionModel().select(currentIndex - 1);
+        } else if (tabPane.getTabs().size() > 1) {
+            // We're at index 0, select next tab (if it's not the "+" tab)
+            Tab nextTab = tabPane.getTabs().get(1);
+            if (nextTab.getText() != null && !nextTab.getText().equals("+")) {
+                tabPane.getSelectionModel().select(1);
+            }
+        }
+        
+        // Now remove this tab
+        tabPane.getTabs().remove(this);
     }
     
     private void toggleSearchPanel() {

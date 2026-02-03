@@ -142,7 +142,7 @@ public class SFTPManagerTab extends Tab {
                 Platform.runLater(() -> {
                     cleanup();
                     if (getTabPane() != null) {
-                        getTabPane().getTabs().remove(this);
+                        removeTabSafely();
                     }
                     if (onCloseCallback != null) {
                         onCloseCallback.run();
@@ -608,6 +608,28 @@ public class SFTPManagerTab extends Tab {
                 logger.warn("Error closing SFTP session", e);
             }
         }
+    }
+    
+    private void removeTabSafely() {
+        TabPane tabPane = getTabPane();
+        if (tabPane == null) return;
+        
+        int currentIndex = tabPane.getTabs().indexOf(this);
+        
+        // Select a different tab before removing this one to avoid selecting the "+" tab
+        if (currentIndex > 0) {
+            // Select previous tab
+            tabPane.getSelectionModel().select(currentIndex - 1);
+        } else if (tabPane.getTabs().size() > 1) {
+            // We're at index 0, select next tab (if it's not the "+" tab)
+            Tab nextTab = tabPane.getTabs().get(1);
+            if (nextTab.getText() != null && !nextTab.getText().equals("+")) {
+                tabPane.getSelectionModel().select(1);
+            }
+        }
+        
+        // Now remove this tab
+        tabPane.getTabs().remove(this);
     }
     
     private void refreshLocal() {
