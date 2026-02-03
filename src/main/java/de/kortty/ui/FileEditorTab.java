@@ -59,6 +59,13 @@ public class FileEditorTab extends Tab {
     private int currentSearchIndex = -1;
     private java.util.List<Integer> searchMatches = new java.util.ArrayList<>();
     
+    // Font size management
+    private static final int MIN_FONT_SIZE = 8;
+    private static final int MAX_FONT_SIZE = 48;
+    private static final int DEFAULT_FONT_SIZE = 14;
+    private int currentFontSize = DEFAULT_FONT_SIZE;
+    private Label fontSizeLabel;
+    
     public enum FileType {
         PLAIN_TEXT,
         XML,
@@ -87,7 +94,7 @@ public class FileEditorTab extends Tab {
         // Create code area
         codeArea = new CodeArea();
         codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
-        codeArea.setStyle("-fx-font-family: 'Monaco', 'Menlo', 'Consolas', monospace; -fx-font-size: 12px;");
+        // Font size will be applied after UI setup
         
         // Load syntax highlighting CSS
         try {
@@ -131,6 +138,9 @@ public class FileEditorTab extends Tab {
         // Keyboard shortcuts
         setupKeyboardShortcuts();
         
+        // Apply initial font size
+        applyFontSize();
+        
         logger.info("Opened remote file for editing: {}", remotePath);
     }
     
@@ -150,7 +160,7 @@ public class FileEditorTab extends Tab {
         // Create code area
         codeArea = new CodeArea();
         codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
-        codeArea.setStyle("-fx-font-family: 'Monaco', 'Menlo', 'Consolas', monospace; -fx-font-size: 12px;");
+        // Font size will be applied after UI setup
         
         // Load syntax highlighting CSS
         try {
@@ -193,6 +203,9 @@ public class FileEditorTab extends Tab {
         
         // Keyboard shortcuts
         setupKeyboardShortcuts();
+        
+        // Apply initial font size
+        applyFontSize();
         
         logger.info("Opened local file for editing: {}", localPath);
     }
@@ -242,7 +255,23 @@ public class FileEditorTab extends Tab {
         Button lintBtn = new Button(I18n.get("editor.lint"));
         lintBtn.setOnAction(e -> runLinter());
         
-        return new ToolBar(saveBtn, saveAsBtn, closeBtn, new Separator(), findBtn, replaceBtn, new Separator(), lintBtn);
+        // Font size controls
+        Button zoomInBtn = new Button(I18n.get("editor.zoomIn"));
+        zoomInBtn.setOnAction(e -> increaseFontSize());
+        
+        Button zoomOutBtn = new Button(I18n.get("editor.zoomOut"));
+        zoomOutBtn.setOnAction(e -> decreaseFontSize());
+        
+        Button zoomResetBtn = new Button(I18n.get("editor.zoomReset"));
+        zoomResetBtn.setOnAction(e -> resetFontSize());
+        
+        fontSizeLabel = new Label(currentFontSize + "pt");
+        fontSizeLabel.setStyle("-fx-min-width: 40; -fx-alignment: center;");
+        
+        return new ToolBar(saveBtn, saveAsBtn, closeBtn, new Separator(), 
+                          findBtn, replaceBtn, new Separator(), 
+                          zoomOutBtn, fontSizeLabel, zoomInBtn, zoomResetBtn, new Separator(),
+                          lintBtn);
     }
     
     private VBox createSearchPanel() {
@@ -325,8 +354,48 @@ public class FileEditorTab extends Tab {
             } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN).match(event)) {
                 closeTab();
                 event.consume();
+            } else if (new KeyCodeCombination(KeyCode.PLUS, KeyCombination.SHORTCUT_DOWN).match(event) ||
+                       new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.SHORTCUT_DOWN).match(event) ||
+                       new KeyCodeCombination(KeyCode.ADD, KeyCombination.SHORTCUT_DOWN).match(event)) {
+                increaseFontSize();
+                event.consume();
+            } else if (new KeyCodeCombination(KeyCode.MINUS, KeyCombination.SHORTCUT_DOWN).match(event) ||
+                       new KeyCodeCombination(KeyCode.SUBTRACT, KeyCombination.SHORTCUT_DOWN).match(event)) {
+                decreaseFontSize();
+                event.consume();
+            } else if (new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.SHORTCUT_DOWN).match(event) ||
+                       new KeyCodeCombination(KeyCode.NUMPAD0, KeyCombination.SHORTCUT_DOWN).match(event)) {
+                resetFontSize();
+                event.consume();
             }
         });
+    }
+    
+    private void increaseFontSize() {
+        if (currentFontSize < MAX_FONT_SIZE) {
+            currentFontSize += 2;
+            applyFontSize();
+        }
+    }
+    
+    private void decreaseFontSize() {
+        if (currentFontSize > MIN_FONT_SIZE) {
+            currentFontSize -= 2;
+            applyFontSize();
+        }
+    }
+    
+    private void resetFontSize() {
+        currentFontSize = DEFAULT_FONT_SIZE;
+        applyFontSize();
+    }
+    
+    private void applyFontSize() {
+        codeArea.setStyle("-fx-font-size: " + currentFontSize + "pt; -fx-font-family: 'Consolas', 'Monaco', 'Courier New', monospace;");
+        if (fontSizeLabel != null) {
+            fontSizeLabel.setText(currentFontSize + "pt");
+        }
+        statusLabel.setText(I18n.get("editor.status.fontSize", currentFontSize));
     }
     
     private ContextMenu createContextMenu() {
