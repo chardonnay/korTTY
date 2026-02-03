@@ -1095,33 +1095,13 @@ public class SFTPManagerTab extends Tab {
         new Thread(() -> {
             try {
                 // Build the zip command using absolute paths
-                // We cd to the parent directory and use relative file names for cleaner archive structure
                 StringBuilder cmd = new StringBuilder();
                 
-                // Determine the working directory (use current remote path)
-                String workDir = currentRemotePath;
+                // Log what we're trying to zip for debugging
+                logger.debug("Files to zip: {}", filesToZip);
+                logger.debug("Current remote path: {}", currentRemotePath);
                 
-                // Build file list with relative names (relative to workDir)
-                List<String> relativeNames = new java.util.ArrayList<>();
-                for (String fullPath : filesToZip) {
-                    String relativeName;
-                    if (fullPath.startsWith(workDir + "/")) {
-                        relativeName = fullPath.substring(workDir.length() + 1);
-                    } else if (fullPath.startsWith(workDir) && fullPath.length() > workDir.length()) {
-                        relativeName = fullPath.substring(workDir.length());
-                        if (relativeName.startsWith("/")) {
-                            relativeName = relativeName.substring(1);
-                        }
-                    } else {
-                        // Use just the filename
-                        relativeName = fullPath.contains("/") ? fullPath.substring(fullPath.lastIndexOf('/') + 1) : fullPath;
-                    }
-                    relativeNames.add(relativeName);
-                }
-                
-                // Build the command: cd to workDir, then zip
-                cmd.append("cd '").append(workDir.replace("'", "'\\''")).append("' && ");
-                
+                // Build the command with absolute paths
                 if (password != null && !password.isEmpty()) {
                     cmd.append("zip -r -").append(compression)
                        .append(" -P '").append(password.replace("'", "'\\''")).append("' ");
@@ -1132,9 +1112,9 @@ public class SFTPManagerTab extends Tab {
                 // Add destination path (absolute)
                 cmd.append("'").append(zipPath.replace("'", "'\\''")).append("' ");
                 
-                // Add all files/directories (relative to workDir)
-                for (String name : relativeNames) {
-                    cmd.append("'").append(name.replace("'", "'\\''")).append("' ");
+                // Add all files/directories with their ABSOLUTE paths
+                for (String fullPath : filesToZip) {
+                    cmd.append("'").append(fullPath.replace("'", "'\\''")).append("' ");
                 }
                 
                 final String zipCommand = cmd.toString().trim();
@@ -1143,14 +1123,19 @@ public class SFTPManagerTab extends Tab {
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.createZip.creating")));
                 
                 // Execute the zip command with progress
-                int exitCode = sftpSession.executeCommandWithProgress(zipCommand, line -> {
+                de.kortty.core.SFTPSession.CommandResult result = sftpSession.executeCommandWithProgress(zipCommand, line -> {
                     Platform.runLater(() -> {
                         progressLabel.setText(line);
                     });
                 });
                 
-                if (exitCode != 0) {
-                    throw new Exception(I18n.get("sftp.createZip.failed", exitCode));
+                if (!result.isSuccess()) {
+                    String errorMsg = result.getStderr();
+                    if (errorMsg == null || errorMsg.trim().isEmpty()) {
+                        errorMsg = "Exit code: " + result.getExitCode();
+                    }
+                    logger.error("ZIP command failed with exit code {}: {}", result.getExitCode(), errorMsg);
+                    throw new Exception(errorMsg);
                 }
                 
                 // Set owner if specified

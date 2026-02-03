@@ -437,26 +437,28 @@ public class SFTPSession {
      * Executes a shell command asynchronously and provides progress updates.
      * @param command The command to execute
      * @param outputConsumer Consumer that receives output line by line
-     * @return The exit status
-     * @throws Exception If the command fails
+     * @return A CommandResult containing exit status and any error output
+     * @throws Exception If the command fails to execute
      */
-    public int executeCommandWithProgress(String command, java.util.function.Consumer<String> outputConsumer) throws Exception {
+    public CommandResult executeCommandWithProgress(String command, java.util.function.Consumer<String> outputConsumer) throws Exception {
         if (session == null || !session.isOpen()) {
             throw new Exception("Not connected");
         }
         
         try (org.apache.sshd.client.channel.ChannelExec channel = session.createExecChannel(command)) {
-            java.io.PipedInputStream pipedIn = new java.io.PipedInputStream();
-            java.io.PipedOutputStream pipedOut = new java.io.PipedOutputStream(pipedIn);
-            channel.setOut(pipedOut);
-            channel.setErr(pipedOut);
+            java.io.PipedInputStream stdoutPipedIn = new java.io.PipedInputStream();
+            java.io.PipedOutputStream stdoutPipedOut = new java.io.PipedOutputStream(stdoutPipedIn);
+            java.io.ByteArrayOutputStream stderrStream = new java.io.ByteArrayOutputStream();
+            
+            channel.setOut(stdoutPipedOut);
+            channel.setErr(stderrStream);
             
             channel.open().verify(Duration.ofSeconds(30));
             
-            // Read output in a separate thread
+            // Read stdout in a separate thread
             Thread readerThread = new Thread(() -> {
                 try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                        new java.io.InputStreamReader(pipedIn, java.nio.charset.StandardCharsets.UTF_8))) {
+                        new java.io.InputStreamReader(stdoutPipedIn, java.nio.charset.StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         if (outputConsumer != null) {
@@ -476,8 +478,28 @@ public class SFTPSession {
             // Wait for reader thread to finish
             readerThread.join(5000);
             
-            return channel.getExitStatus() != null ? channel.getExitStatus() : -1;
+            int exitCode = channel.getExitStatus() != null ? channel.getExitStatus() : -1;
+            String stderr = stderrStream.toString(java.nio.charset.StandardCharsets.UTF_8);
+            
+            return new CommandResult(exitCode, stderr);
         }
+    }
+    
+    /**
+     * Result of a command execution containing exit code and stderr.
+     */
+    public static class CommandResult {
+        private final int exitCode;
+        private final String stderr;
+        
+        public CommandResult(int exitCode, String stderr) {
+            this.exitCode = exitCode;
+            this.stderr = stderr;
+        }
+        
+        public int getExitCode() { return exitCode; }
+        public String getStderr() { return stderr; }
+        public boolean isSuccess() { return exitCode == 0; }
     }
     
     public ServerConnection getConnection() {
