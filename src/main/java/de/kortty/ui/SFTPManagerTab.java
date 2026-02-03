@@ -191,7 +191,7 @@ public class SFTPManagerTab extends Tab {
         HBox statusBox = new HBox(10);
         statusBox.setAlignment(Pos.CENTER_LEFT);
         
-        statusLabel = new Label("Verbinde...");
+        statusLabel = new Label(I18n.get("sftp.connecting"));
         statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         
         Region spacer = new Region();
@@ -228,39 +228,39 @@ public class SFTPManagerTab extends Tab {
         buttonBox.setAlignment(Pos.CENTER);
         buttonBox.setPadding(new Insets(10, 0, 0, 0));
         
-        Button uploadButton = new Button("→ Hochladen");
+        Button uploadButton = new Button("→ " + I18n.get("sftp.upload"));
         uploadButton.setOnAction(e -> {
             resetAutoCloseTimer();
             uploadSelected();
         });
         uploadButton.setDisable(true);
         
-        Button downloadButton = new Button("← Herunterladen");
+        Button downloadButton = new Button("← " + I18n.get("sftp.download"));
         downloadButton.setOnAction(e -> {
             resetAutoCloseTimer();
             downloadSelected();
         });
         downloadButton.setDisable(true);
         
-        Button refreshLocalButton = new Button("Lokal aktualisieren");
+        Button refreshLocalButton = new Button(I18n.get("sftp.refreshLocal"));
         refreshLocalButton.setOnAction(e -> {
             resetAutoCloseTimer();
             refreshLocal();
         });
         
-        Button refreshRemoteButton = new Button("Remote aktualisieren");
+        Button refreshRemoteButton = new Button(I18n.get("sftp.refreshRemote"));
         refreshRemoteButton.setOnAction(e -> {
             resetAutoCloseTimer();
             refreshRemote();
         });
         
-        Button copyLocalButton = new Button("Lokal kopieren");
+        Button copyLocalButton = new Button(I18n.get("sftp.copyLocal"));
         copyLocalButton.setOnAction(e -> {
             resetAutoCloseTimer();
             copyLocalSelected();
         });
         
-        Button copyRemoteButton = new Button("Remote kopieren");
+        Button copyRemoteButton = new Button(I18n.get("sftp.copyRemote"));
         copyRemoteButton.setOnAction(e -> {
             resetAutoCloseTimer();
             copyRemoteSelected();
@@ -297,7 +297,7 @@ public class SFTPManagerTab extends Tab {
         VBox panel = new VBox(5);
         panel.setPadding(new Insets(5));
         
-        Label titleLabel = new Label("Lokales System");
+        Label titleLabel = new Label(I18n.get("sftp.localSystem"));
         titleLabel.setStyle("-fx-font-weight: bold;");
         
         // Path field and navigation
@@ -312,36 +312,36 @@ public class SFTPManagerTab extends Tab {
         Button homeButton = new Button("~");
         homeButton.setOnAction(e -> navigateLocal(System.getProperty("user.home")));
         
-        pathBox.getChildren().addAll(new Label("Pfad:"), localPathField, upButton, homeButton);
+        pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), localPathField, upButton, homeButton);
         HBox.setHgrow(localPathField, Priority.ALWAYS);
         
         // Search field
         HBox searchBox = new HBox(5);
         localSearchField = new TextField();
-        localSearchField.setPromptText("Dateien suchen... (* als Wildcard)");
-        searchBox.getChildren().addAll(new Label("Suchen:"), localSearchField);
+        localSearchField.setPromptText(I18n.get("sftp.searchPrompt"));
+        searchBox.getChildren().addAll(new Label(I18n.get("sftp.search")), localSearchField);
         HBox.setHgrow(localSearchField, Priority.ALWAYS);
         
         // File table
         localTable = new TableView<>();
         localTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>("Name");
+        TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameColumn.setPrefWidth(200);
         nameColumn.setMinWidth(100);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>("Größe");
+        TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         sizeColumn.setPrefWidth(100);
         sizeColumn.setMinWidth(80);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>("Datum");
+        TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         dateColumn.setPrefWidth(140);
         dateColumn.setMinWidth(120);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>("Rechte");
+        TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
         permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
         permColumn.setPrefWidth(90);
         permColumn.setMinWidth(70);
@@ -386,7 +386,7 @@ public class SFTPManagerTab extends Tab {
         VBox panel = new VBox(5);
         panel.setPadding(new Insets(5));
         
-        Label titleLabel = new Label("Remote Server: " + connection.getHost());
+        Label titleLabel = new Label(I18n.get("sftp.remoteServer", connection.getHost()));
         titleLabel.setStyle("-fx-font-weight: bold;");
         
         // Path field and navigation
@@ -401,36 +401,36 @@ public class SFTPManagerTab extends Tab {
         Button homeButton = new Button("~");
         homeButton.setOnAction(e -> navigateRemote("~"));
         
-        pathBox.getChildren().addAll(new Label("Pfad:"), remotePathField, upButton, homeButton);
+        pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), remotePathField, upButton, homeButton);
         HBox.setHgrow(remotePathField, Priority.ALWAYS);
         
         // Search field
         HBox searchBox = new HBox(5);
         remoteSearchField = new TextField();
-        remoteSearchField.setPromptText("Dateien suchen... (* als Wildcard)");
-        searchBox.getChildren().addAll(new Label("Suchen:"), remoteSearchField);
+        remoteSearchField.setPromptText(I18n.get("sftp.searchPrompt"));
+        searchBox.getChildren().addAll(new Label(I18n.get("sftp.search")), remoteSearchField);
         HBox.setHgrow(remoteSearchField, Priority.ALWAYS);
         
         // File table
         remoteTable = new TableView<>();
         remoteTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>("Name");
+        TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameColumn.setPrefWidth(200);
         nameColumn.setMinWidth(100);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>("Größe");
+        TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         sizeColumn.setPrefWidth(100);
         sizeColumn.setMinWidth(80);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>("Datum");
+        TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         dateColumn.setPrefWidth(140);
         dateColumn.setMinWidth(120);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>("Rechte");
+        TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
         permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
         permColumn.setPrefWidth(90);
         permColumn.setMinWidth(70);
@@ -504,15 +504,15 @@ public class SFTPManagerTab extends Tab {
                 sftpSession.connect();
                 
                 Platform.runLater(() -> {
-                    statusLabel.setText("Verbunden mit " + connection.getHost());
+                    statusLabel.setText(I18n.get("sftp.connectedTo", connection.getHost()));
                     refreshLocal();
                     refreshRemote();
                 });
             } catch (Exception e) {
                 logger.error("Failed to connect SFTP", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Verbindung fehlgeschlagen: " + e.getMessage());
-                    showError("Verbindungsfehler", "SFTP-Verbindung fehlgeschlagen: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.connectionFailed", e.getMessage()));
+                    showError(I18n.get("sftp.error.connection"), I18n.get("sftp.error.connectionFailed", e.getMessage()));
                 });
             }
         }, "SFTP-Connect").start();
@@ -554,7 +554,7 @@ public class SFTPManagerTab extends Tab {
             localPathField.setText(currentLocalPath.toString());
         } catch (Exception e) {
             logger.error("Failed to list local files", e);
-            showError("Fehler", "Lokale Dateien konnten nicht geladen werden: " + e.getMessage());
+            showError(I18n.get("error.title"), I18n.get("sftp.error.listLocalFiles", e.getMessage()));
         }
     }
     
@@ -616,7 +616,7 @@ public class SFTPManagerTab extends Tab {
             remotePathField.setText(currentRemotePath);
         } catch (Exception e) {
             logger.error("Failed to list remote files", e);
-            showError("Fehler", "Remote Dateien konnten nicht geladen werden: " + e.getMessage());
+            showError(I18n.get("error.title"), I18n.get("sftp.error.listRemoteFiles", e.getMessage()));
         }
     }
     
@@ -657,7 +657,7 @@ public class SFTPManagerTab extends Tab {
                 refreshLocal();
             }
         } catch (Exception e) {
-            showError("Fehler", "Ungültiger Pfad: " + path);
+            showError(I18n.get("error.title"), I18n.get("sftp.error.invalidPath", path));
         }
     }
     
@@ -698,7 +698,7 @@ public class SFTPManagerTab extends Tab {
     private void uploadFile(SFTPManagerDialog.FileItem item) {
         if (sftpSession == null || !sftpSession.isConnected()) return;
         
-        statusLabel.setText("Uploading: " + item.getName());
+        statusLabel.setText(I18n.get("sftp.uploading", item.getName()));
         new Thread(() -> {
             try {
                 String remotePath = currentRemotePath.endsWith("/") 
@@ -713,14 +713,14 @@ public class SFTPManagerTab extends Tab {
                 }
                 
                 Platform.runLater(() -> {
-                    statusLabel.setText("Upload complete: " + item.getName());
+                    statusLabel.setText(I18n.get("sftp.uploadComplete", item.getName()));
                     refreshRemote();
                 });
             } catch (Exception e) {
                 logger.error("Upload failed", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Upload failed: " + e.getMessage());
-                    showError("Upload Fehler", e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.uploadFailed", e.getMessage()));
+                    showError(I18n.get("sftp.error.upload"), e.getMessage());
                 });
             }
         }, "SFTP-Upload").start();
@@ -753,7 +753,7 @@ public class SFTPManagerTab extends Tab {
     private void downloadFile(SFTPManagerDialog.FileItem item) {
         if (sftpSession == null || !sftpSession.isConnected()) return;
         
-        statusLabel.setText("Downloading: " + item.getName());
+        statusLabel.setText(I18n.get("sftp.downloading", item.getName()));
         new Thread(() -> {
             try {
                 Path localPath = currentLocalPath.resolve(item.getName());
@@ -766,14 +766,14 @@ public class SFTPManagerTab extends Tab {
                 }
                 
                 Platform.runLater(() -> {
-                    statusLabel.setText("Download complete: " + item.getName());
+                    statusLabel.setText(I18n.get("sftp.downloadComplete", item.getName()));
                     refreshLocal();
                 });
             } catch (Exception e) {
                 logger.error("Download failed", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Download failed: " + e.getMessage());
-                    showError("Download Fehler", e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.downloadFailed", e.getMessage()));
+                    showError(I18n.get("sftp.error.download"), e.getMessage());
                 });
             }
         }, "SFTP-Download").start();
@@ -802,7 +802,7 @@ public class SFTPManagerTab extends Tab {
         if (selected == null || selected.isEmpty()) return;
         
         DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setTitle("Zielordner wählen");
+        chooser.setTitle(I18n.get("sftp.selectTargetFolder"));
         chooser.setInitialDirectory(currentLocalPath.toFile());
         
         File targetDir = chooser.showDialog(null);
@@ -826,9 +826,9 @@ public class SFTPManagerTab extends Tab {
             }
             
             refreshLocal();
-            statusLabel.setText("Kopiert: " + item.getName());
+            statusLabel.setText(I18n.get("sftp.copied", item.getName()));
         } catch (Exception e) {
-            showError("Kopierfehler", e.getMessage());
+            showError(I18n.get("sftp.error.copy"), e.getMessage());
         }
     }
     
@@ -855,9 +855,9 @@ public class SFTPManagerTab extends Tab {
         if (selected == null || selected.isEmpty()) return;
         
         TextInputDialog dialog = new TextInputDialog(currentRemotePath);
-        dialog.setTitle("Remote kopieren");
-        dialog.setHeaderText("Zielordner auf dem Server:");
-        dialog.setContentText("Pfad:");
+        dialog.setTitle(I18n.get("sftp.remoteCopy"));
+        dialog.setHeaderText(I18n.get("sftp.remoteCopy.header"));
+        dialog.setContentText(I18n.get("sftp.path"));
         
         dialog.showAndWait().ifPresent(targetPath -> {
             for (var item : selected) {
@@ -879,12 +879,12 @@ public class SFTPManagerTab extends Tab {
                 sftpSession.copyFile(item.getPath(), target);
                 
                 Platform.runLater(() -> {
-                    statusLabel.setText("Remote kopiert: " + item.getName());
+                    statusLabel.setText(I18n.get("sftp.remoteCopied", item.getName()));
                     refreshRemote();
                 });
             } catch (Exception e) {
                 logger.error("Remote copy failed", e);
-                Platform.runLater(() -> showError("Remote Kopierfehler", e.getMessage()));
+                Platform.runLater(() -> showError(I18n.get("sftp.error.remoteCopy"), e.getMessage()));
             }
         }, "SFTP-RemoteCopy").start();
     }
@@ -892,14 +892,14 @@ public class SFTPManagerTab extends Tab {
     private void createZipArchive() {
         var selected = localTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) {
-            showError("Fehler", "Bitte wählen Sie Dateien zum Komprimieren aus.");
+            showError(I18n.get("error.title"), I18n.get("sftp.error.selectFilesToZip"));
             return;
         }
         
         TextInputDialog dialog = new TextInputDialog("archive.zip");
-        dialog.setTitle("ZIP erstellen");
-        dialog.setHeaderText("Name der ZIP-Datei:");
-        dialog.setContentText("Dateiname:");
+        dialog.setTitle(I18n.get("sftp.createZip"));
+        dialog.setHeaderText(I18n.get("sftp.createZip.header"));
+        dialog.setContentText(I18n.get("sftp.createZip.filename"));
         
         dialog.showAndWait().ifPresent(zipName -> {
             String fileName = zipName.endsWith(".zip") ? zipName : zipName + ".zip";
@@ -921,9 +921,9 @@ public class SFTPManagerTab extends Tab {
                 }
                 
                 refreshLocal();
-                statusLabel.setText("ZIP erstellt: " + fileName);
+                statusLabel.setText(I18n.get("sftp.zipCreated", fileName));
             } catch (Exception e) {
-                showError("ZIP Fehler", e.getMessage());
+                showError(I18n.get("sftp.error.zip"), e.getMessage());
             }
         });
     }
