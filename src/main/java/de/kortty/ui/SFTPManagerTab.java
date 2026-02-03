@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SFTPSession;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TemporarySSHKey;
 import javafx.animation.KeyFrame;
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
@@ -355,6 +358,10 @@ public class SFTPManagerTab extends Tab {
         permColumn.setMinWidth(70);
         
         localTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn, permColumn);
+        
+        // Context menu for local table
+        ContextMenu localContextMenu = createLocalContextMenu();
+        localTable.setContextMenu(localContextMenu);
         
         // Double-click to navigate
         localTable.setRowFactory(tv -> {
@@ -899,6 +906,49 @@ public class SFTPManagerTab extends Tab {
                 Platform.runLater(() -> showError(I18n.get("sftp.error.remoteCopy"), e.getMessage()));
             }
         }, "SFTP-RemoteCopy").start();
+    }
+    
+    private ContextMenu createLocalContextMenu() {
+        ContextMenu menu = new ContextMenu();
+        
+        MenuItem copyItem = new MenuItem(I18n.get("sftp.contextMenu.copy"));
+        copyItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            copyLocalSelected();
+        });
+        
+        MenuItem deleteItem = new MenuItem(I18n.get("sftp.contextMenu.delete"));
+        deleteItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            deleteLocalSelected();
+        });
+        
+        MenuItem ownerItem = new MenuItem(I18n.get("sftp.contextMenu.setOwner"));
+        ownerItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            setLocalOwnerPermissionsDialog();
+        });
+        
+        MenuItem archiveItem = new MenuItem(I18n.get("sftp.contextMenu.archive"));
+        archiveItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createLocalArchive();
+        });
+        
+        menu.getItems().addAll(copyItem, deleteItem, new SeparatorMenuItem(), ownerItem, new SeparatorMenuItem(), archiveItem);
+        
+        // Disable items when nothing is selected
+        menu.setOnShowing(e -> {
+            var selected = localTable.getSelectionModel().getSelectedItems();
+            boolean hasSelection = selected != null && !selected.isEmpty() && 
+                !(selected.size() == 1 && selected.get(0).getName().equals(".."));
+            copyItem.setDisable(!hasSelection);
+            deleteItem.setDisable(!hasSelection);
+            ownerItem.setDisable(!hasSelection);
+            archiveItem.setDisable(!hasSelection);
+        });
+        
+        return menu;
     }
     
     private ContextMenu createRemoteContextMenu() {
@@ -1631,6 +1681,524 @@ public class SFTPManagerTab extends Tab {
             alert.setContentText(message);
             alert.showAndWait();
         });
+    }
+    
+    private void deleteLocalSelected() {
+        var selected = localTable.getSelectionModel().getSelectedItems();
+        if (selected == null || selected.isEmpty()) return;
+        
+        // Filter out ".." and collect items to delete
+        List<SFTPManagerDialog.FileItem> toDelete = new java.util.ArrayList<>();
+        for (var item : selected) {
+            if (!item.getName().equals("..")) {
+                toDelete.add(item);
+            }
+        }
+        
+        if (toDelete.isEmpty()) return;
+        
+        // Confirm deletion
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("sftp.delete.confirm.title"));
+        confirm.setHeaderText(I18n.get("sftp.delete.confirm.header", toDelete.size()));
+        confirm.setContentText(I18n.get("sftp.delete.confirm.content"));
+        
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        
+        // Show progress dialog
+        Dialog<Void> progressDialog = new Dialog<>();
+        progressDialog.setTitle(I18n.get("sftp.delete.progress.title"));
+        progressDialog.setHeaderText(I18n.get("sftp.delete.progress.header"));
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        Label statusLbl = new Label(I18n.get("sftp.delete.progress.preparing"));
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(300);
+        content.getChildren().addAll(statusLbl, progressBar);
+        progressDialog.getDialogPane().setContent(content);
+        progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+        progressDialog.show();
+        
+        // Delete in background
+        new Thread(() -> {
+            int total = toDelete.size();
+            int success = 0;
+            int failed = 0;
+            
+            for (int i = 0; i < toDelete.size(); i++) {
+                var item = toDelete.get(i);
+                int currentIndex = i;
+                Platform.runLater(() -> {
+                    statusLbl.setText(I18n.get("sftp.delete.progress.deleting", item.getName()));
+                    progressBar.setProgress((double) currentIndex / total);
+                });
+                
+                try {
+                    deleteLocalRecursive(Paths.get(item.getPath()));
+                    success++;
+                } catch (Exception e) {
+                    logger.error("Failed to delete local file: {}", item.getPath(), e);
+                    failed++;
+                }
+            }
+            
+            int finalSuccess = success;
+            int finalFailed = failed;
+            Platform.runLater(() -> {
+                progressDialog.close();
+                refreshLocal();
+                
+                if (finalFailed == 0) {
+                    statusLabel.setText(I18n.get("sftp.delete.success", finalSuccess));
+                } else {
+                    showError(I18n.get("sftp.delete.error"), 
+                        I18n.get("sftp.delete.errorCount", finalSuccess, finalFailed));
+                }
+            });
+        }, "Local-Delete").start();
+    }
+    
+    private void deleteLocalRecursive(Path path) throws Exception {
+        if (Files.isDirectory(path)) {
+            try (var stream = Files.walk(path)) {
+                stream.sorted(java.util.Comparator.reverseOrder())
+                      .forEach(p -> {
+                          try {
+                              Files.delete(p);
+                          } catch (Exception e) {
+                              throw new RuntimeException(e);
+                          }
+                      });
+            }
+        } else {
+            Files.delete(path);
+        }
+    }
+    
+    private void setLocalOwnerPermissionsDialog() {
+        var selected = localTable.getSelectionModel().getSelectedItems();
+        if (selected == null || selected.isEmpty()) return;
+        
+        // Filter out ".."
+        List<SFTPManagerDialog.FileItem> items = new java.util.ArrayList<>();
+        for (var item : selected) {
+            if (!item.getName().equals("..")) {
+                items.add(item);
+            }
+        }
+        
+        if (items.isEmpty()) return;
+        
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("sftp.setOwner.title"));
+        dialog.setHeaderText(I18n.get("sftp.setOwner.header", items.size()));
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        
+        int row = 0;
+        
+        // Owner field (not applicable on Windows)
+        grid.add(new Label(I18n.get("sftp.setOwner.owner")), 0, row);
+        TextField ownerField = new TextField();
+        ownerField.setPromptText("user:group");
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        if (isWindows) {
+            ownerField.setDisable(true);
+            ownerField.setPromptText(I18n.get("sftp.setOwner.notAvailableWindows"));
+        }
+        grid.add(ownerField, 1, row++);
+        
+        // Permissions field
+        grid.add(new Label(I18n.get("sftp.setOwner.permissions")), 0, row);
+        TextField permissionsField = new TextField();
+        permissionsField.setPromptText("755");
+        grid.add(permissionsField, 1, row++);
+        
+        // Recursive checkbox
+        CheckBox recursiveCheck = new CheckBox(I18n.get("sftp.setOwner.recursive"));
+        grid.add(recursiveCheck, 0, row++, 2, 1);
+        
+        // Info label
+        Label infoLabel = new Label(I18n.get("sftp.setOwner.info"));
+        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        grid.add(infoLabel, 0, row++, 2, 1);
+        
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        dialog.showAndWait().ifPresent(result -> {
+            if (result == ButtonType.OK) {
+                String owner = ownerField.getText().trim();
+                String permissions = permissionsField.getText().trim();
+                boolean recursive = recursiveCheck.isSelected();
+                
+                if (owner.isEmpty() && permissions.isEmpty()) {
+                    showError(I18n.get("error.title"), I18n.get("sftp.setOwner.nothingToSet"));
+                    return;
+                }
+                
+                applyLocalOwnerPermissions(items, owner, permissions, recursive);
+            }
+        });
+    }
+    
+    private void applyLocalOwnerPermissions(List<SFTPManagerDialog.FileItem> items, String owner, 
+                                            String permissions, boolean recursive) {
+        Dialog<Void> progressDialog = new Dialog<>();
+        progressDialog.setTitle(I18n.get("sftp.setOwner.title"));
+        progressDialog.setHeaderText(I18n.get("sftp.setOwner.applying"));
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        Label statusLbl = new Label();
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(300);
+        content.getChildren().addAll(statusLbl, progressBar);
+        progressDialog.getDialogPane().setContent(content);
+        progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+        progressDialog.show();
+        
+        new Thread(() -> {
+            int success = 0;
+            int failed = 0;
+            
+            for (int i = 0; i < items.size(); i++) {
+                var item = items.get(i);
+                int currentIndex = i;
+                Platform.runLater(() -> {
+                    statusLbl.setText(item.getName());
+                    progressBar.setProgress((double) currentIndex / items.size());
+                });
+                
+                try {
+                    Path path = Paths.get(item.getPath());
+                    
+                    // Set permissions (works on Unix-like systems)
+                    if (!permissions.isEmpty()) {
+                        try {
+                            Files.setPosixFilePermissions(path, 
+                                java.nio.file.attribute.PosixFilePermissions.fromString(octalToPosix(permissions)));
+                        } catch (UnsupportedOperationException e) {
+                            // On Windows, POSIX permissions are not supported
+                            logger.debug("POSIX permissions not supported on this system");
+                        }
+                    }
+                    
+                    // Note: Java doesn't provide direct API for chown
+                    // This would require native calls or ProcessBuilder
+                    
+                    success++;
+                } catch (Exception e) {
+                    logger.error("Failed to set owner/permissions for: {}", item.getPath(), e);
+                    failed++;
+                }
+            }
+            
+            int finalSuccess = success;
+            int finalFailed = failed;
+            Platform.runLater(() -> {
+                progressDialog.close();
+                refreshLocal();
+                
+                if (finalFailed == 0) {
+                    statusLabel.setText(I18n.get("sftp.setOwner.success", finalSuccess));
+                } else {
+                    showError(I18n.get("sftp.setOwner.error"), 
+                        I18n.get("sftp.setOwner.errorCount", finalSuccess, finalFailed));
+                }
+            });
+        }, "Local-SetOwner").start();
+    }
+    
+    private String octalToPosix(String octal) {
+        if (octal.length() != 3) return "rw-r--r--";
+        
+        StringBuilder posix = new StringBuilder();
+        for (char c : octal.toCharArray()) {
+            int val = Character.digit(c, 10);
+            posix.append((val & 4) != 0 ? 'r' : '-');
+            posix.append((val & 2) != 0 ? 'w' : '-');
+            posix.append((val & 1) != 0 ? 'x' : '-');
+        }
+        return posix.toString();
+    }
+    
+    private void createLocalArchive() {
+        var selected = localTable.getSelectionModel().getSelectedItems();
+        if (selected == null || selected.isEmpty()) return;
+        
+        // Filter out ".." and collect items
+        List<Path> filesToArchive = new java.util.ArrayList<>();
+        for (var item : selected) {
+            if (!item.getName().equals("..")) {
+                filesToArchive.add(Paths.get(item.getPath()));
+            }
+        }
+        
+        if (filesToArchive.isEmpty()) {
+            showError(I18n.get("error.title"), I18n.get("sftp.error.selectFilesToArchive"));
+            return;
+        }
+        
+        // Estimate size
+        long estimatedSize = 0;
+        for (Path path : filesToArchive) {
+            estimatedSize += estimateLocalSize(path);
+        }
+        
+        // Generate default filename
+        String timestamp = java.time.LocalDateTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String defaultFilename = currentLocalPath.resolve("archive_" + timestamp).toString();
+        
+        // Get default settings
+        int defaultCompression = 6; // Default compression level
+        if (app != null && app.getGlobalSettingsManager() != null) {
+            GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+            if (globalSettings.getSftpDefaultZipCompression() != null) {
+                defaultCompression = globalSettings.getSftpDefaultZipCompression();
+            }
+        }
+        
+        showLocalArchiveDialog(filesToArchive, defaultFilename, defaultCompression, estimatedSize);
+    }
+    
+    private long estimateLocalSize(Path path) {
+        try {
+            if (Files.isDirectory(path)) {
+                try (var stream = Files.walk(path)) {
+                    return stream.filter(Files::isRegularFile)
+                                 .mapToLong(p -> {
+                                     try { return Files.size(p); }
+                                     catch (Exception e) { return 0; }
+                                 })
+                                 .sum();
+                }
+            } else {
+                return Files.size(path);
+            }
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+    
+    private void showLocalArchiveDialog(List<Path> filesToArchive, String defaultFilename, 
+                                        int defaultCompression, long estimatedSize) {
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("sftp.archive"));
+        dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
+        dialog.setResizable(true);
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        
+        int row = 0;
+        
+        // Archive format - only ZIP supported for local (using net.lingala.zip4j)
+        grid.add(new Label(I18n.get("sftp.archive.format")), 0, row);
+        ComboBox<String> formatCombo = new ComboBox<>();
+        formatCombo.getItems().add("ZIP");
+        formatCombo.getSelectionModel().select(0);
+        formatCombo.setDisable(true); // Only ZIP supported locally
+        grid.add(formatCombo, 1, row++);
+        
+        // Archive file path
+        grid.add(new Label(I18n.get("sftp.archive.path")), 0, row);
+        TextField pathField = new TextField(defaultFilename + ".zip");
+        pathField.setPrefWidth(350);
+        Button browseButton = new Button("...");
+        browseButton.setOnAction(e -> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle(I18n.get("sftp.archive.selectPath"));
+            chooser.setInitialDirectory(currentLocalPath.toFile());
+            chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("ZIP Archives", "*.zip"));
+            File file = chooser.showSaveDialog(null);
+            if (file != null) {
+                pathField.setText(file.getAbsolutePath());
+            }
+        });
+        HBox pathBox = new HBox(5, pathField, browseButton);
+        HBox.setHgrow(pathField, Priority.ALWAYS);
+        grid.add(pathBox, 1, row++);
+        
+        // Compression level
+        grid.add(new Label(I18n.get("sftp.archive.compression")), 0, row);
+        ComboBox<String> compressionCombo = new ComboBox<>();
+        compressionCombo.getItems().addAll(
+            "0 - " + I18n.get("sftp.archive.noCompression"),
+            "1 - " + I18n.get("sftp.archive.fastest"),
+            "3 - " + I18n.get("sftp.archive.fast"),
+            "6 - " + I18n.get("sftp.archive.normal"),
+            "9 - " + I18n.get("sftp.archive.best")
+        );
+        compressionCombo.getSelectionModel().select(
+            defaultCompression == 0 ? 0 :
+            defaultCompression <= 1 ? 1 :
+            defaultCompression <= 3 ? 2 :
+            defaultCompression <= 6 ? 3 : 4
+        );
+        grid.add(compressionCombo, 1, row++);
+        
+        // Password (optional)
+        grid.add(new Label(I18n.get("sftp.archive.password")), 0, row);
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
+        grid.add(passwordField, 1, row++);
+        
+        // Separator
+        grid.add(new Separator(), 0, row++, 2, 1);
+        
+        // Progress area (initially hidden)
+        Label progressLabel = new Label(I18n.get("sftp.archive.preparing"));
+        progressLabel.setVisible(false);
+        grid.add(progressLabel, 0, row++, 2, 1);
+        
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(400);
+        progressBar.setVisible(false);
+        grid.add(progressBar, 0, row++, 2, 1);
+        
+        Label timeLabel = new Label();
+        timeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        timeLabel.setVisible(false);
+        grid.add(timeLabel, 0, row++, 2, 1);
+        
+        Label sizeLabel = new Label(I18n.get("sftp.archive.estimatedSize", formatSize(estimatedSize)));
+        sizeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        grid.add(sizeLabel, 0, row++, 2, 1);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        // Buttons
+        ButtonType createButton = new ButtonType(I18n.get("sftp.archive.create"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createButton, ButtonType.CANCEL);
+        
+        Button createBtn = (Button) dialog.getDialogPane().lookupButton(createButton);
+        
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == createButton) {
+                String archivePath = pathField.getText().trim();
+                if (archivePath.isEmpty()) {
+                    showError(I18n.get("error.title"), I18n.get("sftp.archive.pathRequired"));
+                    return null;
+                }
+                
+                // Get compression level
+                int compression = switch (compressionCombo.getSelectionModel().getSelectedIndex()) {
+                    case 0 -> 0;
+                    case 1 -> 1;
+                    case 2 -> 3;
+                    case 3 -> 6;
+                    case 4 -> 9;
+                    default -> 6;
+                };
+                
+                String password = passwordField.getText();
+                
+                // Disable controls
+                createBtn.setDisable(true);
+                pathField.setDisable(true);
+                formatCombo.setDisable(true);
+                compressionCombo.setDisable(true);
+                passwordField.setDisable(true);
+                browseButton.setDisable(true);
+                
+                // Show progress
+                progressLabel.setVisible(true);
+                progressBar.setVisible(true);
+                timeLabel.setVisible(true);
+                progressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
+                
+                // Create archive
+                executeLocalArchiveCreation(dialog, filesToArchive, archivePath, compression, 
+                        password, progressLabel, progressBar, timeLabel, sizeLabel);
+            }
+            return null;
+        });
+        
+        dialog.show();
+    }
+    
+    private void executeLocalArchiveCreation(Dialog<Void> dialog, List<Path> files, String archivePath,
+                                             int compression, String password, Label progressLabel, 
+                                             ProgressBar progressBar, Label timeLabel, Label sizeLabel) {
+        new Thread(() -> {
+            long startTime = System.currentTimeMillis();
+            Timeline timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+                long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+                timeLabel.setText(I18n.get("sftp.archive.elapsed", elapsed));
+            }));
+            timer.setCycleCount(Timeline.INDEFINITE);
+            timer.play();
+            
+            try {
+                Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
+                
+                // Use zip4j for local ZIP creation
+                net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(archivePath);
+                
+                if (password != null && !password.isEmpty()) {
+                    zipFile.setPassword(password.toCharArray());
+                }
+                
+                net.lingala.zip4j.model.ZipParameters zipParams = new net.lingala.zip4j.model.ZipParameters();
+                zipParams.setCompressionLevel(
+                    compression == 0 ? net.lingala.zip4j.model.enums.CompressionLevel.NO_COMPRESSION :
+                    compression <= 1 ? net.lingala.zip4j.model.enums.CompressionLevel.FASTEST :
+                    compression <= 3 ? net.lingala.zip4j.model.enums.CompressionLevel.FAST :
+                    compression <= 6 ? net.lingala.zip4j.model.enums.CompressionLevel.NORMAL :
+                    net.lingala.zip4j.model.enums.CompressionLevel.MAXIMUM
+                );
+                
+                if (password != null && !password.isEmpty()) {
+                    zipParams.setEncryptFiles(true);
+                    zipParams.setEncryptionMethod(net.lingala.zip4j.model.enums.EncryptionMethod.AES);
+                }
+                
+                // Add files
+                for (Path file : files) {
+                    if (Files.isDirectory(file)) {
+                        zipFile.addFolder(file.toFile(), zipParams);
+                    } else {
+                        zipFile.addFile(file.toFile(), zipParams);
+                    }
+                }
+                
+                // Get actual size
+                long actualSize = Files.size(Paths.get(archivePath));
+                
+                Platform.runLater(() -> {
+                    timer.stop();
+                    progressBar.setProgress(1.0);
+                    progressLabel.setText(I18n.get("sftp.archive.success"));
+                    progressLabel.setStyle("-fx-text-fill: green;");
+                    sizeLabel.setText(I18n.get("sftp.archive.actualSize", formatSize(actualSize)));
+                    statusLabel.setText(I18n.get("sftp.archiveCreated", archivePath));
+                    refreshLocal();
+                    
+                    Timeline closeDelay = new Timeline(new KeyFrame(Duration.seconds(2), e -> dialog.close()));
+                    closeDelay.play();
+                });
+                
+            } catch (Exception e) {
+                logger.error("Local archive creation failed", e);
+                Platform.runLater(() -> {
+                    timer.stop();
+                    progressBar.setProgress(0);
+                    progressLabel.setText(I18n.get("sftp.archive.error", e.getMessage()));
+                    showError(I18n.get("sftp.error.archive"), e.getMessage());
+                });
+            }
+        }, "Local-Archive-Creator").start();
     }
     
     /**
