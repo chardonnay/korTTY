@@ -266,10 +266,10 @@ public class SFTPManagerTab extends Tab {
             copyRemoteSelected();
         });
         
-        Button createZipButton = new Button("ZIP erstellen");
+        Button createZipButton = new Button(I18n.get("sftp.createZip"));
         createZipButton.setOnAction(e -> {
             resetAutoCloseTimer();
-            createZipArchive();
+            createRemoteZipArchive();
         });
         
         buttonBox.getChildren().addAll(uploadButton, downloadButton, 
@@ -889,43 +889,330 @@ public class SFTPManagerTab extends Tab {
         }, "SFTP-RemoteCopy").start();
     }
     
-    private void createZipArchive() {
-        var selected = localTable.getSelectionModel().getSelectedItems();
+    private void createRemoteZipArchive() {
+        var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) {
             showError(I18n.get("error.title"), I18n.get("sftp.error.selectFilesToZip"));
             return;
         }
         
-        TextInputDialog dialog = new TextInputDialog("archive.zip");
-        dialog.setTitle(I18n.get("sftp.createZip"));
-        dialog.setHeaderText(I18n.get("sftp.createZip.header"));
-        dialog.setContentText(I18n.get("sftp.createZip.filename"));
+        // Filter out ".." entry and collect file paths
+        List<String> filesToZip = new java.util.ArrayList<>();
+        long estimatedSize = 0;
+        for (var item : selected) {
+            if (item.getName().equals("..")) continue;
+            filesToZip.add(item.getPath());
+            // Estimate size (rough, since directories can't be easily calculated)
+            String sizeStr = item.getSize();
+            if (sizeStr != null && !sizeStr.equals("-")) {
+                try {
+                    if (sizeStr.contains("KB")) {
+                        estimatedSize += (long) (Double.parseDouble(sizeStr.replace(" KB", "")) * 1024);
+                    } else if (sizeStr.contains("MB")) {
+                        estimatedSize += (long) (Double.parseDouble(sizeStr.replace(" MB", "")) * 1024 * 1024);
+                    } else if (sizeStr.contains("GB")) {
+                        estimatedSize += (long) (Double.parseDouble(sizeStr.replace(" GB", "")) * 1024 * 1024 * 1024);
+                    } else if (sizeStr.contains("B")) {
+                        estimatedSize += Long.parseLong(sizeStr.replace(" B", ""));
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+        }
         
-        dialog.showAndWait().ifPresent(zipName -> {
-            String fileName = zipName.endsWith(".zip") ? zipName : zipName + ".zip";
-            Path zipPath = currentLocalPath.resolve(fileName);
-            
-            try {
-                ZipFile zipFile = new ZipFile(zipPath.toFile());
-                ZipParameters params = new ZipParameters();
-                params.setCompressionLevel(CompressionLevel.NORMAL);
+        if (filesToZip.isEmpty()) {
+            showError(I18n.get("error.title"), I18n.get("sftp.error.selectFilesToZip"));
+            return;
+        }
+        
+        // Get default settings from GlobalSettings
+        String defaultZipPath = "/tmp";
+        int defaultCompression = 6;
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = app.getGlobalSettingsManager();
+            if (gsm != null && gsm.getSettings() != null) {
+                defaultZipPath = gsm.getSettings().getSftpDefaultZipPath();
+                defaultCompression = gsm.getSettings().getSftpDefaultZipCompression();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not get global settings: {}", e.getMessage());
+        }
+        
+        // Generate default filename with timestamp
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String defaultFilename = defaultZipPath + "/archive_" + timestamp + ".zip";
+        
+        // Show ZIP creation dialog
+        showRemoteZipDialog(filesToZip, defaultFilename, defaultCompression, estimatedSize);
+    }
+    
+    private void showRemoteZipDialog(List<String> filesToZip, String defaultFilename, int defaultCompression, long estimatedSize) {
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("sftp.createZip"));
+        dialog.setHeaderText(I18n.get("sftp.createZip.dialogHeader", filesToZip.size()));
+        dialog.setResizable(true);
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        
+        int row = 0;
+        
+        // ZIP file path
+        grid.add(new Label(I18n.get("sftp.createZip.path")), 0, row);
+        TextField pathField = new TextField(defaultFilename);
+        pathField.setPrefWidth(350);
+        grid.add(pathField, 1, row++);
+        
+        // Compression level
+        grid.add(new Label(I18n.get("sftp.createZip.compression")), 0, row);
+        ComboBox<String> compressionCombo = new ComboBox<>();
+        compressionCombo.getItems().addAll(
+            "0 - " + I18n.get("sftp.createZip.noCompression"),
+            "1 - " + I18n.get("sftp.createZip.fastest"),
+            "3 - " + I18n.get("sftp.createZip.fast"),
+            "6 - " + I18n.get("sftp.createZip.normal"),
+            "9 - " + I18n.get("sftp.createZip.best")
+        );
+        compressionCombo.getSelectionModel().select(
+            defaultCompression == 0 ? 0 :
+            defaultCompression <= 1 ? 1 :
+            defaultCompression <= 3 ? 2 :
+            defaultCompression <= 6 ? 3 : 4
+        );
+        grid.add(compressionCombo, 1, row++);
+        
+        // Owner (optional)
+        grid.add(new Label(I18n.get("sftp.createZip.owner")), 0, row);
+        TextField ownerField = new TextField();
+        ownerField.setPromptText(I18n.get("sftp.createZip.ownerPrompt"));
+        grid.add(ownerField, 1, row++);
+        
+        // Permissions (optional)
+        grid.add(new Label(I18n.get("sftp.createZip.permissions")), 0, row);
+        TextField permissionsField = new TextField("644");
+        permissionsField.setPromptText("644");
+        grid.add(permissionsField, 1, row++);
+        
+        // Password (optional)
+        grid.add(new Label(I18n.get("sftp.createZip.password")), 0, row);
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText(I18n.get("sftp.createZip.passwordPrompt"));
+        grid.add(passwordField, 1, row++);
+        
+        // Separator
+        grid.add(new Separator(), 0, row++, 2, 1);
+        
+        // Progress area (initially hidden)
+        Label progressLabel = new Label(I18n.get("sftp.createZip.preparing"));
+        progressLabel.setVisible(false);
+        grid.add(progressLabel, 0, row++, 2, 1);
+        
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(400);
+        progressBar.setVisible(false);
+        grid.add(progressBar, 0, row++, 2, 1);
+        
+        Label timeLabel = new Label();
+        timeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        timeLabel.setVisible(false);
+        grid.add(timeLabel, 0, row++, 2, 1);
+        
+        Label sizeLabel = new Label(I18n.get("sftp.createZip.estimatedSize", formatSize(estimatedSize)));
+        sizeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        grid.add(sizeLabel, 0, row++, 2, 1);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        // Buttons
+        ButtonType createButton = new ButtonType(I18n.get("sftp.createZip.create"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createButton, ButtonType.CANCEL);
+        
+        // Get the create button for enabling/disabling
+        Button createBtn = (Button) dialog.getDialogPane().lookupButton(createButton);
+        
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == createButton) {
+                String zipPath = pathField.getText().trim();
+                if (zipPath.isEmpty()) {
+                    showError(I18n.get("error.title"), I18n.get("sftp.createZip.pathRequired"));
+                    return null;
+                }
                 
-                for (var item : selected) {
-                    if (item.getName().equals("..")) continue;
-                    File file = new File(item.getPath());
-                    if (file.isDirectory()) {
-                        zipFile.addFolder(file, params);
+                // Get compression level from selection
+                int compression = switch (compressionCombo.getSelectionModel().getSelectedIndex()) {
+                    case 0 -> 0;
+                    case 1 -> 1;
+                    case 2 -> 3;
+                    case 3 -> 6;
+                    case 4 -> 9;
+                    default -> 6;
+                };
+                
+                String owner = ownerField.getText().trim();
+                String permissions = permissionsField.getText().trim();
+                String password = passwordField.getText();
+                
+                // Disable controls during creation
+                createBtn.setDisable(true);
+                pathField.setDisable(true);
+                compressionCombo.setDisable(true);
+                ownerField.setDisable(true);
+                permissionsField.setDisable(true);
+                passwordField.setDisable(true);
+                
+                // Show progress
+                progressLabel.setVisible(true);
+                progressBar.setVisible(true);
+                timeLabel.setVisible(true);
+                progressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
+                
+                // Create ZIP in background
+                executeRemoteZipCreation(dialog, filesToZip, zipPath, compression, owner, permissions, password,
+                        progressLabel, progressBar, timeLabel, sizeLabel);
+            }
+            return null;
+        });
+        
+        dialog.show();
+    }
+    
+    private void executeRemoteZipCreation(Dialog<Void> dialog, List<String> filesToZip, String zipPath,
+                                          int compression, String owner, String permissions, String password,
+                                          Label progressLabel, ProgressBar progressBar, Label timeLabel, Label sizeLabel) {
+        long startTime = System.currentTimeMillis();
+        
+        // Timer for elapsed time
+        Timeline timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            long elapsed = System.currentTimeMillis() - startTime;
+            long seconds = (elapsed / 1000) % 60;
+            long minutes = (elapsed / 1000) / 60;
+            timeLabel.setText(I18n.get("sftp.createZip.elapsed", String.format("%02d:%02d", minutes, seconds)));
+        }));
+        timer.setCycleCount(Timeline.INDEFINITE);
+        timer.play();
+        
+        new Thread(() -> {
+            try {
+                // Build the zip command
+                StringBuilder cmd = new StringBuilder();
+                
+                // Check if zip with password is supported
+                if (password != null && !password.isEmpty()) {
+                    // Use zip with -P option for password (less secure but widely available)
+                    cmd.append("zip -r -").append(compression).append(" -P '").append(password.replace("'", "'\\''")).append("' ");
+                } else {
+                    cmd.append("zip -r -").append(compression).append(" ");
+                }
+                
+                // Add destination path
+                cmd.append("'").append(zipPath.replace("'", "'\\''")).append("' ");
+                
+                // Add source files/directories
+                for (String file : filesToZip) {
+                    // Use relative paths if in same directory
+                    String fileName = file.contains("/") ? file.substring(file.lastIndexOf('/') + 1) : file;
+                    String dirPath = file.contains("/") ? file.substring(0, file.lastIndexOf('/')) : currentRemotePath;
+                    
+                    // Change to directory and zip from there for cleaner paths
+                    if (filesToZip.size() == 1) {
+                        cmd = new StringBuilder();
+                        if (password != null && !password.isEmpty()) {
+                            cmd.append("cd '").append(dirPath.replace("'", "'\\''")).append("' && zip -r -")
+                               .append(compression).append(" -P '").append(password.replace("'", "'\\''")).append("' '")
+                               .append(zipPath.replace("'", "'\\''")).append("' '")
+                               .append(fileName.replace("'", "'\\''")).append("'");
+                        } else {
+                            cmd.append("cd '").append(dirPath.replace("'", "'\\''")).append("' && zip -r -")
+                               .append(compression).append(" '")
+                               .append(zipPath.replace("'", "'\\''")).append("' '")
+                               .append(fileName.replace("'", "'\\''")).append("'");
+                        }
                     } else {
-                        zipFile.addFile(file, params);
+                        cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
                     }
                 }
                 
-                refreshLocal();
-                statusLabel.setText(I18n.get("sftp.zipCreated", fileName));
+                // For multiple files, cd to common parent first
+                if (filesToZip.size() > 1) {
+                    String finalCmd = "cd '" + currentRemotePath.replace("'", "'\\''") + "' && " + cmd;
+                    cmd = new StringBuilder(finalCmd);
+                }
+                
+                final String zipCommand = cmd.toString();
+                logger.info("Executing remote ZIP command: {}", zipCommand.replaceAll("-P '[^']*'", "-P '***'"));
+                
+                Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.createZip.creating")));
+                
+                // Execute the zip command with progress
+                int exitCode = sftpSession.executeCommandWithProgress(zipCommand, line -> {
+                    Platform.runLater(() -> {
+                        progressLabel.setText(line);
+                    });
+                });
+                
+                if (exitCode != 0) {
+                    throw new Exception(I18n.get("sftp.createZip.failed", exitCode));
+                }
+                
+                // Set owner if specified
+                if (owner != null && !owner.isEmpty()) {
+                    String chownCmd = "chown " + owner + " '" + zipPath.replace("'", "'\\''") + "'";
+                    try {
+                        sftpSession.executeCommand(chownCmd);
+                    } catch (Exception e) {
+                        logger.warn("Could not set owner: {}", e.getMessage());
+                    }
+                }
+                
+                // Set permissions if specified
+                if (permissions != null && !permissions.isEmpty()) {
+                    String chmodCmd = "chmod " + permissions + " '" + zipPath.replace("'", "'\\''") + "'";
+                    try {
+                        sftpSession.executeCommand(chmodCmd);
+                    } catch (Exception e) {
+                        logger.warn("Could not set permissions: {}", e.getMessage());
+                    }
+                }
+                
+                // Get actual file size
+                String sizeCmd = "stat -c%s '" + zipPath.replace("'", "'\\''") + "' 2>/dev/null || stat -f%z '" + zipPath.replace("'", "'\\''") + "'";
+                String actualSize = "";
+                try {
+                    actualSize = sftpSession.executeCommand(sizeCmd).trim();
+                } catch (Exception e) {
+                    logger.debug("Could not get file size: {}", e.getMessage());
+                }
+                
+                final String finalSize = actualSize;
+                
+                Platform.runLater(() -> {
+                    timer.stop();
+                    progressBar.setProgress(1.0);
+                    progressLabel.setText(I18n.get("sftp.createZip.success"));
+                    if (!finalSize.isEmpty()) {
+                        try {
+                            sizeLabel.setText(I18n.get("sftp.createZip.actualSize", formatSize(Long.parseLong(finalSize))));
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    statusLabel.setText(I18n.get("sftp.zipCreated", zipPath));
+                    refreshRemote();
+                    
+                    // Close dialog after short delay
+                    Timeline closeDelay = new Timeline(new KeyFrame(Duration.seconds(2), e -> dialog.close()));
+                    closeDelay.play();
+                });
+                
             } catch (Exception e) {
-                showError(I18n.get("sftp.error.zip"), e.getMessage());
+                logger.error("Remote ZIP creation failed", e);
+                Platform.runLater(() -> {
+                    timer.stop();
+                    progressBar.setProgress(0);
+                    progressLabel.setText(I18n.get("sftp.createZip.error", e.getMessage()));
+                    showError(I18n.get("sftp.error.zip"), e.getMessage());
+                });
             }
-        });
+        }, "Remote-ZIP-Creator").start();
     }
     
     private String formatSize(long bytes) {

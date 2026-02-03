@@ -85,6 +85,12 @@ public class GlobalSettings {
     @XmlElement
     private Integer sftpAutoCloseMinutes; // Auto-close SFTP tab after N minutes (null/0 = disabled)
     
+    @XmlElement
+    private String sftpDefaultZipPath = "/tmp"; // Default path for remote ZIP creation
+    
+    @XmlElement
+    private Integer sftpDefaultZipCompression = 6; // Default compression level (0-9)
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -307,5 +313,37 @@ public class GlobalSettings {
      */
     public void setSftpAutoCloseMinutes(Integer sftpAutoCloseMinutes) {
         this.sftpAutoCloseMinutes = sftpAutoCloseMinutes;
+    }
+    
+    /**
+     * Gets the default path for remote ZIP creation.
+     * @return Default path (default: /tmp)
+     */
+    public String getSftpDefaultZipPath() {
+        return sftpDefaultZipPath != null ? sftpDefaultZipPath : "/tmp";
+    }
+    
+    /**
+     * Sets the default path for remote ZIP creation.
+     * @param sftpDefaultZipPath Default path for ZIP files
+     */
+    public void setSftpDefaultZipPath(String sftpDefaultZipPath) {
+        this.sftpDefaultZipPath = sftpDefaultZipPath;
+    }
+    
+    /**
+     * Gets the default compression level for ZIP creation (0-9).
+     * @return Compression level (default: 6)
+     */
+    public Integer getSftpDefaultZipCompression() {
+        return sftpDefaultZipCompression != null ? sftpDefaultZipCompression : 6;
+    }
+    
+    /**
+     * Sets the default compression level for ZIP creation.
+     * @param sftpDefaultZipCompression Compression level (0-9)
+     */
+    public void setSftpDefaultZipCompression(Integer sftpDefaultZipCompression) {
+        this.sftpDefaultZipCompression = sftpDefaultZipCompression;
     }
 }
