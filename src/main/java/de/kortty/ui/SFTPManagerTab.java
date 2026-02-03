@@ -344,7 +344,7 @@ public class SFTPManagerTab extends Tab {
         
         // File table
         localTable = new TableView<>();
-        localTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        localTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         
         // Column order: Name, Type, Size, Date, Permissions
         TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
@@ -357,24 +357,28 @@ public class SFTPManagerTab extends Tab {
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
         typeColumn.setPrefWidth(60);
         typeColumn.setMinWidth(50);
+        typeColumn.setMaxWidth(80);
         typeColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         sizeColumn.setPrefWidth(100);
         sizeColumn.setMinWidth(80);
+        sizeColumn.setMaxWidth(120);
         sizeColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         dateColumn.setPrefWidth(140);
         dateColumn.setMinWidth(120);
+        dateColumn.setMaxWidth(160);
         dateColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
         permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
         permColumn.setPrefWidth(90);
         permColumn.setMinWidth(70);
+        permColumn.setMaxWidth(110);
         permColumn.setSortable(true);
         
         localTable.getColumns().addAll(nameColumn, typeColumn, sizeColumn, dateColumn, permColumn);
@@ -458,7 +462,7 @@ public class SFTPManagerTab extends Tab {
         
         // File table
         remoteTable = new TableView<>();
-        remoteTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        remoteTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         
         // Column order: Name, Type, Size, Date, Permissions
         TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
@@ -471,24 +475,28 @@ public class SFTPManagerTab extends Tab {
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
         typeColumn.setPrefWidth(60);
         typeColumn.setMinWidth(50);
+        typeColumn.setMaxWidth(80);
         typeColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         sizeColumn.setPrefWidth(100);
         sizeColumn.setMinWidth(80);
+        sizeColumn.setMaxWidth(120);
         sizeColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         dateColumn.setPrefWidth(140);
         dateColumn.setMinWidth(120);
+        dateColumn.setMaxWidth(160);
         dateColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
         permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
         permColumn.setPrefWidth(90);
         permColumn.setMinWidth(70);
+        permColumn.setMaxWidth(110);
         permColumn.setSortable(true);
         
         remoteTable.getColumns().addAll(nameColumn, typeColumn, sizeColumn, dateColumn, permColumn);
