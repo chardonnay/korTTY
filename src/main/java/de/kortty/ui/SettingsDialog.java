@@ -87,6 +87,12 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     // Language settings
     private final ComboBox<String> languageCombo;
     
+    // SFTP settings
+    private final CheckBox sftpAutoCloseEnabledCheck;
+    private final Spinner<Integer> sftpAutoCloseMinutesSpinner;
+    private final TextField sftpDefaultZipPathField;
+    private final Spinner<Integer> sftpDefaultZipCompressionSpinner;
+    
     public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
                           GlobalSettings globalSettings, CredentialManager credentialManager, 
                           GPGKeyManager gpgKeyManager) {
@@ -612,7 +618,85 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         languageTab.setContent(languageGrid);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, languageTab);
+        // SFTP tab
+        Tab sftpTab = new Tab(I18n.get("settings.tab.sftp"));
+        GridPane sftpGrid = new GridPane();
+        sftpGrid.setHgap(10);
+        sftpGrid.setVgap(10);
+        sftpGrid.setPadding(new Insets(20));
+        
+        int sftpRow = 0;
+        
+        // SFTP Manager title
+        Label sftpTitle = new Label(I18n.get("settings.sftp.title"));
+        sftpTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        sftpGrid.add(sftpTitle, 0, sftpRow++, 2, 1);
+        
+        // Auto-close enabled checkbox
+        sftpAutoCloseEnabledCheck = new CheckBox(I18n.get("settings.sftp.autoCloseEnabled"));
+        boolean autoCloseEnabled = globalSettings.getSftpAutoCloseMinutes() != null && globalSettings.getSftpAutoCloseMinutes() > 0;
+        sftpAutoCloseEnabledCheck.setSelected(autoCloseEnabled);
+        sftpGrid.add(sftpAutoCloseEnabledCheck, 0, sftpRow++, 2, 1);
+        
+        // Auto-close timeout spinner
+        Label autoCloseLabel = new Label(I18n.get("settings.sftp.autoCloseMinutes"));
+        int currentMinutes = globalSettings.getSftpAutoCloseMinutes() != null ? globalSettings.getSftpAutoCloseMinutes() : 10;
+        sftpAutoCloseMinutesSpinner = new Spinner<>(1, 120, currentMinutes);
+        sftpAutoCloseMinutesSpinner.setEditable(true);
+        sftpAutoCloseMinutesSpinner.setPrefWidth(80);
+        sftpAutoCloseMinutesSpinner.setDisable(!autoCloseEnabled);
+        
+        HBox autoCloseBox = new HBox(10);
+        autoCloseBox.getChildren().addAll(autoCloseLabel, sftpAutoCloseMinutesSpinner);
+        sftpGrid.add(autoCloseBox, 0, sftpRow++, 2, 1);
+        
+        // Enable/disable spinner based on checkbox
+        sftpAutoCloseEnabledCheck.selectedProperty().addListener((obs, old, newVal) -> {
+            sftpAutoCloseMinutesSpinner.setDisable(!newVal);
+        });
+        
+        // Info label
+        Label sftpInfo = new Label(I18n.get("settings.sftp.info"));
+        sftpInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        sftpInfo.setWrapText(true);
+        sftpInfo.setMaxWidth(400);
+        sftpGrid.add(sftpInfo, 0, sftpRow++, 2, 1);
+        
+        // Separator
+        sftpGrid.add(new Separator(), 0, sftpRow++, 2, 1);
+        
+        // ZIP settings title
+        Label zipTitle = new Label(I18n.get("settings.sftp.zipTitle"));
+        zipTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        sftpGrid.add(zipTitle, 0, sftpRow++, 2, 1);
+        
+        // Default ZIP path
+        Label zipPathLabel = new Label(I18n.get("settings.sftp.defaultZipPath"));
+        sftpDefaultZipPathField = new TextField(globalSettings.getSftpDefaultZipPath());
+        sftpDefaultZipPathField.setPrefWidth(250);
+        HBox zipPathBox = new HBox(10);
+        zipPathBox.getChildren().addAll(zipPathLabel, sftpDefaultZipPathField);
+        sftpGrid.add(zipPathBox, 0, sftpRow++, 2, 1);
+        
+        // Default compression level
+        Label compressionLabel = new Label(I18n.get("settings.sftp.defaultCompression"));
+        sftpDefaultZipCompressionSpinner = new Spinner<>(0, 9, globalSettings.getSftpDefaultZipCompression());
+        sftpDefaultZipCompressionSpinner.setEditable(true);
+        sftpDefaultZipCompressionSpinner.setPrefWidth(80);
+        HBox compressionBox = new HBox(10);
+        compressionBox.getChildren().addAll(compressionLabel, sftpDefaultZipCompressionSpinner);
+        sftpGrid.add(compressionBox, 0, sftpRow++, 2, 1);
+        
+        // ZIP info
+        Label zipInfo = new Label(I18n.get("settings.sftp.zipInfo"));
+        zipInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        zipInfo.setWrapText(true);
+        zipInfo.setMaxWidth(400);
+        sftpGrid.add(zipInfo, 0, sftpRow++, 2, 1);
+        
+        sftpTab.setContent(sftpGrid);
+        
+        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, languageTab);
         
         VBox content = new VBox(tabPane);
         content.setPrefSize(500, 400);
@@ -737,6 +821,18 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 fixedGeo.setY(fixedYSpinner.getValue());
                 globalSettings.setFixedWindowGeometry(fixedGeo);
             }
+            
+            // Save SFTP settings
+            if (sftpAutoCloseEnabledCheck.isSelected()) {
+                globalSettings.setSftpAutoCloseMinutes(sftpAutoCloseMinutesSpinner.getValue());
+            } else {
+                globalSettings.setSftpAutoCloseMinutes(null); // Disabled
+            }
+            
+            // Save ZIP settings
+            String zipPath = sftpDefaultZipPathField.getText().trim();
+            globalSettings.setSftpDefaultZipPath(zipPath.isEmpty() ? "/tmp" : zipPath);
+            globalSettings.setSftpDefaultZipCompression(sftpDefaultZipCompressionSpinner.getValue());
         }
     }
     

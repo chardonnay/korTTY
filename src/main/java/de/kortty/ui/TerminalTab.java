@@ -44,7 +44,7 @@ public class TerminalTab extends Tab {
         this.settings = connection.getSettings();
         this.temporarySSHKey = temporarySSHKey;
         this.connectionStartTime = Instant.now();
-        this.terminalView = new TerminalView(connection, password);
+        this.terminalView = new TerminalView(connection, password, temporarySSHKey);
         
         // Create status bar
         createStatusBar();

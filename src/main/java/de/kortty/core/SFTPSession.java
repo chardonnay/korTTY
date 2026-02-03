@@ -399,6 +399,109 @@ public class SFTPSession {
         return sftpClient != null && session != null && session.isOpen();
     }
     
+    /**
+     * Executes a shell command on the remote server.
+     * @param command The command to execute
+     * @return The command output
+     * @throws Exception If the command fails
+     */
+    public String executeCommand(String command) throws Exception {
+        if (session == null || !session.isOpen()) {
+            throw new Exception("Not connected");
+        }
+        
+        try (org.apache.sshd.client.channel.ChannelExec channel = session.createExecChannel(command)) {
+            java.io.ByteArrayOutputStream stdout = new java.io.ByteArrayOutputStream();
+            java.io.ByteArrayOutputStream stderr = new java.io.ByteArrayOutputStream();
+            channel.setOut(stdout);
+            channel.setErr(stderr);
+            
+            channel.open().verify(Duration.ofSeconds(30));
+            channel.waitFor(java.util.EnumSet.of(org.apache.sshd.client.channel.ClientChannelEvent.CLOSED), 
+                    Duration.ofMinutes(30).toMillis());
+            
+            int exitStatus = channel.getExitStatus() != null ? channel.getExitStatus() : -1;
+            String output = stdout.toString(java.nio.charset.StandardCharsets.UTF_8);
+            String error = stderr.toString(java.nio.charset.StandardCharsets.UTF_8);
+            
+            if (exitStatus != 0) {
+                logger.warn("Command '{}' exited with status {}: {}", command, exitStatus, error);
+                throw new Exception("Command failed with exit code " + exitStatus + ": " + error);
+            }
+            
+            return output;
+        }
+    }
+    
+    /**
+     * Executes a shell command asynchronously and provides progress updates.
+     * @param command The command to execute
+     * @param outputConsumer Consumer that receives output line by line
+     * @return A CommandResult containing exit status and any error output
+     * @throws Exception If the command fails to execute
+     */
+    public CommandResult executeCommandWithProgress(String command, java.util.function.Consumer<String> outputConsumer) throws Exception {
+        if (session == null || !session.isOpen()) {
+            throw new Exception("Not connected");
+        }
+        
+        try (org.apache.sshd.client.channel.ChannelExec channel = session.createExecChannel(command)) {
+            java.io.PipedInputStream stdoutPipedIn = new java.io.PipedInputStream();
+            java.io.PipedOutputStream stdoutPipedOut = new java.io.PipedOutputStream(stdoutPipedIn);
+            java.io.ByteArrayOutputStream stderrStream = new java.io.ByteArrayOutputStream();
+            
+            channel.setOut(stdoutPipedOut);
+            channel.setErr(stderrStream);
+            
+            channel.open().verify(Duration.ofSeconds(30));
+            
+            // Read stdout in a separate thread
+            Thread readerThread = new Thread(() -> {
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(stdoutPipedIn, java.nio.charset.StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (outputConsumer != null) {
+                            outputConsumer.accept(line);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.debug("Reader thread ended: {}", e.getMessage());
+                }
+            }, "SSH-Command-Reader");
+            readerThread.setDaemon(true);
+            readerThread.start();
+            
+            channel.waitFor(java.util.EnumSet.of(org.apache.sshd.client.channel.ClientChannelEvent.CLOSED), 
+                    Duration.ofHours(1).toMillis());
+            
+            // Wait for reader thread to finish
+            readerThread.join(5000);
+            
+            int exitCode = channel.getExitStatus() != null ? channel.getExitStatus() : -1;
+            String stderr = stderrStream.toString(java.nio.charset.StandardCharsets.UTF_8);
+            
+            return new CommandResult(exitCode, stderr);
+        }
+    }
+    
+    /**
+     * Result of a command execution containing exit code and stderr.
+     */
+    public static class CommandResult {
+        private final int exitCode;
+        private final String stderr;
+        
+        public CommandResult(int exitCode, String stderr) {
+            this.exitCode = exitCode;
+            this.stderr = stderr;
+        }
+        
+        public int getExitCode() { return exitCode; }
+        public String getStderr() { return stderr; }
+        public boolean isSuccess() { return exitCode == 0; }
+    }
+    
     public ServerConnection getConnection() {
         return connection;
     }

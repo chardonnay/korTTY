@@ -78,7 +78,7 @@ dependencies {
     // ZIP encryption
     implementation("net.lingala.zip4j:zip4j:2.11.5")
     
-    // TAR.BZ2 archiving
+    // Archive support (TAR.BZ2, 7z)
     implementation("org.apache.commons:commons-compress:1.25.0")
     implementation("org.tukaani:xz:1.9")
     

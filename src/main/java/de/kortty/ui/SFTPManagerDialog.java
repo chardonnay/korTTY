@@ -1618,13 +1618,46 @@ public class SFTPManagerDialog extends Dialog<Void> {
         private final boolean file;
         private final String size;
         private final String date;
+        private final String permissions;
+        private final long sizeBytes; // For sorting
         
         public FileItem(String name, String path, boolean file, String size, String date) {
+            this(name, path, file, size, date, "");
+        }
+        
+        public FileItem(String name, String path, boolean file, String size, String date, String permissions) {
             this.name = name;
             this.path = path;
             this.file = file;
             this.size = size;
             this.date = date;
+            this.permissions = permissions;
+            this.sizeBytes = parseSizeToBytes(size);
+        }
+        
+        private long parseSizeToBytes(String sizeStr) {
+            if (sizeStr == null || sizeStr.isEmpty() || sizeStr.equals("-") || 
+                sizeStr.equals("<DIR>") || sizeStr.equals("...") || sizeStr.equals("—")) {
+                return 0;
+            }
+            try {
+                // Remove non-numeric characters except for decimals and parse
+                String cleaned = sizeStr.replaceAll("[^0-9.]", "");
+                if (cleaned.isEmpty()) return 0;
+                
+                // Handle formatted sizes (KB, MB, GB)
+                if (sizeStr.contains("KB")) {
+                    return (long)(Double.parseDouble(cleaned) * 1024);
+                } else if (sizeStr.contains("MB")) {
+                    return (long)(Double.parseDouble(cleaned) * 1024 * 1024);
+                } else if (sizeStr.contains("GB")) {
+                    return (long)(Double.parseDouble(cleaned) * 1024 * 1024 * 1024);
+                } else {
+                    return Long.parseLong(cleaned);
+                }
+            } catch (NumberFormatException e) {
+                return 0;
+            }
         }
         
         public String getName() { return name; }
@@ -1632,5 +1665,12 @@ public class SFTPManagerDialog extends Dialog<Void> {
         public boolean isFile() { return file; }
         public String getSize() { return size; }
         public String getDate() { return date; }
+        public String getPermissions() { return permissions; }
+        public long getSizeBytes() { return sizeBytes; }
+        
+        // Type for display in table (📁 or 📄)
+        public String getType() {
+            return file ? "📄" : "📁";
+        }
     }
 }
