@@ -338,10 +338,15 @@ public class SFTPManagerTab extends Tab {
         
         TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>("Datum");
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
-        dateColumn.setPrefWidth(150);
+        dateColumn.setPrefWidth(140);
         dateColumn.setMinWidth(120);
         
-        localTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn);
+        TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>("Rechte");
+        permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
+        permColumn.setPrefWidth(90);
+        permColumn.setMinWidth(70);
+        
+        localTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn, permColumn);
         
         // Double-click to navigate
         localTable.setRowFactory(tv -> {
@@ -422,10 +427,15 @@ public class SFTPManagerTab extends Tab {
         
         TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>("Datum");
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
-        dateColumn.setPrefWidth(150);
+        dateColumn.setPrefWidth(140);
         dateColumn.setMinWidth(120);
         
-        remoteTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn);
+        TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>("Rechte");
+        permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
+        permColumn.setPrefWidth(90);
+        permColumn.setMinWidth(70);
+        
+        remoteTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn, permColumn);
         
         // Double-click to navigate
         remoteTable.setRowFactory(tv -> {
@@ -529,21 +539,43 @@ public class SFTPManagerTab extends Tab {
                 // Add parent directory entry
                 if (currentLocalPath.getParent() != null) {
                     localItems.add(new SFTPManagerDialog.FileItem("..", 
-                        currentLocalPath.getParent().toString(), false, "<DIR>", ""));
+                        currentLocalPath.getParent().toString(), false, "<DIR>", "", ""));
                 }
                 
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 for (File file : files) {
                     String size = file.isDirectory() ? "<DIR>" : formatSize(file.length());
                     String date = sdf.format(new Date(file.lastModified()));
+                    String permissions = getLocalFilePermissions(file.toPath());
                     localItems.add(new SFTPManagerDialog.FileItem(file.getName(), 
-                        file.getAbsolutePath(), file.isFile(), size, date));
+                        file.getAbsolutePath(), file.isFile(), size, date, permissions));
                 }
             }
             localPathField.setText(currentLocalPath.toString());
         } catch (Exception e) {
             logger.error("Failed to list local files", e);
             showError("Fehler", "Lokale Dateien konnten nicht geladen werden: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Gets the file permissions as a string (e.g., "rwxr-xr-x" on Unix or "rw-" on Windows).
+     */
+    private String getLocalFilePermissions(Path path) {
+        try {
+            // Try POSIX permissions first (Unix/macOS)
+            java.nio.file.attribute.PosixFileAttributes attrs = 
+                Files.readAttributes(path, java.nio.file.attribute.PosixFileAttributes.class);
+            return java.nio.file.attribute.PosixFilePermissions.toString(attrs.permissions());
+        } catch (UnsupportedOperationException e) {
+            // Windows fallback
+            StringBuilder perms = new StringBuilder();
+            perms.append(Files.isReadable(path) ? "r" : "-");
+            perms.append(Files.isWritable(path) ? "w" : "-");
+            perms.append(Files.isExecutable(path) ? "x" : "-");
+            return perms.toString();
+        } catch (Exception e) {
+            return "";
         }
     }
     
@@ -574,14 +606,46 @@ public class SFTPManagerTab extends Tab {
                 long mtime = entry.getAttributes().getModifyTime().toMillis();
                 String date = sdf.format(new Date(mtime));
                 
+                // Get file permissions
+                String permissions = formatRemotePermissions(entry.getAttributes());
+                
                 String fullPath = pathToList.endsWith("/") ? pathToList + name : pathToList + "/" + name;
-                remoteItems.add(new SFTPManagerDialog.FileItem(name, fullPath, !isDir, size, date));
+                remoteItems.add(new SFTPManagerDialog.FileItem(name, fullPath, !isDir, size, date, permissions));
             }
             
             remotePathField.setText(currentRemotePath);
         } catch (Exception e) {
             logger.error("Failed to list remote files", e);
             showError("Fehler", "Remote Dateien konnten nicht geladen werden: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Formats remote file permissions from SFTP attributes to a string like "rwxr-xr-x".
+     */
+    private String formatRemotePermissions(SftpClient.Attributes attrs) {
+        try {
+            int perms = attrs.getPermissions();
+            StringBuilder sb = new StringBuilder();
+            
+            // Owner permissions
+            sb.append((perms & 0400) != 0 ? "r" : "-");
+            sb.append((perms & 0200) != 0 ? "w" : "-");
+            sb.append((perms & 0100) != 0 ? "x" : "-");
+            
+            // Group permissions
+            sb.append((perms & 0040) != 0 ? "r" : "-");
+            sb.append((perms & 0020) != 0 ? "w" : "-");
+            sb.append((perms & 0010) != 0 ? "x" : "-");
+            
+            // Others permissions
+            sb.append((perms & 0004) != 0 ? "r" : "-");
+            sb.append((perms & 0002) != 0 ? "w" : "-");
+            sb.append((perms & 0001) != 0 ? "x" : "-");
+            
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
         }
     }
     

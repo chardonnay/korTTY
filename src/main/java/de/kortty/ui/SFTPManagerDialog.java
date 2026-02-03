@@ -1618,13 +1618,19 @@ public class SFTPManagerDialog extends Dialog<Void> {
         private final boolean file;
         private final String size;
         private final String date;
+        private final String permissions;
         
         public FileItem(String name, String path, boolean file, String size, String date) {
+            this(name, path, file, size, date, "");
+        }
+        
+        public FileItem(String name, String path, boolean file, String size, String date, String permissions) {
             this.name = name;
             this.path = path;
             this.file = file;
             this.size = size;
             this.date = date;
+            this.permissions = permissions;
         }
         
         public String getName() { return name; }
@@ -1632,5 +1638,6 @@ public class SFTPManagerDialog extends Dialog<Void> {
         public boolean isFile() { return file; }
         public String getSize() { return size; }
         public String getDate() { return date; }
+        public String getPermissions() { return permissions; }
     }
 }
