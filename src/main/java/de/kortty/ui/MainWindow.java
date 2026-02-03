@@ -1044,6 +1044,7 @@ public class MainWindow {
                         java.util.UUID.randomUUID().toString(),
                         connection.getId()
                 );
+                sessionState.setTabType(SessionState.TabType.TERMINAL);
                 sessionState.setSettings(connection.getSettings());
                 sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
                 sessionState.setGroup(terminalTab.getGroup()); // Save tab group (not connection group)
@@ -1059,6 +1060,40 @@ public class MainWindow {
                     logger.info("Saving split structure for tab: {}", connection.getDisplayName());
                 }
                 windowState.addTab(sessionState);
+            } else if (tab instanceof SFTPManagerTab sftpTab) {
+                SessionState sessionState = sftpTab.createSessionState();
+                windowState.addTab(sessionState);
+                logger.info("Saving SFTP Manager tab: {}", sftpTab.getText());
+            } else if (tab instanceof FileEditorTab editorTab) {
+                SessionState sessionState = editorTab.createSessionState();
+                // Find connection ID if this is a remote file
+                if (editorTab.isRemote() && editorTab.getSftpSession() != null) {
+                    // Try to find matching SFTP tab to get connection
+                    for (Tab t : tabPane.getTabs()) {
+                        if (t instanceof SFTPManagerTab sftpTab && 
+                            sftpTab.getConnection() != null) {
+                            sessionState.setConnectionId(sftpTab.getConnection().getId());
+                            break;
+                        }
+                    }
+                }
+                windowState.addTab(sessionState);
+                logger.info("Saving File Editor tab: {}", editorTab.getText());
+            } else if (tab instanceof ImageViewerTab viewerTab) {
+                SessionState sessionState = viewerTab.createSessionState();
+                // Find connection ID if this is a remote image
+                if (viewerTab.isRemote() && viewerTab.getSftpSession() != null) {
+                    // Try to find matching SFTP tab to get connection
+                    for (Tab t : tabPane.getTabs()) {
+                        if (t instanceof SFTPManagerTab sftpTab && 
+                            sftpTab.getConnection() != null) {
+                            sessionState.setConnectionId(sftpTab.getConnection().getId());
+                            break;
+                        }
+                    }
+                }
+                windowState.addTab(sessionState);
+                logger.info("Saving Image Viewer tab: {}", viewerTab.getText());
             }
         }
         
@@ -1085,46 +1120,171 @@ public class MainWindow {
             
             // Restore tabs
             for (SessionState sessionState : windowState.getTabs()) {
-                ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
-                if (connection != null) {
-                    if (project.isAutoReconnect()) {
-                        // Get password and reconnect with history restore
-                        String password = getConnectionPassword(connection);
-                        if (password != null) {
-                            String history = sessionState.getTerminalHistory();
-                            TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history, null);
-                            // Restore tab group (not connection group)
-                            if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
-                                restoredTab.setGroup(sessionState.getGroup());
-                                organizeTabsByGroup();
-                            }
-                            // Restore font size (zoom level) if saved
-                            Integer fontSizeOverride = sessionState.getFontSizeOverride();
-                            if (fontSizeOverride != null && fontSizeOverride > 0) {
-                                restoredTab.getTerminalView().setFontSize(fontSizeOverride);
-                            }
-                            // Restore split pane structure if saved (delayed until connection is ready)
-                            de.kortty.model.SplitPaneState splitState = sessionState.getSplitPaneState();
-                            if (splitState != null) {
-                                logger.info("Scheduling split structure restoration for tab: {}", connection.getDisplayName());
-                                // Wait for initial connection to be fully established before restoring splits
-                                Platform.runLater(() -> {
-                                    try {
-                                        Thread.sleep(1000); // Give time for initial connection
-                                    } catch (InterruptedException e) {
-                                        Thread.currentThread().interrupt();
+                SessionState.TabType tabType = sessionState.getTabType();
+                if (tabType == null) {
+                    tabType = SessionState.TabType.TERMINAL; // Backward compatibility
+                }
+                
+                switch (tabType) {
+                    case TERMINAL -> {
+                        ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
+                        if (connection != null) {
+                            if (project.isAutoReconnect()) {
+                                // Get password and reconnect with history restore
+                                String password = getConnectionPassword(connection);
+                                if (password != null) {
+                                    String history = sessionState.getTerminalHistory();
+                                    TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history, null);
+                                    // Restore tab group (not connection group)
+                                    if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
+                                        restoredTab.setGroup(sessionState.getGroup());
+                                        organizeTabsByGroup();
                                     }
-                                    restoredTab.getTerminalView().restoreSplitState(splitState);
-                                });
+                                    // Restore font size (zoom level) if saved
+                                    Integer fontSizeOverride = sessionState.getFontSizeOverride();
+                                    if (fontSizeOverride != null && fontSizeOverride > 0) {
+                                        restoredTab.getTerminalView().setFontSize(fontSizeOverride);
+                                    }
+                                    // Restore split pane structure if saved (delayed until connection is ready)
+                                    de.kortty.model.SplitPaneState splitState = sessionState.getSplitPaneState();
+                                    if (splitState != null) {
+                                        logger.info("Scheduling split structure restoration for tab: {}", connection.getDisplayName());
+                                        // Wait for initial connection to be fully established before restoring splits
+                                        Platform.runLater(() -> {
+                                            try {
+                                                Thread.sleep(1000); // Give time for initial connection
+                                            } catch (InterruptedException e) {
+                                                Thread.currentThread().interrupt();
+                                            }
+                                            restoredTab.getTerminalView().restoreSplitState(splitState);
+                                        });
+                                    }
+                                    logger.info("Restoring tab for {} with {} chars of history", 
+                                            connection.getDisplayName(), 
+                                            history != null ? history.length() : 0);
+                                }
+                            } else {
+                                // TODO: Create read-only tab with history display only (no connection)
+                                logger.info("Auto-reconnect disabled, skipping connection for {}", 
+                                        connection.getDisplayName());
                             }
-                            logger.info("Restoring tab for {} with {} chars of history", 
-                                    connection.getDisplayName(), 
-                                    history != null ? history.length() : 0);
                         }
-                    } else {
-                        // TODO: Create read-only tab with history display only (no connection)
-                        logger.info("Auto-reconnect disabled, skipping connection for {}", 
-                                connection.getDisplayName());
+                    }
+                    case SFTP_MANAGER -> {
+                        ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
+                        if (connection != null && project.isAutoReconnect()) {
+                            String password = getConnectionPassword(connection);
+                            if (password != null) {
+                                Integer timeout = sessionState.getSftpAutoCloseTimeout();
+                                int timeoutMinutes = (timeout != null && timeout > 0) ? timeout : 0;
+                                
+                                SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, null, timeoutMinutes);
+                                tabPane.getTabs().add(sftpTab);
+                                
+                                // Restore paths if saved
+                                if (sessionState.getSftpLocalPath() != null) {
+                                    // Will be restored after connection
+                                }
+                                if (sessionState.getSftpRemotePath() != null) {
+                                    // Will be restored after connection
+                                }
+                                
+                                logger.info("Restored SFTP Manager tab for {}", connection.getDisplayName());
+                            }
+                        }
+                    }
+                    case FILE_EDITOR -> {
+                        Boolean isRemote = sessionState.getEditorIsRemote();
+                        String filePath = sessionState.getEditorFilePath();
+                        
+                        if (filePath != null) {
+                            if (Boolean.TRUE.equals(isRemote)) {
+                                // Remote file - need connection
+                                ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
+                                if (connection != null && project.isAutoReconnect()) {
+                                    String password = getConnectionPassword(connection);
+                                    if (password != null) {
+                                        // Open SFTP session and download file
+                                        new Thread(() -> {
+                                            try {
+                                                de.kortty.core.SFTPSession sftpSession = new de.kortty.core.SFTPSession(connection, password);
+                                                sftpSession.connect();
+                                                
+                                                byte[] content = sftpSession.downloadFileBytes(filePath);
+                                                String filename = java.nio.file.Paths.get(filePath).getFileName().toString();
+                                                
+                                                Platform.runLater(() -> {
+                                                    FileEditorTab editorTab = new FileEditorTab(filename, filePath, sftpSession, content);
+                                                    tabPane.getTabs().add(editorTab);
+                                                    logger.info("Restored remote file editor: {}", filePath);
+                                                });
+                                            } catch (Exception e) {
+                                                logger.error("Failed to restore remote file editor", e);
+                                            }
+                                        }).start();
+                                    }
+                                }
+                            } else {
+                                // Local file
+                                try {
+                                    java.nio.file.Path path = java.nio.file.Paths.get(filePath);
+                                    if (java.nio.file.Files.exists(path)) {
+                                        FileEditorTab editorTab = new FileEditorTab(path);
+                                        tabPane.getTabs().add(editorTab);
+                                        logger.info("Restored local file editor: {}", filePath);
+                                    }
+                                } catch (Exception e) {
+                                    logger.error("Failed to restore local file editor", e);
+                                }
+                            }
+                        }
+                    }
+                    case IMAGE_VIEWER -> {
+                        Boolean isRemote = sessionState.getImageIsRemote();
+                        String filePath = sessionState.getImageFilePath();
+                        Double zoomLevel = sessionState.getImageZoomLevel();
+                        
+                        if (filePath != null) {
+                            if (Boolean.TRUE.equals(isRemote)) {
+                                // Remote image - need connection
+                                ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
+                                if (connection != null && project.isAutoReconnect()) {
+                                    String password = getConnectionPassword(connection);
+                                    if (password != null) {
+                                        // Open SFTP session and download image
+                                        new Thread(() -> {
+                                            try {
+                                                de.kortty.core.SFTPSession sftpSession = new de.kortty.core.SFTPSession(connection, password);
+                                                sftpSession.connect();
+                                                
+                                                byte[] imageData = sftpSession.downloadFileBytes(filePath);
+                                                String filename = java.nio.file.Paths.get(filePath).getFileName().toString();
+                                                
+                                                Platform.runLater(() -> {
+                                                    ImageViewerTab viewerTab = new ImageViewerTab(filename, filePath, sftpSession, imageData);
+                                                    tabPane.getTabs().add(viewerTab);
+                                                    logger.info("Restored remote image viewer: {}", filePath);
+                                                });
+                                            } catch (Exception e) {
+                                                logger.error("Failed to restore remote image viewer", e);
+                                            }
+                                        }).start();
+                                    }
+                                }
+                            } else {
+                                // Local image
+                                try {
+                                    java.nio.file.Path path = java.nio.file.Paths.get(filePath);
+                                    if (java.nio.file.Files.exists(path)) {
+                                        ImageViewerTab viewerTab = new ImageViewerTab(path);
+                                        tabPane.getTabs().add(viewerTab);
+                                        logger.info("Restored local image viewer: {}", filePath);
+                                    }
+                                } catch (Exception e) {
+                                    logger.error("Failed to restore local image viewer", e);
+                                }
+                            }
+                        }
                     }
                 }
             }

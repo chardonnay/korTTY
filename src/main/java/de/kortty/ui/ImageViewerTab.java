@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.SFTPSession;
+import de.kortty.model.SessionState;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -297,4 +298,41 @@ public class ImageViewerTab extends Tab {
     public boolean isRemote() {
         return isRemoteFile;
     }
+    
+    public double getZoomLevel() {
+        return zoomLevel;
+    }
+    
+    /**
+     * Creates a SessionState for saving this image viewer tab.
+     */
+    public SessionState createSessionState() {
+        SessionState state = new SessionState();
+        state.setTabType(SessionState.TabType.IMAGE_VIEWER);
+        state.setImageFilePath(isRemoteFile ? remotePath : localPath.toString());
+        state.setImageIsRemote(isRemoteFile);
+        state.setImageZoomLevel(zoomLevel);
+        state.setTabTitle(getText());
+        
+        if (isRemoteFile && sftpSession != null) {
+            // Store connection info
+            state.setConnectionId(null); // Will be set by caller if needed
+        }
+        
+        return state;
+    }
+    
+    /**
+     * Sets the connection ID for this viewer tab (used during project save).
+     */
+    public void setConnectionIdForState(SessionState state, String connectionId) {
+        if (state != null && isRemoteFile) {
+            state.setConnectionId(connectionId);
+        }
+    }
+    
+    public SFTPSession getSftpSession() {
+        return sftpSession;
+    }
 }
+

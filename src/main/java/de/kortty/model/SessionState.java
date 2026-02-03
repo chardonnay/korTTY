@@ -4,10 +4,21 @@ import jakarta.xml.bind.annotation.*;
 
 /**
  * Represents the state of a single SSH session/tab.
+ * Can also represent SFTP Manager tabs, File Editor tabs, and Image Viewer tabs.
  */
 @XmlRootElement(name = "session")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class SessionState {
+    
+    public enum TabType {
+        TERMINAL,
+        SFTP_MANAGER,
+        FILE_EDITOR,
+        IMAGE_VIEWER
+    }
+    
+    @XmlElement
+    private TabType tabType = TabType.TERMINAL;
     
     @XmlElement
     private String sessionId;
@@ -43,6 +54,36 @@ public class SessionState {
     /** Split pane structure (if terminal has splits). */
     @XmlElement
     private SplitPaneState splitPaneState;
+    
+    // SFTP Manager specific fields
+    @XmlElement
+    private String sftpLocalPath;
+    
+    @XmlElement
+    private String sftpRemotePath;
+    
+    @XmlElement
+    private Integer sftpAutoCloseTimeout;
+    
+    // File Editor specific fields
+    @XmlElement
+    private String editorFilePath;
+    
+    @XmlElement
+    private Boolean editorIsRemote;
+    
+    @XmlElement
+    private String editorFileType;
+    
+    // Image Viewer specific fields
+    @XmlElement
+    private String imageFilePath;
+    
+    @XmlElement
+    private Boolean imageIsRemote;
+    
+    @XmlElement
+    private Double imageZoomLevel;
     
     public SessionState() {
     }
@@ -140,6 +181,89 @@ public class SessionState {
     
     public void setSplitPaneState(SplitPaneState splitPaneState) {
         this.splitPaneState = splitPaneState;
+    }
+    
+    public TabType getTabType() {
+        return tabType;
+    }
+    
+    public void setTabType(TabType tabType) {
+        this.tabType = tabType;
+    }
+    
+    // SFTP Manager getters/setters
+    public String getSftpLocalPath() {
+        return sftpLocalPath;
+    }
+    
+    public void setSftpLocalPath(String sftpLocalPath) {
+        this.sftpLocalPath = sftpLocalPath;
+    }
+    
+    public String getSftpRemotePath() {
+        return sftpRemotePath;
+    }
+    
+    public void setSftpRemotePath(String sftpRemotePath) {
+        this.sftpRemotePath = sftpRemotePath;
+    }
+    
+    public Integer getSftpAutoCloseTimeout() {
+        return sftpAutoCloseTimeout;
+    }
+    
+    public void setSftpAutoCloseTimeout(Integer sftpAutoCloseTimeout) {
+        this.sftpAutoCloseTimeout = sftpAutoCloseTimeout;
+    }
+    
+    // File Editor getters/setters
+    public String getEditorFilePath() {
+        return editorFilePath;
+    }
+    
+    public void setEditorFilePath(String editorFilePath) {
+        this.editorFilePath = editorFilePath;
+    }
+    
+    public Boolean getEditorIsRemote() {
+        return editorIsRemote;
+    }
+    
+    public void setEditorIsRemote(Boolean editorIsRemote) {
+        this.editorIsRemote = editorIsRemote;
+    }
+    
+    public String getEditorFileType() {
+        return editorFileType;
+    }
+    
+    public void setEditorFileType(String editorFileType) {
+        this.editorFileType = editorFileType;
+    }
+    
+    // Image Viewer getters/setters
+    public String getImageFilePath() {
+        return imageFilePath;
+    }
+    
+    public void setImageFilePath(String imageFilePath) {
+        this.imageFilePath = imageFilePath;
+    }
+    
+    public Boolean getImageIsRemote() {
+        return imageIsRemote;
+    }
+    
+    public void setImageIsRemote(Boolean imageIsRemote) {
+        this.imageIsRemote = imageIsRemote;
+    }
+    
+    public Double getImageZoomLevel() {
+        return imageZoomLevel;
+    }
+    
+    public void setImageZoomLevel(Double imageZoomLevel) {
+        this.imageZoomLevel = imageZoomLevel;
     }
     
     /**

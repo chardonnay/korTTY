@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.SFTPSession;
+import de.kortty.model.SessionState;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -777,4 +778,37 @@ public class FileEditorTab extends Tab {
     public boolean isRemote() {
         return isRemoteFile;
     }
+    
+    /**
+     * Creates a SessionState for saving this editor tab.
+     */
+    public SessionState createSessionState() {
+        SessionState state = new SessionState();
+        state.setTabType(SessionState.TabType.FILE_EDITOR);
+        state.setEditorFilePath(isRemoteFile ? remotePath : localPath.toString());
+        state.setEditorIsRemote(isRemoteFile);
+        state.setEditorFileType(fileType.name());
+        state.setTabTitle(getText());
+        
+        if (isRemoteFile && sftpSession != null) {
+            // Store connection info
+            state.setConnectionId(null); // Will be set by caller if needed
+        }
+        
+        return state;
+    }
+    
+    /**
+     * Sets the connection ID for this editor tab (used during project save).
+     */
+    public void setConnectionIdForState(SessionState state, String connectionId) {
+        if (state != null && isRemoteFile) {
+            state.setConnectionId(connectionId);
+        }
+    }
+    
+    public SFTPSession getSftpSession() {
+        return sftpSession;
+    }
 }
+

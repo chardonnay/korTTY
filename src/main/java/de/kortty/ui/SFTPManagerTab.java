@@ -5,6 +5,7 @@ import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SFTPSession;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.SessionState;
 import de.kortty.model.TemporarySSHKey;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -2718,4 +2719,25 @@ public class SFTPManagerTab extends Tab {
     public ServerConnection getConnection() {
         return connection;
     }
+    
+    /**
+     * Creates a SessionState for saving this SFTP Manager tab.
+     */
+    public SessionState createSessionState() {
+        SessionState state = new SessionState();
+        state.setTabType(SessionState.TabType.SFTP_MANAGER);
+        state.setConnectionId(connection.getName());
+        state.setTabTitle(getText());
+        state.setSftpLocalPath(currentLocalPath != null ? currentLocalPath.toString() : null);
+        state.setSftpRemotePath(currentRemotePath);
+        
+        // Save auto-close timeout if configured
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings.getSftpAutoCloseMinutes() != null && settings.getSftpAutoCloseMinutes() > 0) {
+            state.setSftpAutoCloseTimeout(settings.getSftpAutoCloseMinutes());
+        }
+        
+        return state;
+    }
 }
+
