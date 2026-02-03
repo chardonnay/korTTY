@@ -1988,8 +1988,38 @@ public class SFTPManagerTab extends Tab {
         }
     }
     
+    // Check which archive tools are available on the local system
+    private java.util.Map<ArchiveFormat, Boolean> checkLocalArchiveTools() {
+        java.util.Map<ArchiveFormat, Boolean> available = new java.util.EnumMap<>(ArchiveFormat.class);
+        
+        // ZIP is always available via zip4j library
+        available.put(ArchiveFormat.ZIP, true);
+        
+        // TAR is always available via Apache Commons Compress
+        available.put(ArchiveFormat.TAR_BZ2, true);
+        
+        // Check if 7z command is available locally
+        try {
+            Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", "command -v 7z || command -v 7za"});
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(process.getInputStream()));
+            String result = reader.readLine();
+            process.waitFor();
+            available.put(ArchiveFormat.SEVEN_ZIP, result != null && !result.isEmpty());
+        } catch (Exception e) {
+            logger.debug("Could not check for local 7z: {}", e.getMessage());
+            available.put(ArchiveFormat.SEVEN_ZIP, false);
+        }
+        
+        logger.debug("Local archive tool availability: {}", available);
+        return available;
+    }
+    
     private void showLocalArchiveDialog(List<Path> filesToArchive, String defaultFilename, 
                                         int defaultCompression, long estimatedSize) {
+        // Check which archive tools are available locally
+        java.util.Map<ArchiveFormat, Boolean> availableTools = checkLocalArchiveTools();
+        
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.archive"));
         dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
@@ -2002,16 +2032,43 @@ public class SFTPManagerTab extends Tab {
         
         int row = 0;
         
-        // Archive format - ZIP, TAR.BZ2, and 7z supported locally
+        // Archive format with availability info
         grid.add(new Label(I18n.get("sftp.archive.format")), 0, row);
-        ComboBox<ArchiveFormat> formatCombo = new ComboBox<>();
-        formatCombo.getItems().addAll(ArchiveFormat.values());
-        formatCombo.getSelectionModel().select(ArchiveFormat.ZIP);
+        ComboBox<String> formatCombo = new ComboBox<>();
+        
+        // Add formats with availability indicator
+        for (ArchiveFormat fmt : ArchiveFormat.values()) {
+            boolean isAvailable = availableTools.getOrDefault(fmt, false);
+            String displayName = fmt.getDisplayName();
+            if (!isAvailable) {
+                displayName += " " + I18n.get("sftp.archive.notInstalled");
+            }
+            formatCombo.getItems().add(displayName);
+        }
+        
+        // Select first available format (prefer ZIP)
+        int selectedIndex = 0;
+        for (int i = 0; i < ArchiveFormat.values().length; i++) {
+            if (availableTools.getOrDefault(ArchiveFormat.values()[i], false)) {
+                selectedIndex = i;
+                break;
+            }
+        }
+        formatCombo.getSelectionModel().select(selectedIndex);
         grid.add(formatCombo, 1, row++);
+        
+        // Helper to get selected format
+        java.util.function.Supplier<ArchiveFormat> getSelectedFormat = () -> {
+            int idx = formatCombo.getSelectionModel().getSelectedIndex();
+            return idx >= 0 && idx < ArchiveFormat.values().length ? ArchiveFormat.values()[idx] : ArchiveFormat.ZIP;
+        };
+        
+        // Set initial extension based on first available format
+        String initialExtension = ArchiveFormat.values()[selectedIndex].getExtension();
         
         // Archive file path
         grid.add(new Label(I18n.get("sftp.archive.path")), 0, row);
-        TextField pathField = new TextField(defaultFilename + ".zip");
+        TextField pathField = new TextField(defaultFilename + initialExtension);
         pathField.setPrefWidth(350);
         Button browseButton = new Button("...");
         browseButton.setOnAction(e -> {
@@ -2019,7 +2076,7 @@ public class SFTPManagerTab extends Tab {
             chooser.setTitle(I18n.get("sftp.archive.selectPath"));
             chooser.setInitialDirectory(currentLocalPath.toFile());
             
-            ArchiveFormat selectedFormat = formatCombo.getValue();
+            ArchiveFormat selectedFormat = getSelectedFormat.get();
             String extension = "*" + selectedFormat.getExtension();
             chooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter(selectedFormat.getDisplayName() + " Archives", extension));
@@ -2057,14 +2114,6 @@ public class SFTPManagerTab extends Tab {
         passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
         grid.add(passwordField, 1, row++);
         
-        // Warning label for 7z password limitation
-        Label warningLabel = new Label(I18n.get("sftp.archive.7zPasswordWarning"));
-        warningLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: orange;");
-        warningLabel.setWrapText(true);
-        warningLabel.setVisible(false);
-        warningLabel.setMaxWidth(350);
-        grid.add(warningLabel, 0, row++, 2, 1);
-        
         // Update extension and password field when format changes
         formatCombo.setOnAction(e -> {
             String currentPath = pathField.getText();
@@ -2075,26 +2124,14 @@ public class SFTPManagerTab extends Tab {
                     break;
                 }
             }
-            pathField.setText(currentPath + formatCombo.getValue().getExtension());
+            pathField.setText(currentPath + getSelectedFormat.get().getExtension());
             
             // Disable password for tar.bz2
-            ArchiveFormat selectedFmt = formatCombo.getValue();
+            ArchiveFormat selectedFmt = getSelectedFormat.get();
             passwordField.setDisable(selectedFmt == ArchiveFormat.TAR_BZ2);
             if (selectedFmt == ArchiveFormat.TAR_BZ2) {
                 passwordField.clear();
             }
-            
-            // Update 7z warning
-            boolean show7zWarning = selectedFmt == ArchiveFormat.SEVEN_ZIP && 
-                                   !passwordField.getText().isEmpty();
-            warningLabel.setVisible(show7zWarning);
-        });
-        
-        // Update warning visibility when password changes
-        passwordField.textProperty().addListener((obs, old, newVal) -> {
-            boolean show7zWarning = formatCombo.getValue() == ArchiveFormat.SEVEN_ZIP && 
-                                   !newVal.isEmpty();
-            warningLabel.setVisible(show7zWarning);
         });
         
         // Separator
@@ -2146,7 +2183,13 @@ public class SFTPManagerTab extends Tab {
                 };
                 
                 String password = passwordField.getText();
-                ArchiveFormat format = formatCombo.getValue();
+                ArchiveFormat format = getSelectedFormat.get();
+                
+                // Check if the tool is available
+                if (!availableTools.getOrDefault(format, false)) {
+                    showError(I18n.get("error.title"), I18n.get("sftp.archive.toolNotInstalled", format.getDisplayName()));
+                    return null;
+                }
                 
                 // Disable controls
                 createBtn.setDisable(true);
@@ -2299,54 +2342,50 @@ public class SFTPManagerTab extends Tab {
     }
     
     private void createLocal7z(List<Path> files, String archivePath, int compression, String password) throws Exception {
-        // Use Apache Commons Compress for 7z creation
-        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(archivePath);
-             org.apache.commons.compress.archivers.sevenz.SevenZOutputFile sevenZOutput = 
-                 new org.apache.commons.compress.archivers.sevenz.SevenZOutputFile(new java.io.File(archivePath))) {
-            
-            // Set compression method
-            sevenZOutput.setContentCompression(
-                compression == 0 ? org.apache.commons.compress.archivers.sevenz.SevenZMethod.COPY :
-                org.apache.commons.compress.archivers.sevenz.SevenZMethod.LZMA2
-            );
-            
-            // Note: Apache Commons Compress doesn't support password encryption for 7z
-            // Password parameter is ignored for 7z in local creation
-            if (password != null && !password.isEmpty()) {
-                logger.warn("7z password encryption not supported in Apache Commons Compress, creating unencrypted archive");
-            }
-            
-            for (Path file : files) {
-                addTo7z(sevenZOutput, file, "");
-            }
-        }
-    }
-    
-    private void addTo7z(org.apache.commons.compress.archivers.sevenz.SevenZOutputFile sevenZOutput, 
-                         Path path, String base) throws Exception {
-        String entryName = base + path.getFileName().toString();
+        // Use local 7z command-line tool (like remote)
+        StringBuilder cmd = new StringBuilder();
         
-        org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry entry = 
-            sevenZOutput.createArchiveEntry(path.toFile(), entryName);
-        sevenZOutput.putArchiveEntry(entry);
+        // Try both 7z and 7za
+        cmd.append("$(command -v 7z || command -v 7za) a -mx=").append(compression);
         
-        if (Files.isRegularFile(path)) {
-            byte[] buffer = Files.readAllBytes(path);
-            sevenZOutput.write(buffer);
+        if (password != null && !password.isEmpty()) {
+            cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
         }
         
-        sevenZOutput.closeArchiveEntry();
+        cmd.append(" '").append(archivePath.replace("'", "'\\''")).append("' ");
         
-        if (Files.isDirectory(path)) {
-            try (var stream = Files.list(path)) {
-                stream.forEach(child -> {
-                    try {
-                        addTo7z(sevenZOutput, child, entryName + "/");
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-            }
+        // Add files with absolute paths
+        for (Path file : files) {
+            cmd.append("'").append(file.toAbsolutePath().toString().replace("'", "'\\''")).append("' ");
+        }
+        
+        logger.info("Executing local 7z command: {}", cmd);
+        
+        // Execute command
+        Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd.toString()});
+        
+        // Capture output
+        java.io.BufferedReader stdInput = new java.io.BufferedReader(
+            new java.io.InputStreamReader(process.getInputStream()));
+        java.io.BufferedReader stdError = new java.io.BufferedReader(
+            new java.io.InputStreamReader(process.getErrorStream()));
+        
+        // Read output
+        StringBuilder output = new StringBuilder();
+        StringBuilder errorOutput = new StringBuilder();
+        String line;
+        while ((line = stdInput.readLine()) != null) {
+            output.append(line).append("\n");
+        }
+        while ((line = stdError.readLine()) != null) {
+            errorOutput.append(line).append("\n");
+        }
+        
+        int exitCode = process.waitFor();
+        
+        if (exitCode != 0) {
+            throw new Exception("7z command failed with exit code " + exitCode + 
+                              (errorOutput.length() > 0 ? ": " + errorOutput.toString() : ""));
         }
     }
     
