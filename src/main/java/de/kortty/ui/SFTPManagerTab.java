@@ -1129,14 +1129,33 @@ public class SFTPManagerTab extends Tab {
                     });
                 });
                 
-                if (!result.isSuccess()) {
+                // Handle exit codes:
+                // 0 = success
+                // 12 = nothing to do (zip has nothing to do, but not an error for us)
+                // 18 = some files were skipped (e.g., sockets) - still creates the ZIP, just a warning
+                boolean hasWarning = false;
+                String warningMsg = "";
+                
+                if (result.getExitCode() != 0 && result.getExitCode() != 12 && result.getExitCode() != 18) {
+                    // Real error
                     String errorMsg = result.getStderr();
                     if (errorMsg == null || errorMsg.trim().isEmpty()) {
                         errorMsg = "Exit code: " + result.getExitCode();
                     }
                     logger.error("ZIP command failed with exit code {}: {}", result.getExitCode(), errorMsg);
                     throw new Exception(errorMsg);
+                } else if (result.getExitCode() == 18) {
+                    // Warning: some files were skipped (sockets, fifos, etc.)
+                    hasWarning = true;
+                    warningMsg = result.getStderr();
+                    logger.warn("ZIP created with warnings (exit code 18): {}", warningMsg);
+                } else if (result.getExitCode() == 12) {
+                    // Nothing to zip
+                    throw new Exception(I18n.get("sftp.createZip.nothingToZip"));
                 }
+                
+                final boolean finalHasWarning = hasWarning;
+                final String finalWarningMsg = warningMsg;
                 
                 // Set owner if specified
                 if (owner != null && !owner.isEmpty()) {
@@ -1172,7 +1191,15 @@ public class SFTPManagerTab extends Tab {
                 Platform.runLater(() -> {
                     timer.stop();
                     progressBar.setProgress(1.0);
-                    progressLabel.setText(I18n.get("sftp.createZip.success"));
+                    
+                    if (finalHasWarning) {
+                        // Show success with warning
+                        progressLabel.setText(I18n.get("sftp.createZip.successWithWarning"));
+                        progressLabel.setStyle("-fx-text-fill: orange;");
+                    } else {
+                        progressLabel.setText(I18n.get("sftp.createZip.success"));
+                    }
+                    
                     if (!finalSize.isEmpty()) {
                         try {
                             sizeLabel.setText(I18n.get("sftp.createZip.actualSize", formatSize(Long.parseLong(finalSize))));
@@ -1181,8 +1208,9 @@ public class SFTPManagerTab extends Tab {
                     statusLabel.setText(I18n.get("sftp.zipCreated", zipPath));
                     refreshRemote();
                     
-                    // Close dialog after short delay
-                    Timeline closeDelay = new Timeline(new KeyFrame(Duration.seconds(2), e -> dialog.close()));
+                    // Close dialog after short delay (longer if there was a warning)
+                    int delaySeconds = finalHasWarning ? 4 : 2;
+                    Timeline closeDelay = new Timeline(new KeyFrame(Duration.seconds(delaySeconds), e -> dialog.close()));
                     closeDelay.play();
                 });
                 
