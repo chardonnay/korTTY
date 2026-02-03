@@ -1619,6 +1619,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         private final String size;
         private final String date;
         private final String permissions;
+        private final long sizeBytes; // For sorting
         
         public FileItem(String name, String path, boolean file, String size, String date) {
             this(name, path, file, size, date, "");
@@ -1631,6 +1632,19 @@ public class SFTPManagerDialog extends Dialog<Void> {
             this.size = size;
             this.date = date;
             this.permissions = permissions;
+            this.sizeBytes = parseSizeToBytes(size);
+        }
+        
+        private long parseSizeToBytes(String sizeStr) {
+            if (sizeStr == null || sizeStr.isEmpty() || sizeStr.equals("-") || sizeStr.equals("<DIR>")) {
+                return 0;
+            }
+            try {
+                // Remove commas and parse
+                return Long.parseLong(sizeStr.replaceAll("[^0-9]", ""));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
         }
         
         public String getName() { return name; }
@@ -1639,5 +1653,11 @@ public class SFTPManagerDialog extends Dialog<Void> {
         public String getSize() { return size; }
         public String getDate() { return date; }
         public String getPermissions() { return permissions; }
+        public long getSizeBytes() { return sizeBytes; }
+        
+        // Type for display in table (📁 or 📄)
+        public String getType() {
+            return file ? "📄" : "📁";
+        }
     }
 }
