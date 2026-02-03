@@ -72,6 +72,7 @@ public class SFTPManagerTab extends Tab {
     private Timeline autoCloseTimer;
     private int remainingSeconds;
     private Label timeoutLabel;
+    private ProgressBar statusProgressBar;
     private Runnable onCloseCallback;
     
     public SFTPManagerTab(KorTTYApplication app, ServerConnection connection, String password) {
@@ -190,12 +191,18 @@ public class SFTPManagerTab extends Tab {
         VBox mainBox = new VBox(10);
         mainBox.setPadding(new Insets(10));
         
-        // Status bar with timeout indicator
+        // Status bar with timeout indicator and progress bar
         HBox statusBox = new HBox(10);
         statusBox.setAlignment(Pos.CENTER_LEFT);
         
         statusLabel = new Label(I18n.get("sftp.connecting"));
         statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        
+        // Progress bar for archive/copy operations (initially hidden)
+        statusProgressBar = new ProgressBar(0);
+        statusProgressBar.setPrefWidth(150);
+        statusProgressBar.setVisible(false);
+        statusProgressBar.setMaxHeight(15);
         
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -203,7 +210,7 @@ public class SFTPManagerTab extends Tab {
         timeoutLabel = new Label("");
         timeoutLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         
-        statusBox.getChildren().addAll(statusLabel, spacer, timeoutLabel);
+        statusBox.getChildren().addAll(statusLabel, statusProgressBar, spacer, timeoutLabel);
         
         // Split pane for local and remote
         SplitPane splitPane = new SplitPane();
@@ -1510,6 +1517,13 @@ public class SFTPManagerTab extends Tab {
                                               Label timeLabel, Label sizeLabel) {
         long startTime = System.currentTimeMillis();
         
+        // Show progress in status bar
+        Platform.runLater(() -> {
+            statusProgressBar.setVisible(true);
+            statusProgressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
+            statusLabel.setText(I18n.get("sftp.archive.creating"));
+        });
+        
         // Timer for elapsed time
         Timeline timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
             long elapsed = System.currentTimeMillis() - startTime;
@@ -1574,16 +1588,19 @@ public class SFTPManagerTab extends Tab {
                     }
                 }
                 
-                // Get actual file size
+                // Get actual file size and duration
                 String sizeCmd = "stat -c%s '" + archivePath.replace("'", "'\\''") + "' 2>/dev/null || stat -f%z '" + archivePath.replace("'", "'\\''") + "'";
                 String actualSize = "";
+                long actualSizeBytes = 0;
                 try {
                     actualSize = sftpSession.executeCommand(sizeCmd).trim();
+                    actualSizeBytes = Long.parseLong(actualSize);
                 } catch (Exception e) {
                     logger.debug("Could not get file size: {}", e.getMessage());
                 }
                 
-                final String finalSize = actualSize;
+                final long finalSizeBytes = actualSizeBytes;
+                final long durationSeconds = (System.currentTimeMillis() - startTime) / 1000;
                 
                 Platform.runLater(() -> {
                     timer.stop();
@@ -1596,13 +1613,25 @@ public class SFTPManagerTab extends Tab {
                         progressLabel.setText(I18n.get("sftp.archive.success"));
                     }
                     
-                    if (!finalSize.isEmpty()) {
-                        try {
-                            sizeLabel.setText(I18n.get("sftp.archive.actualSize", formatSize(Long.parseLong(finalSize))));
-                        } catch (NumberFormatException ignored) {}
+                    if (finalSizeBytes > 0) {
+                        sizeLabel.setText(I18n.get("sftp.archive.actualSize", formatSize(finalSizeBytes)));
                     }
-                    statusLabel.setText(I18n.get("sftp.archiveCreated", archivePath));
+                    
+                    // Update status bar with size and duration
+                    statusProgressBar.setProgress(1.0);
+                    statusLabel.setText(String.format("%s (%s, %s)", 
+                        I18n.get("sftp.archiveCreated", archivePath),
+                        formatSize(finalSizeBytes),
+                        formatDuration(durationSeconds)));
+                    
                     refreshRemote();
+                    
+                    // Hide progress bar after delay
+                    Timeline hideProgressDelay = new Timeline(new KeyFrame(Duration.seconds(3), e -> {
+                        statusProgressBar.setVisible(false);
+                        statusProgressBar.setProgress(0);
+                    }));
+                    hideProgressDelay.play();
                     
                     int delaySeconds = finalHasWarning ? 4 : 2;
                     Timeline closeDelay = new Timeline(new KeyFrame(Duration.seconds(delaySeconds), e -> dialog.close()));
@@ -1615,6 +1644,9 @@ public class SFTPManagerTab extends Tab {
                     timer.stop();
                     progressBar.setProgress(0);
                     progressLabel.setText(I18n.get("sftp.archive.error", e.getMessage()));
+                    statusProgressBar.setVisible(false);
+                    statusProgressBar.setProgress(0);
+                    statusLabel.setText(I18n.get("sftp.error.archive") + ": " + e.getMessage());
                     showError(I18n.get("sftp.error.archive"), e.getMessage());
                 });
             }
@@ -1671,6 +1703,16 @@ public class SFTPManagerTab extends Tab {
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
         return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
+    }
+    
+    private String formatDuration(long seconds) {
+        if (seconds < 60) return seconds + "s";
+        long minutes = seconds / 60;
+        long secs = seconds % 60;
+        if (minutes < 60) return String.format("%dm %ds", minutes, secs);
+        long hours = minutes / 60;
+        minutes = minutes % 60;
+        return String.format("%dh %dm %ds", hours, minutes, secs);
     }
     
     private void showError(String title, String message) {
@@ -2221,6 +2263,14 @@ public class SFTPManagerTab extends Tab {
                                              Label timeLabel, Label sizeLabel) {
         new Thread(() -> {
             long startTime = System.currentTimeMillis();
+            
+            // Show progress in status bar
+            Platform.runLater(() -> {
+                statusProgressBar.setVisible(true);
+                statusProgressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
+                statusLabel.setText(I18n.get("sftp.archive.creating"));
+            });
+            
             Timeline timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
                 long elapsed = (System.currentTimeMillis() - startTime) / 1000;
                 timeLabel.setText(I18n.get("sftp.archive.elapsed", elapsed));
@@ -2237,8 +2287,9 @@ public class SFTPManagerTab extends Tab {
                     case SEVEN_ZIP -> createLocal7z(files, archivePath, compression, password);
                 }
                 
-                // Get actual size
+                // Get actual size and duration
                 long actualSize = Files.size(Paths.get(archivePath));
+                long durationSeconds = (System.currentTimeMillis() - startTime) / 1000;
                 
                 Platform.runLater(() -> {
                     timer.stop();
@@ -2246,8 +2297,22 @@ public class SFTPManagerTab extends Tab {
                     progressLabel.setText(I18n.get("sftp.archive.success"));
                     progressLabel.setStyle("-fx-text-fill: green;");
                     sizeLabel.setText(I18n.get("sftp.archive.actualSize", formatSize(actualSize)));
-                    statusLabel.setText(I18n.get("sftp.archiveCreated", archivePath));
+                    
+                    // Update status bar with size and duration
+                    statusProgressBar.setProgress(1.0);
+                    statusLabel.setText(String.format("%s (%s, %s)", 
+                        I18n.get("sftp.archiveCreated", archivePath),
+                        formatSize(actualSize),
+                        formatDuration(durationSeconds)));
+                    
                     refreshLocal();
+                    
+                    // Hide progress bar after delay
+                    Timeline hideProgressDelay = new Timeline(new KeyFrame(Duration.seconds(3), e -> {
+                        statusProgressBar.setVisible(false);
+                        statusProgressBar.setProgress(0);
+                    }));
+                    hideProgressDelay.play();
                     
                     Timeline closeDelay = new Timeline(new KeyFrame(Duration.seconds(2), e -> dialog.close()));
                     closeDelay.play();
@@ -2259,6 +2324,9 @@ public class SFTPManagerTab extends Tab {
                     timer.stop();
                     progressBar.setProgress(0);
                     progressLabel.setText(I18n.get("sftp.archive.error", e.getMessage()));
+                    statusProgressBar.setVisible(false);
+                    statusProgressBar.setProgress(0);
+                    statusLabel.setText(I18n.get("sftp.error.archive") + ": " + e.getMessage());
                     showError(I18n.get("sftp.error.archive"), e.getMessage());
                 });
             }
