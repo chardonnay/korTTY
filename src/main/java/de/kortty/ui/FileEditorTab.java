@@ -720,23 +720,24 @@ public class FileEditorTab extends Tab {
         while (matcher.find()) {
             String styleClass = null;
             
-            if (matcher.group("COMMENT") != null) styleClass = "comment";
-            else if (matcher.group("STRING") != null) styleClass = "string";
-            else if (matcher.group("NUMBER") != null) styleClass = "number";
-            else if (matcher.group("BOOLEAN") != null) styleClass = "boolean";
-            else if (matcher.group("KEY") != null) styleClass = "key";
-            else if (matcher.group("SECTION") != null) styleClass = "section";
-            else if (matcher.group("HEADER") != null) styleClass = "header";
-            else if (matcher.group("BOLD") != null) styleClass = "bold";
-            else if (matcher.group("ITALIC") != null) styleClass = "italic";
-            else if (matcher.group("CODE") != null) styleClass = "code";
-            else if (matcher.group("LINK") != null) styleClass = "link";
-            else if (matcher.group("LIST") != null) styleClass = "list";
-            else if (matcher.group("JINJA") != null) styleClass = "jinja";
-            else if (matcher.group("BRACE") != null) styleClass = "brace";
-            else if (matcher.group("COLON") != null) styleClass = "colon";
-            else if (matcher.group("COMMA") != null) styleClass = "comma";
-            else if (matcher.group("DELIMITER") != null) styleClass = "delimiter";
+            // Check each group safely
+            try { if (matcher.group("COMMENT") != null) styleClass = "comment"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("STRING") != null) styleClass = "string"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("NUMBER") != null) styleClass = "number"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("BOOLEAN") != null) styleClass = "boolean"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("KEY") != null) styleClass = "key"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("SECTION") != null) styleClass = "section"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("HEADER") != null) styleClass = "header"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("BOLD") != null) styleClass = "bold"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("ITALIC") != null) styleClass = "italic"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("CODE") != null) styleClass = "code"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("LINK") != null) styleClass = "link"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("LIST") != null) styleClass = "list"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("JINJA") != null) styleClass = "jinja"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("BRACE") != null) styleClass = "brace"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("COLON") != null) styleClass = "colon"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("COMMA") != null) styleClass = "comma"; } catch (IllegalArgumentException e) {}
+            try { if (styleClass == null && matcher.group("DELIMITER") != null) styleClass = "delimiter"; } catch (IllegalArgumentException e) {}
             
             spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
             spansBuilder.add(Collections.singleton(styleClass != null ? styleClass : "plain"), matcher.end() - matcher.start());
