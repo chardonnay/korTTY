@@ -266,15 +266,21 @@ public class SFTPManagerTab extends Tab {
             copyRemoteSelected();
         });
         
-        Button createZipButton = new Button(I18n.get("sftp.createZip"));
-        createZipButton.setOnAction(e -> {
+        Button archiveButton = new Button(I18n.get("sftp.archive"));
+        archiveButton.setOnAction(e -> {
             resetAutoCloseTimer();
-            createRemoteZipArchive();
+            createRemoteArchive();
+        });
+        
+        Button deleteRemoteButton = new Button(I18n.get("sftp.delete"));
+        deleteRemoteButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            deleteRemoteSelected();
         });
         
         buttonBox.getChildren().addAll(uploadButton, downloadButton, 
                 new Separator(), copyLocalButton, copyRemoteButton,
-                new Separator(), createZipButton,
+                new Separator(), archiveButton, deleteRemoteButton,
                 new Separator(), refreshLocalButton, refreshRemoteButton);
         
         // Enable/disable buttons based on selection
@@ -284,6 +290,8 @@ public class SFTPManagerTab extends Tab {
         
         remoteTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
             downloadButton.setDisable(selected == null);
+            archiveButton.setDisable(selected == null);
+            deleteRemoteButton.setDisable(selected == null);
         });
         
         // Enable multiple selection
@@ -437,7 +445,7 @@ public class SFTPManagerTab extends Tab {
         
         remoteTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn, permColumn);
         
-        // Double-click to navigate
+        // Double-click to navigate, right-click for context menu
         remoteTable.setRowFactory(tv -> {
             TableRow<SFTPManagerDialog.FileItem> row = new TableRow<>();
             row.setOnMouseClicked(e -> {
@@ -450,6 +458,10 @@ public class SFTPManagerTab extends Tab {
             });
             return row;
         });
+        
+        // Context menu for remote table
+        ContextMenu remoteContextMenu = createRemoteContextMenu();
+        remoteTable.setContextMenu(remoteContextMenu);
         
         // Search filter
         remoteItems = FXCollections.observableArrayList();
@@ -889,19 +901,281 @@ public class SFTPManagerTab extends Tab {
         }, "SFTP-RemoteCopy").start();
     }
     
-    private void createRemoteZipArchive() {
+    private ContextMenu createRemoteContextMenu() {
+        ContextMenu menu = new ContextMenu();
+        
+        MenuItem copyItem = new MenuItem(I18n.get("sftp.contextMenu.copy"));
+        copyItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            copyRemoteSelected();
+        });
+        
+        MenuItem deleteItem = new MenuItem(I18n.get("sftp.contextMenu.delete"));
+        deleteItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            deleteRemoteSelected();
+        });
+        
+        MenuItem ownerItem = new MenuItem(I18n.get("sftp.contextMenu.setOwner"));
+        ownerItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            setOwnerPermissionsDialog();
+        });
+        
+        MenuItem archiveItem = new MenuItem(I18n.get("sftp.contextMenu.archive"));
+        archiveItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createRemoteArchive();
+        });
+        
+        menu.getItems().addAll(copyItem, deleteItem, new SeparatorMenuItem(), ownerItem, new SeparatorMenuItem(), archiveItem);
+        
+        // Disable items when nothing is selected
+        menu.setOnShowing(e -> {
+            var selected = remoteTable.getSelectionModel().getSelectedItems();
+            boolean hasSelection = selected != null && !selected.isEmpty() && 
+                !(selected.size() == 1 && selected.get(0).getName().equals(".."));
+            copyItem.setDisable(!hasSelection);
+            deleteItem.setDisable(!hasSelection);
+            ownerItem.setDisable(!hasSelection);
+            archiveItem.setDisable(!hasSelection);
+        });
+        
+        return menu;
+    }
+    
+    private void deleteRemoteSelected() {
+        var selected = remoteTable.getSelectionModel().getSelectedItems();
+        if (selected == null || selected.isEmpty()) return;
+        
+        // Filter out ".." and collect items to delete
+        List<SFTPManagerDialog.FileItem> toDelete = new java.util.ArrayList<>();
+        for (var item : selected) {
+            if (!item.getName().equals("..")) {
+                toDelete.add(item);
+            }
+        }
+        
+        if (toDelete.isEmpty()) return;
+        
+        // Confirm deletion
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("sftp.delete.confirm.title"));
+        confirm.setHeaderText(I18n.get("sftp.delete.confirm.header", toDelete.size()));
+        confirm.setContentText(I18n.get("sftp.delete.confirm.content"));
+        
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        
+        // Show progress dialog
+        Dialog<Void> progressDialog = new Dialog<>();
+        progressDialog.setTitle(I18n.get("sftp.delete.progress.title"));
+        progressDialog.setHeaderText(I18n.get("sftp.delete.progress.header"));
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        Label statusLbl = new Label(I18n.get("sftp.delete.progress.preparing"));
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(300);
+        content.getChildren().addAll(statusLbl, progressBar);
+        progressDialog.getDialogPane().setContent(content);
+        progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+        
+        progressDialog.show();
+        
+        new Thread(() -> {
+            int total = toDelete.size();
+            int[] current = {0};
+            int[] errors = {0};
+            
+            for (var item : toDelete) {
+                try {
+                    final int idx = current[0] + 1;
+                    Platform.runLater(() -> {
+                        statusLbl.setText(I18n.get("sftp.delete.progress.deleting", item.getName()));
+                        progressBar.setProgress((double) idx / total);
+                    });
+                    
+                    deleteRemoteRecursive(item.getPath(), !item.isFile());
+                    current[0]++;
+                    
+                } catch (Exception e) {
+                    logger.error("Failed to delete {}: {}", item.getPath(), e.getMessage());
+                    errors[0]++;
+                }
+            }
+            
+            Platform.runLater(() -> {
+                progressDialog.close();
+                refreshRemote();
+                if (errors[0] > 0) {
+                    showError(I18n.get("sftp.delete.error"), 
+                        I18n.get("sftp.delete.errorCount", errors[0], total));
+                } else {
+                    statusLabel.setText(I18n.get("sftp.delete.success", total));
+                }
+            });
+        }, "SFTP-Delete").start();
+    }
+    
+    private void deleteRemoteRecursive(String path, boolean isDir) throws Exception {
+        if (isDir) {
+            // List directory contents and delete recursively
+            List<SftpClient.DirEntry> entries = sftpSession.listFiles(path);
+            for (var entry : entries) {
+                String name = entry.getFilename();
+                if (name.equals(".") || name.equals("..")) continue;
+                String childPath = path + "/" + name;
+                deleteRemoteRecursive(childPath, entry.getAttributes().isDirectory());
+            }
+        }
+        sftpSession.deleteFile(path);
+    }
+    
+    private void setOwnerPermissionsDialog() {
+        var selected = remoteTable.getSelectionModel().getSelectedItems();
+        if (selected == null || selected.isEmpty()) return;
+        
+        // Filter out ".."
+        List<SFTPManagerDialog.FileItem> items = new java.util.ArrayList<>();
+        for (var item : selected) {
+            if (!item.getName().equals("..")) {
+                items.add(item);
+            }
+        }
+        if (items.isEmpty()) return;
+        
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("sftp.setOwner.title"));
+        dialog.setHeaderText(I18n.get("sftp.setOwner.header", items.size()));
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        
+        // Owner field
+        grid.add(new Label(I18n.get("sftp.setOwner.owner")), 0, 0);
+        TextField ownerField = new TextField();
+        ownerField.setPromptText("user:group");
+        grid.add(ownerField, 1, 0);
+        
+        // Permissions field
+        grid.add(new Label(I18n.get("sftp.setOwner.permissions")), 0, 1);
+        TextField permField = new TextField();
+        permField.setPromptText("755");
+        grid.add(permField, 1, 1);
+        
+        // Recursive checkbox
+        CheckBox recursiveCheck = new CheckBox(I18n.get("sftp.setOwner.recursive"));
+        grid.add(recursiveCheck, 0, 2, 2, 1);
+        
+        // Info
+        Label info = new Label(I18n.get("sftp.setOwner.info"));
+        info.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        info.setWrapText(true);
+        info.setMaxWidth(300);
+        grid.add(info, 0, 3, 2, 1);
+        
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        dialog.setResultConverter(btn -> {
+            if (btn == ButtonType.OK) {
+                String owner = ownerField.getText().trim();
+                String perms = permField.getText().trim();
+                boolean recursive = recursiveCheck.isSelected();
+                
+                if (owner.isEmpty() && perms.isEmpty()) {
+                    return null;
+                }
+                
+                // Apply changes
+                applyOwnerPermissions(items, owner, perms, recursive);
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
+    }
+    
+    private void applyOwnerPermissions(List<SFTPManagerDialog.FileItem> items, String owner, String perms, boolean recursive) {
+        statusLabel.setText(I18n.get("sftp.setOwner.applying"));
+        
+        new Thread(() -> {
+            int[] success = {0};
+            int[] errors = {0};
+            
+            for (var item : items) {
+                try {
+                    String recursiveFlag = recursive ? "-R " : "";
+                    
+                    if (!owner.isEmpty()) {
+                        String cmd = "chown " + recursiveFlag + "'" + owner.replace("'", "'\\''") + "' '" + 
+                            item.getPath().replace("'", "'\\''") + "'";
+                        sftpSession.executeCommand(cmd);
+                    }
+                    
+                    if (!perms.isEmpty()) {
+                        String cmd = "chmod " + recursiveFlag + perms + " '" + 
+                            item.getPath().replace("'", "'\\''") + "'";
+                        sftpSession.executeCommand(cmd);
+                    }
+                    
+                    success[0]++;
+                } catch (Exception e) {
+                    logger.error("Failed to set owner/permissions for {}: {}", item.getPath(), e.getMessage());
+                    errors[0]++;
+                }
+            }
+            
+            Platform.runLater(() -> {
+                refreshRemote();
+                if (errors[0] > 0) {
+                    showError(I18n.get("sftp.setOwner.error"), 
+                        I18n.get("sftp.setOwner.errorCount", errors[0], items.size()));
+                } else {
+                    statusLabel.setText(I18n.get("sftp.setOwner.success", success[0]));
+                }
+            });
+        }, "SFTP-SetOwner").start();
+    }
+    
+    // Archive format enum
+    private enum ArchiveFormat {
+        ZIP("zip", ".zip"),
+        TAR_BZ2("tar.bz2", ".tar.bz2"),
+        SEVEN_ZIP("7z", ".7z");
+        
+        private final String displayName;
+        private final String extension;
+        
+        ArchiveFormat(String displayName, String extension) {
+            this.displayName = displayName;
+            this.extension = extension;
+        }
+        
+        public String getDisplayName() { return displayName; }
+        public String getExtension() { return extension; }
+        
+        @Override
+        public String toString() { return displayName; }
+    }
+    
+    private void createRemoteArchive() {
         var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) {
-            showError(I18n.get("error.title"), I18n.get("sftp.error.selectFilesToZip"));
+            showError(I18n.get("error.title"), I18n.get("sftp.error.selectFilesToArchive"));
             return;
         }
         
         // Filter out ".." entry and collect file paths
-        List<String> filesToZip = new java.util.ArrayList<>();
+        List<String> filesToArchive = new java.util.ArrayList<>();
         long estimatedSize = 0;
         for (var item : selected) {
             if (item.getName().equals("..")) continue;
-            filesToZip.add(item.getPath());
+            filesToArchive.add(item.getPath());
             // Estimate size (rough, since directories can't be easily calculated)
             String sizeStr = item.getSize();
             if (sizeStr != null && !sizeStr.equals("-")) {
@@ -919,18 +1193,18 @@ public class SFTPManagerTab extends Tab {
             }
         }
         
-        if (filesToZip.isEmpty()) {
-            showError(I18n.get("error.title"), I18n.get("sftp.error.selectFilesToZip"));
+        if (filesToArchive.isEmpty()) {
+            showError(I18n.get("error.title"), I18n.get("sftp.error.selectFilesToArchive"));
             return;
         }
         
         // Get default settings from GlobalSettings
-        String defaultZipPath = "/tmp";
+        String defaultArchivePath = "/tmp";
         int defaultCompression = 6;
         try {
             de.kortty.core.GlobalSettingsManager gsm = app.getGlobalSettingsManager();
             if (gsm != null && gsm.getSettings() != null) {
-                defaultZipPath = gsm.getSettings().getSftpDefaultZipPath();
+                defaultArchivePath = gsm.getSettings().getSftpDefaultZipPath();
                 defaultCompression = gsm.getSettings().getSftpDefaultZipCompression();
             }
         } catch (Exception e) {
@@ -939,16 +1213,16 @@ public class SFTPManagerTab extends Tab {
         
         // Generate default filename with timestamp
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String defaultFilename = defaultZipPath + "/archive_" + timestamp + ".zip";
+        String defaultFilename = defaultArchivePath + "/archive_" + timestamp;
         
-        // Show ZIP creation dialog
-        showRemoteZipDialog(filesToZip, defaultFilename, defaultCompression, estimatedSize);
+        // Show archive creation dialog
+        showArchiveDialog(filesToArchive, defaultFilename, defaultCompression, estimatedSize);
     }
     
-    private void showRemoteZipDialog(List<String> filesToZip, String defaultFilename, int defaultCompression, long estimatedSize) {
+    private void showArchiveDialog(List<String> filesToArchive, String defaultFilename, int defaultCompression, long estimatedSize) {
         Dialog<Void> dialog = new Dialog<>();
-        dialog.setTitle(I18n.get("sftp.createZip"));
-        dialog.setHeaderText(I18n.get("sftp.createZip.dialogHeader", filesToZip.size()));
+        dialog.setTitle(I18n.get("sftp.archive"));
+        dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
         dialog.setResizable(true);
         
         GridPane grid = new GridPane();
@@ -958,21 +1232,41 @@ public class SFTPManagerTab extends Tab {
         
         int row = 0;
         
-        // ZIP file path
-        grid.add(new Label(I18n.get("sftp.createZip.path")), 0, row);
-        TextField pathField = new TextField(defaultFilename);
+        // Archive format
+        grid.add(new Label(I18n.get("sftp.archive.format")), 0, row);
+        ComboBox<ArchiveFormat> formatCombo = new ComboBox<>();
+        formatCombo.getItems().addAll(ArchiveFormat.values());
+        formatCombo.getSelectionModel().select(ArchiveFormat.ZIP);
+        grid.add(formatCombo, 1, row++);
+        
+        // Archive file path
+        grid.add(new Label(I18n.get("sftp.archive.path")), 0, row);
+        TextField pathField = new TextField(defaultFilename + ".zip");
         pathField.setPrefWidth(350);
         grid.add(pathField, 1, row++);
         
+        // Update extension when format changes
+        formatCombo.setOnAction(e -> {
+            String currentPath = pathField.getText();
+            // Remove old extension and add new one
+            for (ArchiveFormat fmt : ArchiveFormat.values()) {
+                if (currentPath.endsWith(fmt.getExtension())) {
+                    currentPath = currentPath.substring(0, currentPath.length() - fmt.getExtension().length());
+                    break;
+                }
+            }
+            pathField.setText(currentPath + formatCombo.getValue().getExtension());
+        });
+        
         // Compression level
-        grid.add(new Label(I18n.get("sftp.createZip.compression")), 0, row);
+        grid.add(new Label(I18n.get("sftp.archive.compression")), 0, row);
         ComboBox<String> compressionCombo = new ComboBox<>();
         compressionCombo.getItems().addAll(
-            "0 - " + I18n.get("sftp.createZip.noCompression"),
-            "1 - " + I18n.get("sftp.createZip.fastest"),
-            "3 - " + I18n.get("sftp.createZip.fast"),
-            "6 - " + I18n.get("sftp.createZip.normal"),
-            "9 - " + I18n.get("sftp.createZip.best")
+            "0 - " + I18n.get("sftp.archive.noCompression"),
+            "1 - " + I18n.get("sftp.archive.fastest"),
+            "3 - " + I18n.get("sftp.archive.fast"),
+            "6 - " + I18n.get("sftp.archive.normal"),
+            "9 - " + I18n.get("sftp.archive.best")
         );
         compressionCombo.getSelectionModel().select(
             defaultCompression == 0 ? 0 :
@@ -983,28 +1277,36 @@ public class SFTPManagerTab extends Tab {
         grid.add(compressionCombo, 1, row++);
         
         // Owner (optional)
-        grid.add(new Label(I18n.get("sftp.createZip.owner")), 0, row);
+        grid.add(new Label(I18n.get("sftp.archive.owner")), 0, row);
         TextField ownerField = new TextField();
-        ownerField.setPromptText(I18n.get("sftp.createZip.ownerPrompt"));
+        ownerField.setPromptText(I18n.get("sftp.archive.ownerPrompt"));
         grid.add(ownerField, 1, row++);
         
         // Permissions (optional)
-        grid.add(new Label(I18n.get("sftp.createZip.permissions")), 0, row);
+        grid.add(new Label(I18n.get("sftp.archive.permissions")), 0, row);
         TextField permissionsField = new TextField("644");
         permissionsField.setPromptText("644");
         grid.add(permissionsField, 1, row++);
         
-        // Password (optional)
-        grid.add(new Label(I18n.get("sftp.createZip.password")), 0, row);
+        // Password (optional) - only for ZIP and 7z
+        grid.add(new Label(I18n.get("sftp.archive.password")), 0, row);
         PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText(I18n.get("sftp.createZip.passwordPrompt"));
+        passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
         grid.add(passwordField, 1, row++);
+        
+        // Disable password for tar.bz2
+        formatCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            passwordField.setDisable(newVal == ArchiveFormat.TAR_BZ2);
+            if (newVal == ArchiveFormat.TAR_BZ2) {
+                passwordField.clear();
+            }
+        });
         
         // Separator
         grid.add(new Separator(), 0, row++, 2, 1);
         
         // Progress area (initially hidden)
-        Label progressLabel = new Label(I18n.get("sftp.createZip.preparing"));
+        Label progressLabel = new Label(I18n.get("sftp.archive.preparing"));
         progressLabel.setVisible(false);
         grid.add(progressLabel, 0, row++, 2, 1);
         
@@ -1018,14 +1320,14 @@ public class SFTPManagerTab extends Tab {
         timeLabel.setVisible(false);
         grid.add(timeLabel, 0, row++, 2, 1);
         
-        Label sizeLabel = new Label(I18n.get("sftp.createZip.estimatedSize", formatSize(estimatedSize)));
+        Label sizeLabel = new Label(I18n.get("sftp.archive.estimatedSize", formatSize(estimatedSize)));
         sizeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         grid.add(sizeLabel, 0, row++, 2, 1);
         
         dialog.getDialogPane().setContent(grid);
         
         // Buttons
-        ButtonType createButton = new ButtonType(I18n.get("sftp.createZip.create"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType createButton = new ButtonType(I18n.get("sftp.archive.create"), ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(createButton, ButtonType.CANCEL);
         
         // Get the create button for enabling/disabling
@@ -1033,11 +1335,13 @@ public class SFTPManagerTab extends Tab {
         
         dialog.setResultConverter(buttonType -> {
             if (buttonType == createButton) {
-                String zipPath = pathField.getText().trim();
-                if (zipPath.isEmpty()) {
-                    showError(I18n.get("error.title"), I18n.get("sftp.createZip.pathRequired"));
+                String archivePath = pathField.getText().trim();
+                if (archivePath.isEmpty()) {
+                    showError(I18n.get("error.title"), I18n.get("sftp.archive.pathRequired"));
                     return null;
                 }
+                
+                ArchiveFormat format = formatCombo.getValue();
                 
                 // Get compression level from selection
                 int compression = switch (compressionCombo.getSelectionModel().getSelectedIndex()) {
@@ -1056,6 +1360,7 @@ public class SFTPManagerTab extends Tab {
                 // Disable controls during creation
                 createBtn.setDisable(true);
                 pathField.setDisable(true);
+                formatCombo.setDisable(true);
                 compressionCombo.setDisable(true);
                 ownerField.setDisable(true);
                 permissionsField.setDisable(true);
@@ -1067,9 +1372,9 @@ public class SFTPManagerTab extends Tab {
                 timeLabel.setVisible(true);
                 progressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
                 
-                // Create ZIP in background
-                executeRemoteZipCreation(dialog, filesToZip, zipPath, compression, owner, permissions, password,
-                        progressLabel, progressBar, timeLabel, sizeLabel);
+                // Create archive in background
+                executeRemoteArchiveCreation(dialog, filesToArchive, archivePath, format, compression, 
+                        owner, permissions, password, progressLabel, progressBar, timeLabel, sizeLabel);
             }
             return null;
         });
@@ -1077,9 +1382,10 @@ public class SFTPManagerTab extends Tab {
         dialog.show();
     }
     
-    private void executeRemoteZipCreation(Dialog<Void> dialog, List<String> filesToZip, String zipPath,
-                                          int compression, String owner, String permissions, String password,
-                                          Label progressLabel, ProgressBar progressBar, Label timeLabel, Label sizeLabel) {
+    private void executeRemoteArchiveCreation(Dialog<Void> dialog, List<String> filesToArchive, String archivePath,
+                                              ArchiveFormat format, int compression, String owner, String permissions, 
+                                              String password, Label progressLabel, ProgressBar progressBar, 
+                                              Label timeLabel, Label sizeLabel) {
         long startTime = System.currentTimeMillis();
         
         // Timer for elapsed time
@@ -1087,79 +1393,48 @@ public class SFTPManagerTab extends Tab {
             long elapsed = System.currentTimeMillis() - startTime;
             long seconds = (elapsed / 1000) % 60;
             long minutes = (elapsed / 1000) / 60;
-            timeLabel.setText(I18n.get("sftp.createZip.elapsed", String.format("%02d:%02d", minutes, seconds)));
+            timeLabel.setText(I18n.get("sftp.archive.elapsed", String.format("%02d:%02d", minutes, seconds)));
         }));
         timer.setCycleCount(Timeline.INDEFINITE);
         timer.play();
         
         new Thread(() -> {
             try {
-                // Build the zip command using absolute paths
-                StringBuilder cmd = new StringBuilder();
+                // Build the archive command based on format
+                String archiveCommand = buildArchiveCommand(filesToArchive, archivePath, format, compression, password);
                 
-                // Log what we're trying to zip for debugging
-                logger.debug("Files to zip: {}", filesToZip);
-                logger.debug("Current remote path: {}", currentRemotePath);
+                logger.info("Executing remote archive command: {}", archiveCommand.replaceAll("-P '[^']*'", "-P '***'").replaceAll("-p'[^']*'", "-p'***'"));
                 
-                // Build the command with absolute paths
-                if (password != null && !password.isEmpty()) {
-                    cmd.append("zip -r -").append(compression)
-                       .append(" -P '").append(password.replace("'", "'\\''")).append("' ");
-                } else {
-                    cmd.append("zip -r -").append(compression).append(" ");
-                }
+                Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
                 
-                // Add destination path (absolute)
-                cmd.append("'").append(zipPath.replace("'", "'\\''")).append("' ");
-                
-                // Add all files/directories with their ABSOLUTE paths
-                for (String fullPath : filesToZip) {
-                    cmd.append("'").append(fullPath.replace("'", "'\\''")).append("' ");
-                }
-                
-                final String zipCommand = cmd.toString().trim();
-                logger.info("Executing remote ZIP command: {}", zipCommand.replaceAll("-P '[^']*'", "-P '***'"));
-                
-                Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.createZip.creating")));
-                
-                // Execute the zip command with progress
-                de.kortty.core.SFTPSession.CommandResult result = sftpSession.executeCommandWithProgress(zipCommand, line -> {
+                // Execute the archive command with progress
+                de.kortty.core.SFTPSession.CommandResult result = sftpSession.executeCommandWithProgress(archiveCommand, line -> {
                     Platform.runLater(() -> {
                         progressLabel.setText(line);
                     });
                 });
                 
-                // Handle exit codes:
-                // 0 = success
-                // 12 = nothing to do (zip has nothing to do, but not an error for us)
-                // 18 = some files were skipped (e.g., sockets) - still creates the ZIP, just a warning
+                // Handle exit codes
                 boolean hasWarning = false;
-                String warningMsg = "";
                 
-                if (result.getExitCode() != 0 && result.getExitCode() != 12 && result.getExitCode() != 18) {
-                    // Real error
+                // ZIP exit code 18 means some files were skipped
+                if (format == ArchiveFormat.ZIP && result.getExitCode() == 18) {
+                    hasWarning = true;
+                    logger.warn("Archive created with warnings (exit code 18): {}", result.getStderr());
+                } else if (result.getExitCode() != 0) {
                     String errorMsg = result.getStderr();
                     if (errorMsg == null || errorMsg.trim().isEmpty()) {
                         errorMsg = "Exit code: " + result.getExitCode();
                     }
-                    logger.error("ZIP command failed with exit code {}: {}", result.getExitCode(), errorMsg);
+                    logger.error("Archive command failed with exit code {}: {}", result.getExitCode(), errorMsg);
                     throw new Exception(errorMsg);
-                } else if (result.getExitCode() == 18) {
-                    // Warning: some files were skipped (sockets, fifos, etc.)
-                    hasWarning = true;
-                    warningMsg = result.getStderr();
-                    logger.warn("ZIP created with warnings (exit code 18): {}", warningMsg);
-                } else if (result.getExitCode() == 12) {
-                    // Nothing to zip
-                    throw new Exception(I18n.get("sftp.createZip.nothingToZip"));
                 }
                 
                 final boolean finalHasWarning = hasWarning;
-                final String finalWarningMsg = warningMsg;
                 
                 // Set owner if specified
                 if (owner != null && !owner.isEmpty()) {
-                    String chownCmd = "chown " + owner + " '" + zipPath.replace("'", "'\\''") + "'";
+                    String chownCmd = "chown '" + owner.replace("'", "'\\''") + "' '" + archivePath.replace("'", "'\\''") + "'";
                     try {
                         sftpSession.executeCommand(chownCmd);
                     } catch (Exception e) {
@@ -1169,7 +1444,7 @@ public class SFTPManagerTab extends Tab {
                 
                 // Set permissions if specified
                 if (permissions != null && !permissions.isEmpty()) {
-                    String chmodCmd = "chmod " + permissions + " '" + zipPath.replace("'", "'\\''") + "'";
+                    String chmodCmd = "chmod " + permissions + " '" + archivePath.replace("'", "'\\''") + "'";
                     try {
                         sftpSession.executeCommand(chmodCmd);
                     } catch (Exception e) {
@@ -1178,7 +1453,7 @@ public class SFTPManagerTab extends Tab {
                 }
                 
                 // Get actual file size
-                String sizeCmd = "stat -c%s '" + zipPath.replace("'", "'\\''") + "' 2>/dev/null || stat -f%z '" + zipPath.replace("'", "'\\''") + "'";
+                String sizeCmd = "stat -c%s '" + archivePath.replace("'", "'\\''") + "' 2>/dev/null || stat -f%z '" + archivePath.replace("'", "'\\''") + "'";
                 String actualSize = "";
                 try {
                     actualSize = sftpSession.executeCommand(sizeCmd).trim();
@@ -1193,37 +1468,80 @@ public class SFTPManagerTab extends Tab {
                     progressBar.setProgress(1.0);
                     
                     if (finalHasWarning) {
-                        // Show success with warning
-                        progressLabel.setText(I18n.get("sftp.createZip.successWithWarning"));
+                        progressLabel.setText(I18n.get("sftp.archive.successWithWarning"));
                         progressLabel.setStyle("-fx-text-fill: orange;");
                     } else {
-                        progressLabel.setText(I18n.get("sftp.createZip.success"));
+                        progressLabel.setText(I18n.get("sftp.archive.success"));
                     }
                     
                     if (!finalSize.isEmpty()) {
                         try {
-                            sizeLabel.setText(I18n.get("sftp.createZip.actualSize", formatSize(Long.parseLong(finalSize))));
+                            sizeLabel.setText(I18n.get("sftp.archive.actualSize", formatSize(Long.parseLong(finalSize))));
                         } catch (NumberFormatException ignored) {}
                     }
-                    statusLabel.setText(I18n.get("sftp.zipCreated", zipPath));
+                    statusLabel.setText(I18n.get("sftp.archiveCreated", archivePath));
                     refreshRemote();
                     
-                    // Close dialog after short delay (longer if there was a warning)
                     int delaySeconds = finalHasWarning ? 4 : 2;
                     Timeline closeDelay = new Timeline(new KeyFrame(Duration.seconds(delaySeconds), e -> dialog.close()));
                     closeDelay.play();
                 });
                 
             } catch (Exception e) {
-                logger.error("Remote ZIP creation failed", e);
+                logger.error("Remote archive creation failed", e);
                 Platform.runLater(() -> {
                     timer.stop();
                     progressBar.setProgress(0);
-                    progressLabel.setText(I18n.get("sftp.createZip.error", e.getMessage()));
-                    showError(I18n.get("sftp.error.zip"), e.getMessage());
+                    progressLabel.setText(I18n.get("sftp.archive.error", e.getMessage()));
+                    showError(I18n.get("sftp.error.archive"), e.getMessage());
                 });
             }
-        }, "Remote-ZIP-Creator").start();
+        }, "Remote-Archive-Creator").start();
+    }
+    
+    private String buildArchiveCommand(List<String> files, String archivePath, ArchiveFormat format, int compression, String password) {
+        StringBuilder cmd = new StringBuilder();
+        String escapedPath = archivePath.replace("'", "'\\''");
+        
+        switch (format) {
+            case ZIP:
+                if (password != null && !password.isEmpty()) {
+                    cmd.append("zip -r -").append(compression)
+                       .append(" -P '").append(password.replace("'", "'\\''")).append("' ");
+                } else {
+                    cmd.append("zip -r -").append(compression).append(" ");
+                }
+                cmd.append("'").append(escapedPath).append("' ");
+                for (String file : files) {
+                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
+                }
+                break;
+                
+            case TAR_BZ2:
+                // tar with bzip2 compression
+                // -j = bzip2, compression level via BZIP2 env var
+                cmd.append("BZIP2=-").append(compression).append(" tar -cjf '")
+                   .append(escapedPath).append("' ");
+                for (String file : files) {
+                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
+                }
+                break;
+                
+            case SEVEN_ZIP:
+                // 7z archive
+                // -mx=compression level, -p for password
+                cmd.append("7z a -mx=").append(compression);
+                if (password != null && !password.isEmpty()) {
+                    cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
+                }
+                cmd.append(" '").append(escapedPath).append("' ");
+                for (String file : files) {
+                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
+                }
+                break;
+        }
+        
+        return cmd.toString().trim();
     }
     
     private String formatSize(long bytes) {
