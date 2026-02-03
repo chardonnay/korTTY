@@ -1636,12 +1636,25 @@ public class SFTPManagerDialog extends Dialog<Void> {
         }
         
         private long parseSizeToBytes(String sizeStr) {
-            if (sizeStr == null || sizeStr.isEmpty() || sizeStr.equals("-") || sizeStr.equals("<DIR>")) {
+            if (sizeStr == null || sizeStr.isEmpty() || sizeStr.equals("-") || 
+                sizeStr.equals("<DIR>") || sizeStr.equals("...") || sizeStr.equals("—")) {
                 return 0;
             }
             try {
-                // Remove commas and parse
-                return Long.parseLong(sizeStr.replaceAll("[^0-9]", ""));
+                // Remove non-numeric characters except for decimals and parse
+                String cleaned = sizeStr.replaceAll("[^0-9.]", "");
+                if (cleaned.isEmpty()) return 0;
+                
+                // Handle formatted sizes (KB, MB, GB)
+                if (sizeStr.contains("KB")) {
+                    return (long)(Double.parseDouble(cleaned) * 1024);
+                } else if (sizeStr.contains("MB")) {
+                    return (long)(Double.parseDouble(cleaned) * 1024 * 1024);
+                } else if (sizeStr.contains("GB")) {
+                    return (long)(Double.parseDouble(cleaned) * 1024 * 1024 * 1024);
+                } else {
+                    return Long.parseLong(cleaned);
+                }
             } catch (NumberFormatException e) {
                 return 0;
             }
