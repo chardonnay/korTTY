@@ -1219,7 +1219,47 @@ public class SFTPManagerTab extends Tab {
         showArchiveDialog(filesToArchive, defaultFilename, defaultCompression, estimatedSize);
     }
     
+    // Check which archive tools are available on the remote server
+    private java.util.Map<ArchiveFormat, Boolean> checkAvailableArchiveTools() {
+        java.util.Map<ArchiveFormat, Boolean> available = new java.util.EnumMap<>(ArchiveFormat.class);
+        
+        // Default all to false
+        for (ArchiveFormat fmt : ArchiveFormat.values()) {
+            available.put(fmt, false);
+        }
+        
+        if (sftpSession == null || !sftpSession.isConnected()) {
+            return available;
+        }
+        
+        try {
+            // Check zip
+            String zipCheck = sftpSession.executeCommand("which zip 2>/dev/null || command -v zip 2>/dev/null || echo ''");
+            available.put(ArchiveFormat.ZIP, !zipCheck.trim().isEmpty());
+            
+            // Check tar (always available on Unix)
+            String tarCheck = sftpSession.executeCommand("which tar 2>/dev/null || command -v tar 2>/dev/null || echo ''");
+            available.put(ArchiveFormat.TAR_BZ2, !tarCheck.trim().isEmpty());
+            
+            // Check 7z or 7za
+            String sevenZCheck = sftpSession.executeCommand("which 7z 2>/dev/null || which 7za 2>/dev/null || command -v 7z 2>/dev/null || command -v 7za 2>/dev/null || echo ''");
+            available.put(ArchiveFormat.SEVEN_ZIP, !sevenZCheck.trim().isEmpty());
+            
+        } catch (Exception e) {
+            logger.warn("Could not check archive tool availability: {}", e.getMessage());
+            // Assume zip and tar are available as they usually are
+            available.put(ArchiveFormat.ZIP, true);
+            available.put(ArchiveFormat.TAR_BZ2, true);
+        }
+        
+        logger.debug("Archive tool availability: {}", available);
+        return available;
+    }
+    
     private void showArchiveDialog(List<String> filesToArchive, String defaultFilename, int defaultCompression, long estimatedSize) {
+        // Check available tools first
+        java.util.Map<ArchiveFormat, Boolean> availableTools = checkAvailableArchiveTools();
+        
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.archive"));
         dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
@@ -1232,31 +1272,45 @@ public class SFTPManagerTab extends Tab {
         
         int row = 0;
         
-        // Archive format
+        // Archive format with availability info
         grid.add(new Label(I18n.get("sftp.archive.format")), 0, row);
-        ComboBox<ArchiveFormat> formatCombo = new ComboBox<>();
-        formatCombo.getItems().addAll(ArchiveFormat.values());
-        formatCombo.getSelectionModel().select(ArchiveFormat.ZIP);
+        ComboBox<String> formatCombo = new ComboBox<>();
+        
+        // Add formats with availability indicator
+        for (ArchiveFormat fmt : ArchiveFormat.values()) {
+            boolean isAvailable = availableTools.getOrDefault(fmt, false);
+            String displayName = fmt.getDisplayName();
+            if (!isAvailable) {
+                displayName += " " + I18n.get("sftp.archive.notInstalled");
+            }
+            formatCombo.getItems().add(displayName);
+        }
+        
+        // Select first available format (prefer ZIP)
+        int selectedIndex = 0;
+        for (int i = 0; i < ArchiveFormat.values().length; i++) {
+            if (availableTools.getOrDefault(ArchiveFormat.values()[i], false)) {
+                selectedIndex = i;
+                break;
+            }
+        }
+        formatCombo.getSelectionModel().select(selectedIndex);
         grid.add(formatCombo, 1, row++);
+        
+        // Helper to get selected format
+        java.util.function.Supplier<ArchiveFormat> getSelectedFormat = () -> {
+            int idx = formatCombo.getSelectionModel().getSelectedIndex();
+            return idx >= 0 && idx < ArchiveFormat.values().length ? ArchiveFormat.values()[idx] : ArchiveFormat.ZIP;
+        };
+        
+        // Set initial extension based on first available format
+        String initialExtension = ArchiveFormat.values()[selectedIndex].getExtension();
         
         // Archive file path
         grid.add(new Label(I18n.get("sftp.archive.path")), 0, row);
-        TextField pathField = new TextField(defaultFilename + ".zip");
+        TextField pathField = new TextField(defaultFilename + initialExtension);
         pathField.setPrefWidth(350);
         grid.add(pathField, 1, row++);
-        
-        // Update extension when format changes
-        formatCombo.setOnAction(e -> {
-            String currentPath = pathField.getText();
-            // Remove old extension and add new one
-            for (ArchiveFormat fmt : ArchiveFormat.values()) {
-                if (currentPath.endsWith(fmt.getExtension())) {
-                    currentPath = currentPath.substring(0, currentPath.length() - fmt.getExtension().length());
-                    break;
-                }
-            }
-            pathField.setText(currentPath + formatCombo.getValue().getExtension());
-        });
         
         // Compression level
         grid.add(new Label(I18n.get("sftp.archive.compression")), 0, row);
@@ -1294,10 +1348,22 @@ public class SFTPManagerTab extends Tab {
         passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
         grid.add(passwordField, 1, row++);
         
-        // Disable password for tar.bz2
-        formatCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
-            passwordField.setDisable(newVal == ArchiveFormat.TAR_BZ2);
-            if (newVal == ArchiveFormat.TAR_BZ2) {
+        // Update extension and password field when format changes
+        formatCombo.setOnAction(e -> {
+            String currentPath = pathField.getText();
+            // Remove old extension and add new one
+            for (ArchiveFormat fmt : ArchiveFormat.values()) {
+                if (currentPath.endsWith(fmt.getExtension())) {
+                    currentPath = currentPath.substring(0, currentPath.length() - fmt.getExtension().length());
+                    break;
+                }
+            }
+            pathField.setText(currentPath + getSelectedFormat.get().getExtension());
+            
+            // Disable password for tar.bz2
+            ArchiveFormat selectedFmt = getSelectedFormat.get();
+            passwordField.setDisable(selectedFmt == ArchiveFormat.TAR_BZ2);
+            if (selectedFmt == ArchiveFormat.TAR_BZ2) {
                 passwordField.clear();
             }
         });
@@ -1341,7 +1407,13 @@ public class SFTPManagerTab extends Tab {
                     return null;
                 }
                 
-                ArchiveFormat format = formatCombo.getValue();
+                ArchiveFormat format = getSelectedFormat.get();
+                
+                // Check if the tool is available
+                if (!availableTools.getOrDefault(format, false)) {
+                    showError(I18n.get("error.title"), I18n.get("sftp.archive.toolNotInstalled", format.getDisplayName()));
+                    return null;
+                }
                 
                 // Get compression level from selection
                 int compression = switch (compressionCombo.getSelectionModel().getSelectedIndex()) {
@@ -1528,9 +1600,9 @@ public class SFTPManagerTab extends Tab {
                 break;
                 
             case SEVEN_ZIP:
-                // 7z archive
+                // 7z archive - try 7z first, then 7za (p7zip uses 7za on some systems)
                 // -mx=compression level, -p for password
-                cmd.append("7z a -mx=").append(compression);
+                cmd.append("$(command -v 7z || command -v 7za) a -mx=").append(compression);
                 if (password != null && !password.isEmpty()) {
                     cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
                 }
