@@ -45,6 +45,7 @@ import java.util.UUID;
  */
 public class MainWindow {
     
+    private static MainWindow instance;  // Singleton instance for global access
     private static final Logger logger = LoggerFactory.getLogger(MainWindow.class);
     
     private final Stage stage;
@@ -63,10 +64,12 @@ public class MainWindow {
     private static final List<MainWindow> openWindows = new ArrayList<>();
     
     private volatile boolean quickConnectDialogOpen = false;
+    private volatile boolean suppressQuickConnect = false;  // Flag to suppress QuickConnect on programmatic tab selection
     private volatile boolean allowAutoQuickConnect = false; // Only allow QuickConnect via explicit user action
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
     
     public MainWindow(Stage stage) {
+        instance = this;  // Set singleton instance
         this.stage = stage;
         this.app = KorTTYApplication.getInstance();
         this.sessionManager = app.getSessionManager();
@@ -99,25 +102,19 @@ public class MainWindow {
         tabPane.getTabs().add(newTabButton);
         
         // Handle clicks on the + tab - show QuickConnect dialog
-        // Only trigger when the + tab is selected, and immediately switch back to previous tab
+        // Only trigger when user actually clicks (not programmatic selection)
         newTabButton.setOnSelectionChanged(e -> {
-            if (newTabButton.isSelected() && startupComplete && !quickConnectDialogOpen) {
-                // Check if this selection was caused by user click or by tab close
-                // Don't trigger if we have other non-plus tabs available
-                int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
-                int totalTabs = tabPane.getTabs().size();
-                
-                // Only show QuickConnect if there are other tabs (user clicked +)
-                // Don't show if + tab was auto-selected after closing last real tab
-                if (plusTabIndex > 0) {
-                    // Switch to previous tab first
-                    Platform.runLater(() -> {
+            if (newTabButton.isSelected() && startupComplete && !quickConnectDialogOpen && !suppressQuickConnect) {
+                Platform.runLater(() -> {
+                    int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
+                    if (plusTabIndex > 0) {
                         tabPane.getSelectionModel().select(plusTabIndex - 1);
-                        // Show QuickConnect dialog
-                        showQuickConnect();
-                    });
-                }
+                    }
+                    showQuickConnect();
+                });
             }
+            // Reset flag after handling
+            suppressQuickConnect = false;
         });
         
         // Auto-focus terminal when tab is selected
@@ -499,6 +496,16 @@ public class MainWindow {
         // Restore dashboard state if enabled
         if (globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible()) {
             Platform.runLater(() -> toggleDashboard(true));
+        }
+    }
+    
+    /**
+     * Static method to suppress QuickConnect dialog on next + tab selection.
+     * Called by tabs that are closing programmatically.
+     */
+    public static void suppressNextQuickConnect() {
+        if (instance != null) {
+            instance.suppressQuickConnect = true;
         }
     }
     

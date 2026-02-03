@@ -616,6 +616,9 @@ public class SFTPManagerTab extends Tab {
         
         int currentIndex = tabPane.getTabs().indexOf(this);
         
+        // Suppress QuickConnect if + tab might be selected
+        de.kortty.ui.MainWindow.suppressNextQuickConnect();
+        
         // Select a different tab before removing this one to avoid selecting the "+" tab
         if (currentIndex > 0) {
             // Select previous tab
