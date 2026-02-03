@@ -78,6 +78,10 @@ dependencies {
     // ZIP encryption
     implementation("net.lingala.zip4j:zip4j:2.11.5")
     
+    // Archive support (7z, TAR, etc.)
+    implementation("org.apache.commons:commons-compress:1.25.0")
+    implementation("org.tukaani:xz:1.9")  // For LZMA/7z compression
+    
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("ch.qos.logback:logback-classic:1.4.14")

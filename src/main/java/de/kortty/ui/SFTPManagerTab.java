@@ -2002,12 +2002,11 @@ public class SFTPManagerTab extends Tab {
         
         int row = 0;
         
-        // Archive format - only ZIP supported for local (using net.lingala.zip4j)
+        // Archive format - ZIP, TAR.BZ2, and 7z supported locally
         grid.add(new Label(I18n.get("sftp.archive.format")), 0, row);
-        ComboBox<String> formatCombo = new ComboBox<>();
-        formatCombo.getItems().add("ZIP");
-        formatCombo.getSelectionModel().select(0);
-        formatCombo.setDisable(true); // Only ZIP supported locally
+        ComboBox<ArchiveFormat> formatCombo = new ComboBox<>();
+        formatCombo.getItems().addAll(ArchiveFormat.values());
+        formatCombo.getSelectionModel().select(ArchiveFormat.ZIP);
         grid.add(formatCombo, 1, row++);
         
         // Archive file path
@@ -2019,8 +2018,12 @@ public class SFTPManagerTab extends Tab {
             FileChooser chooser = new FileChooser();
             chooser.setTitle(I18n.get("sftp.archive.selectPath"));
             chooser.setInitialDirectory(currentLocalPath.toFile());
+            
+            ArchiveFormat selectedFormat = formatCombo.getValue();
+            String extension = "*" + selectedFormat.getExtension();
             chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("ZIP Archives", "*.zip"));
+                new FileChooser.ExtensionFilter(selectedFormat.getDisplayName() + " Archives", extension));
+            
             File file = chooser.showSaveDialog(null);
             if (file != null) {
                 pathField.setText(file.getAbsolutePath());
@@ -2053,6 +2056,46 @@ public class SFTPManagerTab extends Tab {
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
         grid.add(passwordField, 1, row++);
+        
+        // Warning label for 7z password limitation
+        Label warningLabel = new Label(I18n.get("sftp.archive.7zPasswordWarning"));
+        warningLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: orange;");
+        warningLabel.setWrapText(true);
+        warningLabel.setVisible(false);
+        warningLabel.setMaxWidth(350);
+        grid.add(warningLabel, 0, row++, 2, 1);
+        
+        // Update extension and password field when format changes
+        formatCombo.setOnAction(e -> {
+            String currentPath = pathField.getText();
+            // Remove old extension and add new one
+            for (ArchiveFormat fmt : ArchiveFormat.values()) {
+                if (currentPath.endsWith(fmt.getExtension())) {
+                    currentPath = currentPath.substring(0, currentPath.length() - fmt.getExtension().length());
+                    break;
+                }
+            }
+            pathField.setText(currentPath + formatCombo.getValue().getExtension());
+            
+            // Disable password for tar.bz2
+            ArchiveFormat selectedFmt = formatCombo.getValue();
+            passwordField.setDisable(selectedFmt == ArchiveFormat.TAR_BZ2);
+            if (selectedFmt == ArchiveFormat.TAR_BZ2) {
+                passwordField.clear();
+            }
+            
+            // Update 7z warning
+            boolean show7zWarning = selectedFmt == ArchiveFormat.SEVEN_ZIP && 
+                                   !passwordField.getText().isEmpty();
+            warningLabel.setVisible(show7zWarning);
+        });
+        
+        // Update warning visibility when password changes
+        passwordField.textProperty().addListener((obs, old, newVal) -> {
+            boolean show7zWarning = formatCombo.getValue() == ArchiveFormat.SEVEN_ZIP && 
+                                   !newVal.isEmpty();
+            warningLabel.setVisible(show7zWarning);
+        });
         
         // Separator
         grid.add(new Separator(), 0, row++, 2, 1);
@@ -2103,6 +2146,7 @@ public class SFTPManagerTab extends Tab {
                 };
                 
                 String password = passwordField.getText();
+                ArchiveFormat format = formatCombo.getValue();
                 
                 // Disable controls
                 createBtn.setDisable(true);
@@ -2119,7 +2163,7 @@ public class SFTPManagerTab extends Tab {
                 progressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
                 
                 // Create archive
-                executeLocalArchiveCreation(dialog, filesToArchive, archivePath, compression, 
+                executeLocalArchiveCreation(dialog, filesToArchive, archivePath, format, compression, 
                         password, progressLabel, progressBar, timeLabel, sizeLabel);
             }
             return null;
@@ -2129,8 +2173,9 @@ public class SFTPManagerTab extends Tab {
     }
     
     private void executeLocalArchiveCreation(Dialog<Void> dialog, List<Path> files, String archivePath,
-                                             int compression, String password, Label progressLabel, 
-                                             ProgressBar progressBar, Label timeLabel, Label sizeLabel) {
+                                             ArchiveFormat format, int compression, String password, 
+                                             Label progressLabel, ProgressBar progressBar, 
+                                             Label timeLabel, Label sizeLabel) {
         new Thread(() -> {
             long startTime = System.currentTimeMillis();
             Timeline timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
@@ -2143,34 +2188,10 @@ public class SFTPManagerTab extends Tab {
             try {
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
                 
-                // Use zip4j for local ZIP creation
-                net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(archivePath);
-                
-                if (password != null && !password.isEmpty()) {
-                    zipFile.setPassword(password.toCharArray());
-                }
-                
-                net.lingala.zip4j.model.ZipParameters zipParams = new net.lingala.zip4j.model.ZipParameters();
-                zipParams.setCompressionLevel(
-                    compression == 0 ? net.lingala.zip4j.model.enums.CompressionLevel.NO_COMPRESSION :
-                    compression <= 1 ? net.lingala.zip4j.model.enums.CompressionLevel.FASTEST :
-                    compression <= 3 ? net.lingala.zip4j.model.enums.CompressionLevel.FAST :
-                    compression <= 6 ? net.lingala.zip4j.model.enums.CompressionLevel.NORMAL :
-                    net.lingala.zip4j.model.enums.CompressionLevel.MAXIMUM
-                );
-                
-                if (password != null && !password.isEmpty()) {
-                    zipParams.setEncryptFiles(true);
-                    zipParams.setEncryptionMethod(net.lingala.zip4j.model.enums.EncryptionMethod.AES);
-                }
-                
-                // Add files
-                for (Path file : files) {
-                    if (Files.isDirectory(file)) {
-                        zipFile.addFolder(file.toFile(), zipParams);
-                    } else {
-                        zipFile.addFile(file.toFile(), zipParams);
-                    }
+                switch (format) {
+                    case ZIP -> createLocalZip(files, archivePath, compression, password);
+                    case TAR_BZ2 -> createLocalTarBz2(files, archivePath, compression);
+                    case SEVEN_ZIP -> createLocal7z(files, archivePath, compression, password);
                 }
                 
                 // Get actual size
@@ -2199,6 +2220,134 @@ public class SFTPManagerTab extends Tab {
                 });
             }
         }, "Local-Archive-Creator").start();
+    }
+    
+    private void createLocalZip(List<Path> files, String archivePath, int compression, String password) throws Exception {
+        // Use zip4j for ZIP creation with password support
+        net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(archivePath);
+        
+        if (password != null && !password.isEmpty()) {
+            zipFile.setPassword(password.toCharArray());
+        }
+        
+        net.lingala.zip4j.model.ZipParameters zipParams = new net.lingala.zip4j.model.ZipParameters();
+        zipParams.setCompressionLevel(
+            compression == 0 ? net.lingala.zip4j.model.enums.CompressionLevel.NO_COMPRESSION :
+            compression <= 1 ? net.lingala.zip4j.model.enums.CompressionLevel.FASTEST :
+            compression <= 3 ? net.lingala.zip4j.model.enums.CompressionLevel.FAST :
+            compression <= 6 ? net.lingala.zip4j.model.enums.CompressionLevel.NORMAL :
+            net.lingala.zip4j.model.enums.CompressionLevel.MAXIMUM
+        );
+        
+        if (password != null && !password.isEmpty()) {
+            zipParams.setEncryptFiles(true);
+            zipParams.setEncryptionMethod(net.lingala.zip4j.model.enums.EncryptionMethod.AES);
+        }
+        
+        // Add files
+        for (Path file : files) {
+            if (Files.isDirectory(file)) {
+                zipFile.addFolder(file.toFile(), zipParams);
+            } else {
+                zipFile.addFile(file.toFile(), zipParams);
+            }
+        }
+    }
+    
+    private void createLocalTarBz2(List<Path> files, String archivePath, int compression) throws Exception {
+        // Use Apache Commons Compress for TAR.BZ2
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(archivePath);
+             java.io.BufferedOutputStream bos = new java.io.BufferedOutputStream(fos);
+             org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream bzos = 
+                 new org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream(bos);
+             org.apache.commons.compress.archivers.tar.TarArchiveOutputStream tarOutput = 
+                 new org.apache.commons.compress.archivers.tar.TarArchiveOutputStream(bzos)) {
+            
+            tarOutput.setLongFileMode(org.apache.commons.compress.archivers.tar.TarArchiveOutputStream.LONGFILE_POSIX);
+            
+            for (Path file : files) {
+                addToTar(tarOutput, file, "");
+            }
+        }
+    }
+    
+    private void addToTar(org.apache.commons.compress.archivers.tar.TarArchiveOutputStream tarOutput, 
+                          Path path, String base) throws Exception {
+        String entryName = base + path.getFileName().toString();
+        
+        org.apache.commons.compress.archivers.tar.TarArchiveEntry entry = 
+            new org.apache.commons.compress.archivers.tar.TarArchiveEntry(path.toFile(), entryName);
+        tarOutput.putArchiveEntry(entry);
+        
+        if (Files.isRegularFile(path)) {
+            Files.copy(path, tarOutput);
+        }
+        
+        tarOutput.closeArchiveEntry();
+        
+        if (Files.isDirectory(path)) {
+            try (var stream = Files.list(path)) {
+                stream.forEach(child -> {
+                    try {
+                        addToTar(tarOutput, child, entryName + "/");
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+        }
+    }
+    
+    private void createLocal7z(List<Path> files, String archivePath, int compression, String password) throws Exception {
+        // Use Apache Commons Compress for 7z creation
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(archivePath);
+             org.apache.commons.compress.archivers.sevenz.SevenZOutputFile sevenZOutput = 
+                 new org.apache.commons.compress.archivers.sevenz.SevenZOutputFile(new java.io.File(archivePath))) {
+            
+            // Set compression method
+            sevenZOutput.setContentCompression(
+                compression == 0 ? org.apache.commons.compress.archivers.sevenz.SevenZMethod.COPY :
+                org.apache.commons.compress.archivers.sevenz.SevenZMethod.LZMA2
+            );
+            
+            // Note: Apache Commons Compress doesn't support password encryption for 7z
+            // Password parameter is ignored for 7z in local creation
+            if (password != null && !password.isEmpty()) {
+                logger.warn("7z password encryption not supported in Apache Commons Compress, creating unencrypted archive");
+            }
+            
+            for (Path file : files) {
+                addTo7z(sevenZOutput, file, "");
+            }
+        }
+    }
+    
+    private void addTo7z(org.apache.commons.compress.archivers.sevenz.SevenZOutputFile sevenZOutput, 
+                         Path path, String base) throws Exception {
+        String entryName = base + path.getFileName().toString();
+        
+        org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry entry = 
+            sevenZOutput.createArchiveEntry(path.toFile(), entryName);
+        sevenZOutput.putArchiveEntry(entry);
+        
+        if (Files.isRegularFile(path)) {
+            byte[] buffer = Files.readAllBytes(path);
+            sevenZOutput.write(buffer);
+        }
+        
+        sevenZOutput.closeArchiveEntry();
+        
+        if (Files.isDirectory(path)) {
+            try (var stream = Files.list(path)) {
+                stream.forEach(child -> {
+                    try {
+                        addTo7z(sevenZOutput, child, entryName + "/");
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+        }
     }
     
     /**
