@@ -109,12 +109,9 @@ public class FileEditorTab extends Tab {
         });
         
         // Apply syntax highlighting
-        codeArea.richChanges()
-            .filter(ch -> !ch.getInserted().equals(ch.getRemoved()))
-            .succeedOnTimeout(null, Duration.ofMillis(500))
-            .subscribe(change -> {
-                codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
-            });
+        codeArea.textProperty().addListener((obs, oldText, newText) -> {
+            codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+        });
         
         // Initial highlighting
         codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
@@ -124,8 +121,8 @@ public class FileEditorTab extends Tab {
         statusLabel.setStyle("-fx-padding: 5px;");
         
         // Create UI
-        BorderPane content = createContent();
-        setContent(content);
+        BorderPane rootContent = createContent();
+        setContent(rootContent);
         
         // Keyboard shortcuts
         setupKeyboardShortcuts();
@@ -172,12 +169,9 @@ public class FileEditorTab extends Tab {
         });
         
         // Apply syntax highlighting
-        codeArea.richChanges()
-            .filter(ch -> !ch.getInserted().equals(ch.getRemoved()))
-            .succeedOnTimeout(null, Duration.ofMillis(500))
-            .subscribe(change -> {
-                codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
-            });
+        codeArea.textProperty().addListener((obs, oldText, newText) -> {
+            codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+        });
         
         // Initial highlighting
         codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
@@ -187,8 +181,8 @@ public class FileEditorTab extends Tab {
         statusLabel.setStyle("-fx-padding: 5px;");
         
         // Create UI
-        BorderPane content = createContent();
-        setContent(content);
+        BorderPane rootContent = createContent();
+        setContent(rootContent);
         
         // Keyboard shortcuts
         setupKeyboardShortcuts();
@@ -443,7 +437,7 @@ public class FileEditorTab extends Tab {
             if (isRemoteFile) {
                 // Save to remote server
                 byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-                sftpSession.uploadFile(bytes, remotePath);
+                sftpSession.uploadFileBytes(bytes, remotePath);
                 isModified = false;
                 updateTitle();
                 statusLabel.setText(I18n.get("editor.status.saved", remotePath));

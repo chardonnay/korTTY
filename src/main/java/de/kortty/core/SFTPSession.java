@@ -217,7 +217,7 @@ public class SFTPSession {
     }
     
     /**
-     * Uploads a file from local to remote.
+     * Downloads a file from local to remote.
      */
     public void uploadFile(Path localPath, String remotePath) throws IOException {
         long fileSize = java.nio.file.Files.size(localPath);
@@ -228,6 +228,33 @@ public class SFTPSession {
                 java.util.EnumSet.of(SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
             out.write(fileData);
             logger.info("Uploaded {} bytes from {} to {}", fileData.length, localPath, remotePath);
+        }
+    }
+    
+    /**
+     * Downloads a file and returns its content as byte array.
+     */
+    public byte[] downloadFileBytes(String remotePath) throws IOException {
+        try (java.io.InputStream in = sftpClient.read(remotePath);
+             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+            logger.info("Downloaded {} bytes from {}", out.size(), remotePath);
+            return out.toByteArray();
+        }
+    }
+    
+    /**
+     * Uploads a file from byte array to remote.
+     */
+    public void uploadFileBytes(byte[] data, String remotePath) throws IOException {
+        try (java.io.OutputStream out = sftpClient.write(remotePath, 
+                java.util.EnumSet.of(SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
+            out.write(data);
+            logger.info("Uploaded {} bytes to {}", data.length, remotePath);
         }
     }
     

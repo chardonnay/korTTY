@@ -994,17 +994,50 @@ public class SFTPManagerTab extends Tab {
             createLocalArchive();
         });
         
-        menu.getItems().addAll(copyItem, deleteItem, new SeparatorMenuItem(), ownerItem, new SeparatorMenuItem(), archiveItem);
+        // Editor options
+        MenuItem openTextItem = new MenuItem(I18n.get("sftp.contextMenu.openAsText"));
+        openTextItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openLocalFileAsText();
+        });
+        
+        MenuItem openSyntaxItem = new MenuItem(I18n.get("sftp.contextMenu.openWithSyntax"));
+        openSyntaxItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openLocalFileWithSyntax();
+        });
+        
+        MenuItem openImageItem = new MenuItem(I18n.get("sftp.contextMenu.openImage"));
+        openImageItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openLocalImage();
+        });
+        
+        menu.getItems().addAll(
+            copyItem, deleteItem, 
+            new SeparatorMenuItem(), 
+            ownerItem, 
+            new SeparatorMenuItem(), 
+            archiveItem,
+            new SeparatorMenuItem(),
+            openTextItem, openSyntaxItem, openImageItem
+        );
         
         // Disable items when nothing is selected
         menu.setOnShowing(e -> {
             var selected = localTable.getSelectionModel().getSelectedItems();
             boolean hasSelection = selected != null && !selected.isEmpty() && 
                 !(selected.size() == 1 && selected.get(0).getName().equals(".."));
+            boolean isSingleFile = hasSelection && selected.size() == 1 && selected.get(0).isFile();
+            boolean isImageFile = isSingleFile && isImageFileType(selected.get(0).getName());
+            
             copyItem.setDisable(!hasSelection);
             deleteItem.setDisable(!hasSelection);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
+            openTextItem.setDisable(!isSingleFile);
+            openSyntaxItem.setDisable(!isSingleFile);
+            openImageItem.setDisable(!isImageFile);
         });
         
         return menu;
@@ -1037,17 +1070,50 @@ public class SFTPManagerTab extends Tab {
             createRemoteArchive();
         });
         
-        menu.getItems().addAll(copyItem, deleteItem, new SeparatorMenuItem(), ownerItem, new SeparatorMenuItem(), archiveItem);
+        // Editor options
+        MenuItem openTextItem = new MenuItem(I18n.get("sftp.contextMenu.openAsText"));
+        openTextItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openRemoteFileAsText();
+        });
+        
+        MenuItem openSyntaxItem = new MenuItem(I18n.get("sftp.contextMenu.openWithSyntax"));
+        openSyntaxItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openRemoteFileWithSyntax();
+        });
+        
+        MenuItem openImageItem = new MenuItem(I18n.get("sftp.contextMenu.openImage"));
+        openImageItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openRemoteImage();
+        });
+        
+        menu.getItems().addAll(
+            copyItem, deleteItem, 
+            new SeparatorMenuItem(), 
+            ownerItem, 
+            new SeparatorMenuItem(), 
+            archiveItem,
+            new SeparatorMenuItem(),
+            openTextItem, openSyntaxItem, openImageItem
+        );
         
         // Disable items when nothing is selected
         menu.setOnShowing(e -> {
             var selected = remoteTable.getSelectionModel().getSelectedItems();
             boolean hasSelection = selected != null && !selected.isEmpty() && 
                 !(selected.size() == 1 && selected.get(0).getName().equals(".."));
+            boolean isSingleFile = hasSelection && selected.size() == 1 && selected.get(0).isFile();
+            boolean isImageFile = isSingleFile && isImageFileType(selected.get(0).getName());
+            
             copyItem.setDisable(!hasSelection);
             deleteItem.setDisable(!hasSelection);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
+            openTextItem.setDisable(!isSingleFile);
+            openSyntaxItem.setDisable(!isSingleFile);
+            openImageItem.setDisable(!isImageFile);
         });
         
         return menu;
@@ -2508,6 +2574,142 @@ public class SFTPManagerTab extends Tab {
             throw new Exception("7z command failed with exit code " + exitCode + 
                               (errorOutput.length() > 0 ? ": " + errorOutput.toString() : ""));
         }
+    }
+    
+    private void openRemoteFileAsText() {
+        var selected = remoteTable.getSelectionModel().getSelectedItem();
+        if (selected == null || !selected.isFile()) return;
+        
+        new Thread(() -> {
+            try {
+                // Download file
+                byte[] content = sftpSession.downloadFileBytes(selected.getPath());
+                
+                // Open in editor tab
+                Platform.runLater(() -> {
+                    try {
+                        FileEditorTab editorTab = new FileEditorTab(
+                            selected.getName(), 
+                            selected.getPath(), 
+                            sftpSession, 
+                            content
+                        );
+                        
+                        // Add tab to the main window's tab pane
+                        TabPane tabPane = (TabPane) getTabPane();
+                        tabPane.getTabs().add(editorTab);
+                        tabPane.getSelectionModel().select(editorTab);
+                        
+                        logger.info("Opened remote file in text editor: {}", selected.getPath());
+                    } catch (Exception e) {
+                        logger.error("Failed to open file in editor", e);
+                        showError(I18n.get("error.title"), "Failed to open file: " + e.getMessage());
+                    }
+                });
+            } catch (Exception e) {
+                logger.error("Failed to download file", e);
+                Platform.runLater(() -> 
+                    showError(I18n.get("error.title"), "Failed to download file: " + e.getMessage())
+                );
+            }
+        }).start();
+    }
+    
+    private void openRemoteFileWithSyntax() {
+        openRemoteFileAsText(); // Same as text, but FileEditorTab auto-detects syntax
+    }
+    
+    private void openRemoteImage() {
+        var selected = remoteTable.getSelectionModel().getSelectedItem();
+        if (selected == null || !selected.isFile()) return;
+        
+        new Thread(() -> {
+            try {
+                // Download image
+                byte[] imageData = sftpSession.downloadFileBytes(selected.getPath());
+                
+                // Open in image viewer tab
+                Platform.runLater(() -> {
+                    try {
+                        ImageViewerTab viewerTab = new ImageViewerTab(
+                            selected.getName(), 
+                            selected.getPath(), 
+                            sftpSession, 
+                            imageData
+                        );
+                        
+                        // Add tab to the main window's tab pane
+                        TabPane tabPane = (TabPane) getTabPane();
+                        tabPane.getTabs().add(viewerTab);
+                        tabPane.getSelectionModel().select(viewerTab);
+                        
+                        logger.info("Opened remote image: {}", selected.getPath());
+                    } catch (Exception e) {
+                        logger.error("Failed to open image", e);
+                        showError(I18n.get("error.title"), "Failed to open image: " + e.getMessage());
+                    }
+                });
+            } catch (Exception e) {
+                logger.error("Failed to download image", e);
+                Platform.runLater(() -> 
+                    showError(I18n.get("error.title"), "Failed to download image: " + e.getMessage())
+                );
+            }
+        }).start();
+    }
+    
+    private boolean isImageFileType(String filename) {
+        String lower = filename.toLowerCase();
+        return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
+               lower.endsWith(".gif") || lower.endsWith(".webp") || lower.endsWith(".bmp");
+    }
+    
+    private void openLocalFileAsText() {
+        var selected = localTable.getSelectionModel().getSelectedItem();
+        if (selected == null || !selected.isFile()) return;
+        
+        Platform.runLater(() -> {
+            try {
+                Path filePath = Path.of(selected.getPath());
+                FileEditorTab editorTab = new FileEditorTab(filePath);
+                
+                // Add tab to the main window's tab pane
+                TabPane tabPane = (TabPane) getTabPane();
+                tabPane.getTabs().add(editorTab);
+                tabPane.getSelectionModel().select(editorTab);
+                
+                logger.info("Opened local file in text editor: {}", filePath);
+            } catch (Exception e) {
+                logger.error("Failed to open file in editor", e);
+                showError(I18n.get("error.title"), "Failed to open file: " + e.getMessage());
+            }
+        });
+    }
+    
+    private void openLocalFileWithSyntax() {
+        openLocalFileAsText(); // Same as text, but FileEditorTab auto-detects syntax
+    }
+    
+    private void openLocalImage() {
+        var selected = localTable.getSelectionModel().getSelectedItem();
+        if (selected == null || !selected.isFile()) return;
+        
+        Platform.runLater(() -> {
+            try {
+                Path filePath = Path.of(selected.getPath());
+                ImageViewerTab viewerTab = new ImageViewerTab(filePath);
+                
+                // Add tab to the main window's tab pane
+                TabPane tabPane = (TabPane) getTabPane();
+                tabPane.getTabs().add(viewerTab);
+                tabPane.getSelectionModel().select(viewerTab);
+                
+                logger.info("Opened local image: {}", filePath);
+            } catch (Exception e) {
+                logger.error("Failed to open image", e);
+                showError(I18n.get("error.title"), "Failed to open image: " + e.getMessage());
+            }
+        });
     }
     
     /**
