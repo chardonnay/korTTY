@@ -1,0 +1,109 @@
+/* RichTextFX Code Editor Syntax Highlighting */
+
+.code-area {
+    -fx-font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    -fx-font-size: 12px;
+}
+
+.code-area .paragraph-box {
+    -fx-background-color: #ffffff;
+}
+
+.code-area .text {
+    -fx-fill: #000000;
+}
+
+/* XML */
+.xml-element {
+    -fx-fill: #0000ff;
+    -fx-font-weight: bold;
+}
+
+/* JSON */
+.string {
+    -fx-fill: #008000;
+}
+
+.number {
+    -fx-fill: #0000ff;
+}
+
+.boolean {
+    -fx-fill: #0000ff;
+    -fx-font-weight: bold;
+}
+
+.brace {
+    -fx-fill: #000000;
+    -fx-font-weight: bold;
+}
+
+.colon {
+    -fx-fill: #000000;
+}
+
+.comma {
+    -fx-fill: #000000;
+}
+
+/* YAML */
+.key {
+    -fx-fill: #000080;
+    -fx-font-weight: bold;
+}
+
+.delimiter {
+    -fx-fill: #000000;
+}
+
+/* TOML */
+.section {
+    -fx-fill: #800080;
+    -fx-font-weight: bold;
+}
+
+/* Markdown */
+.header {
+    -fx-fill: #000080;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+.bold {
+    -fx-font-weight: bold;
+}
+
+.italic {
+    -fx-font-style: italic;
+}
+
+.code {
+    -fx-fill: #800000;
+    -fx-font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.link {
+    -fx-fill: #0000ff;
+    -fx-underline: true;
+}
+
+.list {
+    -fx-fill: #000080;
+}
+
+/* Jinja2 */
+.jinja {
+    -fx-fill: #800080;
+    -fx-background-color: #f0f0f0;
+}
+
+/* Comments */
+.comment {
+    -fx-fill: #808080;
+    -fx-font-style: italic;
+}
+
+/* Plain text */
+.plain {
+    -fx-fill: #000000;
+}
