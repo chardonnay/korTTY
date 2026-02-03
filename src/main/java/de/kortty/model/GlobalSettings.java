@@ -81,6 +81,10 @@ public class GlobalSettings {
     @XmlElement(name = "reason")
     private java.util.List<String> accessReasonHistory;
     
+    // SFTP Manager settings
+    @XmlElement
+    private Integer sftpAutoCloseMinutes; // Auto-close SFTP tab after N minutes (null/0 = disabled)
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -287,5 +291,21 @@ public class GlobalSettings {
         while (history.size() > 5) {
             history.remove(history.size() - 1);
         }
+    }
+    
+    /**
+     * Gets the SFTP Manager auto-close timeout in minutes.
+     * @return Timeout in minutes, or null/0 if disabled
+     */
+    public Integer getSftpAutoCloseMinutes() {
+        return sftpAutoCloseMinutes;
+    }
+    
+    /**
+     * Sets the SFTP Manager auto-close timeout in minutes.
+     * @param sftpAutoCloseMinutes Timeout in minutes, or null/0 to disable
+     */
+    public void setSftpAutoCloseMinutes(Integer sftpAutoCloseMinutes) {
+        this.sftpAutoCloseMinutes = sftpAutoCloseMinutes;
     }
 }

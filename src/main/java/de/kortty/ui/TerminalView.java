@@ -61,6 +61,7 @@ public class TerminalView extends BorderPane {
     private final ServerConnection connection;
     private final ConnectionSettings settings;
     private final String password;
+    private de.kortty.model.TemporarySSHKey temporarySSHKey;  // For split connections with temporary key
     
     private TerminalSplitPane splitPane;
     private JediTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
@@ -74,9 +75,14 @@ public class TerminalView extends BorderPane {
     private NewConnectionCallback newConnectionCallback;
     
     public TerminalView(ServerConnection connection, String password) {
+        this(connection, password, null);
+    }
+    
+    public TerminalView(ServerConnection connection, String password, de.kortty.model.TemporarySSHKey temporarySSHKey) {
         this.connection = connection;
         this.settings = connection.getSettings();
         this.password = password;
+        this.temporarySSHKey = temporarySSHKey;
         this.defaultFontSize = settings.getFontSize();
         
         initializeTerminal();
@@ -170,10 +176,28 @@ public class TerminalView extends BorderPane {
             logger.info("Creating new SSH connection for split to {}@{}:{}",
                     connection.getUsername(), connection.getHost(), connection.getPort());
             
+            // Check if using temporary SSH key and if it's still valid
+            if (temporarySSHKey != null) {
+                if (!temporarySSHKey.isValid()) {
+                    logger.error("Temporary SSH key has expired - cannot create split connection");
+                    Platform.runLater(() -> {
+                        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                            javafx.scene.control.Alert.AlertType.ERROR);
+                        alert.setTitle(I18n.get("error.title"));
+                        alert.setHeaderText(I18n.get("sftp.tempKeyExpired"));
+                        alert.setContentText(I18n.get("split.tempKeyExpiredMessage"));
+                        alert.showAndWait();
+                    });
+                    return null;
+                }
+                logger.debug("Using temporary SSH key for split (valid for {} more seconds)", 
+                    temporarySSHKey.getRemainingSeconds());
+            }
+            
             SshTtyConnector newConnector = new SshTtyConnector(connection, password);
             
-            // Set SSHKeyManager if using public key authentication
-            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+            // Set SSHKeyManager if using public key authentication (for non-temporary keys)
+            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY && temporarySSHKey == null) {
                 de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
                 if (app != null && app.getSSHKeyManager() != null) {
                     newConnector.setSSHKeyManager(
@@ -184,12 +208,40 @@ public class TerminalView extends BorderPane {
             }
             
             // Connect the new session
-            newConnector.connect();
+            boolean connected = newConnector.connect();
+            if (!connected) {
+                logger.error("Failed to connect split SSH session");
+                return null;
+            }
+            
             return newConnector;
         } catch (Exception e) {
             logger.error("Failed to create split SSH connection: {}", e.getMessage(), e);
+            Platform.runLater(() -> {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.ERROR);
+                alert.setTitle(I18n.get("error.title"));
+                alert.setHeaderText(I18n.get("split.connectionFailed"));
+                alert.setContentText(e.getMessage());
+                alert.showAndWait();
+            });
             return null;
         }
+    }
+    
+    /**
+     * Sets the temporary SSH key for this terminal view.
+     * Used for split connections that need to reuse the same temporary key.
+     */
+    public void setTemporarySSHKey(de.kortty.model.TemporarySSHKey temporarySSHKey) {
+        this.temporarySSHKey = temporarySSHKey;
+    }
+    
+    /**
+     * Gets the temporary SSH key if this terminal was connected with one.
+     */
+    public de.kortty.model.TemporarySSHKey getTemporarySSHKey() {
+        return temporarySSHKey;
     }
     
     /**

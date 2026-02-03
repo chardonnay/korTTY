@@ -1515,18 +1515,29 @@ public class MainWindow {
      */
     private void openSFTPManagerForConnection(ServerConnection connection, de.kortty.model.TemporarySSHKey temporarySSHKey) {
         try {
-            // When tab was connected with temp key: use it only if still valid
-            if (temporarySSHKey != null && !temporarySSHKey.isValid()) {
-                showError(I18n.get("error.title"), I18n.get("sftp.tempKeyExpired"));
-                return;
+            de.kortty.model.TemporarySSHKey keyToUse = temporarySSHKey;
+            
+            // Check if this connection was originally connected with a temporary SSH key
+            boolean wasConnectedWithTempKey = (temporarySSHKey != null) || 
+                (connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty());
+            
+            // When tab was connected with temp key: check if still valid, otherwise ask for new key
+            if (wasConnectedWithTempKey) {
+                if (keyToUse == null || !keyToUse.isValid()) {
+                    // Ask for new temporary SSH key
+                    keyToUse = requestNewTemporarySSHKey(connection);
+                    if (keyToUse == null) {
+                        return; // User cancelled
+                    }
+                }
             }
             
             // When using valid temporary SSH key, no password needed - skip password dialog
             String password = null;
-            if (temporarySSHKey == null) {
+            if (keyToUse == null) {
                 password = getConnectionPassword(connection);
             }
-            if (password == null && temporarySSHKey == null) {
+            if (password == null && keyToUse == null) {
                 // Ask for password using a simple dialog (only when NOT using temp key)
                 Dialog<String> pwdDialog = new Dialog<>();
                 pwdDialog.setTitle(I18n.get("dialog.passwordRequired"));
@@ -1556,13 +1567,128 @@ public class MainWindow {
             }
             
             // Use empty password when temp key auth - SFTPSession uses key, not password
-            String passwordToUse = (temporarySSHKey != null && temporarySSHKey.isValid()) ? "" : (password != null ? password : "");
-            SFTPManagerDialog sftpDialog = new SFTPManagerDialog(stage, app, connection, passwordToUse, temporarySSHKey);
-            sftpDialog.showAndWait();
+            String passwordToUse = (keyToUse != null && keyToUse.isValid()) ? "" : (password != null ? password : "");
+            
+            // Open SFTP Manager as a TAB instead of a dialog
+            openSFTPManagerTab(connection, passwordToUse, keyToUse);
         } catch (Exception e) {
             logger.error("Failed to open SFTP manager", e);
             showError(I18n.get("error.title"), I18n.get("error.sftpManagerFailed", e.getMessage()));
         }
+    }
+    
+    /**
+     * Requests a new temporary SSH key from the user.
+     * Shows a dialog where the user can enter a new valid temporary SSH key.
+     * @param connection The connection that requires a temporary SSH key
+     * @return The new temporary SSH key, or null if cancelled
+     */
+    private de.kortty.model.TemporarySSHKey requestNewTemporarySSHKey(ServerConnection connection) {
+        Dialog<de.kortty.model.TemporarySSHKey> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("sftp.tempKeyRequired"));
+        dialog.setHeaderText(I18n.get("sftp.tempKeyRequiredMessage"));
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        dialog.setResizable(true);
+        
+        // Create content
+        VBox content = new VBox(10);
+        content.setPadding(new javafx.geometry.Insets(20));
+        content.setPrefWidth(500);
+        
+        Label infoLabel = new Label(I18n.get("sftp.enterNewTempKey"));
+        
+        TextArea keyArea = new TextArea();
+        keyArea.setPromptText("-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----");
+        keyArea.setPrefRowCount(8);
+        keyArea.setWrapText(true);
+        
+        // Expiration spinner
+        HBox expirationBox = new HBox(10);
+        expirationBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        Label expirationLabel = new Label(I18n.get("quickConnect.expirationMinutes"));
+        Spinner<Integer> expirationSpinner = new Spinner<>(1, 1440, 60);
+        expirationSpinner.setEditable(true);
+        expirationSpinner.setPrefWidth(100);
+        expirationBox.getChildren().addAll(expirationLabel, expirationSpinner);
+        
+        content.getChildren().addAll(infoLabel, keyArea, expirationBox);
+        dialog.getDialogPane().setContent(content);
+        
+        // Disable OK button until key is entered
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setDisable(true);
+        keyArea.textProperty().addListener((obs, old, newVal) -> {
+            okButton.setDisable(newVal == null || newVal.trim().isEmpty());
+        });
+        
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == ButtonType.OK) {
+                String keyContent = keyArea.getText().trim();
+                if (!keyContent.isEmpty()) {
+                    long expirationMinutes = expirationSpinner.getValue();
+                    de.kortty.model.TemporarySSHKey newKey = de.kortty.core.TemporarySSHKeyManager.getInstance()
+                        .storeTemporaryKey(keyContent, expirationMinutes);
+                    
+                    // Update connection with new temporary key
+                    connection.setTemporaryKeyContent(keyContent);
+                    connection.setTemporaryKeyExpirationMinutes(expirationMinutes);
+                    connection.setPrivateKeyPath("TEMPORARY:" + keyContent);
+                    
+                    return newKey;
+                }
+            }
+            return null;
+        });
+        
+        return dialog.showAndWait().orElse(null);
+    }
+    
+    /**
+     * Opens the SFTP Manager in a new tab.
+     * @param connection The connection to use
+     * @param password The password (or empty for temp key auth)
+     * @param temporarySSHKey Optional temporary SSH key
+     */
+    private void openSFTPManagerTab(ServerConnection connection, String password, de.kortty.model.TemporarySSHKey temporarySSHKey) {
+        // Check if SFTP tab for this connection already exists
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof SFTPManagerTab sftpTab) {
+                if (sftpTab.getConnection().getId() != null && 
+                    sftpTab.getConnection().getId().equals(connection.getId())) {
+                    // Tab already exists - select it
+                    tabPane.getSelectionModel().select(tab);
+                    return;
+                }
+            }
+        }
+        
+        // Get auto-close timeout from global settings (0 = disabled)
+        int autoCloseMinutes = 0;
+        try {
+            var globalSettings = app.getGlobalSettingsManager().getSettings();
+            if (globalSettings != null && globalSettings.getSftpAutoCloseMinutes() != null) {
+                autoCloseMinutes = globalSettings.getSftpAutoCloseMinutes();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not get SFTP timeout setting: {}", e.getMessage());
+        }
+        
+        // Create new SFTP tab
+        SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, temporarySSHKey, autoCloseMinutes);
+        
+        // Insert before the "+" tab (if exists)
+        int insertIndex = tabPane.getTabs().size();
+        for (int i = 0; i < tabPane.getTabs().size(); i++) {
+            if ("+".equals(tabPane.getTabs().get(i).getText())) {
+                insertIndex = i;
+                break;
+            }
+        }
+        
+        tabPane.getTabs().add(insertIndex, sftpTab);
+        tabPane.getSelectionModel().select(sftpTab);
+        
+        logger.info("Opened SFTP Manager tab for: {}", connection.getDisplayName());
     }
 
     
