@@ -14,6 +14,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.InlineCssTextArea;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
@@ -41,7 +42,7 @@ public class FileEditorTab extends Tab {
     
     private static final Logger logger = LoggerFactory.getLogger(FileEditorTab.class);
     
-    private final CodeArea codeArea;
+    private final InlineCssTextArea codeArea;
     private final Label statusLabel;
     private final SFTPSession sftpSession;
     private final String remotePath;
@@ -65,6 +66,49 @@ public class FileEditorTab extends Tab {
     private static final int DEFAULT_FONT_SIZE = 14;
     private int currentFontSize = DEFAULT_FONT_SIZE;
     private Label fontSizeLabel;
+    private String editorFontFamily = "Monospaced";
+    private String editorForegroundColor = "#000000";
+    private String editorBackgroundColor = "#FFFFFF";
+    private String editorCursorStyle = "BLOCK"; // BLOCK, LINE, UNDERSCORE
+    
+    // Large file handling
+    private static final long LARGE_FILE_THRESHOLD_BYTES = 5L * 1024 * 1024; // 5 MB
+    private static final int CHUNK_SIZE_BYTES = 512 * 1024; // 512 KB
+    private static final long HIGHLIGHT_LIMIT_BYTES = 2L * 1024 * 1024; // Highlight up to 2 MB in large mode
+    private boolean largeFileMode = false;
+    private Path largeFilePath;
+    private long fileSizeBytes = 0;
+    private long loadedBytes = 0;
+    private Button loadMoreButton;
+    
+    private void loadEditorSettings() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings gs = gsm.getSettings();
+            if (gs != null) {
+                // Prefer terminal default settings if present
+                de.kortty.model.ConnectionSettings term = gs.getDefaultTerminalSettings();
+                if (term != null) {
+                    if (term.getFontFamily() != null) {
+                        editorFontFamily = term.getFontFamily();
+                    }
+                    if (term.getForegroundColor() != null) {
+                        editorForegroundColor = term.getForegroundColor();
+                    }
+                    if (term.getBackgroundColor() != null) {
+                        editorBackgroundColor = term.getBackgroundColor();
+                    }
+                    currentFontSize = term.getFontSize() > 0 ? term.getFontSize() : DEFAULT_FONT_SIZE;
+                }
+                // Load cursor style from global settings
+                if (gs.getEditorCursorStyle() != null) {
+                    editorCursorStyle = gs.getEditorCursorStyle();
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not load editor settings, using defaults", e);
+        }
+    }
     
     public enum FileType {
         PLAIN_TEXT,
@@ -91,17 +135,13 @@ public class FileEditorTab extends Tab {
         setText(filename + " (Remote)");
         setClosable(true);
         
-        // Create code area
-        codeArea = new CodeArea();
+        // Create code area (InlineCssTextArea for reliable syntax highlighting)
+        codeArea = new InlineCssTextArea();
+        codeArea.getStyleClass().add("code-area");
         codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
         // Font size will be applied after UI setup
         
-        // Load syntax highlighting CSS
-        try {
-            codeArea.getStylesheets().add(getClass().getResource("/styles/editor.css").toExternalForm());
-        } catch (Exception e) {
-            logger.warn("Failed to load editor CSS", e);
-        }
+        loadEditorSettings();
         
         // Load content
         String text = new String(content, StandardCharsets.UTF_8);
@@ -138,8 +178,8 @@ public class FileEditorTab extends Tab {
         // Keyboard shortcuts
         setupKeyboardShortcuts();
         
-        // Apply initial font size
-        applyFontSize();
+        // Apply initial font size and colors
+        applyFontAndColors();
         
         logger.info("Opened remote file for editing: {}", remotePath);
     }
@@ -157,17 +197,13 @@ public class FileEditorTab extends Tab {
         setText(localPath.getFileName().toString());
         setClosable(true);
         
-        // Create code area
-        codeArea = new CodeArea();
+        // Create code area (InlineCssTextArea for reliable syntax highlighting)
+        codeArea = new InlineCssTextArea();
+        codeArea.getStyleClass().add("code-area");
         codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
         // Font size will be applied after UI setup
         
-        // Load syntax highlighting CSS
-        try {
-            codeArea.getStylesheets().add(getClass().getResource("/styles/editor.css").toExternalForm());
-        } catch (Exception e) {
-            logger.warn("Failed to load editor CSS", e);
-        }
+        loadEditorSettings();
         
         // Load content
         String text = Files.readString(localPath, StandardCharsets.UTF_8);
@@ -204,8 +240,8 @@ public class FileEditorTab extends Tab {
         // Keyboard shortcuts
         setupKeyboardShortcuts();
         
-        // Apply initial font size
-        applyFontSize();
+        // Apply initial font size and colors
+        applyFontAndColors();
         
         logger.info("Opened local file for editing: {}", localPath);
     }
@@ -374,28 +410,130 @@ public class FileEditorTab extends Tab {
     private void increaseFontSize() {
         if (currentFontSize < MAX_FONT_SIZE) {
             currentFontSize += 2;
-            applyFontSize();
+            applyFontAndColors();
         }
     }
     
     private void decreaseFontSize() {
         if (currentFontSize > MIN_FONT_SIZE) {
             currentFontSize -= 2;
-            applyFontSize();
+            applyFontAndColors();
         }
     }
     
     private void resetFontSize() {
         currentFontSize = DEFAULT_FONT_SIZE;
-        applyFontSize();
+        applyFontAndColors();
     }
     
-    private void applyFontSize() {
-        codeArea.setStyle("-fx-font-size: " + currentFontSize + "pt; -fx-font-family: 'Consolas', 'Monaco', 'Courier New', monospace;");
+    private void applyFontAndColors() {
+        // Set font size and family via inline style (does not affect syntax highlighting colors)
+        String style = "-fx-font-size: " + currentFontSize + "pt;"
+                + " -fx-font-family: '" + editorFontFamily + "', 'Consolas', 'Monaco', 'Courier New', monospace;";
+        codeArea.setStyle(style);
+        
+        // Apply dynamic CSS for background and base text color
+        applyDynamicStylesheet();
+        
+        // Apply cursor style
+        applyCursorStyle();
+        
         if (fontSizeLabel != null) {
             fontSizeLabel.setText(currentFontSize + "pt");
         }
         statusLabel.setText(I18n.get("editor.status.fontSize", currentFontSize));
+    }
+    
+    private void applyDynamicStylesheet() {
+        // Remove any previously added dynamic stylesheet
+        codeArea.getStylesheets().removeIf(s -> s.startsWith("data:"));
+        
+        // Create dynamic CSS for background and caret color
+        // Text colors are handled by InlineCssTextArea's inline styles per segment
+        String dynamicCss = String.format(
+            ".code-area { -fx-background-color: %s; }" +
+            ".code-area .content { -fx-background-color: %s; }" +
+            ".code-area .paragraph-box { -fx-background-color: %s; }" +
+            ".code-area .paragraph-box:focused { -fx-background-color: %s; }" +
+            ".code-area .caret { -fx-stroke: %s; }",
+            editorBackgroundColor, editorBackgroundColor, 
+            editorBackgroundColor, editorBackgroundColor,
+            editorForegroundColor
+        );
+        
+        // Add dynamic stylesheet via data URI
+        String dataUri = "data:text/css;charset=utf-8," + java.net.URLEncoder.encode(dynamicCss, StandardCharsets.UTF_8);
+        codeArea.getStylesheets().add(dataUri);
+    }
+    
+    private void applyCursorStyle() {
+        // RichTextFX doesn't have built-in cursor shape support like terminals
+        // We can style the caret width to simulate different cursor styles
+        String caretStyle;
+        switch (editorCursorStyle.toUpperCase()) {
+            case "LINE":
+                caretStyle = "-fx-stroke-width: 1;";
+                break;
+            case "UNDERSCORE":
+                caretStyle = "-fx-stroke-width: 2;";
+                break;
+            case "BLOCK":
+            default:
+                caretStyle = "-fx-stroke-width: 2;";
+                break;
+        }
+        // Note: Full block cursor would require custom rendering
+    }
+    
+    /**
+     * Loads the next chunk of a large file and appends it to the editor.
+     */
+    private void loadNextChunk() {
+        if (!largeFileMode || largeFilePath == null) {
+            return;
+        }
+        long remaining = fileSizeBytes - loadedBytes;
+        if (remaining <= 0) {
+            if (loadMoreButton != null) {
+                loadMoreButton.setDisable(true);
+                loadMoreButton.setText(I18n.get("editor.status.ready"));
+            }
+            return;
+        }
+        int toRead = (int) Math.min(CHUNK_SIZE_BYTES, remaining);
+        try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(largeFilePath.toFile(), "r")) {
+            raf.seek(loadedBytes);
+            byte[] buffer = new byte[toRead];
+            int read = raf.read(buffer);
+            if (read > 0) {
+                String chunk = new String(buffer, 0, read, StandardCharsets.UTF_8);
+                codeArea.appendText(chunk);
+                loadedBytes += read;
+                if (loadedBytes <= HIGHLIGHT_LIMIT_BYTES) {
+                    codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+                }
+                updateLargeFileStatus();
+            }
+        } catch (Exception ex) {
+            logger.error("Failed to load next chunk", ex);
+            showError("Load error", ex.getMessage());
+        }
+    }
+    
+    private void updateLargeFileStatus() {
+        double percent = fileSizeBytes == 0 ? 0 : (loadedBytes * 100.0 / fileSizeBytes);
+        statusLabel.setText(String.format("Large file mode (read-only) - Loaded %.1f%% (%s / %s)", 
+                percent, humanReadableBytes(loadedBytes), humanReadableBytes(fileSizeBytes)));
+        if (loadMoreButton != null) {
+            loadMoreButton.setDisable(loadedBytes >= fileSizeBytes);
+        }
+    }
+    
+    private String humanReadableBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String pre = "KMGTPE".charAt(exp - 1) + "";
+        return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
     }
     
     private ContextMenu createContextMenu() {
@@ -782,7 +920,30 @@ public class FileEditorTab extends Tab {
         return FileType.PLAIN_TEXT;
     }
     
-    private StyleSpans<Collection<String>> computeHighlighting(String text) {
+    // Syntax highlighting colors (inline CSS)
+    private static final String STYLE_XML_ELEMENT = "-fx-fill: #0000cc; -fx-font-weight: bold;";
+    private static final String STYLE_STRING = "-fx-fill: #008800;";
+    private static final String STYLE_NUMBER = "-fx-fill: #0066cc;";
+    private static final String STYLE_BOOLEAN = "-fx-fill: #cc00cc; -fx-font-weight: bold;";
+    private static final String STYLE_BRACE = "-fx-fill: #cc6600; -fx-font-weight: bold;";
+    private static final String STYLE_PUNCTUATION = "-fx-fill: #666666;";
+    private static final String STYLE_KEY = "-fx-fill: #cc0000; -fx-font-weight: bold;";
+    private static final String STYLE_SECTION = "-fx-fill: #9900cc; -fx-font-weight: bold;";
+    private static final String STYLE_HEADER = "-fx-fill: #0066cc; -fx-font-weight: bold;";
+    private static final String STYLE_BOLD = "-fx-font-weight: bold;";
+    private static final String STYLE_ITALIC = "-fx-font-style: italic;";
+    private static final String STYLE_CODE = "-fx-fill: #cc0066;";
+    private static final String STYLE_LINK = "-fx-fill: #0066cc; -fx-underline: true;";
+    private static final String STYLE_LIST = "-fx-fill: #cc6600;";
+    private static final String STYLE_JINJA = "-fx-fill: #9900cc;";
+    private static final String STYLE_COMMENT = "-fx-fill: #888888; -fx-font-style: italic;";
+    
+    // Computed at runtime from settings
+    private String getPlainTextStyle() {
+        return "-fx-fill: " + editorForegroundColor + ";";
+    }
+    
+    private StyleSpans<String> computeHighlighting(String text) {
         return switch (fileType) {
             case XML -> computeXmlHighlighting(text);
             case JSON -> computeJsonHighlighting(text);
@@ -795,29 +956,29 @@ public class FileEditorTab extends Tab {
         };
     }
     
-    private StyleSpans<Collection<String>> computeXmlHighlighting(String text) {
+    private StyleSpans<String> computeXmlHighlighting(String text) {
         Pattern XML_TAG = Pattern.compile("(?<ELEMENT>(</?\\h*)(\\w+)([^<>]*)(\\h*/?>))" +
             "|(?<COMMENT><!--[^<>]+-->)");
         
         Matcher matcher = XML_TAG.matcher(text);
         int lastKwEnd = 0;
-        StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
+        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
         
         while (matcher.find()) {
-            spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
+            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
             if (matcher.group("ELEMENT") != null) {
-                spansBuilder.add(Collections.singleton("xml-element"), matcher.end() - matcher.start());
+                spansBuilder.add(STYLE_XML_ELEMENT, matcher.end() - matcher.start());
             } else if (matcher.group("COMMENT") != null) {
-                spansBuilder.add(Collections.singleton("comment"), matcher.end() - matcher.start());
+                spansBuilder.add(STYLE_COMMENT, matcher.end() - matcher.start());
             }
             lastKwEnd = matcher.end();
         }
-        spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
+        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
         
         return spansBuilder.create();
     }
     
-    private StyleSpans<Collection<String>> computeJsonHighlighting(String text) {
+    private StyleSpans<String> computeJsonHighlighting(String text) {
         Pattern JSON_PATTERN = Pattern.compile(
             "(?<STRING>\"([^\"\\\\]|\\\\.)*\")" +
             "|(?<NUMBER>-?\\d+\\.?\\d*)" +
@@ -830,7 +991,7 @@ public class FileEditorTab extends Tab {
         return applyPattern(text, JSON_PATTERN);
     }
     
-    private StyleSpans<Collection<String>> computeYamlHighlighting(String text) {
+    private StyleSpans<String> computeYamlHighlighting(String text) {
         Pattern YAML_PATTERN = Pattern.compile(
             "(?<COMMENT>#.*)" +
             "|(?<KEY>^\\s*[\\w-]+(?=:))" +
@@ -843,7 +1004,7 @@ public class FileEditorTab extends Tab {
         return applyPattern(text, YAML_PATTERN);
     }
     
-    private StyleSpans<Collection<String>> computeTomlHighlighting(String text) {
+    private StyleSpans<String> computeTomlHighlighting(String text) {
         Pattern TOML_PATTERN = Pattern.compile(
             "(?<COMMENT>#.*)" +
             "|(?<SECTION>\\[[^\\]]+\\])" +
@@ -856,7 +1017,7 @@ public class FileEditorTab extends Tab {
         return applyPattern(text, TOML_PATTERN);
     }
     
-    private StyleSpans<Collection<String>> computeMarkdownHighlighting(String text) {
+    private StyleSpans<String> computeMarkdownHighlighting(String text) {
         Pattern MD_PATTERN = Pattern.compile(
             "(?<HEADER>^#+.*$)" +
             "|(?<BOLD>\\*\\*[^*]+\\*\\*|__[^_]+__)" +
@@ -869,7 +1030,7 @@ public class FileEditorTab extends Tab {
         return applyPattern(text, MD_PATTERN);
     }
     
-    private StyleSpans<Collection<String>> computeIniHighlighting(String text) {
+    private StyleSpans<String> computeIniHighlighting(String text) {
         Pattern INI_PATTERN = Pattern.compile(
             "(?<COMMENT>[;#].*)" +
             "|(?<SECTION>\\[[^\\]]+\\])" +
@@ -880,7 +1041,7 @@ public class FileEditorTab extends Tab {
         return applyPattern(text, INI_PATTERN);
     }
     
-    private StyleSpans<Collection<String>> computeJinja2Highlighting(String text) {
+    private StyleSpans<String> computeJinja2Highlighting(String text) {
         Pattern JINJA_PATTERN = Pattern.compile(
             "(?<JINJA>\\{\\{[^}]+\\}\\}|\\{%[^%]+%\\})" +
             "|(?<COMMENT>\\{#[^#]+#\\})" +
@@ -890,42 +1051,42 @@ public class FileEditorTab extends Tab {
         return applyPattern(text, JINJA_PATTERN);
     }
     
-    private StyleSpans<Collection<String>> computePlainTextHighlighting(String text) {
-        return StyleSpans.singleton(Collections.emptyList(), text.length());
+    private StyleSpans<String> computePlainTextHighlighting(String text) {
+        return StyleSpans.singleton(getPlainTextStyle(), text.length());
     }
     
-    private StyleSpans<Collection<String>> applyPattern(String text, Pattern pattern) {
+    private StyleSpans<String> applyPattern(String text, Pattern pattern) {
         Matcher matcher = pattern.matcher(text);
         int lastKwEnd = 0;
-        StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
+        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
         
         while (matcher.find()) {
-            String styleClass = null;
+            String inlineStyle = getPlainTextStyle();
             
-            // Check each group safely
-            try { if (matcher.group("COMMENT") != null) styleClass = "comment"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("STRING") != null) styleClass = "string"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("NUMBER") != null) styleClass = "number"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("BOOLEAN") != null) styleClass = "boolean"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("KEY") != null) styleClass = "key"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("SECTION") != null) styleClass = "section"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("HEADER") != null) styleClass = "header"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("BOLD") != null) styleClass = "bold"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("ITALIC") != null) styleClass = "italic"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("CODE") != null) styleClass = "code"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("LINK") != null) styleClass = "link"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("LIST") != null) styleClass = "list"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("JINJA") != null) styleClass = "jinja"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("BRACE") != null) styleClass = "brace"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("COLON") != null) styleClass = "colon"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("COMMA") != null) styleClass = "comma"; } catch (IllegalArgumentException e) {}
-            try { if (styleClass == null && matcher.group("DELIMITER") != null) styleClass = "delimiter"; } catch (IllegalArgumentException e) {}
+            // Check each group safely and map to inline CSS
+            try { if (matcher.group("COMMENT") != null) inlineStyle = STYLE_COMMENT; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("STRING") != null) inlineStyle = STYLE_STRING; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("NUMBER") != null) inlineStyle = STYLE_NUMBER; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BOOLEAN") != null) inlineStyle = STYLE_BOOLEAN; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("KEY") != null) inlineStyle = STYLE_KEY; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("SECTION") != null) inlineStyle = STYLE_SECTION; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("HEADER") != null) inlineStyle = STYLE_HEADER; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BOLD") != null) inlineStyle = STYLE_BOLD; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("ITALIC") != null) inlineStyle = STYLE_ITALIC; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("CODE") != null) inlineStyle = STYLE_CODE; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("LINK") != null) inlineStyle = STYLE_LINK; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("LIST") != null) inlineStyle = STYLE_LIST; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("JINJA") != null) inlineStyle = STYLE_JINJA; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BRACE") != null) inlineStyle = STYLE_BRACE; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("COLON") != null) inlineStyle = STYLE_PUNCTUATION; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("COMMA") != null) inlineStyle = STYLE_PUNCTUATION; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("DELIMITER") != null) inlineStyle = STYLE_PUNCTUATION; } catch (IllegalArgumentException e) {}
             
-            spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
-            spansBuilder.add(Collections.singleton(styleClass != null ? styleClass : "plain"), matcher.end() - matcher.start());
+            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
+            spansBuilder.add(inlineStyle, matcher.end() - matcher.start());
             lastKwEnd = matcher.end();
         }
-        spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
+        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
         
         return spansBuilder.create();
     }

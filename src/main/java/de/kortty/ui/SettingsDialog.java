@@ -93,6 +93,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final TextField sftpDefaultZipPathField;
     private final Spinner<Integer> sftpDefaultZipCompressionSpinner;
     
+    // Editor settings
+    private final ComboBox<String> editorCursorStyleCombo;
+    
     public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
                           GlobalSettings globalSettings, CredentialManager credentialManager, 
                           GPGKeyManager gpgKeyManager) {
@@ -696,7 +699,48 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         sftpTab.setContent(sftpGrid);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, languageTab);
+        // Editor tab
+        Tab editorTab = new Tab(I18n.get("settings.tab.editor"));
+        GridPane editorGrid = new GridPane();
+        editorGrid.setHgap(10);
+        editorGrid.setVgap(10);
+        editorGrid.setPadding(new Insets(20));
+        
+        int editorRow = 0;
+        
+        // Editor settings title
+        Label editorTitle = new Label(I18n.get("settings.editor.title"));
+        editorTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        editorGrid.add(editorTitle, 0, editorRow++, 2, 1);
+        
+        // Info about editor using terminal settings
+        Label editorInfo = new Label(I18n.get("settings.editor.info"));
+        editorInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        editorInfo.setWrapText(true);
+        editorInfo.setMaxWidth(400);
+        editorGrid.add(editorInfo, 0, editorRow++, 2, 1);
+        
+        // Cursor style
+        Label cursorStyleLabel = new Label(I18n.get("settings.editor.cursorStyle"));
+        editorCursorStyleCombo = new ComboBox<>();
+        editorCursorStyleCombo.getItems().addAll("BLOCK", "LINE", "UNDERSCORE");
+        editorCursorStyleCombo.setValue(globalSettings.getEditorCursorStyle());
+        editorCursorStyleCombo.setPrefWidth(150);
+        
+        HBox cursorBox = new HBox(10);
+        cursorBox.getChildren().addAll(cursorStyleLabel, editorCursorStyleCombo);
+        editorGrid.add(cursorBox, 0, editorRow++, 2, 1);
+        
+        // Cursor style info
+        Label cursorInfo = new Label(I18n.get("settings.editor.cursorInfo"));
+        cursorInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        cursorInfo.setWrapText(true);
+        cursorInfo.setMaxWidth(400);
+        editorGrid.add(cursorInfo, 0, editorRow++, 2, 1);
+        
+        editorTab.setContent(editorGrid);
+        
+        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, languageTab);
         
         VBox content = new VBox(tabPane);
         content.setPrefSize(500, 400);
@@ -833,6 +877,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             String zipPath = sftpDefaultZipPathField.getText().trim();
             globalSettings.setSftpDefaultZipPath(zipPath.isEmpty() ? "/tmp" : zipPath);
             globalSettings.setSftpDefaultZipCompression(sftpDefaultZipCompressionSpinner.getValue());
+            
+            // Save Editor settings
+            globalSettings.setEditorCursorStyle(editorCursorStyleCombo.getValue());
         }
     }
     

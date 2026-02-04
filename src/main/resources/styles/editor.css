@@ -1,74 +1,86 @@
 /* RichTextFX Code Editor Syntax Highlighting */
+/* Note: In RichTextFX, style classes from StyleSpans are applied directly to text segments */
 
 .code-area {
     -fx-font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
     -fx-font-size: 12px;
+    -fx-background-color: #ffffff;
+}
+
+.code-area .content {
+    -fx-background-color: #ffffff;
 }
 
 .code-area .paragraph-box {
     -fx-background-color: #ffffff;
 }
 
-.code-area .text {
-    -fx-fill: #000000;
+/* Line numbers */
+.lineno {
+    -fx-fill: #999999;
+    -fx-font-size: 10px;
 }
 
-/* XML */
+/* XML Elements - blue bold */
 .xml-element {
-    -fx-fill: #0000ff;
+    -fx-fill: #0000cc;
     -fx-font-weight: bold;
 }
 
-/* JSON */
+/* Strings - green */
 .string {
-    -fx-fill: #008000;
+    -fx-fill: #008800;
 }
 
+/* Numbers - blue */
 .number {
-    -fx-fill: #0000ff;
+    -fx-fill: #0066cc;
 }
 
+/* Boolean values - purple bold */
 .boolean {
-    -fx-fill: #0000ff;
+    -fx-fill: #cc00cc;
     -fx-font-weight: bold;
 }
 
+/* Braces/Brackets - orange bold */
 .brace {
-    -fx-fill: #000000;
+    -fx-fill: #cc6600;
     -fx-font-weight: bold;
 }
 
+/* Punctuation */
 .colon {
-    -fx-fill: #000000;
+    -fx-fill: #666666;
 }
 
 .comma {
-    -fx-fill: #000000;
+    -fx-fill: #666666;
 }
 
-/* YAML */
+/* YAML/TOML Keys - red bold */
 .key {
-    -fx-fill: #000080;
+    -fx-fill: #cc0000;
     -fx-font-weight: bold;
 }
 
 .delimiter {
-    -fx-fill: #000000;
+    -fx-fill: #666666;
 }
 
-/* TOML */
+/* TOML & INI Sections - purple bold */
 .section {
-    -fx-fill: #800080;
+    -fx-fill: #9900cc;
     -fx-font-weight: bold;
 }
 
-/* Markdown */
+/* Markdown Headers - blue bold */
 .header {
-    -fx-fill: #000080;
+    -fx-fill: #0066cc;
     -fx-font-weight: bold;
-    -fx-font-size: 14px;
 }
 
+/* Text formatting */
 .bold {
     -fx-font-weight: bold;
 }
@@ -77,33 +89,35 @@
     -fx-font-style: italic;
 }
 
+/* Inline code - magenta */
 .code {
-    -fx-fill: #800000;
+    -fx-fill: #cc0066;
     -fx-font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
 }
 
+/* Links - blue underlined */
 .link {
-    -fx-fill: #0000ff;
+    -fx-fill: #0066cc;
     -fx-underline: true;
 }
 
+/* List markers - orange */
 .list {
-    -fx-fill: #000080;
+    -fx-fill: #cc6600;
 }
 
-/* Jinja2 */
+/* Jinja2 template syntax - purple */
 .jinja {
-    -fx-fill: #800080;
-    -fx-background-color: #f0f0f0;
+    -fx-fill: #9900cc;
 }
 
-/* Comments */
+/* Comments - gray italic */
 .comment {
-    -fx-fill: #808080;
+    -fx-fill: #888888;
     -fx-font-style: italic;
 }
 
-/* Plain text */
+/* Plain text (default foreground) */
 .plain {
     -fx-fill: #000000;
 }

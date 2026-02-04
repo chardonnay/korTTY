@@ -91,6 +91,16 @@ public class GlobalSettings {
     @XmlElement
     private Integer sftpDefaultZipCompression = 6; // Default compression level (0-9)
     
+    // Editor defaults (FileEditor)
+    @XmlElement
+    private String editorForegroundColor = "#000000"; // black text
+    
+    @XmlElement
+    private String editorBackgroundColor = "#FFFFFF"; // white background
+    
+    @XmlElement
+    private String editorCursorStyle = "BLOCK"; // BLOCK, LINE, UNDERSCORE
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -345,5 +355,53 @@ public class GlobalSettings {
      */
     public void setSftpDefaultZipCompression(Integer sftpDefaultZipCompression) {
         this.sftpDefaultZipCompression = sftpDefaultZipCompression;
+    }
+    
+    /**
+     * Gets the default foreground color for the embedded editor.
+     * @return Hex color string (default: #000000)
+     */
+    public String getEditorForegroundColor() {
+        return editorForegroundColor != null ? editorForegroundColor : "#000000";
+    }
+    
+    /**
+     * Sets the default foreground color for the embedded editor.
+     * @param editorForegroundColor Hex color string
+     */
+    public void setEditorForegroundColor(String editorForegroundColor) {
+        this.editorForegroundColor = editorForegroundColor;
+    }
+    
+    /**
+     * Gets the default background color for the embedded editor.
+     * @return Hex color string (default: #FFFFFF)
+     */
+    public String getEditorBackgroundColor() {
+        return editorBackgroundColor != null ? editorBackgroundColor : "#FFFFFF";
+    }
+    
+    /**
+     * Sets the default background color for the embedded editor.
+     * @param editorBackgroundColor Hex color string
+     */
+    public void setEditorBackgroundColor(String editorBackgroundColor) {
+        this.editorBackgroundColor = editorBackgroundColor;
+    }
+    
+    /**
+     * Gets the cursor style for the embedded editor.
+     * @return Cursor style (BLOCK, LINE, UNDERSCORE)
+     */
+    public String getEditorCursorStyle() {
+        return editorCursorStyle != null ? editorCursorStyle : "BLOCK";
+    }
+    
+    /**
+     * Sets the cursor style for the embedded editor.
+     * @param editorCursorStyle Cursor style (BLOCK, LINE, UNDERSCORE)
+     */
+    public void setEditorCursorStyle(String editorCursorStyle) {
+        this.editorCursorStyle = editorCursorStyle;
     }
 }
