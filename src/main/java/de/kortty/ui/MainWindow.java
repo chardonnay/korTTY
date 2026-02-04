@@ -101,19 +101,21 @@ public class MainWindow {
         newTabButton.setClosable(false);
         tabPane.getTabs().add(newTabButton);
         
-        // Handle clicks on the + tab - show QuickConnect dialog
-        // Only trigger when user actually clicks (not programmatic selection)
+        // Handle clicks on the + tab - do NOT auto-open QuickConnect anymore
+        // User can open QuickConnect via menu/toolbar explicitly
         newTabButton.setOnSelectionChanged(e -> {
-            if (newTabButton.isSelected() && startupComplete && !quickConnectDialogOpen && !suppressQuickConnect) {
+            if (newTabButton.isSelected()) {
+                // Immediately switch back to previous tab if available
                 Platform.runLater(() -> {
                     int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
                     if (plusTabIndex > 0) {
                         tabPane.getSelectionModel().select(plusTabIndex - 1);
+                    } else {
+                        tabPane.getSelectionModel().clearSelection();
                     }
-                    showQuickConnect();
                 });
             }
-            // Reset flag after handling
+            // Reset suppression flag
             suppressQuickConnect = false;
         });
         
