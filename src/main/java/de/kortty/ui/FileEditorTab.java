@@ -441,6 +441,9 @@ public class FileEditorTab extends Tab {
         );
         codeArea.setStyle(style);
         
+        // Apply caret (cursor) color via stylesheet
+        applyCaretStyle();
+        
         // Re-apply syntax highlighting with current foreground color
         if (!largeFileMode || loadedBytes <= HIGHLIGHT_LIMIT_BYTES) {
             try {
@@ -454,6 +457,21 @@ public class FileEditorTab extends Tab {
             fontSizeLabel.setText(currentFontSize + "pt");
         }
         statusLabel.setText(I18n.get("editor.status.fontSize", currentFontSize));
+    }
+    
+    private void applyCaretStyle() {
+        // Remove any previously added caret stylesheet
+        codeArea.getStylesheets().removeIf(s -> s.startsWith("data:"));
+        
+        // Create CSS for caret color - use foreground color for visibility
+        String caretCss = String.format(
+            ".caret { -fx-stroke: %s; -fx-stroke-width: 2; }",
+            editorForegroundColor
+        );
+        
+        // Add stylesheet via data URI
+        String dataUri = "data:text/css;charset=utf-8," + java.net.URLEncoder.encode(caretCss, StandardCharsets.UTF_8);
+        codeArea.getStylesheets().add(dataUri);
     }
     
     

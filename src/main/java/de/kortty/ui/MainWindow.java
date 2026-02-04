@@ -101,24 +101,19 @@ public class MainWindow {
         newTabButton.setClosable(false);
         tabPane.getTabs().add(newTabButton);
         
-        // Handle clicks on the + tab - show QuickConnect dialog
-        // Only trigger when user actually clicks (not programmatic selection)
+        // When + tab is selected, just go back to previous tab
+        // QuickConnect is available via menu (Connection -> Quick Connect) or Ctrl+N
         newTabButton.setOnSelectionChanged(e -> {
-            // Check if we should suppress - either by flag or if a tab was recently closed
-            boolean recentlyClosedTab = (System.currentTimeMillis() - lastTabCloseTime) < 500;
-            
-            if (newTabButton.isSelected() && startupComplete && !quickConnectDialogOpen 
-                    && !suppressQuickConnect && !recentlyClosedTab) {
+            if (newTabButton.isSelected()) {
                 Platform.runLater(() -> {
                     int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
                     if (plusTabIndex > 0) {
                         tabPane.getSelectionModel().select(plusTabIndex - 1);
+                    } else {
+                        tabPane.getSelectionModel().clearSelection();
                     }
-                    showQuickConnect();
                 });
             }
-            // Reset flag after handling
-            suppressQuickConnect = false;
         });
         
         // Auto-focus terminal when tab is selected
