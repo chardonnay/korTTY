@@ -66,6 +66,16 @@ public class FileEditorTab extends Tab {
     private int currentFontSize = DEFAULT_FONT_SIZE;
     private Label fontSizeLabel;
     
+    // Large file handling
+    private static final long LARGE_FILE_THRESHOLD_BYTES = 5L * 1024 * 1024; // 5 MB
+    private static final int CHUNK_SIZE_BYTES = 512 * 1024; // 512 KB
+    private static final long HIGHLIGHT_LIMIT_BYTES = 2L * 1024 * 1024; // Highlight up to 2 MB in large mode
+    private boolean largeFileMode = false;
+    private Path largeFilePath;
+    private long fileSizeBytes = 0;
+    private long loadedBytes = 0;
+    private Button loadMoreButton;
+    
     public enum FileType {
         PLAIN_TEXT,
         XML,
@@ -103,10 +113,28 @@ public class FileEditorTab extends Tab {
             logger.warn("Failed to load editor CSS", e);
         }
         
-        // Load content
+        // Load content (remote is already in memory)
         String text = new String(content, StandardCharsets.UTF_8);
-        codeArea.replaceText(0, 0, text);
-        codeArea.getUndoManager().forgetHistory();
+        fileSizeBytes = content.length;
+        Label status;
+        if (fileSizeBytes > LARGE_FILE_THRESHOLD_BYTES) {
+            // Large remote file: disable live highlighting & editing to save memory/cpu
+            largeFileMode = true;
+            codeArea.setEditable(false);
+            codeArea.replaceText(0, 0, text);
+            codeArea.getUndoManager().forgetHistory();
+            status = new Label(I18n.get("editor.status.ready") + " - Large file mode (read-only)");
+            // Apply light highlighting for the loaded part if within limit
+            if (fileSizeBytes <= HIGHLIGHT_LIMIT_BYTES) {
+                codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            }
+        } else {
+            codeArea.replaceText(0, 0, text);
+            codeArea.getUndoManager().forgetHistory();
+            status = new Label(I18n.get("editor.status.ready"));
+        }
+        this.statusLabel = status;
+        statusLabel.setStyle("-fx-padding: 5px;");
         
         // Track modifications
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
@@ -116,20 +144,17 @@ public class FileEditorTab extends Tab {
             }
         });
         
-        // Apply syntax highlighting
-        codeArea.textProperty().addListener((obs, oldText, newText) -> {
+        // Apply syntax highlighting only when not in large-file mode
+        if (!largeFileMode) {
+            codeArea.textProperty().addListener((obs, oldText, newText) -> {
+                codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            });
+            // Initial highlighting
             codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
-        });
-        
-        // Initial highlighting
-        codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+        }
         
         // Context menu for right-click
         codeArea.setContextMenu(createContextMenu());
-        
-        // Status bar
-        statusLabel = new Label(I18n.get("editor.status.ready"));
-        statusLabel.setStyle("-fx-padding: 5px;");
         
         // Create UI
         BorderPane rootContent = createContent();
@@ -169,10 +194,24 @@ public class FileEditorTab extends Tab {
             logger.warn("Failed to load editor CSS", e);
         }
         
-        // Load content
-        String text = Files.readString(localPath, StandardCharsets.UTF_8);
-        codeArea.replaceText(0, 0, text);
-        codeArea.getUndoManager().forgetHistory();
+        // Load content (with large file support)
+        fileSizeBytes = Files.size(localPath);
+        Label status;
+        if (fileSizeBytes > LARGE_FILE_THRESHOLD_BYTES) {
+            largeFileMode = true;
+            largeFilePath = localPath;
+            codeArea.setEditable(false); // read-only to avoid heavy undo/highlight
+            codeArea.clear();
+            loadNextChunk(); // load first chunk
+            status = new Label(I18n.get("editor.status.ready") + " - Large file mode (read-only)");
+        } else {
+            String text = Files.readString(localPath, StandardCharsets.UTF_8);
+            codeArea.replaceText(0, 0, text);
+            codeArea.getUndoManager().forgetHistory();
+            status = new Label(I18n.get("editor.status.ready"));
+        }
+        this.statusLabel = status;
+        statusLabel.setStyle("-fx-padding: 5px;");
         
         // Track modifications
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
@@ -182,20 +221,17 @@ public class FileEditorTab extends Tab {
             }
         });
         
-        // Apply syntax highlighting
-        codeArea.textProperty().addListener((obs, oldText, newText) -> {
+        // Apply syntax highlighting only when not in large-file mode
+        if (!largeFileMode) {
+            codeArea.textProperty().addListener((obs, oldText, newText) -> {
+                codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            });
+            // Initial highlighting
             codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
-        });
-        
-        // Initial highlighting
-        codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+        }
         
         // Context menu for right-click
         codeArea.setContextMenu(createContextMenu());
-        
-        // Status bar
-        statusLabel = new Label(I18n.get("editor.status.ready"));
-        statusLabel.setStyle("-fx-padding: 5px;");
         
         // Create UI
         BorderPane rootContent = createContent();
@@ -229,7 +265,16 @@ public class FileEditorTab extends Tab {
         root.setCenter(codeArea);
         
         // Status bar
-        HBox statusBar = new HBox(statusLabel);
+        HBox statusBar;
+        if (largeFileMode) {
+            loadMoreButton = new Button(I18n.get("editor.loadMore"));
+            loadMoreButton.setOnAction(e -> loadNextChunk());
+            loadMoreButton.setDisable(false);
+            statusBar = new HBox(10, statusLabel, loadMoreButton);
+            updateLargeFileStatus();
+        } else {
+            statusBar = new HBox(statusLabel);
+        }
         statusBar.setStyle("-fx-background-color: #f0f0f0; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;");
         root.setBottom(statusBar);
         
@@ -396,6 +441,57 @@ public class FileEditorTab extends Tab {
             fontSizeLabel.setText(currentFontSize + "pt");
         }
         statusLabel.setText(I18n.get("editor.status.fontSize", currentFontSize));
+    }
+    
+    /**
+     * Loads the next chunk of a large file and appends it to the editor.
+     */
+    private void loadNextChunk() {
+        if (!largeFileMode || largeFilePath == null) {
+            return;
+        }
+        long remaining = fileSizeBytes - loadedBytes;
+        if (remaining <= 0) {
+            if (loadMoreButton != null) {
+                loadMoreButton.setDisable(true);
+                loadMoreButton.setText(I18n.get("editor.status.ready"));
+            }
+            return;
+        }
+        int toRead = (int) Math.min(CHUNK_SIZE_BYTES, remaining);
+        try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(largeFilePath.toFile(), "r")) {
+            raf.seek(loadedBytes);
+            byte[] buffer = new byte[toRead];
+            int read = raf.read(buffer);
+            if (read > 0) {
+                String chunk = new String(buffer, 0, read, StandardCharsets.UTF_8);
+                codeArea.appendText(chunk);
+                loadedBytes += read;
+                if (loadedBytes <= HIGHLIGHT_LIMIT_BYTES) {
+                    codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+                }
+                updateLargeFileStatus();
+            }
+        } catch (Exception ex) {
+            logger.error("Failed to load next chunk", ex);
+            showError("Load error", ex.getMessage());
+        }
+    }
+    
+    private void updateLargeFileStatus() {
+        double percent = fileSizeBytes == 0 ? 0 : (loadedBytes * 100.0 / fileSizeBytes);
+        statusLabel.setText(String.format("Large file mode (read-only) - Loaded %.1f%% (%s / %s)", 
+                percent, humanReadableBytes(loadedBytes), humanReadableBytes(fileSizeBytes)));
+        if (loadMoreButton != null) {
+            loadMoreButton.setDisable(loadedBytes >= fileSizeBytes);
+        }
+    }
+    
+    private String humanReadableBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String pre = "KMGTPE".charAt(exp - 1) + "";
+        return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
     }
     
     private ContextMenu createContextMenu() {

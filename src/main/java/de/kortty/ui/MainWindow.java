@@ -134,6 +134,8 @@ public class MainWindow {
                     Platform.runLater(() -> {
                         updateDashboard();
                     });
+                    // Prevent QuickConnect from opening due to automatic selection of "+" after tab removal
+                    suppressQuickConnect = true;
                 }
             }
         });
