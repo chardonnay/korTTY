@@ -80,9 +80,18 @@ public class TerminalView extends BorderPane {
     
     public TerminalView(ServerConnection connection, String password, de.kortty.model.TemporarySSHKey temporarySSHKey) {
         this.connection = connection;
-        this.settings = connection.getSettings();
         this.password = password;
         this.temporarySSHKey = temporarySSHKey;
+        
+        // Ensure settings is never null - use connection settings or create defaults
+        ConnectionSettings connSettings = connection.getSettings();
+        if (connSettings == null) {
+            // Create default settings if none provided
+            connSettings = new ConnectionSettings();
+            connection.setSettings(connSettings);
+            logger.warn("Connection '{}' had no settings, using defaults", connection.getName());
+        }
+        this.settings = connSettings;
         this.defaultFontSize = settings.getFontSize();
         
         initializeTerminal();
