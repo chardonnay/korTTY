@@ -397,7 +397,10 @@ public class GlobalSettings {
      * @return Cursor style (BLOCK, LINE, UNDERSCORE)
      */
     public String getEditorCursorStyle() {
-        return editorCursorStyle != null ? editorCursorStyle : "BLOCK";
+        if (editorCursorStyle == null || editorCursorStyle.isEmpty()) {
+            return "BLOCK";
+        }
+        return editorCursorStyle;
     }
     
     /**
@@ -413,7 +416,10 @@ public class GlobalSettings {
      * @return Hex color string
      */
     public String getEditorCursorColor() {
-        return editorCursorColor != null ? editorCursorColor : "#FF0000";
+        if (editorCursorColor == null || editorCursorColor.isEmpty()) {
+            return "#FF0000";
+        }
+        return editorCursorColor;
     }
     
     /**

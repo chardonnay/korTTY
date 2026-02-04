@@ -102,12 +102,19 @@ public class FileEditorTab extends Tab {
                     currentFontSize = term.getFontSize() > 0 ? term.getFontSize() : DEFAULT_FONT_SIZE;
                 }
                 // Load cursor style and color from global settings
-                if (gs.getEditorCursorStyle() != null) {
-                    editorCursorStyle = gs.getEditorCursorStyle();
+                String loadedStyle = gs.getEditorCursorStyle();
+                String loadedColor = gs.getEditorCursorColor();
+                
+                logger.info("Loading editor cursor settings - style: '{}', color: '{}'", loadedStyle, loadedColor);
+                
+                if (loadedStyle != null && !loadedStyle.isEmpty()) {
+                    editorCursorStyle = loadedStyle;
                 }
-                if (gs.getEditorCursorColor() != null) {
-                    editorCursorColor = gs.getEditorCursorColor();
+                if (loadedColor != null && !loadedColor.isEmpty()) {
+                    editorCursorColor = loadedColor;
                 }
+                
+                logger.info("Final editor cursor settings - style: '{}', color: '{}'", editorCursorStyle, editorCursorColor);
             }
         } catch (Exception e) {
             logger.warn("Could not load editor settings, using defaults", e);
@@ -464,9 +471,6 @@ public class FileEditorTab extends Tab {
     }
     
     private void applyCaretStyle() {
-        // Remove any previously added caret stylesheet
-        codeArea.getStylesheets().removeIf(s -> s.startsWith("data:"));
-        
         // Determine stroke width based on cursor style
         double strokeWidth;
         switch (editorCursorStyle.toUpperCase()) {
@@ -478,22 +482,39 @@ public class FileEditorTab extends Tab {
                 break;
             case "BLOCK":
             default:
-                strokeWidth = 2.0;
+                strokeWidth = 3.0; // Wider for block style
                 break;
         }
         
-        // Create CSS for caret with configured color and style
-        String caretCss = String.format(java.util.Locale.US,
-            ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; }",
-            editorCursorColor, strokeWidth
-        );
-        
-        logger.debug("Applying caret style: color={}, style={}, width={}", 
+        logger.info("Applying caret style: color={}, style={}, width={}", 
                 editorCursorColor, editorCursorStyle, strokeWidth);
         
-        // Add stylesheet via data URI
-        String dataUri = "data:text/css;charset=utf-8," + java.net.URLEncoder.encode(caretCss, StandardCharsets.UTF_8);
-        codeArea.getStylesheets().add(dataUri);
+        // Apply caret style using Platform.runLater to ensure scene is ready
+        final double finalStrokeWidth = strokeWidth;
+        Platform.runLater(() -> {
+            try {
+                // Find and style the caret directly
+                codeArea.lookupAll(".caret").forEach(node -> {
+                    if (node instanceof javafx.scene.shape.Path) {
+                        javafx.scene.shape.Path caret = (javafx.scene.shape.Path) node;
+                        caret.setStroke(javafx.scene.paint.Color.web(editorCursorColor));
+                        caret.setStrokeWidth(finalStrokeWidth);
+                        logger.debug("Styled caret directly: color={}, width={}", editorCursorColor, finalStrokeWidth);
+                    }
+                });
+                
+                // Also set via CSS as fallback
+                String caretCss = String.format(java.util.Locale.US,
+                    ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; }",
+                    editorCursorColor, finalStrokeWidth
+                );
+                codeArea.getStylesheets().removeIf(s -> s.startsWith("data:"));
+                String dataUri = "data:text/css;charset=utf-8," + java.net.URLEncoder.encode(caretCss, StandardCharsets.UTF_8);
+                codeArea.getStylesheets().add(dataUri);
+            } catch (Exception e) {
+                logger.warn("Failed to apply caret style", e);
+            }
+        });
     }
     
     
