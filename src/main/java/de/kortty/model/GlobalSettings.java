@@ -101,6 +101,9 @@ public class GlobalSettings {
     @XmlElement
     private String editorCursorStyle = "BLOCK"; // BLOCK, LINE, UNDERSCORE
     
+    @XmlElement
+    private String editorCursorColor = "#FF0000"; // red cursor for visibility
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -403,5 +406,21 @@ public class GlobalSettings {
      */
     public void setEditorCursorStyle(String editorCursorStyle) {
         this.editorCursorStyle = editorCursorStyle;
+    }
+    
+    /**
+     * Gets the cursor color for the embedded editor.
+     * @return Hex color string
+     */
+    public String getEditorCursorColor() {
+        return editorCursorColor != null ? editorCursorColor : "#FF0000";
+    }
+    
+    /**
+     * Sets the cursor color for the embedded editor.
+     * @param editorCursorColor Hex color string
+     */
+    public void setEditorCursorColor(String editorCursorColor) {
+        this.editorCursorColor = editorCursorColor;
     }
 }

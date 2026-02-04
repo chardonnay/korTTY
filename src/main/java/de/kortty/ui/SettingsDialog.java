@@ -95,6 +95,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     
     // Editor settings
     private final ComboBox<String> editorCursorStyleCombo;
+    private final ColorPicker editorCursorColorPicker;
     
     public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
                           GlobalSettings globalSettings, CredentialManager credentialManager, 
@@ -727,11 +728,20 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         editorCursorStyleCombo.setValue(globalSettings.getEditorCursorStyle());
         editorCursorStyleCombo.setPrefWidth(150);
         
-        HBox cursorBox = new HBox(10);
-        cursorBox.getChildren().addAll(cursorStyleLabel, editorCursorStyleCombo);
-        editorGrid.add(cursorBox, 0, editorRow++, 2, 1);
+        HBox cursorStyleBox = new HBox(10);
+        cursorStyleBox.getChildren().addAll(cursorStyleLabel, editorCursorStyleCombo);
+        editorGrid.add(cursorStyleBox, 0, editorRow++, 2, 1);
         
-        // Cursor style info
+        // Cursor color
+        Label cursorColorLabel = new Label(I18n.get("settings.editor.cursorColor"));
+        editorCursorColorPicker = new ColorPicker(Color.web(globalSettings.getEditorCursorColor()));
+        editorCursorColorPicker.setPrefWidth(150);
+        
+        HBox cursorColorBox = new HBox(10);
+        cursorColorBox.getChildren().addAll(cursorColorLabel, editorCursorColorPicker);
+        editorGrid.add(cursorColorBox, 0, editorRow++, 2, 1);
+        
+        // Cursor info
         Label cursorInfo = new Label(I18n.get("settings.editor.cursorInfo"));
         cursorInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         cursorInfo.setWrapText(true);
@@ -880,6 +890,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             
             // Save Editor settings
             globalSettings.setEditorCursorStyle(editorCursorStyleCombo.getValue());
+            globalSettings.setEditorCursorColor(toHex(editorCursorColorPicker.getValue()));
         }
     }
     

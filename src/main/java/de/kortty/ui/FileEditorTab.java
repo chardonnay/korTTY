@@ -70,6 +70,7 @@ public class FileEditorTab extends Tab {
     private String editorForegroundColor = "#000000";
     private String editorBackgroundColor = "#FFFFFF";
     private String editorCursorStyle = "BLOCK"; // BLOCK, LINE, UNDERSCORE
+    private String editorCursorColor = "#FF0000"; // red for visibility
     
     // Large file handling
     private static final long LARGE_FILE_THRESHOLD_BYTES = 5L * 1024 * 1024; // 5 MB
@@ -100,9 +101,12 @@ public class FileEditorTab extends Tab {
                     }
                     currentFontSize = term.getFontSize() > 0 ? term.getFontSize() : DEFAULT_FONT_SIZE;
                 }
-                // Load cursor style from global settings
+                // Load cursor style and color from global settings
                 if (gs.getEditorCursorStyle() != null) {
                     editorCursorStyle = gs.getEditorCursorStyle();
+                }
+                if (gs.getEditorCursorColor() != null) {
+                    editorCursorColor = gs.getEditorCursorColor();
                 }
             }
         } catch (Exception e) {
@@ -463,11 +467,29 @@ public class FileEditorTab extends Tab {
         // Remove any previously added caret stylesheet
         codeArea.getStylesheets().removeIf(s -> s.startsWith("data:"));
         
-        // Create CSS for caret color - use foreground color for visibility
-        String caretCss = String.format(
-            ".caret { -fx-stroke: %s; -fx-stroke-width: 2; }",
-            editorForegroundColor
+        // Determine stroke width based on cursor style
+        double strokeWidth;
+        switch (editorCursorStyle.toUpperCase()) {
+            case "LINE":
+                strokeWidth = 1.0;
+                break;
+            case "UNDERSCORE":
+                strokeWidth = 1.5;
+                break;
+            case "BLOCK":
+            default:
+                strokeWidth = 2.0;
+                break;
+        }
+        
+        // Create CSS for caret with configured color and style
+        String caretCss = String.format(java.util.Locale.US,
+            ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; }",
+            editorCursorColor, strokeWidth
         );
+        
+        logger.debug("Applying caret style: color={}, style={}, width={}", 
+                editorCursorColor, editorCursorStyle, strokeWidth);
         
         // Add stylesheet via data URI
         String dataUri = "data:text/css;charset=utf-8," + java.net.URLEncoder.encode(caretCss, StandardCharsets.UTF_8);
