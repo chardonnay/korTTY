@@ -114,6 +114,35 @@ public class TemporarySSHKeyManager {
     }
     
     /**
+     * Updates the expiration time for a temporary SSH key.
+     * Creates a new key with the updated expiration starting from NOW.
+     * @param keyContent The SSH key content
+     * @param newExpirationMinutes New expiration time in minutes
+     * @return The updated TemporarySSHKey, or null if key not found
+     */
+    public TemporarySSHKey updateKeyExpiration(String keyContent, long newExpirationMinutes) {
+        if (keyContent == null || keyContent.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = keyContent.trim();
+        
+        // Remove old key and create new one with updated expiration
+        temporaryKeys.remove(trimmed);
+        TemporarySSHKey newKey = new TemporarySSHKey(trimmed, newExpirationMinutes);
+        temporaryKeys.put(trimmed, newKey);
+        logger.info("Updated temporary SSH key expiration to {} minutes", newExpirationMinutes);
+        return newKey;
+    }
+    
+    /**
+     * Removes all temporary keys (expired or not).
+     */
+    public void clearAllKeys() {
+        temporaryKeys.clear();
+        logger.info("Cleared all temporary SSH keys");
+    }
+    
+    /**
      * Removes all expired keys.
      */
     private void cleanupExpiredKeys() {
