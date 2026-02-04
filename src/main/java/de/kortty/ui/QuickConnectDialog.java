@@ -297,14 +297,19 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
         remainingTimeLabel.setDisable(true);
         
-        // Check for existing temporary key
+        // Check for existing temporary key - only show if still valid
         TemporarySSHKey existingKey = TemporarySSHKeyManager.getInstance().getCurrentTemporaryKey();
         if (existingKey != null && existingKey.isValid()) {
             temporaryKeyArea.setText(existingKey.getKeyContent());
-            expirationMinutesSpinner.getValueFactory().setValue((int)existingKey.getExpirationMinutes());
+            // Show remaining minutes, not original expiration
+            long remainingMinutes = existingKey.getRemainingSeconds() / 60;
+            expirationMinutesSpinner.getValueFactory().setValue(Math.max(1, (int) remainingMinutes));
             currentTemporaryKey = existingKey;
             temporaryKeyAuthRadio.setSelected(true);
             startExpirationTimer();
+        } else if (existingKey != null) {
+            // Key exists but expired - remove it and don't show
+            TemporarySSHKeyManager.getInstance().removeTemporaryKey(existingKey.getKeyContent());
         }
         
         // Update field states based on auth method
@@ -337,16 +342,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             }
         });
         
-        // Update expiration time when spinner changes
-        expirationMinutesSpinner.valueProperty().addListener((obs, old, newVal) -> {
-            if (temporaryKeyAuthRadio.isSelected() && newVal != null && 
-                temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
-                // Update temporary key with new expiration
-                currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
-                    temporaryKeyArea.getText().trim(), newVal);
-                startExpirationTimer();
-            }
-        });
+        // Update expiration time when spinner changes - only update if user explicitly changes it
+        // Note: We don't auto-update the key expiration when spinner changes because
+        // storeTemporaryKey() preserves existing expiration for the same key.
+        // User needs to click "Update Key" button to explicitly reset the expiration time.
         
         saveConnectionCheck = new CheckBox(I18n.get("quickConnect.saveConnection"));
         
@@ -462,10 +461,12 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         updateTempKeyButton.setOnAction(e -> {
             if (temporaryKeyAuthRadio.isSelected() && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
                 long expirationMinutes = expirationMinutesSpinner.getValue();
-                currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                // Use updateKeyExpiration to force new expiration time
+                currentTemporaryKey = TemporarySSHKeyManager.getInstance().updateKeyExpiration(
                     temporaryKeyArea.getText().trim(), expirationMinutes);
                 if (currentTemporaryKey != null) {
                     startExpirationTimer();
+                    remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
                 }
             }
         });
@@ -594,24 +595,33 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         // Set authentication method
         if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
-            // Connection has a temporary key - use it
-            temporaryKeyAuthRadio.setSelected(true);
-            temporaryKeyArea.setText(conn.getTemporaryKeyContent());
-            if (conn.getTemporaryKeyExpirationMinutes() != null) {
-                expirationMinutesSpinner.getValueFactory().setValue(conn.getTemporaryKeyExpirationMinutes().intValue());
-            }
-            // Try to get existing key from manager, or create/store it
+            // Connection was previously configured with a temporary key
+            // Check if this key is still valid in the manager
             TemporarySSHKey existingKey = TemporarySSHKeyManager.getInstance().getTemporaryKey(conn.getTemporaryKeyContent());
+            
             if (existingKey != null && existingKey.isValid()) {
+                // Key is still valid - use it
+                temporaryKeyAuthRadio.setSelected(true);
+                temporaryKeyArea.setText(existingKey.getKeyContent());
+                // Show remaining minutes, not original expiration
+                long remainingMinutes = existingKey.getRemainingSeconds() / 60;
+                expirationMinutesSpinner.getValueFactory().setValue(Math.max(1, (int) remainingMinutes));
                 currentTemporaryKey = existingKey;
+                startExpirationTimer();
             } else {
-                // Store the key in manager
-                long expirationMinutes = conn.getTemporaryKeyExpirationMinutes() != null ? 
-                    conn.getTemporaryKeyExpirationMinutes() : 60L;
-                currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
-                    conn.getTemporaryKeyContent(), expirationMinutes);
+                // Key expired or not found - prompt user for a NEW key
+                // DO NOT auto-fill with the old expired key content
+                temporaryKeyAuthRadio.setSelected(true);
+                temporaryKeyArea.clear();
+                temporaryKeyArea.setPromptText(I18n.get("quickConnect.temporaryKeyExpiredPrompt"));
+                // Set default expiration time for new key
+                expirationMinutesSpinner.getValueFactory().setValue(15);
+                currentTemporaryKey = null;
+                remainingTimeLabel.setText(I18n.get("quickConnect.keyExpired"));
+                remainingTimeLabel.setStyle("-fx-text-fill: #ff0000; -fx-font-weight: bold;");
+                // Focus on the text area so user can paste new key
+                javafx.application.Platform.runLater(() -> temporaryKeyArea.requestFocus());
             }
-            startExpirationTimer();
         } else if (conn.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
             keyAuthRadio.setSelected(true);
             // Try to find and select SSH key
