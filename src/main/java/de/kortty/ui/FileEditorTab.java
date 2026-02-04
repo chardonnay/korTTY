@@ -427,16 +427,28 @@ public class FileEditorTab extends Tab {
     }
     
     private void applyFontAndColors() {
-        // Set font size and family via inline style (does not affect syntax highlighting colors)
-        String style = "-fx-font-size: " + currentFontSize + "pt;"
-                + " -fx-font-family: '" + editorFontFamily + "', 'Consolas', 'Monaco', 'Courier New', monospace;";
+        logger.debug("Applying editor settings - font: {}, size: {}, fg: {}, bg: {}", 
+                editorFontFamily, currentFontSize, editorForegroundColor, editorBackgroundColor);
+        
+        // Set font size, family, and background via inline style
+        // InlineCssTextArea uses -fx-background-color directly
+        String style = String.format(
+            "-fx-font-size: %dpt; " +
+            "-fx-font-family: '%s', 'Consolas', 'Monaco', 'Courier New', monospace; " +
+            "-fx-background-color: %s; " +
+            "-fx-control-inner-background: %s;",
+            currentFontSize, editorFontFamily, editorBackgroundColor, editorBackgroundColor
+        );
         codeArea.setStyle(style);
         
-        // Apply dynamic CSS for background and base text color
-        applyDynamicStylesheet();
-        
-        // Apply cursor style
-        applyCursorStyle();
+        // Re-apply syntax highlighting with current foreground color
+        if (!largeFileMode || loadedBytes <= HIGHLIGHT_LIMIT_BYTES) {
+            try {
+                codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            } catch (Exception e) {
+                logger.warn("Failed to re-apply highlighting", e);
+            }
+        }
         
         if (fontSizeLabel != null) {
             fontSizeLabel.setText(currentFontSize + "pt");
@@ -444,46 +456,6 @@ public class FileEditorTab extends Tab {
         statusLabel.setText(I18n.get("editor.status.fontSize", currentFontSize));
     }
     
-    private void applyDynamicStylesheet() {
-        // Remove any previously added dynamic stylesheet
-        codeArea.getStylesheets().removeIf(s -> s.startsWith("data:"));
-        
-        // Create dynamic CSS for background and caret color
-        // Text colors are handled by InlineCssTextArea's inline styles per segment
-        String dynamicCss = String.format(
-            ".code-area { -fx-background-color: %s; }" +
-            ".code-area .content { -fx-background-color: %s; }" +
-            ".code-area .paragraph-box { -fx-background-color: %s; }" +
-            ".code-area .paragraph-box:focused { -fx-background-color: %s; }" +
-            ".code-area .caret { -fx-stroke: %s; }",
-            editorBackgroundColor, editorBackgroundColor, 
-            editorBackgroundColor, editorBackgroundColor,
-            editorForegroundColor
-        );
-        
-        // Add dynamic stylesheet via data URI
-        String dataUri = "data:text/css;charset=utf-8," + java.net.URLEncoder.encode(dynamicCss, StandardCharsets.UTF_8);
-        codeArea.getStylesheets().add(dataUri);
-    }
-    
-    private void applyCursorStyle() {
-        // RichTextFX doesn't have built-in cursor shape support like terminals
-        // We can style the caret width to simulate different cursor styles
-        String caretStyle;
-        switch (editorCursorStyle.toUpperCase()) {
-            case "LINE":
-                caretStyle = "-fx-stroke-width: 1;";
-                break;
-            case "UNDERSCORE":
-                caretStyle = "-fx-stroke-width: 2;";
-                break;
-            case "BLOCK":
-            default:
-                caretStyle = "-fx-stroke-width: 2;";
-                break;
-        }
-        // Note: Full block cursor would require custom rendering
-    }
     
     /**
      * Loads the next chunk of a large file and appends it to the editor.

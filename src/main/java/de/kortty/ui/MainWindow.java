@@ -65,7 +65,7 @@ public class MainWindow {
     
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean suppressQuickConnect = false;  // Flag to suppress QuickConnect on programmatic tab selection
-    private volatile boolean allowAutoQuickConnect = false; // Only allow QuickConnect via explicit user action
+    private volatile long lastTabCloseTime = 0; // Timestamp of last tab close to prevent QuickConnect
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
     
     public MainWindow(Stage stage) {
@@ -104,7 +104,11 @@ public class MainWindow {
         // Handle clicks on the + tab - show QuickConnect dialog
         // Only trigger when user actually clicks (not programmatic selection)
         newTabButton.setOnSelectionChanged(e -> {
-            if (newTabButton.isSelected() && startupComplete && !quickConnectDialogOpen && !suppressQuickConnect) {
+            // Check if we should suppress - either by flag or if a tab was recently closed
+            boolean recentlyClosedTab = (System.currentTimeMillis() - lastTabCloseTime) < 500;
+            
+            if (newTabButton.isSelected() && startupComplete && !quickConnectDialogOpen 
+                    && !suppressQuickConnect && !recentlyClosedTab) {
                 Platform.runLater(() -> {
                     int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
                     if (plusTabIndex > 0) {
@@ -506,6 +510,7 @@ public class MainWindow {
     public static void suppressNextQuickConnect() {
         if (instance != null) {
             instance.suppressQuickConnect = true;
+            instance.lastTabCloseTime = System.currentTimeMillis();
         }
     }
     
