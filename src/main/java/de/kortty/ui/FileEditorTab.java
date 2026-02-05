@@ -1187,5 +1187,15 @@ public class FileEditorTab extends Tab {
     public SFTPSession getSftpSession() {
         return sftpSession;
     }
+    
+    /**
+     * Inserts text at the current cursor position in the code editor.
+     * Used by snippet management to insert code snippets.
+     */
+    public void insertTextAtCursor(String text) {
+        if (text == null || text.isEmpty()) return;
+        int caretPos = codeArea.getCaretPosition();
+        codeArea.insertText(caretPos, text);
+    }
 }
 

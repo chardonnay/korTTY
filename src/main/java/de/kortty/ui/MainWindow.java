@@ -46,6 +46,10 @@ import java.util.UUID;
 public class MainWindow {
     
     private static MainWindow instance;  // Singleton instance for global access
+    
+    public static MainWindow getInstance() {
+        return instance;
+    }
     private static final Logger logger = LoggerFactory.getLogger(MainWindow.class);
     
     private final Stage stage;
@@ -403,7 +407,11 @@ public class MainWindow {
         MenuItem openSFTPManager = new MenuItem(I18n.get("menu.tools.sftpManager"));
         openSFTPManager.setOnAction(e -> showSFTPManager());
         
-        sftpMenu.getItems().add(openSFTPManager);
+        MenuItem snippetManager = new MenuItem(I18n.get("menu.tools.snippets"));
+        snippetManager.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        snippetManager.setOnAction(e -> showSnippetManager());
+        
+        sftpMenu.getItems().addAll(openSFTPManager, new SeparatorMenuItem(), snippetManager);
         
         // View Menu
         Menu viewMenu = new Menu(I18n.get("menu.view"));
@@ -1552,6 +1560,13 @@ public class MainWindow {
     }
     
     /**
+     * Returns the currently selected tab in the main tab pane.
+     */
+    public Tab getActiveTab() {
+        return tabPane.getSelectionModel().getSelectedItem();
+    }
+    
+    /**
      * Opens all connections in a group as tabs.
      */
     private void openGroupConnections(String groupName) {
@@ -1648,6 +1663,23 @@ public class MainWindow {
      * Shows SFTP Manager dialog. If a connection is selected, opens it directly.
      * Otherwise, shows a dialog to select a connection.
      */
+    private void showSnippetManager() {
+        logger.info("showSnippetManager() called - Opening Snippet Manager");
+        try {
+            de.kortty.core.SnippetManager mgr = app.getSnippetManager();
+            if (mgr == null) {
+                showError(I18n.get("error.title"), "Snippet Manager not initialized");
+                return;
+            }
+            SnippetManagementDialog dialog = new SnippetManagementDialog(mgr);
+            dialog.initOwner(stage);
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to open Snippet Manager", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+    
     private void showSFTPManager() {
         logger.info("showSFTPManager() called - Opening SFTP Manager");
         

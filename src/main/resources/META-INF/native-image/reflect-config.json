@@ -153,6 +153,33 @@
     "allPublicFields": true
   },
   {
+    "name": "de.kortty.model.Snippet",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "de.kortty.model.SnippetCategory",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "de.kortty.core.SnippetManager$SnippetsWrapper",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
     "name": "de.kortty.persistence.LocalDateTimeAdapter",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,

@@ -5,6 +5,7 @@ import de.kortty.core.SessionManager;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
+import de.kortty.core.SnippetManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.BackupManager;
 import de.kortty.model.GlobalSettings;
@@ -42,6 +43,7 @@ public class KorTTYApplication extends Application {
     private GPGKeyManager gpgKeyManager;
     private CredentialManager credentialManager;
     private SSHKeyManager sshKeyManager;
+    private SnippetManager snippetManager;
     private GlobalSettingsManager globalSettingsManager;
     private BackupManager backupManager;
     
@@ -75,6 +77,7 @@ public class KorTTYApplication extends Application {
         gpgKeyManager = new GPGKeyManager(configDir);
         credentialManager = new CredentialManager(configDir);
         sshKeyManager = new SSHKeyManager(configDir);
+        snippetManager = new SnippetManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
         
         // Register JMX MBean
@@ -148,6 +151,7 @@ public class KorTTYApplication extends Application {
                 gpgKeyManager.load();
                 credentialManager.load();
                 sshKeyManager.load();
+                snippetManager.load();
                 // Reload global settings to ensure we have the latest version
                 // Note: This reload should preserve the language setting from the file
                 globalSettingsManager.load();
@@ -213,6 +217,9 @@ public class KorTTYApplication extends Application {
             }
             if (sshKeyManager != null) {
                 sshKeyManager.save();
+            }
+            if (snippetManager != null) {
+                snippetManager.save();
             }
             if (globalSettingsManager != null) {
                 globalSettingsManager.save();
@@ -289,6 +296,10 @@ public class KorTTYApplication extends Application {
     
     public SSHKeyManager getSSHKeyManager() {
         return sshKeyManager;
+    }
+    
+    public SnippetManager getSnippetManager() {
+        return snippetManager;
     }
     
     public GlobalSettingsManager getGlobalSettingsManager() {
