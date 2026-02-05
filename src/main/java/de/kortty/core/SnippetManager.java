@@ -379,6 +379,303 @@ public class SnippetManager {
         return imported;
     }
     
+    // ---- XML Export / Import ----
+    
+    /**
+     * Exports snippets to an XML file.
+     */
+    public void exportToXml(Path file, List<Snippet> snippetsToExport) throws Exception {
+        StringBuilder xml = new StringBuilder();
+        xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        xml.append("<snippetExport version=\"1\" exportDate=\"")
+           .append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\">\n");
+        
+        for (Snippet s : snippetsToExport) {
+            xml.append("  <snippet>\n");
+            xml.append("    <name>").append(escapeXml(s.getName())).append("</name>\n");
+            xml.append("    <content>").append(escapeXml(s.getContent())).append("</content>\n");
+            xml.append("    <language>").append(escapeXml(s.getLanguage())).append("</language>\n");
+            if (s.getCategory() != null) {
+                xml.append("    <category>").append(escapeXml(s.getCategory())).append("</category>\n");
+            }
+            if (s.getTags() != null && !s.getTags().isEmpty()) {
+                xml.append("    <tags>\n");
+                for (String tag : s.getTags()) {
+                    xml.append("      <tag>").append(escapeXml(tag)).append("</tag>\n");
+                }
+                xml.append("    </tags>\n");
+            }
+            xml.append("  </snippet>\n");
+        }
+        
+        xml.append("</snippetExport>\n");
+        Files.writeString(file, xml.toString(), StandardCharsets.UTF_8);
+        logger.info("Exported {} snippets to XML: {}", snippetsToExport.size(), file);
+    }
+    
+    /**
+     * Imports snippets from an XML file.
+     */
+    public List<Snippet> importFromXml(Path file) throws Exception {
+        // Use JAXB with a dedicated export wrapper
+        String content = Files.readString(file, StandardCharsets.UTF_8);
+        List<Snippet> imported = new ArrayList<>();
+        
+        // Simple XML parsing for the export format
+        int searchFrom = 0;
+        while (true) {
+            int snippetStart = content.indexOf("<snippet>", searchFrom);
+            if (snippetStart < 0) break;
+            int snippetEnd = content.indexOf("</snippet>", snippetStart);
+            if (snippetEnd < 0) break;
+            
+            String block = content.substring(snippetStart, snippetEnd + "</snippet>".length());
+            
+            Snippet snippet = new Snippet();
+            snippet.setName(extractXmlValue(block, "name"));
+            snippet.setContent(unescapeXml(extractXmlValue(block, "content")));
+            snippet.setLanguage(extractXmlValue(block, "language"));
+            snippet.setCategory(extractXmlValue(block, "category"));
+            
+            // Parse tags
+            List<String> tags = new ArrayList<>();
+            int tagSearch = 0;
+            while (true) {
+                int tagStart = block.indexOf("<tag>", tagSearch);
+                if (tagStart < 0) break;
+                int tagEnd = block.indexOf("</tag>", tagStart);
+                if (tagEnd < 0) break;
+                tags.add(unescapeXml(block.substring(tagStart + "<tag>".length(), tagEnd)));
+                tagSearch = tagEnd + "</tag>".length();
+            }
+            snippet.setTags(tags);
+            
+            // Ensure category exists
+            String cat = snippet.getCategory();
+            if (cat != null && !cat.isEmpty() && findCategoryByName(cat).isEmpty()) {
+                addCategory(new SnippetCategory(cat));
+            }
+            
+            imported.add(snippet);
+            searchFrom = snippetEnd + "</snippet>".length();
+        }
+        
+        logger.info("Imported {} snippets from XML: {}", imported.size(), file);
+        return imported;
+    }
+    
+    // ---- YAML Export / Import ----
+    
+    /**
+     * Exports snippets to a YAML file.
+     */
+    public void exportToYaml(Path file, List<Snippet> snippetsToExport) throws IOException {
+        StringBuilder yaml = new StringBuilder();
+        yaml.append("# KorTTY Snippet Export\n");
+        yaml.append("version: 1\n");
+        yaml.append("exportDate: \"").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\"\n");
+        yaml.append("snippets:\n");
+        
+        for (Snippet s : snippetsToExport) {
+            yaml.append("  - name: ").append(escapeYaml(s.getName())).append("\n");
+            yaml.append("    language: ").append(escapeYaml(s.getLanguage())).append("\n");
+            if (s.getCategory() != null && !s.getCategory().isEmpty()) {
+                yaml.append("    category: ").append(escapeYaml(s.getCategory())).append("\n");
+            }
+            if (s.getTags() != null && !s.getTags().isEmpty()) {
+                yaml.append("    tags:\n");
+                for (String tag : s.getTags()) {
+                    yaml.append("      - ").append(escapeYaml(tag)).append("\n");
+                }
+            }
+            // Multi-line content with YAML literal block scalar
+            yaml.append("    content: |\n");
+            if (s.getContent() != null) {
+                for (String line : s.getContent().split("\n", -1)) {
+                    yaml.append("      ").append(line).append("\n");
+                }
+            }
+        }
+        
+        Files.writeString(file, yaml.toString(), StandardCharsets.UTF_8);
+        logger.info("Exported {} snippets to YAML: {}", snippetsToExport.size(), file);
+    }
+    
+    /**
+     * Imports snippets from a YAML file.
+     */
+    public List<Snippet> importFromYaml(Path file) throws IOException {
+        List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+        List<Snippet> imported = new ArrayList<>();
+        
+        Snippet current = null;
+        String currentField = null;
+        StringBuilder contentBuilder = null;
+        boolean inTags = false;
+        boolean inContent = false;
+        int contentIndent = -1;
+        
+        for (String line : lines) {
+            // Detect snippet list item start
+            if (line.matches("\\s{2}- name:.*")) {
+                // Save previous snippet
+                if (current != null) {
+                    if (contentBuilder != null) {
+                        current.setContent(trimTrailingNewline(contentBuilder.toString()));
+                    }
+                    finishImportedSnippet(current);
+                    imported.add(current);
+                }
+                current = new Snippet();
+                contentBuilder = null;
+                inTags = false;
+                inContent = false;
+                current.setName(unescapeYaml(extractYamlValue(line)));
+                continue;
+            }
+            
+            if (current == null) continue;
+            
+            // Inside content block
+            if (inContent) {
+                // Check if this line is still part of the content block (indented)
+                if (line.isEmpty() || (line.length() > contentIndent && line.substring(0, contentIndent).isBlank())) {
+                    if (contentBuilder == null) contentBuilder = new StringBuilder();
+                    else contentBuilder.append("\n");
+                    contentBuilder.append(line.length() > contentIndent ? line.substring(contentIndent) : "");
+                    continue;
+                } else {
+                    // Content block ended
+                    inContent = false;
+                    if (contentBuilder != null) {
+                        current.setContent(trimTrailingNewline(contentBuilder.toString()));
+                    }
+                }
+            }
+            
+            // Inside tags list
+            if (inTags) {
+                if (line.matches("\\s{6}-\\s.*")) {
+                    current.getTags().add(unescapeYaml(line.replaceFirst("^\\s+- ", "").trim()));
+                    continue;
+                } else {
+                    inTags = false;
+                }
+            }
+            
+            String trimmed = line.trim();
+            if (trimmed.startsWith("language:")) {
+                current.setLanguage(unescapeYaml(extractYamlValue(line)));
+            } else if (trimmed.startsWith("category:")) {
+                current.setCategory(unescapeYaml(extractYamlValue(line)));
+            } else if (trimmed.equals("tags:")) {
+                inTags = true;
+                current.setTags(new ArrayList<>());
+            } else if (trimmed.startsWith("content:")) {
+                String value = extractYamlValue(line);
+                if (value.equals("|") || value.isEmpty()) {
+                    // Literal block scalar - content starts on next line
+                    inContent = true;
+                    contentIndent = line.indexOf("content:") + 2; // expected 6 spaces
+                    contentBuilder = new StringBuilder();
+                } else {
+                    current.setContent(unescapeYaml(value));
+                }
+            }
+        }
+        
+        // Save last snippet
+        if (current != null) {
+            if (contentBuilder != null && inContent) {
+                current.setContent(trimTrailingNewline(contentBuilder.toString()));
+            }
+            finishImportedSnippet(current);
+            imported.add(current);
+        }
+        
+        logger.info("Imported {} snippets from YAML: {}", imported.size(), file);
+        return imported;
+    }
+    
+    private void finishImportedSnippet(Snippet snippet) {
+        String cat = snippet.getCategory();
+        if (cat != null && !cat.isEmpty() && findCategoryByName(cat).isEmpty()) {
+            addCategory(new SnippetCategory(cat));
+        }
+    }
+    
+    private String trimTrailingNewline(String s) {
+        while (s.endsWith("\n")) s = s.substring(0, s.length() - 1);
+        return s;
+    }
+    
+    // ---- XML Helpers ----
+    
+    private String escapeXml(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\"", "&quot;")
+                    .replace("'", "&apos;");
+    }
+    
+    private String unescapeXml(String value) {
+        if (value == null) return null;
+        return value.replace("&amp;", "&")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&quot;", "\"")
+                    .replace("&apos;", "'");
+    }
+    
+    private String extractXmlValue(String xml, String tag) {
+        String openTag = "<" + tag + ">";
+        String closeTag = "</" + tag + ">";
+        int start = xml.indexOf(openTag);
+        if (start < 0) return null;
+        int end = xml.indexOf(closeTag, start);
+        if (end < 0) return null;
+        return xml.substring(start + openTag.length(), end);
+    }
+    
+    // ---- YAML Helpers ----
+    
+    private String escapeYaml(String value) {
+        if (value == null) return "\"\"";
+        // Quote if it contains special characters
+        if (value.contains(":") || value.contains("#") || value.contains("\"")
+                || value.contains("'") || value.contains("\n") || value.contains("{")
+                || value.contains("}") || value.contains("[") || value.contains("]")
+                || value.startsWith(" ") || value.endsWith(" ")) {
+            return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\"";
+        }
+        return value;
+    }
+    
+    private String unescapeYaml(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        // Remove surrounding quotes
+        if ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
+                || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1);
+        }
+        return trimmed.replace("\\\"", "\"").replace("\\n", "\n").replace("\\\\", "\\");
+    }
+    
+    private String extractYamlValue(String line) {
+        int colonIndex = line.indexOf(':');
+        if (colonIndex < 0) return "";
+        String value = line.substring(colonIndex + 1).trim();
+        // Remove surrounding quotes
+        if ((value.startsWith("\"") && value.endsWith("\""))
+                || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.substring(1, value.length() - 1);
+        }
+        return value;
+    }
+    
     // ---- JSON Helpers ----
     
     private String escapeJson(String value) {

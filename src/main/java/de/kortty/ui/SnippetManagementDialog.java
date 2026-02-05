@@ -165,11 +165,11 @@ public class SnippetManagementDialog extends Dialog<Void> {
         favBtn.setOnAction(e -> toggleFavorite());
         favBtn.setDisable(true);
         
-        Button importBtn = new Button(I18n.get("snippets.importJson"));
-        importBtn.setOnAction(e -> importFromJson());
+        Button importBtn = new Button(I18n.get("snippets.import"));
+        importBtn.setOnAction(e -> importSnippets());
         
-        Button exportBtn = new Button(I18n.get("snippets.exportJson"));
-        exportBtn.setOnAction(e -> exportToJson());
+        Button exportBtn = new Button(I18n.get("snippets.export"));
+        exportBtn.setOnAction(e -> exportSnippets());
         exportBtn.setDisable(true);
         
         // Enable/disable buttons based on selection
@@ -224,22 +224,81 @@ public class SnippetManagementDialog extends Dialog<Void> {
         
         filteredList.setPredicate(snippet -> {
             boolean matchesSearch = query == null || query.isBlank()
-                    || matchesQuery(snippet, query.toLowerCase());
+                    || matchesQuery(snippet, query.trim());
             boolean matchesCategory = allCategories
                     || (snippet.getCategory() != null && snippet.getCategory().equalsIgnoreCase(selectedCategory));
             return matchesSearch && matchesCategory;
         });
     }
     
-    private boolean matchesQuery(Snippet snippet, String lowerQuery) {
-        if (snippet.getName() != null && snippet.getName().toLowerCase().contains(lowerQuery)) return true;
-        if (snippet.getTags() != null) {
-            for (String tag : snippet.getTags()) {
-                if (tag.toLowerCase().contains(lowerQuery)) return true;
+    /**
+     * Matches a snippet against a search query.
+     * Supports glob patterns with * wildcard (e.g. "doc*", "*deploy*", "bash*backup").
+     * Without * the query is matched as a substring (contains).
+     */
+    private boolean matchesQuery(Snippet snippet, String query) {
+        String lowerQuery = query.toLowerCase();
+        boolean isGlob = lowerQuery.contains("*");
+        
+        if (isGlob) {
+            // Convert glob to regex: escape regex special chars, then replace * with .*
+            String regex = globToRegex(lowerQuery);
+            return matchesGlob(snippet.getName(), regex)
+                    || matchesGlob(snippet.getCategory(), regex)
+                    || matchesGlob(snippet.getContent(), regex)
+                    || matchesTagsGlob(snippet.getTags(), regex);
+        } else {
+            // Simple substring search
+            if (snippet.getName() != null && snippet.getName().toLowerCase().contains(lowerQuery)) return true;
+            if (snippet.getTags() != null) {
+                for (String tag : snippet.getTags()) {
+                    if (tag.toLowerCase().contains(lowerQuery)) return true;
+                }
+            }
+            if (snippet.getContent() != null && snippet.getContent().toLowerCase().contains(lowerQuery)) return true;
+            if (snippet.getCategory() != null && snippet.getCategory().toLowerCase().contains(lowerQuery)) return true;
+            return false;
+        }
+    }
+    
+    private String globToRegex(String glob) {
+        StringBuilder regex = new StringBuilder(".*");
+        for (char c : glob.toCharArray()) {
+            switch (c) {
+                case '*' -> regex.append(".*");
+                case '?' -> regex.append(".");
+                case '.' -> regex.append("\\.");
+                case '(' -> regex.append("\\(");
+                case ')' -> regex.append("\\)");
+                case '[' -> regex.append("\\[");
+                case ']' -> regex.append("\\]");
+                case '{' -> regex.append("\\{");
+                case '}' -> regex.append("\\}");
+                case '+' -> regex.append("\\+");
+                case '^' -> regex.append("\\^");
+                case '$' -> regex.append("\\$");
+                case '|' -> regex.append("\\|");
+                default -> regex.append(c);
             }
         }
-        if (snippet.getContent() != null && snippet.getContent().toLowerCase().contains(lowerQuery)) return true;
-        if (snippet.getCategory() != null && snippet.getCategory().toLowerCase().contains(lowerQuery)) return true;
+        regex.append(".*");
+        return regex.toString();
+    }
+    
+    private boolean matchesGlob(String value, String regex) {
+        if (value == null) return false;
+        try {
+            return value.toLowerCase().matches(regex);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    private boolean matchesTagsGlob(List<String> tags, String regex) {
+        if (tags == null) return false;
+        for (String tag : tags) {
+            if (matchesGlob(tag, regex)) return true;
+        }
         return false;
     }
     
@@ -450,18 +509,31 @@ public class SnippetManagementDialog extends Dialog<Void> {
     
     // ---- Import / Export ----
     
-    private void importFromJson() {
+    private void importSnippets() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle(I18n.get("snippets.importJson"));
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("JSON Files", "*.json")
+        fileChooser.setTitle(I18n.get("snippets.import"));
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter(I18n.get("snippets.format.all"), "*.json", "*.xml", "*.yaml", "*.yml"),
+                new FileChooser.ExtensionFilter("JSON (*.json)", "*.json"),
+                new FileChooser.ExtensionFilter("XML (*.xml)", "*.xml"),
+                new FileChooser.ExtensionFilter("YAML (*.yaml, *.yml)", "*.yaml", "*.yml")
         );
         
         File file = fileChooser.showOpenDialog(getDialogPane().getScene().getWindow());
         if (file == null) return;
         
         try {
-            List<Snippet> imported = snippetManager.importFromJson(file.toPath());
+            String fileName = file.getName().toLowerCase();
+            List<Snippet> imported;
+            
+            if (fileName.endsWith(".xml")) {
+                imported = snippetManager.importFromXml(file.toPath());
+            } else if (fileName.endsWith(".yaml") || fileName.endsWith(".yml")) {
+                imported = snippetManager.importFromYaml(file.toPath());
+            } else {
+                imported = snippetManager.importFromJson(file.toPath());
+            }
+            
             for (Snippet s : imported) {
                 snippetManager.addSnippet(s);
             }
@@ -475,11 +547,13 @@ public class SnippetManagementDialog extends Dialog<Void> {
         }
     }
     
-    private void exportToJson() {
+    private void exportSnippets() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle(I18n.get("snippets.exportJson"));
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("JSON Files", "*.json")
+        fileChooser.setTitle(I18n.get("snippets.export"));
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("JSON (*.json)", "*.json"),
+                new FileChooser.ExtensionFilter("XML (*.xml)", "*.xml"),
+                new FileChooser.ExtensionFilter("YAML (*.yaml)", "*.yaml")
         );
         fileChooser.setInitialFileName("kortty-snippets.json");
         
@@ -488,7 +562,15 @@ public class SnippetManagementDialog extends Dialog<Void> {
         
         try {
             List<Snippet> toExport = new ArrayList<>(snippetManager.getAllSnippets());
-            snippetManager.exportToJson(file.toPath(), toExport);
+            String fileName = file.getName().toLowerCase();
+            
+            if (fileName.endsWith(".xml")) {
+                snippetManager.exportToXml(file.toPath(), toExport);
+            } else if (fileName.endsWith(".yaml") || fileName.endsWith(".yml")) {
+                snippetManager.exportToYaml(file.toPath(), toExport);
+            } else {
+                snippetManager.exportToJson(file.toPath(), toExport);
+            }
             
             showInfo(I18n.get("snippets.exportSuccess", toExport.size()));
             logger.info("Exported {} snippets to {}", toExport.size(), file.getPath());
