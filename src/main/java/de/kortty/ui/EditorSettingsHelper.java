@@ -1,8 +1,8 @@
 package de.kortty.ui;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.scene.Node;
-import javafx.stage.Window;
+import javafx.util.Duration;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Shared utility for loading editor appearance settings from GlobalSettings
@@ -93,7 +94,6 @@ public final class EditorSettingsHelper {
      * Falls back to the general editor/terminal defaults when snippet-specific values are not set.
      */
     public static Settings loadSnippetSettings() {
-        // Start with general editor settings as base
         Settings base = loadSettings();
         
         String fontFamily = base.fontFamily();
@@ -107,7 +107,6 @@ public final class EditorSettingsHelper {
             var gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
             var gs = gsm.getSettings();
             if (gs != null) {
-                // Override with snippet-specific settings if present
                 if (gs.getSnippetFontFamily() != null && !gs.getSnippetFontFamily().isEmpty()) {
                     fontFamily = gs.getSnippetFontFamily();
                 }
@@ -136,6 +135,7 @@ public final class EditorSettingsHelper {
     
     /**
      * Applies font, colors, and background to an InlineCssTextArea.
+     * Also sets up the caret CSS stylesheet.
      */
     public static void applyStyle(InlineCssTextArea area, Settings settings) {
         String style = String.format(
@@ -148,29 +148,64 @@ public final class EditorSettingsHelper {
         );
         area.setStyle(style);
         
-        // Apply caret CSS immediately (will take effect once scene is available)
+        // Apply caret via CSS stylesheet (evaluated when node enters scene)
         applyCaretCss(area, settings);
     }
     
     /**
-     * Applies caret (cursor) color and stroke width via CSS stylesheet.
-     * Also schedules a deferred direct-node styling pass for after the scene is ready.
+     * Applies caret (cursor) color and stroke width.
+     * Uses CSS stylesheet + direct node styling with retries + focus listener.
      */
     public static void applyCaretStyle(InlineCssTextArea area, Settings settings) {
         applyCaretCss(area, settings);
-        applyCaretDirect(area, settings);
+        styleCaretNodesWithRetry(area, settings, 5);
+        installCaretFocusListener(area, settings);
     }
     
     /**
-     * Applies caret CSS stylesheet. This works even before the scene is shown
-     * because stylesheets are evaluated when the node enters the scene.
+     * Sets up persistent caret styling for dialogs.
+     * Call this once during dialog construction to ensure the caret is styled
+     * regardless of when RichTextFX creates it internally.
+     * Combines: CSS stylesheet + scene listener + focus listener + timed retries.
+     */
+    public static void installPersistentCaretStyling(InlineCssTextArea area, Settings settings) {
+        // 1. CSS stylesheet (works once the node is in a rendered scene)
+        applyCaretCss(area, settings);
+        
+        // 2. Focus listener: re-style every time the area gains focus
+        installCaretFocusListener(area, settings);
+        
+        // 3. Scene listener: when the area enters a scene, start retry styling
+        area.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                styleCaretNodesWithRetry(area, settings, 5);
+            }
+        });
+        
+        // 4. If already in a scene, start retry now
+        if (area.getScene() != null) {
+            styleCaretNodesWithRetry(area, settings, 5);
+        }
+    }
+    
+    /**
+     * Returns the inline CSS style for plain (non-highlighted) text using the foreground color.
+     */
+    public static String getPlainTextStyle(Settings settings) {
+        return "-fx-fill: " + settings.foregroundColor() + ";";
+    }
+    
+    // ---- Internal methods ----
+    
+    /**
+     * Applies caret CSS stylesheet via data URI.
      */
     private static void applyCaretCss(InlineCssTextArea area, Settings settings) {
         double strokeWidth = caretStrokeWidth(settings.cursorStyle());
         String color = settings.cursorColor();
         
         String caretCss = String.format(Locale.US,
-            ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; }",
+            ".caret { -fx-stroke: %s !important; -fx-stroke-width: %.1f !important; }",
             color, strokeWidth
         );
         area.getStylesheets().removeIf(s -> s.startsWith("data:"));
@@ -179,54 +214,73 @@ public final class EditorSettingsHelper {
     }
     
     /**
-     * Directly styles the caret Path node. Deferred until the node is part of a scene.
+     * Directly styles all .caret Path nodes found in the area.
+     * Returns true if at least one caret was styled.
      */
-    private static void applyCaretDirect(InlineCssTextArea area, Settings settings) {
+    private static boolean styleCaretNodesDirect(InlineCssTextArea area, Settings settings) {
         double strokeWidth = caretStrokeWidth(settings.cursorStyle());
         String color = settings.cursorColor();
+        boolean[] styled = {false};
         
-        Runnable styler = () -> {
-            try {
-                area.lookupAll(".caret").forEach(node -> {
-                    if (node instanceof javafx.scene.shape.Path caret) {
-                        caret.setStroke(javafx.scene.paint.Color.web(color));
-                        caret.setStrokeWidth(strokeWidth);
-                    }
-                });
-            } catch (Exception e) {
-                logger.debug("Caret styling skipped: {}", e.getMessage());
+        try {
+            Set<javafx.scene.Node> carets = area.lookupAll(".caret");
+            for (javafx.scene.Node node : carets) {
+                if (node instanceof javafx.scene.shape.Path caret) {
+                    caret.setStroke(javafx.scene.paint.Color.web(color));
+                    caret.setStrokeWidth(strokeWidth);
+                    styled[0] = true;
+                    logger.debug("Styled caret node: color={}, strokeWidth={}", color, strokeWidth);
+                }
             }
-        };
-        
-        // If the area is already in a scene, apply now + one deferred pass
-        if (area.getScene() != null) {
-            Platform.runLater(styler);
+        } catch (Exception e) {
+            logger.debug("Caret direct styling skipped: {}", e.getMessage());
         }
         
-        // Also apply whenever the area enters a scene (covers dialog.showAndWait())
-        area.sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (newScene != null) {
-                // Double-deferred: first runLater lets the scene layout, second applies style
-                Platform.runLater(() -> Platform.runLater(styler));
+        return styled[0];
+    }
+    
+    /**
+     * Tries to style the caret nodes with up to {@code maxRetries} attempts,
+     * spacing retries 150ms apart using PauseTransition.
+     */
+    private static void styleCaretNodesWithRetry(InlineCssTextArea area, Settings settings, int maxRetries) {
+        Platform.runLater(() -> {
+            if (styleCaretNodesDirect(area, settings)) {
+                return; // Success on first try
+            }
+            if (maxRetries <= 1) return;
+            
+            // Schedule retries with increasing delays
+            retryCaretStyling(area, settings, maxRetries - 1, 150);
+        });
+    }
+    
+    private static void retryCaretStyling(InlineCssTextArea area, Settings settings, int retriesLeft, long delayMs) {
+        if (retriesLeft <= 0) return;
+        
+        PauseTransition pause = new PauseTransition(Duration.millis(delayMs));
+        pause.setOnFinished(event -> {
+            if (styleCaretNodesDirect(area, settings)) {
+                logger.debug("Caret styled successfully after retry (remaining={})", retriesLeft);
+                return; // Done
+            }
+            // Retry with slightly longer delay
+            retryCaretStyling(area, settings, retriesLeft - 1, delayMs + 100);
+        });
+        pause.play();
+    }
+    
+    /**
+     * Installs a focus listener that re-applies caret styling when the area gains focus.
+     * This is a safety net: if the caret node is recreated (e.g. after layout changes),
+     * the styling will be re-applied.
+     */
+    private static void installCaretFocusListener(InlineCssTextArea area, Settings settings) {
+        area.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (isFocused) {
+                Platform.runLater(() -> styleCaretNodesDirect(area, settings));
             }
         });
-    }
-    
-    /**
-     * Schedules caret styling to be applied when the given window is shown.
-     * Use this for dialogs where the InlineCssTextArea caret is created only after showing.
-     */
-    public static void applyCaretOnShown(Window window, InlineCssTextArea area, Settings settings) {
-        window.setOnShown(event -> {
-            Platform.runLater(() -> Platform.runLater(() -> applyCaretDirect(area, settings)));
-        });
-    }
-    
-    /**
-     * Returns the inline CSS style for plain (non-highlighted) text using the foreground color.
-     */
-    public static String getPlainTextStyle(Settings settings) {
-        return "-fx-fill: " + settings.foregroundColor() + ";";
     }
     
     private static double caretStrokeWidth(String cursorStyle) {

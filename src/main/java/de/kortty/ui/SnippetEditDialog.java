@@ -92,6 +92,7 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         contentArea.setPrefHeight(350);
         contentArea.setPrefWidth(600);
         EditorSettingsHelper.applyStyle(contentArea, editorSettings);
+        EditorSettingsHelper.installPersistentCaretStyling(contentArea, editorSettings);
         
         // Re-apply highlighting when language changes
         languageCombo.setOnAction(e -> applyHighlighting());
@@ -155,13 +156,6 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         
         // Restore saved geometry
         restoreGeometry();
-        
-        // Fix cursor style: apply caret once the dialog window is shown
-        setOnShown(event -> {
-            Platform.runLater(() -> Platform.runLater(() -> {
-                EditorSettingsHelper.applyCaretStyle(contentArea, editorSettings);
-            }));
-        });
         
         // Result converter (also saves geometry)
         setResultConverter(buttonType -> {

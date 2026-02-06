@@ -129,6 +129,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
         previewArea.setEditable(false);
         previewArea.setPrefHeight(150);
         EditorSettingsHelper.applyStyle(previewArea, editorSettings);
+        EditorSettingsHelper.installPersistentCaretStyling(previewArea, editorSettings);
         
         Label previewLabel = new Label(I18n.get("snippets.preview") + ":");
         previewLabel.setStyle("-fx-font-weight: bold;");
@@ -219,13 +220,6 @@ public class SnippetManagementDialog extends Dialog<Void> {
         // Save geometry on close
         setOnCloseRequest(event -> saveGeometry());
         setResultConverter(bt -> { saveGeometry(); return null; });
-        
-        // Fix cursor style: apply caret once the dialog window is shown
-        setOnShown(event -> {
-            Platform.runLater(() -> Platform.runLater(() -> {
-                EditorSettingsHelper.applyCaretStyle(previewArea, editorSettings);
-            }));
-        });
     }
     
     private void restoreGeometry() {
