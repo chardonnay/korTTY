@@ -29,6 +29,7 @@ public class SnippetEditDialog extends Dialog<Snippet> {
     private final TextField tagsField;
     private final InlineCssTextArea contentArea;
     private final Snippet existingSnippet;
+    private final EditorSettingsHelper.Settings editorSettings;
     
     // Syntax highlight style constants (reused from FileEditorTab)
     private static final String STYLE_COMMENT = "-fx-fill: #888888; -fx-font-style: italic;";
@@ -55,6 +56,7 @@ public class SnippetEditDialog extends Dialog<Snippet> {
      */
     public SnippetEditDialog(Snippet snippet, List<String> existingCategories) {
         this.existingSnippet = snippet;
+        this.editorSettings = EditorSettingsHelper.loadSettings();
         
         setTitle(snippet == null ? I18n.get("snippets.addTitle") : I18n.get("snippets.editTitle"));
         setResizable(true);
@@ -81,13 +83,12 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         tagsField.setPromptText(I18n.get("snippets.tagsPrompt"));
         tagsField.setPrefWidth(400);
         
-        // Content area with syntax highlighting
+        // Content area with syntax highlighting – use saved editor settings
         contentArea = new InlineCssTextArea();
         contentArea.setWrapText(true);
         contentArea.setPrefHeight(350);
         contentArea.setPrefWidth(600);
-        contentArea.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 13px; "
-                + "-fx-background-color: #1e1e1e; -fx-control-inner-background: #1e1e1e;");
+        EditorSettingsHelper.applyStyle(contentArea, editorSettings);
         
         // Re-apply highlighting when language changes
         languageCombo.setOnAction(e -> applyHighlighting());
@@ -178,7 +179,8 @@ public class SnippetEditDialog extends Dialog<Snippet> {
             if (text == null || text.isEmpty()) return;
             
             String lang = languageCombo.getValue();
-            StyleSpans<String> spans = computeHighlighting(text, lang);
+            String plainStyle = EditorSettingsHelper.getPlainTextStyle(editorSettings);
+            StyleSpans<String> spans = computeHighlighting(text, lang, plainStyle);
             contentArea.setStyleSpans(0, spans);
         } catch (Exception e) {
             // Ignore highlighting errors
@@ -186,99 +188,96 @@ public class SnippetEditDialog extends Dialog<Snippet> {
     }
     
     static StyleSpans<String> computeHighlighting(String text, String language) {
+        return computeHighlighting(text, language, STYLE_PLAIN);
+    }
+    
+    static StyleSpans<String> computeHighlighting(String text, String language, String plainStyle) {
         if (language == null) language = "plain";
         return switch (language) {
-            case "bash" -> computeBashHighlighting(text);
-            case "python" -> computePythonHighlighting(text);
-            case "java", "groovy" -> computeJavaHighlighting(text);
-            case "javascript" -> computeJavaScriptHighlighting(text);
-            case "sql" -> computeSqlHighlighting(text);
-            case "xml" -> computeXmlHighlighting(text);
-            case "json" -> computeJsonHighlighting(text);
-            case "yaml" -> computeYamlHighlighting(text);
-            case "properties", "ini" -> computeIniHighlighting(text);
-            case "dockerfile" -> computeDockerfileHighlighting(text);
-            case "markdown" -> computeMarkdownHighlighting(text);
-            default -> StyleSpans.singleton(STYLE_PLAIN, text.length());
+            case "bash" -> applyPattern(text, computeBashPattern(), plainStyle);
+            case "python" -> applyPattern(text, computePythonPattern(), plainStyle);
+            case "java", "groovy" -> applyPattern(text, computeJavaPattern(), plainStyle);
+            case "javascript" -> applyPattern(text, computeJavaScriptPattern(), plainStyle);
+            case "sql" -> applyPattern(text, computeSqlPattern(), plainStyle);
+            case "xml" -> applyPattern(text, computeXmlPattern(), plainStyle);
+            case "json" -> applyPattern(text, computeJsonPattern(), plainStyle);
+            case "yaml" -> applyPattern(text, computeYamlPattern(), plainStyle);
+            case "properties", "ini" -> applyPattern(text, computeIniPattern(), plainStyle);
+            case "dockerfile" -> applyPattern(text, computeDockerfilePattern(), plainStyle);
+            case "markdown" -> applyPattern(text, computeMarkdownPattern(), plainStyle);
+            default -> StyleSpans.singleton(plainStyle, text.length());
         };
     }
     
-    private static StyleSpans<String> computeBashHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeBashPattern() {
+        return Pattern.compile(
             "(?<COMMENT>#.*)" +
             "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'[^']*')" +
             "|(?<VARIABLE>\\$\\{?[\\w]+}?)" +
             "|(?<KEYWORD>\\b(if|then|else|elif|fi|for|while|do|done|case|esac|function|return|local|export|source|echo|exit|cd|ls|grep|awk|sed|cat|chmod|chown|mkdir|rm|cp|mv|find|xargs|curl|wget|sudo|apt|yum|dnf|pip|npm|docker|kubectl|git|ssh|scp|rsync|tar|zip|unzip|gzip|gunzip)\\b)" +
             "|(?<NUMBER>\\b\\d+\\b)"
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computePythonHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computePythonPattern() {
+        return Pattern.compile(
             "(?<COMMENT>#.*)" +
             "|(?<STRING>\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
             "|(?<KEYWORD>\\b(def|class|import|from|as|if|elif|else|for|while|with|try|except|finally|raise|return|yield|lambda|and|or|not|in|is|None|True|False|pass|break|continue|global|nonlocal|assert|del|print)\\b)" +
             "|(?<NUMBER>\\b\\d+\\.?\\d*\\b)" +
             "|(?<VARIABLE>\\bself\\b)"
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeJavaHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeJavaPattern() {
+        return Pattern.compile(
             "(?<COMMENT>//.*|/\\*[\\s\\S]*?\\*/)" +
             "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")" +
             "|(?<KEYWORD>\\b(public|private|protected|static|final|abstract|class|interface|extends|implements|new|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|import|package|void|int|long|double|float|boolean|char|byte|short|String|var|record|sealed|permits|yield)\\b)" +
             "|(?<NUMBER>\\b\\d+\\.?\\d*[fFdDlL]?\\b)" +
             "|(?<BOOLEAN>\\b(true|false|null)\\b)"
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeJavaScriptHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeJavaScriptPattern() {
+        return Pattern.compile(
             "(?<COMMENT>//.*|/\\*[\\s\\S]*?\\*/)" +
             "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|`([^`\\\\]|\\\\.)*`)" +
             "|(?<KEYWORD>\\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|class|extends|import|export|from|default|async|await|yield|typeof|instanceof)\\b)" +
             "|(?<NUMBER>\\b\\d+\\.?\\d*\\b)" +
             "|(?<BOOLEAN>\\b(true|false|null|undefined|NaN)\\b)"
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeSqlHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeSqlPattern() {
+        return Pattern.compile(
             "(?i)(?<COMMENT>--.*|/\\*[\\s\\S]*?\\*/)" +
             "|(?<STRING>'([^'\\\\]|\\\\.)*')" +
             "|(?<KEYWORD>\\b(SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|ALTER|DROP|INDEX|VIEW|JOIN|LEFT|RIGHT|INNER|OUTER|CROSS|ON|AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE|IS|NULL|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|UNION|ALL|DISTINCT|COUNT|SUM|AVG|MAX|MIN|CASE|WHEN|THEN|ELSE|END|BEGIN|COMMIT|ROLLBACK|GRANT|REVOKE|PRIMARY|KEY|FOREIGN|REFERENCES|CONSTRAINT|DEFAULT|CHECK|UNIQUE|AUTO_INCREMENT)\\b)" +
             "|(?<NUMBER>\\b\\d+\\.?\\d*\\b)"
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeXmlHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeXmlPattern() {
+        return Pattern.compile(
             "(?<COMMENT><!--[\\s\\S]*?-->)" +
             "|(?<KEYWORD></?\\w+[^>]*>)" +
             "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")"
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeJsonHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeJsonPattern() {
+        return Pattern.compile(
             "(?<KEY>\"([^\"\\\\]|\\\\.)*\"\\s*(?=:))" +
             "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")" +
             "|(?<NUMBER>-?\\d+\\.?\\d*)" +
             "|(?<BOOLEAN>\\b(true|false|null)\\b)" +
             "|(?<BRACE>[{}\\[\\]])"
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeYamlHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeYamlPattern() {
+        return Pattern.compile(
             "(?<COMMENT>#.*)" +
             "|(?<KEY>^\\s*[\\w.-]+(?=:))" +
             "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
@@ -286,64 +285,64 @@ public class SnippetEditDialog extends Dialog<Snippet> {
             "|(?<BOOLEAN>\\b(true|false|yes|no|null)\\b)",
             Pattern.MULTILINE
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeIniHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeIniPattern() {
+        return Pattern.compile(
             "(?<COMMENT>[;#].*)" +
             "|(?<SECTION>\\[[^\\]]+\\])" +
             "|(?<KEY>^\\s*[\\w.-]+(?=\\s*=))" +
             "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')",
             Pattern.MULTILINE
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeDockerfileHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeDockerfilePattern() {
+        return Pattern.compile(
             "(?<COMMENT>#.*)" +
             "|(?<KEYWORD>^\\s*(FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL)\\b)" +
             "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
             "|(?<VARIABLE>\\$\\{?[\\w]+}?)",
             Pattern.MULTILINE
         );
-        return applyPattern(text, pattern);
     }
     
-    private static StyleSpans<String> computeMarkdownHighlighting(String text) {
-        Pattern pattern = Pattern.compile(
+    private static Pattern computeMarkdownPattern() {
+        return Pattern.compile(
             "(?<KEYWORD>^#+.*$)" +
             "|(?<STRING>\\*\\*[^*]+\\*\\*|__[^_]+__)" +
             "|(?<COMMENT>`[^`]+`)" +
             "|(?<VARIABLE>\\[([^\\]]+)\\]\\(([^)]+)\\))",
             Pattern.MULTILINE
         );
-        return applyPattern(text, pattern);
     }
     
     private static StyleSpans<String> applyPattern(String text, Pattern pattern) {
+        return applyPattern(text, pattern, STYLE_PLAIN);
+    }
+    
+    private static StyleSpans<String> applyPattern(String text, Pattern pattern, String plainStyle) {
         Matcher matcher = pattern.matcher(text);
         int lastKwEnd = 0;
         StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
         
         while (matcher.find()) {
-            String style = STYLE_PLAIN;
+            String style = plainStyle;
             try { if (matcher.group("COMMENT") != null) style = STYLE_COMMENT; } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(STYLE_PLAIN) && matcher.group("STRING") != null) style = STYLE_STRING; } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(STYLE_PLAIN) && matcher.group("NUMBER") != null) style = STYLE_NUMBER; } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(STYLE_PLAIN) && matcher.group("BOOLEAN") != null) style = STYLE_BOOLEAN; } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(STYLE_PLAIN) && matcher.group("KEY") != null) style = STYLE_KEY; } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(STYLE_PLAIN) && matcher.group("KEYWORD") != null) style = STYLE_KEYWORD; } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(STYLE_PLAIN) && matcher.group("SECTION") != null) style = STYLE_SECTION; } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(STYLE_PLAIN) && matcher.group("VARIABLE") != null) style = STYLE_VARIABLE; } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(STYLE_PLAIN) && matcher.group("BRACE") != null) style = STYLE_BRACE; } catch (IllegalArgumentException ignored) {}
+            try { if (style.equals(plainStyle) && matcher.group("STRING") != null) style = STYLE_STRING; } catch (IllegalArgumentException ignored) {}
+            try { if (style.equals(plainStyle) && matcher.group("NUMBER") != null) style = STYLE_NUMBER; } catch (IllegalArgumentException ignored) {}
+            try { if (style.equals(plainStyle) && matcher.group("BOOLEAN") != null) style = STYLE_BOOLEAN; } catch (IllegalArgumentException ignored) {}
+            try { if (style.equals(plainStyle) && matcher.group("KEY") != null) style = STYLE_KEY; } catch (IllegalArgumentException ignored) {}
+            try { if (style.equals(plainStyle) && matcher.group("KEYWORD") != null) style = STYLE_KEYWORD; } catch (IllegalArgumentException ignored) {}
+            try { if (style.equals(plainStyle) && matcher.group("SECTION") != null) style = STYLE_SECTION; } catch (IllegalArgumentException ignored) {}
+            try { if (style.equals(plainStyle) && matcher.group("VARIABLE") != null) style = STYLE_VARIABLE; } catch (IllegalArgumentException ignored) {}
+            try { if (style.equals(plainStyle) && matcher.group("BRACE") != null) style = STYLE_BRACE; } catch (IllegalArgumentException ignored) {}
             
-            spansBuilder.add(STYLE_PLAIN, matcher.start() - lastKwEnd);
+            spansBuilder.add(plainStyle, matcher.start() - lastKwEnd);
             spansBuilder.add(style, matcher.end() - matcher.start());
             lastKwEnd = matcher.end();
         }
-        spansBuilder.add(STYLE_PLAIN, text.length() - lastKwEnd);
+        spansBuilder.add(plainStyle, text.length() - lastKwEnd);
         
         return spansBuilder.create();
     }

@@ -45,9 +45,11 @@ public class SnippetManagementDialog extends Dialog<Void> {
     private final InlineCssTextArea previewArea;
     private final ObservableList<Snippet> snippetList;
     private final FilteredList<Snippet> filteredList;
+    private final EditorSettingsHelper.Settings editorSettings;
     
     public SnippetManagementDialog(SnippetManager snippetManager) {
         this.snippetManager = snippetManager;
+        this.editorSettings = EditorSettingsHelper.loadSettings();
         
         setTitle(I18n.get("snippets.title"));
         setResizable(true);
@@ -126,8 +128,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
         previewArea = new InlineCssTextArea();
         previewArea.setEditable(false);
         previewArea.setPrefHeight(150);
-        previewArea.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 12px; "
-                + "-fx-background-color: #1e1e1e; -fx-control-inner-background: #1e1e1e;");
+        EditorSettingsHelper.applyStyle(previewArea, editorSettings);
         
         Label previewLabel = new Label(I18n.get("snippets.preview") + ":");
         previewLabel.setStyle("-fx-font-weight: bold;");
@@ -313,7 +314,8 @@ public class SnippetManagementDialog extends Dialog<Void> {
         previewArea.replaceText(content);
         
         try {
-            StyleSpans<String> spans = SnippetEditDialog.computeHighlighting(content, snippet.getLanguage());
+            String plainStyle = EditorSettingsHelper.getPlainTextStyle(editorSettings);
+            StyleSpans<String> spans = SnippetEditDialog.computeHighlighting(content, snippet.getLanguage(), plainStyle);
             previewArea.setStyleSpans(0, spans);
         } catch (Exception e) {
             // Ignore highlighting errors
