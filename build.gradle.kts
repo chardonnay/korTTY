@@ -85,6 +85,9 @@ dependencies {
     // RichTextFX - Code editor with syntax highlighting
     implementation("org.fxmisc.richtext:richtextfx:0.11.3")
     
+    // jfiglet - ASCII art banners (FIGfonts)
+    implementation("com.github.lalyos:jfiglet:0.0.9")
+    
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("ch.qos.logback:logback-classic:1.4.14")

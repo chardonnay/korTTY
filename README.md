@@ -17,6 +17,8 @@ A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
 - **JMX Monitoring**: Monitor active connections, memory usage, etc.
 - **Dashboard**: Overview of all open connections in the project
 - **SFTP Manager**: File transfer between local system and remote servers
+- **Snippet Manager**: Create, search, favorite, and organize reusable snippets (JSON/XML/YAML import/export)
+- **ASCII Art Banner**: Generate FIGlet banners with multiple styles (Tools menu)
 - **Window Geometry Storage**: Automatic restoration of window position and size
 - **Dashboard State Storage**: Automatic restoration of dashboard state
 - **Backup & Restore**: Create encrypted backups (password or GPG) and import them
@@ -98,7 +100,7 @@ Creates a DMG installer:
 
 The DMG file is located at:
 ```
-build/jpackage/korTTY-1.2.0.dmg
+build/jpackage/korTTY-1.3.0.dmg
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.icns`
@@ -133,7 +135,7 @@ gradlew.bat jpackageMsi
 
 The MSI file is located at:
 ```
-build\jpackage\korTTY-1.2.0.msi
+build\jpackage\korTTY-1.3.0.msi
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.ico` (if available, otherwise PNG)
@@ -168,12 +170,12 @@ Creates a Debian/Ubuntu package (requires dpkg):
 
 The DEB package is located at:
 ```
-build/jpackage/korTTY-1.2.0.deb
+build/jpackage/korTTY-1.3.0.deb
 ```
 
 **Installation:**
 ```bash
-sudo dpkg -i build/jpackage/korTTY-1.2.0.deb
+sudo dpkg -i build/jpackage/korTTY-1.3.0.deb
 ```
 
 #### Create RPM Package
@@ -186,12 +188,12 @@ Creates a Red Hat/Fedora package (requires rpmbuild):
 
 The RPM package is located at:
 ```
-build/jpackage/korTTY-1.2.0.rpm
+build/jpackage/korTTY-1.3.0.rpm
 ```
 
 **Installation:**
 ```bash
-sudo rpm -i build/jpackage/korTTY-1.2.0.rpm
+sudo rpm -i build/jpackage/korTTY-1.3.0.rpm
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.png`

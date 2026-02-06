@@ -407,11 +407,14 @@ public class MainWindow {
         MenuItem openSFTPManager = new MenuItem(I18n.get("menu.tools.sftpManager"));
         openSFTPManager.setOnAction(e -> showSFTPManager());
         
+        MenuItem asciiArtBanner = new MenuItem(I18n.get("menu.tools.asciiArtBanner"));
+        asciiArtBanner.setOnAction(e -> showAsciiArtBanner());
+        
         MenuItem snippetManager = new MenuItem(I18n.get("menu.tools.snippets"));
         snippetManager.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         snippetManager.setOnAction(e -> showSnippetManager());
         
-        sftpMenu.getItems().addAll(openSFTPManager, new SeparatorMenuItem(), snippetManager);
+        sftpMenu.getItems().addAll(openSFTPManager, asciiArtBanner, new SeparatorMenuItem(), snippetManager);
         
         // View Menu
         Menu viewMenu = new Menu(I18n.get("menu.view"));
@@ -1656,6 +1659,17 @@ public class MainWindow {
         } catch (Exception e) {
             logger.error("Failed to show SSH key management", e);
             showError(I18n.get("error.title"), I18n.get("error.sshKeyManagementFailed", e.getMessage()));
+        }
+    }
+    
+    private void showAsciiArtBanner() {
+        try {
+            AsciiArtBannerDialog dialog = new AsciiArtBannerDialog();
+            dialog.initOwner(stage);
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to open ASCII Art Banner dialog", e);
+            showError(I18n.get("error.title"), e.getMessage());
         }
     }
     

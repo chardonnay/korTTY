@@ -196,6 +196,8 @@ public final class EditorSettingsHelper {
     /**
      * Creates a VirtualizedScrollPane wrapping the given InlineCssTextArea
      * with always-visible, dark-themed scrollbars.
+     * Uses explicit min size for scrollbars so they are visible on macOS (where
+     * overlay scrollbars otherwise get 0 preferred size).
      */
     public static VirtualizedScrollPane<InlineCssTextArea> createScrollPane(InlineCssTextArea area) {
         VirtualizedScrollPane<InlineCssTextArea> scrollPane = new VirtualizedScrollPane<>(
@@ -203,33 +205,17 @@ public final class EditorSettingsHelper {
                 ScrollPane.ScrollBarPolicy.AS_NEEDED,
                 ScrollPane.ScrollBarPolicy.ALWAYS
         );
+        scrollPane.getStyleClass().add("snippet-scroll-pane");
         
-        // Apply dark-themed scrollbar CSS so they are clearly visible on dark backgrounds
-        String scrollbarCss = String.join("\n",
-            ".scroll-bar {",
-            "    -fx-background-color: #2a2a2a;",
-            "    -fx-opacity: 1.0;",
-            "}",
-            ".scroll-bar .thumb {",
-            "    -fx-background-color: #666666;",
-            "    -fx-background-radius: 3;",
-            "}",
-            ".scroll-bar:hover .thumb {",
-            "    -fx-background-color: #888888;",
-            "}",
-            ".scroll-bar .track {",
-            "    -fx-background-color: #2a2a2a;",
-            "}",
-            ".scroll-bar .increment-button, .scroll-bar .decrement-button {",
-            "    -fx-background-color: #333333;",
-            "    -fx-padding: 3;",
-            "}",
-            ".scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {",
-            "    -fx-background-color: #888888;",
-            "}"
-        );
-        scrollPane.getStylesheets().add(
-                "data:text/css;charset=utf-8," + URLEncoder.encode(scrollbarCss, StandardCharsets.UTF_8));
+        // Load scrollbar CSS from resource so scrollbars have fixed size and dark theme (visible on macOS)
+        try {
+            java.net.URL url = EditorSettingsHelper.class.getResource("/styles/snippet-scrollbars.css");
+            if (url != null) {
+                scrollPane.getStylesheets().add(url.toExternalForm());
+            }
+        } catch (Exception e) {
+            logger.warn("Could not load snippet-scrollbars.css, scrollbars may be invisible", e);
+        }
         
         return scrollPane;
     }

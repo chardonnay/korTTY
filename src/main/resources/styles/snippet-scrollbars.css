@@ -1,0 +1,38 @@
+/* Scrollbars for Snippet Manager preview and Snippet Editor.
+   Explicit size and dark theme so they are visible on macOS (no overlay/invisible bars). */
+
+.snippet-scroll-pane .scroll-bar:vertical {
+    -fx-background-color: #2a2a2a;
+    -fx-min-width: 14px;
+    -fx-pref-width: 14px;
+}
+
+.snippet-scroll-pane .scroll-bar:horizontal {
+    -fx-background-color: #2a2a2a;
+    -fx-min-height: 14px;
+    -fx-pref-height: 14px;
+}
+
+.snippet-scroll-pane .scroll-bar .thumb {
+    -fx-background-color: #666666;
+    -fx-background-radius: 3;
+}
+
+.snippet-scroll-pane .scroll-bar:hover .thumb {
+    -fx-background-color: #888888;
+}
+
+.snippet-scroll-pane .scroll-bar .track {
+    -fx-background-color: #2a2a2a;
+}
+
+.snippet-scroll-pane .scroll-bar .increment-button,
+.snippet-scroll-pane .scroll-bar .decrement-button {
+    -fx-background-color: #333333;
+    -fx-padding: 2;
+}
+
+.snippet-scroll-pane .scroll-bar .increment-arrow,
+.snippet-scroll-pane .scroll-bar .decrement-arrow {
+    -fx-background-color: #888888;
+}
