@@ -2,10 +2,12 @@ package de.kortty.ui;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
+import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,6 +191,47 @@ public final class EditorSettingsHelper {
         if (area.getScene() != null) {
             styleCaretNodesWithRetry(area, settings, 8);
         }
+    }
+    
+    /**
+     * Creates a VirtualizedScrollPane wrapping the given InlineCssTextArea
+     * with always-visible, dark-themed scrollbars.
+     */
+    public static VirtualizedScrollPane<InlineCssTextArea> createScrollPane(InlineCssTextArea area) {
+        VirtualizedScrollPane<InlineCssTextArea> scrollPane = new VirtualizedScrollPane<>(
+                area,
+                ScrollPane.ScrollBarPolicy.AS_NEEDED,
+                ScrollPane.ScrollBarPolicy.ALWAYS
+        );
+        
+        // Apply dark-themed scrollbar CSS so they are clearly visible on dark backgrounds
+        String scrollbarCss = String.join("\n",
+            ".scroll-bar {",
+            "    -fx-background-color: #2a2a2a;",
+            "    -fx-opacity: 1.0;",
+            "}",
+            ".scroll-bar .thumb {",
+            "    -fx-background-color: #666666;",
+            "    -fx-background-radius: 3;",
+            "}",
+            ".scroll-bar:hover .thumb {",
+            "    -fx-background-color: #888888;",
+            "}",
+            ".scroll-bar .track {",
+            "    -fx-background-color: #2a2a2a;",
+            "}",
+            ".scroll-bar .increment-button, .scroll-bar .decrement-button {",
+            "    -fx-background-color: #333333;",
+            "    -fx-padding: 3;",
+            "}",
+            ".scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {",
+            "    -fx-background-color: #888888;",
+            "}"
+        );
+        scrollPane.getStylesheets().add(
+                "data:text/css;charset=utf-8," + URLEncoder.encode(scrollbarCss, StandardCharsets.UTF_8));
+        
+        return scrollPane;
     }
     
     /**

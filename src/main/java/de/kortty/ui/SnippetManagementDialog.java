@@ -22,7 +22,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
-import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.slf4j.Logger;
@@ -136,7 +135,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
         EditorSettingsHelper.installPersistentCaretStyling(previewArea, editorSettings);
         
         // Wrap in VirtualizedScrollPane for horizontal + vertical scrollbars
-        VirtualizedScrollPane<InlineCssTextArea> previewScrollPane = new VirtualizedScrollPane<>(previewArea);
+        var previewScrollPane = EditorSettingsHelper.createScrollPane(previewArea);
         previewScrollPane.setPrefHeight(150);
         
         // Word wrap checkbox – persistent setting
