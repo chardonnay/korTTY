@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SnippetManager;
+import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import javafx.application.Platform;
@@ -214,8 +215,16 @@ public class SnippetManagementDialog extends Dialog<Void> {
         HBox crudButtons = new HBox(8, addBtn, editBtn, deleteBtn, new Separator(), favBtn);
         crudButtons.setAlignment(Pos.CENTER_LEFT);
         
+        Button variablesBtn = new Button(I18n.get("snippets.variables.manage"));
+        variablesBtn.setOnAction(e -> {
+            SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
+            if (varManager != null) {
+                new SnippetVariableManagementDialog(varManager).showAndWait();
+            }
+        });
+        
         HBox actionButtons = new HBox(8, copyBtn, insertEditorBtn, insertTermBtn,
-                new Separator(), importBtn, exportBtn);
+                new Separator(), importBtn, exportBtn, new Separator(), variablesBtn);
         actionButtons.setAlignment(Pos.CENTER_LEFT);
         
         // ---- Layout ----
@@ -500,9 +509,38 @@ public class SnippetManagementDialog extends Dialog<Void> {
         // Check for custom variables that need interactive prompting
         List<String> customVars = snippetManager.findCustomVariables(text);
         if (!customVars.isEmpty()) {
-            Map<String, String> values = promptForVariables(customVars);
-            if (values == null) return null; // User cancelled
-            text = snippetManager.replaceCustomVariables(text, values);
+            // Pre-fill from SnippetVariableManager where possible
+            SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
+            Map<String, String> prefilledValues = new LinkedHashMap<>();
+            List<String> missingVars = new java.util.ArrayList<>();
+            
+            for (String varName : customVars) {
+                String storedValue = varManager != null ? varManager.getValue(varName) : null;
+                if (storedValue != null) {
+                    prefilledValues.put(varName, storedValue);
+                } else {
+                    missingVars.add(varName);
+                }
+            }
+            
+            // Prompt only for variables without stored values
+            if (!missingVars.isEmpty()) {
+                Map<String, String> promptedValues = promptForVariables(missingVars);
+                if (promptedValues == null) return null; // User cancelled
+                prefilledValues.putAll(promptedValues);
+                
+                // Save newly entered values back to the variable manager
+                if (varManager != null) {
+                    for (Map.Entry<String, String> entry : promptedValues.entrySet()) {
+                        if (entry.getValue() != null && !entry.getValue().isBlank()) {
+                            varManager.addOrUpdate(entry.getKey(), entry.getValue());
+                        }
+                    }
+                    try { varManager.save(); } catch (Exception e) { logger.warn("Failed to save variables", e); }
+                }
+            }
+            
+            text = snippetManager.replaceCustomVariables(text, prefilledValues);
         }
         
         // Track usage

@@ -130,6 +130,7 @@ public class BackupManager {
         addFileToPasswordZip(zipFile, configDir.resolve("global-settings.xml"), zipParameters);
         addFileToPasswordZip(zipFile, configDir.resolve("master-password-hash"), zipParameters);
         addFileToPasswordZip(zipFile, configDir.resolve("snippets.xml"), zipParameters);
+        addFileToPasswordZip(zipFile, configDir.resolve("snippet-variables.xml"), zipParameters);
         
         // Add projects directory if exists
         Path projectsDir = configDir.resolve("projects");
@@ -167,6 +168,7 @@ public class BackupManager {
                 addFileToZip(zos, configDir.resolve("global-settings.xml"), "global-settings.xml");
                 addFileToZip(zos, configDir.resolve("master-password-hash"), "master-password-hash");
                 addFileToZip(zos, configDir.resolve("snippets.xml"), "snippets.xml");
+                addFileToZip(zos, configDir.resolve("snippet-variables.xml"), "snippet-variables.xml");
                 
                 Path projectsDir = configDir.resolve("projects");
                 if (Files.exists(projectsDir) && Files.isDirectory(projectsDir)) {
@@ -421,7 +423,8 @@ public class BackupManager {
             "gpg-keys.xml",
             "global-settings.xml",
             "master-password-hash",
-            "snippets.xml"
+            "snippets.xml",
+            "snippet-variables.xml"
         };
         
         // Copy individual files

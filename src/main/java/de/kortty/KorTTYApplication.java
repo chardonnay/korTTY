@@ -6,6 +6,7 @@ import de.kortty.core.GPGKeyManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.SnippetManager;
+import de.kortty.core.SnippetVariableManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.BackupManager;
 import de.kortty.model.ConnectionSettings;
@@ -45,6 +46,7 @@ public class KorTTYApplication extends Application {
     private CredentialManager credentialManager;
     private SSHKeyManager sshKeyManager;
     private SnippetManager snippetManager;
+    private SnippetVariableManager snippetVariableManager;
     private GlobalSettingsManager globalSettingsManager;
     private BackupManager backupManager;
     
@@ -79,6 +81,7 @@ public class KorTTYApplication extends Application {
         credentialManager = new CredentialManager(configDir);
         sshKeyManager = new SSHKeyManager(configDir);
         snippetManager = new SnippetManager(configDir);
+        snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
         
         // Register JMX MBean
@@ -153,6 +156,7 @@ public class KorTTYApplication extends Application {
                 credentialManager.load();
                 sshKeyManager.load();
                 snippetManager.load();
+                snippetVariableManager.load();
                 // Reload global settings to ensure we have the latest version
                 // Note: This reload should preserve the language setting from the file
                 globalSettingsManager.load();
@@ -228,6 +232,9 @@ public class KorTTYApplication extends Application {
             }
             if (snippetManager != null) {
                 snippetManager.save();
+            }
+            if (snippetVariableManager != null) {
+                snippetVariableManager.save();
             }
             if (globalSettingsManager != null) {
                 globalSettingsManager.save();
@@ -316,5 +323,9 @@ public class KorTTYApplication extends Application {
     
     public BackupManager getBackupManager() {
         return backupManager;
+    }
+    
+    public SnippetVariableManager getSnippetVariableManager() {
+        return snippetVariableManager;
     }
 }
