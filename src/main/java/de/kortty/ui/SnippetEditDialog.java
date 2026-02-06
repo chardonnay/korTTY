@@ -6,11 +6,13 @@ import de.kortty.model.SnippetCategory;
 import de.kortty.model.WindowGeometry;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
@@ -88,11 +90,25 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         
         // Content area with syntax highlighting – use saved editor settings
         contentArea = new InlineCssTextArea();
-        contentArea.setWrapText(true);
         contentArea.setPrefHeight(350);
         contentArea.setPrefWidth(600);
         EditorSettingsHelper.applyStyle(contentArea, editorSettings);
         EditorSettingsHelper.installPersistentCaretStyling(contentArea, editorSettings);
+        
+        // Wrap content area in VirtualizedScrollPane for scrollbars
+        VirtualizedScrollPane<InlineCssTextArea> contentScrollPane = new VirtualizedScrollPane<>(contentArea);
+        VBox.setVgrow(contentScrollPane, Priority.ALWAYS);
+        
+        // Word wrap checkbox – persistent setting
+        CheckBox wordWrapCheckBox = new CheckBox(I18n.get("snippets.wordWrap"));
+        boolean savedWordWrap = loadWordWrapSetting();
+        wordWrapCheckBox.setSelected(savedWordWrap);
+        contentArea.setWrapText(savedWordWrap);
+        
+        wordWrapCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            contentArea.setWrapText(newVal);
+            saveWordWrapSetting(newVal);
+        });
         
         // Re-apply highlighting when language changes
         languageCombo.setOnAction(e -> applyHighlighting());
@@ -126,10 +142,13 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         formGrid.add(tagsField, 1, 2);
         GridPane.setHgrow(tagsField, Priority.ALWAYS);
         
-        formGrid.add(new Label(I18n.get("snippets.content") + ":"), 0, 3);
+        HBox contentHeader = new HBox(10,
+                new Label(I18n.get("snippets.content") + ":"), wordWrapCheckBox);
+        contentHeader.setAlignment(Pos.CENTER_LEFT);
+        formGrid.add(contentHeader, 0, 3, 2, 1);
         
-        VBox contentBox = new VBox(5, contentArea, placeholderInfo);
-        VBox.setVgrow(contentArea, Priority.ALWAYS);
+        VBox contentBox = new VBox(5, contentScrollPane, placeholderInfo);
+        VBox.setVgrow(contentScrollPane, Priority.ALWAYS);
         formGrid.add(contentBox, 0, 4, 2, 1);
         GridPane.setVgrow(contentBox, Priority.ALWAYS);
         
@@ -205,6 +224,25 @@ public class SnippetEditDialog extends Dialog<Snippet> {
                 gs.setSnippetEditGeometry(geo);
                 KorTTYApplication.getInstance().getGlobalSettingsManager().save();
             }
+        } catch (Exception e) {
+            // Ignore - non-critical
+        }
+    }
+    
+    private boolean loadWordWrapSetting() {
+        try {
+            return KorTTYApplication.getInstance().getGlobalSettingsManager()
+                    .getSettings().isSnippetWordWrap();
+        } catch (Exception e) {
+            return true; // default on
+        }
+    }
+    
+    private void saveWordWrapSetting(boolean enabled) {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            gs.setSnippetWordWrap(enabled);
+            KorTTYApplication.getInstance().getGlobalSettingsManager().save();
         } catch (Exception e) {
             // Ignore - non-critical
         }

@@ -8,6 +8,7 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
@@ -21,6 +22,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.slf4j.Logger;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 
 /**
  * Dialog for managing code snippets: browse, search, preview, and insert into editor or terminal.
+ * Supports multi-selection for batch delete/export operations.
  */
 public class SnippetManagementDialog extends Dialog<Void> {
     
@@ -46,6 +49,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
     private final ObservableList<Snippet> snippetList;
     private final FilteredList<Snippet> filteredList;
     private final EditorSettingsHelper.Settings editorSettings;
+    private final CheckBox wordWrapCheckBox;
     
     public SnippetManagementDialog(SnippetManager snippetManager) {
         this.snippetManager = snippetManager;
@@ -71,10 +75,11 @@ public class SnippetManagementDialog extends Dialog<Void> {
         searchBar.setAlignment(Pos.CENTER_LEFT);
         searchBar.setPadding(new Insets(5, 0, 5, 0));
         
-        // ---- Table ----
+        // ---- Table with MULTIPLE selection mode ----
         snippetTable = new TableView<>();
         snippetTable.setPrefHeight(250);
         snippetTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        snippetTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         
         TableColumn<Snippet, String> favCol = new TableColumn<>("");
         favCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().isFavorite() ? "\u2605" : ""));
@@ -124,17 +129,34 @@ public class SnippetManagementDialog extends Dialog<Void> {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> updateFilter());
         categoryFilter.setOnAction(e -> updateFilter());
         
-        // ---- Preview Area ----
+        // ---- Preview Area with scrollbars ----
         previewArea = new InlineCssTextArea();
         previewArea.setEditable(false);
-        previewArea.setPrefHeight(150);
         EditorSettingsHelper.applyStyle(previewArea, editorSettings);
         EditorSettingsHelper.installPersistentCaretStyling(previewArea, editorSettings);
+        
+        // Wrap in VirtualizedScrollPane for horizontal + vertical scrollbars
+        VirtualizedScrollPane<InlineCssTextArea> previewScrollPane = new VirtualizedScrollPane<>(previewArea);
+        previewScrollPane.setPrefHeight(150);
+        
+        // Word wrap checkbox – persistent setting
+        wordWrapCheckBox = new CheckBox(I18n.get("snippets.wordWrap"));
+        boolean savedWordWrap = loadWordWrapSetting();
+        wordWrapCheckBox.setSelected(savedWordWrap);
+        previewArea.setWrapText(savedWordWrap);
+        
+        wordWrapCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            previewArea.setWrapText(newVal);
+            saveWordWrapSetting(newVal);
+        });
         
         Label previewLabel = new Label(I18n.get("snippets.preview") + ":");
         previewLabel.setStyle("-fx-font-weight: bold;");
         
-        // Update preview when selection changes
+        HBox previewHeader = new HBox(10, previewLabel, wordWrapCheckBox);
+        previewHeader.setAlignment(Pos.CENTER_LEFT);
+        
+        // Update preview when selection changes (show first selected item)
         snippetTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
             updatePreview(newSel);
         });
@@ -148,7 +170,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
         editBtn.setDisable(true);
         
         Button deleteBtn = new Button(I18n.get("snippets.delete"));
-        deleteBtn.setOnAction(e -> deleteSnippet());
+        deleteBtn.setOnAction(e -> deleteSnippets());
         deleteBtn.setDisable(true);
         
         Button copyBtn = new Button(I18n.get("snippets.copyClipboard"));
@@ -174,16 +196,20 @@ public class SnippetManagementDialog extends Dialog<Void> {
         exportBtn.setOnAction(e -> exportSnippets());
         exportBtn.setDisable(true);
         
-        // Enable/disable buttons based on selection
-        snippetTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
-            boolean hasSelection = newSel != null;
-            editBtn.setDisable(!hasSelection);
+        // Enable/disable buttons based on multi-selection
+        snippetTable.getSelectionModel().getSelectedItems().addListener(
+                (ListChangeListener<Snippet>) change -> {
+            ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
+            boolean hasSelection = !selected.isEmpty();
+            boolean hasSingle = selected.size() == 1;
+            
+            editBtn.setDisable(!hasSingle); // Edit only single selection
             deleteBtn.setDisable(!hasSelection);
-            copyBtn.setDisable(!hasSelection);
-            insertEditorBtn.setDisable(!hasSelection);
-            insertTermBtn.setDisable(!hasSelection);
+            copyBtn.setDisable(!hasSingle); // Copy only single
+            insertEditorBtn.setDisable(!hasSingle); // Insert only single
+            insertTermBtn.setDisable(!hasSingle); // Insert only single
             favBtn.setDisable(!hasSelection);
-            exportBtn.setDisable(snippetList.isEmpty());
+            exportBtn.setDisable(!hasSelection && snippetList.isEmpty());
         });
         
         HBox crudButtons = new HBox(8, addBtn, editBtn, deleteBtn, new Separator(), favBtn);
@@ -197,14 +223,14 @@ public class SnippetManagementDialog extends Dialog<Void> {
         VBox layout = new VBox(8,
                 searchBar,
                 snippetTable,
-                previewLabel,
-                previewArea,
+                previewHeader,
+                previewScrollPane,
                 crudButtons,
                 actionButtons
         );
         layout.setPadding(new Insets(10));
         VBox.setVgrow(snippetTable, Priority.ALWAYS);
-        VBox.setVgrow(previewArea, Priority.SOMETIMES);
+        VBox.setVgrow(previewScrollPane, Priority.SOMETIMES);
         
         getDialogPane().setContent(layout);
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
@@ -256,6 +282,27 @@ public class SnippetManagementDialog extends Dialog<Void> {
             }
         } catch (Exception e) {
             logger.debug("Could not save snippet manager geometry", e);
+        }
+    }
+    
+    // ---- Word Wrap persistence ----
+    
+    private boolean loadWordWrapSetting() {
+        try {
+            return KorTTYApplication.getInstance().getGlobalSettingsManager()
+                    .getSettings().isSnippetWordWrap();
+        } catch (Exception e) {
+            return true; // default on
+        }
+    }
+    
+    private void saveWordWrapSetting(boolean enabled) {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            gs.setSnippetWordWrap(enabled);
+            KorTTYApplication.getInstance().getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.debug("Could not save word wrap setting", e);
         }
     }
     
@@ -402,30 +449,45 @@ public class SnippetManagementDialog extends Dialog<Void> {
         });
     }
     
-    private void deleteSnippet() {
-        Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
+    /**
+     * Deletes all currently selected snippets after confirmation.
+     */
+    private void deleteSnippets() {
+        List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty()) return;
         
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle(I18n.get("snippets.deleteConfirm.title"));
         confirm.setHeaderText(I18n.get("snippets.deleteConfirm.header"));
-        confirm.setContentText(I18n.get("snippets.deleteConfirm.content", selected.getName()));
         confirm.initOwner(getDialogPane().getScene().getWindow());
+        
+        if (selected.size() == 1) {
+            confirm.setContentText(I18n.get("snippets.deleteConfirm.content", selected.getFirst().getName()));
+        } else {
+            confirm.setContentText(I18n.get("snippets.deleteConfirm.contentMultiple", selected.size()));
+        }
         
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                snippetManager.removeSnippet(selected);
+                for (Snippet s : selected) {
+                    snippetManager.removeSnippet(s);
+                }
                 saveAndRefresh();
             }
         });
     }
     
+    /**
+     * Toggles favorite status for all selected snippets.
+     */
     private void toggleFavorite() {
-        Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
+        List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty()) return;
         
-        selected.setFavorite(!selected.isFavorite());
-        snippetManager.updateSnippet(selected);
+        for (Snippet s : selected) {
+            s.setFavorite(!s.isFavorite());
+            snippetManager.updateSnippet(s);
+        }
         saveAndRefresh();
     }
     
@@ -594,7 +656,21 @@ public class SnippetManagementDialog extends Dialog<Void> {
         }
     }
     
+    /**
+     * Exports snippets. If items are selected, exports only the selected ones.
+     * Otherwise exports all snippets.
+     */
     private void exportSnippets() {
+        List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
+        List<Snippet> toExport = selected.isEmpty()
+                ? new ArrayList<>(snippetManager.getAllSnippets())
+                : selected;
+        
+        if (toExport.isEmpty()) {
+            showInfo(I18n.get("snippets.exportEmpty"));
+            return;
+        }
+        
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.get("snippets.export"));
         fileChooser.getExtensionFilters().addAll(
@@ -608,7 +684,6 @@ public class SnippetManagementDialog extends Dialog<Void> {
         if (file == null) return;
         
         try {
-            List<Snippet> toExport = new ArrayList<>(snippetManager.getAllSnippets());
             String fileName = file.getName().toLowerCase();
             
             if (fileName.endsWith(".xml")) {

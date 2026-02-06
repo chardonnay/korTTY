@@ -123,6 +123,9 @@ public class GlobalSettings {
     @XmlElement
     private String snippetCursorColor; // null = use editor default
     
+    @XmlElement
+    private boolean snippetWordWrap = true; // Word wrap in snippet preview & editor (default: on)
+    
     // Snippet dialog geometries
     @XmlElement
     private WindowGeometry snippetManagerGeometry;
@@ -475,6 +478,9 @@ public class GlobalSettings {
     
     public String getSnippetCursorColor() { return snippetCursorColor; }
     public void setSnippetCursorColor(String snippetCursorColor) { this.snippetCursorColor = snippetCursorColor; }
+    
+    public boolean isSnippetWordWrap() { return snippetWordWrap; }
+    public void setSnippetWordWrap(boolean snippetWordWrap) { this.snippetWordWrap = snippetWordWrap; }
     
     // ---- Snippet Dialog Geometries ----
     
