@@ -97,6 +97,14 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ComboBox<String> editorCursorStyleCombo;
     private final ColorPicker editorCursorColorPicker;
     
+    // Snippet editor settings
+    private final ComboBox<String> snippetFontFamilyCombo;
+    private final Spinner<Integer> snippetFontSizeSpinner;
+    private final ColorPicker snippetForegroundColorPicker;
+    private final ColorPicker snippetBackgroundColorPicker;
+    private final ComboBox<String> snippetCursorStyleCombo;
+    private final ColorPicker snippetCursorColorPicker;
+    
     public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
                           GlobalSettings globalSettings, CredentialManager credentialManager, 
                           GPGKeyManager gpgKeyManager) {
@@ -751,7 +759,76 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         editorTab.setContent(editorGrid);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, languageTab);
+        // Snippet Editor tab
+        Tab snippetEditorTab = new Tab(I18n.get("settings.tab.snippetEditor"));
+        GridPane snippetEditorGrid = new GridPane();
+        snippetEditorGrid.setHgap(10);
+        snippetEditorGrid.setVgap(10);
+        snippetEditorGrid.setPadding(new Insets(20));
+        
+        int snippetRow = 0;
+        
+        Label snippetTitle = new Label(I18n.get("settings.snippetEditor.title"));
+        snippetTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        snippetEditorGrid.add(snippetTitle, 0, snippetRow++, 2, 1);
+        
+        Label snippetInfo = new Label(I18n.get("settings.snippetEditor.info"));
+        snippetInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        snippetInfo.setWrapText(true);
+        snippetInfo.setMaxWidth(400);
+        snippetEditorGrid.add(snippetInfo, 0, snippetRow++, 2, 1);
+        
+        // Font family
+        snippetFontFamilyCombo = new ComboBox<>();
+        snippetFontFamilyCombo.getItems().add(""); // empty = inherit from terminal
+        snippetFontFamilyCombo.getItems().addAll(getMonospaceFonts());
+        String savedSnippetFont = globalSettings.getSnippetFontFamily();
+        snippetFontFamilyCombo.setValue(savedSnippetFont != null ? savedSnippetFont : "");
+        snippetFontFamilyCombo.setPrefWidth(200);
+        snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.fontFamily")), 0, snippetRow);
+        snippetEditorGrid.add(snippetFontFamilyCombo, 1, snippetRow++);
+        
+        // Font size
+        int savedSnippetSize = globalSettings.getSnippetFontSize() != null ? globalSettings.getSnippetFontSize() : 0;
+        snippetFontSizeSpinner = new Spinner<>(0, 72, savedSnippetSize);
+        snippetFontSizeSpinner.setEditable(true);
+        snippetFontSizeSpinner.setPrefWidth(80);
+        Label snippetSizeInfo = new Label(I18n.get("settings.snippetEditor.fontSizeInfo"));
+        snippetSizeInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        HBox snippetSizeBox = new HBox(10, snippetFontSizeSpinner, snippetSizeInfo);
+        snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.fontSize")), 0, snippetRow);
+        snippetEditorGrid.add(snippetSizeBox, 1, snippetRow++);
+        
+        // Foreground color
+        String snippetFg = globalSettings.getSnippetForegroundColor();
+        snippetForegroundColorPicker = new ColorPicker(snippetFg != null ? Color.web(snippetFg) : Color.web("#d4d4d4"));
+        snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.foreground")), 0, snippetRow);
+        snippetEditorGrid.add(snippetForegroundColorPicker, 1, snippetRow++);
+        
+        // Background color
+        String snippetBg = globalSettings.getSnippetBackgroundColor();
+        snippetBackgroundColorPicker = new ColorPicker(snippetBg != null ? Color.web(snippetBg) : Color.web("#1e1e1e"));
+        snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.background")), 0, snippetRow);
+        snippetEditorGrid.add(snippetBackgroundColorPicker, 1, snippetRow++);
+        
+        // Cursor style
+        snippetCursorStyleCombo = new ComboBox<>();
+        snippetCursorStyleCombo.getItems().addAll("", "BLOCK", "LINE", "UNDERSCORE");
+        String savedSnippetCursorStyle = globalSettings.getSnippetCursorStyle();
+        snippetCursorStyleCombo.setValue(savedSnippetCursorStyle != null ? savedSnippetCursorStyle : "");
+        snippetCursorStyleCombo.setPrefWidth(150);
+        snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.cursorStyle")), 0, snippetRow);
+        snippetEditorGrid.add(snippetCursorStyleCombo, 1, snippetRow++);
+        
+        // Cursor color
+        String snippetCursorCol = globalSettings.getSnippetCursorColor();
+        snippetCursorColorPicker = new ColorPicker(snippetCursorCol != null ? Color.web(snippetCursorCol) : Color.web("#FF0000"));
+        snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.cursorColor")), 0, snippetRow);
+        snippetEditorGrid.add(snippetCursorColorPicker, 1, snippetRow++);
+        
+        snippetEditorTab.setContent(snippetEditorGrid);
+        
+        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab);
         
         VBox content = new VBox(tabPane);
         content.setPrefSize(500, 400);
@@ -892,6 +969,21 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             // Save Editor settings
             globalSettings.setEditorCursorStyle(editorCursorStyleCombo.getValue());
             globalSettings.setEditorCursorColor(toHex(editorCursorColorPicker.getValue()));
+            
+            // Save Snippet Editor settings (empty string = inherit from terminal/editor)
+            String snippetFont = snippetFontFamilyCombo.getValue();
+            globalSettings.setSnippetFontFamily(snippetFont != null && !snippetFont.isEmpty() ? snippetFont : null);
+            
+            int snippetSize = snippetFontSizeSpinner.getValue();
+            globalSettings.setSnippetFontSize(snippetSize > 0 ? snippetSize : null);
+            
+            globalSettings.setSnippetForegroundColor(toHex(snippetForegroundColorPicker.getValue()));
+            globalSettings.setSnippetBackgroundColor(toHex(snippetBackgroundColorPicker.getValue()));
+            
+            String snippetCursorSt = snippetCursorStyleCombo.getValue();
+            globalSettings.setSnippetCursorStyle(snippetCursorSt != null && !snippetCursorSt.isEmpty() ? snippetCursorSt : null);
+            
+            globalSettings.setSnippetCursorColor(toHex(snippetCursorColorPicker.getValue()));
         }
     }
     

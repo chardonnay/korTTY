@@ -1,6 +1,8 @@
 package de.kortty.ui;
 
 import javafx.application.Platform;
+import javafx.scene.Node;
+import javafx.stage.Window;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +42,7 @@ public final class EditorSettingsHelper {
     ) {}
     
     /**
-     * Loads editor settings from GlobalSettings.
+     * Loads editor settings from GlobalSettings (terminal + editor defaults).
      * Falls back to sensible defaults if settings are unavailable.
      */
     public static Settings loadSettings() {
@@ -87,6 +89,52 @@ public final class EditorSettingsHelper {
     }
     
     /**
+     * Loads snippet-editor-specific settings from GlobalSettings.
+     * Falls back to the general editor/terminal defaults when snippet-specific values are not set.
+     */
+    public static Settings loadSnippetSettings() {
+        // Start with general editor settings as base
+        Settings base = loadSettings();
+        
+        String fontFamily = base.fontFamily();
+        int fontSize = base.fontSize();
+        String foreground = base.foregroundColor();
+        String background = base.backgroundColor();
+        String cursorStyle = base.cursorStyle();
+        String cursorColor = base.cursorColor();
+        
+        try {
+            var gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm.getSettings();
+            if (gs != null) {
+                // Override with snippet-specific settings if present
+                if (gs.getSnippetFontFamily() != null && !gs.getSnippetFontFamily().isEmpty()) {
+                    fontFamily = gs.getSnippetFontFamily();
+                }
+                if (gs.getSnippetFontSize() != null && gs.getSnippetFontSize() > 0) {
+                    fontSize = gs.getSnippetFontSize();
+                }
+                if (gs.getSnippetForegroundColor() != null && !gs.getSnippetForegroundColor().isEmpty()) {
+                    foreground = gs.getSnippetForegroundColor();
+                }
+                if (gs.getSnippetBackgroundColor() != null && !gs.getSnippetBackgroundColor().isEmpty()) {
+                    background = gs.getSnippetBackgroundColor();
+                }
+                if (gs.getSnippetCursorStyle() != null && !gs.getSnippetCursorStyle().isEmpty()) {
+                    cursorStyle = gs.getSnippetCursorStyle();
+                }
+                if (gs.getSnippetCursorColor() != null && !gs.getSnippetCursorColor().isEmpty()) {
+                    cursorColor = gs.getSnippetCursorColor();
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not load snippet editor settings, using editor defaults", e);
+        }
+        
+        return new Settings(fontFamily, fontSize, foreground, background, cursorStyle, cursorColor);
+    }
+    
+    /**
      * Applies font, colors, and background to an InlineCssTextArea.
      */
     public static void applyStyle(InlineCssTextArea area, Settings settings) {
@@ -100,43 +148,77 @@ public final class EditorSettingsHelper {
         );
         area.setStyle(style);
         
-        applyCaretStyle(area, settings);
+        // Apply caret CSS immediately (will take effect once scene is available)
+        applyCaretCss(area, settings);
     }
     
     /**
-     * Applies caret (cursor) color and width to an InlineCssTextArea.
+     * Applies caret (cursor) color and stroke width via CSS stylesheet.
+     * Also schedules a deferred direct-node styling pass for after the scene is ready.
      */
     public static void applyCaretStyle(InlineCssTextArea area, Settings settings) {
-        double strokeWidth = switch (settings.cursorStyle().toUpperCase()) {
-            case "LINE" -> 1.0;
-            case "UNDERSCORE" -> 1.5;
-            default -> 3.0; // BLOCK
-        };
+        applyCaretCss(area, settings);
+        applyCaretDirect(area, settings);
+    }
+    
+    /**
+     * Applies caret CSS stylesheet. This works even before the scene is shown
+     * because stylesheets are evaluated when the node enters the scene.
+     */
+    private static void applyCaretCss(InlineCssTextArea area, Settings settings) {
+        double strokeWidth = caretStrokeWidth(settings.cursorStyle());
+        String color = settings.cursorColor();
         
-        final double finalWidth = strokeWidth;
-        final String color = settings.cursorColor();
+        String caretCss = String.format(Locale.US,
+            ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; }",
+            color, strokeWidth
+        );
+        area.getStylesheets().removeIf(s -> s.startsWith("data:"));
+        String dataUri = "data:text/css;charset=utf-8," + URLEncoder.encode(caretCss, StandardCharsets.UTF_8);
+        area.getStylesheets().add(dataUri);
+    }
+    
+    /**
+     * Directly styles the caret Path node. Deferred until the node is part of a scene.
+     */
+    private static void applyCaretDirect(InlineCssTextArea area, Settings settings) {
+        double strokeWidth = caretStrokeWidth(settings.cursorStyle());
+        String color = settings.cursorColor();
         
-        Platform.runLater(() -> {
+        Runnable styler = () -> {
             try {
-                // Direct node styling
                 area.lookupAll(".caret").forEach(node -> {
                     if (node instanceof javafx.scene.shape.Path caret) {
                         caret.setStroke(javafx.scene.paint.Color.web(color));
-                        caret.setStrokeWidth(finalWidth);
+                        caret.setStrokeWidth(strokeWidth);
                     }
                 });
-                
-                // CSS fallback
-                String caretCss = String.format(Locale.US,
-                    ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; }",
-                    color, finalWidth
-                );
-                area.getStylesheets().removeIf(s -> s.startsWith("data:"));
-                String dataUri = "data:text/css;charset=utf-8," + URLEncoder.encode(caretCss, StandardCharsets.UTF_8);
-                area.getStylesheets().add(dataUri);
             } catch (Exception e) {
-                logger.warn("Failed to apply caret style", e);
+                logger.debug("Caret styling skipped: {}", e.getMessage());
             }
+        };
+        
+        // If the area is already in a scene, apply now + one deferred pass
+        if (area.getScene() != null) {
+            Platform.runLater(styler);
+        }
+        
+        // Also apply whenever the area enters a scene (covers dialog.showAndWait())
+        area.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                // Double-deferred: first runLater lets the scene layout, second applies style
+                Platform.runLater(() -> Platform.runLater(styler));
+            }
+        });
+    }
+    
+    /**
+     * Schedules caret styling to be applied when the given window is shown.
+     * Use this for dialogs where the InlineCssTextArea caret is created only after showing.
+     */
+    public static void applyCaretOnShown(Window window, InlineCssTextArea area, Settings settings) {
+        window.setOnShown(event -> {
+            Platform.runLater(() -> Platform.runLater(() -> applyCaretDirect(area, settings)));
         });
     }
     
@@ -145,5 +227,13 @@ public final class EditorSettingsHelper {
      */
     public static String getPlainTextStyle(Settings settings) {
         return "-fx-fill: " + settings.foregroundColor() + ";";
+    }
+    
+    private static double caretStrokeWidth(String cursorStyle) {
+        return switch (cursorStyle != null ? cursorStyle.toUpperCase() : "BLOCK") {
+            case "LINE" -> 1.0;
+            case "UNDERSCORE" -> 1.5;
+            default -> 3.0; // BLOCK
+        };
     }
 }

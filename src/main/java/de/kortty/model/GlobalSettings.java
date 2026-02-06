@@ -104,6 +104,32 @@ public class GlobalSettings {
     @XmlElement
     private String editorCursorColor = "#FF0000"; // red cursor for visibility
     
+    // Snippet Editor dedicated settings
+    @XmlElement
+    private String snippetFontFamily; // null = use terminal default
+    
+    @XmlElement
+    private Integer snippetFontSize; // null = use terminal default
+    
+    @XmlElement
+    private String snippetForegroundColor; // null = use terminal default
+    
+    @XmlElement
+    private String snippetBackgroundColor; // null = use terminal default
+    
+    @XmlElement
+    private String snippetCursorStyle; // null = use editor default
+    
+    @XmlElement
+    private String snippetCursorColor; // null = use editor default
+    
+    // Snippet dialog geometries
+    @XmlElement
+    private WindowGeometry snippetManagerGeometry;
+    
+    @XmlElement
+    private WindowGeometry snippetEditGeometry;
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -429,4 +455,32 @@ public class GlobalSettings {
     public void setEditorCursorColor(String editorCursorColor) {
         this.editorCursorColor = editorCursorColor;
     }
+    
+    // ---- Snippet Editor Settings ----
+    
+    public String getSnippetFontFamily() { return snippetFontFamily; }
+    public void setSnippetFontFamily(String snippetFontFamily) { this.snippetFontFamily = snippetFontFamily; }
+    
+    public Integer getSnippetFontSize() { return snippetFontSize; }
+    public void setSnippetFontSize(Integer snippetFontSize) { this.snippetFontSize = snippetFontSize; }
+    
+    public String getSnippetForegroundColor() { return snippetForegroundColor; }
+    public void setSnippetForegroundColor(String snippetForegroundColor) { this.snippetForegroundColor = snippetForegroundColor; }
+    
+    public String getSnippetBackgroundColor() { return snippetBackgroundColor; }
+    public void setSnippetBackgroundColor(String snippetBackgroundColor) { this.snippetBackgroundColor = snippetBackgroundColor; }
+    
+    public String getSnippetCursorStyle() { return snippetCursorStyle; }
+    public void setSnippetCursorStyle(String snippetCursorStyle) { this.snippetCursorStyle = snippetCursorStyle; }
+    
+    public String getSnippetCursorColor() { return snippetCursorColor; }
+    public void setSnippetCursorColor(String snippetCursorColor) { this.snippetCursorColor = snippetCursorColor; }
+    
+    // ---- Snippet Dialog Geometries ----
+    
+    public WindowGeometry getSnippetManagerGeometry() { return snippetManagerGeometry; }
+    public void setSnippetManagerGeometry(WindowGeometry snippetManagerGeometry) { this.snippetManagerGeometry = snippetManagerGeometry; }
+    
+    public WindowGeometry getSnippetEditGeometry() { return snippetEditGeometry; }
+    public void setSnippetEditGeometry(WindowGeometry snippetEditGeometry) { this.snippetEditGeometry = snippetEditGeometry; }
 }

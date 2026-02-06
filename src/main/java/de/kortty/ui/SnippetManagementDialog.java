@@ -49,7 +49,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
     
     public SnippetManagementDialog(SnippetManager snippetManager) {
         this.snippetManager = snippetManager;
-        this.editorSettings = EditorSettingsHelper.loadSettings();
+        this.editorSettings = EditorSettingsHelper.loadSnippetSettings();
         
         setTitle(I18n.get("snippets.title"));
         setResizable(true);
@@ -212,6 +212,57 @@ public class SnippetManagementDialog extends Dialog<Void> {
         
         // Enable export button if there are snippets
         exportBtn.setDisable(snippetList.isEmpty());
+        
+        // Restore saved window geometry
+        restoreGeometry();
+        
+        // Save geometry on close
+        setOnCloseRequest(event -> saveGeometry());
+        setResultConverter(bt -> { saveGeometry(); return null; });
+        
+        // Fix cursor style: apply caret once the dialog window is shown
+        setOnShown(event -> {
+            Platform.runLater(() -> Platform.runLater(() -> {
+                EditorSettingsHelper.applyCaretStyle(previewArea, editorSettings);
+            }));
+        });
+    }
+    
+    private void restoreGeometry() {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            var geo = gs.getSnippetManagerGeometry();
+            if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
+                getDialogPane().setPrefWidth(geo.getWidth());
+                getDialogPane().setPrefHeight(geo.getHeight());
+                setOnShowing(event -> {
+                    javafx.stage.Window window = getDialogPane().getScene().getWindow();
+                    if (window instanceof javafx.stage.Stage stage) {
+                        stage.setX(geo.getX());
+                        stage.setY(geo.getY());
+                        stage.setWidth(geo.getWidth());
+                        stage.setHeight(geo.getHeight());
+                    }
+                });
+            }
+        } catch (Exception e) {
+            logger.debug("Could not restore snippet manager geometry", e);
+        }
+    }
+    
+    private void saveGeometry() {
+        try {
+            javafx.stage.Window window = getDialogPane().getScene().getWindow();
+            if (window instanceof javafx.stage.Stage stage) {
+                var geo = new de.kortty.model.WindowGeometry(
+                        stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+                gs.setSnippetManagerGeometry(geo);
+                KorTTYApplication.getInstance().getGlobalSettingsManager().save();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not save snippet manager geometry", e);
+        }
     }
     
     // ---- Filter ----

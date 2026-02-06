@@ -1,7 +1,10 @@
 package de.kortty.ui;
 
+import de.kortty.KorTTYApplication;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
+import de.kortty.model.WindowGeometry;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -56,7 +59,7 @@ public class SnippetEditDialog extends Dialog<Snippet> {
      */
     public SnippetEditDialog(Snippet snippet, List<String> existingCategories) {
         this.existingSnippet = snippet;
-        this.editorSettings = EditorSettingsHelper.loadSettings();
+        this.editorSettings = EditorSettingsHelper.loadSnippetSettings();
         
         setTitle(snippet == null ? I18n.get("snippets.addTitle") : I18n.get("snippets.editTitle"));
         setResizable(true);
@@ -150,8 +153,19 @@ public class SnippetEditDialog extends Dialog<Snippet> {
             applyHighlighting();
         }
         
-        // Result converter
+        // Restore saved geometry
+        restoreGeometry();
+        
+        // Fix cursor style: apply caret once the dialog window is shown
+        setOnShown(event -> {
+            Platform.runLater(() -> Platform.runLater(() -> {
+                EditorSettingsHelper.applyCaretStyle(contentArea, editorSettings);
+            }));
+        });
+        
+        // Result converter (also saves geometry)
         setResultConverter(buttonType -> {
+            saveGeometry();
             if (buttonType == ButtonType.OK) {
                 Snippet result = existingSnippet != null ? existingSnippet : new Snippet();
                 result.setName(nameField.getText().trim());
@@ -163,6 +177,43 @@ public class SnippetEditDialog extends Dialog<Snippet> {
             }
             return null;
         });
+    }
+    
+    private void restoreGeometry() {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            var geo = gs.getSnippetEditGeometry();
+            if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
+                getDialogPane().setPrefWidth(geo.getWidth());
+                getDialogPane().setPrefHeight(geo.getHeight());
+                setOnShowing(event -> {
+                    javafx.stage.Window window = getDialogPane().getScene().getWindow();
+                    if (window instanceof javafx.stage.Stage stage) {
+                        stage.setX(geo.getX());
+                        stage.setY(geo.getY());
+                        stage.setWidth(geo.getWidth());
+                        stage.setHeight(geo.getHeight());
+                    }
+                });
+            }
+        } catch (Exception e) {
+            // Ignore - use defaults
+        }
+    }
+    
+    private void saveGeometry() {
+        try {
+            javafx.stage.Window window = getDialogPane().getScene().getWindow();
+            if (window instanceof javafx.stage.Stage stage) {
+                var geo = new WindowGeometry(
+                        stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+                gs.setSnippetEditGeometry(geo);
+                KorTTYApplication.getInstance().getGlobalSettingsManager().save();
+            }
+        } catch (Exception e) {
+            // Ignore - non-critical
+        }
     }
     
     private void validateForm(Button okButton) {
