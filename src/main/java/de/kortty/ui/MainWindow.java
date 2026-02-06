@@ -1632,6 +1632,7 @@ public class MainWindow {
                 app.getCredentialManager(),
                 app.getMasterPasswordManager().getMasterPassword()
             );
+            dialog.initOwner(stage);
             dialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to show credential management", e);
@@ -1642,6 +1643,7 @@ public class MainWindow {
     private void showGPGKeyManagement() {
         try {
             GPGKeyManagementDialog dialog = new GPGKeyManagementDialog(app.getGpgKeyManager());
+            dialog.initOwner(stage);
             dialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to show GPG key management", e);
@@ -1655,6 +1657,7 @@ public class MainWindow {
                 app.getSSHKeyManager(),
                 app.getMasterPasswordManager().getMasterPassword()
             );
+            dialog.initOwner(stage);
             dialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to show SSH key management", e);
