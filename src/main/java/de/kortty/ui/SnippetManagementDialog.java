@@ -219,7 +219,9 @@ public class SnippetManagementDialog extends Dialog<Void> {
         variablesBtn.setOnAction(e -> {
             SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
             if (varManager != null) {
-                new SnippetVariableManagementDialog(varManager).showAndWait();
+                SnippetVariableManagementDialog varDialog = new SnippetVariableManagementDialog(varManager);
+                varDialog.initOwner(getDialogPane().getScene().getWindow());
+                varDialog.showAndWait();
             }
         });
         
