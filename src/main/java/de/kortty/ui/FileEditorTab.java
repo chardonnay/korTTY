@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -81,6 +82,24 @@ public class FileEditorTab extends Tab {
     private long fileSizeBytes = 0;
     private long loadedBytes = 0;
     private Button loadMoreButton;
+    
+    /**
+     * Reads a local file with encoding fallback.
+     * Tries UTF-8 first, then falls back to ISO-8859-1 (which can decode any byte).
+     */
+    private String readFileWithFallback(Path path) throws Exception {
+        byte[] bytes = Files.readAllBytes(path);
+        try {
+            // Try strict UTF-8 decoding first
+            java.nio.charset.CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
+            return decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+        } catch (java.nio.charset.CharacterCodingException e) {
+            logger.warn("File {} is not valid UTF-8, falling back to ISO-8859-1", path.getFileName());
+            return new String(bytes, StandardCharsets.ISO_8859_1);
+        }
+    }
     
     private void loadEditorSettings() {
         try {
@@ -216,8 +235,8 @@ public class FileEditorTab extends Tab {
         
         loadEditorSettings();
         
-        // Load content
-        String text = Files.readString(localPath, StandardCharsets.UTF_8);
+        // Load content with encoding fallback
+        String text = readFileWithFallback(localPath);
         codeArea.replaceText(0, 0, text);
         codeArea.getUndoManager().forgetHistory();
         
