@@ -29,6 +29,10 @@ A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
 - **Terminal Logging**: Automatic logging of terminal sessions
 - **GPG Key Management**: Manage GPG keys for backup encryption
 
+## User Guide
+
+For a comprehensive step-by-step user guide covering all features, see **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)**.
+
 ## Requirements
 
 - Java 25 or higher
