@@ -490,26 +490,40 @@ public class FileEditorTab extends Tab {
     }
     
     private void applyCaretStyle() {
+        // Measure actual character width for block cursor
+        double charWidth;
+        try {
+            javafx.scene.text.Text measure = new javafx.scene.text.Text("M");
+            measure.setFont(javafx.scene.text.Font.font(editorFontFamily, currentFontSize));
+            charWidth = measure.getLayoutBounds().getWidth();
+            if (charWidth <= 0) charWidth = currentFontSize * 0.6;
+        } catch (Exception e) {
+            charWidth = currentFontSize * 0.6;
+        }
+        
         // Determine stroke width based on cursor style
         double strokeWidth;
+        boolean isBlock = false;
         switch (editorCursorStyle.toUpperCase()) {
             case "LINE":
-                strokeWidth = 1.0;
+                strokeWidth = 2.0;
                 break;
             case "UNDERSCORE":
-                strokeWidth = 1.5;
+                strokeWidth = 2.0;
                 break;
             case "BLOCK":
             default:
-                strokeWidth = 3.0; // Wider for block style
+                strokeWidth = charWidth; // Full character width for true block cursor
+                isBlock = true;
                 break;
         }
         
-        logger.info("Applying caret style: color={}, style={}, width={}", 
-                editorCursorColor, editorCursorStyle, strokeWidth);
+        logger.info("Applying caret style: color={}, style={}, width={}, charWidth={}", 
+                editorCursorColor, editorCursorStyle, strokeWidth, charWidth);
         
         // Apply caret style using Platform.runLater to ensure scene is ready
         final double finalStrokeWidth = strokeWidth;
+        final boolean finalIsBlock = isBlock;
         Platform.runLater(() -> {
             try {
                 // Find and style the caret directly
@@ -518,13 +532,21 @@ public class FileEditorTab extends Tab {
                         javafx.scene.shape.Path caret = (javafx.scene.shape.Path) node;
                         caret.setStroke(javafx.scene.paint.Color.web(editorCursorColor));
                         caret.setStrokeWidth(finalStrokeWidth);
-                        logger.debug("Styled caret directly: color={}, width={}", editorCursorColor, finalStrokeWidth);
+                        caret.setStrokeLineCap(javafx.scene.shape.StrokeLineCap.BUTT);
+                        // Shift block cursor right so it covers the character after the caret position
+                        if (finalIsBlock) {
+                            caret.setTranslateX(finalStrokeWidth / 2.0);
+                        } else {
+                            caret.setTranslateX(0);
+                        }
+                        logger.debug("Styled caret directly: color={}, width={}, isBlock={}", 
+                                editorCursorColor, finalStrokeWidth, finalIsBlock);
                     }
                 });
                 
                 // Also set via CSS as fallback
                 String caretCss = String.format(java.util.Locale.US,
-                    ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; }",
+                    ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; -fx-stroke-line-cap: butt; }",
                     editorCursorColor, finalStrokeWidth
                 );
                 codeArea.getStylesheets().removeIf(s -> s.startsWith("data:"));

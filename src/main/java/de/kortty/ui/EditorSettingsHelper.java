@@ -2,6 +2,9 @@ package de.kortty.ui;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.slf4j.Logger;
@@ -178,13 +181,13 @@ public final class EditorSettingsHelper {
         // 3. Scene listener: when the area enters a scene, start retry styling
         area.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
-                styleCaretNodesWithRetry(area, settings, 5);
+                styleCaretNodesWithRetry(area, settings, 8);
             }
         });
         
         // 4. If already in a scene, start retry now
         if (area.getScene() != null) {
-            styleCaretNodesWithRetry(area, settings, 5);
+            styleCaretNodesWithRetry(area, settings, 8);
         }
     }
     
@@ -198,14 +201,45 @@ public final class EditorSettingsHelper {
     // ---- Internal methods ----
     
     /**
+     * Measures the width of a single character 'M' for the given font.
+     * Used to calculate the block cursor width.
+     */
+    private static double measureCharWidth(String fontFamily, int fontSize) {
+        try {
+            Text measure = new Text("M");
+            measure.setFont(Font.font(fontFamily, fontSize));
+            double width = measure.getLayoutBounds().getWidth();
+            if (width > 0) {
+                return width;
+            }
+        } catch (Exception e) {
+            logger.debug("Could not measure char width: {}", e.getMessage());
+        }
+        // Fallback: rough estimate for monospaced fonts
+        return fontSize * 0.6;
+    }
+    
+    /**
+     * Returns the stroke width for the given cursor style.
+     * For BLOCK: uses the full character width measured from the font metrics.
+     */
+    private static double caretStrokeWidth(String cursorStyle, String fontFamily, int fontSize) {
+        return switch (cursorStyle != null ? cursorStyle.toUpperCase() : "BLOCK") {
+            case "LINE" -> 2.0;
+            case "UNDERSCORE" -> 2.0;
+            default -> measureCharWidth(fontFamily, fontSize); // BLOCK = full character width
+        };
+    }
+    
+    /**
      * Applies caret CSS stylesheet via data URI.
      */
     private static void applyCaretCss(InlineCssTextArea area, Settings settings) {
-        double strokeWidth = caretStrokeWidth(settings.cursorStyle());
+        double strokeWidth = caretStrokeWidth(settings.cursorStyle(), settings.fontFamily(), settings.fontSize());
         String color = settings.cursorColor();
         
         String caretCss = String.format(Locale.US,
-            ".caret { -fx-stroke: %s !important; -fx-stroke-width: %.1f !important; }",
+            ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; -fx-stroke-line-cap: butt; }",
             color, strokeWidth
         );
         area.getStylesheets().removeIf(s -> s.startsWith("data:"));
@@ -215,11 +249,15 @@ public final class EditorSettingsHelper {
     
     /**
      * Directly styles all .caret Path nodes found in the area.
+     * For BLOCK style: sets stroke width to full character width, BUTT line cap,
+     * and translates the caret right by half the char width so the block covers
+     * the character to the right of the insertion point.
      * Returns true if at least one caret was styled.
      */
     private static boolean styleCaretNodesDirect(InlineCssTextArea area, Settings settings) {
-        double strokeWidth = caretStrokeWidth(settings.cursorStyle());
+        double strokeWidth = caretStrokeWidth(settings.cursorStyle(), settings.fontFamily(), settings.fontSize());
         String color = settings.cursorColor();
+        boolean isBlock = settings.cursorStyle() == null || settings.cursorStyle().equalsIgnoreCase("BLOCK");
         boolean[] styled = {false};
         
         try {
@@ -228,8 +266,19 @@ public final class EditorSettingsHelper {
                 if (node instanceof javafx.scene.shape.Path caret) {
                     caret.setStroke(javafx.scene.paint.Color.web(color));
                     caret.setStrokeWidth(strokeWidth);
+                    caret.setStrokeLineCap(StrokeLineCap.BUTT);
+                    
+                    // For block cursor: shift right by half the char width
+                    // so the block covers the character to the right of the caret position
+                    if (isBlock) {
+                        caret.setTranslateX(strokeWidth / 2.0);
+                    } else {
+                        caret.setTranslateX(0);
+                    }
+                    
                     styled[0] = true;
-                    logger.debug("Styled caret node: color={}, strokeWidth={}", color, strokeWidth);
+                    logger.debug("Styled caret node: color={}, strokeWidth={}, isBlock={}", 
+                            color, strokeWidth, isBlock);
                 }
             }
         } catch (Exception e) {
@@ -251,7 +300,7 @@ public final class EditorSettingsHelper {
             if (maxRetries <= 1) return;
             
             // Schedule retries with increasing delays
-            retryCaretStyling(area, settings, maxRetries - 1, 150);
+            retryCaretStyling(area, settings, maxRetries - 1, 100);
         });
     }
     
@@ -264,8 +313,8 @@ public final class EditorSettingsHelper {
                 logger.debug("Caret styled successfully after retry (remaining={})", retriesLeft);
                 return; // Done
             }
-            // Retry with slightly longer delay
-            retryCaretStyling(area, settings, retriesLeft - 1, delayMs + 100);
+            // Retry with slightly longer delay (max 500ms)
+            retryCaretStyling(area, settings, retriesLeft - 1, Math.min(delayMs + 50, 500));
         });
         pause.play();
     }
@@ -281,13 +330,5 @@ public final class EditorSettingsHelper {
                 Platform.runLater(() -> styleCaretNodesDirect(area, settings));
             }
         });
-    }
-    
-    private static double caretStrokeWidth(String cursorStyle) {
-        return switch (cursorStyle != null ? cursorStyle.toUpperCase() : "BLOCK") {
-            case "LINE" -> 1.0;
-            case "UNDERSCORE" -> 1.5;
-            default -> 3.0; // BLOCK
-        };
     }
 }
