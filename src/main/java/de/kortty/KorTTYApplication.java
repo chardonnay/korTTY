@@ -8,6 +8,7 @@ import de.kortty.core.SSHKeyManager;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.BackupManager;
+import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.jmx.SSHClientMonitor;
 import de.kortty.security.MasterPasswordManager;
@@ -161,6 +162,13 @@ public class KorTTYApplication extends Application {
                 GlobalSettings loadedSettings = globalSettingsManager.getSettings();
                 logger.info("Re-initializing language manager with language: '{}'", loadedSettings.getLanguage());
                 de.kortty.core.LanguageManager.getInstance().initialize(loadedSettings);
+                
+                // Sync ConfigurationManager with persisted terminal settings
+                // so that all components reading from configManager see the saved values
+                ConnectionSettings savedTermSettings = loadedSettings.getDefaultTerminalSettings();
+                if (savedTermSettings != null) {
+                    configManager.setGlobalSettings(new ConnectionSettings(savedTermSettings));
+                }
                 
                 // Initialize BackupManager after settings are loaded
                 backupManager = new BackupManager(getConfigDirectory(), globalSettingsManager.getSettings());

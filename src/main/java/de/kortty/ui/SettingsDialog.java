@@ -102,7 +102,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                           GPGKeyManager gpgKeyManager) {
         this.app = app;
         this.configManager = configManager;
-        this.settings = new ConnectionSettings(configManager.getGlobalSettings());
+        // Use persisted terminal settings from GlobalSettings (not ConfigurationManager defaults)
+        this.settings = new ConnectionSettings(globalSettings.getDefaultTerminalSettings());
         this.globalSettings = globalSettings;
         this.credentialManager = credentialManager;
         this.gpgKeyManager = gpgKeyManager;
