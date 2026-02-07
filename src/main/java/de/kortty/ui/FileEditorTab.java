@@ -163,7 +163,9 @@ public class FileEditorTab extends Tab {
         RUST,
         SQL,
         DOCKERFILE,
-        TERRAFORM
+        TERRAFORM,
+        PUPPET,
+        CFENGINE3
     }
     
     /**
@@ -1182,7 +1184,9 @@ public class FileEditorTab extends Tab {
     
     private Optional<String> getLinterCommand() {
         return switch (fileType) {
-            case YAML, ANSIBLE_YAML -> checkCommandAvailable("yamllint") ? Optional.of("yamllint") : Optional.empty();
+            case ANSIBLE_YAML -> checkCommandAvailable("ansible-lint") ? Optional.of("ansible-lint")
+                : (checkCommandAvailable("yamllint") ? Optional.of("yamllint") : Optional.empty());
+            case YAML -> checkCommandAvailable("yamllint") ? Optional.of("yamllint") : Optional.empty();
             case JSON -> checkCommandAvailable("jsonlint") ? Optional.of("jsonlint") : Optional.empty();
             case XML -> checkCommandAvailable("xmllint") ? Optional.of("xmllint --noout") : Optional.empty();
             case MARKDOWN -> checkCommandAvailable("markdownlint") ? Optional.of("markdownlint") : Optional.empty();
@@ -1196,6 +1200,8 @@ public class FileEditorTab extends Tab {
             case RUST -> checkCommandAvailable("rustc") ? Optional.of("rustc --edition 2021 --crate-type lib") : Optional.empty();
             case TERRAFORM -> checkCommandAvailable("terraform") ? Optional.of("terraform validate") : Optional.empty();
             case DOCKERFILE -> checkCommandAvailable("hadolint") ? Optional.of("hadolint") : Optional.empty();
+            case PUPPET -> checkCommandAvailable("puppet") ? Optional.of("puppet parser validate") : Optional.empty();
+            case CFENGINE3 -> checkCommandAvailable("cf-promises") ? Optional.of("cf-promises --full-check") : Optional.empty();
             default -> Optional.empty();
         };
     }
@@ -1233,6 +1239,8 @@ public class FileEditorTab extends Tab {
             case SQL -> ".sql";
             case DOCKERFILE -> ".dockerfile";
             case TERRAFORM -> ".tf";
+            case PUPPET -> ".pp";
+            case CFENGINE3 -> ".cf";
             default -> ".txt";
         };
     }
@@ -1255,8 +1263,11 @@ public class FileEditorTab extends Tab {
         if (lower.endsWith(".xml")) return FileType.XML;
         if (lower.endsWith(".json")) return FileType.JSON;
         if (lower.endsWith(".yml") || lower.endsWith(".yaml")) {
-            // Check if it's an Ansible playbook
-            if (lower.contains("playbook") || lower.contains("ansible")) {
+            // Check if it's an Ansible file (playbook, role, task, handler, etc.)
+            if (lower.contains("playbook") || lower.contains("ansible") 
+                    || lower.contains("tasks") || lower.contains("handlers") 
+                    || lower.contains("roles") || lower.contains("vars")
+                    || lower.contains("defaults") || lower.contains("inventory")) {
                 return FileType.ANSIBLE_YAML;
             }
             return FileType.YAML;
@@ -1279,6 +1290,8 @@ public class FileEditorTab extends Tab {
         if (lower.endsWith(".sql")) return FileType.SQL;
         if (lower.equals("dockerfile") || lower.endsWith(".dockerfile")) return FileType.DOCKERFILE;
         if (lower.endsWith(".tf") || lower.endsWith(".tfvars")) return FileType.TERRAFORM;
+        if (lower.endsWith(".pp")) return FileType.PUPPET;
+        if (lower.endsWith(".cf")) return FileType.CFENGINE3;
         
         return FileType.PLAIN_TEXT;
     }
@@ -1331,6 +1344,8 @@ public class FileEditorTab extends Tab {
             case SQL -> computeSqlHighlighting(text);
             case DOCKERFILE -> computeDockerfileHighlighting(text);
             case TERRAFORM -> computeTerraformHighlighting(text);
+            case PUPPET -> computePuppetHighlighting(text);
+            case CFENGINE3 -> computeCfengineHighlighting(text);
             default -> computePlainTextHighlighting(text);
         };
     }
@@ -1621,6 +1636,37 @@ public class FileEditorTab extends Tab {
         spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
         
         return spansBuilder.create();
+    }
+    
+    private StyleSpans<String> computePuppetHighlighting(String text) {
+        Pattern PUPPET_PATTERN = Pattern.compile(
+            "(?<COMMENT>#.*)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
+            "|(?<KEYWORD>\\b(?:class|define|node|site|include|require|contain|inherit|import|if|elsif|else|unless|case|selector|and|or|not|in|true|false|undef|default|ensure|present|absent|running|stopped|installed|latest|purged|file|directory|link)\\b)" +
+            "|(?<BUILTIN>\\b(?:package|service|file|exec|cron|user|group|mount|notify|augeas|yumrepo|apt|template|hiera|lookup|each|map|filter|reduce|notice|warning|err|fail|info|debug|alert|emerg|crit)\\b)" +
+            "|(?<VARIABLE>\\$[a-zA-Z_][a-zA-Z0-9_:]*)" +
+            "|(?<DECORATOR>\\b[A-Z][a-zA-Z0-9_]*(?:\\[))" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
+            "|(?<BRACE>[{}\\[\\]])" +
+            "|(?<OPERATOR>=>|->|~>|\\+>|<\\||\\|>)",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, PUPPET_PATTERN);
+    }
+    
+    private StyleSpans<String> computeCfengineHighlighting(String text) {
+        Pattern CFE_PATTERN = Pattern.compile(
+            "(?<COMMENT>#.*)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
+            "|(?<KEYWORD>\\b(?:bundle|body|promise|agent|common|server|monitor|knowledge|edit_line|edit_xml|delete_lines|insert_lines|field_edits|replace_patterns|classes|commands|databases|files|interfaces|methods|packages|processes|reports|services|storage|vars|meta|defaults)\\b)" +
+            "|(?<BUILTIN>\\b(?:string|int|real|slist|ilist|rlist|data|classmatch|regcmp|isvariable|fileexists|isdir|islink|isplain|returnszero|usemodule|canonify|translatepath|lastnode|dirname|join|length|nth|sort|unique|filter|maplist|maparray|some|none|every|reglist|getindices|getvalues|mergedata|readstringlist|readintlist|execresult|readfile|readjson|readyaml|parsejson|parseyaml|storejson|format|string_mustache|bundlestate|classesmatching|variablesmatching|getclassmetatags|getvariablemetatags|now|ago|accumulated|on|hash|escape)\\b)" +
+            "|(?<VARIABLE>\\$\\([^)]+\\)|\\$\\{[^}]+\\}|@\\([^)]+\\)|@\\{[^}]+\\})" +
+            "|(?<SECTION>[a-zA-Z_]+:)" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
+            "|(?<OPERATOR>=>|->)",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, CFE_PATTERN);
     }
     
     private StyleSpans<String> computePlainTextHighlighting(String text) {
