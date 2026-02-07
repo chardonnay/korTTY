@@ -98,18 +98,11 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
     }
     
     private void addCredential() {
-        CredentialEditDialog dialog = new CredentialEditDialog(null);
+        CredentialEditDialog dialog = new CredentialEditDialog(null, credentialManager, masterPassword);
         dialog.initOwner(getDialogPane().getScene().getWindow());
         dialog.showAndWait().ifPresent(result -> {
             credentialManager.addCredential(result.credential);
-            if (result.password != null) {
-                try {
-                    credentialManager.setPassword(result.credential, result.password, masterPassword);
-                } catch (Exception e) {
-                    logger.error("Failed to encrypt password", e);
-                    showError(I18n.get("error.title"), I18n.get("credential.passwordEncryptFailed", e.getMessage()));
-                }
-            }
+            saveCredentialSecrets(result);
             refreshCredentialList();
         });
     }
@@ -117,20 +110,30 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
     private void editCredential() {
         StoredCredential selected = credentialListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            CredentialEditDialog dialog = new CredentialEditDialog(selected);
+            CredentialEditDialog dialog = new CredentialEditDialog(selected, credentialManager, masterPassword);
             dialog.initOwner(getDialogPane().getScene().getWindow());
             dialog.showAndWait().ifPresent(result -> {
                 credentialManager.updateCredential(result.credential);
-                if (result.password != null) {
-                    try {
-                        credentialManager.setPassword(result.credential, result.password, masterPassword);
-                    } catch (Exception e) {
-                        logger.error("Failed to encrypt password", e);
-                        showError(I18n.get("error.title"), I18n.get("credential.passwordEncryptFailed", e.getMessage()));
-                    }
-                }
+                saveCredentialSecrets(result);
                 refreshCredentialList();
             });
+        }
+    }
+    
+    /**
+     * Encrypts and stores password or external command based on credential result.
+     */
+    private void saveCredentialSecrets(CredentialResult result) {
+        try {
+            if (result.password != null) {
+                credentialManager.setPassword(result.credential, result.password, masterPassword);
+            }
+            if (result.externalCommand != null) {
+                credentialManager.setExternalCommand(result.credential, result.externalCommand, masterPassword);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to encrypt credential secrets", e);
+            showError(I18n.get("error.title"), I18n.get("credential.passwordEncryptFailed", e.getMessage()));
         }
     }
     

@@ -23,6 +23,12 @@ public class StoredCredential {
     private String encryptedPassword;
     
     @XmlElement
+    private PasswordType passwordType = PasswordType.STORED;
+    
+    @XmlElement
+    private String encryptedExternalCommand;
+    
+    @XmlElement
     private Environment environment;
     
     @XmlElement
@@ -48,6 +54,15 @@ public class StoredCredential {
         this.name = name;
         this.username = username;
         this.environment = environment;
+    }
+    
+    @XmlEnum
+    public enum PasswordType {
+        @XmlEnumValue("STORED")
+        STORED,
+        
+        @XmlEnumValue("EXTERNAL_COMMAND")
+        EXTERNAL_COMMAND
     }
     
     @XmlEnum
@@ -92,6 +107,12 @@ public class StoredCredential {
     
     public String getEncryptedPassword() { return encryptedPassword; }
     public void setEncryptedPassword(String encryptedPassword) { this.encryptedPassword = encryptedPassword; }
+    
+    public PasswordType getPasswordType() { return passwordType != null ? passwordType : PasswordType.STORED; }
+    public void setPasswordType(PasswordType passwordType) { this.passwordType = passwordType; }
+    
+    public String getEncryptedExternalCommand() { return encryptedExternalCommand; }
+    public void setEncryptedExternalCommand(String encryptedExternalCommand) { this.encryptedExternalCommand = encryptedExternalCommand; }
     
     public Environment getEnvironment() { return environment; }
     public void setEnvironment(Environment environment) { this.environment = environment; }
