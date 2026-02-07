@@ -20,8 +20,8 @@ public class GPGKeyEditDialog extends Dialog<GPGKey> {
     private final TextField publicKeyPathField;
     
     public GPGKeyEditDialog(GPGKey existingKey) {
-        setTitle(existingKey == null ? "GPG-Schlüssel hinzufügen" : "GPG-Schlüssel bearbeiten");
-        setHeaderText(existingKey == null ? "Neuen GPG-Schlüssel hinzufügen" : "GPG-Schlüssel bearbeiten");
+        setTitle(existingKey == null ? I18n.get("gpg.edit.addTitle") : I18n.get("gpg.edit.editTitle"));
+        setHeaderText(existingKey == null ? I18n.get("gpg.edit.addHeader") : I18n.get("gpg.edit.editHeader"));
         
         // Create form
         GridPane grid = new GridPane();
@@ -31,24 +31,24 @@ public class GPGKeyEditDialog extends Dialog<GPGKey> {
         grid.setPrefWidth(500);
         
         nameField = new TextField();
-        nameField.setPromptText("z.B. 'Mein Produktionsschlüssel'");
+        nameField.setPromptText(I18n.get("gpg.edit.namePrompt"));
         
         keyIdField = new TextField();
-        keyIdField.setPromptText("z.B. '1234ABCD'");
+        keyIdField.setPromptText(I18n.get("gpg.edit.keyIdPrompt"));
         
         fingerprintField = new TextField();
-        fingerprintField.setPromptText("z.B. '1234 5678 90AB CDEF...'");
+        fingerprintField.setPromptText(I18n.get("gpg.edit.fingerprintPrompt"));
         
         emailField = new TextField();
-        emailField.setPromptText("z.B. 'user@example.com'");
+        emailField.setPromptText(I18n.get("gpg.edit.emailPrompt"));
         
         publicKeyPathField = new TextField();
-        publicKeyPathField.setPromptText("Pfad zur öffentlichen Schlüsseldatei (optional)");
+        publicKeyPathField.setPromptText(I18n.get("gpg.edit.publicKeyPathPrompt"));
         
-        Button browseButton = new Button("Durchsuchen...");
+        Button browseButton = new Button(I18n.get("gpg.edit.browse"));
         browseButton.setOnAction(e -> {
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Öffentlichen Schlüssel auswählen");
+            fileChooser.setTitle(I18n.get("gpg.edit.selectPublicKey"));
             fileChooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("GPG Public Key", "*.asc", "*.gpg", "*.pub")
             );
@@ -75,19 +75,19 @@ public class GPGKeyEditDialog extends Dialog<GPGKey> {
         
         // Layout
         int row = 0;
-        grid.add(new Label("Name:"), 0, row);
+        grid.add(new Label(I18n.get("common.name") + ":"), 0, row);
         grid.add(nameField, 1, row++);
         
-        grid.add(new Label("Key-ID:"), 0, row);
+        grid.add(new Label(I18n.get("gpg.edit.keyId")), 0, row);
         grid.add(keyIdField, 1, row++);
         
-        grid.add(new Label("Fingerprint:"), 0, row);
+        grid.add(new Label(I18n.get("gpg.edit.fingerprint")), 0, row);
         grid.add(fingerprintField, 1, row++);
         
-        grid.add(new Label("E-Mail:"), 0, row);
+        grid.add(new Label(I18n.get("gpg.edit.email")), 0, row);
         grid.add(emailField, 1, row++);
         
-        grid.add(new Label("Öffentlicher Schlüssel:"), 0, row);
+        grid.add(new Label(I18n.get("gpg.edit.publicKey")), 0, row);
         grid.add(publicKeyPathField, 1, row);
         grid.add(browseButton, 2, row++);
         

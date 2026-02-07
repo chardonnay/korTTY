@@ -42,8 +42,8 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         
         initOwner(owner);
         initModality(Modality.APPLICATION_MODAL);
-        setTitle("Verbindungen exportieren");
-        setHeaderText("Wählen Sie Verbindungen zum Export");
+        setTitle(I18n.get("connExport.title"));
+        setHeaderText(I18n.get("export.selectConnections"));
         
         // Create content
         VBox content = new VBox(15);
@@ -52,7 +52,7 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         content.setPrefHeight(700);
         
         // Format selection
-        Label formatLabel = new Label("Export-Format:");
+        Label formatLabel = new Label(I18n.get("connExport.format"));
         formatCombo = new ComboBox<>();
         formatCombo.getItems().addAll(
             new KorTTYExporter(),
@@ -92,7 +92,7 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         HBox.setHgrow(formatCombo, Priority.ALWAYS);
         
         // Connection selection tree
-        Label selectionLabel = new Label("Verbindungen auswählen:");
+        Label selectionLabel = new Label(I18n.get("export.selectLabel"));
         treeView = new TreeView<>();
         treeView.setPrefHeight(250);
         treeView.setCellFactory(tv -> new CheckBoxTreeCell<ExportItem>() {
@@ -116,28 +116,28 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         buildTree();
         
         // Select/Deselect all buttons
-        Button selectAllBtn = new Button("Alle auswählen");
+        Button selectAllBtn = new Button(I18n.get("export.selectAll"));
         selectAllBtn.setOnAction(e -> selectAll(true));
         
-        Button deselectAllBtn = new Button("Alle abwählen");
+        Button deselectAllBtn = new Button(I18n.get("export.deselectAll"));
         deselectAllBtn.setOnAction(e -> selectAll(false));
         
         HBox buttonBox = new HBox(10, selectAllBtn, deselectAllBtn);
         
         // Encryption options
-        Label encryptLabel = new Label("Verschlüsselung:");
+        Label encryptLabel = new Label(I18n.get("export.encryption"));
         encryptLabel.setStyle("-fx-font-weight: bold;");
         
         encryptionGroup = new ToggleGroup();
         
-        noEncryptionRadio = new RadioButton("Keine Verschlüsselung");
+        noEncryptionRadio = new RadioButton(I18n.get("export.noEncryption"));
         noEncryptionRadio.setToggleGroup(encryptionGroup);
         noEncryptionRadio.setSelected(true);
         
-        passwordEncryptionRadio = new RadioButton("Passwort-Verschlüsselung (ZIP)");
+        passwordEncryptionRadio = new RadioButton(I18n.get("export.passwordEncryption"));
         passwordEncryptionRadio.setToggleGroup(encryptionGroup);
         
-        gpgEncryptionRadio = new RadioButton("GPG-Verschlüsselung");
+        gpgEncryptionRadio = new RadioButton(I18n.get("export.gpgEncryption"));
         gpgEncryptionRadio.setToggleGroup(encryptionGroup);
         
         // Password pane
@@ -147,13 +147,13 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         passwordPane.setPadding(new Insets(10, 0, 10, 25));
         passwordPane.setDisable(true);
         
-        Label passLabel = new Label("Passwort:");
+        Label passLabel = new Label(I18n.get("common.password") + ":");
         passwordField = new PasswordField();
-        passwordField.setPromptText("Passwort für ZIP");
+        passwordField.setPromptText(I18n.get("export.passwordForZip"));
         
-        Label confirmLabel = new Label("Bestätigen:");
+        Label confirmLabel = new Label(I18n.get("export.confirm"));
         confirmPasswordField = new PasswordField();
-        confirmPasswordField.setPromptText("Passwort wiederholen");
+        confirmPasswordField.setPromptText(I18n.get("export.confirmPassword"));
         
         passwordPane.add(passLabel, 0, 0);
         passwordPane.add(passwordField, 1, 0);
@@ -170,9 +170,9 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         gpgPane.setPadding(new Insets(10, 0, 10, 25));
         gpgPane.setDisable(true);
         
-        Label gpgLabel = new Label("GPG-Schlüssel:");
+        Label gpgLabel = new Label(I18n.get("export.gpgKey"));
         gpgKeyCombo = new ComboBox<>();
-        gpgKeyCombo.setPromptText("Schlüssel auswählen...");
+        gpgKeyCombo.setPromptText(I18n.get("export.selectKey"));
         gpgKeyCombo.setMaxWidth(Double.MAX_VALUE);
         
         // Load GPG keys
@@ -190,7 +190,7 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         // If no GPG keys are available, disable GPG option
         if (gpgKeyCombo.getItems().isEmpty()) {
             gpgEncryptionRadio.setDisable(true);
-            Label noKeysLabel = new Label("(Keine GPG-Schlüssel vorhanden)");
+            Label noKeysLabel = new Label(I18n.get("export.noGPGKeys"));
             noKeysLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 10px;");
             gpgPane.add(noKeysLabel, 1, 1);
         }
@@ -239,9 +239,9 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
         
         if (selected.isEmpty()) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Keine Auswahl");
-            alert.setHeaderText("Keine Verbindungen ausgewählt");
-            alert.setContentText("Bitte wählen Sie mindestens eine Verbindung aus.");
+            alert.setTitle(I18n.get("export.noSelection"));
+            alert.setHeaderText(I18n.get("export.noConnectionsSelected"));
+            alert.setContentText(I18n.get("export.pleaseSelectConnections"));
             alert.showAndWait();
             return null;
         }
@@ -260,18 +260,18 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
             
             if (pass1.isEmpty()) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Passwort erforderlich");
-                alert.setHeaderText("Passwort eingeben");
-                alert.setContentText("Bitte geben Sie ein Passwort für die verschlüsselte ZIP-Datei ein.");
+                alert.setTitle(I18n.get("export.passwordRequired"));
+                alert.setHeaderText(I18n.get("export.enterPassword"));
+                alert.setContentText(I18n.get("export.pleaseEnterPassword"));
                 alert.showAndWait();
                 return null;
             }
             
             if (!pass1.equals(pass2)) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Passwörter stimmen nicht überein");
-                alert.setHeaderText("Passwort-Bestätigung fehlgeschlagen");
-                alert.setContentText("Die eingegebenen Passwörter stimmen nicht überein.");
+                alert.setTitle(I18n.get("export.passwordMismatch"));
+                alert.setHeaderText(I18n.get("export.confirmFailed"));
+                alert.setContentText(I18n.get("export.passwordsDontMatch"));
                 alert.showAndWait();
                 return null;
             }
@@ -285,9 +285,9 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
             
             if (gpgKey == null) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("GPG-Schlüssel erforderlich");
-                alert.setHeaderText("Schlüssel auswählen");
-                alert.setContentText("Bitte wählen Sie einen GPG-Schlüssel für die Verschlüsselung aus.");
+                alert.setTitle(I18n.get("export.gpgKeyRequired"));
+                alert.setHeaderText(I18n.get("export.selectKeyHeader"));
+                alert.setContentText(I18n.get("export.pleaseSelectGPGKey"));
                 alert.showAndWait();
                 return null;
             }
@@ -303,12 +303,12 @@ public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
     }
     
     private void buildTree() {
-        TreeItem<ExportItem> root = new TreeItem<>(new ExportItem("Alle Verbindungen", null, true));
+        TreeItem<ExportItem> root = new TreeItem<>(new ExportItem(I18n.get("export.allConnections"), null, true));
         root.setExpanded(true);
         
         // Group connections
         Map<String, List<ServerConnection>> grouped = allConnections.stream()
-            .collect(Collectors.groupingBy(c -> c.getGroup() != null ? c.getGroup() : "Ohne Gruppe"));
+            .collect(Collectors.groupingBy(c -> c.getGroup() != null ? c.getGroup() : I18n.get("export.noGroup")));
         
         for (Map.Entry<String, List<ServerConnection>> entry : grouped.entrySet()) {
             TreeItem<ExportItem> groupItem = new TreeItem<>(new ExportItem(entry.getKey(), null, true));

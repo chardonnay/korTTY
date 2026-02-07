@@ -213,8 +213,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             btn.setPrefWidth(150);
             btn.setMaxWidth(Double.MAX_VALUE);
             btn.setTooltip(new Tooltip(conn.getUsername() + "@" + conn.getHost() + ":" + conn.getPort() + 
-                    "\nVerwendet: " + conn.getUsageCount() + "x" +
-                    "\nZuletzt: " + new java.util.Date(conn.getLastUsed())));
+                    "\n" + I18n.get("quickConnect.usageCount") + ": " + conn.getUsageCount() + "x" +
+                    "\n" + I18n.get("quickConnect.lastUsed") + ": " + new java.util.Date(conn.getLastUsed())));
             btn.setOnAction(e -> {
                 // Fill in the form and close dialog
                 fillFormWithConnection(conn);
@@ -388,7 +388,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             protected void updateItem(ServerConnection item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
-                    setText("-- Gespeicherte Verbindung auswählen --");
+                    setText(I18n.get("quickConnect.selectSaved"));
                 } else {
                     setText(item.getName() + " (" + item.getUsername() + "@" + item.getHost() + ")");
                 }
@@ -573,7 +573,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                     long count = savedConnections.stream()
                             .filter(c -> item.equals(c.getGroup()))
                             .count();
-                    setText(item + " (" + count + " Verbindung" + (count != 1 ? "en" : "") + ")");
+                    setText(item + " (" + count + " " + I18n.get("quickConnect.connections") + ")");
                 }
             }
         });

@@ -22,7 +22,7 @@ public class ConnectionSelectionDialog extends Dialog<ServerConnection> {
     
     public ConnectionSelectionDialog(Stage owner, List<ServerConnection> connections, String title) {
         setTitle(title);
-        setHeaderText("Wählen Sie eine Verbindung aus:");
+        setHeaderText(I18n.get("connSelect.header"));
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         
@@ -43,12 +43,12 @@ public class ConnectionSelectionDialog extends Dialog<ServerConnection> {
         portColumn.setCellValueFactory(new PropertyValueFactory<>("port"));
         portColumn.setPrefWidth(60);
         
-        TableColumn<ServerConnection, String> userColumn = new TableColumn<>("Benutzer");
+        TableColumn<ServerConnection, String> userColumn = new TableColumn<>(I18n.get("common.username"));
         userColumn.setCellValueFactory(new PropertyValueFactory<>("username"));
         userColumn.setPrefWidth(100);
         
         table.getColumns().addAll(nameColumn, hostColumn, portColumn, userColumn);
-        table.setPlaceholder(new Label("Keine Verbindungen verfügbar"));
+        table.setPlaceholder(new Label(I18n.get("connSelect.noConnections")));
         
         // Double-click to select
         table.setRowFactory(tv -> {

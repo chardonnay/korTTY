@@ -406,9 +406,9 @@ public class TerminalView extends BorderPane {
             // Clear terminal before first attempt
             clearTerminal();
             if (retryCount > 1) {
-                showMessage("Verbindungsversuch " + 1 + " von " + retryCount + "...");
+                showMessage(I18n.get("terminal.connectionAttempt", 1, retryCount));
             } else {
-                showMessage("Verbinde...");
+                showMessage(I18n.get("terminal.connecting"));
             }
             
             while (attempt < retryCount && !connected && !authenticationFailed) {
@@ -427,7 +427,7 @@ public class TerminalView extends BorderPane {
                     // Clear terminal before each retry attempt
                     if (attempt > 1) {
                         clearTerminal();
-                        showMessage("Verbindungsversuch " + attempt + " von " + retryCount + "...");
+                        showMessage(I18n.get("terminal.connectionAttempt", attempt, retryCount));
                     }
                     
                     // Create TtyConnector
@@ -478,12 +478,12 @@ public class TerminalView extends BorderPane {
                                    connection.getDisplayName(), attempt, retryCount);
                         return; // Success!
                     } else {
-                        lastError = "SSH-Verbindung fehlgeschlagen";
+                        lastError = I18n.get("terminal.sshConnectionFailed");
                         logger.warn("Connection attempt {}/{} failed for {}", 
                                    attempt, retryCount, connection.getDisplayName());
                         
                         // Show failure message
-                        showMessage("Verbindungsversuch " + attempt + " fehlgeschlagen.");
+                        showMessage(I18n.get("terminal.attemptFailed", attempt));
                         
                         // Wait a bit before retry (except on last attempt)
                         if (attempt < retryCount) {
@@ -505,22 +505,22 @@ public class TerminalView extends BorderPane {
                     
                     // Show clear error message
                     clearTerminal();
-                    showMessage("Authentifizierung fehlgeschlagen!");
+                    showMessage(I18n.get("terminal.authFailed"));
                     showMessage("");
-                    showMessage("Mögliche Ursachen:");
-                    showMessage("  - Kein SSH-Key ausgewählt");
-                    showMessage("  - SSH-Key nicht auf dem Server autorisiert");
-                    showMessage("  - Falscher Benutzername");
+                    showMessage(I18n.get("terminal.possibleCauses"));
+                    showMessage("  - " + I18n.get("terminal.noSSHKeySelected"));
+                    showMessage("  - " + I18n.get("terminal.sshKeyNotAuthorized"));
+                    showMessage("  - " + I18n.get("terminal.wrongUsername"));
                     showMessage("");
-                    showMessage("Fehler: " + e.getMessage());
+                    showMessage(I18n.get("error.title") + ": " + e.getMessage());
                     
                 } catch (Exception e) {
-                    lastError = "Verbindung fehlgeschlagen: " + e.getMessage();
+                    lastError = I18n.get("terminal.connectionFailed") + ": " + e.getMessage();
                     logger.error("Failed to start terminal session (attempt {}/{}): {}", 
                                 attempt, retryCount, e.getMessage(), e);
                     
                     // Show failure message
-                    showMessage("Verbindungsversuch " + attempt + " fehlgeschlagen: " + e.getMessage());
+                    showMessage(I18n.get("terminal.attemptFailed", attempt) + ": " + e.getMessage());
                     
                     // Wait before retry (except on last attempt)
                     if (attempt < retryCount && !authenticationFailed) {
@@ -538,22 +538,22 @@ public class TerminalView extends BorderPane {
             if (!authenticationFailed) {
                 clearTerminal();
                 if (retryCount > 1) {
-                    showMessage("Verbindung nach " + retryCount + " Versuchen fehlgeschlagen.");
+                    showMessage(I18n.get("terminal.allAttemptsFailed", retryCount));
                 } else {
-                    showMessage("Verbindung fehlgeschlagen.");
+                    showMessage(I18n.get("terminal.connectionFailed"));
                 }
-                showMessage("Timeout: " + connection.getConnectionTimeoutSeconds() + " Sekunden.");
-                String finalError = lastError != null && !lastError.isEmpty() ? lastError : "Unbekannter Fehler";
+                showMessage(I18n.get("terminal.timeout", connection.getConnectionTimeoutSeconds()));
+                String finalError = lastError != null && !lastError.isEmpty() ? lastError : I18n.get("terminal.unknownError");
                 showMessage(finalError);
             }
             logger.error("All connection attempts failed for {}", connection.getDisplayName());
             
             // Notify disconnect listener about failure
             String errorMessage = authenticationFailed 
-                ? "Authentifizierung fehlgeschlagen" 
+                ? I18n.get("terminal.authFailed") 
                 : (retryCount > 1 
-                    ? "Verbindung nach " + retryCount + " Versuchen fehlgeschlagen" 
-                    : "Verbindung fehlgeschlagen");
+                    ? I18n.get("terminal.allAttemptsFailed", retryCount) 
+                    : I18n.get("terminal.connectionFailed"));
             if (externalDisconnectListener != null) {
                 Platform.runLater(() -> {
                     externalDisconnectListener.onDisconnect(errorMessage, true);

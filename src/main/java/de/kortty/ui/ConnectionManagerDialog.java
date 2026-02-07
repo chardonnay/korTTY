@@ -52,7 +52,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         this.masterPassword = app.getMasterPasswordManager().getMasterPassword();
         this.owner = owner;
         
-        setTitle("Verbindungen verwalten");
+        setTitle(I18n.get("connectionManager.title"));
         setHeaderText(null);
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
@@ -72,7 +72,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         
         // Create search field
         searchField = new TextField();
-        searchField.setPromptText("Suchen nach Name, Host oder IP-Adresse... (* als Wildcard)");
+        searchField.setPromptText(I18n.get("connManager.searchPrompt"));
         searchField.setPrefWidth(300);
         
         // Add listener to filter tree based on search text
@@ -235,7 +235,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         // Search field container
         HBox searchBox = new HBox(10);
         searchBox.setPadding(new Insets(0, 0, 10, 0));
-        Label searchLabel = new Label("Suchen:");
+        Label searchLabel = new Label(I18n.get("ssh.search"));
         searchBox.getChildren().addAll(searchLabel, searchField);
         HBox.setHgrow(searchField, Priority.ALWAYS);
         
@@ -252,7 +252,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         getDialogPane().setContent(content);
         
         // Dialog buttons
-        ButtonType connectButtonType = new ButtonType("Verbinden", ButtonBar.ButtonData.OK_DONE);
+        ButtonType connectButtonType = new ButtonType(I18n.get("quickConnect.connect"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(connectButtonType, ButtonType.CLOSE);
         
         Button connectButton = (Button) getDialogPane().lookupButton(connectButtonType);
@@ -365,7 +365,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         ServerConnection selected = getSelectedConnection();
         if (selected != null && !selected.isPlaceholder()) {
             ServerConnection copy = new ServerConnection();
-            copy.setName(selected.getName() + " (Kopie)");
+            copy.setName(selected.getName() + I18n.get("connManager.copy"));
             copy.setHost(selected.getHost());
             copy.setPort(selected.getPort());
             copy.setUsername(selected.getUsername());
@@ -386,10 +386,10 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     
     private void createNewGroup(GroupPath parentPath) {
         TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Neuer Ordner");
-        dialog.setHeaderText("Neuen Ordner erstellen" + 
+        dialog.setTitle(I18n.get("connManager.newFolder"));
+        dialog.setHeaderText(I18n.get("connManager.newFolderHeader") + 
             (parentPath.isRoot() ? "" : " in \"" + parentPath.getName() + "\""));
-        dialog.setContentText("Ordnername:");
+        dialog.setContentText(I18n.get("connManager.folderName"));
         dialog.initOwner(owner);
         dialog.initModality(Modality.WINDOW_MODAL);
         
@@ -415,9 +415,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     
     private void renameGroup(GroupPath oldPath) {
         TextInputDialog dialog = new TextInputDialog(oldPath.getName());
-        dialog.setTitle("Ordner umbenennen");
-        dialog.setHeaderText("Ordner \"" + oldPath.getName() + "\" umbenennen");
-        dialog.setContentText("Neuer Name:");
+        dialog.setTitle(I18n.get("connManager.renameFolder"));
+        dialog.setHeaderText(I18n.get("connManager.renameFolderHeader", oldPath.getName()));
+        dialog.setContentText(I18n.get("connManager.newName"));
         dialog.initOwner(owner);
         dialog.initModality(Modality.WINDOW_MODAL);
         
@@ -498,9 +498,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         } catch (Exception e) {
             logger.error("Failed to save connections", e);
             Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Fehler");
-            alert.setHeaderText("Speichern fehlgeschlagen");
-            alert.setContentText("Die Verbindungen konnten nicht gespeichert werden: " + e.getMessage());
+            alert.setTitle(I18n.get("error.title"));
+            alert.setHeaderText(I18n.get("error.saveFailed"));
+            alert.setContentText(I18n.get("connManager.saveFailed") + e.getMessage());
             alert.showAndWait();
         }
     }
@@ -532,14 +532,14 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 exportConnectionsToFile(result);
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
-                success.setTitle("Export erfolgreich");
-                success.setHeaderText(String.format("%d Verbindung(en) exportiert", finalConnectionsToExport.size()));
-                success.setContentText("Datei: " + result.exportFile.getAbsolutePath());
+                success.setTitle(I18n.get("connManager.exportSuccess"));
+                success.setHeaderText(I18n.get("connManager.exportedCount", finalConnectionsToExport.size()));
+                success.setContentText(I18n.get("connManager.file") + ": " + result.exportFile.getAbsolutePath());
                 success.showAndWait();
             } catch (Exception e) {
                 Alert error = new Alert(Alert.AlertType.ERROR);
-                error.setTitle("Export fehlgeschlagen");
-                error.setHeaderText("Fehler beim Exportieren");
+                error.setTitle(I18n.get("error.exportFailed"));
+                error.setHeaderText(I18n.get("connManager.exportError"));
                 error.setContentText(e.getMessage());
                 error.showAndWait();
             }
@@ -560,8 +560,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             exportConnections(connectionsInGroup);
         } else {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("No Connections");
-            alert.setHeaderText("Folder is empty");
+            alert.setTitle(I18n.get("connManager.noConnections"));
+            alert.setHeaderText(I18n.get("connManager.folderEmpty"));
             alert.setContentText(I18n.get("connection.emptyFolder", groupPath.getName()));
             alert.showAndWait();
         }
@@ -669,13 +669,13 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
                 success.setTitle(I18n.get("info.importSuccessful", successCount, ""));
-                success.setHeaderText(String.format("%d connection(s) imported", successCount));
+                success.setHeaderText(I18n.get("connManager.importedCount", successCount));
                 success.setContentText(I18n.get("info.importSuccessful", successCount, ""));
                 success.showAndWait();
             } catch (Exception e) {
                 Alert error = new Alert(Alert.AlertType.ERROR);
-                error.setTitle("Import fehlgeschlagen");
-                error.setHeaderText("Fehler beim Importieren");
+                error.setTitle(I18n.get("error.importFailed"));
+                error.setHeaderText(I18n.get("connManager.importError"));
                 error.setContentText(e.getMessage());
                 error.showAndWait();
             }
@@ -746,7 +746,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                     // Ask for password using custom dialog with password field and stored credentials
                     Dialog<String> passwordDialog = new Dialog<>();
                     passwordDialog.setTitle(I18n.get("dialog.passwordRequired"));
-                    passwordDialog.setHeaderText("The ZIP archive is password protected");
+                    passwordDialog.setHeaderText(I18n.get("connImport.zipPasswordProtected"));
                     passwordDialog.initModality(Modality.WINDOW_MODAL);
                     passwordDialog.initOwner(owner);
                     
@@ -760,9 +760,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                     passwordField.setPromptText(I18n.get("dialog.enterPassword"));
                     passwordField.setPrefWidth(300);
                     
-                    Label storedLabel = new Label("Or select:");
+                    Label storedLabel = new Label(I18n.get("connManager.orSelect"));
                     ComboBox<StoredCredential> storedCredentialCombo = new ComboBox<>();
-                    storedCredentialCombo.setPromptText("Select stored password...");
+                    storedCredentialCombo.setPromptText(I18n.get("connManager.selectStoredPassword"));
                     storedCredentialCombo.setPrefWidth(300);
                     
                     storedCredentialCombo.setCellFactory(lv -> new ListCell<StoredCredential>() {
@@ -797,9 +797,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                                 logger.warn("Failed to decrypt password for credential: {}", newVal.getName(), e);
                                 Alert alert = new Alert(Alert.AlertType.WARNING);
                                 alert.setTitle(I18n.get("error.title"));
-                                alert.setHeaderText("Stored password could not be decrypted");
-                                alert.setContentText("Please enter the password manually.\n\n" + 
-                                                   "Error: " + e.getMessage());
+                                alert.setHeaderText(I18n.get("credential.passwordDecryptFailed"));
+                                alert.setContentText(I18n.get("credential.passwordDecryptFailedMessage", e.getMessage()));
                                 alert.showAndWait();
                                 passwordField.clear();
                             }
@@ -857,7 +856,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                     .collect(java.util.stream.Collectors.toList());
                 
                 if (xmlFiles.isEmpty()) {
-                    throw new Exception("Keine XML-Datei im ZIP-Archiv gefunden");
+                    throw new Exception(I18n.get("connImport.noXmlInZip"));
                 }
                 
                 actualXmlFile = xmlFiles.get(0).toFile();

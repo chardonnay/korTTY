@@ -77,8 +77,8 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         this.owner = owner;
         this.connections = connections;
         
-        setTitle("Verbindungen exportieren");
-        setHeaderText(String.format("%d Verbindung(en) exportieren", connections.size()));
+        setTitle(I18n.get("connExport.title"));
+        setHeaderText(I18n.get("connExport.header", connections.size()));
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         setResizable(false);
@@ -92,7 +92,7 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         int row = 0;
         
         // Export format selection
-        Label formatLabel = new Label("Export-Format:");
+        Label formatLabel = new Label(I18n.get("connExport.format"));
         formatComboBox = new ComboBox<>();
         formatComboBox.setPrefWidth(300);
         
@@ -113,13 +113,13 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         grid.add(formatComboBox, 1, row++, 2, 1);
         
         // Export path
-        Label pathLabel = new Label("Export-Pfad:");
+        Label pathLabel = new Label(I18n.get("connExport.path"));
         exportPathField = new TextField();
         exportPathField.setEditable(false);
         exportPathField.setPrefWidth(300);
-        exportPathField.setPromptText("Datei auswählen...");
+        exportPathField.setPromptText(I18n.get("connExport.selectFile"));
         
-        Button browseButton = new Button("Durchsuchen...");
+        Button browseButton = new Button(I18n.get("connEdit.browse"));
         browseButton.setOnAction(e -> selectExportFile());
         
         grid.add(pathLabel, 0, row);
@@ -131,37 +131,37 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         grid.add(separator1, 0, row++, 3, 1);
         
         // Section: Authentication data
-        Label authHeader = new Label("Authentifizierungs-Daten:");
+        Label authHeader = new Label(I18n.get("connExport.authData"));
         authHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
         grid.add(authHeader, 0, row++, 3, 1);
         
-        includeUsernameCheck = new CheckBox("Username exportieren");
+        includeUsernameCheck = new CheckBox(I18n.get("connExport.exportUsername"));
         includeUsernameCheck.setSelected(true);
         grid.add(includeUsernameCheck, 0, row++, 3, 1);
         
-        includePasswordCheck = new CheckBox("Passwort exportieren");
+        includePasswordCheck = new CheckBox(I18n.get("connExport.exportPassword"));
         includePasswordCheck.setSelected(true);
         grid.add(includePasswordCheck, 0, row++, 3, 1);
         
-        Label authInfo = new Label("(Wenn deaktiviert: Felder bleiben leer)");
+        Label authInfo = new Label(I18n.get("connExport.authInfo"));
         authInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         grid.add(authInfo, 0, row++, 3, 1);
         
         // Section: Additional data
-        Label additionalHeader = new Label("Zusätzliche Informationen:");
+        Label additionalHeader = new Label(I18n.get("connExport.additionalInfo"));
         additionalHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
         grid.add(additionalHeader, 0, row++, 3, 1);
         
-        includeTunnelsCheck = new CheckBox("SSH-Tunnel exportieren");
+        includeTunnelsCheck = new CheckBox(I18n.get("connExport.exportTunnels"));
         includeTunnelsCheck.setSelected(true);
         grid.add(includeTunnelsCheck, 0, row++, 3, 1);
         
-        includeJumpServerCheck = new CheckBox("Jump Server exportieren");
+        includeJumpServerCheck = new CheckBox(I18n.get("connExport.exportJumpServer"));
         includeJumpServerCheck.setSelected(true);
         grid.add(includeJumpServerCheck, 0, row++, 3, 1);
         
         // Add info about format compatibility
-        Label compatInfo = new Label("Hinweis: Nicht alle Formate unterstützen alle Optionen.");
+        Label compatInfo = new Label(I18n.get("connExport.compatInfo"));
         compatInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: #666666; -fx-font-style: italic;");
         grid.add(compatInfo, 0, row++, 3, 1);
         
@@ -169,7 +169,7 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         getDialogPane().setContent(content);
         
         // Buttons
-        ButtonType exportButtonType = new ButtonType("Exportieren", ButtonBar.ButtonData.OK_DONE);
+        ButtonType exportButtonType = new ButtonType(I18n.get("connExport.export"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(exportButtonType, ButtonType.CANCEL);
         
         Button exportButton = (Button) getDialogPane().lookupButton(exportButtonType);
@@ -200,7 +200,7 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
     
     private void selectExportFile() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Export-Datei auswählen");
+        fileChooser.setTitle(I18n.get("connExport.selectExportFile"));
         
         ExportFormat selectedFormat = formatComboBox.getSelectionModel().getSelectedItem();
         if (selectedFormat != null) {
@@ -220,7 +220,7 @@ public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.Export
         }
         
         fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Alle Dateien", "*.*")
+            new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*")
         );
         
         selectedFile = fileChooser.showSaveDialog(owner);

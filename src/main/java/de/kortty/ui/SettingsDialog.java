@@ -186,7 +186,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         colorsGrid.add(new Separator(), 0, 4, 2, 1);
         colorsGrid.add(new Label(I18n.get("settings.colors.ansi")), 0, 5, 2, 1);
         
-        String[] colorNames = {"Schwarz", "Rot", "Grün", "Gelb", "Blau", "Magenta", "Cyan", "Weiß"};
+        String[] colorNames = {I18n.get("color.black"), I18n.get("color.red"), I18n.get("color.green"), I18n.get("color.yellow"), I18n.get("color.blue"), I18n.get("color.magenta"), I18n.get("color.cyan"), I18n.get("color.white")};
         HBox normalColorsBox = new HBox(5);
         HBox brightColorsBox = new HBox(5);
         
@@ -200,7 +200,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             ColorPicker brightPicker = new ColorPicker(Color.web(settings.getAnsiColor(i, true)));
             brightPicker.setPrefWidth(40);
             brightPicker.setStyle("-fx-color-label-visible: false;");
-            Tooltip.install(brightPicker, new Tooltip(colorNames[i] + " (hell)"));
+            Tooltip.install(brightPicker, new Tooltip(colorNames[i] + " " + I18n.get("color.bright")));
             brightColorsBox.getChildren().add(brightPicker);
         }
         
@@ -1028,8 +1028,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
      */
     private void changeMasterPassword() {
         Dialog<char[]> passwordDialog = new Dialog<>();
-        passwordDialog.setTitle("Master-Passwort ändern");
-        passwordDialog.setHeaderText("Geben Sie das aktuelle und das neue Master-Passwort ein");
+        passwordDialog.setTitle(I18n.get("settings.masterPassword.changeTitle"));
+        passwordDialog.setHeaderText(I18n.get("settings.masterPassword.changeHeader"));
         passwordDialog.initModality(Modality.WINDOW_MODAL);
         passwordDialog.initOwner(getDialogPane().getScene().getWindow());
         
@@ -1039,15 +1039,15 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         grid.setPadding(new Insets(20));
         
         PasswordField oldPasswordField = new PasswordField();
-        oldPasswordField.setPromptText("Aktuelles Passwort");
+        oldPasswordField.setPromptText(I18n.get("settings.masterPassword.current"));
         oldPasswordField.setPrefWidth(250);
         
         PasswordField newPasswordField = new PasswordField();
-        newPasswordField.setPromptText("Neues Passwort (mindestens 6 Zeichen)");
+        newPasswordField.setPromptText(I18n.get("settings.masterPassword.new"));
         newPasswordField.setPrefWidth(250);
         
         PasswordField confirmPasswordField = new PasswordField();
-        confirmPasswordField.setPromptText("Neues Passwort bestätigen");
+        confirmPasswordField.setPromptText(I18n.get("settings.masterPassword.confirmNew"));
         confirmPasswordField.setPrefWidth(250);
         
         Label errorLabel = new Label();
@@ -1055,17 +1055,17 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         errorLabel.setVisible(false);
         
         int row = 0;
-        grid.add(new Label("Aktuelles Passwort:"), 0, row);
+        grid.add(new Label(I18n.get("settings.masterPassword.current") + ":"), 0, row);
         grid.add(oldPasswordField, 1, row++);
-        grid.add(new Label("Neues Passwort:"), 0, row);
+        grid.add(new Label(I18n.get("settings.masterPassword.new") + ":"), 0, row);
         grid.add(newPasswordField, 1, row++);
-        grid.add(new Label("Passwort bestätigen:"), 0, row);
+        grid.add(new Label(I18n.get("settings.masterPassword.confirmNew") + ":"), 0, row);
         grid.add(confirmPasswordField, 1, row++);
         grid.add(errorLabel, 0, row++, 2, 1);
         
         passwordDialog.getDialogPane().setContent(grid);
         
-        ButtonType changeButtonType = new ButtonType("Ändern", ButtonBar.ButtonData.OK_DONE);
+        ButtonType changeButtonType = new ButtonType(I18n.get("settings.masterPassword.changeButton"), ButtonBar.ButtonData.OK_DONE);
         passwordDialog.getDialogPane().getButtonTypes().addAll(changeButtonType, ButtonType.CANCEL);
         
         Button changeButton = (Button) passwordDialog.getDialogPane().lookupButton(changeButtonType);
@@ -1092,19 +1092,19 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 
                 // Validate
                 if (oldPassword.isEmpty()) {
-                    errorLabel.setText("Bitte aktuelles Passwort eingeben");
+                    errorLabel.setText(I18n.get("settings.masterPassword.enterCurrent"));
                     errorLabel.setVisible(true);
                     return null;
                 }
                 
                 if (newPassword.length() < 6) {
-                    errorLabel.setText("Neues Passwort muss mindestens 6 Zeichen haben");
+                    errorLabel.setText(I18n.get("settings.masterPassword.tooShort"));
                     errorLabel.setVisible(true);
                     return null;
                 }
                 
                 if (!newPassword.equals(confirmPassword)) {
-                    errorLabel.setText("Neue Passwörter stimmen nicht überein");
+                    errorLabel.setText(I18n.get("settings.masterPassword.mismatch"));
                     errorLabel.setVisible(true);
                     return null;
                 }
@@ -1164,26 +1164,23 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 java.util.Arrays.fill(newPasswordChars, '\0');
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
-                success.setTitle("Passwort geändert");
-                success.setHeaderText("Master-Passwort erfolgreich geändert");
-                success.setContentText(String.format(
-                    "Das Master-Passwort wurde geändert und %d Verbindungspasswörter wurden neu verschlüsselt.",
-                    reEncryptedCount
-                ));
+                success.setTitle(I18n.get("settings.masterPassword.changed"));
+                success.setHeaderText(I18n.get("settings.masterPassword.changedSuccess"));
+                success.setContentText(I18n.get("settings.masterPassword.changedMessage", reEncryptedCount));
                 success.showAndWait();
                 
             } catch (SecurityException e) {
                 Alert error = new Alert(Alert.AlertType.ERROR);
-                error.setTitle("Fehler");
-                error.setHeaderText("Passwort-Änderung fehlgeschlagen");
-                error.setContentText("Das aktuelle Passwort ist falsch: " + e.getMessage());
+                error.setTitle(I18n.get("sftp.error.title"));
+                error.setHeaderText(I18n.get("settings.masterPassword.changeFailed"));
+                error.setContentText(I18n.get("settings.masterPassword.wrongPassword") + " " + e.getMessage());
                 error.showAndWait();
             } catch (Exception e) {
                 org.slf4j.LoggerFactory.getLogger(getClass()).error("Failed to change master password", e);
                 Alert error = new Alert(Alert.AlertType.ERROR);
-                error.setTitle("Fehler");
-                error.setHeaderText("Passwort-Änderung fehlgeschlagen");
-                error.setContentText("Ein Fehler ist aufgetreten: " + e.getMessage());
+                error.setTitle(I18n.get("sftp.error.title"));
+                error.setHeaderText(I18n.get("settings.masterPassword.changeFailed"));
+                error.setContentText(I18n.get("settings.masterPassword.errorOccurred", e.getMessage()));
                 error.showAndWait();
             }
         });
