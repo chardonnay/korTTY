@@ -24,8 +24,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+
+import javafx.scene.layout.HBox;
 
 /**
  * Pane that supports splitting terminal widgets horizontally or vertically.
@@ -43,6 +47,9 @@ public class TerminalSplitPane extends StackPane {
     private SplitCell rootCell;
     private JediTermFxWidget focusedWidget;
     private boolean broadcastMode = false;
+
+    // Optional left-side panels (e.g. timestamp gutters) per widget
+    private final Map<JediTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
 
     public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
                              @NotNull SplitConnectorFactory connectorFactory) {
@@ -447,6 +454,22 @@ public class TerminalSplitPane extends StackPane {
     }
 
     /**
+     * Registers a left-side panel (e.g. timestamp gutter) for a widget.
+     * Must be called before the SplitCell for this widget is created
+     * (i.e. in the widgetConfigurator callback).
+     */
+    public void setWidgetLeftPanel(@NotNull JediTermFxWidget widget, @NotNull Region panel) {
+        widgetLeftPanels.put(widget, panel);
+    }
+
+    /**
+     * Removes the left-side panel reference for a widget.
+     */
+    public void removeWidgetLeftPanel(@NotNull JediTermFxWidget widget) {
+        widgetLeftPanels.remove(widget);
+    }
+
+    /**
      * Closes all terminal sessions in this split pane.
      */
     public void closeAll() {
@@ -488,7 +511,21 @@ public class TerminalSplitPane extends StackPane {
             this.splitPane = null;
             this.leftCell = null;
             this.rightCell = null;
-            StackPane wrapper = new StackPane(widget.getPane());
+
+            // Check if a left-side panel (e.g. timestamp gutter) is registered for this widget
+            Region leftPanel = widgetLeftPanels.get(widget);
+            Region wrapperContent;
+            if (leftPanel != null) {
+                HBox hbox = new HBox(leftPanel, widget.getPane());
+                HBox.setHgrow(widget.getPane(), Priority.ALWAYS);
+                hbox.setMinSize(0, 0);
+                hbox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+                wrapperContent = hbox;
+            } else {
+                wrapperContent = widget.getPane();
+            }
+
+            StackPane wrapper = new StackPane(wrapperContent);
             wrapper.setMinSize(0, 0);
             wrapper.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
             VBox.setVgrow(wrapper, Priority.ALWAYS);

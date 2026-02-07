@@ -70,6 +70,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private ColorPicker foregroundColorPicker;
     private ColorPicker backgroundColorPicker;
     private CheckBox closeWithoutConfirmCheck;
+    private CheckBox commandTimestampsCheck;
     
     // Terminal Logging
     private CheckBox enableLoggingCheck;
@@ -497,6 +498,9 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     if (closeWithoutConfirmCheck != null) {
                         customSettings.setCloseWithoutConfirmation(closeWithoutConfirmCheck.isSelected());
                     }
+                    if (commandTimestampsCheck != null) {
+                        customSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
+                    }
                     connection.setSettings(customSettings);
                 } else {
                     connection.setSettings(null); // Use global settings
@@ -615,6 +619,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         closeWithoutConfirmCheck = new CheckBox(I18n.get("connEdit.closeWithoutConfirm"));
         closeWithoutConfirmCheck.setSelected(connSettings != null && connSettings.isCloseWithoutConfirmation());
         
+        // Command timestamps
+        commandTimestampsCheck = new CheckBox(I18n.get("settings.terminal.commandTimestamps"));
+        commandTimestampsCheck.setSelected(connSettings != null && connSettings.isCommandTimestampsEnabled());
+        commandTimestampsCheck.setTooltip(new javafx.scene.control.Tooltip(I18n.get("settings.terminal.commandTimestamps.tooltip")));
+        
         // Layout
         int row = 0;
         settingsGrid.add(new Label(I18n.get("settings.font.family")), 0, row);
@@ -634,6 +643,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         settingsGrid.add(new Separator(), 0, row++, 2, 1);
         
         settingsGrid.add(closeWithoutConfirmCheck, 0, row++, 2, 1);
+        settingsGrid.add(commandTimestampsCheck, 0, row++, 2, 1);
         
         // Enable/disable settings grid based on checkbox
         useCustomSettingsCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {

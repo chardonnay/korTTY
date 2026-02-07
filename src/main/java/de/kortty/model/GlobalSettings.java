@@ -52,6 +52,9 @@ public class GlobalSettings {
     private boolean showTerminalScrollbar = true; // Show scrollbar in terminal view
     
     @XmlElement
+    private boolean commandTimestampsEnabled = false; // Show timestamp gutter in terminal
+    
+    @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
     
     @XmlElement
@@ -251,6 +254,14 @@ public class GlobalSettings {
     
     public void setShowTerminalScrollbar(boolean showTerminalScrollbar) {
         this.showTerminalScrollbar = showTerminalScrollbar;
+    }
+    
+    public boolean isCommandTimestampsEnabled() {
+        return commandTimestampsEnabled;
+    }
+    
+    public void setCommandTimestampsEnabled(boolean commandTimestampsEnabled) {
+        this.commandTimestampsEnabled = commandTimestampsEnabled;
     }
     
     public boolean isRequireMasterPasswordOnStartup() {

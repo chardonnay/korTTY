@@ -49,6 +49,9 @@ public class ConnectionSettings {
     @XmlElement
     private boolean closeWithoutConfirmation = false;
     
+    @XmlElement
+    private boolean commandTimestampsEnabled = false;
+    
     // SSH Keep-Alive settings
     @XmlElement
     private boolean sshKeepAliveEnabled = true; // Default: enabled
@@ -109,6 +112,7 @@ public class ConnectionSettings {
         this.boldAsBright = other.boldAsBright;
         this.encoding = other.encoding;
         this.closeWithoutConfirmation = other.closeWithoutConfirmation;
+        this.commandTimestampsEnabled = other.commandTimestampsEnabled;
         this.sshKeepAliveEnabled = other.sshKeepAliveEnabled;
         this.sshKeepAliveInterval = other.sshKeepAliveInterval;
         copyAnsiColors(other);
@@ -237,6 +241,14 @@ public class ConnectionSettings {
     
     public void setCloseWithoutConfirmation(boolean closeWithoutConfirmation) {
         this.closeWithoutConfirmation = closeWithoutConfirmation;
+    }
+    
+    public boolean isCommandTimestampsEnabled() {
+        return commandTimestampsEnabled;
+    }
+    
+    public void setCommandTimestampsEnabled(boolean commandTimestampsEnabled) {
+        this.commandTimestampsEnabled = commandTimestampsEnabled;
     }
     
     public boolean isSshKeepAliveEnabled() {

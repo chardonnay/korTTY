@@ -13,16 +13,22 @@ import de.kortty.core.DisconnectListener;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ServerConnection;
 import javafx.application.Platform;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.geometry.Orientation;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Terminal view component using JediTermFX for professional terminal emulation.
@@ -74,6 +80,9 @@ public class TerminalView extends BorderPane {
     private de.kortty.core.TerminalLogger terminalLogger;
     private NewConnectionCallback newConnectionCallback;
     
+    // Timestamp gutter support: maps each widget to its gutter
+    private final Map<JediTermFxWidget, TimestampGutter> gutterMap = new ConcurrentHashMap<>();
+    
     public TerminalView(ServerConnection connection, String password) {
         this(connection, password, null);
     }
@@ -112,6 +121,8 @@ public class TerminalView extends BorderPane {
         splitPane = new TerminalSplitPane(settingsProvider, connectorFactory, widget -> {
             // Configure each new widget in the split
             setupWidgetEventHandlers(widget);
+            // Set up timestamp gutter if enabled
+            setupTimestampGutter(widget);
         });
         
         // Get the primary terminal widget (first one created by TerminalSplitPane)
@@ -337,6 +348,125 @@ public class TerminalView extends BorderPane {
                 event.consume();
             }
         });
+    }
+    
+    /**
+     * Sets up a timestamp gutter for the given widget if command timestamps are enabled.
+     * Creates the gutter, registers it with the split pane, and wires up:
+     * - Enter key detection to record timestamps
+     * - Scrollbar listener for scroll synchronization
+     * - Model listener for buffer changes (new output)
+     */
+    private void setupTimestampGutter(JediTermFxWidget widget) {
+        if (!isCommandTimestampsEnabled()) {
+            return;
+        }
+        
+        TimestampGutter gutter = new TimestampGutter();
+        gutterMap.put(widget, gutter);
+        
+        // Configure gutter colors and font to match terminal
+        gutter.setGutterBackgroundColor(Color.web(settings.getBackgroundColor()));
+        gutter.setGutterTextColor(Color.web(settings.getForegroundColor()));
+        gutter.setTimestampFont(settings.getFontFamily(), settings.getFontSize());
+        
+        // Register gutter with the split pane so SplitCell includes it in layout
+        splitPane.setWidgetLeftPanel(widget, gutter);
+        
+        // Listen for Enter key to record command timestamps
+        widget.getPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                recordTimestamp(widget, gutter);
+            }
+        });
+        
+        // Synchronize gutter with terminal scrollbar
+        var terminalPanel = widget.getTerminalPanel();
+        ScrollBar scrollBar = terminalPanel.getScrollBar();
+        var textBuffer = terminalPanel.getTerminalTextBuffer();
+        
+        // Update gutter on scroll changes
+        scrollBar.valueProperty().addListener((obs, oldV, newV) -> {
+            updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
+        });
+        
+        // Update gutter when terminal content changes (new output, resize)
+        textBuffer.addModelListener(() -> {
+            Platform.runLater(() -> updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel));
+        });
+        
+        // Initial update
+        Platform.runLater(() -> updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel));
+    }
+    
+    /**
+     * Records a timestamp for the current cursor line in the terminal.
+     */
+    private void recordTimestamp(JediTermFxWidget widget, TimestampGutter gutter) {
+        try {
+            var terminal = widget.getTerminal();
+            var textBuffer = widget.getTerminalTextBuffer();
+            if (terminal == null || textBuffer == null) return;
+            
+            int cursorY = terminal.getCursorY(); // 0-based screen row
+            int historyLines = textBuffer.getHistoryLinesCount();
+            int absoluteLine = historyLines + cursorY;
+            
+            gutter.addTimestamp(absoluteLine, LocalDateTime.now());
+        } catch (Exception e) {
+            logger.debug("Failed to record timestamp: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * Updates the gutter's scroll state to match the terminal panel's current state.
+     * Computes the scroll origin from the scrollbar value using the same formula
+     * as TerminalPanel.resolveSwingScrollBarValue().
+     */
+    private void updateGutterScrollState(TimestampGutter gutter, ScrollBar scrollBar,
+                                          com.techsenger.jeditermfx.core.model.TerminalTextBuffer textBuffer,
+                                          com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel) {
+        try {
+            int historyLines = textBuffer.getHistoryLinesCount();
+            int visibleRows = textBuffer.getHeight();
+            double pixelHeight = terminalPanel.getPixelHeight();
+            double charHeight = visibleRows > 0 ? pixelHeight / visibleRows : 16;
+            
+            // Compute scroll origin (same formula as TerminalPanel.resolveSwingScrollBarValue)
+            double range = scrollBar.getMax() - scrollBar.getMin();
+            int scrollOrigin;
+            if (range == 0) {
+                scrollOrigin = 0;
+            } else {
+                double normalizedValue = (scrollBar.getValue() - scrollBar.getMin()) / range;
+                double swingValue = scrollBar.getMin()
+                        + normalizedValue * (scrollBar.getMax() - scrollBar.getVisibleAmount() - scrollBar.getMin());
+                scrollOrigin = (int) Math.round(swingValue);
+            }
+            
+            gutter.updateScrollState(scrollOrigin, historyLines, charHeight, visibleRows);
+        } catch (Exception e) {
+            logger.debug("Failed to update gutter scroll state: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * Checks whether command timestamps are enabled, considering both connection-specific
+     * and global settings. If the connection uses global settings, the global setting is checked.
+     */
+    private boolean isCommandTimestampsEnabled() {
+        // Connection-specific setting takes priority
+        if (!settings.isUseGlobalSettings()) {
+            return settings.isCommandTimestampsEnabled();
+        }
+        // Check global setting
+        try {
+            var gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm.getSettings();
+            return gs != null && gs.isCommandTimestampsEnabled();
+        } catch (Exception e) {
+            return settings.isCommandTimestampsEnabled();
+        }
     }
     
     /**

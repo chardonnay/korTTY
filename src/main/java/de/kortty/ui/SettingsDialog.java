@@ -57,6 +57,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final CheckBox boldAsBrightCheck;
     private final ComboBox<String> encodingCombo;
     private final CheckBox showTerminalScrollbarCheck;
+    private final CheckBox commandTimestampsCheck;
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
@@ -241,6 +242,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         showTerminalScrollbarCheck.setSelected(globalSettings != null ? globalSettings.isShowTerminalScrollbar() : true);
         showTerminalScrollbarCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.scrollbar.tooltip")));
         
+        commandTimestampsCheck = new CheckBox(I18n.get("settings.terminal.commandTimestamps"));
+        commandTimestampsCheck.setSelected(settings.isCommandTimestampsEnabled());
+        commandTimestampsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.commandTimestamps.tooltip")));
+        
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
         sshKeepAliveCheck.setSelected(settings.isSshKeepAliveEnabled());
@@ -272,22 +277,23 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         terminalGrid.add(encodingCombo, 1, 3);
         terminalGrid.add(boldAsBrightCheck, 0, 4, 2, 1);
         terminalGrid.add(showTerminalScrollbarCheck, 0, 5, 2, 1);
+        terminalGrid.add(commandTimestampsCheck, 0, 6, 2, 1);
         
         // SSH Keep-Alive section
-        terminalGrid.add(new Separator(), 0, 6, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, 7, 2, 1);
-        terminalGrid.add(sshKeepAliveCheck, 0, 8, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, 9);
+        terminalGrid.add(new Separator(), 0, 7, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, 8, 2, 1);
+        terminalGrid.add(sshKeepAliveCheck, 0, 9, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, 10);
         HBox keepAliveBox = new HBox(10);
         keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label(I18n.get("common.seconds")));
-        terminalGrid.add(keepAliveBox, 1, 9);
+        terminalGrid.add(keepAliveBox, 1, 10);
         
         // Connection section
-        terminalGrid.add(new Separator(), 0, 10, 2, 1);
+        terminalGrid.add(new Separator(), 0, 11, 2, 1);
         Label connectionHeader = new Label(I18n.get("settings.connection.header"));
         connectionHeader.setStyle("-fx-font-weight: bold;");
-        terminalGrid.add(connectionHeader, 0, 11, 2, 1);
-        terminalGrid.add(connectionRetriesEnabledCheck, 0, 12, 2, 1);
+        terminalGrid.add(connectionHeader, 0, 12, 2, 1);
+        terminalGrid.add(connectionRetriesEnabledCheck, 0, 13, 2, 1);
         
         terminalTab.setContent(terminalGrid);
         
@@ -886,12 +892,14 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         settings.setScrollbackLines(scrollbackSpinner.getValue());
         settings.setBoldAsBright(boldAsBrightCheck.isSelected());
         settings.setEncoding(encodingCombo.getValue());
+        settings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
         settings.setSshKeepAliveEnabled(sshKeepAliveCheck.isSelected());
         settings.setSshKeepAliveInterval(sshKeepAliveIntervalSpinner.getValue());
         
         // Save connection settings to GlobalSettings
         if (globalSettings != null) {
             globalSettings.setConnectionRetriesEnabled(connectionRetriesEnabledCheck.isSelected());
+            globalSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
         }
         
         // Save backup settings to GlobalSettings
