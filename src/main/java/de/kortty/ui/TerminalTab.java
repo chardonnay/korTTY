@@ -304,6 +304,13 @@ public class TerminalTab extends Tab {
         terminalView.resetZoom();
     }
     
+    /**
+     * Shows the find bar in the terminal.
+     */
+    public void showFind() {
+        terminalView.showFind();
+    }
+    
     public ServerConnection getConnection() {
         return connection;
     }

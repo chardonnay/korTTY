@@ -701,6 +701,16 @@ public class TerminalView extends BorderPane {
     }
     
     /**
+     * Shows the find bar in the terminal.
+     */
+    public void showFind() {
+        JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (focused != null) {
+            focused.showFindComponent();
+        }
+    }
+    
+    /**
      * Pastes from clipboard.
      */
     public void pasteFromClipboard() {
