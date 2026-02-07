@@ -311,6 +311,21 @@ public class TerminalTab extends Tab {
         terminalView.showFind();
     }
     
+    /**
+     * Toggles the timestamp gutter visibility.
+     * @return true if gutters are now visible, false if hidden
+     */
+    public boolean toggleTimestampGutters() {
+        return terminalView.toggleTimestampGutters();
+    }
+    
+    /**
+     * Returns whether timestamp gutters are currently visible.
+     */
+    public boolean isTimestampGuttersVisible() {
+        return terminalView.isTimestampGuttersVisible();
+    }
+    
     public ServerConnection getConnection() {
         return connection;
     }

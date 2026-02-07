@@ -433,6 +433,10 @@ public class MainWindow {
         showDashboard.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         showDashboard.setOnAction(e -> toggleDashboard(showDashboard.isSelected()));
         
+        CheckMenuItem showTimestamps = new CheckMenuItem(I18n.get("menu.view.timestamps"));
+        showTimestamps.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        showTimestamps.setOnAction(e -> toggleTimestampsInCurrentTab(showTimestamps));
+        
         MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
@@ -449,7 +453,7 @@ public class MainWindow {
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
         
-        viewMenu.getItems().addAll(showDashboard, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(showDashboard, showTimestamps, new SeparatorMenuItem(),
                 zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
         
         // Help Menu
@@ -927,6 +931,18 @@ public class MainWindow {
             terminalTab.showFind();
         } else if (currentTab instanceof FileEditorTab editorTab) {
             editorTab.showFind();
+        }
+    }
+    
+    /**
+     * Toggles the timestamp gutter in the currently active terminal tab.
+     * Updates the CheckMenuItem state to reflect the current visibility.
+     */
+    private void toggleTimestampsInCurrentTab(CheckMenuItem menuItem) {
+        Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
+        if (currentTab instanceof TerminalTab terminalTab) {
+            boolean nowVisible = terminalTab.toggleTimestampGutters();
+            menuItem.setSelected(nowVisible);
         }
     }
     

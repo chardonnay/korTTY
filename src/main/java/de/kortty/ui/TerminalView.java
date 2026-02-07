@@ -351,17 +351,12 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Sets up a timestamp gutter for the given widget if command timestamps are enabled.
-     * Creates the gutter, registers it with the split pane, and wires up:
-     * - Enter key detection to record timestamps
-     * - Scrollbar listener for scroll synchronization
-     * - Model listener for buffer changes (new output)
+     * Sets up a timestamp gutter for the given widget.
+     * The gutter is always created and Enter key timestamps are always recorded,
+     * but the gutter is only visible if command timestamps are enabled.
+     * This allows instant toggling without losing recorded timestamps.
      */
     private void setupTimestampGutter(JediTermFxWidget widget) {
-        if (!isCommandTimestampsEnabled()) {
-            return;
-        }
-        
         TimestampGutter gutter = new TimestampGutter();
         gutterMap.put(widget, gutter);
         
@@ -370,10 +365,15 @@ public class TerminalView extends BorderPane {
         gutter.setGutterTextColor(Color.web(settings.getForegroundColor()));
         gutter.setTimestampFont(settings.getFontFamily(), settings.getFontSize());
         
+        // Set initial visibility based on current setting
+        boolean visible = isCommandTimestampsEnabled();
+        gutter.setVisible(visible);
+        gutter.setManaged(visible);
+        
         // Register gutter with the split pane so SplitCell includes it in layout
         splitPane.setWidgetLeftPanel(widget, gutter);
         
-        // Listen for Enter key to record command timestamps
+        // Always listen for Enter key to record timestamps (even when gutter is hidden)
         widget.getPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 recordTimestamp(widget, gutter);
@@ -828,6 +828,40 @@ public class TerminalView extends BorderPane {
             // handleCopy(withCustomSelectors, byKeyStroke)
             focused.getTerminalPanel().handleCopy(false, false);
         }
+    }
+    
+    /**
+     * Toggles the visibility of all timestamp gutters in this terminal view.
+     * When shown, previously recorded timestamps become visible immediately.
+     *
+     * @return true if gutters are now visible, false if hidden
+     */
+    public boolean toggleTimestampGutters() {
+        boolean newVisible = !isTimestampGuttersVisible();
+        setTimestampGuttersVisible(newVisible);
+        return newVisible;
+    }
+    
+    /**
+     * Sets the visibility of all timestamp gutters in this terminal view.
+     */
+    public void setTimestampGuttersVisible(boolean visible) {
+        for (TimestampGutter gutter : gutterMap.values()) {
+            gutter.setVisible(visible);
+            gutter.setManaged(visible);
+        }
+    }
+    
+    /**
+     * Returns whether timestamp gutters are currently visible.
+     */
+    public boolean isTimestampGuttersVisible() {
+        // Check any gutter - they are all toggled together
+        for (TimestampGutter gutter : gutterMap.values()) {
+            return gutter.isVisible();
+        }
+        // No gutters exist yet - return setting default
+        return isCommandTimestampsEnabled();
     }
     
     /**
