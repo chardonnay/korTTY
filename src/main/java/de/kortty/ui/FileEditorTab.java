@@ -692,6 +692,21 @@ public class FileEditorTab extends Tab {
         tabPane.getTabs().remove(this);
     }
     
+    /**
+     * Shows the find/replace panel.
+     */
+    public void showFind() {
+        BorderPane root = (BorderPane) getContent();
+        VBox topArea = (VBox) root.getTop();
+        VBox searchPanel = (VBox) topArea.getChildren().get(1);
+        
+        if (!searchPanel.isVisible()) {
+            searchPanel.setVisible(true);
+            searchPanel.setManaged(true);
+        }
+        searchField.requestFocus();
+    }
+    
     private void toggleSearchPanel() {
         BorderPane root = (BorderPane) getContent();
         VBox topArea = (VBox) root.getTop();

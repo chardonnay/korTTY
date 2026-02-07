@@ -355,6 +355,10 @@ public class MainWindow {
         paste.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
         paste.setOnAction(e -> pasteToTerminal());
         
+        MenuItem find = new MenuItem(I18n.get("menu.edit.find"));
+        find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
+        find.setOnAction(e -> findInCurrentTab());
+        
         MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
         settings.setOnAction(e -> showSettings());
@@ -366,12 +370,13 @@ public class MainWindow {
         MenuItem importBackup = new MenuItem(I18n.get("menu.edit.importBackup"));
         importBackup.setOnAction(e -> importBackup());
         
-        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), settings, createBackup, importBackup);
+        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), find, new SeparatorMenuItem(), settings, createBackup, importBackup);
         
         // Connections Menu
         Menu connectionsMenu = new Menu(I18n.get("menu.connections"));
         
         MenuItem quickConnect = new MenuItem(I18n.get("menu.connections.quickConnect"));
+        quickConnect.setAccelerator(new KeyCodeCombination(KeyCode.K, KeyCombination.SHORTCUT_DOWN));
         quickConnect.setOnAction(e -> showQuickConnect());
         
         MenuItem manageConnections = new MenuItem(I18n.get("menu.connections.manage"));
@@ -391,12 +396,15 @@ public class MainWindow {
         Menu managementMenu = new Menu(I18n.get("menu.management"));
         
         MenuItem manageCredentials = new MenuItem(I18n.get("menu.management.credentials"));
+        manageCredentials.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageCredentials.setOnAction(e -> showCredentialManagement());
         
         MenuItem manageGPGKeys = new MenuItem(I18n.get("menu.management.gpgKeys"));
+        manageGPGKeys.setAccelerator(new KeyCodeCombination(KeyCode.G, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageGPGKeys.setOnAction(e -> showGPGKeyManagement());
         
         MenuItem manageSSHKeys = new MenuItem(I18n.get("menu.management.sshKeys"));
+        manageSSHKeys.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
         
         managementMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys);
@@ -405,9 +413,11 @@ public class MainWindow {
         Menu sftpMenu = new Menu(I18n.get("menu.tools"));
         
         MenuItem openSFTPManager = new MenuItem(I18n.get("menu.tools.sftpManager"));
+        openSFTPManager.setAccelerator(new KeyCodeCombination(KeyCode.U, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         openSFTPManager.setOnAction(e -> showSFTPManager());
         
         MenuItem asciiArtBanner = new MenuItem(I18n.get("menu.tools.asciiArtBanner"));
+        asciiArtBanner.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         asciiArtBanner.setOnAction(e -> showAsciiArtBanner());
         
         MenuItem snippetManager = new MenuItem(I18n.get("menu.tools.snippets"));
@@ -908,6 +918,15 @@ public class MainWindow {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
         if (currentTab instanceof TerminalTab terminalTab) {
             terminalTab.paste();
+        }
+    }
+    
+    private void findInCurrentTab() {
+        Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
+        if (currentTab instanceof TerminalTab terminalTab) {
+            terminalTab.showFind();
+        } else if (currentTab instanceof FileEditorTab editorTab) {
+            editorTab.showFind();
         }
     }
     
