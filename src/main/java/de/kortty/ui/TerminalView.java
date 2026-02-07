@@ -83,6 +83,9 @@ public class TerminalView extends BorderPane {
     // Timestamp gutter support: maps each widget to its gutter
     private final Map<JediTermFxWidget, TimestampGutter> gutterMap = new ConcurrentHashMap<>();
     
+    // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
+    private Runnable timestampToggleListener;
+    
     public TerminalView(ServerConnection connection, String password) {
         this(connection, password, null);
     }
@@ -121,8 +124,22 @@ public class TerminalView extends BorderPane {
         splitPane = new TerminalSplitPane(settingsProvider, connectorFactory, widget -> {
             // Configure each new widget in the split
             setupWidgetEventHandlers(widget);
-            // Set up timestamp gutter if enabled
+            // Set up timestamp gutter (always created, visibility controlled separately)
             setupTimestampGutter(widget);
+        }, widget -> gutterMap.get(widget)); // Left panel factory: returns the gutter created in setupTimestampGutter
+        
+        // Register extra context menu items for timestamp toggle
+        splitPane.setExtraMenuItemsFactory(widget -> {
+            javafx.scene.control.CheckMenuItem timestampToggle = 
+                new javafx.scene.control.CheckMenuItem(I18n.get("menu.view.timestamps"));
+            timestampToggle.setSelected(isTimestampGuttersVisible());
+            timestampToggle.setOnAction(e -> {
+                toggleTimestampGutters();
+                if (timestampToggleListener != null) {
+                    timestampToggleListener.run();
+                }
+            });
+            return java.util.Collections.singletonList(timestampToggle);
         });
         
         // Get the primary terminal widget (first one created by TerminalSplitPane)
@@ -370,8 +387,9 @@ public class TerminalView extends BorderPane {
         gutter.setVisible(visible);
         gutter.setManaged(visible);
         
-        // Register gutter with the split pane so SplitCell includes it in layout
-        splitPane.setWidgetLeftPanel(widget, gutter);
+        // Note: gutter is registered with the split pane via the leftPanelFactory
+        // (passed in the TerminalSplitPane constructor), not here - because this method
+        // runs during the TerminalSplitPane constructor when splitPane is not yet assigned.
         
         // Always listen for Enter key to record timestamps (even when gutter is hidden)
         widget.getPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
@@ -850,6 +868,14 @@ public class TerminalView extends BorderPane {
             gutter.setVisible(visible);
             gutter.setManaged(visible);
         }
+    }
+    
+    /**
+     * Sets a listener that is called whenever timestamp gutter visibility is toggled
+     * from the context menu. Used by MainWindow to update the CheckMenuItem state.
+     */
+    public void setTimestampToggleListener(Runnable listener) {
+        this.timestampToggleListener = listener;
     }
     
     /**

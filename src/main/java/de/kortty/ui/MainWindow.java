@@ -59,6 +59,7 @@ public class MainWindow {
     private final HBox mainContentBox;
     private DashboardView dashboardView;
     private boolean dashboardVisible = false;
+    private CheckMenuItem showTimestampsMenuItem;
     
     private final KorTTYApplication app;
     private final SessionManager sessionManager;
@@ -433,9 +434,9 @@ public class MainWindow {
         showDashboard.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         showDashboard.setOnAction(e -> toggleDashboard(showDashboard.isSelected()));
         
-        CheckMenuItem showTimestamps = new CheckMenuItem(I18n.get("menu.view.timestamps"));
-        showTimestamps.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-        showTimestamps.setOnAction(e -> toggleTimestampsInCurrentTab(showTimestamps));
+        showTimestampsMenuItem = new CheckMenuItem(I18n.get("menu.view.timestamps"));
+        showTimestampsMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        showTimestampsMenuItem.setOnAction(e -> toggleTimestampsInCurrentTab(showTimestampsMenuItem));
         
         MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
@@ -453,7 +454,7 @@ public class MainWindow {
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
         
-        viewMenu.getItems().addAll(showDashboard, showTimestamps, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(showDashboard, showTimestampsMenuItem, new SeparatorMenuItem(),
                 zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
         
         // Help Menu
@@ -594,6 +595,18 @@ public class MainWindow {
             
             // Set callback for "Split with new connection" feature
             terminalTab.getTerminalView().setNewConnectionCallback(this::requestNewConnectionForSplit);
+            
+            // Register timestamp toggle listener so context menu toggle updates the View menu
+            terminalTab.setTimestampToggleListener(() -> {
+                Platform.runLater(() -> {
+                    if (showTimestampsMenuItem != null) {
+                        Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
+                        if (activeTab instanceof TerminalTab active) {
+                            showTimestampsMenuItem.setSelected(active.isTimestampGuttersVisible());
+                        }
+                    }
+                });
+            });
             
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
@@ -1640,6 +1653,14 @@ public class MainWindow {
             
             // Open tab
             TerminalTab tab = new TerminalTab(conn, password);
+            tab.setTimestampToggleListener(() -> Platform.runLater(() -> {
+                if (showTimestampsMenuItem != null) {
+                    Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
+                    if (activeTab instanceof TerminalTab active) {
+                        showTimestampsMenuItem.setSelected(active.isTimestampGuttersVisible());
+                    }
+                }
+            }));
             tabPane.getTabs().add(tab);
             tab.connect();
             
@@ -2024,6 +2045,14 @@ public class MainWindow {
             
             // Create new tab with the same connection
             TerminalTab newTab = new TerminalTab(connection, password);
+            newTab.setTimestampToggleListener(() -> Platform.runLater(() -> {
+                if (showTimestampsMenuItem != null) {
+                    Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
+                    if (activeTab instanceof TerminalTab active) {
+                        showTimestampsMenuItem.setSelected(active.isTimestampGuttersVisible());
+                    }
+                }
+            }));
             newTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();

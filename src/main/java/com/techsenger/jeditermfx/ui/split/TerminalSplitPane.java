@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import javafx.scene.layout.HBox;
 
@@ -43,6 +44,7 @@ public class TerminalSplitPane extends StackPane {
     private final SettingsProvider settingsProvider;
     private final SplitConnectorFactory connectorFactory;
     private final Consumer<JediTermFxWidget> widgetConfigurator;
+    private final Function<JediTermFxWidget, Region> leftPanelFactory;
 
     private SplitCell rootCell;
     private JediTermFxWidget focusedWidget;
@@ -51,17 +53,31 @@ public class TerminalSplitPane extends StackPane {
     // Optional left-side panels (e.g. timestamp gutters) per widget
     private final Map<JediTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
 
+    // Track the currently showing context menu so we can hide it properly
+    private ContextMenu activeContextMenu;
+
+    // Optional supplier of extra menu items to add to the context menu (e.g. timestamp toggle)
+    private Function<JediTermFxWidget, List<MenuItem>> extraMenuItemsFactory;
+
     public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
                              @NotNull SplitConnectorFactory connectorFactory) {
-        this(settingsProvider, connectorFactory, w -> {});
+        this(settingsProvider, connectorFactory, w -> {}, null);
     }
 
     public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
                              @NotNull SplitConnectorFactory connectorFactory,
                              @NotNull Consumer<JediTermFxWidget> widgetConfigurator) {
+        this(settingsProvider, connectorFactory, widgetConfigurator, null);
+    }
+
+    public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
+                             @NotNull SplitConnectorFactory connectorFactory,
+                             @NotNull Consumer<JediTermFxWidget> widgetConfigurator,
+                             @Nullable Function<JediTermFxWidget, Region> leftPanelFactory) {
         this.settingsProvider = settingsProvider;
         this.connectorFactory = connectorFactory;
         this.widgetConfigurator = widgetConfigurator;
+        this.leftPanelFactory = leftPanelFactory;
         this.rootCell = createInitialCell();
         getChildren().add(rootCell.getNode());
         VBox.setVgrow(this, Priority.ALWAYS);
@@ -123,6 +139,7 @@ public class TerminalSplitPane extends StackPane {
     private @NotNull SplitCell createInitialCell() {
         JediTermFxWidget widget = createWidget(null);
         setupWidget(widget);
+        applyLeftPanel(widget);
         return new SplitCell(widget);
     }
 
@@ -182,6 +199,15 @@ public class TerminalSplitPane extends StackPane {
     }
 
     /**
+     * Sets a factory that provides extra menu items to add to the context menu.
+     * The factory receives the focused widget and returns a list of MenuItems.
+     * Called each time the context menu is opened, so items can reflect current state.
+     */
+    public void setExtraMenuItemsFactory(@Nullable Function<JediTermFxWidget, List<MenuItem>> factory) {
+        this.extraMenuItemsFactory = factory;
+    }
+
+    /**
      * Sets up the context menu for a widget with split options.
      * Creates a complete context menu that replaces the JediTermFX default,
      * including Copy, Paste, Clear Buffer, Find, and an "Extras" submenu.
@@ -191,6 +217,18 @@ public class TerminalSplitPane extends StackPane {
         var terminalPanel = widget.getTerminalPanel();
         var canvas = terminalPanel.getCanvas();
         
+        // Use event filter on MOUSE_PRESSED to close any existing context menu on any click
+        canvas.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+            if (activeContextMenu != null && activeContextMenu.isShowing()) {
+                activeContextMenu.hide();
+                activeContextMenu = null;
+                if (event.getButton() != MouseButton.SECONDARY) {
+                    // For non-right-clicks, just close the menu and let the event pass through
+                    return;
+                }
+            }
+        });
+        
         // Use event filter on MOUSE_CLICKED with SECONDARY button (right-click)
         // This intercepts the event BEFORE JediTermFX's handler processes it
         canvas.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_CLICKED, event -> {
@@ -199,6 +237,15 @@ public class TerminalSplitPane extends StackPane {
                 
                 // Create and show our complete context menu
                 ContextMenu menu = createFullContextMenu(widget);
+                activeContextMenu = menu;
+                
+                // Auto-clear reference when menu hides
+                menu.setOnHidden(e -> {
+                    if (activeContextMenu == menu) {
+                        activeContextMenu = null;
+                    }
+                });
+                
                 menu.show(canvas, event.getScreenX(), event.getScreenY());
                 
                 // Consume the event to prevent JediTermFX from showing its own menu
@@ -231,6 +278,15 @@ public class TerminalSplitPane extends StackPane {
         find.setOnAction(e -> invokeWidgetMethod(widget, "showFindComponent"));
         
         menu.getItems().addAll(copy, paste, clearBuffer, find);
+        
+        // Add extra menu items from factory (e.g. timestamp toggle)
+        if (extraMenuItemsFactory != null) {
+            List<MenuItem> extraItems = extraMenuItemsFactory.apply(widget);
+            if (extraItems != null && !extraItems.isEmpty()) {
+                menu.getItems().add(new SeparatorMenuItem());
+                menu.getItems().addAll(extraItems);
+            }
+        }
         
         // Separator before Extras
         menu.getItems().add(new SeparatorMenuItem());
@@ -366,6 +422,7 @@ public class TerminalSplitPane extends StackPane {
             return;
         }
         setupWidget(newWidget);
+        applyLeftPanel(newWidget);
 
         SplitCell newCell = new SplitCell(newWidget);
         SplitCell replacement = rootCell.replaceWidget(widget, newCell, orientation);
@@ -454,9 +511,22 @@ public class TerminalSplitPane extends StackPane {
     }
 
     /**
+     * Applies the left panel factory for a widget, storing the result
+     * in widgetLeftPanels so SplitCell can include it in the layout.
+     * Called after widgetConfigurator but before SplitCell construction.
+     */
+    private void applyLeftPanel(@NotNull JediTermFxWidget widget) {
+        if (leftPanelFactory != null) {
+            Region leftPanel = leftPanelFactory.apply(widget);
+            if (leftPanel != null) {
+                widgetLeftPanels.put(widget, leftPanel);
+            }
+        }
+    }
+
+    /**
      * Registers a left-side panel (e.g. timestamp gutter) for a widget.
-     * Must be called before the SplitCell for this widget is created
-     * (i.e. in the widgetConfigurator callback).
+     * For dynamically adding panels after the widget is already created.
      */
     public void setWidgetLeftPanel(@NotNull JediTermFxWidget widget, @NotNull Region panel) {
         widgetLeftPanels.put(widget, panel);

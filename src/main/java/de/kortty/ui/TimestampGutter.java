@@ -19,10 +19,11 @@ import java.util.TreeMap;
  */
 public class TimestampGutter extends Pane {
 
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yy");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final double GUTTER_WIDTH = 76;
     private static final double TEXT_LEFT_PADDING = 6;
-    private static final double TEXT_BOTTOM_OFFSET = 4;
+    private static final double TEXT_BOTTOM_OFFSET = 2;
     private static final Color SEPARATOR_COLOR = Color.web("#444444");
 
     private final Canvas canvas = new Canvas();
@@ -40,6 +41,7 @@ public class TimestampGutter extends Pane {
     private Color backgroundColor = Color.web("#1a1a1a");
     private Color textColor = Color.web("#666666");
     private Font font = Font.font("Monospaced", FontWeight.NORMAL, 10);
+    private Font dateFont = Font.font("Monospaced", FontWeight.NORMAL, 8);
 
     public TimestampGutter() {
         setPrefWidth(GUTTER_WIDTH);
@@ -106,7 +108,9 @@ public class TimestampGutter extends Pane {
      */
     public void setTimestampFont(String fontFamily, double terminalFontSize) {
         double gutterFontSize = Math.max(8, terminalFontSize * 0.75);
+        double dateFontSize = Math.max(7, terminalFontSize * 0.55);
         this.font = Font.font(fontFamily, FontWeight.NORMAL, gutterFontSize);
+        this.dateFont = Font.font(fontFamily, FontWeight.NORMAL, dateFontSize);
         render();
     }
 
@@ -147,17 +151,26 @@ public class TimestampGutter extends Pane {
         gc.setLineWidth(1);
         gc.strokeLine(width - 0.5, 0, width - 0.5, height);
 
-        // Draw timestamps for visible rows
-        gc.setFill(textColor);
-        gc.setFont(font);
-
+        // Draw timestamps for visible rows (date above, time below)
         for (int row = 0; row < visibleRows; row++) {
             int absoluteLine = historyLinesCount + scrollOrigin + row;
             LocalDateTime ts = timestamps.get(absoluteLine);
             if (ts != null) {
-                String text = ts.format(TIME_FORMAT);
-                double y = row * charHeight + charHeight - TEXT_BOTTOM_OFFSET;
-                gc.fillText(text, TEXT_LEFT_PADDING, y);
+                double rowTop = row * charHeight;
+                
+                // Draw date (smaller, slightly dimmer) in top half of cell
+                gc.setFont(dateFont);
+                gc.setFill(textColor.deriveColor(0, 1.0, 1.0, 0.7));
+                String dateText = ts.format(DATE_FORMAT);
+                double dateY = rowTop + charHeight * 0.38;
+                gc.fillText(dateText, TEXT_LEFT_PADDING, dateY);
+                
+                // Draw time (normal) in bottom half of cell
+                gc.setFont(font);
+                gc.setFill(textColor);
+                String timeText = ts.format(TIME_FORMAT);
+                double timeY = rowTop + charHeight - TEXT_BOTTOM_OFFSET;
+                gc.fillText(timeText, TEXT_LEFT_PADDING, timeY);
             }
         }
     }

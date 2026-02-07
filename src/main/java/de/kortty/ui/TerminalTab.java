@@ -326,6 +326,13 @@ public class TerminalTab extends Tab {
         return terminalView.isTimestampGuttersVisible();
     }
     
+    /**
+     * Sets a listener called when timestamp gutter visibility is toggled from the context menu.
+     */
+    public void setTimestampToggleListener(Runnable listener) {
+        terminalView.setTimestampToggleListener(listener);
+    }
+    
     public ServerConnection getConnection() {
         return connection;
     }
