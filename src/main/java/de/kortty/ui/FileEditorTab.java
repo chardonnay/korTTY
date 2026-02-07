@@ -150,7 +150,20 @@ public class FileEditorTab extends Tab {
         INI,
         CFG,
         JINJA2,
-        ANSIBLE_YAML
+        ANSIBLE_YAML,
+        PYTHON,
+        PERL,
+        RUBY,
+        SHELL,
+        HTML,
+        CSS,
+        JAVASCRIPT,
+        JAVA,
+        GO,
+        RUST,
+        SQL,
+        DOCKERFILE,
+        TERRAFORM
     }
     
     /**
@@ -321,6 +334,14 @@ public class FileEditorTab extends Tab {
         Button lintBtn = new Button(I18n.get("editor.lint"));
         lintBtn.setOnAction(e -> runLinter());
         
+        Button formatBtn = new Button(I18n.get("editor.format"));
+        formatBtn.setOnAction(e -> runFormatter());
+        // Disable format button if no formatter is available for this file type
+        formatBtn.setDisable(getFormatterInfo() == null);
+        if (getFormatterInfo() != null) {
+            formatBtn.setTooltip(new Tooltip(I18n.get("editor.format.tooltip", getFormatterInfo().command())));
+        }
+        
         // Font size controls
         Button zoomInBtn = new Button(I18n.get("editor.zoomIn"));
         zoomInBtn.setOnAction(e -> increaseFontSize());
@@ -337,7 +358,7 @@ public class FileEditorTab extends Tab {
         return new ToolBar(saveBtn, saveAsBtn, closeBtn, new Separator(), 
                           findBtn, replaceBtn, new Separator(), 
                           zoomOutBtn, fontSizeLabel, zoomInBtn, zoomResetBtn, new Separator(),
-                          lintBtn);
+                          lintBtn, formatBtn);
     }
     
     private VBox createSearchPanel() {
@@ -416,6 +437,9 @@ public class FileEditorTab extends Tab {
                 event.consume();
             } else if (new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_DOWN).match(event)) {
                 toggleSearchPanel();
+                event.consume();
+            } else if (new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN).match(event)) {
+                runFormatter();
                 event.consume();
             } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN).match(event)) {
                 closeTab();
@@ -901,6 +925,220 @@ public class FileEditorTab extends Tab {
         }
     }
     
+    /**
+     * Holds information about a code formatter for a specific file type.
+     * @param command the CLI command (first word) to check availability
+     * @param args the full command + args (stdin-based); null if file-based
+     * @param fileArgs the full command + args (file-based); null if stdin-based
+     * @param installHint how to install the tool (e.g. "brew install shfmt")
+     */
+    private record FormatterInfo(String command, String[] stdinArgs, String[] fileArgs, String installHint) {}
+    
+    /**
+     * Returns formatter information for the current file type, or null if no formatter is known.
+     */
+    private FormatterInfo getFormatterInfo() {
+        return switch (fileType) {
+            case JSON -> new FormatterInfo("python3",
+                new String[]{"python3", "-m", "json.tool"}, null,
+                "python3 (usually pre-installed on macOS/Linux)");
+            case XML -> new FormatterInfo("xmllint",
+                new String[]{"xmllint", "--format", "-"}, null,
+                "brew install libxml2  /  apt install libxml2-utils");
+            case YAML, ANSIBLE_YAML -> new FormatterInfo("yq",
+                new String[]{"yq", "eval", ".", "-"}, null,
+                "brew install yq  /  snap install yq");
+            case TOML -> new FormatterInfo("taplo",
+                new String[]{"taplo", "fmt", "-"}, null,
+                "brew install taplo  /  cargo install taplo-cli");
+            case PYTHON -> new FormatterInfo("black",
+                new String[]{"black", "-q", "-"}, null,
+                "pip install black  /  brew install black");
+            case PERL -> new FormatterInfo("perltidy",
+                new String[]{"perltidy", "-st"}, null,
+                "brew install perltidy  /  cpan Perl::Tidy");
+            case RUBY -> new FormatterInfo("rubocop",
+                null, new String[]{"rubocop", "-a", "--stderr", "--stdin"},
+                "gem install rubocop");
+            case SHELL -> new FormatterInfo("shfmt",
+                new String[]{"shfmt"}, null,
+                "brew install shfmt  /  go install mvdan.cc/sh/v3/cmd/shfmt@latest");
+            case HTML -> new FormatterInfo("prettier",
+                new String[]{"prettier", "--parser", "html"}, null,
+                "npm install -g prettier");
+            case CSS -> new FormatterInfo("prettier",
+                new String[]{"prettier", "--parser", "css"}, null,
+                "npm install -g prettier");
+            case JAVASCRIPT -> new FormatterInfo("prettier",
+                new String[]{"prettier", "--parser", "typescript"}, null,
+                "npm install -g prettier");
+            case JAVA -> new FormatterInfo("google-java-format",
+                new String[]{"google-java-format", "-"}, null,
+                "brew install google-java-format");
+            case GO -> new FormatterInfo("gofmt",
+                new String[]{"gofmt"}, null,
+                "go (included with Go installation)");
+            case RUST -> new FormatterInfo("rustfmt",
+                new String[]{"rustfmt"}, null,
+                "rustup component add rustfmt");
+            case SQL -> new FormatterInfo("sql-formatter",
+                new String[]{"sql-formatter"}, null,
+                "npm install -g sql-formatter");
+            case TERRAFORM -> new FormatterInfo("terraform",
+                null, new String[]{"terraform", "fmt"},
+                "brew install terraform  /  https://developer.hashicorp.com/terraform/install");
+            default -> null;
+        };
+    }
+    
+    /**
+     * Formats the current editor content using an external CLI formatter.
+     * Supports both stdin-based and file-based formatters.
+     * Preserves cursor position and undo history.
+     */
+    private void runFormatter() {
+        FormatterInfo info = getFormatterInfo();
+        
+        if (info == null) {
+            showInfo(I18n.get("editor.format.title"), 
+                I18n.get("editor.format.notSupported", fileType.name()));
+            return;
+        }
+        
+        if (!checkCommandAvailable(info.command())) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle(I18n.get("editor.format.title"));
+            alert.setHeaderText(I18n.get("editor.format.notInstalled", info.command()));
+            alert.setContentText(I18n.get("editor.format.installHint", info.installHint()));
+            alert.showAndWait();
+            return;
+        }
+        
+        statusLabel.setText(I18n.get("editor.format.running"));
+        
+        // Run in background to not block UI
+        Thread formatThread = new Thread(() -> {
+            try {
+                String originalText = codeArea.getText();
+                String formattedText;
+                
+                if (info.stdinArgs() != null) {
+                    // stdin-based formatter: pipe content via stdin, read formatted output from stdout
+                    formattedText = runStdinFormatter(info.stdinArgs(), originalText);
+                } else if (info.fileArgs() != null) {
+                    // file-based formatter: write to temp file, run formatter, read back
+                    formattedText = runFileFormatter(info.fileArgs(), originalText);
+                } else {
+                    throw new Exception("No formatter args configured");
+                }
+                
+                if (formattedText != null && !formattedText.equals(originalText)) {
+                    final String result = formattedText;
+                    Platform.runLater(() -> {
+                        int caretPos = Math.min(codeArea.getCaretPosition(), result.length());
+                        codeArea.replaceText(result);
+                        codeArea.moveTo(caretPos);
+                        statusLabel.setText(I18n.get("editor.format.success"));
+                    });
+                } else {
+                    Platform.runLater(() -> statusLabel.setText(I18n.get("editor.format.noChanges")));
+                }
+            } catch (Exception e) {
+                logger.error("Formatter failed", e);
+                Platform.runLater(() -> {
+                    statusLabel.setText(I18n.get("editor.format.failed"));
+                    showError(I18n.get("editor.format.title"), 
+                        I18n.get("editor.format.error", e.getMessage()));
+                });
+            }
+        }, "CodeFormatter");
+        formatThread.setDaemon(true);
+        formatThread.start();
+    }
+    
+    /**
+     * Runs a stdin-based formatter: pipes content to stdin, reads formatted output from stdout.
+     */
+    private String runStdinFormatter(String[] args, String input) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder(args);
+        pb.redirectErrorStream(false);
+        Process process = pb.start();
+        
+        // Write input to stdin in a separate thread to prevent deadlock
+        Thread writerThread = new Thread(() -> {
+            try (var os = process.getOutputStream()) {
+                os.write(input.getBytes(StandardCharsets.UTF_8));
+                os.flush();
+            } catch (Exception e) {
+                logger.debug("Error writing to formatter stdin: {}", e.getMessage());
+            }
+        });
+        writerThread.setDaemon(true);
+        writerThread.start();
+        
+        // Read stdout and stderr
+        String stdout;
+        String stderr;
+        try (var stdoutStream = process.getInputStream();
+             var stderrStream = process.getErrorStream()) {
+            stdout = new String(stdoutStream.readAllBytes(), StandardCharsets.UTF_8);
+            stderr = new String(stderrStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        
+        boolean finished = process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
+        if (!finished) {
+            process.destroyForcibly();
+            throw new Exception("Formatter timed out after 15 seconds");
+        }
+        
+        int exitCode = process.exitValue();
+        if (exitCode != 0) {
+            String errorMsg = stderr.isEmpty() ? "exit code " + exitCode : stderr.trim();
+            throw new Exception(errorMsg);
+        }
+        
+        return stdout;
+    }
+    
+    /**
+     * Runs a file-based formatter: writes to temp file, runs formatter on it, reads back.
+     */
+    private String runFileFormatter(String[] args, String input) throws Exception {
+        Path tempFile = Files.createTempFile("kortty_format_", getFileExtension());
+        try {
+            Files.writeString(tempFile, input, StandardCharsets.UTF_8);
+            
+            // Build command with temp file appended
+            java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(args));
+            command.add(tempFile.toString());
+            
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(false);
+            Process process = pb.start();
+            
+            String stderr;
+            try (var stderrStream = process.getErrorStream()) {
+                stderr = new String(stderrStream.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            
+            boolean finished = process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new Exception("Formatter timed out after 15 seconds");
+            }
+            
+            int exitCode = process.exitValue();
+            if (exitCode != 0 && !stderr.isEmpty()) {
+                throw new Exception(stderr.trim());
+            }
+            
+            // Read the formatted file back
+            return Files.readString(tempFile, StandardCharsets.UTF_8);
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+    
     private void runLinter() {
         // Check if linter is available for this file type
         Optional<String> linterCommand = getLinterCommand();
@@ -946,8 +1184,18 @@ public class FileEditorTab extends Tab {
         return switch (fileType) {
             case YAML, ANSIBLE_YAML -> checkCommandAvailable("yamllint") ? Optional.of("yamllint") : Optional.empty();
             case JSON -> checkCommandAvailable("jsonlint") ? Optional.of("jsonlint") : Optional.empty();
-            case XML -> checkCommandAvailable("xmllint") ? Optional.of("xmllint") : Optional.empty();
+            case XML -> checkCommandAvailable("xmllint") ? Optional.of("xmllint --noout") : Optional.empty();
             case MARKDOWN -> checkCommandAvailable("markdownlint") ? Optional.of("markdownlint") : Optional.empty();
+            case PYTHON -> checkCommandAvailable("pylint") ? Optional.of("pylint --output-format=text") 
+                : (checkCommandAvailable("flake8") ? Optional.of("flake8") : Optional.empty());
+            case PERL -> checkCommandAvailable("perl") ? Optional.of("perl -c") : Optional.empty();
+            case RUBY -> checkCommandAvailable("ruby") ? Optional.of("ruby -c") : Optional.empty();
+            case SHELL -> checkCommandAvailable("shellcheck") ? Optional.of("shellcheck") : Optional.empty();
+            case JAVASCRIPT -> checkCommandAvailable("eslint") ? Optional.of("eslint") : Optional.empty();
+            case GO -> checkCommandAvailable("go") ? Optional.of("go vet") : Optional.empty();
+            case RUST -> checkCommandAvailable("rustc") ? Optional.of("rustc --edition 2021 --crate-type lib") : Optional.empty();
+            case TERRAFORM -> checkCommandAvailable("terraform") ? Optional.of("terraform validate") : Optional.empty();
+            case DOCKERFILE -> checkCommandAvailable("hadolint") ? Optional.of("hadolint") : Optional.empty();
             default -> Optional.empty();
         };
     }
@@ -972,6 +1220,19 @@ public class FileEditorTab extends Tab {
             case INI -> ".ini";
             case CFG -> ".cfg";
             case JINJA2 -> ".j2";
+            case PYTHON -> ".py";
+            case PERL -> ".pl";
+            case RUBY -> ".rb";
+            case SHELL -> ".sh";
+            case HTML -> ".html";
+            case CSS -> ".css";
+            case JAVASCRIPT -> ".js";
+            case JAVA -> ".java";
+            case GO -> ".go";
+            case RUST -> ".rs";
+            case SQL -> ".sql";
+            case DOCKERFILE -> ".dockerfile";
+            case TERRAFORM -> ".tf";
             default -> ".txt";
         };
     }
@@ -1005,6 +1266,19 @@ public class FileEditorTab extends Tab {
         if (lower.endsWith(".ini")) return FileType.INI;
         if (lower.endsWith(".cfg") || lower.endsWith(".conf")) return FileType.CFG;
         if (lower.endsWith(".j2") || lower.endsWith(".jinja") || lower.endsWith(".jinja2")) return FileType.JINJA2;
+        if (lower.endsWith(".py") || lower.endsWith(".pyw")) return FileType.PYTHON;
+        if (lower.endsWith(".pl") || lower.endsWith(".pm") || lower.endsWith(".perl")) return FileType.PERL;
+        if (lower.endsWith(".rb") || lower.endsWith(".rake") || lower.endsWith(".gemspec")) return FileType.RUBY;
+        if (lower.endsWith(".sh") || lower.endsWith(".bash") || lower.endsWith(".zsh") || lower.endsWith(".ksh") || lower.endsWith(".fish")) return FileType.SHELL;
+        if (lower.endsWith(".html") || lower.endsWith(".htm") || lower.endsWith(".xhtml")) return FileType.HTML;
+        if (lower.endsWith(".css") || lower.endsWith(".scss") || lower.endsWith(".less")) return FileType.CSS;
+        if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".ts") || lower.endsWith(".tsx") || lower.endsWith(".jsx")) return FileType.JAVASCRIPT;
+        if (lower.endsWith(".java")) return FileType.JAVA;
+        if (lower.endsWith(".go")) return FileType.GO;
+        if (lower.endsWith(".rs")) return FileType.RUST;
+        if (lower.endsWith(".sql")) return FileType.SQL;
+        if (lower.equals("dockerfile") || lower.endsWith(".dockerfile")) return FileType.DOCKERFILE;
+        if (lower.endsWith(".tf") || lower.endsWith(".tfvars")) return FileType.TERRAFORM;
         
         return FileType.PLAIN_TEXT;
     }
@@ -1026,6 +1300,12 @@ public class FileEditorTab extends Tab {
     private static final String STYLE_LIST = "-fx-fill: #cc6600;";
     private static final String STYLE_JINJA = "-fx-fill: #9900cc;";
     private static final String STYLE_COMMENT = "-fx-fill: #888888; -fx-font-style: italic;";
+    private static final String STYLE_KEYWORD = "-fx-fill: #7700bb; -fx-font-weight: bold;";
+    private static final String STYLE_BUILTIN = "-fx-fill: #0077aa;";
+    private static final String STYLE_DECORATOR = "-fx-fill: #aa5500;";
+    private static final String STYLE_VARIABLE = "-fx-fill: #bb0066;";
+    private static final String STYLE_OPERATOR = "-fx-fill: #444444; -fx-font-weight: bold;";
+    private static final String STYLE_FUNCTION = "-fx-fill: #0055aa;";
     
     // Computed at runtime from settings
     private String getPlainTextStyle() {
@@ -1041,6 +1321,16 @@ public class FileEditorTab extends Tab {
             case MARKDOWN -> computeMarkdownHighlighting(text);
             case INI, CFG -> computeIniHighlighting(text);
             case JINJA2 -> computeJinja2Highlighting(text);
+            case PYTHON -> computePythonHighlighting(text);
+            case PERL -> computePerlHighlighting(text);
+            case RUBY -> computeRubyHighlighting(text);
+            case SHELL -> computeShellHighlighting(text);
+            case HTML -> computeHtmlHighlighting(text);
+            case CSS -> computeCssHighlighting(text);
+            case JAVASCRIPT, JAVA, GO, RUST -> computeGenericCodeHighlighting(text);
+            case SQL -> computeSqlHighlighting(text);
+            case DOCKERFILE -> computeDockerfileHighlighting(text);
+            case TERRAFORM -> computeTerraformHighlighting(text);
             default -> computePlainTextHighlighting(text);
         };
     }
@@ -1138,6 +1428,199 @@ public class FileEditorTab extends Tab {
         );
         
         return applyPattern(text, JINJA_PATTERN);
+    }
+    
+    private StyleSpans<String> computePythonHighlighting(String text) {
+        Pattern PYTHON_PATTERN = Pattern.compile(
+            "(?<COMMENT>#.*)" +
+            "|(?<DECORATOR>@\\w+)" +
+            "|(?<STRING>\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
+            "|(?<KEYWORD>\\b(?:and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b)" +
+            "|(?<BUILTIN>\\b(?:True|False|None|print|len|range|int|str|float|list|dict|set|tuple|type|isinstance|open|super|self|cls)\\b)" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
+            "|(?<FUNCTION>\\b\\w+(?=\\())",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, PYTHON_PATTERN);
+    }
+    
+    private StyleSpans<String> computePerlHighlighting(String text) {
+        Pattern PERL_PATTERN = Pattern.compile(
+            "(?<COMMENT>#.*)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
+            "|(?<KEYWORD>\\b(?:my|our|local|sub|use|require|package|if|elsif|else|unless|while|until|for|foreach|do|next|last|return|die|warn|print|say|chomp|chop|push|pop|shift|unshift|splice|keys|values|exists|delete|defined|undef|BEGIN|END)\\b)" +
+            "|(?<VARIABLE>\\$\\w+|@\\w+|%\\w+)" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
+            "|(?<FUNCTION>\\b\\w+(?=\\())",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, PERL_PATTERN);
+    }
+    
+    private StyleSpans<String> computeRubyHighlighting(String text) {
+        Pattern RUBY_PATTERN = Pattern.compile(
+            "(?<COMMENT>#.*)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
+            "|(?<KEYWORD>\\b(?:def|class|module|end|if|elsif|else|unless|while|until|for|do|begin|rescue|ensure|raise|return|yield|block_given|require|require_relative|include|extend|attr_accessor|attr_reader|attr_writer|puts|print|nil|true|false|self|super|then|case|when|break|next|redo|retry)\\b)" +
+            "|(?<VARIABLE>@{1,2}\\w+|\\$\\w+)" +
+            "|(?<DECORATOR>:\\w+)" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
+            "|(?<FUNCTION>\\b\\w+(?=[!?]?\\())",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, RUBY_PATTERN);
+    }
+    
+    private StyleSpans<String> computeShellHighlighting(String text) {
+        Pattern SHELL_PATTERN = Pattern.compile(
+            "(?<COMMENT>#.*)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'[^']*'|`[^`]*`)" +
+            "|(?<KEYWORD>\\b(?:if|then|else|elif|fi|for|while|until|do|done|case|esac|in|function|return|exit|break|continue|local|export|source|alias|unalias|set|unset|shift|trap|eval|exec|readonly|declare|typeset|select)\\b)" +
+            "|(?<BUILTIN>\\b(?:echo|printf|read|cd|pwd|ls|cat|grep|sed|awk|find|sort|uniq|wc|head|tail|cut|tr|tee|xargs|test|mkdir|rmdir|rm|cp|mv|chmod|chown|touch|ln|basename|dirname)\\b)" +
+            "|(?<VARIABLE>\\$\\{?[\\w@#?!*-]+\\}?)" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, SHELL_PATTERN);
+    }
+    
+    private StyleSpans<String> computeHtmlHighlighting(String text) {
+        Pattern HTML_PATTERN = Pattern.compile(
+            "(?<COMMENT><!--[\\s\\S]*?-->)" +
+            "|(?<ELEMENT></?\\w+[^>]*>)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')"
+        );
+        
+        Matcher matcher = HTML_PATTERN.matcher(text);
+        int lastKwEnd = 0;
+        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
+        while (matcher.find()) {
+            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
+            if (matcher.group("COMMENT") != null) {
+                spansBuilder.add(STYLE_COMMENT, matcher.end() - matcher.start());
+            } else if (matcher.group("ELEMENT") != null) {
+                spansBuilder.add(STYLE_XML_ELEMENT, matcher.end() - matcher.start());
+            } else if (matcher.group("STRING") != null) {
+                spansBuilder.add(STYLE_STRING, matcher.end() - matcher.start());
+            }
+            lastKwEnd = matcher.end();
+        }
+        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
+        return spansBuilder.create();
+    }
+    
+    private StyleSpans<String> computeCssHighlighting(String text) {
+        Pattern CSS_PATTERN = Pattern.compile(
+            "(?<COMMENT>/\\*[\\s\\S]*?\\*/)" +
+            "|(?<SELECTOR>[.#]?[\\w-]+(?=\\s*\\{))" +
+            "|(?<KEY>[\\w-]+(?=\\s*:))" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
+            "|(?<NUMBER>-?\\d+\\.?\\d*(?:px|em|rem|%|vh|vw|pt|cm|mm|in|ex|ch)?)" +
+            "|(?<BRACE>[{}])"
+        );
+        return applyCodePattern(text, CSS_PATTERN);
+    }
+    
+    private StyleSpans<String> computeGenericCodeHighlighting(String text) {
+        Pattern CODE_PATTERN = Pattern.compile(
+            "(?<COMMENT>//.*|/\\*[\\s\\S]*?\\*/)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|`[^`]*`)" +
+            "|(?<KEYWORD>\\b(?:abstract|break|case|catch|class|const|continue|default|do|else|enum|export|extends|final|finally|for|func|function|goto|if|implements|import|in|instanceof|interface|let|match|module|new|package|private|protected|public|return|static|struct|switch|throw|throws|trait|try|type|typeof|var|void|volatile|while|yield|async|await|fn|impl|mod|mut|pub|ref|self|super|use|where|unsafe|loop|move|crate|dyn|extern|macro)\\b)" +
+            "|(?<BUILTIN>\\b(?:true|false|null|nil|undefined|this|None|True|False|println|fmt|String|Vec|Ok|Err|Some|None)\\b)" +
+            "|(?<DECORATOR>@\\w+)" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*[fFdDlL]?\\b)" +
+            "|(?<BRACE>[{}\\[\\]()])" +
+            "|(?<FUNCTION>\\b\\w+(?=\\())",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, CODE_PATTERN);
+    }
+    
+    private StyleSpans<String> computeSqlHighlighting(String text) {
+        Pattern SQL_PATTERN = Pattern.compile(
+            "(?<COMMENT>--.*|/\\*[\\s\\S]*?\\*/)" +
+            "|(?<STRING>'([^'\\\\]|\\\\.)*')" +
+            "|(?<KEYWORD>\\b(?:SELECT|FROM|WHERE|AND|OR|NOT|IN|IS|NULL|AS|ON|JOIN|LEFT|RIGHT|INNER|OUTER|FULL|CROSS|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|ALTER|DROP|INDEX|VIEW|TRIGGER|PROCEDURE|FUNCTION|BEGIN|END|IF|ELSE|THEN|WHEN|CASE|UNION|ALL|DISTINCT|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|EXISTS|BETWEEN|LIKE|GRANT|REVOKE|COMMIT|ROLLBACK|SAVEPOINT|WITH|RECURSIVE|RETURNING|CASCADE|CONSTRAINT|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|CHECK|DEFAULT|NOT|AUTO_INCREMENT|SERIAL|BOOLEAN|INTEGER|VARCHAR|TEXT|DATE|TIMESTAMP|FLOAT|DOUBLE|DECIMAL|CHAR|BLOB|BIGINT|SMALLINT)\\b)",
+            Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
+        );
+        
+        Matcher matcher = SQL_PATTERN.matcher(text);
+        int lastKwEnd = 0;
+        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
+        while (matcher.find()) {
+            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
+            if (matcher.group("COMMENT") != null) {
+                spansBuilder.add(STYLE_COMMENT, matcher.end() - matcher.start());
+            } else if (matcher.group("STRING") != null) {
+                spansBuilder.add(STYLE_STRING, matcher.end() - matcher.start());
+            } else if (matcher.group("KEYWORD") != null) {
+                spansBuilder.add(STYLE_KEYWORD, matcher.end() - matcher.start());
+            }
+            lastKwEnd = matcher.end();
+        }
+        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
+        return spansBuilder.create();
+    }
+    
+    private StyleSpans<String> computeDockerfileHighlighting(String text) {
+        Pattern DOCKER_PATTERN = Pattern.compile(
+            "(?<COMMENT>#.*)" +
+            "|(?<KEYWORD>^\\s*(?:FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL)\\b)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
+            "|(?<VARIABLE>\\$\\{?[\\w]+\\}?)",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, DOCKER_PATTERN);
+    }
+    
+    private StyleSpans<String> computeTerraformHighlighting(String text) {
+        Pattern TF_PATTERN = Pattern.compile(
+            "(?<COMMENT>#.*|//.*|/\\*[\\s\\S]*?\\*/)" +
+            "|(?<KEYWORD>\\b(?:resource|data|variable|output|locals|module|provider|terraform|backend|required_providers|required_version|for_each|count|depends_on|lifecycle|provisioner|connection|dynamic|for|in|if|else|endif)\\b)" +
+            "|(?<BUILTIN>\\b(?:true|false|null|string|number|bool|list|map|set|object|tuple|any)\\b)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")" +
+            "|(?<SECTION>[\\w-]+\\s*\\{)" +
+            "|(?<VARIABLE>var\\.[\\w]+|local\\.[\\w]+|data\\.[\\w.]+|module\\.[\\w.]+)" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
+            "|(?<BRACE>[{}\\[\\]])",
+            Pattern.MULTILINE
+        );
+        return applyCodePattern(text, TF_PATTERN);
+    }
+    
+    /**
+     * Enhanced pattern application for code languages.
+     * Checks for more specific named groups used by language-specific patterns.
+     */
+    private StyleSpans<String> applyCodePattern(String text, Pattern pattern) {
+        Matcher matcher = pattern.matcher(text);
+        int lastKwEnd = 0;
+        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
+        
+        while (matcher.find()) {
+            String inlineStyle = getPlainTextStyle();
+            
+            try { if (matcher.group("COMMENT") != null) inlineStyle = STYLE_COMMENT; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("STRING") != null) inlineStyle = STYLE_STRING; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("KEYWORD") != null) inlineStyle = STYLE_KEYWORD; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BUILTIN") != null) inlineStyle = STYLE_BUILTIN; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("DECORATOR") != null) inlineStyle = STYLE_DECORATOR; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("VARIABLE") != null) inlineStyle = STYLE_VARIABLE; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("FUNCTION") != null) inlineStyle = STYLE_FUNCTION; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("NUMBER") != null) inlineStyle = STYLE_NUMBER; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BRACE") != null) inlineStyle = STYLE_BRACE; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("SECTION") != null) inlineStyle = STYLE_SECTION; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("KEY") != null) inlineStyle = STYLE_KEY; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("SELECTOR") != null) inlineStyle = STYLE_KEYWORD; } catch (IllegalArgumentException e) {}
+            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("ELEMENT") != null) inlineStyle = STYLE_XML_ELEMENT; } catch (IllegalArgumentException e) {}
+            
+            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
+            spansBuilder.add(inlineStyle, matcher.end() - matcher.start());
+            lastKwEnd = matcher.end();
+        }
+        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
+        
+        return spansBuilder.create();
     }
     
     private StyleSpans<String> computePlainTextHighlighting(String text) {
