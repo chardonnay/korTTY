@@ -73,6 +73,15 @@ public class FileEditorTab extends Tab {
     private String editorCursorStyle = "BLOCK"; // BLOCK, LINE, UNDERSCORE
     private String editorCursorColor = "#FF0000"; // red for visibility
     
+    // Whitespace visualization
+    private boolean showWhitespace = false;
+    private ToggleButton whitespaceToggle;
+    
+    // Line ending management
+    private enum LineEnding { LF, CRLF, CR, MIXED }
+    private LineEnding detectedLineEnding = LineEnding.LF;
+    private Label lineEndingLabel;
+    
     // Large file handling
     private static final long LARGE_FILE_THRESHOLD_BYTES = 5L * 1024 * 1024; // 5 MB
     private static final int CHUNK_SIZE_BYTES = 512 * 1024; // 512 KB
@@ -188,9 +197,12 @@ public class FileEditorTab extends Tab {
         
         loadEditorSettings();
         
-        // Load content
-        String text = new String(content, StandardCharsets.UTF_8);
-        codeArea.replaceText(0, 0, text);
+        // Detect line endings before normalizing
+        String rawText = new String(content, StandardCharsets.UTF_8);
+        detectedLineEnding = detectLineEnding(rawText);
+        
+        // Load content (InlineCssTextArea normalizes to \n internally)
+        codeArea.replaceText(0, 0, rawText);
         codeArea.getUndoManager().forgetHistory();
         
         // Track modifications
@@ -250,9 +262,12 @@ public class FileEditorTab extends Tab {
         
         loadEditorSettings();
         
-        // Load content with encoding fallback
-        String text = readFileWithFallback(localPath);
-        codeArea.replaceText(0, 0, text);
+        // Detect line endings before normalizing
+        String rawText = readFileWithFallback(localPath);
+        detectedLineEnding = detectLineEnding(rawText);
+        
+        // Load content (InlineCssTextArea normalizes to \n internally)
+        codeArea.replaceText(0, 0, rawText);
         codeArea.getUndoManager().forgetHistory();
         
         // Track modifications
@@ -309,8 +324,16 @@ public class FileEditorTab extends Tab {
         // Code editor
         root.setCenter(codeArea);
         
-        // Status bar
-        HBox statusBar = new HBox(statusLabel);
+        // Status bar with line ending indicator
+        lineEndingLabel = new Label(getLineEndingDisplayName());
+        lineEndingLabel.setStyle("-fx-padding: 5px; -fx-cursor: hand; -fx-font-weight: bold;");
+        lineEndingLabel.setTooltip(new Tooltip(I18n.get("editor.lineEnding.tooltip")));
+        lineEndingLabel.setOnMouseClicked(e -> showLineEndingMenu());
+        
+        javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        HBox statusBar = new HBox(statusLabel, spacer, lineEndingLabel);
         statusBar.setStyle("-fx-background-color: #f0f0f0; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;");
         root.setBottom(statusBar);
         
@@ -357,10 +380,17 @@ public class FileEditorTab extends Tab {
         fontSizeLabel = new Label(currentFontSize + "pt");
         fontSizeLabel.setStyle("-fx-min-width: 40; -fx-alignment: center;");
         
+        // Whitespace visualization toggle
+        whitespaceToggle = new ToggleButton(I18n.get("editor.whitespace"));
+        whitespaceToggle.setTooltip(new Tooltip(I18n.get("editor.whitespace.tooltip")));
+        whitespaceToggle.setSelected(false);
+        whitespaceToggle.setOnAction(e -> toggleWhitespaceVisualization());
+        
         return new ToolBar(saveBtn, saveAsBtn, closeBtn, new Separator(), 
                           findBtn, replaceBtn, new Separator(), 
                           zoomOutBtn, fontSizeLabel, zoomInBtn, zoomResetBtn, new Separator(),
-                          lintBtn, formatBtn);
+                          lintBtn, formatBtn, new Separator(),
+                          whitespaceToggle);
     }
     
     private VBox createSearchPanel() {
@@ -442,6 +472,10 @@ public class FileEditorTab extends Tab {
                 event.consume();
             } else if (new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN).match(event)) {
                 runFormatter();
+                event.consume();
+            } else if (new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN).match(event)) {
+                whitespaceToggle.setSelected(!whitespaceToggle.isSelected());
+                toggleWhitespaceVisualization();
                 event.consume();
             } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN).match(event)) {
                 closeTab();
@@ -868,7 +902,14 @@ public class FileEditorTab extends Tab {
     
     private void save() {
         try {
-            String content = codeArea.getText();
+            // If whitespace visualization is active, use the stored original text
+            String content = showWhitespace && originalText != null ? originalText : codeArea.getText();
+            
+            // Apply the correct line endings for saving
+            if (detectedLineEnding == LineEnding.CRLF) {
+                // Normalize to LF first, then convert to CRLF
+                content = content.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\r\n");
+            }
             
             if (isRemoteFile) {
                 // Save to remote server
@@ -926,6 +967,223 @@ public class FileEditorTab extends Tab {
             }
         }
     }
+    
+    // ==================== Whitespace Visualization ====================
+    
+    /**
+     * Unicode symbols used to represent invisible characters.
+     */
+    private static final char VISIBLE_SPACE = '\u00B7';     // middle dot ·
+    private static final char VISIBLE_TAB = '\u2192';       // rightwards arrow →
+    private static final char VISIBLE_CR = '\u240D';        // symbol for carriage return ␍
+    private static final char VISIBLE_LF = '\u2193';        // downwards arrow ↓ (shown at line end)
+    private static final char VISIBLE_NBSP = '\u2423';      // open box ␣ (non-breaking space)
+    
+    /**
+     * Toggles the visibility of whitespace and special characters.
+     * When enabled, the text is replaced with a visual representation.
+     * When disabled, the original text is restored.
+     */
+    private String originalText = null;
+    
+    private void toggleWhitespaceVisualization() {
+        showWhitespace = whitespaceToggle.isSelected();
+        
+        if (showWhitespace) {
+            // Store original text and replace with visible version
+            originalText = codeArea.getText();
+            String visible = makeWhitespaceVisible(originalText);
+            
+            // Temporarily suppress modification tracking
+            boolean wasModified = isModified;
+            codeArea.replaceText(visible);
+            isModified = wasModified;
+            updateTitle();
+            
+            codeArea.setEditable(false); // Prevent editing while visualized
+            statusLabel.setText(I18n.get("editor.whitespace.active"));
+        } else {
+            // Restore original text
+            if (originalText != null) {
+                boolean wasModified = isModified;
+                codeArea.replaceText(originalText);
+                isModified = wasModified;
+                updateTitle();
+                originalText = null;
+            }
+            codeArea.setEditable(true);
+            statusLabel.setText(I18n.get("editor.status.ready"));
+        }
+    }
+    
+    /**
+     * Replaces invisible characters with their visible Unicode equivalents.
+     */
+    private String makeWhitespaceVisible(String text) {
+        StringBuilder sb = new StringBuilder(text.length() + text.length() / 10);
+        
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case ' ':
+                    sb.append(VISIBLE_SPACE);
+                    break;
+                case '\t':
+                    sb.append(VISIBLE_TAB);
+                    // Pad with spaces to approximate tab width
+                    sb.append("   ");
+                    break;
+                case '\r':
+                    if (i + 1 < text.length() && text.charAt(i + 1) == '\n') {
+                        sb.append(VISIBLE_CR).append(VISIBLE_LF);
+                        i++; // skip the \n
+                        sb.append('\n');
+                    } else {
+                        sb.append(VISIBLE_CR).append('\n');
+                    }
+                    break;
+                case '\n':
+                    sb.append(VISIBLE_LF).append('\n');
+                    break;
+                case '\u00A0': // non-breaking space
+                    sb.append(VISIBLE_NBSP);
+                    break;
+                case '\u200B': // zero-width space
+                    sb.append("[ZWS]");
+                    break;
+                case '\u200C': // zero-width non-joiner
+                    sb.append("[ZWNJ]");
+                    break;
+                case '\u200D': // zero-width joiner
+                    sb.append("[ZWJ]");
+                    break;
+                case '\uFEFF': // BOM / zero-width no-break space
+                    sb.append("[BOM]");
+                    break;
+                default:
+                    if (Character.isISOControl(c) && c != '\n' && c != '\r' && c != '\t') {
+                        // Show control characters as [0xNN]
+                        sb.append(String.format("[0x%02X]", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        return sb.toString();
+    }
+    
+    // ==================== Line Ending Detection & Conversion ====================
+    
+    /**
+     * Detects the line ending style of the given text.
+     */
+    private LineEnding detectLineEnding(String text) {
+        int crlfCount = 0;
+        int lfCount = 0;
+        int crCount = 0;
+        
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\r') {
+                if (i + 1 < text.length() && text.charAt(i + 1) == '\n') {
+                    crlfCount++;
+                    i++; // skip the \n
+                } else {
+                    crCount++;
+                }
+            } else if (c == '\n') {
+                lfCount++;
+            }
+        }
+        
+        int total = crlfCount + lfCount + crCount;
+        if (total == 0) return LineEnding.LF; // default for new/empty files
+        
+        if (crlfCount > 0 && lfCount == 0 && crCount == 0) return LineEnding.CRLF;
+        if (lfCount > 0 && crlfCount == 0 && crCount == 0) return LineEnding.LF;
+        if (crCount > 0 && crlfCount == 0 && lfCount == 0) return LineEnding.CR;
+        return LineEnding.MIXED;
+    }
+    
+    /**
+     * Returns a display name for the current line ending style.
+     */
+    private String getLineEndingDisplayName() {
+        return switch (detectedLineEnding) {
+            case LF -> "LF (Unix/macOS)";
+            case CRLF -> "CRLF (Windows)";
+            case CR -> "CR (Classic Mac)";
+            case MIXED -> I18n.get("editor.lineEnding.mixed");
+        };
+    }
+    
+    /**
+     * Shows a context menu for choosing the line ending format.
+     */
+    private void showLineEndingMenu() {
+        ContextMenu menu = new ContextMenu();
+        
+        MenuItem lfItem = new MenuItem("LF - Unix/macOS/Linux");
+        lfItem.setOnAction(e -> convertLineEndings(LineEnding.LF));
+        if (detectedLineEnding == LineEnding.LF) {
+            lfItem.setStyle("-fx-font-weight: bold;");
+        }
+        
+        MenuItem crlfItem = new MenuItem("CRLF - Windows");
+        crlfItem.setOnAction(e -> convertLineEndings(LineEnding.CRLF));
+        if (detectedLineEnding == LineEnding.CRLF) {
+            crlfItem.setStyle("-fx-font-weight: bold;");
+        }
+        
+        menu.getItems().addAll(lfItem, crlfItem);
+        
+        // Show below the label
+        javafx.geometry.Bounds bounds = lineEndingLabel.localToScreen(lineEndingLabel.getBoundsInLocal());
+        if (bounds != null) {
+            menu.show(lineEndingLabel, bounds.getMinX(), bounds.getMinY() - 50);
+        } else {
+            menu.show(lineEndingLabel, javafx.geometry.Side.TOP, 0, 0);
+        }
+    }
+    
+    /**
+     * Converts all line endings in the editor to the specified format.
+     */
+    private void convertLineEndings(LineEnding target) {
+        if (target == detectedLineEnding && detectedLineEnding != LineEnding.MIXED) {
+            return; // Already in the target format
+        }
+        
+        // Disable whitespace visualization during conversion
+        if (showWhitespace) {
+            whitespaceToggle.setSelected(false);
+            toggleWhitespaceVisualization();
+        }
+        
+        String text = codeArea.getText();
+        
+        // First normalize all line endings to LF
+        String normalized = text.replace("\r\n", "\n").replace("\r", "\n");
+        
+        // Then convert to target
+        String converted = switch (target) {
+            case CRLF -> normalized.replace("\n", "\r\n");
+            case CR -> normalized.replace("\n", "\r");
+            default -> normalized; // LF is already normalized
+        };
+        
+        int caretPos = Math.min(codeArea.getCaretPosition(), converted.length());
+        codeArea.replaceText(converted);
+        codeArea.moveTo(caretPos);
+        
+        detectedLineEnding = target;
+        lineEndingLabel.setText(getLineEndingDisplayName());
+        statusLabel.setText(I18n.get("editor.lineEnding.converted", getLineEndingDisplayName()));
+        
+        logger.info("Converted line endings to {}", target);
+    }
+    
+    // ==================== Code Formatter ====================
     
     /**
      * Holds information about a code formatter for a specific file type.
