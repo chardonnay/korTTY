@@ -212,7 +212,7 @@ public class MasterPasswordDialog {
                 dialog.close();
             } catch (Exception ex) {
                 logger.error("Failed to setup master password", ex);
-                errorLabel.setText("Fehler: " + ex.getMessage());
+                errorLabel.setText(I18n.get("error.title") + ": " + ex.getMessage());
                 errorLabel.setVisible(true);
             }
         });

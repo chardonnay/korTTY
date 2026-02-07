@@ -97,8 +97,8 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         this.sshKeyManager = sshKeyManager;
         this.configManager = configManager;
         
-        setTitle("Verbindungen importieren");
-        setHeaderText("Verbindungen aus Datei importieren");
+        setTitle(I18n.get("connImport.title"));
+        setHeaderText(I18n.get("connImport.header"));
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         setResizable(true);
@@ -112,13 +112,13 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         int row = 0;
         
         // Import path
-        Label pathLabel = new Label("Import-Datei:");
+        Label pathLabel = new Label(I18n.get("connImport.file"));
         importPathField = new TextField();
         importPathField.setEditable(false);
         importPathField.setPrefWidth(300);
-        importPathField.setPromptText("Datei auswählen...");
+        importPathField.setPromptText(I18n.get("connExport.selectFile"));
         
-        Button browseButton = new Button("Durchsuchen...");
+        Button browseButton = new Button(I18n.get("connEdit.browse"));
         browseButton.setOnAction(e -> selectImportFile());
         
         grid.add(pathLabel, 0, row);
@@ -126,26 +126,26 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         grid.add(browseButton, 2, row++);
         
         // Section: Group filter
-        Label groupFilterHeader = new Label("Gruppen-Filter:");
+        Label groupFilterHeader = new Label(I18n.get("connImport.groupFilter"));
         groupFilterHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
         grid.add(groupFilterHeader, 0, row++, 3, 1);
         
-        filterGroupsCheck = new CheckBox("Nur bestimmte Gruppen importieren");
+        filterGroupsCheck = new CheckBox(I18n.get("connImport.filterGroups"));
         filterGroupsCheck.setSelected(false);
         grid.add(filterGroupsCheck, 0, row++, 3, 1);
         
-        Label groupListLabel = new Label("  Gruppen aus Datei:");
+        Label groupListLabel = new Label(I18n.get("connImport.groupsFromFile"));
         groupListView = new ListView<>();
         groupListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         groupListView.setPrefHeight(100);
         groupListView.setPrefWidth(300);
         groupListView.setDisable(true);
-        groupListView.setPlaceholder(new Label("(Datei auswählen, um Gruppen zu sehen)"));
+        groupListView.setPlaceholder(new Label(I18n.get("connImport.selectFileToSeeGroups")));
         
         grid.add(groupListLabel, 0, row);
         grid.add(groupListView, 1, row++, 2, 1);
         
-        Label groupFilterInfo = new Label("(Mehrfachauswahl möglich, leer = keine Gruppe)");
+        Label groupFilterInfo = new Label(I18n.get("connImport.multiSelectInfo"));
         groupFilterInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         grid.add(groupFilterInfo, 0, row++, 3, 1);
         
@@ -154,38 +154,38 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         });
         
         // Section: Import options
-        Label importHeader = new Label("Import-Optionen:");
+        Label importHeader = new Label(I18n.get("connImport.options"));
         importHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
         grid.add(importHeader, 0, row++, 3, 1);
         
-        importUsernameCheck = new CheckBox("Username importieren");
+        importUsernameCheck = new CheckBox(I18n.get("connImport.importUsername"));
         importUsernameCheck.setSelected(true);
         grid.add(importUsernameCheck, 0, row++, 3, 1);
         
-        importPasswordCheck = new CheckBox("Passwort importieren");
+        importPasswordCheck = new CheckBox(I18n.get("connImport.importPassword"));
         importPasswordCheck.setSelected(true);
         grid.add(importPasswordCheck, 0, row++, 3, 1);
         
-        importTunnelsCheck = new CheckBox("SSH-Tunnel importieren");
+        importTunnelsCheck = new CheckBox(I18n.get("connImport.importTunnels"));
         importTunnelsCheck.setSelected(true);
         grid.add(importTunnelsCheck, 0, row++, 3, 1);
         
-        importJumpServerCheck = new CheckBox("Jump Server importieren");
+        importJumpServerCheck = new CheckBox(I18n.get("connImport.importJumpServer"));
         importJumpServerCheck.setSelected(true);
         grid.add(importJumpServerCheck, 0, row++, 3, 1);
         
         // Section: Credential replacement
-        Label credentialHeader = new Label("Zugangsdaten ersetzen:");
+        Label credentialHeader = new Label(I18n.get("connImport.replaceCredentials"));
         credentialHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
         grid.add(credentialHeader, 0, row++, 3, 1);
         
-        replaceCredentialsCheck = new CheckBox("Username & Passwort durch gespeicherte Zugangsdaten ersetzen");
+        replaceCredentialsCheck = new CheckBox(I18n.get("connImport.replaceWithCredentials"));
         replaceCredentialsCheck.setSelected(false);
         grid.add(replaceCredentialsCheck, 0, row++, 3, 1);
         
-        Label credentialLabel = new Label("  Gespeicherte Zugangsdaten:");
+        Label credentialLabel = new Label(I18n.get("connImport.storedCredentials"));
         credentialCombo = new ComboBox<>();
-        credentialCombo.setPromptText("Zugangsdaten auswählen...");
+        credentialCombo.setPromptText(I18n.get("connImport.selectCredentials"));
         credentialCombo.setPrefWidth(300);
         credentialCombo.setDisable(true);
         
@@ -216,13 +216,13 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         });
         
         // SSH Key replacement
-        replaceSSHKeyCheck = new CheckBox("SSH-Key durch gespeicherten SSH-Key ersetzen");
+        replaceSSHKeyCheck = new CheckBox(I18n.get("connImport.replaceWithSSHKey"));
         replaceSSHKeyCheck.setSelected(false);
         grid.add(replaceSSHKeyCheck, 0, row++, 3, 1);
         
-        Label sshKeyLabel = new Label("  Gespeicherte SSH-Keys:");
+        Label sshKeyLabel = new Label(I18n.get("connImport.storedSSHKeys"));
         sshKeyCombo = new ComboBox<>();
-        sshKeyCombo.setPromptText("SSH-Key auswählen...");
+        sshKeyCombo.setPromptText(I18n.get("connImport.selectSSHKey"));
         sshKeyCombo.setPrefWidth(300);
         sshKeyCombo.setDisable(true);
         
@@ -253,17 +253,17 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         });
         
         // Section: Target group assignment
-        Label targetGroupHeader = new Label("Ziel-Gruppe:");
+        Label targetGroupHeader = new Label(I18n.get("connImport.targetGroup"));
         targetGroupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
         grid.add(targetGroupHeader, 0, row++, 3, 1);
         
-        assignToGroupCheck = new CheckBox("Importierte Verbindungen in Gruppe verschieben");
+        assignToGroupCheck = new CheckBox(I18n.get("connImport.assignToGroup"));
         assignToGroupCheck.setSelected(false);
         grid.add(assignToGroupCheck, 0, row++, 3, 1);
         
-        Label targetGroupLabel = new Label("  Ziel-Gruppe:");
+        Label targetGroupLabel = new Label(I18n.get("connImport.targetGroup"));
         targetGroupCombo = new ComboBox<>();
-        targetGroupCombo.setPromptText("Gruppe auswählen...");
+        targetGroupCombo.setPromptText(I18n.get("connImport.selectGroup"));
         targetGroupCombo.setPrefWidth(200);
         targetGroupCombo.setEditable(false);
         targetGroupCombo.setDisable(true);
@@ -271,7 +271,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         // Populate with existing groups
         updateTargetGroupCombo();
         
-        newGroupButton = new Button("Neue Gruppe...");
+        newGroupButton = new Button(I18n.get("connImport.newGroup"));
         newGroupButton.setDisable(true);
         newGroupButton.setOnAction(e -> createNewGroup());
         
@@ -280,7 +280,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         grid.add(targetGroupLabel, 0, row);
         grid.add(targetGroupBox, 1, row++, 2, 1);
         
-        Label targetGroupInfo = new Label("(Überschreibt Gruppe aller importierten Verbindungen)");
+        Label targetGroupInfo = new Label(I18n.get("connImport.targetGroupInfo"));
         targetGroupInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         grid.add(targetGroupInfo, 0, row++, 3, 1);
         
@@ -293,7 +293,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
         getDialogPane().setContent(content);
         
         // Buttons
-        ButtonType importButtonType = new ButtonType("Importieren", ButtonBar.ButtonData.OK_DONE);
+        ButtonType importButtonType = new ButtonType(I18n.get("connImport.import"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(importButtonType, ButtonType.CANCEL);
         
         Button importButton = (Button) getDialogPane().lookupButton(importButtonType);
@@ -309,22 +309,22 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
             if (dialogButton == importButtonType && selectedFile != null) {
                 // Validate credentials replacement
                 if (replaceCredentialsCheck.isSelected() && credentialCombo.getValue() == null) {
-                    showWarning("Keine Zugangsdaten ausgewählt", 
-                               "Bitte wählen Sie Zugangsdaten aus oder deaktivieren Sie die Option.");
+                    showWarning(I18n.get("connImport.noCredentialsSelected"), 
+                               I18n.get("connImport.selectCredentialsOrDisable"));
                     return null;
                 }
                 
                 if (replaceSSHKeyCheck.isSelected() && sshKeyCombo.getValue() == null) {
-                    showWarning("Kein SSH-Key ausgewählt", 
-                               "Bitte wählen Sie einen SSH-Key aus oder deaktivieren Sie die Option.");
+                    showWarning(I18n.get("connImport.noSSHKeySelected"), 
+                               I18n.get("connImport.selectSSHKeyOrDisable"));
                     return null;
                 }
                 
                 // Validate group assignment
                 if (assignToGroupCheck.isSelected() && 
                     (targetGroupCombo.getValue() == null || targetGroupCombo.getValue().trim().isEmpty())) {
-                    showWarning("Keine Gruppe ausgewählt", 
-                               "Bitte wählen Sie eine Gruppe aus oder deaktivieren Sie die Option.");
+                    showWarning(I18n.get("connImport.noGroupSelected"), 
+                               I18n.get("connImport.selectGroupOrDisable"));
                     return null;
                 }
                 
@@ -353,15 +353,15 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     
     private void selectImportFile() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Import-Datei auswählen");
+        fileChooser.setTitle(I18n.get("connImport.selectImportFile"));
         fileChooser.getExtensionFilters().addAll(
             new FileChooser.ExtensionFilter("KorTTY-Dateien", "*.xml", "*.zip", "*.gpg"),
             new FileChooser.ExtensionFilter("XML-Dateien", "*.xml"),
             new FileChooser.ExtensionFilter("ZIP-Dateien", "*.zip"),
-            new FileChooser.ExtensionFilter("GPG-verschlüsselte Dateien", "*.gpg"),
+            new FileChooser.ExtensionFilter(I18n.get("connImport.gpgFiles"), "*.gpg"),
             new FileChooser.ExtensionFilter("MobaXterm (INI/Sessions)", "*.ini", "*.mxtsessions"),
             new FileChooser.ExtensionFilter("PuTTY Connection Manager (CSV)", "*.csv"),
-            new FileChooser.ExtensionFilter("Alle Dateien", "*.*")
+            new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*")
         );
         
         selectedFile = fileChooser.showOpenDialog(owner);
@@ -410,7 +410,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
                 .anyMatch(c -> c.getGroup() == null || c.getGroup().trim().isEmpty());
             
             if (hasConnectionsWithoutGroup) {
-                availableGroupsFromFile.add(0, "(keine Gruppe)");
+                availableGroupsFromFile.add(0, I18n.get("connImport.noGroup"));
             }
             
             groupListView.getItems().clear();
@@ -466,7 +466,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
                 
                 int exitCode = process.waitFor();
                 if (exitCode != 0) {
-                    throw new Exception("GPG-Entschlüsselung fehlgeschlagen: " + output.toString());
+                    throw new Exception(I18n.get("connImport.gpgDecryptFailed") + output.toString());
                 }
                 
                 file = tempFile.toFile();
@@ -481,7 +481,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
                 // Check if ZIP is password protected
                 if (zipFile.isEncrypted()) {
                     // For group loading, we can't ask for password yet, so skip
-                    throw new Exception("ZIP ist passwortgeschützt - Gruppen können erst nach Passworteingabe geladen werden");
+                    throw new Exception(I18n.get("connImport.zipPasswordProtected"));
                 }
                 
                 // Extract to temp directory
@@ -495,7 +495,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
                     .collect(java.util.stream.Collectors.toList());
                 
                 if (xmlFiles.isEmpty()) {
-                    throw new Exception("Keine XML-Datei im ZIP-Archiv gefunden");
+                    throw new Exception(I18n.get("connImport.noXmlInZip"));
                 }
                 
                 return xmlFiles.get(0).toFile();
@@ -530,9 +530,9 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     
     private void createNewGroup() {
         TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Neue Gruppe");
-        dialog.setHeaderText("Neue Gruppe erstellen");
-        dialog.setContentText("Gruppenname:");
+        dialog.setTitle(I18n.get("group.new"));
+        dialog.setHeaderText(I18n.get("connImport.createGroupHeader"));
+        dialog.setContentText(I18n.get("group.name"));
         
         dialog.showAndWait().ifPresent(groupName -> {
             if (groupName != null && !groupName.trim().isEmpty()) {
@@ -544,7 +544,7 @@ public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.Import
     
     private void showWarning(String header, String content) {
         Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Warnung");
+        alert.setTitle(I18n.get("connImport.warning"));
         alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();

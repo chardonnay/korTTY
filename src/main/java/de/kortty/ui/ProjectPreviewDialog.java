@@ -31,8 +31,8 @@ public class ProjectPreviewDialog extends Dialog<ProjectPreviewDialog.OpenProjec
     public ProjectPreviewDialog(Stage owner, Project project) {
         this.project = project;
         
-        setTitle("Projekt öffnen: " + project.getName());
-        setHeaderText("Projekt-Vorschau");
+        setTitle(I18n.get("project.openTitle") + ": " + project.getName());
+        setHeaderText(I18n.get("project.preview"));
         initOwner(owner);
         setResizable(true);
         
@@ -41,32 +41,32 @@ public class ProjectPreviewDialog extends Dialog<ProjectPreviewDialog.OpenProjec
         content.setPadding(new Insets(20));
         
         // Project details
-        Label nameLabel = new Label("Projekt: " + project.getName());
+        Label nameLabel = new Label(I18n.get("project.name") + ": " + project.getName());
         nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
         
-        String description = project.getDescription() != null ? project.getDescription() : "Keine Beschreibung";
-        Label descLabel = new Label("Beschreibung: " + description);
+        String description = project.getDescription() != null ? project.getDescription() : I18n.get("project.noDescription");
+        Label descLabel = new Label(I18n.get("common.description") + ": " + description);
         
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
         String created = project.getCreatedAt() != null ? 
-            project.getCreatedAt().format(formatter) : "Unbekannt";
-        Label createdLabel = new Label("Erstellt: " + created);
+            project.getCreatedAt().format(formatter) : I18n.get("project.unknown");
+        Label createdLabel = new Label(I18n.get("project.created") + ": " + created);
         
         String modified = project.getLastModified() != null ? 
-            project.getLastModified().format(formatter) : "Unbekannt";
-        Label modifiedLabel = new Label("Zuletzt geändert: " + modified);
+            project.getLastModified().format(formatter) : I18n.get("project.unknown");
+        Label modifiedLabel = new Label(I18n.get("project.lastModified") + ": " + modified);
         
         Separator sep1 = new Separator();
         
         // Windows and tabs summary
-        Label summaryHeader = new Label("Inhalt:");
+        Label summaryHeader = new Label(I18n.get("project.content"));
         summaryHeader.setStyle("-fx-font-weight: bold;");
         
         TreeView<String> treeView = new TreeView<>();
         treeView.setPrefHeight(300);
         
         TreeItem<String> root = new TreeItem<>(
-            String.format("%d Fenster, %d Tabs", 
+            String.format("%d " + I18n.get("project.windows") + ", %d " + I18n.get("project.tabs"), 
                 project.getWindows().size(), 
                 project.getWindows().stream().mapToInt(w -> w.getTabs().size()).sum())
         );
@@ -108,14 +108,13 @@ public class ProjectPreviewDialog extends Dialog<ProjectPreviewDialog.OpenProjec
         Separator sep2 = new Separator();
         
         // Options
-        Label optionsHeader = new Label("Optionen:");
+        Label optionsHeader = new Label(I18n.get("project.options"));
         optionsHeader.setStyle("-fx-font-weight: bold;");
         
-        autoReconnectCheck = new CheckBox("SSH-Verbindungen automatisch wiederherstellen");
+        autoReconnectCheck = new CheckBox(I18n.get("project.autoReconnect"));
         autoReconnectCheck.setSelected(project.isAutoReconnect());
         
-        Label infoLabel = new Label("ℹ Wenn aktiviert, werden alle SSH-Verbindungen automatisch wiederhergestellt.\n" +
-                                    "Passwörter werden aus der Zugangsdaten-Verwaltung abgerufen.");
+        Label infoLabel = new Label(I18n.get("project.autoReconnectInfo"));
         infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         
@@ -139,7 +138,7 @@ public class ProjectPreviewDialog extends Dialog<ProjectPreviewDialog.OpenProjec
         getDialogPane().setPrefWidth(600);
         
         // Buttons
-        ButtonType openButton = new ButtonType("Projekt öffnen", ButtonBar.ButtonData.OK_DONE);
+        ButtonType openButton = new ButtonType(I18n.get("project.open"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(openButton, ButtonType.CANCEL);
         
         // Result converter

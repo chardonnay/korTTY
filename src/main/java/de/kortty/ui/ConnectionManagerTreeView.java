@@ -423,28 +423,28 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private ContextMenu createGroupContextMenu(GroupPath groupPath) {
         ContextMenu menu = new ContextMenu();
         
-        MenuItem renameItem = new MenuItem("Umbenennen");
+        MenuItem renameItem = new MenuItem(I18n.get("connManager.renameFolder"));
         renameItem.setOnAction(e -> {
             if (onRenameGroup != null) {
                 onRenameGroup.accept(groupPath);
             }
         });
         
-        MenuItem createSubGroupItem = new MenuItem("Unterordner erstellen");
+        MenuItem createSubGroupItem = new MenuItem(I18n.get("connManager.createSubfolder"));
         createSubGroupItem.setOnAction(e -> {
             if (onCreateGroup != null) {
                 onCreateGroup.accept(groupPath);
             }
         });
         
-        MenuItem exportGroupItem = new MenuItem("Ordner exportieren");
+        MenuItem exportGroupItem = new MenuItem(I18n.get("connManager.exportFolder"));
         exportGroupItem.setOnAction(e -> {
             if (onExportGroup != null) {
                 onExportGroup.accept(groupPath);
             }
         });
         
-        MenuItem deleteGroupItem = new MenuItem("Ordner löschen");
+        MenuItem deleteGroupItem = new MenuItem(I18n.get("connManager.deleteFolder"));
         deleteGroupItem.setOnAction(e -> {
             if (onDeleteGroup != null) {
                 onDeleteGroup.accept(groupPath);
@@ -462,7 +462,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private ContextMenu createConnectionContextMenu() {
         ContextMenu menu = new ContextMenu();
         
-        MenuItem editItem = new MenuItem("Bearbeiten");
+        MenuItem editItem = new MenuItem(I18n.get("dialog.edit"));
         editItem.setOnAction(e -> {
             List<ServerConnection> selected = getSelectedConnections();
             if (selected.size() == 1 && onEditConnection != null) {
@@ -470,7 +470,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
         
-        MenuItem exportItem = new MenuItem("Exportieren");
+        MenuItem exportItem = new MenuItem(I18n.get("connExport.export"));
         exportItem.setOnAction(e -> {
             List<ServerConnection> selected = getSelectedConnections();
             if (!selected.isEmpty() && onExportConnections != null) {
@@ -478,7 +478,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
         
-        MenuItem deleteItem = new MenuItem("Löschen");
+        MenuItem deleteItem = new MenuItem(I18n.get("sftp.delete"));
         deleteItem.setOnAction(e -> {
             List<ServerConnection> selected = getSelectedConnections();
             if (!selected.isEmpty() && onDeleteConnections != null) {

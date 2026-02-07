@@ -74,7 +74,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         this.temporarySSHKey = temporarySSHKey;
         
         setTitle("SFTP Manager - " + connection.getDisplayName());
-        setHeaderText("Dateiübertragung zwischen lokalem System und Server");
+        setHeaderText(I18n.get("sftp.headerText"));
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         setResizable(true);
@@ -102,7 +102,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         mainBox.setPadding(new Insets(10));
         
         // Status bar
-        statusLabel = new Label("Verbinde...");
+        statusLabel = new Label(I18n.get("sftp.connecting"));
         statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         
         // Split pane for local and remote
@@ -122,29 +122,29 @@ public class SFTPManagerDialog extends Dialog<Void> {
         buttonBox.setAlignment(Pos.CENTER);
         buttonBox.setPadding(new Insets(10, 0, 0, 0));
         
-        Button uploadButton = new Button("→ Hochladen");
+        Button uploadButton = new Button("→ " + I18n.get("sftp.upload"));
         uploadButton.setOnAction(e -> uploadSelected());
         uploadButton.setDisable(true);
         
-        Button downloadButton = new Button("← Herunterladen");
+        Button downloadButton = new Button("← " + I18n.get("sftp.download"));
         downloadButton.setOnAction(e -> downloadSelected());
         downloadButton.setDisable(true);
         
-        Button refreshLocalButton = new Button("Lokal aktualisieren");
+        Button refreshLocalButton = new Button(I18n.get("sftp.refreshLocal"));
         refreshLocalButton.setOnAction(e -> refreshLocal());
         
-        Button refreshRemoteButton = new Button("Remote aktualisieren");
+        Button refreshRemoteButton = new Button(I18n.get("sftp.refreshRemote"));
         refreshRemoteButton.setOnAction(e -> refreshRemote());
         
         // Copy buttons
-        Button copyLocalButton = new Button("Lokal kopieren");
+        Button copyLocalButton = new Button(I18n.get("sftp.copyLocal"));
         copyLocalButton.setOnAction(e -> copyLocalSelected());
         
-        Button copyRemoteButton = new Button("Remote kopieren");
+        Button copyRemoteButton = new Button(I18n.get("sftp.copyRemote"));
         copyRemoteButton.setOnAction(e -> copyRemoteSelected());
         
         // ZIP button
-        Button createZipButton = new Button("ZIP erstellen");
+        Button createZipButton = new Button(I18n.get("sftp.createZip"));
         createZipButton.setOnAction(e -> createZipArchive());
         
         buttonBox.getChildren().addAll(uploadButton, downloadButton, 
@@ -175,7 +175,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         VBox panel = new VBox(5);
         panel.setPadding(new Insets(5));
         
-        Label titleLabel = new Label("Lokales System");
+        Label titleLabel = new Label(I18n.get("sftp.localSystem"));
         titleLabel.setStyle("-fx-font-weight: bold;");
         
         // Path field and navigation
@@ -190,14 +190,14 @@ public class SFTPManagerDialog extends Dialog<Void> {
         Button homeButton = new Button("~");
         homeButton.setOnAction(e -> navigateLocal(System.getProperty("user.home")));
         
-        pathBox.getChildren().addAll(new Label("Pfad:"), localPathField, upButton, homeButton);
+        pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), localPathField, upButton, homeButton);
         HBox.setHgrow(localPathField, Priority.ALWAYS);
         
         // Search field
         HBox searchBox = new HBox(5);
         localSearchField = new TextField();
-        localSearchField.setPromptText("Dateien suchen... (* als Wildcard)");
-        searchBox.getChildren().addAll(new Label("Suchen:"), localSearchField);
+        localSearchField.setPromptText(I18n.get("sftp.searchPrompt"));
+        searchBox.getChildren().addAll(new Label(I18n.get("sftp.search")), localSearchField);
         HBox.setHgrow(localSearchField, Priority.ALWAYS);
         
         // File table
@@ -229,7 +229,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             if (b.equals("<DIR>")) return 1;
             return parseSize(a).compareTo(parseSize(b));
         });
-        setupSortableColumnHeader(sizeColumn, "Größe", localTable, sizeColumn);
+        setupSortableColumnHeader(sizeColumn, I18n.get("sftp.column.size"), localTable, sizeColumn);
         
         TableColumn<FileItem, String> dateColumn = new TableColumn<>();
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
@@ -237,7 +237,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         dateColumn.setMinWidth(120);
         dateColumn.setSortable(false); // Disable default sorting
         dateColumn.setComparator(String::compareTo);
-        setupSortableColumnHeader(dateColumn, "Datum", localTable, dateColumn);
+        setupSortableColumnHeader(dateColumn, I18n.get("sftp.column.date"), localTable, dateColumn);
         
         localTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn);
         
@@ -246,14 +246,14 @@ public class SFTPManagerDialog extends Dialog<Void> {
             TableRow<FileItem> row = new TableRow<>();
             ContextMenu contextMenu = new ContextMenu();
             
-            MenuItem renameItem = new MenuItem("Umbenennen");
+            MenuItem renameItem = new MenuItem(I18n.get("sftp.rename"));
             renameItem.setOnAction(e -> {
                 if (!row.isEmpty()) {
                     renameLocalFile(row.getItem());
                 }
             });
             
-            MenuItem deleteItem = new MenuItem("Löschen");
+            MenuItem deleteItem = new MenuItem(I18n.get("sftp.contextMenu.delete"));
             deleteItem.setOnAction(e -> {
                 if (!row.isEmpty()) {
                     deleteLocalFile(row.getItem());
@@ -283,7 +283,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         // Search filter
         localItems = FXCollections.observableArrayList();
         filteredLocalItems = new FilteredList<>(localItems, p -> true);
-        localSearchField.setPromptText("Dateien suchen... (* als Wildcard)");
+        localSearchField.setPromptText(I18n.get("sftp.searchPrompt"));
         localSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null || newVal.trim().isEmpty()) {
                 filteredLocalItems.setPredicate(p -> true);
@@ -361,14 +361,14 @@ public class SFTPManagerDialog extends Dialog<Void> {
         Button homeButton = new Button("~");
         homeButton.setOnAction(e -> navigateRemote("~"));
         
-        pathBox.getChildren().addAll(new Label("Pfad:"), remotePathField, upButton, homeButton);
+        pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), remotePathField, upButton, homeButton);
         HBox.setHgrow(remotePathField, Priority.ALWAYS);
         
         // Search field
         HBox searchBox = new HBox(5);
         remoteSearchField = new TextField();
-        remoteSearchField.setPromptText("Dateien suchen... (* als Wildcard)");
-        searchBox.getChildren().addAll(new Label("Suchen:"), remoteSearchField);
+        remoteSearchField.setPromptText(I18n.get("sftp.searchPrompt"));
+        searchBox.getChildren().addAll(new Label(I18n.get("sftp.search")), remoteSearchField);
         HBox.setHgrow(remoteSearchField, Priority.ALWAYS);
         
         // File table
@@ -400,7 +400,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             if (b.equals("<DIR>")) return 1;
             return parseSize(a).compareTo(parseSize(b));
         });
-        setupSortableColumnHeader(sizeColumn, "Größe", remoteTable, sizeColumn);
+        setupSortableColumnHeader(sizeColumn, I18n.get("sftp.column.size"), remoteTable, sizeColumn);
         
         TableColumn<FileItem, String> dateColumn = new TableColumn<>();
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
@@ -408,7 +408,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         dateColumn.setMinWidth(120);
         dateColumn.setSortable(false); // Disable default sorting
         dateColumn.setComparator(String::compareTo);
-        setupSortableColumnHeader(dateColumn, "Datum", remoteTable, dateColumn);
+        setupSortableColumnHeader(dateColumn, I18n.get("sftp.column.date"), remoteTable, dateColumn);
         
         remoteTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn);
         
@@ -417,21 +417,21 @@ public class SFTPManagerDialog extends Dialog<Void> {
             TableRow<FileItem> row = new TableRow<>();
             ContextMenu contextMenu = new ContextMenu();
             
-            MenuItem renameItem = new MenuItem("Umbenennen");
+            MenuItem renameItem = new MenuItem(I18n.get("sftp.rename"));
             renameItem.setOnAction(e -> {
                 if (!row.isEmpty()) {
                     renameRemoteFile(row.getItem());
                 }
             });
             
-            MenuItem deleteItem = new MenuItem("Löschen");
+            MenuItem deleteItem = new MenuItem(I18n.get("sftp.contextMenu.delete"));
             deleteItem.setOnAction(e -> {
                 if (!row.isEmpty()) {
                     deleteRemoteFile(row.getItem());
                 }
             });
             
-            MenuItem permissionsItem = new MenuItem("Berechtigungen ändern...");
+            MenuItem permissionsItem = new MenuItem(I18n.get("sftp.permissions") + "...");
             permissionsItem.setOnAction(e -> {
                 if (!row.isEmpty()) {
                     changeRemotePermissions(row.getItem());
@@ -554,23 +554,23 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 
                 Platform.runLater(() -> {
                     try {
-                        statusLabel.setText("Verbunden");
+                        statusLabel.setText(I18n.get("sftp.connected"));
                         currentRemotePath = sftpSession.getCurrentDirectory();
                         remotePathField.setText(currentRemotePath);
                         refreshLocal();
                         refreshRemote();
                     } catch (java.io.IOException e) {
                         logger.error("Failed to get current directory", e);
-                        statusLabel.setText("Fehler beim Abrufen des Verzeichnisses");
+                        statusLabel.setText(I18n.get("sftp.error.getDirectory"));
                     }
                 });
             } catch (Exception e) {
                 logger.error("Failed to connect to SFTP", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Verbindungsfehler: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.connectionError") + ": " + e.getMessage());
                     Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("SFTP Verbindungsfehler");
-                    alert.setHeaderText("Verbindung zum Server fehlgeschlagen");
+                    alert.setTitle(I18n.get("sftp.error.connection"));
+                    alert.setHeaderText(I18n.get("sftp.error.connectionFailedHeader"));
                     alert.setContentText(e.getMessage());
                     alert.showAndWait();
                     close();
@@ -604,7 +604,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             localPathField.setText(currentLocalPath.toString());
         } catch (Exception e) {
             logger.error("Failed to refresh local files", e);
-            statusLabel.setText("Fehler beim Aktualisieren: " + e.getMessage());
+            statusLabel.setText(I18n.get("sftp.error.refresh", e.getMessage()));
         }
     }
     
@@ -651,7 +651,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             } catch (Exception e) {
                 logger.error("Failed to refresh remote files", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Fehler beim Aktualisieren: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.error.refresh", e.getMessage()));
                 });
             }
         }).start();
@@ -664,10 +664,10 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 currentLocalPath = newPath.toAbsolutePath();
                 refreshLocal();
             } else {
-                statusLabel.setText("Pfad existiert nicht: " + path);
+                statusLabel.setText(I18n.get("sftp.error.pathNotExists", path));
             }
         } catch (Exception e) {
-            statusLabel.setText("Fehler: " + e.getMessage());
+            statusLabel.setText(I18n.get("sftp.error.generic", e.getMessage()));
         }
     }
     
@@ -691,7 +691,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             } catch (Exception e) {
                 logger.error("Failed to navigate remote", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Fehler: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.error.generic", e.getMessage()));
                 });
             }
         }).start();
@@ -736,19 +736,19 @@ public class SFTPManagerDialog extends Dialog<Void> {
         
         new Thread(() -> {
             try {
-                Platform.runLater(() -> statusLabel.setText("Lade hoch: " + file.getName()));
+                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.uploading", file.getName())));
                 sftpSession.uploadFile(file.toPath(), remotePath);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Hochgeladen: " + file.getName());
+                    statusLabel.setText(I18n.get("sftp.uploadComplete", file.getName()));
                     refreshRemote();
                 });
             } catch (Exception e) {
                 logger.error("Failed to upload file", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Fehler beim Hochladen: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.uploadFailed", e.getMessage()));
                     Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Upload Fehler");
-                    alert.setHeaderText("Datei konnte nicht hochgeladen werden");
+                    alert.setTitle(I18n.get("sftp.error.upload"));
+                    alert.setHeaderText(I18n.get("sftp.error.uploadHeader"));
                     alert.setContentText(e.getMessage());
                     alert.showAndWait();
                 });
@@ -762,7 +762,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 String remoteDirPath = remoteBasePath.endsWith("/") ? 
                     remoteBasePath + dir.getName() : remoteBasePath + "/" + dir.getName();
                 
-                Platform.runLater(() -> statusLabel.setText("Erstelle Verzeichnis: " + dir.getName()));
+                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.creatingDirectory", dir.getName())));
                 sftpSession.createDirectory(remoteDirPath);
                 
                 File[] files = dir.listFiles();
@@ -777,13 +777,13 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 }
                 
                 Platform.runLater(() -> {
-                    statusLabel.setText("Verzeichnis hochgeladen: " + dir.getName());
+                    statusLabel.setText(I18n.get("sftp.directoryUploaded", dir.getName()));
                     refreshRemote();
                 });
             } catch (Exception e) {
                 logger.error("Failed to upload directory", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Fehler beim Hochladen des Verzeichnisses: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.error.uploadDirectory", e.getMessage()));
                 });
             }
         }).start();
@@ -810,7 +810,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         if (selected.size() == 1 && selected.get(0).isFile()) {
             FileItem item = selected.get(0);
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
-            fileChooser.setTitle("Datei speichern als...");
+            fileChooser.setTitle(I18n.get("sftp.saveFileAs"));
             fileChooser.setInitialFileName(item.getName());
             fileChooser.setInitialDirectory(currentLocalPath.toFile());
             
@@ -823,7 +823,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         } else {
             // Multiple items or directory - ask for destination directory
             javafx.stage.DirectoryChooser dirChooser = new javafx.stage.DirectoryChooser();
-            dirChooser.setTitle("Zielverzeichnis auswählen");
+            dirChooser.setTitle(I18n.get("sftp.selectTargetFolder"));
             dirChooser.setInitialDirectory(currentLocalPath.toFile());
             
             File destinationDir = dirChooser.showDialog(getDialogPane().getScene().getWindow());
@@ -846,19 +846,19 @@ public class SFTPManagerDialog extends Dialog<Void> {
     private void downloadSingleFile(FileItem item, Path localPath) {
         new Thread(() -> {
             try {
-                Platform.runLater(() -> statusLabel.setText("Lade herunter: " + item.getName()));
+                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.downloading", item.getName())));
                 sftpSession.downloadFile(item.getPath(), localPath);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Heruntergeladen: " + item.getName());
+                    statusLabel.setText(I18n.get("sftp.downloadComplete", item.getName()));
                     refreshLocal();
                 });
             } catch (Exception e) {
                 logger.error("Failed to download file", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Fehler beim Herunterladen: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.downloadFailed", e.getMessage()));
                     Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Download Fehler");
-                    alert.setHeaderText("Datei konnte nicht heruntergeladen werden");
+                    alert.setTitle(I18n.get("sftp.error.download"));
+                    alert.setHeaderText(I18n.get("sftp.error.downloadHeader"));
                     alert.setContentText(e.getMessage());
                     alert.showAndWait();
                 });
@@ -872,7 +872,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 Path localDirPath = localBasePath.resolve(item.getName());
                 Files.createDirectories(localDirPath);
                 
-                Platform.runLater(() -> statusLabel.setText("Lade Verzeichnis: " + item.getName()));
+                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.downloadingDirectory", item.getName())));
                 
                 try {
                     downloadDirectoryRecursive(item.getPath(), localDirPath);
@@ -881,16 +881,16 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 }
                 
                 Platform.runLater(() -> {
-                    statusLabel.setText("Verzeichnis heruntergeladen: " + item.getName());
+                    statusLabel.setText(I18n.get("sftp.directoryDownloaded", item.getName()));
                     refreshLocal();
                 });
             } catch (Exception e) {
                 logger.error("Failed to download directory", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Fehler beim Herunterladen des Verzeichnisses: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.error.downloadDirectory", e.getMessage()));
                     Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Download Fehler");
-                    alert.setHeaderText("Verzeichnis konnte nicht heruntergeladen werden");
+                    alert.setTitle(I18n.get("sftp.error.download"));
+                    alert.setHeaderText(I18n.get("sftp.error.downloadDirectoryHeader"));
                     alert.setContentText(e.getMessage());
                     alert.showAndWait();
                 });
@@ -957,7 +957,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         
         Button sortButton = new Button("⇅");
         sortButton.setStyle("-fx-font-size: 10px; -fx-padding: 2 4 2 4; -fx-min-width: 20px; -fx-pref-width: 20px;");
-        sortButton.setTooltip(new Tooltip("Sortieren"));
+        sortButton.setTooltip(new Tooltip(I18n.get("sftp.sort")));
         
         // Track sort state: 0 = unsorted, 1 = ascending, 2 = descending
         javafx.beans.property.SimpleIntegerProperty sortState = new javafx.beans.property.SimpleIntegerProperty(0);
@@ -1021,11 +1021,10 @@ public class SFTPManagerDialog extends Dialog<Void> {
             return;
         }
         
-        String itemType = file.isDirectory() ? "Verzeichnis" : "Datei";
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Löschen bestätigen");
-        confirm.setHeaderText(itemType + " löschen");
-        confirm.setContentText("Möchten Sie '" + item.getName() + "' wirklich löschen?");
+        confirm.setTitle(I18n.get("sftp.confirmDelete"));
+        confirm.setHeaderText(I18n.get("sftp.confirmDelete"));
+        confirm.setContentText(I18n.get("sftp.confirmDeleteMessage", item.getName()));
         
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
@@ -1035,13 +1034,13 @@ public class SFTPManagerDialog extends Dialog<Void> {
                     } else {
                         file.delete();
                     }
-                    statusLabel.setText("Gelöscht: " + item.getName());
+                    statusLabel.setText(I18n.get("sftp.deleted", item.getName()));
                     refreshLocal();
                 } catch (Exception e) {
                     logger.error("Failed to delete local file", e);
                     Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle("Löschen fehlgeschlagen");
-                    error.setHeaderText("Datei konnte nicht gelöscht werden");
+                    error.setTitle(I18n.get("sftp.error.deleteFailed"));
+                    error.setHeaderText(I18n.get("sftp.error.deleteFailedHeader"));
                     error.setContentText(e.getMessage());
                     error.showAndWait();
                 }
@@ -1074,29 +1073,29 @@ public class SFTPManagerDialog extends Dialog<Void> {
         }
         
         TextInputDialog dialog = new TextInputDialog(item.getName());
-        dialog.setTitle("Umbenennen");
-        dialog.setHeaderText("Neuer Name für '" + item.getName() + "':");
-        dialog.setContentText("Name:");
+        dialog.setTitle(I18n.get("sftp.rename"));
+        dialog.setHeaderText(I18n.get("sftp.renamePrompt", item.getName()));
+        dialog.setContentText(I18n.get("sftp.nameLabel"));
         
         dialog.showAndWait().ifPresent(newName -> {
             if (newName != null && !newName.trim().isEmpty() && !newName.equals(item.getName())) {
                 try {
                     File newFile = new File(file.getParent(), newName.trim());
                     if (file.renameTo(newFile)) {
-                        statusLabel.setText("Umbenannt: " + item.getName() + " → " + newName);
+                        statusLabel.setText(I18n.get("sftp.renamed", item.getName(), newName));
                         refreshLocal();
                     } else {
                         Alert error = new Alert(Alert.AlertType.ERROR);
-                        error.setTitle("Umbenennen fehlgeschlagen");
-                        error.setHeaderText("Datei konnte nicht umbenannt werden");
-                        error.setContentText("Möglicherweise existiert bereits eine Datei mit diesem Namen.");
+                        error.setTitle(I18n.get("sftp.error.renameFailed"));
+                        error.setHeaderText(I18n.get("sftp.error.renameFailedHeader"));
+                        error.setContentText(I18n.get("sftp.error.renameFileExists"));
                         error.showAndWait();
                     }
                 } catch (Exception e) {
                     logger.error("Failed to rename local file", e);
                     Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle("Umbenennen fehlgeschlagen");
-                    error.setHeaderText("Fehler beim Umbenennen");
+                    error.setTitle(I18n.get("sftp.error.renameFailed"));
+                    error.setHeaderText(I18n.get("sftp.error.renameFailedHeader"));
                     error.setContentText(e.getMessage());
                     error.showAndWait();
                 }
@@ -1113,29 +1112,28 @@ public class SFTPManagerDialog extends Dialog<Void> {
             return;
         }
         
-        String itemType = item.isFile() ? "Datei" : "Verzeichnis";
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Löschen bestätigen");
-        confirm.setHeaderText(itemType + " löschen");
-        confirm.setContentText("Möchten Sie '" + item.getName() + "' wirklich löschen?");
+        confirm.setTitle(I18n.get("sftp.confirmDelete"));
+        confirm.setHeaderText(I18n.get("sftp.confirmDelete"));
+        confirm.setContentText(I18n.get("sftp.confirmDeleteMessage", item.getName()));
         
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
                 new Thread(() -> {
                     try {
-                        Platform.runLater(() -> statusLabel.setText("Lösche: " + item.getName()));
+                        Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.deleting", item.getName())));
                         sftpSession.deleteFile(item.getPath());
                         Platform.runLater(() -> {
-                            statusLabel.setText("Gelöscht: " + item.getName());
+                            statusLabel.setText(I18n.get("sftp.deleted", item.getName()));
                             refreshRemote();
                         });
                     } catch (Exception e) {
                         logger.error("Failed to delete remote file", e);
                         Platform.runLater(() -> {
-                            statusLabel.setText("Fehler beim Löschen: " + e.getMessage());
+                            statusLabel.setText(I18n.get("sftp.error.deleteMessage", e.getMessage()));
                             Alert error = new Alert(Alert.AlertType.ERROR);
-                            error.setTitle("Löschen fehlgeschlagen");
-                            error.setHeaderText("Datei konnte nicht gelöscht werden");
+                            error.setTitle(I18n.get("sftp.error.deleteFailed"));
+                            error.setHeaderText(I18n.get("sftp.error.deleteFailedHeader"));
                             error.setContentText(e.getMessage());
                             error.showAndWait();
                         });
@@ -1155,9 +1153,9 @@ public class SFTPManagerDialog extends Dialog<Void> {
         }
         
         TextInputDialog dialog = new TextInputDialog(item.getName());
-        dialog.setTitle("Umbenennen");
-        dialog.setHeaderText("Neuer Name für '" + item.getName() + "':");
-        dialog.setContentText("Name:");
+        dialog.setTitle(I18n.get("sftp.rename"));
+        dialog.setHeaderText(I18n.get("sftp.renamePrompt", item.getName()));
+        dialog.setContentText(I18n.get("sftp.nameLabel"));
         
         dialog.showAndWait().ifPresent(newName -> {
             if (newName != null && !newName.trim().isEmpty() && !newName.equals(item.getName())) {
@@ -1167,19 +1165,19 @@ public class SFTPManagerDialog extends Dialog<Void> {
                         if (parentPath.isEmpty()) parentPath = "/";
                         String newPath = parentPath + "/" + newName.trim();
                         
-                        Platform.runLater(() -> statusLabel.setText("Benenne um: " + item.getName() + " → " + newName));
+                        Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.renaming", item.getName(), newName)));
                         sftpSession.renameFile(item.getPath(), newPath);
                         Platform.runLater(() -> {
-                            statusLabel.setText("Umbenannt: " + item.getName() + " → " + newName);
+                            statusLabel.setText(I18n.get("sftp.renamed", item.getName(), newName));
                             refreshRemote();
                         });
                     } catch (Exception e) {
                         logger.error("Failed to rename remote file", e);
                         Platform.runLater(() -> {
-                            statusLabel.setText("Fehler beim Umbenennen: " + e.getMessage());
+                            statusLabel.setText(I18n.get("sftp.error.renameMessage", e.getMessage()));
                             Alert error = new Alert(Alert.AlertType.ERROR);
-                            error.setTitle("Umbenennen fehlgeschlagen");
-                            error.setHeaderText("Datei konnte nicht umbenannt werden");
+                            error.setTitle(I18n.get("sftp.error.renameFailed"));
+                            error.setHeaderText(I18n.get("sftp.error.renameFailedHeader"));
                             error.setContentText(e.getMessage());
                             error.showAndWait();
                         });
@@ -1205,22 +1203,22 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 
                 Platform.runLater(() -> {
                     Dialog<int[]> permDialog = new Dialog<>();
-                    permDialog.setTitle("Berechtigungen ändern");
-                    permDialog.setHeaderText("Berechtigungen für '" + item.getName() + "'");
+                    permDialog.setTitle(I18n.get("sftp.permissions"));
+                    permDialog.setHeaderText(I18n.get("sftp.permissionsFor", item.getName()));
                     permDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
                     
                     VBox content = new VBox(15);
                     content.setPadding(new Insets(20));
                     
-                    Label infoLabel = new Label("Aktuelle Berechtigungen: " + currentPerms);
+                    Label infoLabel = new Label(I18n.get("sftp.currentPermissions", currentPerms));
                     infoLabel.setStyle("-fx-font-weight: bold;");
                     
                     // Owner permissions
-                    Label ownerLabel = new Label("Besitzer (Owner):");
+                    Label ownerLabel = new Label(I18n.get("sftp.ownerLabel"));
                     ownerLabel.setStyle("-fx-font-weight: bold;");
-                    CheckBox ownerRead = new CheckBox("Lesen (r)");
-                    CheckBox ownerWrite = new CheckBox("Schreiben (w)");
-                    CheckBox ownerExecute = new CheckBox("Ausführen (x)");
+                    CheckBox ownerRead = new CheckBox(I18n.get("sftp.read"));
+                    CheckBox ownerWrite = new CheckBox(I18n.get("sftp.write"));
+                    CheckBox ownerExecute = new CheckBox(I18n.get("sftp.execute"));
                     ownerRead.setSelected((currentPermsInt & 0400) != 0);
                     ownerWrite.setSelected((currentPermsInt & 0200) != 0);
                     ownerExecute.setSelected((currentPermsInt & 0100) != 0);
@@ -1229,11 +1227,11 @@ public class SFTPManagerDialog extends Dialog<Void> {
                     ownerBox.getChildren().addAll(ownerRead, ownerWrite, ownerExecute);
                     
                     // Group permissions
-                    Label groupLabel = new Label("Gruppe (Group):");
+                    Label groupLabel = new Label(I18n.get("sftp.groupLabel"));
                     groupLabel.setStyle("-fx-font-weight: bold;");
-                    CheckBox groupRead = new CheckBox("Lesen (r)");
-                    CheckBox groupWrite = new CheckBox("Schreiben (w)");
-                    CheckBox groupExecute = new CheckBox("Ausführen (x)");
+                    CheckBox groupRead = new CheckBox(I18n.get("sftp.read"));
+                    CheckBox groupWrite = new CheckBox(I18n.get("sftp.write"));
+                    CheckBox groupExecute = new CheckBox(I18n.get("sftp.execute"));
                     groupRead.setSelected((currentPermsInt & 0040) != 0);
                     groupWrite.setSelected((currentPermsInt & 0020) != 0);
                     groupExecute.setSelected((currentPermsInt & 0010) != 0);
@@ -1242,11 +1240,11 @@ public class SFTPManagerDialog extends Dialog<Void> {
                     groupBox.getChildren().addAll(groupRead, groupWrite, groupExecute);
                     
                     // Other permissions
-                    Label otherLabel = new Label("Andere (Other):");
+                    Label otherLabel = new Label(I18n.get("sftp.otherLabel"));
                     otherLabel.setStyle("-fx-font-weight: bold;");
-                    CheckBox otherRead = new CheckBox("Lesen (r)");
-                    CheckBox otherWrite = new CheckBox("Schreiben (w)");
-                    CheckBox otherExecute = new CheckBox("Ausführen (x)");
+                    CheckBox otherRead = new CheckBox(I18n.get("sftp.read"));
+                    CheckBox otherWrite = new CheckBox(I18n.get("sftp.write"));
+                    CheckBox otherExecute = new CheckBox(I18n.get("sftp.execute"));
                     otherRead.setSelected((currentPermsInt & 0004) != 0);
                     otherWrite.setSelected((currentPermsInt & 0002) != 0);
                     otherExecute.setSelected((currentPermsInt & 0001) != 0);
@@ -1283,19 +1281,19 @@ public class SFTPManagerDialog extends Dialog<Void> {
                             new Thread(() -> {
                                 try {
                                     String newPerms = String.format("%04o", result[0]);
-                                    Platform.runLater(() -> statusLabel.setText("Ändere Berechtigungen: " + item.getName()));
+                                    Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.changingPermissions", item.getName())));
                                     sftpSession.setPermissions(item.getPath(), newPerms);
                                     Platform.runLater(() -> {
-                                        statusLabel.setText("Berechtigungen geändert: " + item.getName());
+                                        statusLabel.setText(I18n.get("sftp.permissionsChanged", item.getName()));
                                         refreshRemote();
                                     });
                                 } catch (Exception e) {
                                     logger.error("Failed to change permissions", e);
                                     Platform.runLater(() -> {
-                                        statusLabel.setText("Fehler beim Ändern der Berechtigungen: " + e.getMessage());
+                                        statusLabel.setText(I18n.get("sftp.error.changePermissions", e.getMessage()));
                                         Alert error = new Alert(Alert.AlertType.ERROR);
-                                        error.setTitle("Berechtigungen ändern fehlgeschlagen");
-                                        error.setHeaderText("Berechtigungen konnten nicht geändert werden");
+                                        error.setTitle(I18n.get("sftp.error.changePermissionsFailed"));
+                                        error.setHeaderText(I18n.get("sftp.error.changePermissionsFailedHeader"));
                                         error.setContentText(e.getMessage());
                                         error.showAndWait();
                                     });
@@ -1308,8 +1306,8 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 logger.error("Failed to get current permissions", e);
                 Platform.runLater(() -> {
                     Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle("Fehler");
-                    error.setHeaderText("Berechtigungen konnten nicht abgerufen werden");
+                    error.setTitle(I18n.get("sftp.error.title"));
+                    error.setHeaderText(I18n.get("sftp.error.getPermissionsHeader"));
                     error.setContentText(e.getMessage());
                     error.showAndWait();
                 });
@@ -1324,9 +1322,9 @@ public class SFTPManagerDialog extends Dialog<Void> {
         }
         
         TextInputDialog dialog = new TextInputDialog(currentLocalPath.toString());
-        dialog.setTitle("Kopieren");
-        dialog.setHeaderText("Zielverzeichnis für Kopie:");
-        dialog.setContentText("Pfad:");
+        dialog.setTitle(I18n.get("sftp.copyTo"));
+        dialog.setHeaderText(I18n.get("sftp.targetDir"));
+        dialog.setContentText(I18n.get("sftp.path"));
         
         dialog.showAndWait().ifPresent(destPath -> {
             if (destPath != null && !destPath.trim().isEmpty()) {
@@ -1343,7 +1341,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
                             File source = new File(item.getPath());
                             Path target = dest.resolve(item.getName());
                             
-                            Platform.runLater(() -> statusLabel.setText("Kopiere: " + item.getName()));
+                            Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.copying", item.getName())));
                             
                             if (source.isDirectory()) {
                                 copyDirectory(source.toPath(), target);
@@ -1353,16 +1351,16 @@ public class SFTPManagerDialog extends Dialog<Void> {
                         }
                         
                         Platform.runLater(() -> {
-                            statusLabel.setText("Kopieren abgeschlossen");
+                            statusLabel.setText(I18n.get("sftp.copyComplete"));
                             refreshLocal();
                         });
                     } catch (Exception e) {
                         logger.error("Failed to copy local files", e);
                         Platform.runLater(() -> {
-                            statusLabel.setText("Fehler beim Kopieren: " + e.getMessage());
+                            statusLabel.setText(I18n.get("sftp.error.copyMessage", e.getMessage()));
                             Alert error = new Alert(Alert.AlertType.ERROR);
-                            error.setTitle("Kopieren fehlgeschlagen");
-                            error.setHeaderText("Dateien konnten nicht kopiert werden");
+                            error.setTitle(I18n.get("sftp.error.copy"));
+                            error.setHeaderText(I18n.get("sftp.error.copyFailedHeader"));
                             error.setContentText(e.getMessage());
                             error.showAndWait();
                         });
@@ -1399,9 +1397,9 @@ public class SFTPManagerDialog extends Dialog<Void> {
         }
         
         TextInputDialog dialog = new TextInputDialog(currentRemotePath);
-        dialog.setTitle("Kopieren");
-        dialog.setHeaderText("Zielverzeichnis für Kopie:");
-        dialog.setContentText("Pfad:");
+        dialog.setTitle(I18n.get("sftp.copyTo"));
+        dialog.setHeaderText(I18n.get("sftp.targetDir"));
+        dialog.setContentText(I18n.get("sftp.path"));
         
         dialog.showAndWait().ifPresent(destPath -> {
             if (destPath != null && !destPath.trim().isEmpty()) {
@@ -1416,21 +1414,21 @@ public class SFTPManagerDialog extends Dialog<Void> {
                             String sourcePath = item.getPath();
                             String targetPath = dest + item.getName();
                             
-                            Platform.runLater(() -> statusLabel.setText("Kopiere: " + item.getName()));
+                            Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.copying", item.getName())));
                             sftpSession.copyFile(sourcePath, targetPath);
                         }
                         
                         Platform.runLater(() -> {
-                            statusLabel.setText("Kopieren abgeschlossen");
+                            statusLabel.setText(I18n.get("sftp.copyComplete"));
                             refreshRemote();
                         });
                     } catch (Exception e) {
                         logger.error("Failed to copy remote files", e);
                         Platform.runLater(() -> {
-                            statusLabel.setText("Fehler beim Kopieren: " + e.getMessage());
+                            statusLabel.setText(I18n.get("sftp.error.copyMessage", e.getMessage()));
                             Alert error = new Alert(Alert.AlertType.ERROR);
-                            error.setTitle("Kopieren fehlgeschlagen");
-                            error.setHeaderText("Dateien konnten nicht kopiert werden");
+                            error.setTitle(I18n.get("sftp.error.copy"));
+                            error.setHeaderText(I18n.get("sftp.error.copyFailedHeader"));
                             error.setContentText(e.getMessage());
                             error.showAndWait();
                         });
@@ -1447,8 +1445,8 @@ public class SFTPManagerDialog extends Dialog<Void> {
             selected = localTable.getSelectionModel().getSelectedItems();
             if (selected == null || selected.isEmpty()) {
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Keine Auswahl");
-                alert.setHeaderText("Bitte wählen Sie Dateien oder Verzeichnisse aus");
+                alert.setTitle(I18n.get("sftp.noSelection"));
+                alert.setHeaderText(I18n.get("sftp.selectFilesPrompt"));
                 alert.showAndWait();
                 return;
             }
@@ -1460,7 +1458,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
     
     private void createZipFromLocal(List<FileItem> selected) {
         javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
-        fileChooser.setTitle("ZIP-Datei speichern als...");
+        fileChooser.setTitle(I18n.get("sftp.saveZipAs"));
         fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("ZIP-Dateien", "*.zip"));
         fileChooser.setInitialFileName("archive.zip");
         fileChooser.setInitialDirectory(currentLocalPath.toFile());
@@ -1480,7 +1478,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
                     if (item.getName().equals("..")) continue;
                     
                     File source = new File(item.getPath());
-                    Platform.runLater(() -> statusLabel.setText("Füge hinzu: " + item.getName()));
+                    Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.adding", item.getName())));
                     
                     if (source.isDirectory()) {
                         zip.addFolder(source, parameters);
@@ -1490,15 +1488,15 @@ public class SFTPManagerDialog extends Dialog<Void> {
                 }
                 
                 Platform.runLater(() -> {
-                    statusLabel.setText("ZIP-Archiv erstellt: " + zipFile.getName());
+                    statusLabel.setText(I18n.get("sftp.zipCreated", zipFile.getName()));
                 });
             } catch (Exception e) {
                 logger.error("Failed to create ZIP archive", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Fehler beim Erstellen des ZIP-Archivs: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.error.createZip", e.getMessage()));
                     Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle("ZIP-Erstellung fehlgeschlagen");
-                    error.setHeaderText("ZIP-Archiv konnte nicht erstellt werden");
+                    error.setTitle(I18n.get("sftp.error.createZipFailed"));
+                    error.setHeaderText(I18n.get("sftp.error.createZipFailedHeader"));
                     error.setContentText(e.getMessage());
                     error.showAndWait();
                 });
@@ -1512,7 +1510,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         }
         
         javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
-        fileChooser.setTitle("ZIP-Datei speichern als...");
+        fileChooser.setTitle(I18n.get("sftp.saveZipAs"));
         fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("ZIP-Dateien", "*.zip"));
         fileChooser.setInitialFileName("archive.zip");
         fileChooser.setInitialDirectory(currentLocalPath.toFile());
@@ -1535,7 +1533,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
                     for (FileItem item : selected) {
                         if (item.getName().equals("..")) continue;
                         
-                        Platform.runLater(() -> statusLabel.setText("Lade herunter: " + item.getName()));
+                        Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.downloading", item.getName())));
                         Path tempFile = tempDir.resolve(item.getName());
                         
                         if (item.isFile()) {
@@ -1548,7 +1546,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
                     }
                     
                     Platform.runLater(() -> {
-                        statusLabel.setText("ZIP-Archiv erstellt: " + zipFile.getName());
+                        statusLabel.setText(I18n.get("sftp.zipCreated", zipFile.getName()));
                     });
                 } finally {
                     // Cleanup temp directory
@@ -1557,10 +1555,10 @@ public class SFTPManagerDialog extends Dialog<Void> {
             } catch (Exception e) {
                 logger.error("Failed to create ZIP archive from remote", e);
                 Platform.runLater(() -> {
-                    statusLabel.setText("Fehler beim Erstellen des ZIP-Archivs: " + e.getMessage());
+                    statusLabel.setText(I18n.get("sftp.error.createZip", e.getMessage()));
                     Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle("ZIP-Erstellung fehlgeschlagen");
-                    error.setHeaderText("ZIP-Archiv konnte nicht erstellt werden");
+                    error.setTitle(I18n.get("sftp.error.createZipFailed"));
+                    error.setHeaderText(I18n.get("sftp.error.createZipFailedHeader"));
                     error.setContentText(e.getMessage());
                     error.showAndWait();
                 });

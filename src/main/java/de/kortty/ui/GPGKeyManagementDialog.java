@@ -107,6 +107,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
     
     private void addKey() {
         GPGKeyEditDialog dialog = new GPGKeyEditDialog(null);
+        dialog.initOwner(getDialogPane().getScene().getWindow());
         dialog.showAndWait().ifPresent(key -> {
             keyManager.addKey(key);
             refreshKeyList();
@@ -117,6 +118,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
         GPGKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             GPGKeyEditDialog dialog = new GPGKeyEditDialog(selected);
+            dialog.initOwner(getDialogPane().getScene().getWindow());
             dialog.showAndWait().ifPresent(key -> {
                 keyManager.updateKey(key);
                 refreshKeyList();
@@ -128,6 +130,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
         GPGKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.initOwner(getDialogPane().getScene().getWindow());
             confirm.setTitle(I18n.get("gpg.deleteConfirm.title"));
             confirm.setHeaderText(I18n.get("gpg.deleteConfirm.header"));
             confirm.setContentText(I18n.get("gpg.deleteConfirm.content", selected.getName()));
@@ -187,6 +190,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
             } else {
                 // Show selection dialog
                 ChoiceDialog<GPGKey> dialog = new ChoiceDialog<>(importedKeys.get(0), importedKeys);
+                dialog.initOwner(getDialogPane().getScene().getWindow());
                 dialog.setTitle(I18n.get("gpg.import.title"));
                 dialog.setHeaderText(I18n.get("gpg.import.header"));
                 dialog.setContentText(I18n.get("gpg.import.content"));
@@ -209,6 +213,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
     
     private void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.initOwner(getDialogPane().getScene().getWindow());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
@@ -217,6 +222,7 @@ public class GPGKeyManagementDialog extends Dialog<Boolean> {
     
     private void showInfo(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.initOwner(getDialogPane().getScene().getWindow());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);

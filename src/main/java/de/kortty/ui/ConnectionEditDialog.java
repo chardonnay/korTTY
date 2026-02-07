@@ -114,7 +114,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
         
-        setTitle(existingConnection == null ? "Neue Verbindung" : "Verbindung bearbeiten");
+        setTitle(existingConnection == null ? I18n.get("connEdit.newTitle") : I18n.get("connEdit.editTitle"));
         setHeaderText(null);
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
@@ -124,7 +124,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         
         // Tab 1: Connection settings
-        Tab connectionTab = new Tab("Verbindung");
+        Tab connectionTab = new Tab(I18n.get("connEdit.tab.connection"));
         connectionTab.setClosable(false);
         GridPane connectionGrid = new GridPane();
         connectionGrid.setHgap(10);
@@ -133,11 +133,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         // Basic fields
         nameField = new TextField(connection.getName());
-        nameField.setPromptText("Anzeigename");
+        nameField.setPromptText(I18n.get("connEdit.displayName"));
         nameField.setPrefWidth(250);
         
         hostField = new TextField(connection.getHost());
-        hostField.setPromptText("hostname oder IP");
+        hostField.setPromptText(I18n.get("connEdit.hostPrompt"));
         
         portSpinner = new Spinner<>(1, 65535, connection.getPort());
         portSpinner.setEditable(true);
@@ -151,7 +151,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         // Saved credentials ComboBox
         savedCredentialsCombo = new ComboBox<>();
-        savedCredentialsCombo.setPromptText("Gespeichertes Passwort auswählen...");
+        savedCredentialsCombo.setPromptText(I18n.get("connEdit.selectCredential"));
         savedCredentialsCombo.setPrefWidth(300);
         updateCredentialCombo(connection.getHost());
         
@@ -171,13 +171,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                         if (password != null) {
                             passwordField.setText(password);
                             // Mark that password comes from credential store
-                            passwordField.setPromptText("Aus Zugangsdaten: " + selected.getName());
+                            passwordField.setPromptText(I18n.get("connEdit.fromCredential") + ": " + selected.getName());
                         }
                     }
                 } catch (Exception ex) {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Fehler");
-                    alert.setHeaderText("Passwort-Entschlüsselung fehlgeschlagen");
+                    alert.setTitle(I18n.get("error.title"));
+                    alert.setHeaderText(I18n.get("connEdit.decryptFailed"));
                     alert.setContentText(ex.getMessage());
                     alert.showAndWait();
                 }
@@ -187,7 +187,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         });
         
         groupField = new TextField(connection.getGroup());
-        groupField.setPromptText("Optional - zur Gruppierung");
+        groupField.setPromptText(I18n.get("connEdit.groupPrompt"));
         
         // Connection timeout and retry
         timeoutSpinner = new Spinner<>(1, 300, connection.getConnectionTimeoutSeconds());
@@ -200,13 +200,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         // Authentication method
         authMethodGroup = new ToggleGroup();
-        passwordAuthRadio = new RadioButton("Passwort");
+        passwordAuthRadio = new RadioButton(I18n.get("common.password"));
         passwordAuthRadio.setToggleGroup(authMethodGroup);
         
-        keyAuthRadio = new RadioButton("Privater Schlüssel");
+        keyAuthRadio = new RadioButton(I18n.get("connEdit.authKey"));
         keyAuthRadio.setToggleGroup(authMethodGroup);
         
-        temporaryKeyAuthRadio = new RadioButton("Temporärer SSH-Key");
+        temporaryKeyAuthRadio = new RadioButton(I18n.get("connEdit.authTempKey"));
         temporaryKeyAuthRadio.setToggleGroup(authMethodGroup);
         
         // Determine initial selection
@@ -220,16 +220,16 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         // Key authentication fields
         keyPathField = new TextField(connection.getPrivateKeyPath());
-        keyPathField.setPromptText("Pfad zum privaten Schlüssel (oder aus Liste wählen)");
+        keyPathField.setPromptText(I18n.get("connEdit.keyPathPrompt"));
         
         browseKeyButton = new Button("...");
         browseKeyButton.setOnAction(e -> browseForKey());
         
         keyPassphraseField = new PasswordField();
-        keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
+        keyPassphraseField.setPromptText(I18n.get("connEdit.passphrasePrompt"));
         
         savedSSHKeysCombo = new ComboBox<>();
-        savedSSHKeysCombo.setPromptText("Gespeicherten SSH-Key auswählen...");
+        savedSSHKeysCombo.setPromptText(I18n.get("connEdit.selectSSHKey"));
         savedSSHKeysCombo.setPrefWidth(300);
         if (sshKeyManager != null) {
             savedSSHKeysCombo.getItems().addAll(sshKeyManager.getAllKeys());
@@ -250,7 +250,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     String passphrase = sshKeyManager.getPassphrase(selected, masterPassword);
                     if (passphrase != null) {
                         keyPassphraseField.setText(passphrase);
-                        keyPassphraseField.setPromptText("Aus SSH-Key-Verwaltung: " + selected.getName());
+                        keyPassphraseField.setPromptText(I18n.get("connEdit.fromSSHKey") + ": " + selected.getName());
                     } else {
                         keyPassphraseField.clear();
                         keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
@@ -258,18 +258,18 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 } catch (Exception ex) {
                     logger.error("Failed to decrypt passphrase", ex);
                     keyPassphraseField.clear();
-                    keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
+                    keyPassphraseField.setPromptText(I18n.get("connEdit.passphrasePrompt"));
                 }
             } else {
                 keyPathField.clear();
                 keyPassphraseField.clear();
-                keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
+                keyPassphraseField.setPromptText(I18n.get("connEdit.passphrasePrompt"));
             }
         });
         
         // Temporary SSH Key fields
         temporaryKeyArea = new TextArea();
-        temporaryKeyArea.setPromptText("SSH-Key hier einfügen...");
+        temporaryKeyArea.setPromptText(I18n.get("connEdit.tempKeyPrompt"));
         temporaryKeyArea.setPrefRowCount(5);
         temporaryKeyArea.setWrapText(true);
         
@@ -284,11 +284,10 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         temporaryKeyExpirationSpinner.setEditable(true);
         temporaryKeyExpirationSpinner.setPrefWidth(100);
         
-        temporaryKeyPermanentCheck = new CheckBox("Temporärer SSH-Key permanent aktivieren");
+        temporaryKeyPermanentCheck = new CheckBox(I18n.get("connEdit.tempKeyPermanent"));
         temporaryKeyPermanentCheck.setSelected(connection.isTemporaryKeyPermanent());
         temporaryKeyPermanentCheck.setTooltip(new Tooltip(
-            "Wenn aktiviert, wird dieser temporäre SSH-Key automatisch verwendet, " +
-            "solange er gültig ist. Nach Ablauf muss ein neuer Key eingegeben werden."
+            I18n.get("connEdit.tempKeyPermanentTooltip")
         ));
         
         HBox keyPathBox = new HBox(5, keyPathField, browseKeyButton);
@@ -299,62 +298,61 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         // Layout
         int row = 0;
-        connectionGrid.add(new Label("Name:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("common.name") + ":"), 0, row);
         connectionGrid.add(nameField, 1, row++);
         
-        connectionGrid.add(new Label("Host:"), 0, row);
-        HBox hostBox = new HBox(10, hostField, new Label("Port:"), portSpinner);
+        connectionGrid.add(new Label(I18n.get("common.host") + ":"), 0, row);
+        HBox hostBox = new HBox(10, hostField, new Label(I18n.get("common.port") + ":"), portSpinner);
         connectionGrid.add(hostBox, 1, row++);
         
-        connectionGrid.add(new Label("Benutzer:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("common.username") + ":"), 0, row);
         connectionGrid.add(usernameField, 1, row++);
         
-        connectionGrid.add(new Label("Gruppe:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.group")), 0, row);
         connectionGrid.add(groupField, 1, row++);
         
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
         
-        connectionGrid.add(new Label("Verbindungstimeout:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.timeout")), 0, row);
         HBox timeoutBox = new HBox(10);
-        timeoutBox.getChildren().addAll(timeoutSpinner, new Label("Sekunden"));
+        timeoutBox.getChildren().addAll(timeoutSpinner, new Label(I18n.get("common.seconds")));
         connectionGrid.add(timeoutBox, 1, row++);
         
-        connectionGrid.add(new Label("Wiederholungsversuche:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.retries")), 0, row);
         HBox retryBox = new HBox(10);
-        retryBox.getChildren().addAll(retrySpinner, new Label("Versuche"));
+        retryBox.getChildren().addAll(retrySpinner, new Label(I18n.get("connEdit.attempts")));
         connectionGrid.add(retryBox, 1, row++);
         
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
         
-        connectionGrid.add(new Label("Authentifizierung:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.authentication")), 0, row);
         HBox authBox = new HBox(15, passwordAuthRadio, keyAuthRadio, temporaryKeyAuthRadio);
         connectionGrid.add(authBox, 1, row++);
         
         
         // Saved credentials
-        connectionGrid.add(new Label("Gespeicherte Zugangsdaten:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.savedCredentials")), 0, row);
         connectionGrid.add(savedCredentialsCombo, 1, row++);
         
-        connectionGrid.add(new Label("Passwort:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("common.password") + ":"), 0, row);
         connectionGrid.add(passwordField, 1, row++);
         
-        connectionGrid.add(new Label("Gespeicherte SSH-Keys:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.savedSSHKeys")), 0, row);
         connectionGrid.add(savedSSHKeysCombo, 1, row++);
         
-        connectionGrid.add(new Label("Schlüsseldatei:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.keyFile")), 0, row);
         connectionGrid.add(keyPathBox, 1, row++);
         
-        connectionGrid.add(new Label("Passphrase:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.passphrase")), 0, row);
         connectionGrid.add(keyPassphraseField, 1, row++);
         
         // Temporary SSH Key section
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
-        connectionGrid.add(new Label("Temporärer SSH-Key:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.tempKey")), 0, row);
         VBox tempKeyBox = new VBox(5);
         tempKeyBox.getChildren().add(temporaryKeyArea);
-        Button updateTempKeyButton = new Button("Key aktualisieren");
-        updateTempKeyButton.setTooltip(new Tooltip("Aktualisiert den temporären SSH-Key ohne erneute Verbindung. " +
-            "Der neue Key wird sofort für SFTP und weitere Verbindungen verwendet."));
+        Button updateTempKeyButton = new Button(I18n.get("quickConnect.updateTempKey"));
+        updateTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.updateTempKey.tooltip")));
         updateTempKeyButton.setOnAction(e -> {
             if (temporaryKeyAuthRadio.isSelected() && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
                 long expirationMinutes = temporaryKeyExpirationSpinner.getValue();
@@ -365,9 +363,9 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         tempKeyBox.getChildren().add(updateTempKeyButton);
         connectionGrid.add(tempKeyBox, 1, row++);
         
-        connectionGrid.add(new Label("Ablaufzeit:"), 0, row);
+        connectionGrid.add(new Label(I18n.get("connEdit.expiration")), 0, row);
         HBox expirationBox = new HBox(10);
-        expirationBox.getChildren().addAll(temporaryKeyExpirationSpinner, new Label("Minuten"));
+        expirationBox.getChildren().addAll(temporaryKeyExpirationSpinner, new Label(I18n.get("quickConnect.expirationMinutes")));
         connectionGrid.add(expirationBox, 1, row++);
         
         connectionGrid.add(new Label(""), 0, row);
@@ -394,7 +392,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         getDialogPane().setContent(tabPane);
         
         // Buttons
-        ButtonType saveButtonType = new ButtonType("Speichern", ButtonBar.ButtonData.OK_DONE);
+        ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
         
         // Validation
@@ -579,14 +577,14 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     }
     
     private Tab createSettingsTab() {
-        Tab tab = new Tab("Terminal-Einstellungen");
+        Tab tab = new Tab(I18n.get("connEdit.tab.settings"));
         tab.setClosable(false);
         
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
         
         // Use custom settings checkbox
-        useCustomSettingsCheck = new CheckBox("Spezifische Einstellungen für diese Verbindung verwenden");
+        useCustomSettingsCheck = new CheckBox(I18n.get("connEdit.useCustomSettings"));
         ConnectionSettings connSettings = connection.getSettings();
         useCustomSettingsCheck.setSelected(connSettings != null);
         
@@ -614,23 +612,23 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 Color.web(connSettings.getBackgroundColor()) : Color.BLACK);
         
         // Close without confirmation
-        closeWithoutConfirmCheck = new CheckBox("Tab ohne Nachfrage schließen");
+        closeWithoutConfirmCheck = new CheckBox(I18n.get("connEdit.closeWithoutConfirm"));
         closeWithoutConfirmCheck.setSelected(connSettings != null && connSettings.isCloseWithoutConfirmation());
         
         // Layout
         int row = 0;
-        settingsGrid.add(new Label("Schriftart:"), 0, row);
+        settingsGrid.add(new Label(I18n.get("settings.font.family")), 0, row);
         settingsGrid.add(fontFamilyCombo, 1, row++);
         
-        settingsGrid.add(new Label("Schriftgröße:"), 0, row);
+        settingsGrid.add(new Label(I18n.get("settings.font.size")), 0, row);
         settingsGrid.add(fontSizeSpinner, 1, row++);
         
         settingsGrid.add(new Separator(), 0, row++, 2, 1);
         
-        settingsGrid.add(new Label("Textfarbe:"), 0, row);
+        settingsGrid.add(new Label(I18n.get("settings.colors.foreground")), 0, row);
         settingsGrid.add(foregroundColorPicker, 1, row++);
         
-        settingsGrid.add(new Label("Hintergrundfarbe:"), 0, row);
+        settingsGrid.add(new Label(I18n.get("connEdit.backgroundColor")), 0, row);
         settingsGrid.add(backgroundColorPicker, 1, row++);
         
         settingsGrid.add(new Separator(), 0, row++, 2, 1);
@@ -644,7 +642,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         vbox.getChildren().addAll(
                 useCustomSettingsCheck,
-                new Label("Diese Einstellungen überschreiben die globalen Einstellungen nur für diese Verbindung."),
+                new Label(I18n.get("connEdit.customSettingsInfo")),
                 settingsGrid
         );
         
@@ -654,7 +652,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     private void browseForKey() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Privaten Schlüssel auswählen");
+        fileChooser.setTitle(I18n.get("connEdit.selectPrivateKey"));
         
         // Start in .ssh directory if it exists
         File sshDir = new File(System.getProperty("user.home"), ".ssh");
@@ -663,9 +661,9 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         }
         
         fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Alle Dateien", "*.*"),
-                new FileChooser.ExtensionFilter("PEM Dateien", "*.pem"),
-                new FileChooser.ExtensionFilter("Private Keys", "id_rsa", "id_ed25519", "id_ecdsa")
+                new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*"),
+                new FileChooser.ExtensionFilter(I18n.get("connEdit.pemFiles"), "*.pem"),
+                new FileChooser.ExtensionFilter(I18n.get("connEdit.privateKeys"), "id_rsa", "id_ed25519", "id_ecdsa")
         );
         
         File file = fileChooser.showOpenDialog(getDialogPane().getScene().getWindow());
@@ -684,18 +682,18 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
 
     
     private Tab createTunnelsTab() {
-        Tab tab = new Tab("SSH-Tunnel");
+        Tab tab = new Tab(I18n.get("connEdit.tab.tunnels"));
         tab.setClosable(false);
         
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
         
         // Enable tunnel checkbox
-        enableTunnelsCheck = new CheckBox("SSH-Tunnel aktivieren");
+        enableTunnelsCheck = new CheckBox(I18n.get("connEdit.enableTunnels"));
         enableTunnelsCheck.setSelected(!connection.getSshTunnels().isEmpty());
         
         // Tunnel list with better display
-        Label label = new Label("Konfigurierte Tunnel:");
+        Label label = new Label(I18n.get("connEdit.configuredTunnels"));
         ListView<de.kortty.model.SSHTunnel> tunnelList = new ListView<>();
         tunnelList.setCellFactory(lv -> new ListCell<de.kortty.model.SSHTunnel>() {
             @Override
@@ -726,9 +724,9 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         // Buttons for add/edit/remove
         HBox buttonBox = new HBox(10);
-        Button addButton = new Button("Hinzufügen");
-        Button editButton = new Button("Bearbeiten");
-        Button removeButton = new Button("Entfernen");
+        Button addButton = new Button(I18n.get("dialog.add"));
+        Button editButton = new Button(I18n.get("dialog.edit"));
+        Button removeButton = new Button(I18n.get("connEdit.remove"));
         
         addButton.setOnAction(e -> {
             TunnelEditDialog dialog = new TunnelEditDialog((Stage) getDialogPane().getScene().getWindow(), null);
@@ -774,9 +772,9 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             de.kortty.model.SSHTunnel selected = tunnelList.getSelectionModel().getSelectedItem();
             if (selected != null) {
                 Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-                confirm.setTitle("Tunnel entfernen");
-                confirm.setHeaderText("Tunnel wirklich entfernen?");
-                confirm.setContentText("Der Tunnel wird dauerhaft gelöscht.");
+                confirm.setTitle(I18n.get("connEdit.removeTunnel.title"));
+                confirm.setHeaderText(I18n.get("connEdit.removeTunnel.header"));
+                confirm.setContentText(I18n.get("connEdit.removeTunnel.content"));
                 
                 confirm.showAndWait().ifPresent(buttonType -> {
                     if (buttonType == ButtonType.OK) {
@@ -794,10 +792,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         buttonBox.getChildren().addAll(addButton, editButton, removeButton);
         
-        Label infoLabel = new Label("SSH-Tunnel ermöglichen Port-Forwarding durch den SSH-Server.\n" +
-                "Local (-L): Lokaler Port wird zu Remote-Host:Port weitergeleitet\n" +
-                "Remote (-R): Remote-Port wird zu lokalem Host:Port weitergeleitet\n" +
-                "Dynamic (-D): Erstellt einen SOCKS-Proxy auf lokalem Port");
+        Label infoLabel = new Label(I18n.get("connEdit.tunnelInfo"));
         infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         
@@ -809,14 +804,14 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     }
     
     private Tab createJumpServerTab() {
-        Tab tab = new Tab("Jump Server");
+        Tab tab = new Tab(I18n.get("connEdit.tab.jumpServer"));
         tab.setClosable(false);
         
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
         
         // Enable jump server checkbox
-        enableJumpCheck = new CheckBox("Jump Server / Auto-Hop aktivieren");
+        enableJumpCheck = new CheckBox(I18n.get("connEdit.enableJump"));
         de.kortty.model.JumpServer jumpServer = connection.getJumpServer();
         enableJumpCheck.setSelected(jumpServer != null && jumpServer.isEnabled());
         
@@ -827,7 +822,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         grid.setDisable(jumpServer == null || !jumpServer.isEnabled());
         
         TextField jumpHostField = new TextField();
-        jumpHostField.setPromptText("Jump-Server Hostname");
+        jumpHostField.setPromptText(I18n.get("connEdit.jumpHostPrompt"));
         if (jumpServer != null) jumpHostField.setText(jumpServer.getHost());
         
         Spinner<Integer> jumpPortSpinner = new Spinner<>(1, 65535, jumpServer != null ? jumpServer.getPort() : 22);
@@ -835,37 +830,36 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         jumpPortSpinner.setPrefWidth(80);
         
         TextField jumpUserField = new TextField();
-        jumpUserField.setPromptText("Benutzername");
+        jumpUserField.setPromptText(I18n.get("common.username"));
         if (jumpServer != null) jumpUserField.setText(jumpServer.getUsername());
         
         PasswordField jumpPasswordField = new PasswordField();
-        jumpPasswordField.setPromptText("Passwort (optional)");
+        jumpPasswordField.setPromptText(I18n.get("connEdit.passwordOptional"));
         
         TextField autoCommandField = new TextField();
-        autoCommandField.setPromptText("z.B. ssh user@final-host");
+        autoCommandField.setPromptText(I18n.get("connEdit.autoCommandPrompt"));
         if (jumpServer != null) autoCommandField.setText(jumpServer.getAutoCommand());
         
         int row = 0;
-        grid.add(new Label("Jump-Server Host:"), 0, row);
+        grid.add(new Label(I18n.get("connEdit.jumpHost")), 0, row);
         HBox hostBox = new HBox(10);
-        hostBox.getChildren().addAll(jumpHostField, new Label("Port:"), jumpPortSpinner);
+        hostBox.getChildren().addAll(jumpHostField, new Label(I18n.get("common.port") + ":"), jumpPortSpinner);
         grid.add(hostBox, 1, row++);
         
-        grid.add(new Label("Benutzer:"), 0, row);
+        grid.add(new Label(I18n.get("common.username") + ":"), 0, row);
         grid.add(jumpUserField, 1, row++);
         
-        grid.add(new Label("Passwort:"), 0, row);
+        grid.add(new Label(I18n.get("common.password") + ":"), 0, row);
         grid.add(jumpPasswordField, 1, row++);
         
-        grid.add(new Label("Auto-Befehl:"), 0, row);
+        grid.add(new Label(I18n.get("connEdit.autoCommand")), 0, row);
         grid.add(autoCommandField, 1, row++);
         
         enableJumpCheck.selectedProperty().addListener((obs, old, newVal) -> {
             grid.setDisable(!newVal);
         });
         
-        Label infoLabel = new Label("Jump Server ermöglicht das automatische Hopping über einen Bastion-Host.\n" +
-                "Der Auto-Befehl wird nach dem Login auf dem Jump-Server ausgeführt.");
+        Label infoLabel = new Label(I18n.get("connEdit.jumpInfo"));
         infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         
@@ -876,14 +870,14 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     }
     
     private Tab createLoggingTab() {
-        Tab tab = new Tab("Terminal-Logging");
+        Tab tab = new Tab(I18n.get("connEdit.tab.logging"));
         tab.setClosable(false);
         
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
         
         // Enable logging checkbox
-        enableLoggingCheck = new CheckBox("Terminal-Ausgabe in Datei protokollieren");
+        enableLoggingCheck = new CheckBox(I18n.get("connEdit.enableLogging"));
         de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
         enableLoggingCheck.setSelected(logConfig != null && logConfig.isEnabled());
         
@@ -901,7 +895,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             logFilePathField.setText(logConfig.getLogFilePath());
         }
         
-        Button browseLogButton = new Button("Durchsuchen...");
+        Button browseLogButton = new Button(I18n.get("connEdit.browse"));
         browseLogButton.setOnAction(e -> browseForLogFile());
         
         // Max file size
@@ -917,17 +911,17 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         // Layout
         int row = 0;
-        grid.add(new Label("Log-Datei:"), 0, row);
+        grid.add(new Label(I18n.get("connEdit.logFile")), 0, row);
         HBox logPathBox = new HBox(10);
         logPathBox.getChildren().addAll(logFilePathField, browseLogButton);
         grid.add(logPathBox, 1, row++);
         
-        grid.add(new Label("Max. Dateigröße:"), 0, row);
+        grid.add(new Label(I18n.get("connEdit.maxFileSize")), 0, row);
         HBox sizeBox = new HBox(10);
         sizeBox.getChildren().addAll(maxFileSizeMBSpinner, new Label("MB"));
         grid.add(sizeBox, 1, row++);
         
-        grid.add(new Label("Format:"), 0, row);
+        grid.add(new Label(I18n.get("connEdit.format")), 0, row);
         grid.add(logFormatCombo, 1, row++);
         
         // Enable/disable grid based on checkbox
@@ -935,13 +929,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             grid.setDisable(!newVal);
         });
         
-        Label infoLabel = new Label(
-                "Terminal-Logging protokolliert die komplette Terminal-Ausgabe in eine Datei.\n\n" +
-                "• Plain Text: Einfaches Textformat mit Zeitstempeln\n" +
-                "• XML: Strukturiertes XML-Format\n" +
-                "• JSON: Maschinenlesbares JSON-Format\n\n" +
-                "Wenn die maximale Dateigröße erreicht ist, wird die Datei gelöscht und neu begonnen.\n" +
-                "Alle ANSI-Escape-Sequenzen und Nicht-ASCII-Zeichen werden entfernt.");
+        Label infoLabel = new Label(I18n.get("connEdit.loggingInfo"));
         infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         
@@ -953,7 +941,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     private void browseForLogFile() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Log-Datei auswählen");
+        fileChooser.setTitle(I18n.get("connEdit.selectLogFile"));
         
         // Start in user home
         File homeDir = new File(System.getProperty("user.home"));
@@ -966,8 +954,8 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         fileChooser.setInitialFileName(suggestedName);
         
         fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Log Dateien", "*.log", "*.txt", "*.xml", "*.json"),
-                new FileChooser.ExtensionFilter("Alle Dateien", "*.*")
+                new FileChooser.ExtensionFilter(I18n.get("connEdit.logFiles"), "*.log", "*.txt", "*.xml", "*.json"),
+                new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*")
         );
         
         File file = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
@@ -997,20 +985,19 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     }
     
     private Tab createGeometryTab() {
-        Tab tab = new Tab("Fenstergeometrie");
+        Tab tab = new Tab(I18n.get("connEdit.tab.geometry"));
         tab.setClosable(false);
         
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
         
         // Use custom geometry checkbox
-        useCustomGeometryCheck = new CheckBox("Spezifische Fenstergeometrie für diese Verbindung verwenden");
+        useCustomGeometryCheck = new CheckBox(I18n.get("connEdit.useCustomGeometry"));
         WindowGeometry connGeo = connection.getWindowGeometry();
         useCustomGeometryCheck.setSelected(connGeo != null);
         
         Label infoLabel = new Label(
-            "Wenn aktiviert, wird das Terminal-Fenster für diese Verbindung immer mit der angegebenen Größe und Position geöffnet.\n" +
-            "Ansonsten werden die globalen Einstellungen verwendet."
+            I18n.get("connEdit.geometryInfo")
         );
         infoLabel.setWrapText(true);
         infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
@@ -1030,7 +1017,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         int row = 0;
         
         // Width and Height
-        Label sizeLabel = new Label("Fenstergröße:");
+        Label sizeLabel = new Label(I18n.get("connEdit.windowSize"));
         customWidthSpinner = new Spinner<>(400, 4000, currentWidth);
         customWidthSpinner.setEditable(true);
         customWidthSpinner.setPrefWidth(100);
@@ -1042,13 +1029,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         customHeightSpinner.setDisable(!useCustomGeometryCheck.isSelected());
         
         HBox sizeBox = new HBox(10);
-        sizeBox.getChildren().addAll(new Label("Breite:"), customWidthSpinner, new Label("Höhe:"), customHeightSpinner, new Label("px"));
+        sizeBox.getChildren().addAll(new Label(I18n.get("settings.window.fixedWidth")), customWidthSpinner, new Label(I18n.get("settings.window.fixedHeight")), customHeightSpinner, new Label("px"));
         
         grid.add(sizeLabel, 0, row);
         grid.add(sizeBox, 1, row++);
         
         // Position
-        Label posLabel = new Label("Fensterposition:");
+        Label posLabel = new Label(I18n.get("connEdit.windowPosition"));
         customXSpinner = new Spinner<>(0, 5000, currentX);
         customXSpinner.setEditable(true);
         customXSpinner.setPrefWidth(100);
@@ -1066,7 +1053,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         grid.add(posBox, 1, row++);
         
         // Maximized checkbox
-        maximizedCheck = new CheckBox("Fenster maximiert öffnen");
+        maximizedCheck = new CheckBox(I18n.get("connEdit.openMaximized"));
         maximizedCheck.setSelected(isMaximized);
         maximizedCheck.setDisable(!useCustomGeometryCheck.isSelected());
         grid.add(maximizedCheck, 1, row++);

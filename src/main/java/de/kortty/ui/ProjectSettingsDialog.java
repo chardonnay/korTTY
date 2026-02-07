@@ -22,7 +22,7 @@ public class ProjectSettingsDialog extends Dialog<Project> {
     public ProjectSettingsDialog(Stage owner, Project project) {
         this.project = project;
         
-        setTitle("Projekt-Einstellungen");
+        setTitle(I18n.get("project.settings"));
         setHeaderText(null);
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
@@ -40,13 +40,13 @@ public class ProjectSettingsDialog extends Dialog<Project> {
         descriptionField.setPrefRowCount(3);
         descriptionField.setWrapText(true);
         
-        autoReconnectCheck = new CheckBox("Verbindungen beim Öffnen automatisch wiederherstellen");
+        autoReconnectCheck = new CheckBox(I18n.get("project.autoReconnect"));
         autoReconnectCheck.setSelected(project.isAutoReconnect());
         
-        grid.add(new Label("Projektname:"), 0, 0);
+        grid.add(new Label(I18n.get("project.nameLabel")), 0, 0);
         grid.add(nameField, 1, 0);
         
-        grid.add(new Label("Beschreibung:"), 0, 1);
+        grid.add(new Label(I18n.get("common.description") + ":"), 0, 1);
         grid.add(descriptionField, 1, 1);
         
         grid.add(autoReconnectCheck, 0, 2, 2, 1);
@@ -55,13 +55,13 @@ public class ProjectSettingsDialog extends Dialog<Project> {
         VBox infoBox = new VBox(5);
         infoBox.setPadding(new Insets(10, 0, 0, 0));
         
-        Label windowsLabel = new Label("Fenster: " + project.getWindows().size());
+        Label windowsLabel = new Label(I18n.get("project.windows") + ": " + project.getWindows().size());
         
         // Count tabs (actual tab entries in the tab bar)
         int totalTabs = project.getWindows().stream()
                 .mapToInt(w -> w.getTabs().size())
                 .sum();
-        Label tabsLabel = new Label("Tabs: " + totalTabs);
+        Label tabsLabel = new Label(I18n.get("project.tabs") + ": " + totalTabs);
         
         // Count total terminal sessions including splits
         int totalTerminals = project.getWindows().stream()
@@ -74,7 +74,7 @@ public class ProjectSettingsDialog extends Dialog<Project> {
         
         // Only show terminal count if it differs from tab count (i.e., there are splits)
         if (totalTerminals > totalTabs) {
-            Label terminalsLabel = new Label("Terminals (inkl. Splits): " + totalTerminals);
+            Label terminalsLabel = new Label(I18n.get("project.terminalsInclSplits") + ": " + totalTerminals);
             infoBox.getChildren().addAll(new Separator(), windowsLabel, tabsLabel, terminalsLabel);
         } else {
             infoBox.getChildren().addAll(new Separator(), windowsLabel, tabsLabel);
@@ -84,7 +84,7 @@ public class ProjectSettingsDialog extends Dialog<Project> {
         getDialogPane().setContent(content);
         
         // Buttons
-        ButtonType saveButtonType = new ButtonType("Speichern", ButtonBar.ButtonData.OK_DONE);
+        ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
         
         // Validation

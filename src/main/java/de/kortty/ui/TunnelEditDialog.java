@@ -29,8 +29,8 @@ public class TunnelEditDialog extends Dialog<SSHTunnel> {
         this.tunnel = tunnel != null ? tunnel : new SSHTunnel();
         this.isNew = tunnel == null;
         
-        setTitle(isNew ? "SSH-Tunnel hinzufügen" : "SSH-Tunnel bearbeiten");
-        setHeaderText(isNew ? "Neuen SSH-Tunnel konfigurieren" : "SSH-Tunnel bearbeiten");
+        setTitle(isNew ? I18n.get("tunnel.addTitle") : I18n.get("tunnel.editTitle"));
+        setHeaderText(isNew ? I18n.get("tunnel.addHeader") : I18n.get("tunnel.editHeader"));
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         setResizable(false);
@@ -43,12 +43,12 @@ public class TunnelEditDialog extends Dialog<SSHTunnel> {
         int row = 0;
         
         // Enabled checkbox
-        enabledCheck = new CheckBox("Tunnel aktivieren");
+        enabledCheck = new CheckBox(I18n.get("tunnel.enable"));
         enabledCheck.setSelected(this.tunnel.isEnabled());
         grid.add(enabledCheck, 0, row++, 2, 1);
         
         // Tunnel type
-        Label typeLabel = new Label("Typ:");
+        Label typeLabel = new Label(I18n.get("tunnel.type"));
         typeCombo = new ComboBox<>();
         typeCombo.getItems().addAll(TunnelType.values());
         typeCombo.setValue(this.tunnel.getType());
@@ -67,7 +67,7 @@ public class TunnelEditDialog extends Dialog<SSHTunnel> {
         localHostField.setPromptText("localhost");
         localHostField.setPrefWidth(200);
         
-        Label localHostLabel = new Label("Lokaler Host:");
+        Label localHostLabel = new Label(I18n.get("tunnel.localHost"));
         grid.add(localHostLabel, 0, row);
         grid.add(localHostField, 1, row++);
         
@@ -76,7 +76,7 @@ public class TunnelEditDialog extends Dialog<SSHTunnel> {
         localPortSpinner.setEditable(true);
         localPortSpinner.setPrefWidth(200);
         
-        Label localPortLabel = new Label("Lokaler Port:");
+        Label localPortLabel = new Label(I18n.get("tunnel.localPort"));
         grid.add(localPortLabel, 0, row);
         grid.add(localPortSpinner, 1, row++);
         
@@ -85,7 +85,7 @@ public class TunnelEditDialog extends Dialog<SSHTunnel> {
         remoteHostField.setPromptText("localhost");
         remoteHostField.setPrefWidth(200);
         
-        Label remoteHostLabel = new Label("Remote Host:");
+        Label remoteHostLabel = new Label(I18n.get("tunnel.remoteHost"));
         grid.add(remoteHostLabel, 0, row);
         grid.add(remoteHostField, 1, row++);
         
@@ -94,14 +94,14 @@ public class TunnelEditDialog extends Dialog<SSHTunnel> {
         remotePortSpinner.setEditable(true);
         remotePortSpinner.setPrefWidth(200);
         
-        Label remotePortLabel = new Label("Remote Port:");
+        Label remotePortLabel = new Label(I18n.get("tunnel.remotePort"));
         grid.add(remotePortLabel, 0, row);
         grid.add(remotePortSpinner, 1, row++);
         
         // Description
-        Label descLabel = new Label("Beschreibung:");
+        Label descLabel = new Label(I18n.get("common.description") + ":");
         descriptionField = new TextField(this.tunnel.getDescription());
-        descriptionField.setPromptText("Optionale Beschreibung");
+        descriptionField.setPromptText(I18n.get("tunnel.descriptionPrompt"));
         descriptionField.setPrefWidth(200);
         
         grid.add(descLabel, 0, row);
@@ -124,7 +124,7 @@ public class TunnelEditDialog extends Dialog<SSHTunnel> {
         getDialogPane().setContent(content);
         
         // Buttons
-        ButtonType saveButtonType = new ButtonType("Speichern", ButtonBar.ButtonData.OK_DONE);
+        ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
         
         Button saveButton = (Button) getDialogPane().lookupButton(saveButtonType);
@@ -184,19 +184,6 @@ public class TunnelEditDialog extends Dialog<SSHTunnel> {
     }
     
     private void updateInfoLabel(TunnelType type, Label infoLabel) {
-        switch (type) {
-            case LOCAL:
-                infoLabel.setText("Local Port Forwarding (-L): Leitet lokalen Port zu Remote-Host:Port weiter.\n" +
-                                 "Beispiel: localhost:8080 -> remote.host:80");
-                break;
-            case REMOTE:
-                infoLabel.setText("Remote Port Forwarding (-R): Leitet Remote-Port zu lokalem Host:Port weiter.\n" +
-                                 "Beispiel: remote.host:9090 -> localhost:8080");
-                break;
-            case DYNAMIC:
-                infoLabel.setText("Dynamic Port Forwarding (-D): Erstellt einen SOCKS-Proxy auf lokalem Port.\n" +
-                                 "Beispiel: SOCKS-Proxy auf localhost:1080");
-                break;
-        }
+        infoLabel.setText(I18n.get("tunnel.info"));
     }
 }

@@ -31,8 +31,8 @@ public class CredentialEditDialog extends Dialog<CredentialResult> {
     private final TextArea descriptionField;
     
     public CredentialEditDialog(StoredCredential existingCredential) {
-        setTitle(existingCredential == null ? "Zugangsdaten hinzufügen" : "Zugangsdaten bearbeiten");
-        setHeaderText(existingCredential == null ? "Neue Zugangsdaten hinzufügen" : "Zugangsdaten bearbeiten");
+        setTitle(existingCredential == null ? I18n.get("credential.edit.addTitle") : I18n.get("credential.edit.editTitle"));
+        setHeaderText(existingCredential == null ? I18n.get("credential.edit.addHeader") : I18n.get("credential.edit.editHeader"));
         
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -41,23 +41,23 @@ public class CredentialEditDialog extends Dialog<CredentialResult> {
         grid.setPrefWidth(500);
         
         nameField = new TextField();
-        nameField.setPromptText("z.B. 'Production Database'");
+        nameField.setPromptText(I18n.get("credential.edit.namePrompt"));
         
         usernameField = new TextField();
-        usernameField.setPromptText("Benutzername");
+        usernameField.setPromptText(I18n.get("credential.edit.usernamePrompt"));
         
         passwordField = new PasswordField();
-        passwordField.setPromptText("Passwort");
+        passwordField.setPromptText(I18n.get("credential.edit.passwordPrompt"));
         
         environmentCombo = new ComboBox<>();
         environmentCombo.getItems().addAll(StoredCredential.Environment.values());
         environmentCombo.setValue(StoredCredential.Environment.PRODUCTION);
         
         serverPatternField = new TextField();
-        serverPatternField.setPromptText("z.B. '*.example.com' oder '10.0.0.*' (leer = alle Server)");
+        serverPatternField.setPromptText(I18n.get("credential.edit.serverPatternPrompt"));
         
         descriptionField = new TextArea();
-        descriptionField.setPromptText("Optionale Beschreibung");
+        descriptionField.setPromptText(I18n.get("credential.edit.descriptionPrompt"));
         descriptionField.setPrefRowCount(3);
         
         // Fill existing values
@@ -75,22 +75,22 @@ public class CredentialEditDialog extends Dialog<CredentialResult> {
         }
         
         int row = 0;
-        grid.add(new Label("Name:"), 0, row);
+        grid.add(new Label(I18n.get("common.name") + ":"), 0, row);
         grid.add(nameField, 1, row++);
         
-        grid.add(new Label("Benutzername:"), 0, row);
+        grid.add(new Label(I18n.get("common.username") + ":"), 0, row);
         grid.add(usernameField, 1, row++);
         
-        grid.add(new Label("Passwort:"), 0, row);
+        grid.add(new Label(I18n.get("common.password") + ":"), 0, row);
         grid.add(passwordField, 1, row++);
         
-        grid.add(new Label("Umgebung:"), 0, row);
+        grid.add(new Label(I18n.get("credential.edit.environment")), 0, row);
         grid.add(environmentCombo, 1, row++);
         
-        grid.add(new Label("Server-Muster:"), 0, row);
+        grid.add(new Label(I18n.get("credential.edit.serverPattern")), 0, row);
         grid.add(serverPatternField, 1, row++);
         
-        grid.add(new Label("Beschreibung:"), 0, row);
+        grid.add(new Label(I18n.get("common.description") + ":"), 0, row);
         grid.add(descriptionField, 1, row++);
         
         getDialogPane().setContent(grid);

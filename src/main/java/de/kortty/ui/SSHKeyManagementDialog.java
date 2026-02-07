@@ -34,8 +34,8 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
         
-        setTitle("SSH-Key-Verwaltung");
-        setHeaderText("Verwalten Sie Ihre privaten SSH-Keys");
+        setTitle(I18n.get("ssh.title"));
+        setHeaderText(I18n.get("ssh.header"));
         
         VBox content = new VBox(15);
         content.setPadding(new Insets(20));
@@ -45,9 +45,9 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         // Search field
         HBox searchBox = new HBox(10);
         searchField = new TextField();
-        searchField.setPromptText("Suchen nach Name oder Pfad... (* als Wildcard)");
+        searchField.setPromptText(I18n.get("ssh.searchPrompt"));
         searchField.setPrefWidth(300);
-        Label searchLabel = new Label("Suchen:");
+        Label searchLabel = new Label(I18n.get("ssh.search"));
         searchBox.getChildren().addAll(searchLabel, searchField);
         HBox.setHgrow(searchField, Priority.ALWAYS);
         
@@ -122,7 +122,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
             }
         });
         
-        Label listLabel = new Label("Gespeicherte SSH-Keys:");
+        Label listLabel = new Label(I18n.get("ssh.storedKeys"));
         
         keyListView = new ListView<>(filteredKeys);
         keyListView.setCellFactory(lv -> new ListCell<SSHKey>() {
@@ -133,7 +133,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
                     setText(null);
                 } else {
                     String pathInfo = key.isCopiedToUserDir() ? 
-                        " [Kopiert]" : " [" + key.getKeyPath() + "]";
+                        " " + I18n.get("ssh.copied") : " [" + key.getKeyPath() + "]";
                     String desc = key.getDescription() != null && !key.getDescription().isEmpty() ?
                         " - " + key.getDescription() : "";
                     setText(key.getName() + desc + pathInfo);
@@ -189,6 +189,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
     
     private void addKey() {
         SSHKeyEditDialog dialog = new SSHKeyEditDialog(null, sshKeyManager, masterPassword);
+        dialog.initOwner(getDialogPane().getScene().getWindow());
         dialog.showAndWait().ifPresent(result -> {
             sshKeyManager.addKey(result.key);
             if (result.passphrase != null) {
@@ -207,6 +208,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         SSHKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             SSHKeyEditDialog dialog = new SSHKeyEditDialog(selected, sshKeyManager, masterPassword);
+            dialog.initOwner(getDialogPane().getScene().getWindow());
             dialog.showAndWait().ifPresent(result -> {
                 sshKeyManager.updateKey(result.key);
                 if (result.passphrase != null) {
@@ -226,6 +228,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         SSHKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.initOwner(getDialogPane().getScene().getWindow());
             confirm.setTitle(I18n.get("ssh.deleteConfirm.title"));
             confirm.setHeaderText(I18n.get("ssh.deleteConfirm.header"));
             confirm.setContentText(I18n.get("ssh.deleteConfirm.content", selected.getName()));
@@ -246,7 +249,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
                 sshKeyManager.copyKeyToUserDir(selected);
                 sshKeyManager.save();
                 refreshKeyList();
-                showInfo("Erfolg", "SSH-Key wurde ins User-Verzeichnis kopiert.");
+                showInfo(I18n.get("ssh.copySuccess.title"), I18n.get("ssh.copySuccess.message"));
             } catch (Exception e) {
                 logger.error("Failed to copy key to user directory", e);
                 showError(I18n.get("error.title"), "Key could not be copied: " + e.getMessage());
@@ -256,6 +259,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
     
     private void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.initOwner(getDialogPane().getScene().getWindow());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
@@ -264,6 +268,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
     
     private void showInfo(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.initOwner(getDialogPane().getScene().getWindow());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
@@ -327,12 +332,12 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
             grid.add(nameField, 1, row++);
             
             keyPathField = new TextField(existingKey != null ? existingKey.getKeyPath() : "");
-            keyPathField.setPromptText("Pfad zum privaten SSH-Key");
+            keyPathField.setPromptText(I18n.get("ssh.edit.keyPathPrompt"));
             browseButton = new Button("...");
             browseButton.setOnAction(e -> browseForKey());
             HBox keyPathBox = new HBox(5, keyPathField, browseButton);
             HBox.setHgrow(keyPathField, Priority.ALWAYS);
-            grid.add(new Label("Key-Pfad:"), 0, row);
+            grid.add(new Label(I18n.get("ssh.edit.keyPath")), 0, row);
             grid.add(keyPathBox, 1, row++);
             
             passphraseField = new PasswordField();
@@ -347,13 +352,13 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
                     logger.error("Failed to decrypt passphrase", e);
                 }
             }
-            grid.add(new Label("Passphrase:"), 0, row);
+            grid.add(new Label(I18n.get("ssh.edit.passphrase")), 0, row);
             grid.add(passphraseField, 1, row++);
             
             descriptionArea = new TextArea(existingKey != null ? existingKey.getDescription() : "");
-            descriptionArea.setPromptText("Beschreibung (optional)");
+            descriptionArea.setPromptText(I18n.get("ssh.edit.descriptionPrompt"));
             descriptionArea.setPrefRowCount(3);
-            grid.add(new Label("Beschreibung:"), 0, row);
+            grid.add(new Label(I18n.get("ssh.edit.description")), 0, row);
             grid.add(descriptionArea, 1, row++);
             
             getDialogPane().setContent(grid);

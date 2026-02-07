@@ -25,14 +25,14 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         this.credentialListView = new ListView<>();
         
         setTitle(I18n.get("menu.management.credentials"));
-        setHeaderText("Manage environment-specific credentials");
+        setHeaderText(I18n.get("credential.header"));
         
         VBox content = new VBox(15);
         content.setPadding(new Insets(20));
         content.setPrefWidth(750);
         content.setPrefHeight(550);
         
-        Label listLabel = new Label("Stored Credentials:");
+        Label listLabel = new Label(I18n.get("credential.storedCredentials"));
         
         credentialListView.setCellFactory(lv -> new ListCell<StoredCredential>() {
             @Override
@@ -42,7 +42,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
                     setText(null);
                 } else {
                     String serverInfo = cred.getServerPattern() != null ? 
-                        " [" + cred.getServerPattern() + "]" : " [Alle Server]";
+                        " [" + cred.getServerPattern() + "]" : " [" + I18n.get("credential.allServers") + "]";
                     setText(String.format("%s - %s @ %s%s",
                         cred.getName(),
                         cred.getUsername(),
@@ -68,11 +68,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         
         buttonBox.getChildren().addAll(addButton, editButton, removeButton);
         
-        Label infoLabel = new Label(
-            "Credentials can be stored environment-specifically (Production, Development, Test, Staging) and\n" +
-            "server-specifically (via patterns like '*.example.com' or '10.0.0.*').\n" +
-            "These can later be selected in connection settings."
-        );
+        Label infoLabel = new Label(I18n.get("credential.info"));
         infoLabel.setWrapText(true);
         infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         
@@ -103,6 +99,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
     
     private void addCredential() {
         CredentialEditDialog dialog = new CredentialEditDialog(null);
+        dialog.initOwner(getDialogPane().getScene().getWindow());
         dialog.showAndWait().ifPresent(result -> {
             credentialManager.addCredential(result.credential);
             if (result.password != null) {
@@ -110,7 +107,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
                     credentialManager.setPassword(result.credential, result.password, masterPassword);
                 } catch (Exception e) {
                     logger.error("Failed to encrypt password", e);
-                    showError(I18n.get("error.title"), "Password could not be encrypted: " + e.getMessage());
+                    showError(I18n.get("error.title"), I18n.get("credential.passwordEncryptFailed", e.getMessage()));
                 }
             }
             refreshCredentialList();
@@ -121,6 +118,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         StoredCredential selected = credentialListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             CredentialEditDialog dialog = new CredentialEditDialog(selected);
+            dialog.initOwner(getDialogPane().getScene().getWindow());
             dialog.showAndWait().ifPresent(result -> {
                 credentialManager.updateCredential(result.credential);
                 if (result.password != null) {
@@ -128,7 +126,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
                         credentialManager.setPassword(result.credential, result.password, masterPassword);
                     } catch (Exception e) {
                         logger.error("Failed to encrypt password", e);
-                        showError(I18n.get("error.title"), "Password could not be encrypted: " + e.getMessage());
+                        showError(I18n.get("error.title"), I18n.get("credential.passwordEncryptFailed", e.getMessage()));
                     }
                 }
                 refreshCredentialList();
@@ -140,9 +138,10 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         StoredCredential selected = credentialListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Confirm Deletion");
-            confirm.setHeaderText("Delete Credential");
-            confirm.setContentText("Do you really want to delete '" + selected.getName() + "'?");
+            confirm.initOwner(getDialogPane().getScene().getWindow());
+            confirm.setTitle(I18n.get("credential.deleteConfirm.title"));
+            confirm.setHeaderText(I18n.get("credential.deleteConfirm.header"));
+            confirm.setContentText(I18n.get("credential.deleteConfirm.content", selected.getName()));
             
             confirm.showAndWait().ifPresent(response -> {
                 if (response == ButtonType.OK) {
@@ -155,6 +154,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
     
     private void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.initOwner(getDialogPane().getScene().getWindow());
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
