@@ -2,6 +2,7 @@ package com.techsenger.jeditermfx.ui.split;
 
 import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.ui.JediTermFxWidget;
+import com.techsenger.jeditermfx.ui.TerminalWidgetListener;
 import com.techsenger.jeditermfx.ui.settings.SettingsProvider;
 import javafx.application.Platform;
 import javafx.geometry.Orientation;
@@ -166,6 +167,21 @@ public class TerminalSplitPane extends StackPane {
                 focusedWidget = widget;
             }
         });
+        // Auto-close split when session ends (e.g. Ctrl+D / exit)
+        // Only closes the split pane if there is more than one widget;
+        // if it's the last widget, the tab-level disconnect handler takes care of closing.
+        widget.addListener(new TerminalWidgetListener() {
+            @Override
+            public void allSessionsClosed(com.techsenger.jeditermfx.ui.TerminalWidget w) {
+                Platform.runLater(() -> {
+                    if (rootCell != null && rootCell.countWidgets() > 1) {
+                        logger.info("Session closed in split widget, auto-closing split pane");
+                        closeSplit(widget);
+                    }
+                });
+            }
+        });
+        
         // Add split menu via right-click on the widget pane
         setupContextMenu(widget);
         
