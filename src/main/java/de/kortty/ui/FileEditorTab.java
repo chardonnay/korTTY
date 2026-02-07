@@ -1202,6 +1202,8 @@ public class FileEditorTab extends Tab {
             case DOCKERFILE -> checkCommandAvailable("hadolint") ? Optional.of("hadolint") : Optional.empty();
             case PUPPET -> checkCommandAvailable("puppet") ? Optional.of("puppet parser validate") : Optional.empty();
             case CFENGINE3 -> checkCommandAvailable("cf-promises") ? Optional.of("cf-promises --full-check") : Optional.empty();
+            case JINJA2 -> checkCommandAvailable("j2lint") ? Optional.of("j2lint")
+                : (checkCommandAvailable("djlint") ? Optional.of("djlint --lint") : Optional.empty());
             default -> Optional.empty();
         };
     }
