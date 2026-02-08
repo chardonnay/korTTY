@@ -23,7 +23,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name }}
-          submodules: recursive
+          submodules: false
+
+      - name: Init jeditermfx submodule (use origin/master if recorded ref missing)
+        run: |
+          git submodule update --init vendor/jeditermfx || true
+          if [ -d vendor/jeditermfx/.git ]; then
+            cd vendor/jeditermfx
+            git fetch origin
+            git checkout origin/master
+            cd ../..
+          fi
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
