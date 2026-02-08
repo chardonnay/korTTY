@@ -52,11 +52,7 @@ jobs:
       - name: Update build.gradle.kts with release version
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            pwsh -Command "$version = '${{ steps.version.outputs.version }}'; (Get-Content build.gradle.kts) -replace '(?m)^version = \".*\"', \"version = `\"$version`\"\" | Set-Content build.gradle.kts"
-          else
-            sed -i.bak "s/^version = \".*\"/version = \"${{ steps.version.outputs.version }}\"/" build.gradle.kts
-          fi
+          sed -i.bak "s/^version = \".*\"/version = \"${{ steps.version.outputs.version }}\"/" build.gradle.kts
 
       - name: Set Gradle command
         id: gradle
