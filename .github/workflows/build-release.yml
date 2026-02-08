@@ -9,6 +9,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       KORTTY_SKIP_SUBMODULE: "true"
+      ORG_GRADLE_PROJECT_skipJeditermfxSubmodule: "true"
     strategy:
       fail-fast: false
       matrix:
@@ -50,9 +51,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            pwsh -Command "$version = '${{ steps.version.outputs.version }}'; (Get-Content build.gradle.kts) -replace 'version = \".*\"', \"version = `\"$version`\"\" | Set-Content build.gradle.kts"
+            pwsh -Command "$version = '${{ steps.version.outputs.version }}'; (Get-Content build.gradle.kts) -replace '(?m)^version = \".*\"', \"version = `\"$version`\"\" | Set-Content build.gradle.kts"
           else
-            sed -i.bak "s/version = \".*\"/version = \"${{ steps.version.outputs.version }}\"/" build.gradle.kts
+            sed -i.bak "s/^version = \".*\"/version = \"${{ steps.version.outputs.version }}\"/" build.gradle.kts
           fi
 
       - name: Set Gradle command
