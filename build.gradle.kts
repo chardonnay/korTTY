@@ -29,12 +29,17 @@ repositories {
 // JediTermFX is integrated as a git submodule (vendor/jeditermfx).
 // The build will auto-init the submodule and install SNAPSHOTs into mavenLocal().
 val jeditermfxDir = rootProject.file("vendor/jeditermfx")
+val skipJeditermfxSubmodule = System.getenv("KORTTY_SKIP_SUBMODULE")?.equals("true", ignoreCase = true) == true
 
 abstract class InitJeditermfxTask : DefaultTask() {
     @get:javax.inject.Inject abstract val execOps: org.gradle.process.ExecOperations
 
     @org.gradle.api.tasks.TaskAction
     fun run() {
+        if (System.getenv("KORTTY_SKIP_SUBMODULE")?.equals("true", ignoreCase = true) == true) {
+            logger.lifecycle("Skipping jeditermfx submodule init due to KORTTY_SKIP_SUBMODULE=true")
+            return
+        }
         val jeditermfxDir = project.file("vendor/jeditermfx")
         // Try normal submodule update first
         val result = execOps.exec {
@@ -58,7 +63,7 @@ abstract class InitJeditermfxTask : DefaultTask() {
 
 tasks.register<InitJeditermfxTask>("initJeditermfxSubmodule") {
     description = "Initializes the JediTermFX submodule (if missing). Falls back to git clone if submodule ref is unavailable."
-    onlyIf { !jeditermfxDir.resolve("pom.xml").exists() }
+    onlyIf { !skipJeditermfxSubmodule && !jeditermfxDir.resolve("pom.xml").exists() }
 }
 
 tasks.register<Exec>("installJeditermfxLocal") {
