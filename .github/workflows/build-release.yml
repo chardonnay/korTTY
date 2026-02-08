@@ -25,15 +25,10 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
           submodules: false
 
-      - name: Init jeditermfx submodule (use origin/master if recorded ref missing)
+      - name: Clone JediTermFX for CI (avoids missing submodule ref)
         run: |
-          git submodule update --init vendor/jeditermfx || true
-          if [ -d vendor/jeditermfx/.git ]; then
-            cd vendor/jeditermfx
-            git fetch origin
-            git checkout origin/master
-            cd ../..
-          fi
+          rm -rf vendor/jeditermfx
+          git clone --depth 1 https://github.com/techsenger/jeditermfx.git vendor/jeditermfx
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
