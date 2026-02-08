@@ -896,7 +896,13 @@ public class TerminalView extends BorderPane {
     public void showFind() {
         JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
         if (focused != null) {
-            focused.showFindComponent();
+            try {
+                java.lang.reflect.Method m = focused.getClass().getDeclaredMethod("showFindComponent");
+                m.setAccessible(true);
+                m.invoke(focused);
+            } catch (Exception e) {
+                logger.warn("Could not invoke showFindComponent", e);
+            }
         }
     }
     
