@@ -58,11 +58,7 @@ jobs:
         id: gradle
         shell: bash
         run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            echo "cmd=gradlew.bat" >> $GITHUB_OUTPUT
-          else
-            echo "cmd=./gradlew" >> $GITHUB_OUTPUT
-          fi
+          echo "cmd=./gradlew" >> $GITHUB_OUTPUT
 
       - name: Grant execute permission for gradlew
         if: runner.os != 'Windows'
