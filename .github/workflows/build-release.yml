@@ -56,6 +56,7 @@ jobs:
 
       - name: Set Gradle command
         id: gradle
+        shell: bash
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
             echo "cmd=gradlew.bat" >> $GITHUB_OUTPUT

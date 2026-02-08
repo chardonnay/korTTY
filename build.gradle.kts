@@ -342,7 +342,6 @@ if (isLinux) {
         val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
         args.addAll(listOf(
             "--type", "app-image",
-            "--linux-package-name", appName.lowercase(),
             "--linux-shortcut",
             "--icon", iconFile.absolutePath
         ))
