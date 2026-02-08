@@ -685,17 +685,48 @@ public class FileEditorTab extends Tab {
         MenuItem deleteItem = new MenuItem(I18n.get("editor.context.delete"));
         deleteItem.setOnAction(e -> codeArea.replaceSelection(""));
         
+        contextMenu.getItems().addAll(cutItem, copyItem, pasteItem, deleteItem);
+        
+        MenuItem findItem = new MenuItem(I18n.get("editor.context.find"));
+        findItem.setOnAction(e -> showFind());
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        contextMenu.getItems().add(findItem);
+        
         MenuItem selectAllItem = new MenuItem(I18n.get("editor.context.selectAll"));
         selectAllItem.setOnAction(e -> codeArea.selectAll());
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        contextMenu.getItems().add(selectAllItem);
         
-        contextMenu.getItems().addAll(cutItem, copyItem, pasteItem, deleteItem, new SeparatorMenuItem(), selectAllItem);
+        // Whitespace visualization
+        CheckMenuItem whitespaceItem = new CheckMenuItem(I18n.get("editor.whitespace"));
+        whitespaceItem.setSelected(showWhitespace);
+        whitespaceItem.setOnAction(e -> {
+            if (whitespaceToggle != null) {
+                whitespaceToggle.setSelected(!whitespaceToggle.isSelected());
+                toggleWhitespaceVisualization();
+            }
+        });
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        contextMenu.getItems().add(whitespaceItem);
         
-        // Enable/disable based on selection
+        // Line ending submenu
+        Menu lineEndingMenu = new Menu(I18n.get("editor.lineEnding.menu"));
+        MenuItem lfItem = new MenuItem("LF - " + I18n.get("editor.lineEnding.unix"));
+        lfItem.setOnAction(e -> convertLineEndings(LineEnding.LF));
+        MenuItem crlfItem = new MenuItem("CRLF - " + I18n.get("editor.lineEnding.windows"));
+        crlfItem.setOnAction(e -> convertLineEndings(LineEnding.CRLF));
+        lineEndingMenu.getItems().addAll(lfItem, crlfItem);
+        contextMenu.getItems().add(lineEndingMenu);
+        
+        // Enable/disable based on selection; keep whitespace checkbox in sync
         contextMenu.setOnShowing(e -> {
             boolean hasSelection = codeArea.getSelection().getLength() > 0;
             cutItem.setDisable(!hasSelection);
             copyItem.setDisable(!hasSelection);
             deleteItem.setDisable(!hasSelection);
+            if (whitespaceItem != null) {
+                whitespaceItem.setSelected(showWhitespace);
+            }
         });
         
         return contextMenu;
