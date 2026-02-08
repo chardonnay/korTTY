@@ -29,6 +29,7 @@ jobs:
           submodules: false
 
       - name: Clone JediTermFX for CI (avoids missing submodule ref)
+        shell: bash
         run: |
           rm -rf vendor/jeditermfx
           git clone --depth 1 https://github.com/techsenger/jeditermfx.git vendor/jeditermfx
