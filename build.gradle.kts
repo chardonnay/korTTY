@@ -29,41 +29,36 @@ repositories {
 // JediTermFX is integrated as a git submodule (vendor/jeditermfx).
 // The build will auto-init the submodule and install SNAPSHOTs into mavenLocal().
 val jeditermfxDir = rootProject.file("vendor/jeditermfx")
-val skipJeditermfxSubmodule = System.getenv("KORTTY_SKIP_SUBMODULE")?.equals("true", ignoreCase = true) == true
+val skipJeditermfxSubmodule =
+    (findProperty("skipJeditermfxSubmodule") as String?)?.toBoolean() == true ||
+    (System.getenv("KORTTY_SKIP_SUBMODULE")?.equals("true", ignoreCase = true) == true)
 
-abstract class InitJeditermfxTask : DefaultTask() {
-    @get:javax.inject.Inject abstract val execOps: org.gradle.process.ExecOperations
-
-    @org.gradle.api.tasks.TaskAction
-    fun run() {
-        if (System.getenv("KORTTY_SKIP_SUBMODULE")?.equals("true", ignoreCase = true) == true) {
+tasks.register("initJeditermfxSubmodule") {
+    description = "Initializes the JediTermFX submodule (if missing). Falls back to git clone if submodule ref is unavailable."
+    onlyIf { !skipJeditermfxSubmodule && !jeditermfxDir.resolve("pom.xml").exists() }
+    doLast {
+        if (skipJeditermfxSubmodule) {
             logger.lifecycle("Skipping jeditermfx submodule init due to KORTTY_SKIP_SUBMODULE=true")
-            return
+            return@doLast
         }
-        val jeditermfxDir = project.file("vendor/jeditermfx")
+        fun runCmd(vararg cmd: String): Int {
+            val pb = ProcessBuilder(*cmd)
+            pb.directory(rootProject.projectDir)
+            pb.redirectErrorStream(true)
+            val process = pb.start()
+            process.inputStream.copyTo(System.out)
+            return process.waitFor()
+        }
         // Try normal submodule update first
-        val result = execOps.exec {
-            workingDir = project.projectDir
-            commandLine("git", "submodule", "update", "--init", "--recursive", "vendor/jeditermfx")
-            isIgnoreExitValue = true
-        }
-        if (result.exitValue != 0) {
-            logger.warn("Submodule update failed (exit {}), falling back to git clone", result.exitValue)
+        val exitCode = runCmd("git", "submodule", "update", "--init", "--recursive", "vendor/jeditermfx")
+        if (exitCode != 0) {
+            logger.warn("Submodule update failed (exit {}), falling back to git clone", exitCode)
             if (jeditermfxDir.exists()) {
                 project.delete(jeditermfxDir)
             }
-            execOps.exec {
-                workingDir = project.projectDir
-                commandLine("git", "clone", "--depth", "1",
-                    "https://github.com/techsenger/jeditermfx.git", "vendor/jeditermfx")
-            }
+            runCmd("git", "clone", "--depth", "1", "https://github.com/techsenger/jeditermfx.git", "vendor/jeditermfx")
         }
     }
-}
-
-tasks.register<InitJeditermfxTask>("initJeditermfxSubmodule") {
-    description = "Initializes the JediTermFX submodule (if missing). Falls back to git clone if submodule ref is unavailable."
-    onlyIf { !skipJeditermfxSubmodule && !jeditermfxDir.resolve("pom.xml").exists() }
 }
 
 tasks.register<Exec>("installJeditermfxLocal") {
