@@ -21,6 +21,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          submodules: recursive
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
@@ -31,7 +34,7 @@ jobs:
       - name: Extract version from release tag
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION="${{ github.event.release.tag_name }}"
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Extracted version: $VERSION"
@@ -40,11 +43,18 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            # PowerShell auf Windows
             pwsh -Command "$version = '${{ steps.version.outputs.version }}'; (Get-Content build.gradle.kts) -replace 'version = \".*\"', \"version = `\"$version`\"\" | Set-Content build.gradle.kts"
           else
-            # Bash auf macOS/Linux
             sed -i.bak "s/version = \".*\"/version = \"${{ steps.version.outputs.version }}\"/" build.gradle.kts
+          fi
+
+      - name: Set Gradle command
+        id: gradle
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            echo "cmd=gradlew.bat" >> $GITHUB_OUTPUT
+          else
+            echo "cmd=./gradlew" >> $GITHUB_OUTPUT
           fi
 
       - name: Grant execute permission for gradlew
@@ -53,42 +63,42 @@ jobs:
 
       - name: Build with Gradle
         shell: bash
-        run: ./gradlew clean build
+        run: ${{ steps.gradle.outputs.cmd }} clean build
 
       - name: Build macOS .app
         if: matrix.platform == 'macos'
         shell: bash
-        run: ./gradlew jpackage
+        run: ${{ steps.gradle.outputs.cmd }} jpackage
 
       - name: Build macOS .dmg
         if: matrix.platform == 'macos'
         shell: bash
-        run: ./gradlew jpackageDmg
+        run: ${{ steps.gradle.outputs.cmd }} jpackageDmg
 
       - name: Build Windows .exe
         if: matrix.platform == 'windows'
         shell: bash
-        run: ./gradlew jpackage
+        run: ${{ steps.gradle.outputs.cmd }} jpackage
 
       - name: Build Windows .msi
         if: matrix.platform == 'windows'
         shell: bash
-        run: ./gradlew jpackageMsi
+        run: ${{ steps.gradle.outputs.cmd }} jpackageMsi
 
       - name: Build Linux AppImage
         if: matrix.platform == 'linux'
         shell: bash
-        run: ./gradlew jpackage
+        run: ${{ steps.gradle.outputs.cmd }} jpackage
 
       - name: Build Linux .deb
         if: matrix.platform == 'linux'
         shell: bash
-        run: ./gradlew jpackageDeb
+        run: ${{ steps.gradle.outputs.cmd }} jpackageDeb
 
       - name: Build Linux .rpm
         if: matrix.platform == 'linux'
         shell: bash
-        run: ./gradlew jpackageRpm
+        run: ${{ steps.gradle.outputs.cmd }} jpackageRpm
 
       - name: Prepare macOS artifacts
         if: matrix.platform == 'macos'
@@ -105,7 +115,7 @@ jobs:
         run: |
           cd build/jpackage
           Compress-Archive -Path korTTY -DestinationPath korTTY-Windows-${{ steps.version.outputs.version }}.zip -Force
-          if (Test-Path korTTY-*.msi) { 
+          if (Test-Path korTTY-*.msi) {
             $msiFile = Get-Item korTTY-*.msi | Select-Object -First 1
             Copy-Item $msiFile.FullName "korTTY-Windows-${{ steps.version.outputs.version }}.msi"
           }
@@ -115,12 +125,8 @@ jobs:
         run: |
           cd build/jpackage
           tar -czf kortty-Linux-${{ steps.version.outputs.version }}.tar.gz kortty
-          if ls kortty-*.deb 1> /dev/null 2>&1; then
-            cp kortty-*.deb kortty-Linux-${{ steps.version.outputs.version }}.deb
-          fi
-          if ls kortty-*.rpm 1> /dev/null 2>&1; then
-            cp kortty-*.rpm kortty-Linux-${{ steps.version.outputs.version }}.rpm
-          fi
+          for f in kortty*.deb; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}.deb" && break; done
+          for f in kortty*.rpm; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}.rpm" && break; done
 
       - name: Upload macOS artifacts
         if: matrix.platform == 'macos'
@@ -128,8 +134,8 @@ jobs:
         with:
           name: korTTY-macOS-${{ steps.version.outputs.version }}
           path: |
-            build/jpackage/korTTY-macOS-*.zip
-            build/jpackage/korTTY-macOS-*.dmg
+            build/jpackage/korTTY-macOS-${{ steps.version.outputs.version }}.zip
+            build/jpackage/korTTY-macOS-${{ steps.version.outputs.version }}.dmg
           retention-days: 30
 
       - name: Upload Windows artifacts
@@ -138,8 +144,8 @@ jobs:
         with:
           name: korTTY-Windows-${{ steps.version.outputs.version }}
           path: |
-            build/jpackage/korTTY-Windows-*.zip
-            build/jpackage/korTTY-Windows-*.msi
+            build/jpackage/korTTY-Windows-${{ steps.version.outputs.version }}.zip
+            build/jpackage/korTTY-Windows-${{ steps.version.outputs.version }}.msi
           retention-days: 30
 
       - name: Upload Linux artifacts
@@ -148,9 +154,9 @@ jobs:
         with:
           name: korTTY-Linux-${{ steps.version.outputs.version }}
           path: |
-            build/jpackage/kortty-Linux-*.tar.gz
-            build/jpackage/kortty-Linux-*.deb
-            build/jpackage/kortty-Linux-*.rpm
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}.tar.gz
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}.deb
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}.rpm
           retention-days: 30
 
   upload-release:
@@ -166,7 +172,7 @@ jobs:
       - name: Extract version from release tag
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION="${{ github.event.release.tag_name }}"
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -175,10 +181,14 @@ jobs:
         with:
           path: artifacts
 
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.deb' -o -name '*.rpm' \) -exec cp {} release/ \;
+
       - name: Upload to release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/**/*
+          files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
