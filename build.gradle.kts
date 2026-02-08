@@ -7,7 +7,7 @@ plugins {
 import org.gradle.jvm.toolchain.JvmVendorSpec
 
 group = "de.kortty"
-version = "1.2.0-SNAPSHOT"
+version = "1.4.0"
 
 java {
     toolchain {

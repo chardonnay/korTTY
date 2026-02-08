@@ -1,6 +1,6 @@
 # KorTTY User Guide
 
-> **Version 1.3.0** | [Back to README](../README.md)
+> **Version 1.4.0** | [Back to README](../README.md)
 
 ---
 
@@ -79,12 +79,12 @@ KorTTY can be packaged as a native application using `jpackage`:
 | Platform | Command | Output |
 |---|---|---|
 | macOS (.app) | `./gradlew jpackage` | `build/jpackage/korTTY.app` |
-| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-1.3.0.dmg` |
+| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-1.4.0.dmg` |
 | Windows (.exe) | `gradlew.bat jpackage` | `build\jpackage\korTTY\` |
-| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-1.3.0.msi` |
-| Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/korTTY/` |
-| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-1.3.0.deb` |
-| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-1.3.0.rpm` |
+| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-1.4.0.msi` |
+| Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/kortty/` |
+| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/kortty-1.4.0.deb` |
+| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/kortty-1.4.0.rpm` |
 
 ### 2.2 First Launch - Master Password
 
@@ -933,4 +933,4 @@ If terminal output shows garbled characters:
 
 ---
 
-*KorTTY v1.3.0*
+*KorTTY v1.4.0*

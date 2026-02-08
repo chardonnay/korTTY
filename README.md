@@ -104,7 +104,7 @@ Creates a DMG installer:
 
 The DMG file is located at:
 ```
-build/jpackage/korTTY-1.3.0.dmg
+build/jpackage/korTTY-1.4.0.dmg
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.icns`
@@ -139,7 +139,7 @@ gradlew.bat jpackageMsi
 
 The MSI file is located at:
 ```
-build\jpackage\korTTY-1.3.0.msi
+build\jpackage\korTTY-1.4.0.msi
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.ico` (if available, otherwise PNG)
@@ -174,12 +174,12 @@ Creates a Debian/Ubuntu package (requires dpkg):
 
 The DEB package is located at:
 ```
-build/jpackage/korTTY-1.3.0.deb
+build/jpackage/kortty-1.4.0.deb
 ```
 
 **Installation:**
 ```bash
-sudo dpkg -i build/jpackage/korTTY-1.3.0.deb
+sudo dpkg -i build/jpackage/kortty-1.4.0.deb
 ```
 
 #### Create RPM Package
@@ -192,12 +192,12 @@ Creates a Red Hat/Fedora package (requires rpmbuild):
 
 The RPM package is located at:
 ```
-build/jpackage/korTTY-1.3.0.rpm
+build/jpackage/kortty-1.4.0.rpm
 ```
 
 **Installation:**
 ```bash
-sudo rpm -i build/jpackage/korTTY-1.3.0.rpm
+sudo rpm -i build/jpackage/kortty-1.4.0.rpm
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.png`
