@@ -115,6 +115,12 @@ public class SshTtyConnector implements TtyConnector {
                                     // Use custom dialog with ComboBox for access reason history
                                     finalResponses[i] = showAccessReasonDialog(instruction, prompt[i]);
                                 } else {
+                                    // If a temporary SSH key is used, never fall back to passwords
+                                    if (isTemporaryKeyAuthActive() && isPasswordPrompt(prompt[i])) {
+                                        logger.warn("Temporary SSH key auth: rejecting password prompt '{}'", prompt[i]);
+                                        finalResponses[i] = "";
+                                        continue;
+                                    }
                                     // Use standard TextInputDialog for other prompts
                                     javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
                                     dialog.setTitle("SSH Authentication");
@@ -741,6 +747,24 @@ public class SshTtyConnector implements TtyConnector {
         
         return reason;
     }
+
+    private boolean isTemporaryKeyAuthActive() {
+        String keyPath = connection.getPrivateKeyPath();
+        return keyPath != null && keyPath.startsWith("TEMPORARY:");
+    }
+
+    private boolean isPasswordPrompt(String promptText) {
+        if (promptText == null) {
+            return false;
+        }
+        String lower = promptText.toLowerCase();
+        return lower.contains("password") ||
+               lower.contains("passcode") ||
+               lower.contains("passphrase") ||
+               lower.contains("pin") ||
+               lower.contains("vault");
+    }
+
     
     /**
      * Listener for data received from the SSH connection.
