@@ -227,8 +227,9 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                         Long expMin = conn.getTemporaryKeyExpirationMinutes();
                         tempKeyForBtn = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
                                 conn.getTemporaryKeyContent(), (expMin != null && expMin > 0) ? expMin : 15L);
+                        // storeTemporaryKey may return null if key content is incomplete - that's OK
                     }
-                    // Ensure privateKeyPath is set for the connector
+                    // Ensure privateKeyPath is set for the connector (use stored content directly)
                     conn.setPrivateKeyPath("TEMPORARY:" + conn.getTemporaryKeyContent());
                     conn.setAuthMethod(AuthMethod.PUBLIC_KEY);
                 }
@@ -706,16 +707,38 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 
                 // Use the CURRENT key content from the text area (not from saved connection)
                 TemporarySSHKey tempKey = null;
-                if (temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
+                String keyText = temporaryKeyArea.getText();
+                if (keyText != null && !keyText.trim().isEmpty()) {
                     // Always store and use the current text area content
                     long expirationMinutes = expirationMinutesSpinner.getValue();
                     tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
-                        temporaryKeyArea.getText().trim(), expirationMinutes);
-                    // Store key content in connection for persistence
-                    modified.setTemporaryKeyContent(tempKey.getKeyContent());
-                    modified.setTemporaryKeyExpirationMinutes(expirationMinutes);
-                    modified.setTemporaryKeyPermanent(selected.isTemporaryKeyPermanent()); // Preserve permanent setting
-                    modified.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
+                        keyText.trim(), expirationMinutes);
+                    if (tempKey != null) {
+                        // Store key content in connection for persistence
+                        modified.setTemporaryKeyContent(tempKey.getKeyContent());
+                        modified.setTemporaryKeyExpirationMinutes(expirationMinutes);
+                        modified.setTemporaryKeyPermanent(selected.isTemporaryKeyPermanent()); // Preserve permanent setting
+                        modified.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
+                    } else {
+                        // storeTemporaryKey returned null (key content incomplete) - use raw text as fallback
+                        modified.setTemporaryKeyContent(keyText.trim());
+                        modified.setTemporaryKeyExpirationMinutes(expirationMinutes);
+                        modified.setTemporaryKeyPermanent(selected.isTemporaryKeyPermanent());
+                        modified.setPrivateKeyPath("TEMPORARY:" + keyText.trim());
+                    }
+                } else if (selected.getTemporaryKeyContent() != null && !selected.getTemporaryKeyContent().trim().isEmpty()) {
+                    // Text area is empty but saved connection has key content - use it as fallback
+                    tempKey = TemporarySSHKeyManager.getInstance().getTemporaryKey(selected.getTemporaryKeyContent());
+                    if (tempKey == null || !tempKey.isValid()) {
+                        Long expMin = selected.getTemporaryKeyExpirationMinutes();
+                        tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                            selected.getTemporaryKeyContent(), (expMin != null && expMin > 0) ? expMin : 15L);
+                    }
+                    String keyContent = (tempKey != null) ? tempKey.getKeyContent() : selected.getTemporaryKeyContent();
+                    modified.setTemporaryKeyContent(keyContent);
+                    modified.setTemporaryKeyExpirationMinutes(selected.getTemporaryKeyExpirationMinutes());
+                    modified.setTemporaryKeyPermanent(selected.isTemporaryKeyPermanent());
+                    modified.setPrivateKeyPath("TEMPORARY:" + keyContent);
                 }
                 return new ConnectionResult(modified, null, false, true, null, false, tempKey);
             }
@@ -785,6 +808,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                     Long expMin = selected.getTemporaryKeyExpirationMinutes();
                     existingTempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
                             selected.getTemporaryKeyContent(), (expMin != null && expMin > 0) ? expMin : 15L);
+                    // storeTemporaryKey may return null if key content is incomplete - that's OK,
+                    // openConnectionAndReturnTab() will handle resolution via temporaryKeyContent
                 }
                 modified.setPrivateKeyPath("TEMPORARY:" + selected.getTemporaryKeyContent());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
@@ -814,14 +839,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 connection.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
             } else if (temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
                 // Store new temporary key
+                String keyText = temporaryKeyArea.getText().trim();
                 long expirationMinutes = expirationMinutesSpinner.getValue();
                 tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
-                    temporaryKeyArea.getText().trim(), expirationMinutes);
-                // Store key content in connection for persistence
-                connection.setTemporaryKeyContent(tempKey.getKeyContent());
+                    keyText, expirationMinutes);
+                // Store key content in connection for persistence (use tempKey content if available, raw text as fallback)
+                String keyContent = (tempKey != null) ? tempKey.getKeyContent() : keyText;
+                connection.setTemporaryKeyContent(keyContent);
                 connection.setTemporaryKeyExpirationMinutes(expirationMinutes);
                 connection.setTemporaryKeyPermanent(false); // Not permanent by default in QuickConnect
-                connection.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
+                connection.setPrivateKeyPath("TEMPORARY:" + keyContent);
             }
         } else if (keyAuthRadio.isSelected()) {
             connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
