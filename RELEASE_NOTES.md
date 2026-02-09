@@ -1,5 +1,40 @@
 # Release Notes
 
+## 1.5.0
+
+**Release date:** February 2025
+
+### Terminal
+
+- **Command timestamps always recorded**: Timestamps are now recorded for every command (Enter and prompt detection) for the whole session, regardless of whether the timestamp gutter is visible. If you enable "Command Timestamps" later, all past prompts of the session are shown with their times.
+- **Timestamp gutter**: Two-line layout (date + duration above, time below). Hover over a timestamp to see full date, time, and elapsed duration in a popup.
+
+### Credentials and SSH Keys
+
+- **SSH key passphrase handling**: Decryption failures for stored key passphrases are no longer ignored; an error is logged and authentication fails with a clear message. When the master password is changed in Settings, SSH key passphrases are re-encrypted. Alerts and translations added for passphrase decrypt errors.
+- **No password dialog for key auth**: When using public key authentication, the password dialog is no longer shown (Connection Manager, Quick Connect, duplicate tab, reconnect, project restore).
+
+### macOS
+
+- **Option key**: Option (Alt) no longer sends Escape; special characters like Option+7 (|) work as expected in the terminal.
+- **Zoom**: Window zoom is triggered only with Cmd (Meta), not with Option.
+
+### UI
+
+- **About dialog**: "Developed by Daniel Mengel" added in all supported languages.
+- **Passphrase/password dialogs**: Use masked input for passphrase and password fields.
+- **Connection Manager**: Context menu on empty area to create folder or connection; Create Folder button. Temp SSH key and passphrase correctly passed when opening saved connections; NPE and FX thread fixes for connection creation.
+
+### Bug fixes
+
+- Temp SSH key not pre-filled or passed when selecting saved connection; NPE when storeTemporaryKey() returns null; password prompts rejected when using temporary SSH keys. createSameServerConnection() runs UI and showAndWait on FX thread.
+
+### Other
+
+- **i18n**: New and updated strings in 8 languages (EN, DE, ES, FR, IT, HR, NL, PT).
+
+---
+
 ## 1.4.0
 
 **Release date:** 2025
