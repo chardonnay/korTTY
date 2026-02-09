@@ -275,9 +275,6 @@ if (isWindows) {
         val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
         args.addAll(listOf(
             "--type", "app-image",
-            "--win-dir-chooser",
-            "--win-menu",
-            "--win-shortcut",
             "--icon", iconFile.absolutePath
         ))
         
