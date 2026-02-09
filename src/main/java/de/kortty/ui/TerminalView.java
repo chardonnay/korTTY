@@ -685,10 +685,11 @@ public class TerminalView extends BorderPane {
         textBuffer.addModelListener(() -> {
             Platform.runLater(() -> {
                 updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
-                // Add timestamp when prompt appears (cursor at start of new line from server output)
+                // Add timestamp when prompt appears (cursor at start of new line from server output).
+                // Always record so that when user enables timestamps later, past prompts are visible.
                 try {
                     var terminal = widget.getTerminal();
-                    if (terminal == null || !isCommandTimestampsEnabled()) return;
+                    if (terminal == null) return;
                     int cursorX = terminal.getCursorX();
                     int cursorY = terminal.getCursorY();
                     int historyLines = textBuffer.getHistoryLinesCount();
