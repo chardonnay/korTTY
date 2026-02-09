@@ -869,15 +869,21 @@ public class MainWindow {
             
             String password = getConnectionPassword(connection);
             if (password == null) {
-                TextInputDialog pwDialog = new TextInputDialog();
+                Dialog<String> pwDialog = new Dialog<>();
                 pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
                 pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
-                pwDialog.setContentText(I18n.get("common.password") + ":");
-                pwDialog.getEditor().setPromptText(I18n.get("dialog.enterPassword"));
-                
-                // Make it a password field
+                pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+                PasswordField pwField = new PasswordField();
+                pwField.setPromptText(I18n.get("dialog.enterPassword"));
+                VBox content = new VBox(10);
+                content.getChildren().addAll(new Label(I18n.get("dialog.pleaseEnterPassword")), pwField);
+                content.setPadding(new javafx.geometry.Insets(20));
+                pwDialog.getDialogPane().setContent(content);
+                pwDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
                 pwDialog.showAndWait().ifPresent(pw -> {
-                    openConnection(connection, pw);
+                    if (pw != null && !pw.isEmpty()) {
+                        openConnection(connection, pw);
+                    }
                 });
             } else {
                 openConnection(connection, password);
@@ -2065,13 +2071,18 @@ public class MainWindow {
         String password = getConnectionPassword(connection);
         
         if (password == null) {
-            // Password not available, show dialog
-            TextInputDialog pwDialog = new TextInputDialog();
+            // Password not available, show dialog with masked input
+            Dialog<String> pwDialog = new Dialog<>();
             pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
             pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
-            pwDialog.setContentText(I18n.get("common.password") + ":");
-            pwDialog.getEditor().setPromptText(I18n.get("dialog.enterPassword"));
-            
+            pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+            PasswordField pwField = new PasswordField();
+            pwField.setPromptText(I18n.get("dialog.enterPassword"));
+            VBox content = new VBox(10);
+            content.getChildren().addAll(new Label(I18n.get("dialog.pleaseEnterPassword")), pwField);
+            content.setPadding(new javafx.geometry.Insets(20));
+            pwDialog.getDialogPane().setContent(content);
+            pwDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
             pwDialog.showAndWait().ifPresent(pw -> {
                 if (pw != null && !pw.trim().isEmpty()) {
                     createDuplicateTab(sourceTab, connection, pw.trim());
@@ -2309,14 +2320,20 @@ public class MainWindow {
         final String[] password = {null}; // Use array to allow modification in lambda
         
         if (!isGPGEncrypted) {
-            // Ask for password
-            javafx.scene.control.TextInputDialog passwordDialog = new javafx.scene.control.TextInputDialog();
+            // Ask for password (masked input)
+            Dialog<String> passwordDialog = new Dialog<>();
             passwordDialog.setTitle(I18n.get("backup.import.password.title"));
             passwordDialog.setHeaderText(I18n.get("backup.import.password.header"));
-            passwordDialog.setContentText(I18n.get("backup.import.password.content"));
-            
+            passwordDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+            PasswordField pwField = new PasswordField();
+            pwField.setPromptText(I18n.get("dialog.enterPassword"));
+            VBox content = new VBox(10);
+            content.getChildren().addAll(new Label(I18n.get("backup.import.password.content")), pwField);
+            content.setPadding(new javafx.geometry.Insets(20));
+            passwordDialog.getDialogPane().setContent(content);
+            passwordDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
             java.util.Optional<String> passwordResult = passwordDialog.showAndWait();
-            if (!passwordResult.isPresent() || passwordResult.get().isEmpty()) {
+            if (!passwordResult.isPresent() || passwordResult.get() == null || passwordResult.get().isEmpty()) {
                 return; // User cancelled or entered empty password
             }
             password[0] = passwordResult.get();

@@ -3,6 +3,7 @@ package de.kortty.core;
 import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.core.util.TermSize;
 import de.kortty.model.ServerConnection;
+import de.kortty.ui.I18n;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
@@ -121,14 +122,36 @@ public class SshTtyConnector implements TtyConnector {
                                         finalResponses[i] = "";
                                         continue;
                                     }
-                                    // Use standard TextInputDialog for other prompts
-                                    javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
-                                    dialog.setTitle("SSH Authentication");
-                                    dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
-                                    dialog.setContentText(prompt[i]);
-                                    
-                                    java.util.Optional<String> result = dialog.showAndWait();
-                                    finalResponses[i] = result.orElse("");
+                                    // Password/passphrase prompt: use masked input and "Passphrase for SSH key" title
+                                    if (!echo[i] && isPasswordPrompt(prompt[i])) {
+                                        javafx.scene.control.Dialog<String> passDialog = new javafx.scene.control.Dialog<>();
+                                        passDialog.setTitle(I18n.get("dialog.sshKeyPassphraseRequired"));
+                                        passDialog.setHeaderText(prompt[i]);
+                                        passDialog.getDialogPane().getButtonTypes().addAll(
+                                            javafx.scene.control.ButtonType.OK,
+                                            javafx.scene.control.ButtonType.CANCEL);
+                                        javafx.scene.control.PasswordField pf = new javafx.scene.control.PasswordField();
+                                        pf.setPromptText(I18n.get("dialog.sshKeyPassphrasePrompt"));
+                                        javafx.scene.layout.VBox content = new javafx.scene.layout.VBox(10);
+                                        content.getChildren().addAll(
+                                            new javafx.scene.control.Label(I18n.get("dialog.sshKeyPassphrasePrompt")),
+                                            pf);
+                                        content.setPadding(new javafx.geometry.Insets(20));
+                                        passDialog.getDialogPane().setContent(content);
+                                        passDialog.setResultConverter(bt ->
+                                            bt == javafx.scene.control.ButtonType.OK ? pf.getText() : null);
+                                        java.util.Optional<String> result = passDialog.showAndWait();
+                                        finalResponses[i] = (result != null && result.isPresent() && result.get() != null)
+                                            ? result.get() : "";
+                                    } else {
+                                        // Plain text prompt (e.g. reason, one-time code)
+                                        javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+                                        dialog.setTitle("SSH Authentication");
+                                        dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
+                                        dialog.setContentText(prompt[i]);
+                                        java.util.Optional<String> result = dialog.showAndWait();
+                                        finalResponses[i] = result.orElse("");
+                                    }
                                 }
                             }
                         } catch (Exception e) {
