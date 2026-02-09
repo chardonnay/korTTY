@@ -54,7 +54,7 @@ For a comprehensive step-by-step user guide covering all features, see **[docs/U
 
 Pre-built packages for **x86_64 (amd64)** and **arm64 (aarch64)** are available on the [GitHub Releases](https://github.com/chardonnay/korTTY/releases) page:
 
-- **macOS**: `-aarch64` for Apple Silicon and `-x86_64` for Intel (separate DMG/ZIP files).
+- **macOS**: Apple Silicon only — `-aarch64` (separate DMG/ZIP files).
 - **Windows**: `-x86_64` for Intel/AMD (separate MSI/ZIP files).
 - **Linux**: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
 

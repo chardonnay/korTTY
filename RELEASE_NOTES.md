@@ -26,13 +26,9 @@
 
 - **GitHub Actions**: Release workflow builds macOS (.dmg, .app), Windows (.msi, .exe), and Linux (.deb, .rpm, tarball) on release publish. Checkout uses release tag and submodules; artifacts are attached to the GitHub release.
 - **Architectures**: Packages are published per CPU architecture:
-  - **macOS**: `-aarch64` for Apple Silicon and `-x86_64` for Intel (separate DMG/ZIP files).
+  - **macOS**: Apple Silicon (arm64) only — `.dmg` and `.zip` with `-aarch64` in the filename.
   - **Windows**: `-x86_64` for Intel/AMD (separate MSI/ZIP files).
   - **Linux**: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
-- **Architectures**: Pre-built packages are provided for **x86_64 (amd64)** and **arm64 (aarch64)** where applicable:
-  - **macOS**: Apple Silicon (arm64) only — `.dmg` and `.zip` with `-aarch64` in the filename.
-  - **Windows**: x86_64 and arm64 — separate `.msi` and `.zip` files with `-x86_64` or `-aarch64` in the filename.
-  - **Linux**: x86_64 and arm64 — separate `.deb`, `.rpm`, and `.tar.gz` files with `-x86_64` or `-aarch64` in the filename. Choose the package that matches your CPU architecture.
 
 ### Other
 

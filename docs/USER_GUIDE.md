@@ -76,7 +76,7 @@ cd korTTY
 
 Ready-to-use packages are published on [GitHub Releases](https://github.com/chardonnay/korTTY/releases). Each asset name includes the architecture (e.g. `-x86_64` or `-aarch64`). Choose the file that matches your system:
 
-- **macOS**: Use `-aarch64` for Apple Silicon and `-x86_64` for Intel.
+- **macOS**: Apple Silicon only — use `-aarch64`.
 - **Windows**: Use `-x86_64` for Intel/AMD.
 - **Linux**: Use `-x86_64` for Intel/AMD, or `-aarch64` for ARM (e.g. Raspberry Pi 4, many cloud instances). Packages include `.deb`, `.rpm`, `.tar.gz`, and `.zip`.
 
