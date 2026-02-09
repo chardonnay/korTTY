@@ -43,7 +43,9 @@ jobs:
       - name: Install Maven (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: choco install maven -y
+        run: |
+          choco install maven -y
+          "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Extract version from release tag
         id: version

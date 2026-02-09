@@ -64,7 +64,8 @@ tasks.register("initJeditermfxSubmodule") {
 tasks.register<Exec>("installJeditermfxLocal") {
     description = "Builds and installs local JediTermFX SNAPSHOT into mavenLocal()"
     workingDir = jeditermfxDir
-    commandLine("mvn", "-q", "-DskipTests", "install")
+    val mvnCmd = if (System.getProperty("os.name").lowercase().contains("windows")) "mvn.cmd" else "mvn"
+    commandLine(mvnCmd, "-q", "-DskipTests", "install")
     dependsOn("initJeditermfxSubmodule")
     onlyIf { jeditermfxDir.resolve("pom.xml").exists() }
 }
