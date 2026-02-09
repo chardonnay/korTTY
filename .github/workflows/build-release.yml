@@ -139,9 +139,19 @@ jobs:
           elif [ -d "kortty" ]; then
             app_dir="kortty"
           else
-            echo "Linux app-image directory not found in build/jpackage"
-            ls -la
-            exit 1
+            echo "Linux app-image directory not found; rebuilding app-image"
+            cd ../..
+            ./gradlew jpackage
+            cd build/jpackage
+            if [ -d "korTTY" ]; then
+              app_dir="korTTY"
+            elif [ -d "kortty" ]; then
+              app_dir="kortty"
+            else
+              echo "Linux app-image directory still missing after rebuild"
+              ls -la
+              exit 1
+            fi
           fi
           tar -czf kortty-Linux-${{ steps.version.outputs.version }}.tar.gz "$app_dir"
           for f in kortty*.deb; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}.deb" && break; done

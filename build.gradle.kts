@@ -242,18 +242,14 @@ if (isMac) {
 
 // ==================== Windows ====================
 if (isWindows) {
-    // Icon-Funktion für Windows: Versuche .ico, sonst verwende PNG
-    fun getWindowsIcon(): File {
+    // Windows icons must be .ico for jpackage; fall back to default icon if missing.
+    fun getWindowsIcon(): File? {
         val icoFile = file("src/main/resources/icon/kortty_icon.ico")
-        val pngFile = file("src/main/resources/icon/kortty_icon.png")
-        
-        return when {
-            icoFile.exists() -> icoFile
-            pngFile.exists() -> {
-                println("INFO: .ico Icon nicht gefunden, verwende PNG Icon (kortty_icon.png)")
-                pngFile
-            }
-            else -> throw GradleException("korTTY Icon nicht gefunden! Bitte erstelle src/main/resources/icon/kortty_icon.ico oder kortty_icon.png")
+        return if (icoFile.exists()) {
+            icoFile
+        } else {
+            println("WARN: .ico icon not found. Using default Windows icon.")
+            null
         }
     }
     
@@ -273,10 +269,10 @@ if (isWindows) {
         }
         
         val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
-        args.addAll(listOf(
-            "--type", "app-image",
-            "--icon", iconFile.absolutePath
-        ))
+        args.addAll(listOf("--type", "app-image"))
+        if (iconFile != null) {
+            args.addAll(listOf("--icon", iconFile.absolutePath))
+        }
         
         commandLine(args)
     }
@@ -301,9 +297,11 @@ if (isWindows) {
             "--type", "msi",
             "--win-dir-chooser",
             "--win-menu",
-            "--win-shortcut",
-            "--icon", iconFile.absolutePath
+            "--win-shortcut"
         ))
+        if (iconFile != null) {
+            args.addAll(listOf("--icon", iconFile.absolutePath))
+        }
         
         commandLine(args)
     }
