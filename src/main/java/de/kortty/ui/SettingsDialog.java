@@ -5,6 +5,7 @@ import de.kortty.ui.I18n;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.GPGKeyManager;
+import de.kortty.core.SSHKeyManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
@@ -1222,15 +1223,36 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                             reEncryptedCount++;
                         }
                         
-                        // Re-encrypt key passphrase if exists
+                        // Re-encrypt key passphrase if exists (connection-level stored passphrase)
                         String plainPassphrase = oldVault.retrieveKeyPassphrase(connection);
                         if (plainPassphrase != null) {
                             newVault.storeKeyPassphrase(connection, plainPassphrase);
+                            reEncryptedCount++;
                         }
                     } catch (Exception e) {
                         org.slf4j.LoggerFactory.getLogger(getClass())
                             .warn("Failed to re-encrypt password for connection: {}", connection.getName(), e);
                     }
+                }
+                
+                // Re-encrypt SSH key passphrases (stored in SSH Key Manager)
+                SSHKeyManager sshKeyManager = app.getSSHKeyManager();
+                if (sshKeyManager != null) {
+                    for (de.kortty.model.SSHKey key : sshKeyManager.getAllKeys()) {
+                        if (key.getEncryptedPassphrase() != null && !key.getEncryptedPassphrase().isBlank()) {
+                            try {
+                                String plain = sshKeyManager.getPassphrase(key, oldPasswordChars);
+                                if (plain != null) {
+                                    sshKeyManager.setPassphrase(key, plain, newPasswordChars);
+                                    reEncryptedCount++;
+                                }
+                            } catch (Exception e) {
+                                org.slf4j.LoggerFactory.getLogger(getClass())
+                                    .warn("Failed to re-encrypt passphrase for SSH key: {}", key.getName(), e);
+                            }
+                        }
+                    }
+                    sshKeyManager.save();
                 }
                 
                 // Save connections with new encryption

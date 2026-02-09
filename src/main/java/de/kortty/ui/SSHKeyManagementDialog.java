@@ -9,6 +9,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
+import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -188,8 +189,9 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
     }
     
     private void addKey() {
-        SSHKeyEditDialog dialog = new SSHKeyEditDialog(null, sshKeyManager, masterPassword);
-        dialog.initOwner(getDialogPane().getScene().getWindow());
+        Window owner = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        SSHKeyEditDialog dialog = new SSHKeyEditDialog(null, sshKeyManager, masterPassword, owner);
+        dialog.initOwner(owner);
         dialog.showAndWait().ifPresent(result -> {
             sshKeyManager.addKey(result.key);
             if (result.passphrase != null) {
@@ -207,8 +209,9 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
     private void editKey() {
         SSHKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            SSHKeyEditDialog dialog = new SSHKeyEditDialog(selected, sshKeyManager, masterPassword);
-            dialog.initOwner(getDialogPane().getScene().getWindow());
+            Window owner = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+            SSHKeyEditDialog dialog = new SSHKeyEditDialog(selected, sshKeyManager, masterPassword, owner);
+            dialog.initOwner(owner);
             dialog.showAndWait().ifPresent(result -> {
                 sshKeyManager.updateKey(result.key);
                 if (result.passphrase != null) {
@@ -301,7 +304,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
         private TextArea descriptionArea;
         private Button browseButton;
         
-        public SSHKeyEditDialog(SSHKey existingKey, SSHKeyManager sshKeyManager, char[] masterPassword) {
+        public SSHKeyEditDialog(SSHKey existingKey, SSHKeyManager sshKeyManager, char[] masterPassword, Window owner) {
             this.sshKeyManager = sshKeyManager;
             this.masterPassword = masterPassword;
             
@@ -349,7 +352,9 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
                         passphraseField.setText(passphrase);
                     }
                 } catch (Exception e) {
-                    logger.error("Failed to decrypt passphrase", e);
+                    logger.error("Failed to decrypt passphrase for key '{}': {}", existingKey.getName(), e.getMessage(), e);
+                    showPassphraseDecryptFailedAlert(owner);
+                    // Leave passphrase field empty so user can re-enter
                 }
             }
             grid.add(new Label(I18n.get("ssh.edit.passphrase")), 0, row);
@@ -402,6 +407,16 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
             if (selected != null) {
                 keyPathField.setText(selected.getAbsolutePath());
             }
+        }
+        
+        private void showPassphraseDecryptFailedAlert(Window owner) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle(I18n.get("error.title"));
+            alert.setHeaderText(I18n.get("error.passphraseDecryptFailed"));
+            if (owner != null) {
+                alert.initOwner(owner);
+            }
+            alert.showAndWait();
         }
         
         private void showError(String title, String message) {

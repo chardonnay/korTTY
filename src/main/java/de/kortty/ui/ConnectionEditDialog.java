@@ -578,7 +578,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 return;
             }
         } catch (Exception ex) {
-            logger.debug("Could not get passphrase from key manager", ex);
+            logger.error("Could not decrypt stored key passphrase for key '{}': {}", selected.getName(), ex.getMessage(), ex);
+            showPassphraseDecryptFailedAlert();
+            keyPassphraseField.clear();
+            keyPassphraseField.setPromptText(I18n.get("connEdit.passphrasePrompt"));
+            return;
         }
         // Fallback: connection may have stored encrypted passphrase (e.g. from previous save)
         String stored = connection.getPrivateKeyPassphrase();
@@ -592,11 +596,22 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     return;
                 }
             } catch (Exception ex) {
-                logger.debug("Could not decrypt stored passphrase", ex);
+                logger.error("Could not decrypt stored connection passphrase: {}", ex.getMessage(), ex);
+                showPassphraseDecryptFailedAlert();
             }
         }
         keyPassphraseField.clear();
         keyPassphraseField.setPromptText(I18n.get("connEdit.passphrasePrompt"));
+    }
+    
+    private void showPassphraseDecryptFailedAlert() {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(I18n.get("error.title"));
+        alert.setHeaderText(I18n.get("error.passphraseDecryptFailed"));
+        if (getDialogPane().getScene() != null && getDialogPane().getScene().getWindow() != null) {
+            alert.initOwner(getDialogPane().getScene().getWindow());
+        }
+        alert.showAndWait();
     }
     
     private void updateAuthFields() {
