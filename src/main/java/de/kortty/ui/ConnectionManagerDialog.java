@@ -42,6 +42,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private final Stage owner;
     private ConnectionManagerTreeView treeView;
     private Button undoButton;
+    private Button createFolderButton;
     private Button renameGroupButton;
     private final TableView<ServerConnection> table; // Keep for compatibility, but hide it
     
@@ -158,6 +159,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         treeView.setOnExportConnections(this::exportConnections);
         treeView.setOnDeleteConnections(this::deleteConnections);
         treeView.setOnExportGroup(this::exportGroup);
+        treeView.setOnAddConnection(this::addConnection);
         
         // Buttons - set uniform width for all buttons
         Button addButton = new Button(I18n.get("connectionManager.new"));
@@ -167,6 +169,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         Button exportButton = new Button(I18n.get("connectionManager.export"));
         Button importButton = new Button(I18n.get("connectionManager.import"));
         undoButton = new Button(I18n.get("connectionManager.undo"));
+        createFolderButton = new Button(I18n.get("connectionManager.createFolder"));
         renameGroupButton = new Button(I18n.get("connectionManager.renameFolder"));
         
         // Set uniform width for all buttons
@@ -178,6 +181,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         exportButton.setPrefWidth(buttonWidth);
         importButton.setPrefWidth(buttonWidth);
         undoButton.setPrefWidth(buttonWidth);
+        createFolderButton.setPrefWidth(buttonWidth);
         renameGroupButton.setPrefWidth(buttonWidth);
         
         editButton.setDisable(true);
@@ -219,6 +223,14 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         exportButton.setOnAction(e -> exportConnections());
         importButton.setOnAction(e -> importConnections());
         undoButton.setOnAction(e -> treeView.undoLastMove());
+        createFolderButton.setOnAction(e -> {
+            List<GroupPath> selected = treeView.getSelectedGroups();
+            if (selected.size() == 1) {
+                createNewGroup(selected.get(0));
+            } else {
+                createNewGroup(GroupPath.ROOT);
+            }
+        });
         renameGroupButton.setOnAction(e -> {
             List<GroupPath> selected = treeView.getSelectedGroups();
             if (!selected.isEmpty()) {
@@ -228,7 +240,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         
         VBox buttonBox = new VBox(10, addButton, editButton, deleteButton, duplicateButton, 
                               new Separator(), exportButton, importButton,
-                              new Separator(), undoButton, renameGroupButton);
+                              new Separator(), undoButton, createFolderButton, renameGroupButton);
         buttonBox.setAlignment(Pos.TOP_CENTER);
         buttonBox.setPadding(new Insets(0, 0, 0, 10));
         

@@ -18,6 +18,11 @@
 - **Split terminal auto-close**: Split pane closes automatically when the SSH session ends (e.g. Ctrl+D).
 - **Context menu**: Single open menu; closes when clicking elsewhere.
 
+### Connection Manager
+
+- **Context menu on empty area**: Right-click in the free space of the connection tree to create a folder or a new connection (same as **New…**).
+- **Create Folder button**: Button next to **Rename Folder** to create a new folder (at root level or under the selected folder).
+
 ### Credentials
 
 - **External password provider**: Credentials can use a stored password or an external command (e.g. Enpass CLI, 1Password CLI). The command is stored encrypted.

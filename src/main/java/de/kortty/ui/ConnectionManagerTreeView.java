@@ -33,6 +33,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private Consumer<List<ServerConnection>> onExportConnections;
     private Consumer<List<ServerConnection>> onDeleteConnections;
     private Consumer<GroupPath> onExportGroup;
+    private Runnable onAddConnection;
     
     public ConnectionManagerTreeView(List<ServerConnection> connections) {
         this.connections = connections;
@@ -43,6 +44,29 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         refreshTree();
         setupDragAndDrop();
         setCellFactory();
+        setContextMenu(createEmptyAreaContextMenu());
+    }
+    
+    /**
+     * Context menu shown when right-clicking on empty area (no item under cursor).
+     * Allows creating a folder or a new connection.
+     */
+    private ContextMenu createEmptyAreaContextMenu() {
+        ContextMenu menu = new ContextMenu();
+        MenuItem createFolderItem = new MenuItem(I18n.get("connManager.newFolder"));
+        createFolderItem.setOnAction(e -> {
+            if (onCreateGroup != null) {
+                onCreateGroup.accept(GroupPath.ROOT);
+            }
+        });
+        MenuItem createConnectionItem = new MenuItem(I18n.get("connectionManager.new"));
+        createConnectionItem.setOnAction(e -> {
+            if (onAddConnection != null) {
+                onAddConnection.run();
+            }
+        });
+        menu.getItems().addAll(createFolderItem, createConnectionItem);
+        return menu;
     }
     
     /**
@@ -580,6 +604,10 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     
     public void setOnExportGroup(Consumer<GroupPath> callback) {
         this.onExportGroup = callback;
+    }
+    
+    public void setOnAddConnection(Runnable callback) {
+        this.onAddConnection = callback;
     }
     
     /**

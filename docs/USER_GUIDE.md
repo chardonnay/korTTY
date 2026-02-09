@@ -164,10 +164,13 @@ The Connection Manager provides a tree view of all saved connections organized i
 | **Edit** | Edit the selected connection |
 | **Delete** | Delete selected connection(s) or folder |
 | **Duplicate** | Create a copy of the selected connection |
+| **Create Folder** | Create a new folder (at root, or under the selected folder) |
 | **Rename Folder** | Rename the selected group/folder |
 | **Undo** | Undo the last move operation |
 | **Import** | Import connections from file |
 | **Export** | Export connections to file |
+
+**Context menu (empty area):** Right-click in the free space of the connection tree (not on a folder or connection) to open a context menu with **Create folder** and **Create connection** (New…).
 
 **Searching:** Type in the search field to filter connections. Wildcard patterns are supported (e.g., `prod*` matches all connections starting with "prod").
 
