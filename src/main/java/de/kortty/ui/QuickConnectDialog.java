@@ -218,9 +218,23 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             btn.setOnAction(e -> {
                 // Fill in the form and close dialog
                 fillFormWithConnection(conn);
+                // Look up temporary SSH key from manager if connection uses one
+                TemporarySSHKey tempKeyForBtn = null;
+                if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
+                    tempKeyForBtn = TemporarySSHKeyManager.getInstance().getTemporaryKey(conn.getTemporaryKeyContent());
+                    if (tempKeyForBtn == null || !tempKeyForBtn.isValid()) {
+                        // Key expired or not found - store fresh from persisted content
+                        Long expMin = conn.getTemporaryKeyExpirationMinutes();
+                        tempKeyForBtn = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                                conn.getTemporaryKeyContent(), (expMin != null && expMin > 0) ? expMin : 15L);
+                    }
+                    // Ensure privateKeyPath is set for the connector
+                    conn.setPrivateKeyPath("TEMPORARY:" + conn.getTemporaryKeyContent());
+                    conn.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                }
                 setResult(new ConnectionResult(conn, 
                         getConnectionPassword(conn), 
-                        false, true, null, false, null));
+                        false, true, null, false, tempKeyForBtn));
                 close();
             });
             buttonContainer.getChildren().add(btn);
@@ -756,10 +770,26 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             modified.setAuthMethod(selected.getAuthMethod());
             modified.setSshKeyId(selected.getSshKeyId());
             modified.setPrivateKeyPath(selected.getPrivateKeyPath());
+            // Preserve temporary SSH key fields for reconnection
+            modified.setTemporaryKeyContent(selected.getTemporaryKeyContent());
+            modified.setTemporaryKeyExpirationMinutes(selected.getTemporaryKeyExpirationMinutes());
+            modified.setTemporaryKeyPermanent(selected.isTemporaryKeyPermanent());
             // Use values from spinners, not from saved connection
             modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
             modified.setRetryCount(retrySpinner.getValue());
-            return new ConnectionResult(modified, passwordField.getText(), false, true, null, false, null);
+            // Look up temporary SSH key from manager if connection uses one
+            TemporarySSHKey existingTempKey = null;
+            if (selected.getTemporaryKeyContent() != null && !selected.getTemporaryKeyContent().trim().isEmpty()) {
+                existingTempKey = TemporarySSHKeyManager.getInstance().getTemporaryKey(selected.getTemporaryKeyContent());
+                if (existingTempKey == null || !existingTempKey.isValid()) {
+                    Long expMin = selected.getTemporaryKeyExpirationMinutes();
+                    existingTempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                            selected.getTemporaryKeyContent(), (expMin != null && expMin > 0) ? expMin : 15L);
+                }
+                modified.setPrivateKeyPath("TEMPORARY:" + selected.getTemporaryKeyContent());
+                modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
+            }
+            return new ConnectionResult(modified, passwordField.getText(), false, true, null, false, existingTempKey);
         }
         
         ServerConnection connection = new ServerConnection();

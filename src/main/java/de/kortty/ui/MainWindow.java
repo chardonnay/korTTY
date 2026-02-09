@@ -839,7 +839,29 @@ public class MainWindow {
         logger.info("showConnectionManager() called - Opening Connection Manager");
         ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
         dialog.showAndWait().ifPresent(connection -> {
-            // Ask for password if needed
+            // Check if connection uses a temporary SSH key
+            de.kortty.model.TemporarySSHKey tempKey = null;
+            if (connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
+                de.kortty.core.TemporarySSHKeyManager keyManager = de.kortty.core.TemporarySSHKeyManager.getInstance();
+                tempKey = keyManager.getTemporaryKey(connection.getTemporaryKeyContent());
+                if (tempKey != null && tempKey.isValid()) {
+                    // Valid temp key found - connect directly without password dialog
+                    logger.info("Using existing temporary SSH key for saved connection (valid for {} more seconds)",
+                            tempKey.getRemainingSeconds());
+                    openConnection(connection, null, null, tempKey);
+                    return;
+                }
+                // Key expired or not found - ask user for a new temporary key
+                tempKey = requestNewTemporarySSHKey(connection);
+                if (tempKey != null) {
+                    openConnection(connection, null, null, tempKey);
+                    return;
+                }
+                // User cancelled - do not connect
+                return;
+            }
+            
+            // Non-temp-key connection: ask for password if needed
             PasswordVault vault = new PasswordVault(
                     app.getMasterPasswordManager().getEncryptionService(),
                     app.getMasterPasswordManager().getMasterPassword()
