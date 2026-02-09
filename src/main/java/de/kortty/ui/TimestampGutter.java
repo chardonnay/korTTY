@@ -195,14 +195,14 @@ public class TimestampGutter extends Pane {
                 if (duration != null && !duration.isNegative()) {
                     dateText += " " + formatDuration(duration);
                 }
-                double topY = rowTop + charHeight * 0.35;
+                double topY = rowTop + charHeight * 0.22;
                 gc.fillText(dateText, TEXT_LEFT_PADDING, topY);
 
                 // Bottom line: time (e.g. "17:20:03")
                 gc.setFont(font);
                 gc.setFill(textColor);
                 String timeText = ts.format(TIME_FORMAT);
-                double bottomY = rowTop + charHeight * 0.78;
+                double bottomY = rowTop + charHeight * 0.72;
                 gc.fillText(timeText, TEXT_LEFT_PADDING, bottomY);
             }
         }

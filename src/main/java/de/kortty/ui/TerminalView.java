@@ -1619,6 +1619,15 @@ public class TerminalView extends BorderPane {
         }
         
         @Override
+        public boolean altSendsEscape() {
+            // On macOS, Option+key produces special characters (e.g. Option+7 = |, Option+5 = [,
+            // Option+8 = {, Option+L = @, Option+N = ~). Returning false lets the OS handle these
+            // combinations natively instead of sending ESC+key sequences.
+            String os = System.getProperty("os.name", "").toLowerCase();
+            return !os.contains("mac");
+        }
+        
+        @Override
         public boolean audibleBell() {
             return false; // Disable bell sound!
         }

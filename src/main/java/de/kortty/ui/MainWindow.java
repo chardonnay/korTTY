@@ -221,22 +221,28 @@ public class MainWindow {
                 return;
             }
             
-            if (ctrl || alt) {
-                // Zoom in: Ctrl/Alt + Plus (various key codes for different keyboards)
+            // On macOS, use Cmd (Meta) for zoom; on other OS use Ctrl or Alt.
+            // Option (Alt) on macOS must NOT be intercepted — it produces special characters
+            // like |, [, ], {, }, @, ~, \.
+            boolean isMac = System.getProperty("os.name", "").toLowerCase().contains("mac");
+            boolean zoomModifier = isMac ? event.isMetaDown() : (ctrl || alt);
+            
+            if (zoomModifier) {
+                // Zoom in: modifier + Plus (various key codes for different keyboards)
                 if (code == KeyCode.PLUS || code == KeyCode.ADD || 
                     code == KeyCode.EQUALS || "+".equals(text) || "+".equals(character)) {
                     zoomTerminal(1);
                     zoomTriggered[0] = true;
                     event.consume();
                 }
-                // Zoom out: Ctrl/Alt + Minus
+                // Zoom out: modifier + Minus
                 else if (code == KeyCode.MINUS || code == KeyCode.SUBTRACT || 
                          "-".equals(text) || "-".equals(character)) {
                     zoomTerminal(-1);
                     zoomTriggered[0] = true;
                     event.consume();
                 }
-                // Reset zoom: Ctrl/Alt + 0
+                // Reset zoom: modifier + 0
                 else if (code == KeyCode.DIGIT0 || code == KeyCode.NUMPAD0) {
                     resetTerminalZoom();
                     zoomTriggered[0] = true;
