@@ -7,6 +7,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.TreeMap;
@@ -21,7 +22,7 @@ public class TimestampGutter extends Pane {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yy");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final double GUTTER_WIDTH = 76;
+    private static final double GUTTER_WIDTH = 88;
     private static final double TEXT_LEFT_PADDING = 6;
     private static final double TEXT_BOTTOM_OFFSET = 2;
     private static final Color SEPARATOR_COLOR = Color.web("#444444");
@@ -122,6 +123,13 @@ public class TimestampGutter extends Pane {
     }
 
     /**
+     * Returns whether a timestamp exists for the given absolute line.
+     */
+    public boolean hasTimestampForLine(int absoluteLine) {
+        return timestamps.containsKey(absoluteLine);
+    }
+
+    /**
      * Clears all recorded timestamps.
      */
     public void clearTimestamps() {
@@ -151,28 +159,48 @@ public class TimestampGutter extends Pane {
         gc.setLineWidth(1);
         gc.strokeLine(width - 0.5, 0, width - 0.5, height);
 
-        // Draw timestamps for visible rows (date above, time below)
+        // Draw timestamps for visible rows (date, time, and time since previous prompt)
         for (int row = 0; row < visibleRows; row++) {
             int absoluteLine = historyLinesCount + scrollOrigin + row;
             LocalDateTime ts = timestamps.get(absoluteLine);
             if (ts != null) {
                 double rowTop = row * charHeight;
-                
-                // Draw date (smaller, slightly dimmer) in top half of cell
+                Integer prevLine = timestamps.lowerKey(absoluteLine);
+                Duration duration = prevLine != null
+                    ? Duration.between(timestamps.get(prevLine), ts)
+                    : null;
+
+                // Draw date (smaller, slightly dimmer) in top third of cell
                 gc.setFont(dateFont);
                 gc.setFill(textColor.deriveColor(0, 1.0, 1.0, 0.7));
                 String dateText = ts.format(DATE_FORMAT);
-                double dateY = rowTop + charHeight * 0.38;
+                double dateY = rowTop + charHeight * 0.32;
                 gc.fillText(dateText, TEXT_LEFT_PADDING, dateY);
-                
-                // Draw time (normal) in bottom half of cell
+
+                // Draw time in middle
                 gc.setFont(font);
                 gc.setFill(textColor);
                 String timeText = ts.format(TIME_FORMAT);
-                double timeY = rowTop + charHeight - TEXT_BOTTOM_OFFSET;
+                double timeY = rowTop + charHeight * 0.62;
                 gc.fillText(timeText, TEXT_LEFT_PADDING, timeY);
+
+                // Draw time since previous prompt at bottom
+                if (duration != null && !duration.isNegative()) {
+                    gc.setFont(dateFont);
+                    gc.setFill(textColor.deriveColor(0, 1.0, 1.0, 0.6));
+                    String durationText = formatDuration(duration);
+                    double durationY = rowTop + charHeight - TEXT_BOTTOM_OFFSET;
+                    gc.fillText(durationText, TEXT_LEFT_PADDING, durationY);
+                }
             }
         }
+    }
+
+    private static String formatDuration(Duration d) {
+        long s = d.getSeconds();
+        if (s < 60) return "+" + s + "s";
+        if (s < 3600) return "+" + (s / 60) + ":" + String.format("%02d", s % 60);
+        return "+" + (s / 3600) + ":" + String.format("%02d", (s % 3600) / 60) + ":" + String.format("%02d", s % 60);
     }
 
     /**

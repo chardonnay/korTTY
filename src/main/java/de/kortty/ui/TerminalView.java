@@ -8,6 +8,7 @@ import com.techsenger.jeditermfx.ui.settings.DynamicFontSizeSettingsProvider;
 import com.techsenger.jeditermfx.ui.split.SplitConnectorFactory;
 import com.techsenger.jeditermfx.ui.split.SplitRequest;
 import com.techsenger.jeditermfx.ui.split.TerminalSplitPane;
+import de.kortty.KorTTYApplication;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.DisconnectListener;
 import de.kortty.model.ConnectionSettings;
@@ -18,17 +19,27 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.geometry.Orientation;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.TransferMode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.sshd.sftp.client.SftpClient;
+import org.apache.sshd.sftp.client.SftpClientFactory;
 
 /**
  * Terminal view component using JediTermFX for professional terminal emulation.
@@ -82,7 +93,9 @@ public class TerminalView extends BorderPane {
     
     // Timestamp gutter support: maps each widget to its gutter
     private final Map<JediTermFxWidget, TimestampGutter> gutterMap = new ConcurrentHashMap<>();
-    
+    // Last absolute line we added a timestamp for (per widget), to detect new prompt lines from server
+    private final Map<JediTermFxWidget, Integer> lastTimestampLineByWidget = new ConcurrentHashMap<>();
+
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
     
@@ -147,7 +160,9 @@ public class TerminalView extends BorderPane {
         
         // Use split pane as the main content
         setCenter(splitPane);
-        
+
+        setupDragDrop();
+
         // Request focus on the terminal
         Platform.runLater(() -> {
             JediTermFxWidget focused = splitPane.getFocusedWidget();
@@ -155,6 +170,181 @@ public class TerminalView extends BorderPane {
                 focused.getPreferredFocusableNode().requestFocus();
             }
         });
+    }
+
+    private boolean isTerminalDragDropEnabled() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs != null && gs.isTerminalDragDropEnabled();
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private void setupDragDrop() {
+        setOnDragOver(event -> {
+            if (!isTerminalDragDropEnabled()) return;
+            Dragboard db = event.getDragboard();
+            if (db.hasFiles()) {
+                TtyConnector conn = getFocusedConnector();
+                if (conn instanceof SshTtyConnector ssh && ssh.isConnected() && ssh.getSession() != null) {
+                    event.acceptTransferModes(TransferMode.COPY);
+                }
+            }
+            event.consume();
+        });
+        setOnDragDropped(event -> {
+            if (!isTerminalDragDropEnabled()) return;
+            Dragboard db = event.getDragboard();
+            if (!db.hasFiles()) {
+                event.setDropCompleted(false);
+                return;
+            }
+            TtyConnector conn = getFocusedConnector();
+            if (!(conn instanceof SshTtyConnector ssh) || !ssh.isConnected() || ssh.getSession() == null) {
+                event.setDropCompleted(false);
+                return;
+            }
+            List<java.io.File> dropped = db.getFiles();
+            if (dropped.isEmpty()) {
+                event.setDropCompleted(false);
+                return;
+            }
+            event.setDropCompleted(true);
+            copyDroppedFilesToServer(ssh, dropped);
+        });
+    }
+
+    private TtyConnector getFocusedConnector() {
+        JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : null;
+        return focused != null ? focused.getTtyConnector() : null;
+    }
+
+    private void copyDroppedFilesToServer(SshTtyConnector sshConnector, List<java.io.File> dropped) {
+        List<PathPair> toUpload = new ArrayList<>();
+        for (java.io.File f : dropped) {
+            collectFiles(f.toPath(), "", toUpload);
+        }
+        if (toUpload.isEmpty()) return;
+        int total = toUpload.size();
+        AtomicBoolean aborted = new AtomicBoolean(false);
+        javafx.scene.control.ProgressBar progressBar = new javafx.scene.control.ProgressBar(0);
+        progressBar.setPrefWidth(300);
+        progressBar.setProgress(0);
+        javafx.scene.control.Label statusLabel = new javafx.scene.control.Label(
+            I18n.get("terminal.dragDrop.count", 0, total));
+        javafx.scene.control.Button abortButton = new javafx.scene.control.Button(I18n.get("terminal.dragDrop.abort"));
+        javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(10,
+            statusLabel, progressBar, abortButton);
+        vbox.setPadding(new javafx.geometry.Insets(15));
+        javafx.scene.control.Dialog<Void> dialog = new javafx.scene.control.Dialog<>();
+        dialog.setTitle(I18n.get("terminal.dragDrop.title"));
+        dialog.getDialogPane().setContent(vbox);
+        dialog.getDialogPane().getButtonTypes().add(javafx.scene.control.ButtonType.CLOSE);
+        dialog.setOnShown(e -> abortButton.requestFocus());
+        abortButton.setOnAction(e -> {
+            aborted.set(true);
+            dialog.close();
+        });
+        Thread worker = new Thread(() -> {
+            try {
+                SftpClient sftp = SftpClientFactory.instance().createSftpClient(sshConnector.getSession());
+                // Resolve remote home (SFTP server does not expand "~")
+                String remoteHome;
+                try {
+                    remoteHome = sftp.canonicalPath(".");
+                } catch (Exception e) {
+                    logger.debug("Could not resolve remote home, using '.'");
+                    remoteHome = ".";
+                }
+                if (remoteHome == null || remoteHome.isEmpty()) remoteHome = ".";
+                int copied = 0;
+                for (int i = 0; i < toUpload.size() && !aborted.get(); i++) {
+                    PathPair p = toUpload.get(i);
+                    String fullRemote = (remoteHome.endsWith("/") ? remoteHome : remoteHome + "/") + p.remote;
+                    uploadOne(sftp, p, fullRemote);
+                    if (aborted.get()) break;
+                    copied++;
+                    final int done = copied;
+                    Platform.runLater(() -> {
+                        statusLabel.setText(I18n.get("terminal.dragDrop.count", done, total));
+                        progressBar.setProgress((double) done / total);
+                    });
+                }
+                if (!aborted.get()) {
+                    Platform.runLater(() -> {
+                        statusLabel.setText(I18n.get("terminal.dragDrop.done"));
+                        progressBar.setProgress(1.0);
+                        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1.2));
+                        pause.setOnFinished(e -> dialog.close());
+                        pause.play();
+                    });
+                }
+            } catch (Exception ex) {
+                logger.warn("Drag-drop copy failed", ex);
+                String msg = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+                Platform.runLater(() -> {
+                    statusLabel.setText(I18n.get("terminal.dragDrop.error", msg));
+                });
+            }
+        }, "TerminalDragDrop");
+        worker.setDaemon(true);
+        worker.start();
+        dialog.show();
+    }
+
+    private static class PathPair {
+        final Path local;
+        final String remote;
+        final boolean isDir;
+
+        PathPair(Path local, String remote, boolean isDir) {
+            this.local = local;
+            this.remote = remote;
+            this.isDir = isDir;
+        }
+    }
+
+    private void collectFiles(Path local, String remoteDir, List<PathPair> out) {
+        if (Files.isRegularFile(local)) {
+            String name = local.getFileName().toString();
+            String remote = remoteDir.isEmpty() ? name : remoteDir + "/" + name;
+            out.add(new PathPair(local, remote, false));
+        } else if (Files.isDirectory(local)) {
+            String dirName = local.getFileName().toString();
+            String subRemote = remoteDir.isEmpty() ? dirName : remoteDir + "/" + dirName;
+            out.add(new PathPair(local, subRemote, true));
+            try {
+                try (var stream = Files.list(local)) {
+                    for (Path child : stream.toList()) {
+                        collectFiles(child, subRemote, out);
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("List dir failed: {}", e.getMessage());
+            }
+        }
+    }
+
+    private void uploadOne(SftpClient sftp, PathPair p, String fullRemotePath) throws java.io.IOException {
+        if (p.isDir) {
+            try {
+                sftp.mkdir(fullRemotePath);
+            } catch (Exception e) {
+                // may already exist
+            }
+            return;
+        }
+        try (InputStream in = Files.newInputStream(p.local);
+             OutputStream out = sftp.write(fullRemotePath, java.util.EnumSet.of(
+                 SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                out.write(buf, 0, n);
+            }
+        }
     }
     
     /**
@@ -365,6 +555,26 @@ public class TerminalView extends BorderPane {
                 event.consume();
             }
         });
+
+        // Copy-on-select: when user finishes selecting text, copy to clipboard if enabled
+        var panel = widget.getTerminalPanel();
+        if (panel != null) {
+            panel.selectedTextProperty().addListener((obs, oldVal, newVal) -> {
+                if (isTerminalCopyOnSelectEnabled() && newVal != null && !newVal.isEmpty()) {
+                    panel.handleCopy(false, false);
+                }
+            });
+        }
+    }
+
+    private boolean isTerminalCopyOnSelectEnabled() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs != null && gs.isTerminalCopyOnSelectEnabled();
+        } catch (Exception e) {
+            return true;
+        }
     }
     
     /**
@@ -410,7 +620,27 @@ public class TerminalView extends BorderPane {
         
         // Update gutter when terminal content changes (new output, resize)
         textBuffer.addModelListener(() -> {
-            Platform.runLater(() -> updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel));
+            Platform.runLater(() -> {
+                updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
+                // Add timestamp when prompt appears (cursor at start of new line from server output)
+                try {
+                    var terminal = widget.getTerminal();
+                    if (terminal == null || !isCommandTimestampsEnabled()) return;
+                    int cursorX = terminal.getCursorX();
+                    int cursorY = terminal.getCursorY();
+                    int historyLines = textBuffer.getHistoryLinesCount();
+                    int absoluteLine = historyLines + cursorY;
+                    if (cursorX == 0 && absoluteLine >= 0) {
+                        int last = lastTimestampLineByWidget.getOrDefault(widget, -1);
+                        if (absoluteLine > last && !gutter.hasTimestampForLine(absoluteLine)) {
+                            gutter.addTimestamp(absoluteLine, LocalDateTime.now());
+                            lastTimestampLineByWidget.put(widget, absoluteLine);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.trace("Timestamp on prompt: {}", e.getMessage());
+                }
+            });
         });
         
         // Initial update
@@ -431,6 +661,7 @@ public class TerminalView extends BorderPane {
             int absoluteLine = historyLines + cursorY;
             
             gutter.addTimestamp(absoluteLine, LocalDateTime.now());
+            lastTimestampLineByWidget.put(widget, absoluteLine);
         } catch (Exception e) {
             logger.debug("Failed to record timestamp: {}", e.getMessage());
         }
