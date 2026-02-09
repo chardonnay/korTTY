@@ -977,24 +977,32 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     /**
      * Returns a list of monospace fonts available on the system.
      */
+    /**
+     * Returns all system-available font families, with common monospace fonts first.
+     */
     private List<String> getMonospaceFonts() {
-        java.util.Set<String> monoFonts = new java.util.LinkedHashSet<>();
-        monoFonts.add("Monospaced");
-        monoFonts.add("Courier New");
-        monoFonts.add("Monaco");
-        monoFonts.add("Menlo");
-        monoFonts.add("Consolas");
-        monoFonts.add("DejaVu Sans Mono");
-        monoFonts.add("Liberation Mono");
-        monoFonts.add("Ubuntu Mono");
-        monoFonts.add("Fira Code");
-        monoFonts.add("JetBrains Mono");
-        monoFonts.add("Source Code Pro");
-        
-        // Filter available fonts
-        return monoFonts.stream()
-            .filter(font -> javafx.scene.text.Font.getFamilies().contains(font))
-            .collect(java.util.stream.Collectors.toList());
+        java.util.Set<String> preferred = new java.util.LinkedHashSet<>();
+        preferred.add("Monospaced");
+        preferred.add("Courier New");
+        preferred.add("Monaco");
+        preferred.add("Menlo");
+        preferred.add("Consolas");
+        preferred.add("DejaVu Sans Mono");
+        preferred.add("Liberation Mono");
+        preferred.add("Ubuntu Mono");
+        preferred.add("Fira Code");
+        preferred.add("JetBrains Mono");
+        preferred.add("Source Code Pro");
+        preferred.add("SF Mono");
+        java.util.List<String> system = javafx.scene.text.Font.getFamilies();
+        java.util.List<String> result = new java.util.ArrayList<>(preferred.size() + system.size());
+        for (String f : preferred) {
+            if (system.contains(f)) result.add(f);
+        }
+        for (String f : system) {
+            if (!preferred.contains(f)) result.add(f);
+        }
+        return result;
     }
     
     /**

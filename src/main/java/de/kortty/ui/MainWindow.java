@@ -25,8 +25,10 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import javafx.event.Event;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,16 +108,23 @@ public class MainWindow {
         newTabButton.setClosable(false);
         tabPane.getTabs().add(newTabButton);
         
-        // When + tab is selected, just go back to previous tab
-        // QuickConnect is available via menu (Connection -> Quick Connect) or Ctrl+N
+        // When + tab is selected, go back to previous tab and open QuickConnect
+        // QuickConnect is suppressed when the + tab is selected due to programmatic tab removal (e.g. disconnect)
         newTabButton.setOnSelectionChanged(e -> {
             if (newTabButton.isSelected()) {
+                // Capture suppress flag synchronously (set by tab removal listener before selection change fires)
+                boolean suppressed = suppressQuickConnect;
+                suppressQuickConnect = false;
                 Platform.runLater(() -> {
                     int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
                     if (plusTabIndex > 0) {
                         tabPane.getSelectionModel().select(plusTabIndex - 1);
                     } else {
                         tabPane.getSelectionModel().clearSelection();
+                    }
+                    // Only open QuickConnect on explicit user click, not on programmatic selection
+                    if (!suppressed && startupComplete) {
+                        showQuickConnect();
                     }
                 });
             }
@@ -130,11 +139,12 @@ public class MainWindow {
             }
         });
         
-        // Listen for tab removals to update dashboard
+        // Listen for tab removals to update dashboard and suppress QuickConnect
         tabPane.getTabs().addListener((javafx.collections.ListChangeListener.Change<? extends Tab> change) -> {
             while (change.next()) {
                 if (change.wasRemoved()) {
-                    // Tab was removed - update dashboard
+                    // Suppress QuickConnect if the + tab gets selected as a result of tab removal
+                    suppressQuickConnect = true;
                     Platform.runLater(() -> {
                         updateDashboard();
                     });
@@ -317,13 +327,21 @@ public class MainWindow {
         // File Menu
         Menu fileMenu = new Menu(I18n.get("menu.file"));
         
+        MenuItem newTab = new MenuItem(I18n.get("menu.file.newTab"));
+        newTab.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
+        newTab.setOnAction(e -> showQuickConnect());
+        
+        MenuItem closeTab = new MenuItem(I18n.get("menu.file.closeTab"));
+        closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
+        closeTab.setOnAction(e -> closeCurrentTab());
+        
         MenuItem newWindow = new MenuItem(I18n.get("menu.file.newWindow"));
         newWindow.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         newWindow.setOnAction(e -> openNewWindow());
         
-        MenuItem newTab = new MenuItem(I18n.get("menu.file.newTab"));
-        newTab.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
-        newTab.setOnAction(e -> showQuickConnect());
+        MenuItem closeWindow = new MenuItem(I18n.get("menu.file.closeWindow"));
+        closeWindow.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        closeWindow.setOnAction(e -> fireCloseRequest());
         
         MenuItem openProject = new MenuItem(I18n.get("menu.file.openProject"));
         openProject.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
@@ -333,17 +351,22 @@ public class MainWindow {
         saveProject.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         saveProject.setOnAction(e -> saveProject());
         
-        MenuItem closeTab = new MenuItem(I18n.get("menu.file.closeTab"));
-        closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
-        closeTab.setOnAction(e -> closeCurrentTab());
+        MenuItem createBackup = new MenuItem(I18n.get("menu.edit.createBackup"));
+        createBackup.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        createBackup.setOnAction(e -> createBackup());
+        
+        MenuItem importBackup = new MenuItem(I18n.get("menu.edit.importBackup"));
+        importBackup.setOnAction(e -> importBackup());
         
         MenuItem quit = new MenuItem(I18n.get("menu.file.quit"));
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
         quit.setOnAction(e -> Platform.exit());
         
-        fileMenu.getItems().addAll(newWindow, newTab, new SeparatorMenuItem(),
+        fileMenu.getItems().addAll(
+                newTab, closeTab, new SeparatorMenuItem(),
+                newWindow, closeWindow, new SeparatorMenuItem(),
                 openProject, saveProject, new SeparatorMenuItem(),
-                closeTab, new SeparatorMenuItem(), quit);
+                createBackup, importBackup, new SeparatorMenuItem(), quit);
         
         // Edit Menu
         Menu editMenu = new Menu(I18n.get("menu.edit"));
@@ -364,14 +387,7 @@ public class MainWindow {
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
         settings.setOnAction(e -> showSettings());
         
-        MenuItem createBackup = new MenuItem(I18n.get("menu.edit.createBackup"));
-        createBackup.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-        createBackup.setOnAction(e -> createBackup());
-        
-        MenuItem importBackup = new MenuItem(I18n.get("menu.edit.importBackup"));
-        importBackup.setOnAction(e -> importBackup());
-        
-        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), find, new SeparatorMenuItem(), settings, createBackup, importBackup);
+        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), find, new SeparatorMenuItem(), settings);
         
         // Connections Menu
         Menu connectionsMenu = new Menu(I18n.get("menu.connections"));
@@ -867,6 +883,13 @@ public class MainWindow {
         Stage newStage = new Stage();
         MainWindow newWindow = new MainWindow(newStage);
         newWindow.show();
+    }
+
+    /**
+     * Fires the window close request so the same confirmation and cleanup logic runs as when closing via the window button.
+     */
+    private void fireCloseRequest() {
+        Event.fireEvent(stage, new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
     }
     
     private void closeCurrentTab() {

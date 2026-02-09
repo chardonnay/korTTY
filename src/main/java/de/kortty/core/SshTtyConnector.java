@@ -342,10 +342,20 @@ public class SshTtyConnector implements TtyConnector {
             }
         } catch (Exception e) {
             logger.warn("Error closing SSH connection: {}", e.getMessage());
+        } finally {
+            session = null;
         }
         logger.info("Disconnected from {}", connection.getDisplayName());
     }
     
+    /**
+     * Returns the underlying SSH session for use by SFTP (e.g. drag-and-drop file copy).
+     * @return the client session, or null if not connected or session is closed
+     */
+    public ClientSession getSession() {
+        return (session != null && session.isOpen()) ? session : null;
+    }
+
     @Override
     public String getName() {
         return connection.getDisplayName();

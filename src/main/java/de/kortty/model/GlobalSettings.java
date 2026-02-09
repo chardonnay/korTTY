@@ -53,7 +53,13 @@ public class GlobalSettings {
     
     @XmlElement
     private boolean commandTimestampsEnabled = false; // Show timestamp gutter in terminal
-    
+
+    @XmlElement
+    private boolean terminalDragDropEnabled = true; // Allow drag-and-drop file copy into terminal
+
+    @XmlElement
+    private boolean terminalCopyOnSelectEnabled = true; // Copy selected text to clipboard automatically
+
     @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
     
@@ -263,7 +269,23 @@ public class GlobalSettings {
     public void setCommandTimestampsEnabled(boolean commandTimestampsEnabled) {
         this.commandTimestampsEnabled = commandTimestampsEnabled;
     }
-    
+
+    public boolean isTerminalDragDropEnabled() {
+        return terminalDragDropEnabled;
+    }
+
+    public void setTerminalDragDropEnabled(boolean terminalDragDropEnabled) {
+        this.terminalDragDropEnabled = terminalDragDropEnabled;
+    }
+
+    public boolean isTerminalCopyOnSelectEnabled() {
+        return terminalCopyOnSelectEnabled;
+    }
+
+    public void setTerminalCopyOnSelectEnabled(boolean terminalCopyOnSelectEnabled) {
+        this.terminalCopyOnSelectEnabled = terminalCopyOnSelectEnabled;
+    }
+
     public boolean isRequireMasterPasswordOnStartup() {
         return requireMasterPasswordOnStartup;
     }

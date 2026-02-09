@@ -258,6 +258,8 @@ public class TerminalTab extends Tab {
     private void closeTabSilently() {
         TabPane tabPane = getTabPane();
         if (tabPane != null) {
+            // Suppress QuickConnect if + tab might be selected after removal
+            MainWindow.suppressNextQuickConnect();
             // Remove close request handler temporarily to avoid confirmation
             setOnCloseRequest(null);
             tabPane.getTabs().remove(this);

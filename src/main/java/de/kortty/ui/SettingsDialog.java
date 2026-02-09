@@ -58,6 +58,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ComboBox<String> encodingCombo;
     private final CheckBox showTerminalScrollbarCheck;
     private final CheckBox commandTimestampsCheck;
+    private final CheckBox terminalDragDropCheck;
+    private final CheckBox terminalCopyOnSelectCheck;
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
@@ -245,6 +247,14 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         commandTimestampsCheck = new CheckBox(I18n.get("settings.terminal.commandTimestamps"));
         commandTimestampsCheck.setSelected(settings.isCommandTimestampsEnabled());
         commandTimestampsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.commandTimestamps.tooltip")));
+
+        terminalDragDropCheck = new CheckBox(I18n.get("settings.terminal.dragDrop"));
+        terminalDragDropCheck.setSelected(globalSettings != null ? globalSettings.isTerminalDragDropEnabled() : true);
+        terminalDragDropCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.dragDrop.tooltip")));
+
+        terminalCopyOnSelectCheck = new CheckBox(I18n.get("settings.terminal.copyOnSelect"));
+        terminalCopyOnSelectCheck.setSelected(globalSettings != null ? globalSettings.isTerminalCopyOnSelectEnabled() : true);
+        terminalCopyOnSelectCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.copyOnSelect.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -278,22 +288,24 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         terminalGrid.add(boldAsBrightCheck, 0, 4, 2, 1);
         terminalGrid.add(showTerminalScrollbarCheck, 0, 5, 2, 1);
         terminalGrid.add(commandTimestampsCheck, 0, 6, 2, 1);
+        terminalGrid.add(terminalDragDropCheck, 0, 7, 2, 1);
+        terminalGrid.add(terminalCopyOnSelectCheck, 0, 8, 2, 1);
         
         // SSH Keep-Alive section
-        terminalGrid.add(new Separator(), 0, 7, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, 8, 2, 1);
-        terminalGrid.add(sshKeepAliveCheck, 0, 9, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, 10);
+        terminalGrid.add(new Separator(), 0, 9, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, 10, 2, 1);
+        terminalGrid.add(sshKeepAliveCheck, 0, 11, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, 12);
         HBox keepAliveBox = new HBox(10);
         keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label(I18n.get("common.seconds")));
-        terminalGrid.add(keepAliveBox, 1, 10);
+        terminalGrid.add(keepAliveBox, 1, 12);
         
         // Connection section
-        terminalGrid.add(new Separator(), 0, 11, 2, 1);
+        terminalGrid.add(new Separator(), 0, 13, 2, 1);
         Label connectionHeader = new Label(I18n.get("settings.connection.header"));
         connectionHeader.setStyle("-fx-font-weight: bold;");
-        terminalGrid.add(connectionHeader, 0, 12, 2, 1);
-        terminalGrid.add(connectionRetriesEnabledCheck, 0, 13, 2, 1);
+        terminalGrid.add(connectionHeader, 0, 14, 2, 1);
+        terminalGrid.add(connectionRetriesEnabledCheck, 0, 15, 2, 1);
         
         terminalTab.setContent(terminalGrid);
         
@@ -837,8 +849,21 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab);
         
         VBox content = new VBox(tabPane);
-        content.setPrefSize(500, 400);
-        getDialogPane().setContent(content);
+        content.setFillWidth(true);
+        // TabPane does not report preferred height well to ScrollPane (JavaFX quirk), so set a min height
+        // so the scrollable area is large enough and the vertical scrollbar appears
+        content.setMinHeight(720);
+        content.setPrefHeight(720);
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(false);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setPrefViewportWidth(560);
+        scrollPane.setPrefViewportHeight(420);
+        scrollPane.setMinViewportWidth(400);
+        scrollPane.setMinViewportHeight(300);
+        getDialogPane().setContent(scrollPane);
         
         // Buttons
         ButtonType saveButtonType = new ButtonType(I18n.get("settings.save"), ButtonBar.ButtonData.OK_DONE);
@@ -905,6 +930,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         // Save backup settings to GlobalSettings
         if (globalSettings != null) {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
+            globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
+            globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             
             // Save language setting
@@ -999,18 +1026,32 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         previewLabel.setFont(Font.font(fontFamilyCombo.getValue(), fontSizeSpinner.getValue()));
     }
     
+    /**
+     * Returns all system-available font families, with common monospace fonts first.
+     */
     private List<String> getMonospaceFonts() {
-        return List.of(
-                "Monospaced",
-                "Courier New",
-                "Consolas",
-                "Monaco",
-                "Menlo",
-                "Source Code Pro",
-                "JetBrains Mono",
-                "Fira Code",
-                "SF Mono"
-        );
+        java.util.Set<String> preferred = new java.util.LinkedHashSet<>();
+        preferred.add("Monospaced");
+        preferred.add("Courier New");
+        preferred.add("Consolas");
+        preferred.add("Monaco");
+        preferred.add("Menlo");
+        preferred.add("Source Code Pro");
+        preferred.add("JetBrains Mono");
+        preferred.add("Fira Code");
+        preferred.add("SF Mono");
+        preferred.add("DejaVu Sans Mono");
+        preferred.add("Liberation Mono");
+        preferred.add("Ubuntu Mono");
+        java.util.List<String> system = javafx.scene.text.Font.getFamilies();
+        java.util.List<String> result = new java.util.ArrayList<>(preferred.size() + system.size());
+        for (String f : preferred) {
+            if (system.contains(f)) result.add(f);
+        }
+        for (String f : system) {
+            if (!preferred.contains(f)) result.add(f);
+        }
+        return result;
     }
     
     private String toHex(Color color) {

@@ -226,8 +226,7 @@ jobs:
           find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.deb' -o -name '*.rpm' \) -exec cp {} release/ \;
 
       - name: Upload to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           files: release/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
