@@ -1,15 +1,20 @@
 package de.kortty.ui;
 
+import javafx.geometry.Insets;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.Popup;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.TreeMap;
 
 /**
@@ -17,17 +22,26 @@ import java.util.TreeMap;
  * Shows date/time timestamps for each command entered by the user (on Enter key press).
  * The gutter uses a Canvas for efficient rendering and synchronizes its display
  * with the terminal's scrollbar position and character size.
+ * Hovering over a timestamp row shows a popup with full details.
  */
 public class TimestampGutter extends Pane {
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yy");
+    private static final DateTimeFormatter DATE_SHORT_FORMAT = DateTimeFormatter.ofPattern("dd.MM.");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter POPUP_DATE_FORMAT = DateTimeFormatter.ofPattern("EEEE, dd. MMMM yyyy", Locale.getDefault());
+    private static final DateTimeFormatter POPUP_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final double GUTTER_WIDTH = 88;
     private static final double TEXT_LEFT_PADDING = 6;
-    private static final double TEXT_BOTTOM_OFFSET = 2;
     private static final Color SEPARATOR_COLOR = Color.web("#444444");
 
     private final Canvas canvas = new Canvas();
+
+    /** Hover popup shown when mouse is over a timestamp row. */
+    private Popup hoverPopup;
+    private Label popupDateLabel;
+    private Label popupTimeLabel;
+    private Label popupDurationLabel;
+    private int currentPopupRow = -1;
 
     /**
      * Maps absolute line numbers to the timestamp when Enter was pressed on that line.
@@ -57,6 +71,9 @@ public class TimestampGutter extends Pane {
         // Repaint when size changes
         canvas.widthProperty().addListener((obs, o, n) -> render());
         canvas.heightProperty().addListener((obs, o, n) -> render());
+
+        // Setup hover popup
+        setupHoverPopup();
     }
 
     /**
@@ -139,7 +156,8 @@ public class TimestampGutter extends Pane {
 
     /**
      * Renders the gutter content.
-     * Draws timestamps aligned to the corresponding terminal rows.
+     * Two-line layout per row: date + duration on top, time below.
+     * Full details are shown in the hover popup.
      */
     private void render() {
         double width = canvas.getWidth();
@@ -159,7 +177,7 @@ public class TimestampGutter extends Pane {
         gc.setLineWidth(1);
         gc.strokeLine(width - 0.5, 0, width - 0.5, height);
 
-        // Draw timestamps for visible rows (date, time, and time since previous prompt)
+        // Draw timestamps for visible rows (two-line layout: date+duration above, time below)
         for (int row = 0; row < visibleRows; row++) {
             int absoluteLine = historyLinesCount + scrollOrigin + row;
             LocalDateTime ts = timestamps.get(absoluteLine);
@@ -170,28 +188,22 @@ public class TimestampGutter extends Pane {
                     ? Duration.between(timestamps.get(prevLine), ts)
                     : null;
 
-                // Draw date (smaller, slightly dimmer) in top third of cell
+                // Top line: short date + duration (e.g. "09.02. +12s")
                 gc.setFont(dateFont);
-                gc.setFill(textColor.deriveColor(0, 1.0, 1.0, 0.7));
-                String dateText = ts.format(DATE_FORMAT);
-                double dateY = rowTop + charHeight * 0.32;
-                gc.fillText(dateText, TEXT_LEFT_PADDING, dateY);
+                gc.setFill(textColor.deriveColor(0, 1.0, 1.0, 0.65));
+                String dateText = ts.format(DATE_SHORT_FORMAT);
+                if (duration != null && !duration.isNegative()) {
+                    dateText += " " + formatDuration(duration);
+                }
+                double topY = rowTop + charHeight * 0.35;
+                gc.fillText(dateText, TEXT_LEFT_PADDING, topY);
 
-                // Draw time in middle
+                // Bottom line: time (e.g. "17:20:03")
                 gc.setFont(font);
                 gc.setFill(textColor);
                 String timeText = ts.format(TIME_FORMAT);
-                double timeY = rowTop + charHeight * 0.62;
-                gc.fillText(timeText, TEXT_LEFT_PADDING, timeY);
-
-                // Draw time since previous prompt at bottom
-                if (duration != null && !duration.isNegative()) {
-                    gc.setFont(dateFont);
-                    gc.setFill(textColor.deriveColor(0, 1.0, 1.0, 0.6));
-                    String durationText = formatDuration(duration);
-                    double durationY = rowTop + charHeight - TEXT_BOTTOM_OFFSET;
-                    gc.fillText(durationText, TEXT_LEFT_PADDING, durationY);
-                }
+                double bottomY = rowTop + charHeight * 0.78;
+                gc.fillText(timeText, TEXT_LEFT_PADDING, bottomY);
             }
         }
     }
@@ -201,6 +213,118 @@ public class TimestampGutter extends Pane {
         if (s < 60) return "+" + s + "s";
         if (s < 3600) return "+" + (s / 60) + ":" + String.format("%02d", s % 60);
         return "+" + (s / 3600) + ":" + String.format("%02d", (s % 3600) / 60) + ":" + String.format("%02d", s % 60);
+    }
+
+    /**
+     * Formats a duration in a verbose, human-readable form for the popup.
+     */
+    private static String formatDurationVerbose(Duration d) {
+        long s = d.getSeconds();
+        if (s < 60) return s + " sec";
+        if (s < 3600) return (s / 60) + " min " + (s % 60) + " sec";
+        long h = s / 3600;
+        long m = (s % 3600) / 60;
+        long sec = s % 60;
+        return h + " h " + m + " min " + sec + " sec";
+    }
+
+    // ---- Hover popup ----
+
+    /**
+     * Creates the hover popup with styled labels for date, time, and duration.
+     * Also registers mouse event handlers on the canvas.
+     */
+    private void setupHoverPopup() {
+        hoverPopup = new Popup();
+        hoverPopup.setAutoHide(true);
+
+        popupDateLabel = new Label();
+        popupDateLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 12px; -fx-font-weight: bold;");
+
+        popupTimeLabel = new Label();
+        popupTimeLabel.setStyle("-fx-text-fill: #ffffff; -fx-font-size: 16px; -fx-font-weight: bold;");
+
+        popupDurationLabel = new Label();
+        popupDurationLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 11px;");
+
+        VBox popupContent = new VBox(4, popupDateLabel, popupTimeLabel, popupDurationLabel);
+        popupContent.setPadding(new Insets(8, 12, 8, 12));
+        popupContent.setStyle(
+            "-fx-background-color: #2a2a2a;" +
+            "-fx-background-radius: 6;" +
+            "-fx-border-color: #555555;" +
+            "-fx-border-radius: 6;" +
+            "-fx-border-width: 1;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 8, 0, 2, 2);"
+        );
+
+        hoverPopup.getContent().add(popupContent);
+
+        canvas.setOnMouseMoved(event -> {
+            if (charHeight <= 0) return;
+            int row = (int) (event.getY() / charHeight);
+            if (row < 0 || row >= visibleRows) {
+                hidePopup();
+                return;
+            }
+            int absoluteLine = historyLinesCount + scrollOrigin + row;
+            LocalDateTime ts = timestamps.get(absoluteLine);
+            if (ts == null) {
+                hidePopup();
+                return;
+            }
+            // Only update popup if we moved to a different row
+            if (row == currentPopupRow && hoverPopup.isShowing()) {
+                // Reposition to follow mouse
+                repositionPopup(event.getScreenX(), event.getScreenY());
+                return;
+            }
+            currentPopupRow = row;
+
+            // Populate popup content
+            popupDateLabel.setText(ts.format(POPUP_DATE_FORMAT));
+            popupTimeLabel.setText(ts.format(POPUP_TIME_FORMAT));
+
+            Integer prevLine = timestamps.lowerKey(absoluteLine);
+            if (prevLine != null) {
+                Duration duration = Duration.between(timestamps.get(prevLine), ts);
+                if (!duration.isNegative()) {
+                    popupDurationLabel.setText("Elapsed: " + formatDurationVerbose(duration));
+                    popupDurationLabel.setVisible(true);
+                    popupDurationLabel.setManaged(true);
+                } else {
+                    popupDurationLabel.setVisible(false);
+                    popupDurationLabel.setManaged(false);
+                }
+            } else {
+                popupDurationLabel.setVisible(false);
+                popupDurationLabel.setManaged(false);
+            }
+
+            // Show popup near the mouse, offset to the right
+            showPopup(event.getScreenX(), event.getScreenY());
+        });
+
+        canvas.setOnMouseExited(event -> hidePopup());
+    }
+
+    private void showPopup(double screenX, double screenY) {
+        if (getScene() == null || getScene().getWindow() == null) return;
+        hoverPopup.show(getScene().getWindow(), screenX + 14, screenY - 10);
+    }
+
+    private void repositionPopup(double screenX, double screenY) {
+        if (hoverPopup.isShowing()) {
+            hoverPopup.setAnchorX(screenX + 14);
+            hoverPopup.setAnchorY(screenY - 10);
+        }
+    }
+
+    private void hidePopup() {
+        currentPopupRow = -1;
+        if (hoverPopup != null && hoverPopup.isShowing()) {
+            hoverPopup.hide();
+        }
     }
 
     /**
