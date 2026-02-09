@@ -640,18 +640,26 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 currentTemporaryKey = existingKey;
                 startExpirationTimer();
             } else {
-                // Key expired or not found - prompt user for a NEW key
-                // DO NOT auto-fill with the old expired key content
+                // Key not found in manager (e.g. after app restart) - re-store from saved content
                 temporaryKeyAuthRadio.setSelected(true);
-                temporaryKeyArea.clear();
-                temporaryKeyArea.setPromptText(I18n.get("quickConnect.temporaryKeyExpiredPrompt"));
-                // Set default expiration time for new key
-                expirationMinutesSpinner.getValueFactory().setValue(15);
-                currentTemporaryKey = null;
-                remainingTimeLabel.setText(I18n.get("quickConnect.keyExpired"));
-                remainingTimeLabel.setStyle("-fx-text-fill: #ff0000; -fx-font-weight: bold;");
-                // Focus on the text area so user can paste new key
-                javafx.application.Platform.runLater(() -> temporaryKeyArea.requestFocus());
+                String savedContent = conn.getTemporaryKeyContent().trim();
+                Long expMin = conn.getTemporaryKeyExpirationMinutes();
+                long expirationMinutes = (expMin != null && expMin > 0) ? expMin : 15L;
+                TemporarySSHKey restoredKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                        savedContent, expirationMinutes);
+                if (restoredKey != null && restoredKey.isValid()) {
+                    // Successfully restored - fill text area with valid key
+                    temporaryKeyArea.setText(restoredKey.getKeyContent());
+                    long remainingMinutes = restoredKey.getRemainingSeconds() / 60;
+                    expirationMinutesSpinner.getValueFactory().setValue(Math.max(1, (int) remainingMinutes));
+                    currentTemporaryKey = restoredKey;
+                    startExpirationTimer();
+                } else {
+                    // Key content is incomplete (no BEGIN/END markers) - show stored content anyway
+                    temporaryKeyArea.setText(savedContent);
+                    expirationMinutesSpinner.getValueFactory().setValue((int) expirationMinutes);
+                    currentTemporaryKey = null;
+                }
             }
         } else if (conn.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
             keyAuthRadio.setSelected(true);
