@@ -861,12 +861,13 @@ public class MainWindow {
                 return;
             }
             
-            // Non-temp-key connection: ask for password if needed
-            PasswordVault vault = new PasswordVault(
-                    app.getMasterPasswordManager().getEncryptionService(),
-                    app.getMasterPasswordManager().getMasterPassword()
-            );
+            // SSH key auth does not require a password - connect directly
+            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                openConnection(connection, null);
+                return;
+            }
             
+            // Non-key connection: ask for password if needed
             String password = getConnectionPassword(connection);
             if (password == null) {
                 Dialog<String> pwDialog = new Dialog<>();
@@ -1260,8 +1261,10 @@ public class MainWindow {
                         if (connection != null) {
                             if (project.isAutoReconnect()) {
                                 // Get password and reconnect with history restore
-                                String password = getConnectionPassword(connection);
-                                if (password != null) {
+                                // SSH key auth does not require a password
+                                boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
+                                String password = isKeyAuth ? null : getConnectionPassword(connection);
+                                if (password != null || isKeyAuth) {
                                     String history = sessionState.getTerminalHistory();
                                     TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history, null);
                                     // Restore tab group (not connection group)
@@ -1302,8 +1305,9 @@ public class MainWindow {
                     case SFTP_MANAGER -> {
                         ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
                         if (connection != null && project.isAutoReconnect()) {
-                            String password = getConnectionPassword(connection);
-                            if (password != null) {
+                            boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
+                            String password = isKeyAuth ? null : getConnectionPassword(connection);
+                            if (password != null || isKeyAuth) {
                                 Integer timeout = sessionState.getSftpAutoCloseTimeout();
                                 int timeoutMinutes = (timeout != null && timeout > 0) ? timeout : 0;
                                 
@@ -1331,8 +1335,9 @@ public class MainWindow {
                                 // Remote file - need connection
                                 ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
                                 if (connection != null && project.isAutoReconnect()) {
-                                    String password = getConnectionPassword(connection);
-                                    if (password != null) {
+                                    boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
+                                    String password = isKeyAuth ? null : getConnectionPassword(connection);
+                                    if (password != null || isKeyAuth) {
                                         // Open SFTP session and download file
                                         new Thread(() -> {
                                             try {
@@ -1378,8 +1383,9 @@ public class MainWindow {
                                 // Remote image - need connection
                                 ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
                                 if (connection != null && project.isAutoReconnect()) {
-                                    String password = getConnectionPassword(connection);
-                                    if (password != null) {
+                                    boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
+                                    String password = isKeyAuth ? null : getConnectionPassword(connection);
+                                    if (password != null || isKeyAuth) {
                                         // Open SFTP session and download image
                                         new Thread(() -> {
                                             try {
@@ -1867,13 +1873,14 @@ public class MainWindow {
                 }
             }
             
-            // When using valid temporary SSH key, no password needed - skip password dialog
+            // When using valid temporary SSH key or regular SSH key auth, no password needed
             String password = null;
-            if (keyToUse == null) {
+            boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
+            if (keyToUse == null && !isKeyAuth) {
                 password = getConnectionPassword(connection);
             }
-            if (password == null && keyToUse == null) {
-                // Ask for password using a simple dialog (only when NOT using temp key)
+            if (password == null && keyToUse == null && !isKeyAuth) {
+                // Ask for password using a simple dialog (only when NOT using key auth)
                 Dialog<String> pwdDialog = new Dialog<>();
                 pwdDialog.setTitle(I18n.get("dialog.passwordRequired"));
                 pwdDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
@@ -2068,6 +2075,13 @@ public class MainWindow {
      */
     private void duplicateTab(TerminalTab sourceTab) {
         ServerConnection connection = sourceTab.getConnection();
+        
+        // SSH key auth does not require a password - duplicate directly
+        if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+            createDuplicateTab(sourceTab, connection, null);
+            return;
+        }
+        
         String password = getConnectionPassword(connection);
         
         if (password == null) {
