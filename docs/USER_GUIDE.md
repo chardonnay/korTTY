@@ -98,7 +98,7 @@ KorTTY can be packaged as a native application using `jpackage`. The output matc
 
 On the first launch, KorTTY asks you to create a **master password**. This password encrypts all stored connection passwords, SSH key passphrases, and credentials.
 
-1. Enter a password (minimum 8 characters). A strength indicator shows the quality.
+1. Enter a password (minimum 6 characters). The field border turns green when the length is sufficient and red when too short. A strength indicator shows the quality. If you choose a weak or common password, a warning is shown but you can still use it if you confirm.
 2. Confirm the password.
 3. Click **Setup**.
 
@@ -188,7 +188,7 @@ When you create or edit a connection, a dialog with multiple tabs opens:
 - **Group** - Folder/group to organize the connection (use `/` for nested groups, e.g., `Production/Web`).
 - **Authentication Method:**
   - **Password** - Enter the password directly (stored encrypted).
-  - **Private Key** - Select an SSH key from your key management.
+  - **Private Key** - Select an SSH key from your key management. If the key has a passphrase (stored with the key or entered in the passphrase field), it is saved with the connection (encrypted) and used automatically when connecting.
   - **Temporary SSH Key** - Paste a time-limited key (e.g., from CyberArk) with an expiration timer.
 - **Credentials** - Select stored credentials from the credential manager.
 - **Connection Timeout** - Maximum wait time in seconds (default: 15).

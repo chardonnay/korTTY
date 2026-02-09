@@ -941,7 +941,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 } else {
                     imported.setPrivateKeyPath(conn.getPrivateKeyPath());
                     imported.setSshKeyId(conn.getSshKeyId());
-                    imported.setPrivateKeyPassphrase(conn.getPrivateKeyPassphrase());
+                    // Never import passphrase: it must only be stored encrypted (set in edit dialog or key manager)
+                    imported.setPrivateKeyPassphrase(null);
                 }
                 
                 // Group assignment (target group overrides original group)

@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.security.MasterPasswordManager;
+import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.ui.I18n;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -134,6 +135,7 @@ public class MasterPasswordDialog {
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText(I18n.get("masterPassword.password"));
         passwordField.setPrefWidth(200);
+        updatePasswordFieldLengthStyle(passwordField, 0);
         
         PasswordField confirmField = new PasswordField();
         confirmField.setPromptText(I18n.get("masterPassword.confirm"));
@@ -148,15 +150,16 @@ public class MasterPasswordDialog {
         errorLabel.setStyle("-fx-text-fill: red;");
         errorLabel.setVisible(false);
         
-        // Password strength indicator
+        // Length-based color feedback and strength indicator
         ProgressBar strengthBar = new ProgressBar(0);
         strengthBar.setPrefWidth(200);
         Label strengthLabel = new Label(I18n.get("masterPassword.strength"));
         
         passwordField.textProperty().addListener((obs, old, newVal) -> {
+            int len = newVal != null ? newVal.length() : 0;
+            updatePasswordFieldLengthStyle(passwordField, len);
             double strength = calculatePasswordStrength(newVal);
             strengthBar.setProgress(strength);
-            
             if (strength < 0.3) {
                 strengthBar.setStyle("-fx-accent: red;");
             } else if (strength < 0.6) {
@@ -192,7 +195,7 @@ public class MasterPasswordDialog {
                 return;
             }
             
-            if (password.length() < 8) {
+            if (password.length() < PasswordStrengthChecker.MIN_LENGTH) {
                 errorLabel.setText(I18n.get("masterPassword.error.weak"));
                 errorLabel.setVisible(true);
                 return;
@@ -202,6 +205,18 @@ public class MasterPasswordDialog {
                 errorLabel.setText(I18n.get("masterPassword.error.mismatch"));
                 errorLabel.setVisible(true);
                 return;
+            }
+            
+            if (PasswordStrengthChecker.isWeak(password)) {
+                Alert warn = new Alert(Alert.AlertType.CONFIRMATION);
+                warn.setTitle(I18n.get("masterPassword.weakWarning.title"));
+                warn.setHeaderText(I18n.get("masterPassword.weakWarning.header"));
+                warn.setContentText(I18n.get("masterPassword.weakWarning.content"));
+                ButtonType useAnyway = new ButtonType(I18n.get("masterPassword.useAnyway"), ButtonBar.ButtonData.OK_DONE);
+                warn.getButtonTypes().setAll(useAnyway, ButtonType.CANCEL);
+                if (warn.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.CANCEL) {
+                    return;
+                }
             }
             
             try {
@@ -225,6 +240,18 @@ public class MasterPasswordDialog {
         Scene scene = new Scene(root);
         dialog.setScene(scene);
         dialog.sizeToScene();
+    }
+    
+    /**
+     * Updates the password field border/background color based on length:
+     * red = below minimum, green = meets or exceeds minimum.
+     */
+    private void updatePasswordFieldLengthStyle(PasswordField field, int length) {
+        if (length < PasswordStrengthChecker.MIN_LENGTH) {
+            field.setStyle("-fx-border-color: #e74c3c; -fx-border-width: 2px; -fx-border-radius: 3px;");
+        } else {
+            field.setStyle("-fx-border-color: #27ae60; -fx-border-width: 2px; -fx-border-radius: 3px;");
+        }
     }
     
     private double calculatePasswordStrength(String password) {

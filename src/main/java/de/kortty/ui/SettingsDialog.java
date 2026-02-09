@@ -11,6 +11,7 @@ import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
 import de.kortty.model.WindowGeometry;
+import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.PasswordVault;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -1073,6 +1074,17 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     }
     
     /**
+     * Updates the new master password field border color by length: red below minimum, green otherwise.
+     */
+    private void updateMasterPasswordFieldLengthStyle(PasswordField field, int length) {
+        if (length < PasswordStrengthChecker.MIN_LENGTH) {
+            field.setStyle("-fx-border-color: #e74c3c; -fx-border-width: 2px; -fx-border-radius: 3px;");
+        } else {
+            field.setStyle("-fx-border-color: #27ae60; -fx-border-width: 2px; -fx-border-radius: 3px;");
+        }
+    }
+    
+    /**
      * Shows dialog to change master password and re-encrypts all stored passwords.
      */
     private void changeMasterPassword() {
@@ -1094,6 +1106,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         PasswordField newPasswordField = new PasswordField();
         newPasswordField.setPromptText(I18n.get("settings.masterPassword.new"));
         newPasswordField.setPrefWidth(250);
+        updateMasterPasswordFieldLengthStyle(newPasswordField, 0);
+        newPasswordField.textProperty().addListener((obs, old, newVal) ->
+            updateMasterPasswordFieldLengthStyle(newPasswordField, newVal != null ? newVal.length() : 0));
         
         PasswordField confirmPasswordField = new PasswordField();
         confirmPasswordField.setPromptText(I18n.get("settings.masterPassword.confirmNew"));
@@ -1125,7 +1140,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             boolean valid = !oldPasswordField.getText().isEmpty() &&
                            !newPasswordField.getText().isEmpty() &&
                            !confirmPasswordField.getText().isEmpty() &&
-                           newPasswordField.getText().length() >= 6;
+                           newPasswordField.getText().length() >= PasswordStrengthChecker.MIN_LENGTH;
             changeButton.setDisable(!valid);
         };
         
@@ -1146,7 +1161,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                     return null;
                 }
                 
-                if (newPassword.length() < 6) {
+                if (newPassword.length() < PasswordStrengthChecker.MIN_LENGTH) {
                     errorLabel.setText(I18n.get("settings.masterPassword.tooShort"));
                     errorLabel.setVisible(true);
                     return null;
@@ -1156,6 +1171,19 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                     errorLabel.setText(I18n.get("settings.masterPassword.mismatch"));
                     errorLabel.setVisible(true);
                     return null;
+                }
+                
+                if (PasswordStrengthChecker.isWeak(newPassword)) {
+                    Alert warn = new Alert(Alert.AlertType.CONFIRMATION);
+                    warn.setTitle(I18n.get("masterPassword.weakWarning.title"));
+                    warn.setHeaderText(I18n.get("masterPassword.weakWarning.header"));
+                    warn.setContentText(I18n.get("masterPassword.weakWarning.content"));
+                    ButtonType useAnyway = new ButtonType(I18n.get("masterPassword.useAnyway"), ButtonBar.ButtonData.OK_DONE);
+                    warn.getButtonTypes().setAll(useAnyway, ButtonType.CANCEL);
+                    warn.initOwner(passwordDialog.getDialogPane().getScene().getWindow());
+                    if (warn.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.CANCEL) {
+                        return null;
+                    }
                 }
                 
                 return newPassword.toCharArray();

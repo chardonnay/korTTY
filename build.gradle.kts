@@ -113,6 +113,9 @@ dependencies {
     // jfiglet - ASCII art banners (FIGfonts)
     implementation("com.github.lalyos:jfiglet:0.0.9")
     
+    // Password strength (zxcvbn – offline, no network)
+    implementation("com.nulab-inc:zxcvbn:1.9.0")
+    
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("ch.qos.logback:logback-classic:1.4.14")

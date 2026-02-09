@@ -35,6 +35,10 @@
   - **Windows**: `-x86_64` for Intel/AMD (separate MSI/ZIP files).
   - **Linux**: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
 
+### Bug fixes
+
+- **SSH key passphrase not applied (Connection Manager / Quick Connect)**: When creating or editing a connection and selecting a saved private SSH key that has a passphrase, the passphrase is now stored with the connection (encrypted) and used when connecting. Previously, the passphrase was not carried over and the user was prompted for it. The same fix applies when using a saved connection with key auth in Quick Connect.
+
 ### Other
 
 - **i18n**: All new editor and UI strings available in 8 languages (EN, DE, ES, FR, IT, HR, NL, PT).

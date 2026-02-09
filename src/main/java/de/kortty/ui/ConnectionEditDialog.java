@@ -9,6 +9,7 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.TunnelType;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
+import de.kortty.security.EncryptionService;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.WindowGeometry;
@@ -236,10 +237,12 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             savedSSHKeysCombo.getItems().addAll(sshKeyManager.getAllKeys());
         }
         
-        // Restore previously selected SSH key
+        // Restore previously selected SSH key and load its passphrase into the field
         if (connection.getSshKeyId() != null && sshKeyManager != null) {
             sshKeyManager.findKeyById(connection.getSshKeyId()).ifPresent(key -> {
                 savedSSHKeysCombo.setValue(key);
+                keyPathField.setText(sshKeyManager.getEffectiveKeyPath(key));
+                loadPassphraseForSelectedKey();
             });
         }
         
@@ -247,20 +250,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             SSHKey selected = savedSSHKeysCombo.getValue();
             if (selected != null && sshKeyManager != null) {
                 keyPathField.setText(sshKeyManager.getEffectiveKeyPath(selected));
-                try {
-                    String passphrase = sshKeyManager.getPassphrase(selected, masterPassword);
-                    if (passphrase != null) {
-                        keyPassphraseField.setText(passphrase);
-                        keyPassphraseField.setPromptText(I18n.get("connEdit.fromSSHKey") + ": " + selected.getName());
-                    } else {
-                        keyPassphraseField.clear();
-                        keyPassphraseField.setPromptText("Passphrase (falls erforderlich)");
-                    }
-                } catch (Exception ex) {
-                    logger.error("Failed to decrypt passphrase", ex);
-                    keyPassphraseField.clear();
-                    keyPassphraseField.setPromptText(I18n.get("connEdit.passphrasePrompt"));
-                }
+                loadPassphraseForSelectedKey();
             } else {
                 keyPathField.clear();
                 keyPassphraseField.clear();
@@ -469,7 +459,19 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                         connection.setSshKeyId(null);
                         connection.setPrivateKeyPath(keyPathField != null && keyPathField.getText() != null ? keyPathField.getText().trim() : "");
                     }
-                    // Note: Key passphrase should be encrypted before saving
+                    // Persist key passphrase only when encrypted (never store plain text)
+                    String passphraseToSave = keyPassphraseField != null ? keyPassphraseField.getText() : null;
+                    if (passphraseToSave != null && !passphraseToSave.trim().isEmpty() && masterPassword != null) {
+                        try {
+                            EncryptionService encryptionService = new EncryptionService();
+                            connection.setPrivateKeyPassphrase(encryptionService.encryptPassword(passphraseToSave.trim(), masterPassword));
+                        } catch (Exception ex) {
+                            logger.error("Failed to encrypt key passphrase for saving", ex);
+                            connection.setPrivateKeyPassphrase(null);
+                        }
+                    } else {
+                        connection.setPrivateKeyPassphrase(null);
+                    }
                 } else {
                     connection.setAuthMethod(AuthMethod.PASSWORD);
                     connection.setSshKeyId(null);
@@ -555,6 +557,46 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             }
             return null;
         });
+    }
+    
+    /**
+     * Loads the passphrase for the currently selected SSH key into the passphrase field.
+     * Tries key manager first, then connection's stored (encrypted) passphrase.
+     */
+    private void loadPassphraseForSelectedKey() {
+        SSHKey selected = savedSSHKeysCombo.getValue();
+        if (selected == null || sshKeyManager == null) {
+            keyPassphraseField.clear();
+            keyPassphraseField.setPromptText(I18n.get("connEdit.passphrasePrompt"));
+            return;
+        }
+        try {
+            String passphrase = sshKeyManager.getPassphrase(selected, masterPassword);
+            if (passphrase != null) {
+                keyPassphraseField.setText(passphrase);
+                keyPassphraseField.setPromptText(I18n.get("connEdit.fromSSHKey") + ": " + selected.getName());
+                return;
+            }
+        } catch (Exception ex) {
+            logger.debug("Could not get passphrase from key manager", ex);
+        }
+        // Fallback: connection may have stored encrypted passphrase (e.g. from previous save)
+        String stored = connection.getPrivateKeyPassphrase();
+        if (stored != null && !stored.isBlank() && masterPassword != null) {
+            try {
+                EncryptionService encryptionService = new EncryptionService();
+                String decrypted = encryptionService.decryptPassword(stored, masterPassword);
+                if (decrypted != null) {
+                    keyPassphraseField.setText(decrypted);
+                    keyPassphraseField.setPromptText(I18n.get("connEdit.fromSSHKey") + ": " + selected.getName());
+                    return;
+                }
+            } catch (Exception ex) {
+                logger.debug("Could not decrypt stored passphrase", ex);
+            }
+        }
+        keyPassphraseField.clear();
+        keyPassphraseField.setPromptText(I18n.get("connEdit.passphrasePrompt"));
     }
     
     private void updateAuthFields() {

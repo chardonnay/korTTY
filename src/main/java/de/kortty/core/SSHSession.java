@@ -4,6 +4,7 @@ import de.kortty.model.AuthMethod;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SessionState;
+import de.kortty.security.EncryptionService;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.channel.ChannelShell;
@@ -451,10 +452,18 @@ public class SSHSession {
             throw new Exception("SSH-Key-Datei existiert nicht: " + keyPath);
         }
         
-        // Use passphrase from manager if available, otherwise from connection
+        // Use passphrase from manager if available, otherwise from connection (decrypt only; never use plain)
         String passphrase = passphraseRef[0];
         if (passphrase == null) {
-            passphrase = connection.getPrivateKeyPassphrase();
+            String stored = connection.getPrivateKeyPassphrase();
+            if (stored != null && !stored.isBlank() && masterPassword != null) {
+                try {
+                    EncryptionService encryptionService = new EncryptionService();
+                    passphrase = encryptionService.decryptPassword(stored, masterPassword);
+                } catch (Exception e) {
+                    logger.debug("Could not decrypt stored key passphrase", e);
+                }
+            }
         }
         
         try {

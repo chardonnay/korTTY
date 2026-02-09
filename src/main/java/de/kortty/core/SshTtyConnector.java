@@ -3,6 +3,7 @@ package de.kortty.core;
 import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.core.util.TermSize;
 import de.kortty.model.ServerConnection;
+import de.kortty.security.EncryptionService;
 import de.kortty.ui.I18n;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
@@ -644,10 +645,20 @@ public class SshTtyConnector implements TtyConnector {
             throw new Exception("SSH-Key-Datei existiert nicht: " + keyPath);
         }
         
-        // Use passphrase from manager if available, otherwise from connection
+        // Use passphrase from manager if available, otherwise from connection (decrypt only; never use plain)
         String passphrase = passphraseRef[0];
         if (passphrase == null) {
-            passphrase = connection.getPrivateKeyPassphrase();
+            String stored = connection.getPrivateKeyPassphrase();
+            if (stored != null && !stored.isBlank() && masterPassword != null) {
+                try {
+                    EncryptionService encryptionService = new EncryptionService();
+                    passphrase = encryptionService.decryptPassword(stored, masterPassword);
+                } catch (Exception e) {
+                    String msg = "Stored private key passphrase could not be decrypted (legacy/plaintext or malformed value). Re-enter the passphrase in connection settings or migrate stored keys.";
+                    logger.error("{}. Cause: {}", msg, e.getMessage(), e);
+                    throw new AuthenticationException(msg, e);
+                }
+            }
         }
         
         try {
