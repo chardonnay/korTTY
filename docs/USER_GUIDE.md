@@ -72,19 +72,27 @@ cd korTTY
 ./gradlew run
 ```
 
-#### Native Packages
+#### Pre-built Binaries (GitHub Releases)
 
-KorTTY can be packaged as a native application using `jpackage`:
+Ready-to-use packages are published on [GitHub Releases](https://github.com/chardonnay/korTTY/releases). Each asset name includes the architecture (e.g. `-x86_64` or `-aarch64`). Choose the file that matches your system:
+
+- **macOS**: Use `-aarch64` for Apple Silicon and `-x86_64` for Intel.
+- **Windows**: Use `-x86_64` for Intel/AMD.
+- **Linux**: Use `-x86_64` for Intel/AMD, or `-aarch64` for ARM (e.g. Raspberry Pi 4, many cloud instances). Packages include `.deb`, `.rpm`, `.tar.gz`, and `.zip`.
+
+#### Building Native Packages Locally
+
+KorTTY can be packaged as a native application using `jpackage`. The output matches the architecture of the machine you build on (x86_64 or arm64):
 
 | Platform | Command | Output |
 |---|---|---|
 | macOS (.app) | `./gradlew jpackage` | `build/jpackage/korTTY.app` |
-| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-1.4.0.dmg` |
+| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-1.3.0.dmg` |
 | Windows (.exe) | `gradlew.bat jpackage` | `build\jpackage\korTTY\` |
-| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-1.4.0.msi` |
-| Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/kortty/` |
-| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/kortty-1.4.0.deb` |
-| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/kortty-1.4.0.rpm` |
+| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-1.3.0.msi` |
+| Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/korTTY/` |
+| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-1.3.0.deb` |
+| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-1.3.0.rpm` |
 
 ### 2.2 First Launch - Master Password
 
@@ -933,4 +941,4 @@ If terminal output shows garbled characters:
 
 ---
 
-*KorTTY v1.4.0*
+*KorTTY v1.3.0*

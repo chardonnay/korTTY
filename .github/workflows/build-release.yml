@@ -24,6 +24,9 @@ jobs:
           - os: macos-latest
             platform: macos
             arch: aarch64
+          - os: macos-13
+            platform: macos
+            arch: x86_64
           - os: windows-latest
             platform: windows
             arch: x86_64
@@ -161,6 +164,7 @@ jobs:
             exit 1
           fi
           tar -czf kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz "$app_dir"
+          zip -r kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip "$app_dir"
           for f in kortty*.deb; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb" && break; done
           for f in kortty*.rpm; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm" && break; done
 
@@ -191,6 +195,7 @@ jobs:
           name: korTTY-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: |
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm
           retention-days: 30

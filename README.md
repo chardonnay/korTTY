@@ -50,6 +50,16 @@ For a comprehensive step-by-step user guide covering all features, see **[docs/U
 ./gradlew run
 ```
 
+## Pre-built Binaries (Releases)
+
+Pre-built packages for **x86_64 (amd64)** and **arm64 (aarch64)** are available on the [GitHub Releases](https://github.com/chardonnay/korTTY/releases) page:
+
+- **macOS**: `-aarch64` for Apple Silicon and `-x86_64` for Intel (separate DMG/ZIP files).
+- **Windows**: `-x86_64` for Intel/AMD (separate MSI/ZIP files).
+- **Linux**: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
+
+Each release provides separate packages per platform and architecture; there are no universal binaries. Use the file that matches your OS and CPU.
+
 ## JediTermFX Integration (Submodule)
 
 JediTermFX is integrated as a git submodule under `vendor/jeditermfx`.
@@ -65,7 +75,7 @@ This ensures you always build against the exact JediTermFX version tracked by th
 
 ## Create Native Release
 
-KorTTY can be built with `jpackage` as a native app for macOS, Windows, and Linux. The build tasks automatically detect the operating system and create the appropriate distribution.
+KorTTY can be built with `jpackage` as a native app for macOS, Windows, and Linux. The build tasks automatically detect the operating system and create the appropriate distribution. The resulting binary matches the architecture of the machine on which you run the build (e.g. x86_64 or arm64).
 
 ### Requirements
 
@@ -104,7 +114,7 @@ Creates a DMG installer:
 
 The DMG file is located at:
 ```
-build/jpackage/korTTY-1.4.0.dmg
+build/jpackage/korTTY-1.3.0.dmg
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.icns`
@@ -139,7 +149,7 @@ gradlew.bat jpackageMsi
 
 The MSI file is located at:
 ```
-build\jpackage\korTTY-1.4.0.msi
+build\jpackage\korTTY-1.3.0.msi
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.ico` (if available, otherwise PNG)
@@ -174,12 +184,12 @@ Creates a Debian/Ubuntu package (requires dpkg):
 
 The DEB package is located at:
 ```
-build/jpackage/kortty-1.4.0.deb
+build/jpackage/korTTY-1.3.0.deb
 ```
 
 **Installation:**
 ```bash
-sudo dpkg -i build/jpackage/kortty-1.4.0.deb
+sudo dpkg -i build/jpackage/korTTY-1.3.0.deb
 ```
 
 #### Create RPM Package
@@ -192,12 +202,12 @@ Creates a Red Hat/Fedora package (requires rpmbuild):
 
 The RPM package is located at:
 ```
-build/jpackage/kortty-1.4.0.rpm
+build/jpackage/korTTY-1.3.0.rpm
 ```
 
 **Installation:**
 ```bash
-sudo rpm -i build/jpackage/kortty-1.4.0.rpm
+sudo rpm -i build/jpackage/korTTY-1.3.0.rpm
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.png`
