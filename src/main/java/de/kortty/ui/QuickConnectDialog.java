@@ -470,7 +470,23 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 }
             }
         });
+        Button replaceTempKeyButton = new Button(I18n.get("quickConnect.replaceTempKey"));
+        replaceTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.replaceTempKey.tooltip")));
+        replaceTempKeyButton.setOnAction(e -> {
+            if (temporaryKeyAuthRadio.isSelected()) {
+                if (currentTemporaryKey != null) {
+                    TemporarySSHKeyManager.getInstance().removeTemporaryKey(currentTemporaryKey.getKeyContent());
+                    currentTemporaryKey = null;
+                }
+                stopExpirationTimer();
+                temporaryKeyArea.clear();
+                temporaryKeyArea.setPromptText(I18n.get("quickConnect.temporarySSHKeyPrompt"));
+                remainingTimeLabel.setText("");
+                javafx.application.Platform.runLater(() -> temporaryKeyArea.requestFocus());
+            }
+        });
         updateBox.getChildren().add(updateTempKeyButton);
+        updateBox.getChildren().add(replaceTempKeyButton);
         tempKeyBox.getChildren().add(updateBox);
         grid.add(tempKeyBox, 1, 5);
         

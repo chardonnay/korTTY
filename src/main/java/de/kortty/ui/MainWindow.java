@@ -578,28 +578,34 @@ public class MainWindow {
      */
     private TerminalTab openConnectionAndReturnTab(ServerConnection connection, String password, String historyToRestore, de.kortty.model.TemporarySSHKey temporarySSHKey) {
         try {
-            // Check if connection has a permanent temporary key that should be used automatically
+            // Resolve temporary SSH key when connection was configured with one
             de.kortty.model.TemporarySSHKey keyToUse = temporarySSHKey;
-            if (keyToUse == null && connection.isTemporaryKeyPermanent() && 
+            if (keyToUse == null && connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
+                de.kortty.core.TemporarySSHKeyManager keyManager = de.kortty.core.TemporarySSHKeyManager.getInstance();
+                Long expirationMinutes = connection.getTemporaryKeyExpirationMinutes();
+                if (expirationMinutes == null || expirationMinutes <= 0) {
+                    expirationMinutes = 15L;
+                }
+                de.kortty.model.TemporarySSHKey existingKey = keyManager.getTemporaryKey(connection.getTemporaryKeyContent());
+                if (existingKey != null && existingKey.isValid()) {
+                    keyToUse = existingKey;
+                } else {
+                    keyToUse = keyManager.storeTemporaryKey(connection.getTemporaryKeyContent(), expirationMinutes);
+                }
+                connection.setPrivateKeyPath("TEMPORARY:" + connection.getTemporaryKeyContent());
+                connection.setAuthMethod(de.kortty.model.AuthMethod.PUBLIC_KEY);
+            } else if (keyToUse == null && connection.isTemporaryKeyPermanent() && 
                 connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
-                // Create TemporarySSHKey from stored content if still valid
+                // Legacy path: permanent temporary key
                 Long expirationMinutes = connection.getTemporaryKeyExpirationMinutes();
                 if (expirationMinutes != null && expirationMinutes > 0) {
-                    // Check if we can get it from manager first
                     de.kortty.core.TemporarySSHKeyManager keyManager = de.kortty.core.TemporarySSHKeyManager.getInstance();
                     de.kortty.model.TemporarySSHKey existingKey = keyManager.getTemporaryKey(connection.getTemporaryKeyContent());
-                    
                     if (existingKey != null && existingKey.isValid()) {
-                        // Use existing key from manager
                         keyToUse = existingKey;
                     } else {
-                        // Create new TemporarySSHKey from stored content
-                        // Calculate remaining time based on when it was created
-                        // Since we don't store creation time, we'll create it with the full expiration time
                         keyToUse = keyManager.storeTemporaryKey(connection.getTemporaryKeyContent(), expirationMinutes);
                     }
-                    
-                    // Update privateKeyPath to use TEMPORARY: prefix
                     connection.setPrivateKeyPath("TEMPORARY:" + connection.getTemporaryKeyContent());
                     connection.setAuthMethod(de.kortty.model.AuthMethod.PUBLIC_KEY);
                 }

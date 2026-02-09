@@ -37,7 +37,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import javafx.scene.control.ProgressIndicator;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.scene.layout.VBox;
+import javafx.scene.Scene;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 
@@ -397,8 +405,34 @@ public class TerminalView extends BorderPane {
     
     /**
      * Creates a new SSH connection to the same server (for same-server splits).
+     * Runs connect() in a background thread so the JavaFX thread stays responsive for
+     * keyboard-interactive auth dialogs (e.g. CyberArk "reason for operation").
+     * Ensures Stage/Label/ProgressIndicator and showAndWait() run on the FX Application Thread.
      */
     private @Nullable TtyConnector createSameServerConnection() {
+        if (Platform.isFxApplicationThread()) {
+            return doCreateSameServerConnection();
+        }
+        final TtyConnector[] result = new TtyConnector[1];
+        try {
+            java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+            Platform.runLater(() -> {
+                result[0] = doCreateSameServerConnection();
+                latch.countDown();
+            });
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+        return result[0];
+    }
+    
+    /**
+     * Must be called on the JavaFX Application Thread. Creates UI (Stage, progress dialog),
+     * starts connect() in a background thread, shows the dialog and waits for completion.
+     */
+    private @Nullable TtyConnector doCreateSameServerConnection() {
         try {
             logger.info("Creating new SSH connection for split to {}@{}:{}",
                     connection.getUsername(), connection.getHost(), connection.getPort());
@@ -407,14 +441,12 @@ public class TerminalView extends BorderPane {
             if (temporarySSHKey != null) {
                 if (!temporarySSHKey.isValid()) {
                     logger.error("Temporary SSH key has expired - cannot create split connection");
-                    Platform.runLater(() -> {
-                        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                            javafx.scene.control.Alert.AlertType.ERROR);
-                        alert.setTitle(I18n.get("error.title"));
-                        alert.setHeaderText(I18n.get("sftp.tempKeyExpired"));
-                        alert.setContentText(I18n.get("split.tempKeyExpiredMessage"));
-                        alert.showAndWait();
-                    });
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.ERROR);
+                    alert.setTitle(I18n.get("error.title"));
+                    alert.setHeaderText(I18n.get("sftp.tempKeyExpired"));
+                    alert.setContentText(I18n.get("split.tempKeyExpiredMessage"));
+                    alert.showAndWait();
                     return null;
                 }
                 logger.debug("Using temporary SSH key for split (valid for {} more seconds)", 
@@ -434,24 +466,55 @@ public class TerminalView extends BorderPane {
                 }
             }
             
-            // Connect the new session
-            boolean connected = newConnector.connect();
-            if (!connected) {
-                logger.error("Failed to connect split SSH session");
+            // Run connect() in background thread so JavaFX can show keyboard-interactive dialogs
+            AtomicReference<Boolean> connectSuccess = new AtomicReference<>(false);
+            java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+            Stage connectingStage = new Stage(StageStyle.UTILITY);
+            connectingStage.initModality(Modality.APPLICATION_MODAL);
+            connectingStage.setTitle(I18n.get("split.connecting"));
+            javafx.scene.control.Label label = new javafx.scene.control.Label(I18n.get("split.connecting"));
+            ProgressIndicator progress = new ProgressIndicator(-1);
+            VBox root = new VBox(15, progress, label);
+            root.setStyle("-fx-padding: 20; -fx-alignment: center;");
+            connectingStage.setScene(new Scene(root));
+            connectingStage.setResizable(false);
+            
+            Thread connectThread = new Thread(() -> {
+                try {
+                    boolean ok = newConnector.connect();
+                    connectSuccess.set(ok);
+                } catch (Throwable t) {
+                    logger.error("Split connect error: {}", t.getMessage(), t);
+                    connectSuccess.set(false);
+                } finally {
+                    done.countDown();
+                    Platform.runLater(() -> connectingStage.close());
+                }
+            }, "SSH-Split-Connect");
+            connectThread.setDaemon(true);
+            connectThread.start();
+            
+            connectingStage.showAndWait();
+            try {
+                done.await(2, TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 return null;
             }
             
+            if (!Boolean.TRUE.equals(connectSuccess.get())) {
+                logger.error("Failed to connect split SSH session");
+                return null;
+            }
             return newConnector;
         } catch (Exception e) {
             logger.error("Failed to create split SSH connection: {}", e.getMessage(), e);
-            Platform.runLater(() -> {
-                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                    javafx.scene.control.Alert.AlertType.ERROR);
-                alert.setTitle(I18n.get("error.title"));
-                alert.setHeaderText(I18n.get("split.connectionFailed"));
-                alert.setContentText(e.getMessage());
-                alert.showAndWait();
-            });
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                javafx.scene.control.Alert.AlertType.ERROR);
+            alert.setTitle(I18n.get("error.title"));
+            alert.setHeaderText(I18n.get("split.connectionFailed"));
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
             return null;
         }
     }
