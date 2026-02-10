@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -31,7 +32,7 @@ public class TeamworkSyncService {
     private final SharedFileTeamworkAdapter sharedFileAdapter;
 
     private volatile List<CachedTeamworkSource> cache = new ArrayList<>();
-    private ScheduledExecutorService scheduler;
+    private volatile ScheduledExecutorService scheduler;
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 
     public TeamworkSyncService(Path configDir, GlobalSettingsManager globalSettingsManager) {
@@ -69,9 +70,19 @@ public class TeamworkSyncService {
 
     /**
      * Run sync once immediately (e.g. after user changed sources).
+     * The sync is submitted to the scheduler executor so all sync work is serialized.
      */
     public void syncNow() {
-        runSync();
+        if (scheduler != null && !scheduler.isShutdown()) {
+            try {
+                scheduler.execute(this::runSync);
+            } catch (RejectedExecutionException | NullPointerException e) {
+                logger.debug("Sync submit rejected or scheduler cleared, running inline", e);
+                runSync();
+            }
+        } else {
+            runSync();
+        }
     }
 
     public void addCacheUpdateListener(Runnable listener) {
@@ -83,7 +94,14 @@ public class TeamworkSyncService {
     }
 
     private void scheduleSync() {
-        int intervalMinutes = globalSettingsManager.getSettings().getTeamworkDefaultCheckIntervalMinutes();
+        // Compute interval as the minimum checkIntervalMinutes among enabled sources,
+        // falling back to the global default, then to 15 if <1.
+        int intervalMinutes = globalSettingsManager.getSettings().getTeamworkSources().stream()
+            .filter(TeamworkSourceConfig::isEnabled)
+            .mapToInt(TeamworkSourceConfig::getCheckIntervalMinutes)
+            .filter(i -> i >= 1)
+            .min()
+            .orElse(globalSettingsManager.getSettings().getTeamworkDefaultCheckIntervalMinutes());
         if (intervalMinutes < 1) intervalMinutes = 15;
         if (scheduler != null) scheduler.shutdownNow();
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -100,7 +118,9 @@ public class TeamworkSyncService {
             .collect(Collectors.toList());
         if (sources.isEmpty()) {
             cache = new ArrayList<>();
-            cacheRepository.saveCache(cache);
+            if (!cacheRepository.saveCache(cache)) {
+                logger.warn("Failed to save empty teamwork cache");
+            }
             notifyListeners();
             return;
         }
@@ -124,7 +144,9 @@ public class TeamworkSyncService {
             }
         }
         cache = newCache;
-        cacheRepository.saveCache(cache);
+        if (!cacheRepository.saveCache(cache)) {
+            logger.warn("Failed to save teamwork cache after sync");
+        }
         notifyListeners();
     }
 

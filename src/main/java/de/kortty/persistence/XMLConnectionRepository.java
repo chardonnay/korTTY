@@ -27,6 +27,20 @@ public class XMLConnectionRepository {
     
     private static final Logger logger = LoggerFactory.getLogger(XMLConnectionRepository.class);
     private static final String CONNECTIONS_FILE = "connections.xml";
+
+    /** Shared JAXBContext – thread-safe and expensive to create, so we do it once. */
+    private static final JAXBContext JAXB_CONTEXT;
+    static {
+        try {
+            JAXB_CONTEXT = JAXBContext.newInstance(
+                ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class,
+                JumpServer.class, AuthMethod.class, TunnelType.class,
+                ConnectionSource.class, de.kortty.model.TerminalLogConfig.class,
+                de.kortty.model.TerminalLogConfig.LogFormat.class);
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
     
     private final Path configDir;
     
@@ -41,8 +55,7 @@ public class XMLConnectionRepository {
         ConnectionsWrapper wrapper = new ConnectionsWrapper();
         wrapper.setConnections(connections);
         
-        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class, AuthMethod.class, TunnelType.class, ConnectionSource.class, de.kortty.model.TerminalLogConfig.class, de.kortty.model.TerminalLogConfig.LogFormat.class);
-        Marshaller marshaller = context.createMarshaller();
+        Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         
         Path file = configDir.resolve(CONNECTIONS_FILE);
@@ -64,8 +77,7 @@ public class XMLConnectionRepository {
             return new ArrayList<>();
         }
         
-        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class, AuthMethod.class, TunnelType.class, ConnectionSource.class, de.kortty.model.TerminalLogConfig.class, de.kortty.model.TerminalLogConfig.LogFormat.class);
-        Unmarshaller unmarshaller = context.createUnmarshaller();
+        Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
         
         ConnectionsWrapper wrapper;
         try (InputStream in = Files.newInputStream(file)) {
@@ -85,8 +97,7 @@ public class XMLConnectionRepository {
         ConnectionsWrapper wrapper = new ConnectionsWrapper();
         wrapper.setConnections(connections);
         
-        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class, AuthMethod.class, TunnelType.class, ConnectionSource.class, de.kortty.model.TerminalLogConfig.class, de.kortty.model.TerminalLogConfig.LogFormat.class);
-        Marshaller marshaller = context.createMarshaller();
+        Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         
         try (OutputStream out = Files.newOutputStream(targetFile)) {
@@ -100,8 +111,7 @@ public class XMLConnectionRepository {
      * Imports connections from an XML file.
      */
     public List<ServerConnection> importConnections(Path sourceFile) throws Exception {
-        JAXBContext context = JAXBContext.newInstance(ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class, JumpServer.class, AuthMethod.class, TunnelType.class, ConnectionSource.class, de.kortty.model.TerminalLogConfig.class, de.kortty.model.TerminalLogConfig.LogFormat.class);
-        Unmarshaller unmarshaller = context.createUnmarshaller();
+        Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
         
         ConnectionsWrapper wrapper;
         try (InputStream in = Files.newInputStream(sourceFile)) {

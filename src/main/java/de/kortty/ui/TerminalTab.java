@@ -222,18 +222,12 @@ public class TerminalTab extends Tab {
         // Set tab to yellow color to indicate connection attempt in progress
         setTabConnectingColor();
         
-        // Register disconnect listener for auto-close on normal exit
+        // Register disconnect listener: always keep tab open and show as disconnected (red)
         terminalView.setDisconnectListener((reason, wasError) -> {
             Platform.runLater(() -> {
-                if (!wasError) {
-                    // Normal exit - auto-close the tab
-                    closeTabSilently();
-                } else {
-                    // Error or disconnection - mark as failed and color tab red
-                    isConnectionFailed = true;
-                    updateTabTitle(" (DISCONNECT)");
-                    setTabErrorColor();
-                }
+                isConnectionFailed = true;
+                updateTabTitle(" (DISCONNECT)");
+                setTabErrorColor();
             });
         });
         

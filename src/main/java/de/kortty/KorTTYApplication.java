@@ -206,9 +206,10 @@ public class KorTTYApplication extends Application {
             
             logger.info("{} started successfully", APP_NAME);
             
-        } catch (Exception e) {
-            logger.error("Failed to start application", e);
-            showErrorAndExit(de.kortty.ui.I18n.get("error.title") + ": " + e.getMessage());
+        } catch (Throwable t) {
+            logger.error("Failed to start application", t);
+            String msg = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+            showErrorAndExit(msg);
         }
     }
     
@@ -259,6 +260,9 @@ public class KorTTYApplication extends Application {
             if (globalSettingsManager != null) {
                 globalSettingsManager.save();
             }
+            if (teamworkRecycleBinService != null) {
+                teamworkRecycleBinService.save();
+            }
             if (teamworkSyncService != null) {
                 teamworkSyncService.stop();
             }
@@ -291,12 +295,18 @@ public class KorTTYApplication extends Application {
     }
     
     private void showErrorAndExit(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(de.kortty.ui.I18n.get("error.title"));
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-        Platform.exit();
+        try {
+            String title = de.kortty.ui.I18n.get("error.title");
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message != null && message.length() > 2000 ? message.substring(0, 2000) + "…" : message);
+            alert.showAndWait();
+        } catch (Throwable t) {
+            logger.error("Could not show error dialog", t);
+        } finally {
+            Platform.exit();
+        }
     }
     
     public static Path getConfigDirectory() {

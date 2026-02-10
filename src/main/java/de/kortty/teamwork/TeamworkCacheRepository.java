@@ -6,6 +6,7 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.JumpServer;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.TunnelType;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
@@ -23,7 +24,9 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +36,26 @@ public class TeamworkCacheRepository {
 
     private static final Logger logger = LoggerFactory.getLogger(TeamworkCacheRepository.class);
     private static final String CACHE_FILE = "teamwork-cache.xml";
+
+    private static final JAXBContext JAXB_CONTEXT;
+    static {
+        try {
+            JAXB_CONTEXT = JAXBContext.newInstance(
+                CacheWrapper.class,
+                CachedTeamworkSource.class,
+                ServerConnection.class,
+                ConnectionSource.class,
+                SSHTunnel.class,
+                JumpServer.class,
+                AuthMethod.class,
+                TunnelType.class,
+                de.kortty.model.TerminalLogConfig.class,
+                de.kortty.model.TerminalLogConfig.LogFormat.class
+            );
+        } catch (JAXBException e) {
+            throw new IllegalStateException("Failed to create JAXB context for teamwork cache", e);
+        }
+    }
 
     private final Path configDir;
 
@@ -64,19 +87,7 @@ public class TeamworkCacheRepository {
             return new ArrayList<>();
         }
         try {
-            JAXBContext context = JAXBContext.newInstance(
-                CacheWrapper.class,
-                CachedTeamworkSource.class,
-                ServerConnection.class,
-                de.kortty.model.ConnectionSource.class,
-                SSHTunnel.class,
-                JumpServer.class,
-                AuthMethod.class,
-                TunnelType.class,
-                de.kortty.model.TerminalLogConfig.class,
-                de.kortty.model.TerminalLogConfig.LogFormat.class
-            );
-            Unmarshaller unmarshaller = context.createUnmarshaller();
+            Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
             try (InputStream in = Files.newInputStream(file)) {
                 CacheWrapper wrapper = (CacheWrapper) unmarshaller.unmarshal(in);
                 List<CachedTeamworkSource> list = wrapper.getCachedSources();
@@ -88,22 +99,10 @@ public class TeamworkCacheRepository {
         }
     }
 
-    public void saveCache(List<CachedTeamworkSource> cached) {
+    public boolean saveCache(List<CachedTeamworkSource> cached) {
         Path file = configDir.resolve(CACHE_FILE);
         try {
-            JAXBContext context = JAXBContext.newInstance(
-                CacheWrapper.class,
-                CachedTeamworkSource.class,
-                ServerConnection.class,
-                ConnectionSource.class,
-                SSHTunnel.class,
-                JumpServer.class,
-                AuthMethod.class,
-                TunnelType.class,
-                de.kortty.model.TerminalLogConfig.class,
-                de.kortty.model.TerminalLogConfig.LogFormat.class
-            );
-            Marshaller marshaller = context.createMarshaller();
+            Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
             CacheWrapper wrapper = new CacheWrapper();
             wrapper.setCachedSources(cached != null ? cached : new ArrayList<>());
@@ -111,8 +110,10 @@ public class TeamworkCacheRepository {
                 marshaller.marshal(wrapper, out);
             }
             logger.debug("Saved teamwork cache with {} sources", cached != null ? cached.size() : 0);
+            return true;
         } catch (Exception e) {
             logger.error("Failed to save teamwork cache", e);
+            return false;
         }
     }
 
@@ -123,7 +124,7 @@ public class TeamworkCacheRepository {
     public List<ServerConnection> loadMergedConnectionsFromCache(List<CachedTeamworkSource> cached) {
         if (cached == null) return new ArrayList<>();
         return cached.stream()
-            .flatMap(s -> s.getConnections().stream())
+            .flatMap(s -> Optional.ofNullable(s.getConnections()).orElse(Collections.emptyList()).stream())
             .collect(Collectors.toList());
     }
 }

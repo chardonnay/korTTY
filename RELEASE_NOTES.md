@@ -1,5 +1,22 @@
 # Release Notes
 
+## 1.6.0
+
+**Release date:** February 2026
+
+### Teamwork
+
+- **Shallow clone update**: Git teamwork sources no longer use `pull --rebase` on shallow clones; the updater uses `fetch` + `reset --hard origin/<branch>` so rewritten or non-linear history works reliably.
+- **Connection edit validation**: Teamwork connections require the password authentication radio to be selected when using stored credentials; validation no longer passes if the user switched to key auth but left a credential selected.
+
+### Credentials and i18n
+
+- **Teamwork auth scope**: English and locale strings for teamwork auth now use an explicit scope (e.g. "for all team connections") instead of the vague "for all teamwork".
+- **French**: Restore label and confirm text use the correct phrase "Restaurer les connexions supprimées".
+- **Croatian**: Consistent Unicode escapes in `messages_hr.properties` and corrected adjective "pohranjenu" (feminine accusative) for "vjerodajnicu" in `connEdit.teamworkAuthRequired`.
+
+---
+
 ## 1.5.0
 
 **Release date:** February 2025

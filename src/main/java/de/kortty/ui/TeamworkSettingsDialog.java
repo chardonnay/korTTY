@@ -103,20 +103,31 @@ public class TeamworkSettingsDialog extends Dialog<Void> {
 
         setResultConverter(btn -> {
             if (btn == ButtonType.OK) {
-                app.getGlobalSettingsManager().getSettings().getTeamworkSources().clear();
-                app.getGlobalSettingsManager().getSettings().getTeamworkSources().addAll(sources);
+                // Build candidate values without mutating live settings yet
+                java.util.List<TeamworkSourceConfig> candidateSources = new java.util.ArrayList<>(sources);
+                int candidateInterval = defaultIntervalSpinner.getValue();
                 try {
-                    int def = defaultIntervalSpinner.getValue();
-                    app.getGlobalSettingsManager().getSettings().setTeamworkDefaultCheckIntervalMinutes(def);
+                    // Temporarily apply to settings for serialization, then save
+                    app.getGlobalSettingsManager().getSettings().getTeamworkSources().clear();
+                    app.getGlobalSettingsManager().getSettings().getTeamworkSources().addAll(candidateSources);
+                    app.getGlobalSettingsManager().getSettings().setTeamworkDefaultCheckIntervalMinutes(candidateInterval);
                     app.getGlobalSettingsManager().save();
                 } catch (Exception ex) {
-                    logger.error("Failed to save teamwork default check interval and global settings", ex);
+                    logger.error("Failed to save teamwork settings; reverting in-memory state", ex);
+                    // Revert: reload settings from disk to undo in-memory mutation
+                    try {
+                        app.getGlobalSettingsManager().load();
+                    } catch (Exception reloadEx) {
+                        logger.error("Failed to reload settings after save failure", reloadEx);
+                    }
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle(I18n.get("error.saveFailed"));
                     alert.setHeaderText(null);
                     alert.setContentText(I18n.get("teamwork.settings.saveFailed"));
                     alert.showAndWait();
+                    return null;
                 }
+                // Save succeeded – trigger sync
                 if (app.getTeamworkSyncService() != null) {
                     app.getTeamworkSyncService().syncNow();
                 }
