@@ -86,6 +86,20 @@ public class ServerConnection {
     @XmlElement
     private boolean temporaryKeyPermanent = false;  // Whether temporary key is permanently enabled
     
+    // Teamwork: origin and metadata (only used when connection comes from shared source)
+    @XmlElement
+    private ConnectionSource connectionSource;
+    
+    @XmlElement
+    private String teamworkSourceId;  // ID of TeamworkSourceConfig this connection came from
+    
+    @XmlElement
+    private String teamworkVersionToken;  // ETag, commit hash, or file mtime for conflict detection
+    
+    /** Optional role from teamwork file: owner, maintainer, reader (for UI / protection). */
+    @XmlElement
+    private String teamworkRole;
+    
     public ServerConnection() {
         this.id = UUID.randomUUID().toString();
         this.settings = new ConnectionSettings();
@@ -98,6 +112,43 @@ public class ServerConnection {
         this.host = host;
         this.port = port;
         this.username = username;
+    }
+    
+    /**
+     * Creates a shallow copy of the given connection (same id; references to settings, tunnels, etc. are shared).
+     * Used when resolving default auth for teamwork connections so the original is not modified.
+     */
+    public static ServerConnection copyForAuth(ServerConnection source) {
+        ServerConnection c = new ServerConnection();
+        c.id = source.id;
+        c.name = source.name;
+        c.host = source.host;
+        c.port = source.port;
+        c.username = source.username;
+        c.encryptedPassword = source.encryptedPassword;
+        c.privateKeyPath = source.privateKeyPath;
+        c.privateKeyPassphrase = source.privateKeyPassphrase;
+        c.authMethod = source.authMethod;
+        c.settings = source.settings;
+        c.windowGeometry = source.windowGeometry;
+        c.group = source.group;
+        c.usageCount = source.usageCount;
+        c.lastUsed = source.lastUsed;
+        c.sshTunnels = source.sshTunnels;
+        c.jumpServer = source.jumpServer;
+        c.credentialId = source.credentialId;
+        c.sshKeyId = source.sshKeyId;
+        c.logConfig = source.logConfig;
+        c.connectionTimeoutSeconds = source.connectionTimeoutSeconds;
+        c.retryCount = source.retryCount;
+        c.temporaryKeyContent = source.temporaryKeyContent;
+        c.temporaryKeyExpirationMinutes = source.temporaryKeyExpirationMinutes;
+        c.temporaryKeyPermanent = source.temporaryKeyPermanent;
+        c.connectionSource = source.connectionSource;
+        c.teamworkSourceId = source.teamworkSourceId;
+        c.teamworkVersionToken = source.teamworkVersionToken;
+        c.teamworkRole = source.teamworkRole;
+        return c;
     }
     
     // Getters and Setters
@@ -213,6 +264,46 @@ public class ServerConnection {
         return "placeholder".equals(host) &&
                name != null &&
                name.startsWith("(Ordner:");
+    }
+    
+    /**
+     * Returns true if this connection comes from a teamwork (shared) source.
+     * Teamwork connections must use credentialId/sshKeyId only; no inline secrets.
+     */
+    public boolean isTeamworkConnection() {
+        return connectionSource == ConnectionSource.TEAMWORK;
+    }
+    
+    public ConnectionSource getConnectionSource() {
+        return connectionSource;
+    }
+    
+    public void setConnectionSource(ConnectionSource connectionSource) {
+        this.connectionSource = connectionSource;
+    }
+    
+    public String getTeamworkSourceId() {
+        return teamworkSourceId;
+    }
+    
+    public void setTeamworkSourceId(String teamworkSourceId) {
+        this.teamworkSourceId = teamworkSourceId;
+    }
+    
+    public String getTeamworkVersionToken() {
+        return teamworkVersionToken;
+    }
+    
+    public void setTeamworkVersionToken(String teamworkVersionToken) {
+        this.teamworkVersionToken = teamworkVersionToken;
+    }
+    
+    public String getTeamworkRole() {
+        return teamworkRole;
+    }
+    
+    public void setTeamworkRole(String teamworkRole) {
+        this.teamworkRole = teamworkRole;
     }
     
     @Override

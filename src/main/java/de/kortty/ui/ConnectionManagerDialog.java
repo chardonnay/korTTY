@@ -5,7 +5,9 @@ import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.model.GroupPath;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.SSHKey;
 import de.kortty.model.StoredCredential;
+import de.kortty.teamwork.TeamworkSyncService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -33,17 +35,37 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     
     private static final Logger logger = LoggerFactory.getLogger(ConnectionManagerDialog.class);
     
+    /** Sentinel value for "use temporary SSH key for all teamwork" in the auth combo. */
+    public static final Object TEAMWORK_AUTH_TEMPORARY_KEY = new Object();
+    
     private final KorTTYApplication app;
     private final ConfigurationManager configManager;
     private final CredentialManager credentialManager;
     private final char[] masterPassword;
     private final ObservableList<ServerConnection> connections;
+    private final ObservableList<ServerConnection> teamworkConnections;
     private final TextField searchField;
+    private final TextField teamworkSearchField;
     private final Stage owner;
     private ConnectionManagerTreeView treeView;
+    private ConnectionManagerTreeView teamworkTreeView;
+    private Tab connectionViewTab;
+    private Tab teamworkViewTab;
     private Button undoButton;
     private Button createFolderButton;
     private Button renameGroupButton;
+    private Button refreshTeamworkButton;
+    private Button restoreTeamworkButton;
+    private Button addButton;
+    private Button editButton;
+    private Button deleteButton;
+    private Button duplicateButton;
+    private Button exportButton;
+    private Button importButton;
+    private ButtonType connectButtonType;
+    private Runnable teamworkCacheUpdateListener;
+    /** When true, combo/username listeners must not call saveTeamworkAuthSelection (e.g. during applyTeamworkAuthFromSettings). */
+    private boolean suppressTeamworkAuthSave;
     private final TableView<ServerConnection> table; // Keep for compatibility, but hide it
     
     public ConnectionManagerDialog(Stage owner, KorTTYApplication app) {
@@ -59,22 +81,32 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         initModality(Modality.WINDOW_MODAL);
         setResizable(true);
         
-        // Initialize connections list
+        // Initialize connections list (local only)
         connections = FXCollections.observableArrayList(configManager.getConnections());
+        teamworkConnections = FXCollections.observableArrayList();
         
         // Create hidden table for compatibility
         table = new TableView<>();
         table.setVisible(false);
         table.setManaged(false);
         
-        // Create TreeView
+        // Create TreeView for local connections
         treeView = new ConnectionManagerTreeView(connections);
         treeView.setPrefSize(600, 400);
         
-        // Create search field
+        // Create TreeView for teamwork connections
+        teamworkTreeView = new ConnectionManagerTreeView(teamworkConnections);
+        teamworkTreeView.setPrefSize(600, 400);
+        
+        // Create search field for local
         searchField = new TextField();
         searchField.setPromptText(I18n.get("connManager.searchPrompt"));
         searchField.setPrefWidth(300);
+        
+        // Create search field for teamwork
+        teamworkSearchField = new TextField();
+        teamworkSearchField.setPromptText(I18n.get("connManager.searchPrompt"));
+        teamworkSearchField.setPrefWidth(300);
         
         // Add listener to filter tree based on search text
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
@@ -144,7 +176,19 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             }
         });
         
-        // Register TreeView callbacks
+        // Teamwork search filter
+        teamworkSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null || newVal.trim().isEmpty()) {
+                teamworkTreeView.filterTree(null);
+            } else {
+                String searchText = newVal.trim().toLowerCase();
+                teamworkTreeView.filterTree(conn ->
+                    (conn.getName() != null && conn.getName().toLowerCase().contains(searchText)) ||
+                    (conn.getHost() != null && conn.getHost().toLowerCase().contains(searchText)));
+            }
+        });
+        
+        // Register TreeView callbacks for local tree
         treeView.setOnCreateGroup(this::createNewGroup);
         treeView.setOnRenameGroup(this::renameGroup);
         treeView.setOnDeleteGroup(this::deleteGroup);
@@ -161,16 +205,30 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         treeView.setOnExportGroup(this::exportGroup);
         treeView.setOnAddConnection(this::addConnection);
         
+        // Teamwork tree: no group ops, same connect/edit/delete/export
+        teamworkTreeView.setOnDoubleClick(() -> {
+            List<ServerConnection> selected = teamworkTreeView.getSelectedConnections();
+            if (!selected.isEmpty()) {
+                setResult(selected.get(0));
+                close();
+            }
+        });
+        teamworkTreeView.setOnEditConnection(this::editConnection);
+        teamworkTreeView.setOnExportConnections(this::exportConnections);
+        teamworkTreeView.setOnDeleteConnections(this::deleteConnections);
+        
         // Buttons - set uniform width for all buttons
-        Button addButton = new Button(I18n.get("connectionManager.new"));
-        Button editButton = new Button(I18n.get("connectionManager.edit"));
-        Button deleteButton = new Button(I18n.get("connectionManager.delete"));
-        Button duplicateButton = new Button(I18n.get("connectionManager.duplicate"));
-        Button exportButton = new Button(I18n.get("connectionManager.export"));
-        Button importButton = new Button(I18n.get("connectionManager.import"));
+        addButton = new Button(I18n.get("connectionManager.add"));
+        editButton = new Button(I18n.get("connectionManager.edit"));
+        deleteButton = new Button(I18n.get("connectionManager.delete"));
+        duplicateButton = new Button(I18n.get("connectionManager.duplicate"));
+        exportButton = new Button(I18n.get("connectionManager.export"));
+        importButton = new Button(I18n.get("connectionManager.import"));
         undoButton = new Button(I18n.get("connectionManager.undo"));
         createFolderButton = new Button(I18n.get("connectionManager.createFolder"));
         renameGroupButton = new Button(I18n.get("connectionManager.renameFolder"));
+        refreshTeamworkButton = new Button(I18n.get("connectionManager.teamwork.refresh"));
+        restoreTeamworkButton = new Button(I18n.get("connectionManager.teamwork.restore"));
         
         // Set uniform width for all buttons
         double buttonWidth = 140;
@@ -183,6 +241,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         undoButton.setPrefWidth(buttonWidth);
         createFolderButton.setPrefWidth(buttonWidth);
         renameGroupButton.setPrefWidth(buttonWidth);
+        refreshTeamworkButton.setPrefWidth(buttonWidth);
+        restoreTeamworkButton.setPrefWidth(buttonWidth);
         
         editButton.setDisable(true);
         deleteButton.setDisable(true);
@@ -190,31 +250,23 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         exportButton.setDisable(true);
         undoButton.setDisable(true);
         renameGroupButton.setDisable(true);
+        refreshTeamworkButton.setDisable(false);
+        restoreTeamworkButton.setDisable(false);
         
         // Set undo button for treeView
         treeView.setUndoButton(undoButton);
         
-        // Selection listener for buttons
-        treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
-            List<ServerConnection> selectedConnections = treeView.getSelectedConnections();
-            List<GroupPath> selectedGroups = treeView.getSelectedGroups();
-            
-            boolean hasSingleConnection = selectedConnections.size() == 1;
-            boolean hasConnections = !selectedConnections.isEmpty();
-            boolean hasSingleGroup = selectedGroups.size() == 1 && selectedConnections.isEmpty();
-            boolean hasMultipleSelection = selectedConnections.size() > 1;
-            
-            editButton.setDisable(!hasSingleConnection);
-            deleteButton.setDisable(!hasConnections);
-            duplicateButton.setDisable(!hasSingleConnection);
-            exportButton.setDisable(!hasConnections);
-            renameGroupButton.setDisable(!hasSingleGroup);
-        });
+        // Selection listener for local tree
+        treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> updateButtonState());
+        teamworkTreeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> updateButtonState());
+        
+        refreshTeamworkButton.setOnAction(e -> refreshTeamworkConnections());
+        restoreTeamworkButton.setOnAction(e -> showRestoreTeamworkDialog());
         
         addButton.setOnAction(e -> addConnection());
         editButton.setOnAction(e -> editConnection(null));
         deleteButton.setOnAction(e -> {
-            List<ServerConnection> selected = treeView.getSelectedConnections();
+            List<ServerConnection> selected = getActiveTreeView().getSelectedConnections();
             if (!selected.isEmpty()) {
                 deleteConnections(selected);
             }
@@ -238,46 +290,98 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             }
         });
         
-        VBox buttonBox = new VBox(10, addButton, editButton, deleteButton, duplicateButton, 
+        VBox buttonBox = new VBox(10, addButton, editButton, deleteButton, duplicateButton,
                               new Separator(), exportButton, importButton,
-                              new Separator(), undoButton, createFolderButton, renameGroupButton);
+                              new Separator(), undoButton, createFolderButton, renameGroupButton,
+                              new Separator(), refreshTeamworkButton, restoreTeamworkButton);
         buttonBox.setAlignment(Pos.TOP_CENTER);
         buttonBox.setPadding(new Insets(0, 0, 0, 10));
         
-        // Search field container
-        HBox searchBox = new HBox(10);
-        searchBox.setPadding(new Insets(0, 0, 10, 0));
-        Label searchLabel = new Label(I18n.get("ssh.search"));
-        searchBox.getChildren().addAll(searchLabel, searchField);
+        // Local tab content
+        HBox localSearchBox = new HBox(10);
+        localSearchBox.setPadding(new Insets(0, 0, 10, 0));
+        localSearchBox.getChildren().addAll(new Label(I18n.get("ssh.search")), searchField);
         HBox.setHgrow(searchField, Priority.ALWAYS);
-        
-        // TreeView container with search
-        VBox treeContainer = new VBox(10);
-        treeContainer.getChildren().addAll(searchBox, treeView);
+        VBox localTabContent = new VBox(10);
+        localTabContent.getChildren().addAll(localSearchBox, treeView);
         VBox.setVgrow(treeView, Priority.ALWAYS);
         
+        // Teamwork tab content: auth dropdown (passwords/keys must not be in teamwork file)
+        ComboBox<Object> teamworkAuthCombo = new ComboBox<>();
+        teamworkAuthCombo.setPromptText(I18n.get("teamwork.auth.prompt"));
+        teamworkAuthCombo.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(teamworkAuthCombo, Priority.ALWAYS);
+        buildTeamworkAuthCombo(teamworkAuthCombo);
+        TextField teamworkUsernameField = new TextField();
+        teamworkUsernameField.setPromptText(I18n.get("teamwork.auth.defaultUsername"));
+        teamworkUsernameField.setMaxWidth(200);
+        teamworkUsernameField.setVisible(false);
+        teamworkUsernameField.setManaged(false);
+        Label teamworkAuthLabel = new Label(I18n.get("teamwork.auth.forAll"));
+        HBox teamworkAuthBox = new HBox(10);
+        teamworkAuthBox.setPadding(new Insets(0, 0, 8, 0));
+        teamworkAuthBox.getChildren().addAll(teamworkAuthLabel, teamworkAuthCombo, teamworkUsernameField);
+        teamworkAuthCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (suppressTeamworkAuthSave) return;
+            boolean needsUsername = newVal instanceof SSHKey || newVal == TEAMWORK_AUTH_TEMPORARY_KEY;
+            teamworkUsernameField.setVisible(needsUsername);
+            teamworkUsernameField.setManaged(needsUsername);
+            saveTeamworkAuthSelection(teamworkAuthCombo.getValue(), teamworkUsernameField.getText());
+        });
+        teamworkUsernameField.textProperty().addListener((obs, o, n) -> {
+            if (suppressTeamworkAuthSave) return;
+            saveTeamworkAuthSelection(teamworkAuthCombo.getValue(), n);
+        });
+        VBox teamworkTabContent = new VBox(10);
+        HBox teamworkSearchBox = new HBox(10);
+        teamworkSearchBox.setPadding(new Insets(0, 0, 10, 0));
+        teamworkSearchBox.getChildren().addAll(new Label(I18n.get("ssh.search")), teamworkSearchField);
+        HBox.setHgrow(teamworkSearchField, Priority.ALWAYS);
+        teamworkTabContent.getChildren().addAll(teamworkAuthBox, teamworkSearchBox, teamworkTreeView);
+        VBox.setVgrow(teamworkTreeView, Priority.ALWAYS);
+        
+        connectionViewTab = new Tab(I18n.get("connectionManager.tab.local"), localTabContent);
+        teamworkViewTab = new Tab(I18n.get("connectionManager.tab.teamwork"), teamworkTabContent);
+        TabPane tabPane = new TabPane(connectionViewTab, teamworkViewTab);
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, old, tab) -> updateButtonState());
+        
         BorderPane content = new BorderPane();
-        content.setCenter(treeContainer);
+        content.setCenter(tabPane);
         content.setRight(buttonBox);
         content.setPadding(new Insets(10));
         
         getDialogPane().setContent(content);
         
+        updateButtonState();
+        
         // Dialog buttons
-        ButtonType connectButtonType = new ButtonType(I18n.get("quickConnect.connect"), ButtonBar.ButtonData.OK_DONE);
+        connectButtonType = new ButtonType(I18n.get("quickConnect.connect"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(connectButtonType, ButtonType.CLOSE);
         
         Button connectButton = (Button) getDialogPane().lookupButton(connectButtonType);
         connectButton.setDisable(true);
         
-        treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
-            List<ServerConnection> selectedConnections = treeView.getSelectedConnections();
-            connectButton.setDisable(selectedConnections.isEmpty());
+        setOnShown(e -> {
+            refreshTeamworkConnections();
+            buildTeamworkAuthCombo(teamworkAuthCombo);
+            applyTeamworkAuthFromSettings(teamworkAuthCombo, teamworkUsernameField);
+            updateButtonState();
+        });
+        
+        TeamworkSyncService syncService = app.getTeamworkSyncService();
+        if (syncService != null) {
+            teamworkCacheUpdateListener = () -> javafx.application.Platform.runLater(this::refreshTeamworkConnections);
+            syncService.addCacheUpdateListener(teamworkCacheUpdateListener);
+        }
+        setOnHidden(e -> {
+            if (app.getTeamworkSyncService() != null && teamworkCacheUpdateListener != null) {
+                app.getTeamworkSyncService().removeCacheUpdateListener(teamworkCacheUpdateListener);
+            }
         });
         
         setResultConverter(dialogButton -> {
             if (dialogButton == connectButtonType) {
-                List<ServerConnection> selected = treeView.getSelectedConnections();
+                List<ServerConnection> selected = getActiveTreeView().getSelectedConnections();
                 if (!selected.isEmpty()) {
                     return selected.get(0);
                 }
@@ -286,11 +390,204 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         });
     }
     
+    private ConnectionManagerTreeView getActiveTreeView() {
+        Object content = getDialogPane().getContent();
+        if (!(content instanceof BorderPane bp)) return treeView;
+        if (!(bp.getCenter() instanceof TabPane tabPane)) return treeView;
+        Tab selected = tabPane.getSelectionModel().getSelectedItem();
+        return (selected == teamworkViewTab) ? teamworkTreeView : treeView;
+    }
+    
+    private boolean isLocalTabActive() {
+        Object content = getDialogPane().getContent();
+        if (!(content instanceof BorderPane bp)) return true;
+        if (!(bp.getCenter() instanceof TabPane tabPane)) return true;
+        return tabPane.getSelectionModel().getSelectedItem() != teamworkViewTab;
+    }
+    
+    private void updateButtonState() {
+        boolean local = isLocalTabActive();
+        List<ServerConnection> selectedConnections = getActiveTreeView().getSelectedConnections();
+        List<GroupPath> selectedGroups = local ? treeView.getSelectedGroups() : List.of();
+        
+        boolean hasSingleConnection = selectedConnections.size() == 1;
+        boolean hasConnections = !selectedConnections.isEmpty();
+        boolean hasSingleGroup = selectedGroups.size() == 1 && selectedConnections.isEmpty();
+        
+        addButton.setDisable(!local);
+        editButton.setDisable(!hasSingleConnection);
+        deleteButton.setDisable(!hasConnections);
+        duplicateButton.setDisable(!local || !hasSingleConnection);
+        exportButton.setDisable(!hasConnections);
+        undoButton.setDisable(!local || !treeView.isUndoAvailable());
+        createFolderButton.setDisable(!local);
+        renameGroupButton.setDisable(!local || !hasSingleGroup);
+        importButton.setDisable(!local);
+        
+        Button connectButton = connectButtonType != null ? (Button) getDialogPane().lookupButton(connectButtonType) : null;
+        if (connectButton != null) {
+            connectButton.setDisable(selectedConnections.isEmpty());
+        }
+    }
+    
+    private void refreshTeamworkConnections() {
+        TeamworkSyncService syncService = app.getTeamworkSyncService();
+        if (syncService == null) return;
+        teamworkConnections.clear();
+        java.util.Set<String> deletedIds = app.getTeamworkRecycleBinService() != null
+            ? app.getTeamworkRecycleBinService().getDeletedIds()
+            : java.util.Set.of();
+        syncService.getTeamworkConnections().stream()
+            .filter(c -> !deletedIds.contains(c.getId()))
+            .forEach(teamworkConnections::add);
+        teamworkTreeView.refreshTree();
+    }
+    
+    private void buildTeamworkAuthCombo(ComboBox<Object> combo) {
+        Object current = combo.getValue();
+        combo.getItems().clear();
+        combo.getItems().add(null); // None
+        if (credentialManager != null) {
+            combo.getItems().addAll(credentialManager.getAllCredentials());
+        }
+        if (app.getSSHKeyManager() != null) {
+            combo.getItems().addAll(app.getSSHKeyManager().getAllKeys());
+        }
+        combo.getItems().add(TEAMWORK_AUTH_TEMPORARY_KEY);
+        combo.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(Object item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else if (item instanceof StoredCredential c) {
+                    setText(c.getName() + " (" + (c.getUsername() != null ? c.getUsername() : "") + ")");
+                } else if (item instanceof SSHKey k) {
+                    setText(I18n.get("teamwork.auth.sshKey") + ": " + k.getName());
+                } else if (item == TEAMWORK_AUTH_TEMPORARY_KEY) {
+                    setText(I18n.get("teamwork.auth.temporaryKey"));
+                } else {
+                    setText(String.valueOf(item));
+                }
+            }
+        });
+        combo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Object item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(I18n.get("teamwork.auth.none"));
+                } else if (item instanceof StoredCredential c) {
+                    setText(c.getName() + " (" + (c.getUsername() != null ? c.getUsername() : "") + ")");
+                } else if (item instanceof SSHKey k) {
+                    setText(I18n.get("teamwork.auth.sshKey") + ": " + k.getName());
+                } else if (item == TEAMWORK_AUTH_TEMPORARY_KEY) {
+                    setText(I18n.get("teamwork.auth.temporaryKey"));
+                } else {
+                    setText(String.valueOf(item));
+                }
+            }
+        });
+        if (current != null && combo.getItems().contains(current)) {
+            combo.setValue(current);
+        }
+    }
+    
+    private void saveTeamworkAuthSelection(Object selected, String defaultUsername) {
+        if (suppressTeamworkAuthSave) return;
+        var globalSettingsManager = app.getGlobalSettingsManager();
+        if (globalSettingsManager == null) {
+            logger.warn("GlobalSettingsManager is null; cannot save teamwork auth selection.");
+            return;
+        }
+        de.kortty.model.GlobalSettings gs = globalSettingsManager.getSettings();
+        if (gs == null) {
+            logger.warn("GlobalSettings is null; cannot save teamwork auth selection.");
+            return;
+        }
+        if (selected == null) {
+            gs.setTeamworkDefaultCredentialId(null);
+            gs.setTeamworkDefaultSshKeyId(null);
+            gs.setTeamworkDefaultUsername(null);
+            gs.setTeamworkUseTemporaryKey(false);
+        } else if (selected instanceof StoredCredential c) {
+            gs.setTeamworkDefaultCredentialId(c.getId());
+            gs.setTeamworkDefaultSshKeyId(null);
+            gs.setTeamworkDefaultUsername(null);
+            gs.setTeamworkUseTemporaryKey(false);
+        } else if (selected instanceof SSHKey k) {
+            gs.setTeamworkDefaultCredentialId(null);
+            gs.setTeamworkDefaultSshKeyId(k.getId());
+            gs.setTeamworkDefaultUsername(defaultUsername != null && !defaultUsername.isBlank() ? defaultUsername.trim() : null);
+            gs.setTeamworkUseTemporaryKey(false);
+        } else if (selected == TEAMWORK_AUTH_TEMPORARY_KEY) {
+            gs.setTeamworkDefaultCredentialId(null);
+            gs.setTeamworkDefaultSshKeyId(null);
+            gs.setTeamworkDefaultUsername(defaultUsername != null && !defaultUsername.isBlank() ? defaultUsername.trim() : null);
+            gs.setTeamworkUseTemporaryKey(true);
+        }
+        try {
+            globalSettingsManager.save();
+        } catch (Exception e) {
+            logger.warn("Failed to save teamwork auth default", e);
+        }
+    }
+    
+    private void applyTeamworkAuthFromSettings(ComboBox<Object> combo, TextField usernameField) {
+        suppressTeamworkAuthSave = true;
+        try {
+            var globalSettingsManager = app.getGlobalSettingsManager();
+            if (globalSettingsManager == null) {
+                logger.warn("GlobalSettingsManager is null; cannot apply teamwork auth from settings.");
+                return;
+            }
+            de.kortty.model.GlobalSettings gs = globalSettingsManager.getSettings();
+            if (gs == null) {
+                logger.warn("GlobalSettings is null; cannot apply teamwork auth from settings.");
+                return;
+            }
+            String credId = gs.getTeamworkDefaultCredentialId();
+            String keyId = gs.getTeamworkDefaultSshKeyId();
+            if (gs.getTeamworkUseTemporaryKey()) {
+                combo.setValue(TEAMWORK_AUTH_TEMPORARY_KEY);
+                usernameField.setText(gs.getTeamworkDefaultUsername() != null ? gs.getTeamworkDefaultUsername() : "");
+            } else if (credId != null && credentialManager != null) {
+                credentialManager.findCredentialById(credId).ifPresent(combo::setValue);
+                usernameField.clear();
+            } else if (keyId != null && app.getSSHKeyManager() != null) {
+                app.getSSHKeyManager().findKeyById(keyId).ifPresent(k -> {
+                    combo.setValue(k);
+                    usernameField.setText(gs.getTeamworkDefaultUsername() != null ? gs.getTeamworkDefaultUsername() : "");
+                });
+            } else {
+                combo.setValue(null);
+                usernameField.clear();
+            }
+            Object val = combo.getValue();
+            boolean needsUsername = val instanceof SSHKey || val == TEAMWORK_AUTH_TEMPORARY_KEY;
+            usernameField.setVisible(needsUsername);
+            usernameField.setManaged(needsUsername);
+        } finally {
+            suppressTeamworkAuthSave = false;
+        }
+    }
+    
+    private void showRestoreTeamworkDialog() {
+        if (app.getTeamworkSyncService() == null) return;
+        RestoreTeamworkDialog dialog = new RestoreTeamworkDialog(owner, app);
+        dialog.showAndWait().ifPresent(restored -> {
+            if (restored != null) {
+                teamworkConnections.add(restored);
+                teamworkTreeView.refreshTree();
+            }
+        });
+    }
+    
     /**
-     * Gets the currently selected single non-placeholder connection.
+     * Gets the currently selected single non-placeholder connection from the active tree.
      */
     private ServerConnection getSelectedConnection() {
-        List<ServerConnection> selected = treeView.getSelectedConnections();
+        List<ServerConnection> selected = getActiveTreeView().getSelectedConnections();
         if (selected.size() == 1) {
             return selected.get(0);
         }
@@ -356,12 +653,30 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             return;
         }
         
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle(I18n.get("connection.delete.title"));
-        confirm.setHeaderText(I18n.get("connection.delete.header", filteredConnections.size()));
-        confirm.setContentText(I18n.get("connection.delete.content"));
+        if (!isLocalTabActive()) {
+            // Teamwork tab: move to recycle bin (hide locally), do not touch remote
+            Alert confirmTeamwork = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmTeamwork.setTitle(I18n.get("connection.delete.title"));
+            confirmTeamwork.setHeaderText(I18n.get("connection.delete.header", filteredConnections.size()));
+            confirmTeamwork.setContentText(I18n.get("teamwork.delete.hideConfirm"));
+            confirmTeamwork.showAndWait().ifPresent(result -> {
+                if (result == ButtonType.OK && app.getTeamworkRecycleBinService() != null) {
+                    for (ServerConnection conn : filteredConnections) {
+                        app.getTeamworkRecycleBinService().addDeleted(conn);
+                        teamworkConnections.remove(conn);
+                    }
+                    teamworkTreeView.refreshTree();
+                }
+            });
+            return;
+        }
         
-        confirm.showAndWait().ifPresent(result -> {
+        Alert confirmLocal = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmLocal.setTitle(I18n.get("connection.delete.title"));
+        confirmLocal.setHeaderText(I18n.get("connection.delete.header", filteredConnections.size()));
+        confirmLocal.setContentText(I18n.get("connection.delete.content"));
+        
+        confirmLocal.showAndWait().ifPresent(result -> {
             if (result == ButtonType.OK) {
                 for (ServerConnection conn : filteredConnections) {
                     connections.remove(conn);

@@ -20,6 +20,9 @@
     <logger name="de.kortty" level="DEBUG"/>
     <logger name="org.apache.sshd" level="WARN"/>
     <logger name="com.techsenger.jeditermfx" level="WARN"/>
+    <!-- Suppress known-harmless JediTermFX warnings: InsertMode not implemented, unhandled ESC[?1001s -->
+    <logger name="com.techsenger.jeditermfx.core.TerminalMode" level="ERROR"/>
+    <logger name="com.techsenger.jeditermfx.core.emulator.JediEmulator" level="ERROR"/>
     
     <root level="INFO">
         <appender-ref ref="STDOUT"/>

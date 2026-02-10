@@ -345,7 +345,7 @@ public class SFTPManagerTab extends Tab {
         
         // File table
         localTable = new TableView<>();
-        localTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        localTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         
         // Column order: Name, Type, Size, Date, Permissions
         TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
@@ -382,7 +382,7 @@ public class SFTPManagerTab extends Tab {
         permColumn.setMaxWidth(110);
         permColumn.setSortable(true);
         
-        localTable.getColumns().addAll(nameColumn, typeColumn, sizeColumn, dateColumn, permColumn);
+        localTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, permColumn));
         
         // Context menu for local table
         ContextMenu localContextMenu = createLocalContextMenu();
@@ -463,7 +463,7 @@ public class SFTPManagerTab extends Tab {
         
         // File table
         remoteTable = new TableView<>();
-        remoteTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        remoteTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         
         // Column order: Name, Type, Size, Date, Permissions
         TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
@@ -500,7 +500,7 @@ public class SFTPManagerTab extends Tab {
         permColumn.setMaxWidth(110);
         permColumn.setSortable(true);
         
-        remoteTable.getColumns().addAll(nameColumn, typeColumn, sizeColumn, dateColumn, permColumn);
+        remoteTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, permColumn));
         
         // Double-click to navigate, right-click for context menu
         remoteTable.setRowFactory(tv -> {

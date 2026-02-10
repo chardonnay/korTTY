@@ -41,9 +41,11 @@ public class GlobalSettingsManager {
         try {
             // Include all nested classes in context
             JAXBContext context = JAXBContext.newInstance(
-                GlobalSettings.class, 
+                GlobalSettings.class,
                 de.kortty.model.ConnectionSettings.class,
-                de.kortty.model.WindowGeometry.class
+                de.kortty.model.WindowGeometry.class,
+                de.kortty.model.TeamworkSourceConfig.class,
+                de.kortty.model.TeamworkSourceType.class
             );
             Unmarshaller unmarshaller = context.createUnmarshaller();
             this.settings = (GlobalSettings) unmarshaller.unmarshal(settingsFile.toFile());
@@ -64,7 +66,9 @@ public class GlobalSettingsManager {
         JAXBContext context = JAXBContext.newInstance(
             GlobalSettings.class,
             de.kortty.model.ConnectionSettings.class,
-            de.kortty.model.WindowGeometry.class
+            de.kortty.model.WindowGeometry.class,
+            de.kortty.model.TeamworkSourceConfig.class,
+            de.kortty.model.TeamworkSourceType.class
         );
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);

@@ -548,6 +548,13 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     }
     
     /**
+     * Returns true if there is a move operation to undo.
+     */
+    public boolean isUndoAvailable() {
+        return !moveHistory.isEmpty();
+    }
+    
+    /**
      * Undoes the last move operation.
      */
     public void undoLastMove() {

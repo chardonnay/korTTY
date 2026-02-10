@@ -430,7 +430,10 @@ public class MainWindow {
         manageSSHKeys.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
         
-        managementMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys);
+        MenuItem teamworkSettings = new MenuItem(I18n.get("menu.management.teamwork"));
+        teamworkSettings.setOnAction(e -> showTeamworkSettings());
+        
+        managementMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys, new SeparatorMenuItem(), teamworkSettings);
         
         // Tools Menu
         Menu sftpMenu = new Menu(I18n.get("menu.tools"));
@@ -845,22 +848,34 @@ public class MainWindow {
         logger.info("showConnectionManager() called - Opening Connection Manager");
         ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
         dialog.showAndWait().ifPresent(connection -> {
+            // For teamwork connections without auth, apply default credential/SSH key from GlobalSettings
+            final ServerConnection conn = resolveTeamworkConnectionAuth(connection);
+            GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
+            // Teamwork default "temporary SSH key": ask for temp key and connect (no stored credential/key)
+            if (conn.isTeamworkConnection() && conn.getCredentialId() == null && conn.getSshKeyId() == null
+                    && gs.getTeamworkUseTemporaryKey()) {
+                de.kortty.model.TemporarySSHKey tempKey = requestNewTemporarySSHKey(conn);
+                if (tempKey != null) {
+                    openConnection(conn, null, null, tempKey);
+                }
+                return;
+            }
             // Check if connection uses a temporary SSH key
             de.kortty.model.TemporarySSHKey tempKey = null;
-            if (connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
+            if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
                 de.kortty.core.TemporarySSHKeyManager keyManager = de.kortty.core.TemporarySSHKeyManager.getInstance();
-                tempKey = keyManager.getTemporaryKey(connection.getTemporaryKeyContent());
+                tempKey = keyManager.getTemporaryKey(conn.getTemporaryKeyContent());
                 if (tempKey != null && tempKey.isValid()) {
                     // Valid temp key found - connect directly without password dialog
                     logger.info("Using existing temporary SSH key for saved connection (valid for {} more seconds)",
                             tempKey.getRemainingSeconds());
-                    openConnection(connection, null, null, tempKey);
+                    openConnection(conn, null, null, tempKey);
                     return;
                 }
                 // Key expired or not found - ask user for a new temporary key
-                tempKey = requestNewTemporarySSHKey(connection);
+                tempKey = requestNewTemporarySSHKey(conn);
                 if (tempKey != null) {
-                    openConnection(connection, null, null, tempKey);
+                    openConnection(conn, null, null, tempKey);
                     return;
                 }
                 // User cancelled - do not connect
@@ -868,17 +883,17 @@ public class MainWindow {
             }
             
             // SSH key auth does not require a password - connect directly
-            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                openConnection(connection, null);
+            if (conn.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                openConnection(conn, null);
                 return;
             }
             
             // Non-key connection: ask for password if needed
-            String password = getConnectionPassword(connection);
+            String password = getConnectionPassword(conn);
             if (password == null) {
                 Dialog<String> pwDialog = new Dialog<>();
                 pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
-                pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
+                pwDialog.setHeaderText(I18n.get("dialog.passwordFor", conn.getDisplayName()));
                 pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
                 PasswordField pwField = new PasswordField();
                 pwField.setPromptText(I18n.get("dialog.enterPassword"));
@@ -889,11 +904,11 @@ public class MainWindow {
                 pwDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
                 pwDialog.showAndWait().ifPresent(pw -> {
                     if (pw != null && !pw.isEmpty()) {
-                        openConnection(connection, pw);
+                        openConnection(conn, pw);
                     }
                 });
             } else {
-                openConnection(connection, password);
+                openConnection(conn, password);
             }
         });
     }
@@ -1776,6 +1791,16 @@ public class MainWindow {
         }
     }
     
+    private void showTeamworkSettings() {
+        try {
+            TeamworkSettingsDialog dialog = new TeamworkSettingsDialog(stage, app);
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to show teamwork settings", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+    
     private void showSSHKeyManagement() {
         try {
             SSHKeyManagementDialog dialog = new SSHKeyManagementDialog(
@@ -2040,6 +2065,61 @@ public class MainWindow {
     }
 
     
+    /**
+     * For teamwork connections that have no credential or SSH key set, applies the default
+     * from GlobalSettings (teamwork default credential or SSH key). Returns a copy with auth
+     * filled in so the original connection in the list is never modified.
+     */
+    private ServerConnection resolveTeamworkConnectionAuth(ServerConnection connection) {
+        if (!connection.isTeamworkConnection()) {
+            return connection;
+        }
+        if (connection.getCredentialId() != null || connection.getSshKeyId() != null) {
+            return connection;
+        }
+        GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
+        String credId = gs.getTeamworkDefaultCredentialId();
+        String keyId = gs.getTeamworkDefaultSshKeyId();
+        if (credId != null && app.getCredentialManager() != null) {
+            Optional<StoredCredential> cred = app.getCredentialManager().findCredentialById(credId);
+            if (cred.isPresent()) {
+                ServerConnection copy = ServerConnection.copyForAuth(connection);
+                copy.setCredentialId(cred.get().getId());
+                copy.setUsername(cred.get().getUsername());
+                copy.setAuthMethod(AuthMethod.PASSWORD);
+                copy.setSshKeyId(null);
+                copy.setPrivateKeyPath(null);
+                return copy;
+            }
+        }
+        if (keyId != null && app.getSSHKeyManager() != null) {
+            Optional<SSHKey> key = app.getSSHKeyManager().findKeyById(keyId);
+            if (key.isPresent()) {
+                ServerConnection copy = ServerConnection.copyForAuth(connection);
+                copy.setSshKeyId(key.get().getId());
+                copy.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                copy.setPrivateKeyPath(app.getSSHKeyManager().getEffectiveKeyPath(key.get()));
+                copy.setCredentialId(null);
+                // Optional username: if set use for all, else keep username from teamwork file
+                String username = gs.getTeamworkDefaultUsername();
+                if (username != null && !username.isBlank()) {
+                    copy.setUsername(username.trim());
+                }
+                return copy;
+            }
+        }
+        // Temporary SSH key: optionally set default username, else connection keeps username from file
+        if (gs.getTeamworkUseTemporaryKey()) {
+            String username = gs.getTeamworkDefaultUsername();
+            if (username != null && !username.isBlank()) {
+                ServerConnection copy = ServerConnection.copyForAuth(connection);
+                copy.setUsername(username.trim());
+                return copy;
+            }
+        }
+        return connection;
+    }
+
     /**
      * Retrieves password for a connection, either from credential store or from encrypted password.
      * This ensures password changes in credential management are immediately reflected.
