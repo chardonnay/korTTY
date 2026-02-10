@@ -47,7 +47,7 @@ public class ConnectionSelectionDialog extends Dialog<ServerConnection> {
         userColumn.setCellValueFactory(new PropertyValueFactory<>("username"));
         userColumn.setPrefWidth(100);
         
-        table.getColumns().addAll(nameColumn, hostColumn, portColumn, userColumn);
+        table.getColumns().addAll(java.util.List.of(nameColumn, hostColumn, portColumn, userColumn));
         table.setPlaceholder(new Label(I18n.get("connSelect.noConnections")));
         
         // Double-click to select

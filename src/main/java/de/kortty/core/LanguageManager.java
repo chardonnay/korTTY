@@ -27,11 +27,11 @@ public class LanguageManager {
         Locale.ENGLISH,           // en
         Locale.GERMAN,            // de
         Locale.ITALIAN,           // it
-        new Locale("es"),         // es (Spanish)
-        new Locale("pt"),         // pt (Portuguese)
+        Locale.forLanguageTag("es"),  // es (Spanish)
+        Locale.forLanguageTag("pt"),  // pt (Portuguese)
         Locale.FRENCH,            // fr
-        new Locale("hr"),         // hr (Croatian/Serbo-Croatian)
-        new Locale("nl")          // nl (Dutch)
+        Locale.forLanguageTag("hr"),  // hr (Croatian/Serbo-Croatian)
+        Locale.forLanguageTag("nl")   // nl (Dutch)
     };
     
     private LanguageManager() {
@@ -69,9 +69,9 @@ public class LanguageManager {
                     String[] parts = languageSetting.split("_");
                     Locale localeToSet;
                     if (parts.length == 2) {
-                        localeToSet = new Locale(parts[0], parts[1]);
+                        localeToSet = Locale.forLanguageTag(parts[0] + "-" + parts[1]);
                     } else {
-                        localeToSet = new Locale(parts[0]);
+                        localeToSet = Locale.forLanguageTag(parts[0]);
                     }
                     logger.info("Language set from settings: '{}' -> locale: {}", languageSetting, localeToSet);
                     setLocale(localeToSet);
@@ -159,7 +159,7 @@ public class LanguageManager {
             return;
         }
         
-        Locale locale = new Locale(languageCode);
+        Locale locale = Locale.forLanguageTag(languageCode);
         setLocale(locale);
     }
     

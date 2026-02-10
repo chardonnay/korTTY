@@ -78,7 +78,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
         // ---- Table with MULTIPLE selection mode ----
         snippetTable = new TableView<>();
         snippetTable.setPrefHeight(250);
-        snippetTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        snippetTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         snippetTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         
         TableColumn<Snippet, String> favCol = new TableColumn<>("");
@@ -112,7 +112,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
         usedCol.setMaxWidth(65);
         usedCol.setStyle("-fx-alignment: CENTER-RIGHT;");
         
-        snippetTable.getColumns().addAll(favCol, nameCol, langCol, catCol, tagsCol, usedCol);
+        snippetTable.getColumns().addAll(java.util.List.of(favCol, nameCol, langCol, catCol, tagsCol, usedCol));
         
         // Data binding with search filter
         snippetList = FXCollections.observableArrayList(snippetManager.getAllSnippets());

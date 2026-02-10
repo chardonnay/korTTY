@@ -553,6 +553,16 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     connection.setWindowGeometry(null); // Use global settings
                 }
                 
+                // Teamwork connections must not persist inline secrets; only credentialId/sshKeyId
+                if (connection.isTeamworkConnection()) {
+                    connection.setEncryptedPassword(null);
+                    connection.setPrivateKeyPath(null);
+                    connection.setPrivateKeyPassphrase(null);
+                    connection.setTemporaryKeyContent(null);
+                    connection.setTemporaryKeyExpirationMinutes(null);
+                    connection.setTemporaryKeyPermanent(false);
+                }
+                
                 return connection;
             }
             return null;

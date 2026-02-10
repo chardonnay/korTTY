@@ -239,7 +239,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         dateColumn.setComparator(String::compareTo);
         setupSortableColumnHeader(dateColumn, I18n.get("sftp.column.date"), localTable, dateColumn);
         
-        localTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn);
+        localTable.getColumns().addAll(java.util.List.of(nameColumn, sizeColumn, dateColumn));
         
         // Double-click to navigate and context menu for local files
         localTable.setRowFactory(tv -> {
@@ -410,7 +410,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         dateColumn.setComparator(String::compareTo);
         setupSortableColumnHeader(dateColumn, I18n.get("sftp.column.date"), remoteTable, dateColumn);
         
-        remoteTable.getColumns().addAll(nameColumn, sizeColumn, dateColumn);
+        remoteTable.getColumns().addAll(java.util.List.of(nameColumn, sizeColumn, dateColumn));
         
         // Double-click to navigate and context menu
         remoteTable.setRowFactory(tv -> {

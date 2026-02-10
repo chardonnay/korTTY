@@ -9,6 +9,8 @@ import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.BackupManager;
+import de.kortty.teamwork.TeamworkSyncService;
+import de.kortty.teamwork.TeamworkRecycleBinService;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.jmx.SSHClientMonitor;
@@ -35,7 +37,7 @@ public class KorTTYApplication extends Application {
     
     private static final Logger logger = LoggerFactory.getLogger(KorTTYApplication.class);
     private static final String APP_NAME = "KorTTY";
-    private static final String APP_VERSION = "1.5.0";
+    private static final String APP_VERSION = "1.6.0";
     
     private static KorTTYApplication instance;
     
@@ -49,6 +51,8 @@ public class KorTTYApplication extends Application {
     private SnippetVariableManager snippetVariableManager;
     private GlobalSettingsManager globalSettingsManager;
     private BackupManager backupManager;
+    private TeamworkSyncService teamworkSyncService;
+    private TeamworkRecycleBinService teamworkRecycleBinService;
     
     public static void main(String[] args) {
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
@@ -180,6 +184,22 @@ public class KorTTYApplication extends Application {
                 logger.warn("Failed to load GPG keys or credentials", e);
             }
             
+            // Start teamwork sync and recycle bin (separate try-catch for accurate error context)
+            try {
+                teamworkSyncService = new TeamworkSyncService(getConfigDirectory(), globalSettingsManager);
+                teamworkSyncService.start();
+            } catch (Exception e) {
+                logger.warn("TeamworkSyncService failed to start (configDirectory={}, globalSettingsManager={})",
+                    getConfigDirectory(), globalSettingsManager, e);
+            }
+            try {
+                teamworkRecycleBinService = new TeamworkRecycleBinService(getConfigDirectory());
+                teamworkRecycleBinService.load();
+            } catch (Exception e) {
+                logger.warn("TeamworkRecycleBinService failed to load (configDirectory={})",
+                    getConfigDirectory(), e);
+            }
+            
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
@@ -238,6 +258,9 @@ public class KorTTYApplication extends Application {
             }
             if (globalSettingsManager != null) {
                 globalSettingsManager.save();
+            }
+            if (teamworkSyncService != null) {
+                teamworkSyncService.stop();
             }
         } catch (Exception e) {
             logger.error("Failed to save GPG keys or credentials", e);
@@ -323,6 +346,14 @@ public class KorTTYApplication extends Application {
     
     public BackupManager getBackupManager() {
         return backupManager;
+    }
+    
+    public TeamworkSyncService getTeamworkSyncService() {
+        return teamworkSyncService;
+    }
+    
+    public TeamworkRecycleBinService getTeamworkRecycleBinService() {
+        return teamworkRecycleBinService;
     }
     
     public SnippetVariableManager getSnippetVariableManager() {

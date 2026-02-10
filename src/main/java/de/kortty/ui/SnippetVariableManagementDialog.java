@@ -32,7 +32,7 @@ public class SnippetVariableManagementDialog extends Dialog<Void> {
         setResizable(true);
 
         table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
         TableColumn<SnippetVariable, String> nameCol = new TableColumn<>(I18n.get("snippets.variables.name"));
         nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -42,7 +42,7 @@ public class SnippetVariableManagementDialog extends Dialog<Void> {
         valueCol.setCellValueFactory(new PropertyValueFactory<>("value"));
         valueCol.setPrefWidth(320);
 
-        table.getColumns().addAll(nameCol, valueCol);
+        table.getColumns().addAll(java.util.List.of(nameCol, valueCol));
         refreshTable();
 
         Button addBtn = new Button(I18n.get("snippets.variables.add"));

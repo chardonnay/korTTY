@@ -142,6 +142,31 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry snippetEditGeometry;
     
+    // Teamwork: shared connection sources (Git or shared file)
+    @XmlElementWrapper(name = "teamworkSources")
+    @XmlElement(name = "source")
+    private java.util.List<TeamworkSourceConfig> teamworkSources;
+    
+    /** Default check interval in minutes for teamwork source updates (used when adding new source). */
+    @XmlElement
+    private int teamworkDefaultCheckIntervalMinutes = 15;
+    
+    /** Default credential for all teamwork connections (ID from credential management). Passwords must not be in teamwork file. */
+    @XmlElement
+    private String teamworkDefaultCredentialId;
+    
+    /** Default SSH key for all teamwork connections (ID from SSH key management). Keys must not be in teamwork file. */
+    @XmlElement
+    private String teamworkDefaultSshKeyId;
+    
+    /** Default username when using default SSH key for teamwork (optional; otherwise use connection's username from file). */
+    @XmlElement
+    private String teamworkDefaultUsername;
+    
+    /** When true, use temporary SSH key flow for teamwork connections that have no credential/key. */
+    @XmlElement
+    private boolean teamworkUseTemporaryKey;
+    
     @XmlEnum
     public enum BackupEncryptionType {
         @XmlEnumValue("PASSWORD") PASSWORD,
@@ -522,4 +547,57 @@ public class GlobalSettings {
     
     public WindowGeometry getSnippetEditGeometry() { return snippetEditGeometry; }
     public void setSnippetEditGeometry(WindowGeometry snippetEditGeometry) { this.snippetEditGeometry = snippetEditGeometry; }
+    
+    // ---- Teamwork ----
+    
+    public java.util.List<TeamworkSourceConfig> getTeamworkSources() {
+        if (teamworkSources == null) {
+            teamworkSources = new java.util.ArrayList<>();
+        }
+        return teamworkSources;
+    }
+    
+    public void setTeamworkSources(java.util.List<TeamworkSourceConfig> teamworkSources) {
+        this.teamworkSources = teamworkSources;
+    }
+    
+    public int getTeamworkDefaultCheckIntervalMinutes() {
+        return teamworkDefaultCheckIntervalMinutes;
+    }
+    
+    public void setTeamworkDefaultCheckIntervalMinutes(int teamworkDefaultCheckIntervalMinutes) {
+        this.teamworkDefaultCheckIntervalMinutes = teamworkDefaultCheckIntervalMinutes;
+    }
+    
+    public String getTeamworkDefaultCredentialId() {
+        return teamworkDefaultCredentialId;
+    }
+    
+    public void setTeamworkDefaultCredentialId(String teamworkDefaultCredentialId) {
+        this.teamworkDefaultCredentialId = teamworkDefaultCredentialId;
+    }
+    
+    public String getTeamworkDefaultSshKeyId() {
+        return teamworkDefaultSshKeyId;
+    }
+    
+    public void setTeamworkDefaultSshKeyId(String teamworkDefaultSshKeyId) {
+        this.teamworkDefaultSshKeyId = teamworkDefaultSshKeyId;
+    }
+    
+    public String getTeamworkDefaultUsername() {
+        return teamworkDefaultUsername;
+    }
+    
+    public void setTeamworkDefaultUsername(String teamworkDefaultUsername) {
+        this.teamworkDefaultUsername = teamworkDefaultUsername;
+    }
+    
+    public boolean getTeamworkUseTemporaryKey() {
+        return teamworkUseTemporaryKey;
+    }
+    
+    public void setTeamworkUseTemporaryKey(boolean teamworkUseTemporaryKey) {
+        this.teamworkUseTemporaryKey = teamworkUseTemporaryKey;
+    }
 }
