@@ -2085,7 +2085,10 @@ public class MainWindow {
             if (cred.isPresent()) {
                 ServerConnection copy = ServerConnection.copyForAuth(connection);
                 copy.setCredentialId(cred.get().getId());
-                copy.setUsername(cred.get().getUsername());
+                String credUsername = cred.get().getUsername();
+                if (credUsername != null && !credUsername.isBlank()) {
+                    copy.setUsername(credUsername.trim());
+                }
                 copy.setAuthMethod(AuthMethod.PASSWORD);
                 copy.setSshKeyId(null);
                 copy.setPrivateKeyPath(null);
@@ -2108,14 +2111,14 @@ public class MainWindow {
                 return copy;
             }
         }
-        // Temporary SSH key: optionally set default username, else connection keeps username from file
+        // Temporary SSH key: always return a defensive copy so the shared instance is never mutated
         if (gs.getTeamworkUseTemporaryKey()) {
+            ServerConnection copy = ServerConnection.copyForAuth(connection);
             String username = gs.getTeamworkDefaultUsername();
             if (username != null && !username.isBlank()) {
-                ServerConnection copy = ServerConnection.copyForAuth(connection);
                 copy.setUsername(username.trim());
-                return copy;
             }
+            return copy;
         }
         return connection;
     }

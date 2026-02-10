@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.model.ServerConnection;
 import de.kortty.teamwork.TeamworkRecycleBinService;
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -12,6 +13,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +23,8 @@ import java.util.Optional;
  * Dialog to restore a previously deleted teamwork connection from the recycle bin.
  */
 public class RestoreTeamworkDialog extends Dialog<ServerConnection> {
+
+    private static final Logger logger = LoggerFactory.getLogger(RestoreTeamworkDialog.class);
 
     private final Stage owner;
     private final KorTTYApplication app;
@@ -59,19 +65,25 @@ public class RestoreTeamworkDialog extends Dialog<ServerConnection> {
         getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
         Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
-        okButton.setDisable(deletedList.isEmpty());
+        okButton.disableProperty().bind(Bindings.isNull(listView.getSelectionModel().selectedItemProperty()));
         okButton.setText(I18n.get("teamwork.restore.restoreButton"));
-
-        listView.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
-            okButton.setDisable(sel == null);
-        });
 
         setResultConverter(btn -> {
             if (btn == ButtonType.OK) {
                 ServerConnection selected = listView.getSelectionModel().getSelectedItem();
                 if (selected != null && app.getTeamworkRecycleBinService() != null) {
-                    app.getTeamworkRecycleBinService().restore(selected.getId());
-                    return selected;
+                    try {
+                        app.getTeamworkRecycleBinService().restore(selected.getId());
+                        return selected;
+                    } catch (Exception ex) {
+                        logger.error("Failed to restore teamwork connection: {}", selected.getId(), ex);
+                        Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                        errorAlert.setTitle(I18n.get("error.title"));
+                        errorAlert.setHeaderText(null);
+                        errorAlert.setContentText(I18n.get("teamwork.restore.failed", ex.getMessage()));
+                        errorAlert.showAndWait();
+                        return null;
+                    }
                 }
             }
             return null;

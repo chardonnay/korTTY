@@ -11,6 +11,7 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.converter.IntegerStringConverter;
 
 import java.io.File;
 
@@ -44,8 +45,38 @@ public class TeamworkSourceEditDialog extends Dialog<TeamworkSourceConfig> {
         Button browseButton = new Button(I18n.get("connEdit.browse"));
         browseButton.setOnAction(e -> browseLocation());
 
-        intervalSpinner = new Spinner<>(1, 1440, existing != null ? existing.getCheckIntervalMinutes() : 15, 5);
+        int initialInterval = existing != null ? existing.getCheckIntervalMinutes() : 15;
+        intervalSpinner = new Spinner<>(1, 1440, initialInterval, 5);
         intervalSpinner.setEditable(true);
+        IntegerStringConverter converter = new IntegerStringConverter();
+        TextFormatter<Integer> intervalFormatter = new TextFormatter<>(converter, initialInterval, change -> {
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("[0-9]+")) return change;
+            return null;
+        });
+        intervalSpinner.getEditor().setTextFormatter(intervalFormatter);
+        intervalSpinner.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) intervalFormatter.setValue(newVal);
+        });
+        intervalSpinner.getEditor().focusedProperty().addListener((obs, wasFocused, nowFocused) -> {
+            if (!nowFocused) {
+                try {
+                    String t = intervalSpinner.getEditor().getText();
+                    if (t == null || t.isBlank()) {
+                        intervalSpinner.getValueFactory().setValue(initialInterval);
+                        intervalSpinner.getEditor().setText(String.valueOf(initialInterval));
+                    } else {
+                        int v = Integer.parseInt(t);
+                        int clamped = Math.max(1, Math.min(1440, v));
+                        intervalSpinner.getValueFactory().setValue(clamped);
+                        intervalSpinner.getEditor().setText(String.valueOf(clamped));
+                    }
+                } catch (NumberFormatException e) {
+                    intervalSpinner.getValueFactory().setValue(intervalSpinner.getValue());
+                    intervalSpinner.getEditor().setText(String.valueOf(intervalSpinner.getValue()));
+                }
+            }
+        });
 
         readOnlyCheck = new CheckBox(I18n.get("teamwork.source.readOnly"));
         readOnlyCheck.setSelected(existing != null && existing.isReadOnly());

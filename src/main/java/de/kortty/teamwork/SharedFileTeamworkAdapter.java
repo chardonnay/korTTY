@@ -8,10 +8,10 @@ import de.kortty.persistence.XMLConnectionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -65,16 +65,52 @@ public class SharedFileTeamworkAdapter implements TeamworkConnectionRepository {
         c.setTemporaryKeyPermanent(false);
     }
 
-    private static Path toPath(String location) {
+    /**
+     * Converts a file location string to a Path, preserving UNC/network semantics
+     * and handling legacy drive/pipe forms (e.g. file:///C|/path).
+     * Package-private for unit tests.
+     */
+    static Path toPath(String location) {
         if (location == null || location.isBlank()) return null;
         String trimmed = location.trim();
-        if (trimmed.startsWith("file:/")) {
-            try {
-                return Paths.get(java.net.URI.create(trimmed));
-            } catch (Exception e) {
-                return Paths.get(trimmed.replaceFirst("^file:/+", ""));
-            }
+        if (!trimmed.startsWith("file:/")) {
+            return Paths.get(trimmed);
         }
-        return Paths.get(trimmed);
+        try {
+            URI uri = URI.create(trimmed);
+            String authority = uri.getAuthority();
+            String path = uri.getPath();
+            // UNC / network: file://host/Share or file:////host/Share (legacy 4-slash)
+            if (authority != null && !authority.isEmpty()) {
+                String uncPath = "//" + authority + (path != null ? path : "");
+                return Paths.get(uncPath);
+            }
+            // Legacy file:////host/Share: URI may parse with empty authority and path "//host/Share"
+            if (path != null && path.startsWith("//")) {
+                return Paths.get(path);
+            }
+            if (trimmed.startsWith("file:////")) {
+                String afterScheme = trimmed.substring(7);
+                if (afterScheme.startsWith("//")) {
+                    return Paths.get(afterScheme);
+                }
+            }
+            // Legacy drive letter with pipe: file:///C|/path -> C:/path
+            if (path != null && (path.matches("^/[A-Za-z]\\|/.*") || path.matches("^/[A-Za-z]\\|$"))) {
+                String normalized = path.substring(1).replace('|', ':');
+                return Paths.get(normalized);
+            }
+            return Paths.get(uri);
+        } catch (Exception e) {
+            // Fallback: strip file:/+ and normalize legacy C| to C:
+            String pathPart = trimmed.replaceFirst("^file:/+", "");
+            pathPart = pathPart.replaceAll("([A-Za-z])\\|", "$1:");
+            if (pathPart.matches("^/[A-Za-z]:/.*") || pathPart.matches("^/[A-Za-z]:$")) {
+                pathPart = pathPart.substring(1);
+            } else if (!pathPart.matches("^[A-Za-z]:/.*") && !pathPart.matches("^[A-Za-z]:$") && !pathPart.startsWith("//")) {
+                pathPart = "/" + pathPart;
+            }
+            return Paths.get(pathPart);
+        }
     }
 }

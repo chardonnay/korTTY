@@ -391,6 +391,16 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         saveButton.setDisable(true);
         
         hostField.textProperty().addListener((obs, old, newVal) -> { validateForm(saveButton); updateCredentialCombo(newVal); });
+        if (savedCredentialsCombo != null) {
+            savedCredentialsCombo.valueProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
+        }
+        if (savedSSHKeysCombo != null) {
+            savedSSHKeysCombo.valueProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
+        }
+        if (passwordAuthRadio != null) passwordAuthRadio.selectedProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
+        if (keyAuthRadio != null) keyAuthRadio.selectedProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
+        if (temporaryKeyAuthRadio != null) temporaryKeyAuthRadio.selectedProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
+        if (temporaryKeyArea != null) temporaryKeyArea.textProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
         validateForm(saveButton);
         
         // Result converter
@@ -644,7 +654,20 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private void validateForm(Button saveButton) {
         String hostText = hostField.getText();
         boolean valid = hostText != null && !hostText.trim().isEmpty();
+        if (valid && connection.isTeamworkConnection()) {
+            boolean hasCred = passwordAuthRadio != null && passwordAuthRadio.isSelected()
+                && savedCredentialsCombo != null && savedCredentialsCombo.getValue() != null;
+            boolean hasKey = keyAuthRadio != null && keyAuthRadio.isSelected() && savedSSHKeysCombo != null && savedSSHKeysCombo.getValue() != null;
+            boolean hasTempKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected()
+                && temporaryKeyArea != null && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty();
+            valid = hasCred || hasKey || hasTempKey;
+        }
         saveButton.setDisable(!valid);
+        if (saveButton.isDisabled() && connection.isTeamworkConnection()) {
+            saveButton.setTooltip(new Tooltip(I18n.get("connEdit.teamworkAuthRequired")));
+        } else {
+            saveButton.setTooltip(null);
+        }
     }
     
     private Tab createSettingsTab() {

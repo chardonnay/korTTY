@@ -373,20 +373,28 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             teamworkCacheUpdateListener = () -> javafx.application.Platform.runLater(this::refreshTeamworkConnections);
             syncService.addCacheUpdateListener(teamworkCacheUpdateListener);
         }
-        setOnHidden(e -> {
+
+        // Defensive cleanup: remove listener on hidden, close-request, and result converter
+        Runnable cleanupListener = () -> {
             if (app.getTeamworkSyncService() != null && teamworkCacheUpdateListener != null) {
                 app.getTeamworkSyncService().removeCacheUpdateListener(teamworkCacheUpdateListener);
             }
-        });
+        };
+        setOnHidden(e -> cleanupListener.run());
+        setOnCloseRequest(e -> cleanupListener.run());
         
         setResultConverter(dialogButton -> {
-            if (dialogButton == connectButtonType) {
-                List<ServerConnection> selected = getActiveTreeView().getSelectedConnections();
-                if (!selected.isEmpty()) {
-                    return selected.get(0);
+            try {
+                if (dialogButton == connectButtonType) {
+                    List<ServerConnection> selected = getActiveTreeView().getSelectedConnections();
+                    if (!selected.isEmpty()) {
+                        return selected.get(0);
+                    }
                 }
+                return null;
+            } finally {
+                cleanupListener.run();
             }
-            return null;
         });
     }
     
@@ -577,8 +585,8 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         RestoreTeamworkDialog dialog = new RestoreTeamworkDialog(owner, app);
         dialog.showAndWait().ifPresent(restored -> {
             if (restored != null) {
-                teamworkConnections.add(restored);
-                teamworkTreeView.refreshTree();
+                app.getTeamworkSyncService().syncNow();
+                refreshTeamworkConnections();
             }
         });
     }
@@ -833,7 +841,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     }
     
     private void exportConnections() {
-        List<ServerConnection> selectedConnections = treeView.getSelectedConnections();
+        List<ServerConnection> selectedConnections = getActiveTreeView().getSelectedConnections();
         if (!selectedConnections.isEmpty()) {
             exportConnections(selectedConnections);
         }

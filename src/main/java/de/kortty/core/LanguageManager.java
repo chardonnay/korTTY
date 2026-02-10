@@ -4,8 +4,13 @@ import de.kortty.model.GlobalSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.MissingResourceException;
+import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
 /**
@@ -17,6 +22,21 @@ public class LanguageManager {
     private static final Logger logger = LoggerFactory.getLogger(LanguageManager.class);
     private static final String BUNDLE_BASE_NAME = "i18n.messages";
     
+    private static final ResourceBundle.Control UTF8_CONTROL = new ResourceBundle.Control() {
+        @Override
+        public ResourceBundle newBundle(String baseName, Locale locale, String format, ClassLoader loader, boolean reload)
+                throws IllegalAccessException, InstantiationException, IOException {
+            String bundleName = toBundleName(baseName, locale);
+            String resourceName = toResourceName(bundleName, "properties");
+            try (InputStream stream = loader.getResourceAsStream(resourceName)) {
+                if (stream != null) {
+                    return new PropertyResourceBundle(new InputStreamReader(stream, StandardCharsets.UTF_8));
+                }
+            }
+            return super.newBundle(baseName, locale, format, loader, reload);
+        }
+    };
+
     private static LanguageManager instance;
     private Locale currentLocale;
     private ResourceBundle resourceBundle;
@@ -173,12 +193,12 @@ public class LanguageManager {
             // This is important when changing languages at runtime
             java.util.ResourceBundle.clearCache();
             
-            resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, currentLocale);
+            resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, currentLocale, UTF8_CONTROL);
             logger.info("Loaded resource bundle for locale: {} (language: {})", currentLocale, currentLocale.getLanguage());
         } catch (MissingResourceException e) {
             logger.error("Failed to load resource bundle for locale: {}, falling back to English", currentLocale, e);
             java.util.ResourceBundle.clearCache();
-            resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, Locale.ENGLISH);
+            resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, Locale.ENGLISH, UTF8_CONTROL);
         }
     }
     
