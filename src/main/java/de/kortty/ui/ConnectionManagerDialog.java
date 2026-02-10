@@ -272,7 +272,17 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             }
         });
         duplicateButton.setOnAction(e -> duplicateConnection());
-        exportButton.setOnAction(e -> exportConnections());
+        exportButton.setOnAction(e -> {
+            List<ServerConnection> selected = getActiveTreeView().getSelectedConnections();
+            if (!selected.isEmpty()) {
+                exportConnections();
+            } else if (isLocalTabActive()) {
+                List<GroupPath> groups = treeView.getSelectedGroups();
+                if (groups.size() == 1) {
+                    exportGroup(groups.get(0));
+                }
+            }
+        });
         importButton.setOnAction(e -> importConnections());
         undoButton.setOnAction(e -> treeView.undoLastMove());
         createFolderButton.setOnAction(e -> {
@@ -421,12 +431,13 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         boolean hasSingleConnection = selectedConnections.size() == 1;
         boolean hasConnections = !selectedConnections.isEmpty();
         boolean hasSingleGroup = selectedGroups.size() == 1 && selectedConnections.isEmpty();
+        boolean canExport = hasConnections || (local && hasSingleGroup);
         
         addButton.setDisable(!local);
         editButton.setDisable(!hasSingleConnection);
         deleteButton.setDisable(!hasConnections);
         duplicateButton.setDisable(!local || !hasSingleConnection);
-        exportButton.setDisable(!hasConnections);
+        exportButton.setDisable(!canExport);
         undoButton.setDisable(!local || !treeView.isUndoAvailable());
         createFolderButton.setDisable(!local);
         renameGroupButton.setDisable(!local || !hasSingleGroup);

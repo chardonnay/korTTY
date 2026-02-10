@@ -8,11 +8,23 @@
 
 - **Shallow clone update**: Git teamwork sources no longer use `pull --rebase` on shallow clones; the updater uses `fetch` + `reset --hard origin/<branch>` so rewritten or non-linear history works reliably.
 - **Connection edit validation**: Teamwork connections require the password authentication radio to be selected when using stored credentials; validation no longer passes if the user switched to key auth but left a credential selected.
+- **Recycle bin JAXB fix**: Teamwork recycle bin service uses `@XmlAccessorType(FIELD)` and full model list so JAXB context builds correctly; app no longer exits on startup with IllegalAnnotationsException.
 
-### Credentials and i18n
+### Terminal and UI
 
-- **Teamwork auth scope**: English and locale strings for teamwork auth now use an explicit scope (e.g. "for all team connections") instead of the vague "for all teamwork".
-- **French**: Restore label and confirm text use the correct phrase "Restaurer les connexions supprimées".
+- **Disconnect keeps tab open**: When the server disconnects or the session ends, the terminal tab stays open and is shown in red with "(DISCONNECT)" instead of auto-closing; double-click to reconnect.
+- **Connection Manager**: Export button is enabled when a folder is selected; you can export a folder (all connections in that folder and subfolders) via the Export button or right-click context menu.
+
+### Build and tests
+
+- **JUnit**: Explicit version `1.10.1` for `junit-platform-launcher` so test runtime resolves correctly.
+- **Tests**: `SharedFileTeamworkAdapterTest` for `toPath()` (UNC tests run only on Windows via `@EnabledOnOs(WINDOWS)`; recycle bin JAXB load test).
+
+### Startup and i18n
+
+- **Startup error handling**: Application start catches `Throwable` and shows error dialog safely so the real exception is logged and the app exits cleanly.
+- **Teamwork auth scope**: English and locale strings for teamwork auth use an explicit scope (e.g. "for all team connections") instead of the vague "for all teamwork".
+- **French**: Restore label and confirm text use "Restaurer les connexions supprimées".
 - **Croatian**: Consistent Unicode escapes in `messages_hr.properties` and corrected adjective "pohranjenu" (feminine accusative) for "vjerodajnicu" in `connEdit.teamworkAuthRequired`.
 
 ---
