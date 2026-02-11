@@ -1092,12 +1092,9 @@ public class MainWindow {
                 break;
                 
             case RECONNECT:
-                // Reconnect the terminal
                 Platform.runLater(() -> {
                     try {
-                        terminalTab.connect();
-                        updateDashboard();
-                        updateStatus(I18n.get("status.reconnecting", terminalTab.getConnection().getDisplayName()));
+                        terminalTab.triggerReconnect();
                     } catch (Exception e) {
                         logger.error("Reconnect failed", e);
                         updateStatus(I18n.get("status.reconnectionFailed", e.getMessage()));
@@ -2518,14 +2515,21 @@ public class MainWindow {
     private void setupTabContextMenu(TerminalTab terminalTab) {
         ContextMenu contextMenu = new ContextMenu();
         
-        // Duplicate menu item
-        MenuItem duplicateItem = new MenuItem("Duplizieren");
-        duplicateItem.setOnAction(e -> {
-            duplicateTab(terminalTab);
+        terminalTab.setOnReconnectRequested(() -> {
+            updateDashboard();
+            updateStatus(I18n.get("status.reconnecting", terminalTab.getConnection().getDisplayName()));
         });
+        
+        MenuItem duplicateItem = new MenuItem("Duplizieren");
+        duplicateItem.setOnAction(e -> duplicateTab(terminalTab));
         contextMenu.getItems().add(duplicateItem);
         
-        // Separator
+        MenuItem reconnectItem = new MenuItem(I18n.get("dashboard.reconnect"));
+        reconnectItem.setOnAction(e -> {
+            terminalTab.triggerReconnect();
+        });
+        contextMenu.getItems().add(reconnectItem);
+        
         contextMenu.getItems().add(new SeparatorMenuItem());
         
         // Get all available groups

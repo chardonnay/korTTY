@@ -8,6 +8,7 @@ import de.kortty.core.SSHKeyManager;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.ThemeManager;
 import de.kortty.core.BackupManager;
 import de.kortty.teamwork.TeamworkSyncService;
 import de.kortty.teamwork.TeamworkRecycleBinService;
@@ -50,6 +51,7 @@ public class KorTTYApplication extends Application {
     private SnippetManager snippetManager;
     private SnippetVariableManager snippetVariableManager;
     private GlobalSettingsManager globalSettingsManager;
+    private ThemeManager themeManager;
     private BackupManager backupManager;
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
@@ -87,6 +89,7 @@ public class KorTTYApplication extends Application {
         snippetManager = new SnippetManager(configDir);
         snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
+        themeManager = new ThemeManager(configDir);
         
         // Register JMX MBean
         registerJMXBean();
@@ -121,6 +124,7 @@ public class KorTTYApplication extends Application {
             // Load global settings first (they are not encrypted) to check if master password is required
             try {
                 globalSettingsManager.load();
+                themeManager.load();
                 
                 // Initialize language manager EARLY with settings, before any UI is created
                 // This ensures the correct language is used from the start
@@ -164,6 +168,7 @@ public class KorTTYApplication extends Application {
                 // Reload global settings to ensure we have the latest version
                 // Note: This reload should preserve the language setting from the file
                 globalSettingsManager.load();
+                themeManager.load();
                 
                 // Re-initialize language manager with the loaded settings
                 // This ensures the language from the saved settings is applied
@@ -352,6 +357,10 @@ public class KorTTYApplication extends Application {
     
     public GlobalSettingsManager getGlobalSettingsManager() {
         return globalSettingsManager;
+    }
+    
+    public ThemeManager getThemeManager() {
+        return themeManager;
     }
     
     public BackupManager getBackupManager() {

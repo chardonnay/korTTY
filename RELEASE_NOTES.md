@@ -1,5 +1,13 @@
 # Release Notes
 
+## Unreleased
+
+### Terminal and UI
+
+- **Reconnect via right-click**: Right-click on a terminal tab, inside the terminal area, or on a server entry in the Dashboard to trigger **Reconnect**. If a connection is active, it is closed and immediately re-established without closing the terminal window. If the connection is already disconnected, it is re-established. The terminal remains open in all cases.
+
+---
+
 ## 1.6.0
 
 **Release date:** February 2026

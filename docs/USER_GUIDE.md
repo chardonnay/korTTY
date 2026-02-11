@@ -126,7 +126,7 @@ On subsequent launches, you are prompted to enter the master password to unlock 
 
 - **Menu Bar** - Access all features through menus and keyboard shortcuts.
 - **Tab Bar** - Each SSH session runs in its own tab. Ctrl+Tab / Ctrl+Shift+Tab to switch.
-- **Dashboard** - Toggle with Ctrl+Shift+D. Shows all open connections with status indicators. Right-click a connection to reconnect, duplicate, or open SFTP.
+- **Dashboard** - Toggle with Ctrl+Shift+D. Shows all open connections with status indicators. Right-click a connection to **Reconnect** (always available; closes active connection and re-establishes it), duplicate, open SFTP, or close.
 - **Status Bar** - Shows connection status, temporary SSH key timer, and connection duration.
 ---
 
@@ -238,6 +238,7 @@ KorTTY can import connections from several sources:
 - **Close Tab:** Ctrl+W (Cmd+W) closes the active tab (with optional confirmation).
 - **Switch Tabs:** Ctrl+Tab (next) / Ctrl+Shift+Tab (previous).
 - **Tab Groups:** Right-click a tab to assign it to a named group for better organization.
+- **Reconnect:** Right-click a tab, the terminal area, or a server entry in the Dashboard to reconnect. If the connection is active, it is closed and re-established immediately; if disconnected, it is re-established. The terminal window stays open.
 
 ### 4.2 Multi-Window
 

@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
+import com.techsenger.jeditermfx.core.CursorShape;
 import com.techsenger.jeditermfx.core.TerminalColor;
 import com.techsenger.jeditermfx.core.TextStyle;
+import com.techsenger.jeditermfx.core.model.JediTerminal;
 import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.ui.JediTermFxWidget;
 import com.techsenger.jeditermfx.ui.settings.DynamicFontSizeSettingsProvider;
@@ -13,6 +15,7 @@ import de.kortty.core.SshTtyConnector;
 import de.kortty.core.DisconnectListener;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.Theme;
 import javafx.application.Platform;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.layout.BorderPane;
@@ -106,6 +109,7 @@ public class TerminalView extends BorderPane {
 
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
+    private Runnable onReconnectRequested;
     
     public TerminalView(ServerConnection connection, String password) {
         this(connection, password, null);
@@ -119,12 +123,32 @@ public class TerminalView extends BorderPane {
         // Ensure settings is never null - use connection settings or create defaults
         ConnectionSettings connSettings = connection.getSettings();
         if (connSettings == null) {
-            // Create default settings if none provided
             connSettings = new ConnectionSettings();
+            try {
+                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+                if (gs != null && gs.getDefaultTerminalSettings() != null) {
+                    connSettings = new ConnectionSettings(gs.getDefaultTerminalSettings());
+                }
+            } catch (Exception e) {
+                // Use defaults
+            }
             connection.setSettings(connSettings);
             logger.warn("Connection '{}' had no settings, using defaults", connection.getName());
         }
-        this.settings = connSettings;
+        // Resolve theme if themeId is set
+        ConnectionSettings effective = connSettings;
+        String themeId = connSettings.getThemeId();
+        if (themeId != null && !themeId.isEmpty()) {
+            try {
+                var tm = KorTTYApplication.getInstance().getThemeManager();
+                if (tm != null) {
+                    effective = tm.resolveSettings(connSettings, themeId);
+                }
+            } catch (Exception e) {
+                // Use connection settings
+            }
+        }
+        this.settings = effective;
         this.defaultFontSize = settings.getFontSize();
         
         initializeTerminal();
@@ -143,30 +167,52 @@ public class TerminalView extends BorderPane {
         // Create TerminalSplitPane with split support
         // Right-click context menu will show: Font size options + Split right/down + Close split
         splitPane = new TerminalSplitPane(settingsProvider, connectorFactory, widget -> {
-            // Configure each new widget in the split
             setupWidgetEventHandlers(widget);
-            // Set up timestamp gutter (always created, visibility controlled separately)
+            applyCursorShape(widget);
             setupTimestampGutter(widget);
         }, widget -> gutterMap.get(widget)); // Left panel factory: returns the gutter created in setupTimestampGutter
         
-        // Register extra context menu items for timestamp toggle
+        // Register extra context menu items: Theme, Reconnect, Timestamp toggle
         splitPane.setExtraMenuItemsFactory(widget -> {
-            javafx.scene.control.CheckMenuItem timestampToggle = 
+            java.util.List<javafx.scene.control.MenuItem> items = new java.util.ArrayList<>();
+            javafx.scene.control.Menu themeMenu = new javafx.scene.control.Menu(I18n.get("theme.menu"));
+            try {
+                var tm = KorTTYApplication.getInstance().getThemeManager();
+                if (tm != null) {
+                    for (Theme t : tm.getThemes()) {
+                        javafx.scene.control.MenuItem mi = new javafx.scene.control.MenuItem(t.getName());
+                        Theme theme = t;
+                        mi.setOnAction(e -> applyThemeAtRuntime(theme));
+                        themeMenu.getItems().add(mi);
+                    }
+                }
+            } catch (Exception e) {
+                // Theme manager not available
+            }
+            if (!themeMenu.getItems().isEmpty()) {
+                items.add(themeMenu);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
+            javafx.scene.control.MenuItem reconnectItem = new javafx.scene.control.MenuItem(I18n.get("dashboard.reconnect"));
+            reconnectItem.setOnAction(e -> {
+                if (onReconnectRequested != null) Platform.runLater(onReconnectRequested);
+            });
+            items.add(reconnectItem);
+            items.add(new javafx.scene.control.SeparatorMenuItem());
+            javafx.scene.control.CheckMenuItem timestampToggle =
                 new javafx.scene.control.CheckMenuItem(I18n.get("menu.view.timestamps"));
             timestampToggle.setSelected(isTimestampGuttersVisible());
             timestampToggle.setOnAction(e -> {
                 toggleTimestampGutters();
-                if (timestampToggleListener != null) {
-                    timestampToggleListener.run();
-                }
+                if (timestampToggleListener != null) timestampToggleListener.run();
             });
-            return java.util.Collections.singletonList(timestampToggle);
+            items.add(timestampToggle);
+            return items;
         });
         
-        // Get the primary terminal widget (first one created by TerminalSplitPane)
         terminalWidget = splitPane.getFocusedWidget();
+        if (terminalWidget != null) applyCursorShape(terminalWidget);
         
-        // Use split pane as the main content
         setCenter(splitPane);
 
         setupDragDrop();
@@ -601,6 +647,77 @@ public class TerminalView extends BorderPane {
     /**
      * Sets up event handlers for a terminal widget (used for each widget in split).
      */
+    private void applyThemeAtRuntime(Theme theme) {
+        if (theme == null || settings == null) return;
+        theme.applyTo(settings);
+        ConnectionSettings connSettings = connection.getSettings();
+        if (connSettings != null) {
+            theme.applyTo(connSettings);
+            connSettings.setThemeId(theme.getId());
+        }
+        if (splitPane != null) {
+            for (JediTermFxWidget w : splitPane.getAllWidgets()) {
+                applyStyleStateColors(w);
+                applyCursorShape(w);
+                setCursorVisible(w, true);
+            }
+        }
+        updateAllTerminalFonts();
+    }
+
+    private void applyStyleStateColors(JediTermFxWidget widget) {
+        if (widget == null || settings == null) return;
+        var terminal = widget.getTerminal();
+        if (!(terminal instanceof JediTerminal jediTerminal)) return;
+        var styleState = jediTerminal.getStyleState();
+        Color fg;
+        Color bg;
+        try {
+            fg = Color.web(settings.getForegroundColor());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid foreground color '{}', using white", settings.getForegroundColor(), e);
+            fg = Color.WHITE;
+        }
+        try {
+            bg = Color.web(settings.getBackgroundColor());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid background color '{}', using black", settings.getBackgroundColor(), e);
+            bg = Color.BLACK;
+        }
+        TerminalColor fgTc = TerminalColor.rgb(
+                (int) (fg.getRed() * 255),
+                (int) (fg.getGreen() * 255),
+                (int) (fg.getBlue() * 255));
+        TerminalColor bgTc = TerminalColor.rgb(
+                (int) (bg.getRed() * 255),
+                (int) (bg.getGreen() * 255),
+                (int) (bg.getBlue() * 255));
+        TextStyle newStyle = new TextStyle(fgTc, bgTc);
+        styleState.setDefaultStyle(newStyle);
+        styleState.reset();
+        Platform.runLater(() -> widget.getTerminalPanel().repaint());
+    }
+
+    private void applyCursorShape(JediTermFxWidget widget) {
+        if (widget == null || settings == null) return;
+        String style = settings.getCursorStyle();
+        if (style == null || style.isEmpty()) return;
+        try {
+            CursorShape shape = CursorShape.valueOf(style.toUpperCase());
+            widget.getTerminalPanel().setCursorShape(shape);
+        } catch (IllegalArgumentException e) {
+            // Use default
+        }
+    }
+
+    private void setCursorVisible(JediTermFxWidget widget, boolean visible) {
+        if (widget == null) return;
+        var terminal = widget.getTerminal();
+        if (terminal != null) {
+            terminal.setCursorVisible(visible);
+        }
+    }
+
     private void setupWidgetEventHandlers(JediTermFxWidget widget) {
         // Handle ESCAPE key via KEY_PRESSED to send ESC character
         widget.getPane().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
@@ -814,6 +931,10 @@ public class TerminalView extends BorderPane {
         this.onConnectedCallback = callback;
     }
     
+    public void setOnReconnectRequested(Runnable r) {
+        this.onReconnectRequested = r;
+    }
+    
     /**
      * Connects to the SSH server and starts the terminal session.
      * Implements retry logic with configurable timeout and retry count.
@@ -910,8 +1031,14 @@ public class TerminalView extends BorderPane {
                         Platform.runLater(() -> {
                             terminalWidget.setTtyConnector(ttyConnector);
                             terminalWidget.start();
-                            
-                            // Notify success callback
+                            applyCursorShape(terminalWidget);
+                            if (splitPane != null) {
+                                for (JediTermFxWidget w : splitPane.getAllWidgets()) {
+                                    applyCursorShape(w);
+                                    setCursorVisible(w, true);
+                                }
+                            }
+                            setCursorVisible(terminalWidget, true);
                             if (onConnectedCallback != null) {
                                 onConnectedCallback.run();
                             }
@@ -1083,13 +1210,10 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Cleans up resources.
+     * Disconnects without destroying the UI. Use for reconnect - keeps terminal widget and split pane.
      */
-    public void cleanup() {
-        // Stop logger first
+    public void disconnectOnly() {
         stopLogger();
-        
-        // Close primary connection
         if (ttyConnector != null) {
             try {
                 ttyConnector.close();
@@ -1098,8 +1222,21 @@ public class TerminalView extends BorderPane {
             }
             ttyConnector = null;
         }
-        
-        // Close all splits (this closes all SSH connections in the split pane)
+    }
+    
+    /**
+     * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
+     */
+    public void cleanup() {
+        stopLogger();
+        if (ttyConnector != null) {
+            try {
+                ttyConnector.close();
+            } catch (Exception e) {
+                logger.warn("Error closing TtyConnector: {}", e.getMessage());
+            }
+            ttyConnector = null;
+        }
         if (splitPane != null) {
             try {
                 splitPane.closeAll();
@@ -1108,7 +1245,6 @@ public class TerminalView extends BorderPane {
             }
             splitPane = null;
         }
-        
         terminalWidget = null;
     }
     
@@ -1596,7 +1732,12 @@ public class TerminalView extends BorderPane {
         
         @Override
         public @NotNull Font getTerminalFont() {
-            return Font.font(settings.getFontFamily(), getFontSize());
+            String family = settings.getFontFamily();
+            if (family == null || family.isEmpty()) family = "Monospaced";
+            if ("Monaco".equals(family) && !Font.getFamilies().contains("Monaco")) {
+                family = "Monospaced";
+            }
+            return Font.font(family, getFontSize());
         }
         
         @Override

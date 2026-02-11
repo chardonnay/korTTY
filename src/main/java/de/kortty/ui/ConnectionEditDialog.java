@@ -9,9 +9,11 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.TunnelType;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
+import de.kortty.core.ThemeManager;
 import de.kortty.security.EncryptionService;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.Theme;
 import de.kortty.model.WindowGeometry;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -62,6 +64,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     // Connection-specific settings
     private CheckBox useCustomSettingsCheck;
+    private ComboBox<Theme> themeCombo;
     
     // Tunnel and Jump Server
     private CheckBox enableTunnelsCheck;
@@ -494,25 +497,20 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 
                 // Save connection-specific settings if enabled
                 if (useCustomSettingsCheck != null && useCustomSettingsCheck.isSelected()) {
-                    ConnectionSettings customSettings = new ConnectionSettings();
-                    if (fontFamilyCombo != null) {
-                        customSettings.setFontFamily(fontFamilyCombo.getValue());
+                    ConnectionSettings customSettings;
+                    Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
+                    if (selTheme != null) {
+                        customSettings = selTheme.toConnectionSettings();
+                        customSettings.setThemeId(selTheme.getId());
+                    } else {
+                        customSettings = new ConnectionSettings();
                     }
-                    if (fontSizeSpinner != null) {
-                        customSettings.setFontSize(fontSizeSpinner.getValue());
-                    }
-                    if (foregroundColorPicker != null) {
-                        customSettings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
-                    }
-                    if (backgroundColorPicker != null) {
-                        customSettings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
-                    }
-                    if (closeWithoutConfirmCheck != null) {
-                        customSettings.setCloseWithoutConfirmation(closeWithoutConfirmCheck.isSelected());
-                    }
-                    if (commandTimestampsCheck != null) {
-                        customSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
-                    }
+                    if (fontFamilyCombo != null) customSettings.setFontFamily(fontFamilyCombo.getValue());
+                    if (fontSizeSpinner != null) customSettings.setFontSize(fontSizeSpinner.getValue());
+                    if (foregroundColorPicker != null) customSettings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
+                    if (backgroundColorPicker != null) customSettings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+                    if (closeWithoutConfirmCheck != null) customSettings.setCloseWithoutConfirmation(closeWithoutConfirmCheck.isSelected());
+                    if (commandTimestampsCheck != null) customSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
                     connection.setSettings(customSettings);
                 } else {
                     connection.setSettings(null); // Use global settings
@@ -714,8 +712,52 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         commandTimestampsCheck.setSelected(connSettings != null && connSettings.isCommandTimestampsEnabled());
         commandTimestampsCheck.setTooltip(new javafx.scene.control.Tooltip(I18n.get("settings.terminal.commandTimestamps.tooltip")));
         
+        // Theme selector
+        themeCombo = new ComboBox<>();
+        themeCombo.setPromptText(I18n.get("connEdit.theme"));
+        themeCombo.setPrefWidth(200);
+        try {
+            ThemeManager tm = de.kortty.KorTTYApplication.getInstance().getThemeManager();
+            if (tm != null) {
+                themeCombo.getItems().add(null); // Custom
+                themeCombo.getItems().addAll(tm.getThemes());
+                if (connSettings != null && connSettings.getThemeId() != null) {
+                    tm.getTheme(connSettings.getThemeId()).ifPresent(themeCombo::setValue);
+                } else {
+                    themeCombo.setValue(null);
+                }
+            }
+        } catch (Exception e) {
+            // Theme manager not available
+        }
+        themeCombo.setCellFactory(lv -> new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(Theme item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? I18n.get("theme.custom") : item.getName());
+            }
+        });
+        themeCombo.setButtonCell(new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(Theme item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? I18n.get("theme.custom") : item.getName());
+            }
+        });
+        themeCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                fontFamilyCombo.setValue(newVal.getFontFamily());
+                fontSizeSpinner.getValueFactory().setValue(newVal.getFontSize());
+                foregroundColorPicker.setValue(Color.web(newVal.getForegroundColor()));
+                backgroundColorPicker.setValue(Color.web(newVal.getBackgroundColor()));
+            }
+        });
+        
         // Layout
         int row = 0;
+        settingsGrid.add(new Label(I18n.get("connEdit.theme")), 0, row);
+        settingsGrid.add(themeCombo, 1, row++);
+        
         settingsGrid.add(new Label(I18n.get("settings.font.family")), 0, row);
         settingsGrid.add(fontFamilyCombo, 1, row++);
         

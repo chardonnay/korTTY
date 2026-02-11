@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SSHKey;
+import de.kortty.model.Theme;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.TemporarySSHKey;
 import de.kortty.security.PasswordVault;
@@ -57,6 +58,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private Spinner<Integer> retrySpinner;
     
     // Terminal appearance
+    private ComboBox<Theme> themeCombo;
     private ComboBox<String> fontFamilyCombo;
     private Spinner<Integer> fontSizeSpinner;
     private ColorPicker foregroundColorPicker;
@@ -529,6 +531,45 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         appearanceLabel.setStyle("-fx-font-weight: bold;");
         grid.add(appearanceLabel, 0, 12, 2, 1);
         
+        // Theme selector
+        themeCombo = new ComboBox<>();
+        themeCombo.setPromptText(I18n.get("quickConnect.theme"));
+        themeCombo.setPrefWidth(200);
+        try {
+            var tm = de.kortty.KorTTYApplication.getInstance().getThemeManager();
+            if (tm != null) {
+                themeCombo.getItems().add(null);
+                themeCombo.getItems().addAll(tm.getThemes());
+                themeCombo.setCellFactory(lv -> new javafx.scene.control.ListCell<>() {
+                    @Override
+                    protected void updateItem(Theme item, boolean empty) {
+                        super.updateItem(item, empty);
+                        setText(empty || item == null ? I18n.get("theme.custom") : item.getName());
+                    }
+                });
+                themeCombo.setButtonCell(new javafx.scene.control.ListCell<>() {
+                    @Override
+                    protected void updateItem(Theme item, boolean empty) {
+                        super.updateItem(item, empty);
+                        setText(empty || item == null ? I18n.get("theme.custom") : item.getName());
+                    }
+                });
+                themeCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+                    if (newVal != null) {
+                        fontFamilyCombo.setValue(newVal.getFontFamily());
+                        fontSizeSpinner.getValueFactory().setValue(newVal.getFontSize());
+                        foregroundColorPicker.setValue(javafx.scene.paint.Color.web(newVal.getForegroundColor()));
+                        backgroundColorPicker.setValue(javafx.scene.paint.Color.web(newVal.getBackgroundColor()));
+                    }
+                });
+            }
+        } catch (Exception e) {
+            // Theme manager not available
+        }
+        
+        grid.add(new Label(I18n.get("quickConnect.theme")), 0, 13);
+        grid.add(themeCombo, 1, 13);
+        
         // Font family
         fontFamilyCombo = new ComboBox<>();
         fontFamilyCombo.getItems().addAll(getMonospaceFonts());
@@ -540,27 +581,27 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         fontSizeSpinner.setEditable(true);
         fontSizeSpinner.setPrefWidth(80);
         
-        grid.add(new Label(I18n.get("quickConnect.font")), 0, 13);
+        grid.add(new Label(I18n.get("quickConnect.font")), 0, 14);
         HBox fontBox = new HBox(10);
         fontBox.getChildren().addAll(fontFamilyCombo, new Label(I18n.get("quickConnect.fontSize")), fontSizeSpinner);
-        grid.add(fontBox, 1, 13);
+        grid.add(fontBox, 1, 14);
         
         // Colors
         foregroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#FFFFFF"));
         backgroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#1E1E1E"));
         
-        grid.add(new Label(I18n.get("quickConnect.textColor")), 0, 14);
-        grid.add(foregroundColorPicker, 1, 14);
+        grid.add(new Label(I18n.get("quickConnect.textColor")), 0, 15);
+        grid.add(foregroundColorPicker, 1, 15);
         
-        grid.add(new Label(I18n.get("quickConnect.background")), 0, 15);
-        grid.add(backgroundColorPicker, 1, 15);
+        grid.add(new Label(I18n.get("quickConnect.background")), 0, 16);
+        grid.add(backgroundColorPicker, 1, 16);
         
         // Reset button to restore global default settings
         Button resetButton = new Button(I18n.get("quickConnect.resetToDefaults"));
         resetButton.setOnAction(e -> resetToDefaultSettings());
         HBox buttonBox = new HBox(10);
         buttonBox.getChildren().add(resetButton);
-        grid.add(buttonBox, 1, 16);
+        grid.add(buttonBox, 1, 17);
         
         // Load last used settings or default settings from GlobalSettings
         loadTerminalSettings();
@@ -975,18 +1016,20 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             }
             
             if (settings != null) {
-                // Apply font settings
-                if (settings.getFontFamily() != null) {
-                    fontFamilyCombo.setValue(settings.getFontFamily());
+                String themeId = settings.getThemeId();
+                if (themeId != null && themeCombo != null) {
+                    try {
+                        var tm = de.kortty.KorTTYApplication.getInstance().getThemeManager();
+                        if (tm != null) tm.getTheme(themeId).ifPresent(themeCombo::setValue);
+                    } catch (Exception ignored) {}
+                } else if (themeCombo != null) {
+                    themeCombo.setValue(null);
                 }
-                fontSizeSpinner.getValueFactory().setValue(settings.getFontSize());
-                
-                // Apply color settings
-                if (settings.getForegroundColor() != null) {
-                    foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
-                }
-                if (settings.getBackgroundColor() != null) {
-                    backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
+                if (themeCombo == null || themeCombo.getValue() == null) {
+                    if (settings.getFontFamily() != null) fontFamilyCombo.setValue(settings.getFontFamily());
+                    fontSizeSpinner.getValueFactory().setValue(settings.getFontSize());
+                    if (settings.getForegroundColor() != null) foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
+                    if (settings.getBackgroundColor() != null) backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
                 }
             }
         } catch (Exception e) {
@@ -1005,19 +1048,22 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             
             if (globalSettings != null && globalSettings.getDefaultTerminalSettings() != null) {
                 de.kortty.model.ConnectionSettings settings = globalSettings.getDefaultTerminalSettings();
-                
-                // Apply font settings
-                if (settings.getFontFamily() != null) {
-                    fontFamilyCombo.setValue(settings.getFontFamily());
+                if (themeCombo != null) {
+                    String themeId = settings.getThemeId();
+                    if (themeId != null) {
+                        try {
+                            var tm = de.kortty.KorTTYApplication.getInstance().getThemeManager();
+                            if (tm != null) tm.getTheme(themeId).ifPresent(themeCombo::setValue);
+                        } catch (Exception ignored) {}
+                    } else {
+                        themeCombo.setValue(null);
+                    }
                 }
-                fontSizeSpinner.getValueFactory().setValue(settings.getFontSize());
-                
-                // Apply color settings
-                if (settings.getForegroundColor() != null) {
-                    foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
-                }
-                if (settings.getBackgroundColor() != null) {
-                    backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
+                if (themeCombo == null || themeCombo.getValue() == null) {
+                    if (settings.getFontFamily() != null) fontFamilyCombo.setValue(settings.getFontFamily());
+                    fontSizeSpinner.getValueFactory().setValue(settings.getFontSize());
+                    if (settings.getForegroundColor() != null) foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
+                    if (settings.getBackgroundColor() != null) backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
                 }
             }
         } catch (Exception e) {
@@ -1037,11 +1083,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             if (globalSettings != null) {
                 // Save terminal settings
                 de.kortty.model.ConnectionSettings settings = new de.kortty.model.ConnectionSettings();
-                settings.setFontFamily(fontFamilyCombo.getValue());
-                settings.setFontSize(fontSizeSpinner.getValue());
-                settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
-                settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
-                
+                Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
+                if (selTheme != null) {
+                    selTheme.applyTo(settings);
+                    settings.setThemeId(selTheme.getId());
+                } else {
+                    settings.setFontFamily(fontFamilyCombo.getValue());
+                    settings.setFontSize(fontSizeSpinner.getValue());
+                    settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
+                    settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+                }
                 globalSettings.setLastQuickConnectTerminalSettings(settings);
                 
                 // Save connection settings (timeout and retries)
@@ -1098,6 +1149,13 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         connection.getSettings().setFontSize(fontSizeSpinner.getValue());
         connection.getSettings().setForegroundColor(toHex(foregroundColorPicker.getValue()));
         connection.getSettings().setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+        Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
+        if (selTheme != null) {
+            selTheme.applyTo(connection.getSettings());
+            connection.getSettings().setThemeId(selTheme.getId());
+        } else {
+            connection.getSettings().setThemeId(null);
+        }
     }
     
     /**

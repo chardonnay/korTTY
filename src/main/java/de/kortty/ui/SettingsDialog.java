@@ -6,9 +6,11 @@ import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.SSHKeyManager;
+import de.kortty.core.ThemeManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.Theme;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
 import de.kortty.model.WindowGeometry;
@@ -848,23 +850,26 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         snippetEditorTab.setContent(snippetEditorGrid);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab);
+        // Themes tab
+        Tab themesTab = createThemesTab(owner);
+        
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab);
         
         VBox content = new VBox(tabPane);
         content.setFillWidth(true);
         // TabPane does not report preferred height well to ScrollPane (JavaFX quirk), so set a min height
         // so the scrollable area is large enough and the vertical scrollbar appears
-        content.setMinHeight(720);
-        content.setPrefHeight(720);
+        content.setMinHeight(800);
+        content.setPrefHeight(800);
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(false);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setPrefViewportWidth(560);
-        scrollPane.setPrefViewportHeight(420);
+        scrollPane.setPrefViewportWidth(580);
+        scrollPane.setPrefViewportHeight(580);
         scrollPane.setMinViewportWidth(400);
-        scrollPane.setMinViewportHeight(300);
+        scrollPane.setMinViewportHeight(400);
         getDialogPane().setContent(scrollPane);
         
         // Buttons
@@ -1024,6 +1029,127 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     
     private void updatePreviewFont(Label previewLabel) {
         previewLabel.setFont(Font.font(fontFamilyCombo.getValue(), fontSizeSpinner.getValue()));
+    }
+    
+    private Tab createThemesTab(Stage owner) {
+        Tab tab = new Tab(I18n.get("settings.tab.themes"));
+        tab.setClosable(false);
+        
+        ThemeManager themeManager = app != null ? app.getThemeManager() : null;
+        if (themeManager == null) {
+            tab.setContent(new Label(I18n.get("theme.notAvailable")));
+            return tab;
+        }
+        
+        VBox vbox = new VBox(15);
+        vbox.setPadding(new Insets(20));
+        
+        Label header = new Label(I18n.get("theme.header"));
+        header.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        vbox.getChildren().add(header);
+        
+        Label desc = new Label(I18n.get("theme.description"));
+        desc.setWrapText(true);
+        desc.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        vbox.getChildren().add(desc);
+        
+        ListView<Theme> themeList = new ListView<>();
+        themeList.getItems().addAll(themeManager.getThemes());
+        themeList.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(Theme item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + (item.isBuiltIn() ? " (" + I18n.get("theme.builtIn") + ")" : ""));
+                }
+            }
+        });
+        themeList.setPrefHeight(260);
+        VBox.setVgrow(themeList, javafx.scene.layout.Priority.ALWAYS);
+        
+        HBox buttons = new HBox(10);
+        Button addBtn = new Button(I18n.get("theme.add"));
+        Button editBtn = new Button(I18n.get("theme.edit"));
+        Button duplicateBtn = new Button(I18n.get("theme.duplicate"));
+        Button deleteBtn = new Button(I18n.get("theme.delete"));
+        
+        editBtn.disableProperty().bind(themeList.getSelectionModel().selectedItemProperty().isNull());
+        duplicateBtn.disableProperty().bind(themeList.getSelectionModel().selectedItemProperty().isNull());
+        themeList.getSelectionModel().selectedItemProperty().addListener((o, a, b) ->
+            deleteBtn.setDisable(b == null || b.isBuiltIn()));
+        deleteBtn.setDisable(true);
+        
+        addBtn.setOnAction(e -> {
+            ThemeEditDialog dlg = new ThemeEditDialog(owner, null);
+            dlg.showAndWait().ifPresent(t -> {
+                themeManager.addTheme(t);
+                themeList.getItems().clear();
+                themeList.getItems().addAll(themeManager.getThemes());
+            });
+        });
+        
+        editBtn.setOnAction(e -> {
+            Theme sel = themeList.getSelectionModel().getSelectedItem();
+            if (sel == null) return;
+            Theme copy = new Theme();
+            copy.setId(sel.getId());
+            copy.setName(sel.getName());
+            copy.setFontFamily(sel.getFontFamily());
+            copy.setFontSize(sel.getFontSize());
+            copy.setForegroundColor(sel.getForegroundColor());
+            copy.setBackgroundColor(sel.getBackgroundColor());
+            copy.setCursorColor(sel.getCursorColor());
+            copy.setCursorStyle(sel.getCursorStyle());
+            copy.setBuiltIn(sel.isBuiltIn());
+            ThemeEditDialog dlg = new ThemeEditDialog(owner, copy);
+            dlg.showAndWait().ifPresent(edited -> {
+                themeManager.updateTheme(edited);
+                themeList.getItems().clear();
+                themeList.getItems().addAll(themeManager.getThemes());
+            });
+        });
+        
+        duplicateBtn.setOnAction(e -> {
+            Theme sel = themeList.getSelectionModel().getSelectedItem();
+            if (sel == null) return;
+            Theme dup = new Theme();
+            dup.setName(sel.getName() + " " + I18n.get("theme.copy"));
+            dup.setFontFamily(sel.getFontFamily());
+            dup.setFontSize(sel.getFontSize());
+            dup.setForegroundColor(sel.getForegroundColor());
+            dup.setBackgroundColor(sel.getBackgroundColor());
+            dup.setCursorColor(sel.getCursorColor());
+            dup.setCursorStyle(sel.getCursorStyle());
+            dup.setBuiltIn(false);
+            ThemeEditDialog dlg = new ThemeEditDialog(owner, dup);
+            dlg.showAndWait().ifPresent(t -> {
+                themeManager.addTheme(t);
+                themeList.getItems().clear();
+                themeList.getItems().addAll(themeManager.getThemes());
+            });
+        });
+        
+        deleteBtn.setOnAction(e -> {
+            Theme sel = themeList.getSelectionModel().getSelectedItem();
+            if (sel == null || sel.isBuiltIn()) return;
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle(I18n.get("theme.deleteTitle"));
+            confirm.setHeaderText(I18n.get("theme.deleteConfirm", sel.getName()));
+            confirm.initOwner(owner);
+            if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                themeManager.removeTheme(sel.getId());
+                themeList.getItems().clear();
+                themeList.getItems().addAll(themeManager.getThemes());
+            }
+        });
+        
+        buttons.getChildren().addAll(addBtn, editBtn, duplicateBtn, deleteBtn);
+        vbox.getChildren().addAll(themeList, buttons);
+        
+        tab.setContent(vbox);
+        return tab;
     }
     
     /**

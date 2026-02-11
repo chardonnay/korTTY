@@ -45,6 +45,7 @@ public class TerminalTab extends Tab {
         this.temporarySSHKey = temporarySSHKey;
         this.connectionStartTime = Instant.now();
         this.terminalView = new TerminalView(connection, password, temporarySSHKey);
+        this.terminalView.setOnReconnectRequested(this::triggerReconnect);
         
         // Create status bar
         createStatusBar();
@@ -213,6 +214,36 @@ public class TerminalTab extends Tab {
         isConnectionFailed = false;
         updateTabTitle();
         connect(); // connect() will set tab to yellow automatically
+    }
+    
+    /**
+     * Disconnects if connected, then reconnects. Keeps the terminal window open.
+     * Use for context-menu "Reconnect" on tab, terminal, or dashboard.
+     */
+    public void performReconnect() {
+        if (terminalView.isConnected()) {
+            terminalView.disconnectOnly();  // Close connection only, keep UI for reconnect
+        }
+        retryConnection();
+    }
+    
+    private Runnable onReconnectRequested;
+    
+    /**
+     * Sets a callback invoked after performReconnect (e.g. to update dashboard and status).
+     */
+    public void setOnReconnectRequested(Runnable r) {
+        this.onReconnectRequested = r;
+    }
+    
+    /**
+     * Performs reconnect and notifies the callback. Called from context menus.
+     */
+    public void triggerReconnect() {
+        performReconnect();
+        if (onReconnectRequested != null) {
+            Platform.runLater(onReconnectRequested);
+        }
     }
     
     /**

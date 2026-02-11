@@ -30,7 +30,13 @@ public class ConnectionSettings {
     
     @XmlElement
     private String selectionColor = "#3399FF";
-    
+
+    @XmlElement
+    private String cursorStyle = "BLINK_BLOCK";
+
+    @XmlElement
+    private String themeId;
+
     @XmlElement
     private int terminalColumns = 80;
     
@@ -106,6 +112,8 @@ public class ConnectionSettings {
         this.backgroundColor = other.backgroundColor;
         this.cursorColor = other.cursorColor;
         this.selectionColor = other.selectionColor;
+        this.cursorStyle = other.cursorStyle;
+        this.themeId = other.themeId;
         this.terminalColumns = other.terminalColumns;
         this.terminalRows = other.terminalRows;
         this.scrollbackLines = other.scrollbackLines;
@@ -194,7 +202,23 @@ public class ConnectionSettings {
     public void setSelectionColor(String selectionColor) {
         this.selectionColor = selectionColor;
     }
-    
+
+    public String getCursorStyle() {
+        return cursorStyle != null ? cursorStyle : "BLINK_BLOCK";
+    }
+
+    public void setCursorStyle(String cursorStyle) {
+        this.cursorStyle = cursorStyle;
+    }
+
+    public String getThemeId() {
+        return themeId;
+    }
+
+    public void setThemeId(String themeId) {
+        this.themeId = themeId;
+    }
+
     public int getTerminalColumns() {
         return terminalColumns;
     }
