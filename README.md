@@ -57,6 +57,7 @@ Pre-built packages for **x86_64 (amd64)** and **arm64 (aarch64)** are available 
 - **macOS**: Apple Silicon only — `-aarch64` (separate DMG/ZIP files).
 - **Windows**: `-x86_64` for Intel/AMD (separate MSI/ZIP files).
 - **Linux**: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
+- **Arch Linux**: `-x86_64` or `-aarch64` (pacman `.pkg.tar.zst` packages, built from the Linux tarball in CI).
 
 Each release provides separate packages per platform and architecture; there are no universal binaries. Use the file that matches your OS and CPU.
 

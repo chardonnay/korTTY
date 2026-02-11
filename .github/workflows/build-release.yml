@@ -197,8 +197,73 @@ jobs:
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm
           retention-days: 30
 
-  upload-release:
+  build-pacman:
+    name: Build pacman (Arch Linux)
     needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION=${VERSION#v}
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: korTTY-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          path: linux-artifact
+
+      - name: Install build dependencies (Arch)
+        run: |
+          pacman -Syu --noconfirm base-devel git
+          useradd -m -s /bin/bash builder
+
+      - name: Prepare PKGBUILD and sources
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCH="${{ matrix.arch }}"
+          mkdir -p archbuild
+          cp linux-artifact/kortty-Linux-"${VERSION}"-"${ARCH}".tar.gz archbuild/
+          cp package/arch/kortty.desktop archbuild/
+          sed "s/VERSION_PLACEHOLDER/${VERSION}/g" package/arch/PKGBUILD > archbuild/PKGBUILD
+
+      - name: Build pacman package
+        run: |
+          chown -R builder:builder "$GITHUB_WORKSPACE/archbuild"
+          # Run without -s: PKGBUILD has no makedepends; base-devel (installed as root above) provides all build tools
+          su builder -c "cd $GITHUB_WORKSPACE/archbuild && makepkg --noconfirm"
+
+      - name: Upload pacman artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KorTTY-Arch-${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          path: archbuild/*.pkg.tar.zst
+          retention-days: 30
+
+  upload-release:
+    needs: [build, build-pacman]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
@@ -223,7 +288,7 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release
-          find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.deb' -o -name '*.rpm' \) -exec cp {} release/ \;
+          find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg.tar.zst' \) -exec cp {} release/ \;
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2

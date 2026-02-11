@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=korTTY
+Comment=SSH Client with JavaFX interface and tab support
+Exec=/usr/bin/kortty
+Icon=kortty
+Categories=Network;RemoteAccess;TerminalEmulator;
+Keywords=ssh;terminal;sftp;

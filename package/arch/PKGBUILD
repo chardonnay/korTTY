@@ -1,0 +1,57 @@
+# Maintainer: korTTY Project <https://github.com/chardonnay/korTTY>
+# Repackages the official Linux tarball for Arch Linux (built in CI).
+
+pkgname=kortty
+# pkgver is substituted by CI (see .github/workflows/build-release.yml)
+pkgver=VERSION_PLACEHOLDER
+pkgrel=1
+pkgdesc="SSH Client with JavaFX interface, tab support, and SFTP"
+arch=('x86_64' 'aarch64')
+url="https://github.com/chardonnay/korTTY"
+license=('Apache-2.0')
+# OpenJDK 25 runtime (Arch: jre-openjdk)
+depends=('jre-openjdk')
+# Pre-built tarball from GitHub Actions (kortty-Linux-${pkgver}-${CARCH}.tar.gz)
+# kortty.desktop is in this directory (package/arch/)
+source=("kortty-Linux-${pkgver}-${CARCH}.tar.gz" "kortty.desktop")
+sha256sums=('SKIP' 'SKIP')
+# App-image directory name from jpackage (--name korTTY)
+_appdir="korTTY"
+
+package() {
+  cd "$srcdir"
+  # Tarball contains a single top-level dir: korTTY or kortty
+  if [[ -d "$_appdir" ]]; then
+    appdir="$_appdir"
+  elif [[ -d "kortty" ]]; then
+    appdir="kortty"
+  else
+    echo "ERROR: expected korTTY or kortty directory in tarball"
+    ls -la
+    return 1
+  fi
+
+  install -d "$pkgdir/usr/lib/kortty"
+  cp -a "$appdir"/* "$pkgdir/usr/lib/kortty/"
+
+  # Launcher in /usr/bin (jpackage puts it in bin/korTTY or bin/kortty)
+  install -d "$pkgdir/usr/bin"
+  if [[ -x "$pkgdir/usr/lib/kortty/bin/korTTY" ]]; then
+    ln -s /usr/lib/kortty/bin/korTTY "$pkgdir/usr/bin/kortty"
+  elif [[ -x "$pkgdir/usr/lib/kortty/bin/kortty" ]]; then
+    ln -s /usr/lib/kortty/bin/kortty "$pkgdir/usr/bin/kortty"
+  else
+    echo "ERROR: no launcher found in bin/"
+    ls -la "$pkgdir/usr/lib/kortty/bin/" || true
+    return 1
+  fi
+
+  # Desktop entry
+  install -d "$pkgdir/usr/share/applications"
+  install -m644 "$srcdir/kortty.desktop" "$pkgdir/usr/share/applications/kortty.desktop"
+  # Icon if present in app-image
+  if [[ -f "$pkgdir/usr/lib/kortty/lib/kortty_icon.png" ]]; then
+    install -d "$pkgdir/usr/share/pixmaps"
+    install -m644 "$pkgdir/usr/lib/kortty/lib/kortty_icon.png" "$pkgdir/usr/share/pixmaps/kortty.png"
+  fi
+}
