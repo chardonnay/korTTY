@@ -1378,7 +1378,7 @@ public class SFTPManagerTab extends Tab {
         String currentGroup = firstItem.getGroup();
         String currentPerms = getOctalPermissions(firstItem.getPermissions());
         
-        Dialog<Void> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.setOwner.title"));
         dialog.setHeaderText(I18n.get("sftp.setOwner.header", items.size()));
         applyDarkTheme(dialog);
@@ -1423,6 +1423,8 @@ public class SFTPManagerTab extends Tab {
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         
         dialog.showAndWait().ifPresent(result -> {
+            if (result != ButtonType.OK) return;
+            
             String newOwner = ownerField.getText().trim();
             String newGroup = groupField.getText().trim();
             String newPerms = permField.getText().trim();
