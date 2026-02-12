@@ -1343,6 +1343,12 @@ public class SFTPManagerTab extends Tab {
         var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) return;
         
+        // Check connection
+        if (sftpSession == null || !sftpSession.isConnected()) {
+            showError(I18n.get("error.title"), I18n.get("sftp.notConnected"));
+            return;
+        }
+        
         // Filter out ".."
         List<SFTPManagerDialog.FileItem> items = new java.util.ArrayList<>();
         for (var item : selected) {
@@ -1388,33 +1394,52 @@ public class SFTPManagerTab extends Tab {
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         
-        dialog.setResultConverter(btn -> {
-            if (btn == ButtonType.OK) {
-                String owner = ownerField.getText().trim();
-                String perms = permField.getText().trim();
-                boolean recursive = recursiveCheck.isSelected();
-                
-                if (owner.isEmpty() && perms.isEmpty()) {
-                    return null;
-                }
-                
-                // Apply changes
-                applyOwnerPermissions(items, owner, perms, recursive);
+        dialog.showAndWait().ifPresent(result -> {
+            String owner = ownerField.getText().trim();
+            String perms = permField.getText().trim();
+            boolean recursive = recursiveCheck.isSelected();
+            
+            if (owner.isEmpty() && perms.isEmpty()) {
+                showError(I18n.get("error.title"), I18n.get("sftp.setOwner.nothingToSet"));
+                return;
             }
-            return null;
+            
+            // Apply changes with progress dialog
+            applyOwnerPermissions(items, owner, perms, recursive);
         });
-        
-        dialog.showAndWait();
     }
     
     private void applyOwnerPermissions(List<SFTPManagerDialog.FileItem> items, String owner, String perms, boolean recursive) {
-        statusLabel.setText(I18n.get("sftp.setOwner.applying"));
+        // Show progress dialog
+        Dialog<Void> progressDialog = new Dialog<>();
+        progressDialog.setTitle(I18n.get("sftp.setOwner.title"));
+        progressDialog.setHeaderText(I18n.get("sftp.setOwner.applying"));
+        applyDarkTheme(progressDialog);
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        Label statusLbl = new Label(I18n.get("sftp.setOwner.applying"));
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(300);
+        content.getChildren().addAll(statusLbl, progressBar);
+        progressDialog.getDialogPane().setContent(content);
+        progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+        progressDialog.show();
         
         new Thread(() -> {
             int[] success = {0};
             int[] errors = {0};
+            StringBuilder errorMessages = new StringBuilder();
+            int total = items.size();
             
-            for (var item : items) {
+            for (int i = 0; i < items.size(); i++) {
+                var item = items.get(i);
+                int currentIndex = i;
+                Platform.runLater(() -> {
+                    statusLbl.setText(item.getName());
+                    progressBar.setProgress((double) currentIndex / total);
+                });
+                
                 try {
                     String recursiveFlag = recursive ? "-R " : "";
                     
@@ -1434,14 +1459,24 @@ public class SFTPManagerTab extends Tab {
                 } catch (Exception e) {
                     logger.error("Failed to set owner/permissions for {}: {}", item.getPath(), e.getMessage());
                     errors[0]++;
+                    // Collect error messages (limit to first 3 to avoid huge dialogs)
+                    if (errorMessages.length() < 500) {
+                        if (errorMessages.length() > 0) errorMessages.append("\n");
+                        errorMessages.append(item.getName()).append(": ").append(e.getMessage());
+                    }
                 }
             }
             
+            final String errorMsg = errorMessages.toString();
             Platform.runLater(() -> {
+                progressDialog.close();
                 refreshRemote();
                 if (errors[0] > 0) {
-                    showError(I18n.get("sftp.setOwner.error"), 
-                        I18n.get("sftp.setOwner.errorCount", errors[0], items.size()));
+                    String details = I18n.get("sftp.setOwner.errorCount", errors[0], total);
+                    if (!errorMsg.isEmpty()) {
+                        details += "\n\n" + errorMsg;
+                    }
+                    showError(I18n.get("sftp.setOwner.error"), details);
                 } else {
                     statusLabel.setText(I18n.get("sftp.setOwner.success", success[0]));
                 }
