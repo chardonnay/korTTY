@@ -2223,6 +2223,14 @@ public class SFTPManagerTab extends Tab {
         
         if (items.isEmpty()) return;
         
+        // Get current values from first selected item
+        SFTPManagerDialog.FileItem firstItem = items.get(0);
+        String currentOwner = getLocalFileOwner(Paths.get(firstItem.getPath()));
+        String currentGroup = getLocalFileGroup(Paths.get(firstItem.getPath()));
+        String currentPerms = getOctalPermissions(firstItem.getPermissions());
+        
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.setOwner.title"));
         dialog.setHeaderText(I18n.get("sftp.setOwner.header", items.size()));
@@ -2235,20 +2243,29 @@ public class SFTPManagerTab extends Tab {
         
         int row = 0;
         
-        // Owner field (not applicable on Windows)
-        grid.add(new Label(I18n.get("sftp.setOwner.owner")), 0, row);
-        TextField ownerField = new TextField();
-        ownerField.setPromptText("user:group");
-        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        // Owner field (separate from group)
+        grid.add(new Label(I18n.get("sftp.setOwner.ownerUser")), 0, row);
+        TextField ownerField = new TextField(currentOwner);
+        ownerField.setPromptText("user");
         if (isWindows) {
             ownerField.setDisable(true);
             ownerField.setPromptText(I18n.get("sftp.setOwner.notAvailableWindows"));
         }
         grid.add(ownerField, 1, row++);
         
-        // Permissions field
+        // Group field
+        grid.add(new Label(I18n.get("sftp.setOwner.ownerGroup")), 0, row);
+        TextField groupField = new TextField(currentGroup);
+        groupField.setPromptText("group");
+        if (isWindows) {
+            groupField.setDisable(true);
+            groupField.setPromptText(I18n.get("sftp.setOwner.notAvailableWindows"));
+        }
+        grid.add(groupField, 1, row++);
+        
+        // Permissions field with current value
         grid.add(new Label(I18n.get("sftp.setOwner.permissions")), 0, row);
-        TextField permissionsField = new TextField();
+        TextField permissionsField = new TextField(currentPerms);
         permissionsField.setPromptText("755");
         grid.add(permissionsField, 1, row++);
         
@@ -2257,7 +2274,7 @@ public class SFTPManagerTab extends Tab {
         grid.add(recursiveCheck, 0, row++, 2, 1);
         
         // Info label
-        Label infoLabel = new Label(I18n.get("sftp.setOwner.info"));
+        Label infoLabel = new Label(I18n.get("sftp.setOwner.infoSeparate"));
         infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         grid.add(infoLabel, 0, row++, 2, 1);
         
@@ -2266,18 +2283,64 @@ public class SFTPManagerTab extends Tab {
         
         dialog.showAndWait().ifPresent(result -> {
             if (result == ButtonType.OK) {
-                String owner = ownerField.getText().trim();
-                String permissions = permissionsField.getText().trim();
+                String newOwner = ownerField.getText().trim();
+                String newGroup = groupField.getText().trim();
+                String newPerms = permissionsField.getText().trim();
                 boolean recursive = recursiveCheck.isSelected();
                 
-                if (owner.isEmpty() && permissions.isEmpty()) {
-                    showError(I18n.get("error.title"), I18n.get("sftp.setOwner.nothingToSet"));
+                // Check if anything actually changed
+                boolean ownerChanged = !newOwner.equals(currentOwner);
+                boolean groupChanged = !newGroup.equals(currentGroup);
+                boolean permsChanged = !newPerms.equals(currentPerms);
+                
+                if (!ownerChanged && !groupChanged && !permsChanged) {
+                    // Nothing changed
                     return;
                 }
                 
-                applyLocalOwnerPermissions(items, owner, permissions, recursive);
+                // Build owner:group string only if owner or group changed
+                String ownerGroup = "";
+                if (ownerChanged || groupChanged) {
+                    if (!newOwner.isEmpty() && !newGroup.isEmpty()) {
+                        ownerGroup = newOwner + ":" + newGroup;
+                    } else if (!newOwner.isEmpty()) {
+                        ownerGroup = newOwner;
+                    } else if (!newGroup.isEmpty()) {
+                        ownerGroup = ":" + newGroup;
+                    }
+                }
+                
+                // Only pass permissions if changed
+                String permsToApply = permsChanged ? newPerms : "";
+                
+                applyLocalOwnerPermissions(items, ownerGroup, permsToApply, recursive);
             }
         });
+    }
+    
+    /**
+     * Gets the owner name of a local file.
+     */
+    private String getLocalFileOwner(Path path) {
+        try {
+            java.nio.file.attribute.UserPrincipal owner = Files.getOwner(path);
+            return owner != null ? owner.getName() : "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+    
+    /**
+     * Gets the group name of a local file.
+     */
+    private String getLocalFileGroup(Path path) {
+        try {
+            java.nio.file.attribute.PosixFileAttributes attrs = 
+                Files.readAttributes(path, java.nio.file.attribute.PosixFileAttributes.class);
+            return attrs.group().getName();
+        } catch (Exception e) {
+            return "";
+        }
     }
     
     private void applyLocalOwnerPermissions(List<SFTPManagerDialog.FileItem> items, String owner, 
