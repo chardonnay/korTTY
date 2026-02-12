@@ -35,6 +35,7 @@ import java.nio.file.Paths;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -792,42 +793,63 @@ public class SFTPManagerTab extends Tab {
     private void uploadSelected() {
         var selected = localTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) return;
-        
-        for (var item : selected) {
-            if (item.getName().equals("..")) continue;
-            uploadFile(item);
-        }
-    }
-    
-    private void uploadFile(SFTPManagerDialog.FileItem item) {
         if (sftpSession == null || !sftpSession.isConnected()) return;
         
-        statusLabel.setText(I18n.get("sftp.uploading", item.getName()));
-        new Thread(() -> {
-            try {
-                String remotePath = currentRemotePath.endsWith("/") 
-                    ? currentRemotePath + item.getName() 
-                    : currentRemotePath + "/" + item.getName();
-                
-                if (item.isFile()) {
-                    sftpSession.uploadFile(Paths.get(item.getPath()), remotePath);
-                } else {
-                    // Upload directory recursively
-                    uploadDirectoryRecursive(Paths.get(item.getPath()), remotePath);
-                }
-                
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.uploadComplete", item.getName()));
-                    refreshRemote();
-                });
-            } catch (Exception e) {
-                logger.error("Upload failed", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.uploadFailed", e.getMessage()));
-                    showError(I18n.get("sftp.error.upload"), e.getMessage());
-                });
+        // Collect items to upload (filter out "..")
+        List<SFTPManagerDialog.FileItem> itemsToUpload = new ArrayList<>();
+        for (var item : selected) {
+            if (!item.getName().equals("..")) {
+                itemsToUpload.add(item);
             }
+        }
+        if (itemsToUpload.isEmpty()) return;
+        
+        // Upload all files sequentially in a single thread (SFTP client is not thread-safe)
+        new Thread(() -> {
+            int total = itemsToUpload.size();
+            int current = 0;
+            int failed = 0;
+            
+            for (var item : itemsToUpload) {
+                current++;
+                final int num = current;
+                Platform.runLater(() -> statusLabel.setText(
+                    I18n.get("sftp.uploading", item.getName()) + " (" + num + "/" + total + ")"));
+                
+                try {
+                    uploadSingleFile(item);
+                } catch (Exception e) {
+                    failed++;
+                    logger.error("Upload failed: {}", item.getName(), e);
+                    final String errorMsg = e.getMessage();
+                    Platform.runLater(() -> showError(I18n.get("sftp.error.upload"), item.getName() + ": " + errorMsg));
+                }
+            }
+            
+            final int successCount = total - failed;
+            final int failCount = failed;
+            Platform.runLater(() -> {
+                if (failCount == 0) {
+                    statusLabel.setText(I18n.get("sftp.uploadComplete", String.valueOf(successCount)));
+                } else {
+                    statusLabel.setText(I18n.get("sftp.uploadComplete", successCount + "/" + total));
+                }
+                refreshRemote();
+            });
         }, "SFTP-Upload").start();
+    }
+    
+    private void uploadSingleFile(SFTPManagerDialog.FileItem item) throws Exception {
+        String remotePath = currentRemotePath.endsWith("/") 
+            ? currentRemotePath + item.getName() 
+            : currentRemotePath + "/" + item.getName();
+        
+        if (item.isFile()) {
+            sftpSession.uploadFile(Paths.get(item.getPath()), remotePath);
+        } else {
+            // Upload directory recursively
+            uploadDirectoryRecursive(Paths.get(item.getPath()), remotePath);
+        }
     }
     
     private void uploadDirectoryRecursive(Path localDir, String remotePath) throws Exception {
@@ -847,40 +869,61 @@ public class SFTPManagerTab extends Tab {
     private void downloadSelected() {
         var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) return;
-        
-        for (var item : selected) {
-            if (item.getName().equals("..")) continue;
-            downloadFile(item);
-        }
-    }
-    
-    private void downloadFile(SFTPManagerDialog.FileItem item) {
         if (sftpSession == null || !sftpSession.isConnected()) return;
         
-        statusLabel.setText(I18n.get("sftp.downloading", item.getName()));
-        new Thread(() -> {
-            try {
-                Path localPath = currentLocalPath.resolve(item.getName());
-                
-                if (item.isFile()) {
-                    sftpSession.downloadFile(item.getPath(), localPath);
-                } else {
-                    // Download directory recursively
-                    downloadDirectoryRecursive(item.getPath(), localPath);
-                }
-                
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.downloadComplete", item.getName()));
-                    refreshLocal();
-                });
-            } catch (Exception e) {
-                logger.error("Download failed", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.downloadFailed", e.getMessage()));
-                    showError(I18n.get("sftp.error.download"), e.getMessage());
-                });
+        // Collect items to download (filter out "..")
+        List<SFTPManagerDialog.FileItem> itemsToDownload = new ArrayList<>();
+        for (var item : selected) {
+            if (!item.getName().equals("..")) {
+                itemsToDownload.add(item);
             }
+        }
+        if (itemsToDownload.isEmpty()) return;
+        
+        // Download all files sequentially in a single thread (SFTP client is not thread-safe)
+        new Thread(() -> {
+            int total = itemsToDownload.size();
+            int current = 0;
+            int failed = 0;
+            
+            for (var item : itemsToDownload) {
+                current++;
+                final int num = current;
+                Platform.runLater(() -> statusLabel.setText(
+                    I18n.get("sftp.downloading", item.getName()) + " (" + num + "/" + total + ")"));
+                
+                try {
+                    downloadSingleFile(item);
+                } catch (Exception e) {
+                    failed++;
+                    logger.error("Download failed: {}", item.getName(), e);
+                    final String errorMsg = e.getMessage();
+                    Platform.runLater(() -> showError(I18n.get("sftp.error.download"), item.getName() + ": " + errorMsg));
+                }
+            }
+            
+            final int successCount = total - failed;
+            final int failCount = failed;
+            Platform.runLater(() -> {
+                if (failCount == 0) {
+                    statusLabel.setText(I18n.get("sftp.downloadComplete", String.valueOf(successCount)));
+                } else {
+                    statusLabel.setText(I18n.get("sftp.downloadComplete", successCount + "/" + total));
+                }
+                refreshLocal();
+            });
         }, "SFTP-Download").start();
+    }
+    
+    private void downloadSingleFile(SFTPManagerDialog.FileItem item) throws Exception {
+        Path localPath = currentLocalPath.resolve(item.getName());
+        
+        if (item.isFile()) {
+            sftpSession.downloadFile(item.getPath(), localPath);
+        } else {
+            // Download directory recursively
+            downloadDirectoryRecursive(item.getPath(), localPath);
+        }
     }
     
     private void downloadDirectoryRecursive(String remotePath, Path localDir) throws Exception {
