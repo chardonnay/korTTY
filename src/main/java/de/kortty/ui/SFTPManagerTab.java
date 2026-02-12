@@ -238,74 +238,133 @@ public class SFTPManagerTab extends Tab {
     }
     
     private HBox createButtonBox() {
-        HBox buttonBox = new HBox(10);
+        HBox buttonBox = new HBox(0);
         buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.setPadding(new Insets(10, 0, 0, 0));
+        buttonBox.setPadding(new Insets(10, 5, 5, 5));
         
-        Button uploadButton = new Button("→ " + I18n.get("sftp.upload"));
-        uploadButton.setOnAction(e -> {
-            resetAutoCloseTimer();
-            uploadSelected();
-        });
-        uploadButton.setDisable(true);
+        // === LOCAL (left) buttons ===
+        HBox localButtons = new HBox(5);
+        localButtons.setAlignment(Pos.CENTER_LEFT);
+        localButtons.setPadding(new Insets(0, 10, 0, 5));
         
-        Button downloadButton = new Button("← " + I18n.get("sftp.download"));
-        downloadButton.setOnAction(e -> {
-            resetAutoCloseTimer();
-            downloadSelected();
-        });
-        downloadButton.setDisable(true);
+        Label localLabel = new Label(I18n.get("sftp.localSystem"));
+        localLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #666;");
         
-        Button refreshLocalButton = new Button(I18n.get("sftp.refreshLocal"));
+        Button refreshLocalButton = new Button("⟳ " + I18n.get("sftp.refresh"));
+        refreshLocalButton.setTooltip(new Tooltip(I18n.get("sftp.refreshLocal")));
         refreshLocalButton.setOnAction(e -> {
             resetAutoCloseTimer();
             refreshLocal();
         });
         
-        Button refreshRemoteButton = new Button(I18n.get("sftp.refreshRemote"));
+        Button deleteLocalButton = new Button("🗑 " + I18n.get("sftp.delete"));
+        deleteLocalButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.delete")));
+        deleteLocalButton.setDisable(true);
+        deleteLocalButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            deleteLocalSelected();
+        });
+        
+        Button ownerLocalButton = new Button("🔐 " + I18n.get("sftp.permissionsShort"));
+        ownerLocalButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.setOwner")));
+        ownerLocalButton.setDisable(true);
+        ownerLocalButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            setLocalOwnerPermissionsDialog();
+        });
+        
+        localButtons.getChildren().addAll(localLabel, refreshLocalButton, deleteLocalButton, ownerLocalButton);
+        
+        // === Vertical separator ===
+        Separator verticalSeparator = new Separator();
+        verticalSeparator.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        verticalSeparator.setPadding(new Insets(0, 15, 0, 15));
+        
+        // === REMOTE (right) buttons ===
+        HBox remoteButtons = new HBox(5);
+        remoteButtons.setAlignment(Pos.CENTER_LEFT);
+        remoteButtons.setPadding(new Insets(0, 5, 0, 10));
+        
+        Label remoteLabel = new Label(I18n.get("sftp.remoteLabel"));
+        remoteLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #666;");
+        
+        Button refreshRemoteButton = new Button("⟳ " + I18n.get("sftp.refresh"));
+        refreshRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.refreshRemote")));
         refreshRemoteButton.setOnAction(e -> {
             resetAutoCloseTimer();
             refreshRemote();
         });
         
-        Button copyLocalButton = new Button(I18n.get("sftp.copyLocal"));
-        copyLocalButton.setOnAction(e -> {
-            resetAutoCloseTimer();
-            copyLocalSelected();
-        });
-        
-        Button copyRemoteButton = new Button(I18n.get("sftp.copyRemote"));
-        copyRemoteButton.setOnAction(e -> {
-            resetAutoCloseTimer();
-            copyRemoteSelected();
-        });
-        
-        Button archiveButton = new Button(I18n.get("sftp.archive"));
-        archiveButton.setOnAction(e -> {
-            resetAutoCloseTimer();
-            createRemoteArchive();
-        });
-        
-        Button deleteRemoteButton = new Button(I18n.get("sftp.delete"));
+        Button deleteRemoteButton = new Button("🗑 " + I18n.get("sftp.delete"));
+        deleteRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.delete")));
+        deleteRemoteButton.setDisable(true);
         deleteRemoteButton.setOnAction(e -> {
             resetAutoCloseTimer();
             deleteRemoteSelected();
         });
         
-        buttonBox.getChildren().addAll(uploadButton, downloadButton, 
-                new Separator(), copyLocalButton, copyRemoteButton,
-                new Separator(), archiveButton, deleteRemoteButton,
-                new Separator(), refreshLocalButton, refreshRemoteButton);
+        Button ownerRemoteButton = new Button("🔐 " + I18n.get("sftp.permissionsShort"));
+        ownerRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.setOwner")));
+        ownerRemoteButton.setDisable(true);
+        ownerRemoteButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            setOwnerPermissionsDialog();
+        });
+        
+        Separator remoteSep1 = new Separator();
+        remoteSep1.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        remoteSep1.setPadding(new Insets(0, 5, 0, 5));
+        
+        Button uploadButton = new Button("⬆ " + I18n.get("sftp.upload"));
+        uploadButton.setTooltip(new Tooltip(I18n.get("sftp.uploading", "...")));
+        uploadButton.setDisable(true);
+        uploadButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            uploadSelected();
+        });
+        
+        Button downloadButton = new Button("⬇ " + I18n.get("sftp.download"));
+        downloadButton.setTooltip(new Tooltip(I18n.get("sftp.downloading", "...")));
+        downloadButton.setDisable(true);
+        downloadButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            downloadSelected();
+        });
+        
+        Separator remoteSep2 = new Separator();
+        remoteSep2.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        remoteSep2.setPadding(new Insets(0, 5, 0, 5));
+        
+        Button archiveButton = new Button("📦 " + I18n.get("sftp.archive"));
+        archiveButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.archive")));
+        archiveButton.setDisable(true);
+        archiveButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createRemoteArchive();
+        });
+        
+        remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, deleteRemoteButton, ownerRemoteButton,
+                remoteSep1, uploadButton, downloadButton, remoteSep2, archiveButton);
+        
+        // Assemble main button box: local | separator | remote
+        buttonBox.getChildren().addAll(localButtons, verticalSeparator, remoteButtons);
+        HBox.setHgrow(localButtons, Priority.ALWAYS);
+        HBox.setHgrow(remoteButtons, Priority.ALWAYS);
         
         // Enable/disable buttons based on selection
         localTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
-            uploadButton.setDisable(selected == null);
+            boolean hasSelection = selected != null && !selected.getName().equals("..");
+            uploadButton.setDisable(!hasSelection);
+            deleteLocalButton.setDisable(!hasSelection);
+            ownerLocalButton.setDisable(!hasSelection);
         });
         
         remoteTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
-            downloadButton.setDisable(selected == null);
-            archiveButton.setDisable(selected == null);
-            deleteRemoteButton.setDisable(selected == null);
+            boolean hasSelection = selected != null && !selected.getName().equals("..");
+            downloadButton.setDisable(!hasSelection);
+            archiveButton.setDisable(!hasSelection);
+            deleteRemoteButton.setDisable(!hasSelection);
+            ownerRemoteButton.setDisable(!hasSelection);
         });
         
         // Enable multiple selection
