@@ -1617,19 +1617,27 @@ public class SFTPManagerDialog extends Dialog<Void> {
         private final String size;
         private final String date;
         private final String permissions;
+        private final String owner;
+        private final String group;
         private final long sizeBytes; // For sorting
         
         public FileItem(String name, String path, boolean file, String size, String date) {
-            this(name, path, file, size, date, "");
+            this(name, path, file, size, date, "", "", "");
         }
         
         public FileItem(String name, String path, boolean file, String size, String date, String permissions) {
+            this(name, path, file, size, date, permissions, "", "");
+        }
+        
+        public FileItem(String name, String path, boolean file, String size, String date, String permissions, String owner, String group) {
             this.name = name;
             this.path = path;
             this.file = file;
             this.size = size;
             this.date = date;
             this.permissions = permissions;
+            this.owner = owner != null ? owner : "";
+            this.group = group != null ? group : "";
             this.sizeBytes = parseSizeToBytes(size);
         }
         
@@ -1664,6 +1672,8 @@ public class SFTPManagerDialog extends Dialog<Void> {
         public String getSize() { return size; }
         public String getDate() { return date; }
         public String getPermissions() { return permissions; }
+        public String getOwner() { return owner; }
+        public String getGroup() { return group; }
         public long getSizeBytes() { return sizeBytes; }
         
         // Type for display in table (📁 or 📄)

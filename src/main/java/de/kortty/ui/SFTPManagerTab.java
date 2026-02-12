@@ -770,11 +770,13 @@ public class SFTPManagerTab extends Tab {
                 long mtime = entry.getAttributes().getModifyTime().toMillis();
                 String date = sdf.format(new Date(mtime));
                 
-                // Get file permissions
+                // Get file permissions, owner and group
                 String permissions = formatRemotePermissions(entry.getAttributes());
+                String owner = entry.getAttributes().getOwner();
+                String group = entry.getAttributes().getGroup();
                 
                 String fullPath = pathToList.endsWith("/") ? pathToList + name : pathToList + "/" + name;
-                remoteItems.add(new SFTPManagerDialog.FileItem(name, fullPath, !isDir, size, date, permissions));
+                remoteItems.add(new SFTPManagerDialog.FileItem(name, fullPath, !isDir, size, date, permissions, owner, group));
             }
             
             remotePathField.setText(currentRemotePath);
@@ -1358,6 +1360,12 @@ public class SFTPManagerTab extends Tab {
         }
         if (items.isEmpty()) return;
         
+        // Get current values from first selected item for pre-filling
+        SFTPManagerDialog.FileItem firstItem = items.get(0);
+        String currentOwner = firstItem.getOwner();
+        String currentGroup = firstItem.getGroup();
+        String currentPerms = getOctalPermissions(firstItem.getPermissions());
+        
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.setOwner.title"));
         dialog.setHeaderText(I18n.get("sftp.setOwner.header", items.size()));
@@ -1368,45 +1376,114 @@ public class SFTPManagerTab extends Tab {
         grid.setVgap(10);
         grid.setPadding(new Insets(20));
         
-        // Owner field
-        grid.add(new Label(I18n.get("sftp.setOwner.owner")), 0, 0);
-        TextField ownerField = new TextField();
-        ownerField.setPromptText("user:group");
-        grid.add(ownerField, 1, 0);
+        int row = 0;
         
-        // Permissions field
-        grid.add(new Label(I18n.get("sftp.setOwner.permissions")), 0, 1);
-        TextField permField = new TextField();
+        // Owner field (separate from group)
+        grid.add(new Label(I18n.get("sftp.setOwner.ownerUser")), 0, row);
+        TextField ownerField = new TextField(currentOwner);
+        ownerField.setPromptText("user");
+        grid.add(ownerField, 1, row++);
+        
+        // Group field
+        grid.add(new Label(I18n.get("sftp.setOwner.ownerGroup")), 0, row);
+        TextField groupField = new TextField(currentGroup);
+        groupField.setPromptText("group");
+        grid.add(groupField, 1, row++);
+        
+        // Permissions field with current value
+        grid.add(new Label(I18n.get("sftp.setOwner.permissions")), 0, row);
+        TextField permField = new TextField(currentPerms);
         permField.setPromptText("755");
-        grid.add(permField, 1, 1);
+        grid.add(permField, 1, row++);
         
         // Recursive checkbox
         CheckBox recursiveCheck = new CheckBox(I18n.get("sftp.setOwner.recursive"));
-        grid.add(recursiveCheck, 0, 2, 2, 1);
+        grid.add(recursiveCheck, 0, row++, 2, 1);
         
         // Info
-        Label info = new Label(I18n.get("sftp.setOwner.info"));
+        Label info = new Label(I18n.get("sftp.setOwner.infoSeparate"));
         info.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         info.setWrapText(true);
         info.setMaxWidth(300);
-        grid.add(info, 0, 3, 2, 1);
+        grid.add(info, 0, row++, 2, 1);
         
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         
         dialog.showAndWait().ifPresent(result -> {
-            String owner = ownerField.getText().trim();
-            String perms = permField.getText().trim();
+            String newOwner = ownerField.getText().trim();
+            String newGroup = groupField.getText().trim();
+            String newPerms = permField.getText().trim();
             boolean recursive = recursiveCheck.isSelected();
             
-            if (owner.isEmpty() && perms.isEmpty()) {
-                showError(I18n.get("error.title"), I18n.get("sftp.setOwner.nothingToSet"));
+            // Check if anything actually changed
+            boolean ownerChanged = !newOwner.equals(currentOwner);
+            boolean groupChanged = !newGroup.equals(currentGroup);
+            boolean permsChanged = !newPerms.equals(currentPerms);
+            
+            if (!ownerChanged && !groupChanged && !permsChanged) {
+                // Nothing changed, no need to apply
                 return;
             }
             
+            // Build owner:group string only if owner or group changed
+            String ownerGroup = "";
+            if (ownerChanged || groupChanged) {
+                if (!newOwner.isEmpty() && !newGroup.isEmpty()) {
+                    ownerGroup = newOwner + ":" + newGroup;
+                } else if (!newOwner.isEmpty()) {
+                    ownerGroup = newOwner;
+                } else if (!newGroup.isEmpty()) {
+                    ownerGroup = ":" + newGroup;
+                }
+            }
+            
+            // Only pass permissions if changed
+            String permsToApply = permsChanged ? newPerms : "";
+            
             // Apply changes with progress dialog
-            applyOwnerPermissions(items, owner, perms, recursive);
+            applyOwnerPermissions(items, ownerGroup, permsToApply, recursive);
         });
+    }
+    
+    /**
+     * Converts symbolic permissions (e.g., "rwxr-xr-x") to octal (e.g., "755").
+     */
+    private String getOctalPermissions(String symbolic) {
+        if (symbolic == null || symbolic.isEmpty()) return "";
+        
+        // If already looks like octal, return as-is
+        if (symbolic.matches("\\d{3,4}")) return symbolic;
+        
+        // Handle symbolic format like "rwxr-xr-x" or "-rwxr-xr-x" (with leading type char)
+        String perms = symbolic;
+        if (perms.length() == 10) {
+            perms = perms.substring(1); // Remove leading type character
+        }
+        if (perms.length() != 9) return "";
+        
+        try {
+            int owner = 0, group = 0, other = 0;
+            
+            // Owner permissions (chars 0-2)
+            if (perms.charAt(0) == 'r') owner += 4;
+            if (perms.charAt(1) == 'w') owner += 2;
+            if (perms.charAt(2) == 'x' || perms.charAt(2) == 's') owner += 1;
+            
+            // Group permissions (chars 3-5)
+            if (perms.charAt(3) == 'r') group += 4;
+            if (perms.charAt(4) == 'w') group += 2;
+            if (perms.charAt(5) == 'x' || perms.charAt(5) == 's') group += 1;
+            
+            // Other permissions (chars 6-8)
+            if (perms.charAt(6) == 'r') other += 4;
+            if (perms.charAt(7) == 'w') other += 2;
+            if (perms.charAt(8) == 'x' || perms.charAt(8) == 't') other += 1;
+            
+            return "" + owner + group + other;
+        } catch (Exception e) {
+            return "";
+        }
     }
     
     private void applyOwnerPermissions(List<SFTPManagerDialog.FileItem> items, String owner, String perms, boolean recursive) {
