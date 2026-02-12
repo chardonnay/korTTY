@@ -1005,6 +1005,7 @@ public class SFTPManagerTab extends Tab {
         dialog.setTitle(I18n.get("sftp.remoteCopy"));
         dialog.setHeaderText(I18n.get("sftp.remoteCopy.header"));
         dialog.setContentText(I18n.get("sftp.path"));
+        applyDarkTheme(dialog);
         
         dialog.showAndWait().ifPresent(targetPath -> {
             for (var item : selected) {
@@ -1207,6 +1208,7 @@ public class SFTPManagerTab extends Tab {
         confirm.setTitle(I18n.get("sftp.delete.confirm.title"));
         confirm.setHeaderText(I18n.get("sftp.delete.confirm.header", toDelete.size()));
         confirm.setContentText(I18n.get("sftp.delete.confirm.content"));
+        applyDarkTheme(confirm);
         
         if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
             return;
@@ -1216,6 +1218,7 @@ public class SFTPManagerTab extends Tab {
         Dialog<Void> progressDialog = new Dialog<>();
         progressDialog.setTitle(I18n.get("sftp.delete.progress.title"));
         progressDialog.setHeaderText(I18n.get("sftp.delete.progress.header"));
+        applyDarkTheme(progressDialog);
         
         VBox content = new VBox(10);
         content.setPadding(new Insets(20));
@@ -1293,6 +1296,7 @@ public class SFTPManagerTab extends Tab {
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.setOwner.title"));
         dialog.setHeaderText(I18n.get("sftp.setOwner.header", items.size()));
+        applyDarkTheme(dialog);
         
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -1508,6 +1512,7 @@ public class SFTPManagerTab extends Tab {
         dialog.setTitle(I18n.get("sftp.archive"));
         dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
         dialog.setResizable(true);
+        applyDarkTheme(dialog);
         
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -1892,6 +1897,16 @@ public class SFTPManagerTab extends Tab {
         return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
     
+    /**
+     * Applies the dark theme stylesheet to a dialog.
+     */
+    private void applyDarkTheme(Dialog<?> dialog) {
+        var cssResource = getClass().getResource("/styles/terminal.css");
+        if (cssResource != null) {
+            dialog.getDialogPane().getStylesheets().add(cssResource.toExternalForm());
+        }
+    }
+    
     private String formatDuration(long seconds) {
         if (seconds < 60) return seconds + "s";
         long minutes = seconds / 60;
@@ -1909,6 +1924,7 @@ public class SFTPManagerTab extends Tab {
             alert.setTitle(title);
             alert.setHeaderText(null);
             alert.setContentText(message);
+            applyDarkTheme(alert);
             alert.showAndWait();
         });
     }
@@ -1932,6 +1948,7 @@ public class SFTPManagerTab extends Tab {
         confirm.setTitle(I18n.get("sftp.delete.confirm.title"));
         confirm.setHeaderText(I18n.get("sftp.delete.confirm.header", toDelete.size()));
         confirm.setContentText(I18n.get("sftp.delete.confirm.content"));
+        applyDarkTheme(confirm);
         
         if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
             return;
@@ -1941,6 +1958,7 @@ public class SFTPManagerTab extends Tab {
         Dialog<Void> progressDialog = new Dialog<>();
         progressDialog.setTitle(I18n.get("sftp.delete.progress.title"));
         progressDialog.setHeaderText(I18n.get("sftp.delete.progress.header"));
+        applyDarkTheme(progressDialog);
         
         VBox content = new VBox(10);
         content.setPadding(new Insets(20));
@@ -2025,6 +2043,7 @@ public class SFTPManagerTab extends Tab {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.setOwner.title"));
         dialog.setHeaderText(I18n.get("sftp.setOwner.header", items.size()));
+        applyDarkTheme(dialog);
         
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -2083,6 +2102,7 @@ public class SFTPManagerTab extends Tab {
         Dialog<Void> progressDialog = new Dialog<>();
         progressDialog.setTitle(I18n.get("sftp.setOwner.title"));
         progressDialog.setHeaderText(I18n.get("sftp.setOwner.applying"));
+        applyDarkTheme(progressDialog);
         
         VBox content = new VBox(10);
         content.setPadding(new Insets(20));
@@ -2254,6 +2274,7 @@ public class SFTPManagerTab extends Tab {
         dialog.setTitle(I18n.get("sftp.archive"));
         dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
         dialog.setResizable(true);
+        applyDarkTheme(dialog);
         
         GridPane grid = new GridPane();
         grid.setHgap(10);
