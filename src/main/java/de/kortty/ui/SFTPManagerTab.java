@@ -407,42 +407,61 @@ public class SFTPManagerTab extends Tab {
         localTable = new TableView<>();
         localTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         
-        // Column order: Name, Type, Size, Date, Permissions
+        // Column order: Name, Type, Size, Date, User, Group, Permissions
         TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        nameColumn.setPrefWidth(200);
+        nameColumn.setPrefWidth(180);
         nameColumn.setMinWidth(100);
         nameColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> typeColumn = new TableColumn<>(I18n.get("sftp.column.type"));
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
-        typeColumn.setPrefWidth(60);
-        typeColumn.setMinWidth(50);
-        typeColumn.setMaxWidth(80);
+        typeColumn.setPrefWidth(50);
+        typeColumn.setMinWidth(40);
+        typeColumn.setMaxWidth(60);
         typeColumn.setSortable(true);
+        // Custom comparator: folders first (alphabetically), then files (alphabetically)
+        typeColumn.setComparator((type1, type2) -> {
+            // This comparator is for display type only, actual sorting uses the full comparator
+            return type1.compareTo(type2);
+        });
         
         TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
-        sizeColumn.setPrefWidth(100);
-        sizeColumn.setMinWidth(80);
-        sizeColumn.setMaxWidth(120);
+        sizeColumn.setPrefWidth(80);
+        sizeColumn.setMinWidth(60);
+        sizeColumn.setMaxWidth(100);
         sizeColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
-        dateColumn.setPrefWidth(140);
-        dateColumn.setMinWidth(120);
-        dateColumn.setMaxWidth(160);
+        dateColumn.setPrefWidth(130);
+        dateColumn.setMinWidth(110);
+        dateColumn.setMaxWidth(150);
         dateColumn.setSortable(true);
+        
+        TableColumn<SFTPManagerDialog.FileItem, String> userColumn = new TableColumn<>(I18n.get("sftp.column.user"));
+        userColumn.setCellValueFactory(new PropertyValueFactory<>("owner"));
+        userColumn.setPrefWidth(70);
+        userColumn.setMinWidth(50);
+        userColumn.setMaxWidth(100);
+        userColumn.setSortable(true);
+        
+        TableColumn<SFTPManagerDialog.FileItem, String> groupColumn = new TableColumn<>(I18n.get("sftp.column.group"));
+        groupColumn.setCellValueFactory(new PropertyValueFactory<>("group"));
+        groupColumn.setPrefWidth(70);
+        groupColumn.setMinWidth(50);
+        groupColumn.setMaxWidth(100);
+        groupColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
         permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
-        permColumn.setPrefWidth(90);
-        permColumn.setMinWidth(70);
-        permColumn.setMaxWidth(110);
+        permColumn.setPrefWidth(80);
+        permColumn.setMinWidth(60);
+        permColumn.setMaxWidth(100);
         permColumn.setSortable(true);
         
-        localTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, permColumn));
+        localTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, userColumn, groupColumn, permColumn));
         
         // Context menu for local table
         ContextMenu localContextMenu = createLocalContextMenu();
@@ -467,13 +486,31 @@ public class SFTPManagerTab extends Tab {
         filteredLocalItems = new FilteredList<>(localItems, p -> true);
         sortedLocalItems = new javafx.collections.transformation.SortedList<>(filteredLocalItems);
         
-        // Bind sorted list to table
-        sortedLocalItems.comparatorProperty().bind(localTable.comparatorProperty());
+        // Bind sorted list to table with custom comparator wrapping
+        localTable.comparatorProperty().addListener((obs, oldComp, newComp) -> {
+            if (newComp == null) {
+                sortedLocalItems.setComparator(null);
+            } else {
+                // Check if sorting by type column
+                boolean sortingByType = localTable.getSortOrder().stream()
+                    .anyMatch(col -> col.getText().equals(I18n.get("sftp.column.type")));
+                if (sortingByType) {
+                    // Use custom comparator: folders first (alphabetically), then files (alphabetically)
+                    boolean ascending = localTable.getSortOrder().isEmpty() || 
+                        localTable.getSortOrder().get(0).getSortType() == TableColumn.SortType.ASCENDING;
+                    sortedLocalItems.setComparator(createTypeSortComparator(ascending));
+                } else {
+                    sortedLocalItems.setComparator(newComp);
+                }
+            }
+        });
         localTable.setItems(sortedLocalItems);
         
-        // Set default sort by type (directories first)
+        // Set default sort by type (directories first, alphabetically)
         typeColumn.setSortType(TableColumn.SortType.ASCENDING);
         localTable.getSortOrder().add(typeColumn);
+        // Trigger initial sort
+        sortedLocalItems.setComparator(createTypeSortComparator(true));
         
         // Search filter
         localSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
@@ -525,42 +562,56 @@ public class SFTPManagerTab extends Tab {
         remoteTable = new TableView<>();
         remoteTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         
-        // Column order: Name, Type, Size, Date, Permissions
+        // Column order: Name, Type, Size, Date, User, Group, Permissions
         TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        nameColumn.setPrefWidth(200);
+        nameColumn.setPrefWidth(180);
         nameColumn.setMinWidth(100);
         nameColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> typeColumn = new TableColumn<>(I18n.get("sftp.column.type"));
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
-        typeColumn.setPrefWidth(60);
-        typeColumn.setMinWidth(50);
-        typeColumn.setMaxWidth(80);
+        typeColumn.setPrefWidth(50);
+        typeColumn.setMinWidth(40);
+        typeColumn.setMaxWidth(60);
         typeColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
-        sizeColumn.setPrefWidth(100);
-        sizeColumn.setMinWidth(80);
-        sizeColumn.setMaxWidth(120);
+        sizeColumn.setPrefWidth(80);
+        sizeColumn.setMinWidth(60);
+        sizeColumn.setMaxWidth(100);
         sizeColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
-        dateColumn.setPrefWidth(140);
-        dateColumn.setMinWidth(120);
-        dateColumn.setMaxWidth(160);
+        dateColumn.setPrefWidth(130);
+        dateColumn.setMinWidth(110);
+        dateColumn.setMaxWidth(150);
         dateColumn.setSortable(true);
+        
+        TableColumn<SFTPManagerDialog.FileItem, String> userColumn = new TableColumn<>(I18n.get("sftp.column.user"));
+        userColumn.setCellValueFactory(new PropertyValueFactory<>("owner"));
+        userColumn.setPrefWidth(70);
+        userColumn.setMinWidth(50);
+        userColumn.setMaxWidth(100);
+        userColumn.setSortable(true);
+        
+        TableColumn<SFTPManagerDialog.FileItem, String> groupColumn = new TableColumn<>(I18n.get("sftp.column.group"));
+        groupColumn.setCellValueFactory(new PropertyValueFactory<>("group"));
+        groupColumn.setPrefWidth(70);
+        groupColumn.setMinWidth(50);
+        groupColumn.setMaxWidth(100);
+        groupColumn.setSortable(true);
         
         TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
         permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
-        permColumn.setPrefWidth(90);
-        permColumn.setMinWidth(70);
-        permColumn.setMaxWidth(110);
+        permColumn.setPrefWidth(80);
+        permColumn.setMinWidth(60);
+        permColumn.setMaxWidth(100);
         permColumn.setSortable(true);
         
-        remoteTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, permColumn));
+        remoteTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, userColumn, groupColumn, permColumn));
         
         // Double-click to navigate, right-click for context menu
         remoteTable.setRowFactory(tv -> {
@@ -585,13 +636,31 @@ public class SFTPManagerTab extends Tab {
         filteredRemoteItems = new FilteredList<>(remoteItems, p -> true);
         sortedRemoteItems = new javafx.collections.transformation.SortedList<>(filteredRemoteItems);
         
-        // Bind sorted list to table
-        sortedRemoteItems.comparatorProperty().bind(remoteTable.comparatorProperty());
+        // Bind sorted list to table with custom comparator wrapping
+        remoteTable.comparatorProperty().addListener((obs, oldComp, newComp) -> {
+            if (newComp == null) {
+                sortedRemoteItems.setComparator(null);
+            } else {
+                // Check if sorting by type column
+                boolean sortingByType = remoteTable.getSortOrder().stream()
+                    .anyMatch(col -> col.getText().equals(I18n.get("sftp.column.type")));
+                if (sortingByType) {
+                    // Use custom comparator: folders first (alphabetically), then files (alphabetically)
+                    boolean ascending = remoteTable.getSortOrder().isEmpty() || 
+                        remoteTable.getSortOrder().get(0).getSortType() == TableColumn.SortType.ASCENDING;
+                    sortedRemoteItems.setComparator(createTypeSortComparator(ascending));
+                } else {
+                    sortedRemoteItems.setComparator(newComp);
+                }
+            }
+        });
         remoteTable.setItems(sortedRemoteItems);
         
-        // Set default sort by type (directories first)
+        // Set default sort by type (directories first, alphabetically)
         typeColumn.setSortType(TableColumn.SortType.ASCENDING);
         remoteTable.getSortOrder().add(typeColumn);
+        // Trigger initial sort
+        sortedRemoteItems.setComparator(createTypeSortComparator(true));
         
         // Search filter
         remoteSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
@@ -703,7 +772,7 @@ public class SFTPManagerTab extends Tab {
                 // Add parent directory entry
                 if (currentLocalPath.getParent() != null) {
                     localItems.add(new SFTPManagerDialog.FileItem("..", 
-                        currentLocalPath.getParent().toString(), false, "—", "", ""));
+                        currentLocalPath.getParent().toString(), false, "—", "", "", "", ""));
                 }
                 
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -711,11 +780,22 @@ public class SFTPManagerTab extends Tab {
                     String size = file.isDirectory() ? "—" : formatSize(file.length());
                     String date = sdf.format(new Date(file.lastModified()));
                     String permissions = getLocalFilePermissions(file.toPath());
+                    String owner = getLocalFileOwner(file.toPath());
+                    String group = getLocalFileGroup(file.toPath());
                     localItems.add(new SFTPManagerDialog.FileItem(file.getName(), 
-                        file.getAbsolutePath(), file.isFile(), size, date, permissions));
+                        file.getAbsolutePath(), file.isFile(), size, date, permissions, owner, group));
                 }
             }
             localPathField.setText(currentLocalPath.toString());
+            // Trigger re-sort after refresh
+            if (!localTable.getSortOrder().isEmpty()) {
+                boolean sortingByType = localTable.getSortOrder().stream()
+                    .anyMatch(col -> col.getText().equals(I18n.get("sftp.column.type")));
+                if (sortingByType) {
+                    boolean ascending = localTable.getSortOrder().get(0).getSortType() == TableColumn.SortType.ASCENDING;
+                    sortedLocalItems.setComparator(createTypeSortComparator(ascending));
+                }
+            }
         } catch (Exception e) {
             logger.error("Failed to list local files", e);
             showError(I18n.get("error.title"), I18n.get("sftp.error.listLocalFiles", e.getMessage()));
@@ -792,6 +872,15 @@ public class SFTPManagerTab extends Tab {
             }
             
             remotePathField.setText(currentRemotePath);
+            // Trigger re-sort after refresh
+            if (!remoteTable.getSortOrder().isEmpty()) {
+                boolean sortingByType = remoteTable.getSortOrder().stream()
+                    .anyMatch(col -> col.getText().equals(I18n.get("sftp.column.type")));
+                if (sortingByType) {
+                    boolean ascending = remoteTable.getSortOrder().get(0).getSortType() == TableColumn.SortType.ASCENDING;
+                    sortedRemoteItems.setComparator(createTypeSortComparator(ascending));
+                }
+            }
         } catch (Exception e) {
             logger.error("Failed to list remote files", e);
             showError(I18n.get("error.title"), I18n.get("sftp.error.listRemoteFiles", e.getMessage()));
@@ -2080,6 +2169,35 @@ public class SFTPManagerTab extends Tab {
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
         return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
+    }
+    
+    /**
+     * Creates a comparator for sorting by type: folders first (alphabetically), then files (alphabetically).
+     * The ".." entry always stays at the top.
+     */
+    private java.util.Comparator<SFTPManagerDialog.FileItem> createTypeSortComparator(boolean ascending) {
+        return (item1, item2) -> {
+            // ".." always at top
+            if (item1.getName().equals("..")) return -1;
+            if (item2.getName().equals("..")) return 1;
+            
+            boolean isDir1 = !item1.isFile();
+            boolean isDir2 = !item2.isFile();
+            
+            int result;
+            if (isDir1 && !isDir2) {
+                // Folders before files
+                result = -1;
+            } else if (!isDir1 && isDir2) {
+                // Files after folders
+                result = 1;
+            } else {
+                // Same type - sort alphabetically by name (case-insensitive)
+                result = item1.getName().compareToIgnoreCase(item2.getName());
+            }
+            
+            return ascending ? result : -result;
+        };
     }
     
     /**
