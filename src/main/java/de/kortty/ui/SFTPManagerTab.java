@@ -772,8 +772,20 @@ public class SFTPManagerTab extends Tab {
                 
                 // Get file permissions, owner and group
                 String permissions = formatRemotePermissions(entry.getAttributes());
+                
+                // Get owner - try name first, fall back to UID
                 String owner = entry.getAttributes().getOwner();
+                if (owner == null || owner.isEmpty()) {
+                    Integer uid = entry.getAttributes().getUserId();
+                    owner = uid != null ? String.valueOf(uid) : "";
+                }
+                
+                // Get group - try name first, fall back to GID
                 String group = entry.getAttributes().getGroup();
+                if (group == null || group.isEmpty()) {
+                    Integer gid = entry.getAttributes().getGroupId();
+                    group = gid != null ? String.valueOf(gid) : "";
+                }
                 
                 String fullPath = pathToList.endsWith("/") ? pathToList + name : pathToList + "/" + name;
                 remoteItems.add(new SFTPManagerDialog.FileItem(name, fullPath, !isDir, size, date, permissions, owner, group));
