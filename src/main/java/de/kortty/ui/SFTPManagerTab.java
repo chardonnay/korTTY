@@ -420,11 +420,6 @@ public class SFTPManagerTab extends Tab {
         typeColumn.setMinWidth(40);
         typeColumn.setMaxWidth(60);
         typeColumn.setSortable(true);
-        // Custom comparator: folders first (alphabetically), then files (alphabetically)
-        typeColumn.setComparator((type1, type2) -> {
-            // This comparator is for display type only, actual sorting uses the full comparator
-            return type1.compareTo(type2);
-        });
         
         TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
@@ -486,31 +481,33 @@ public class SFTPManagerTab extends Tab {
         filteredLocalItems = new FilteredList<>(localItems, p -> true);
         sortedLocalItems = new javafx.collections.transformation.SortedList<>(filteredLocalItems);
         
-        // Bind sorted list to table with custom comparator wrapping
-        localTable.comparatorProperty().addListener((obs, oldComp, newComp) -> {
-            if (newComp == null) {
+        // Use custom sort policy for proper type sorting
+        localTable.setSortPolicy(table -> {
+            if (table.getSortOrder().isEmpty()) {
                 sortedLocalItems.setComparator(null);
-            } else {
-                // Check if sorting by type column
-                boolean sortingByType = localTable.getSortOrder().stream()
-                    .anyMatch(col -> col.getText().equals(I18n.get("sftp.column.type")));
-                if (sortingByType) {
-                    // Use custom comparator: folders first (alphabetically), then files (alphabetically)
-                    boolean ascending = localTable.getSortOrder().isEmpty() || 
-                        localTable.getSortOrder().get(0).getSortType() == TableColumn.SortType.ASCENDING;
-                    sortedLocalItems.setComparator(createTypeSortComparator(ascending));
-                } else {
-                    sortedLocalItems.setComparator(newComp);
-                }
+                return true;
             }
+            
+            TableColumn<SFTPManagerDialog.FileItem, ?> primaryColumn = table.getSortOrder().get(0);
+            boolean ascending = primaryColumn.getSortType() == TableColumn.SortType.ASCENDING;
+            String columnName = primaryColumn.getText();
+            
+            // Check if sorting by type column
+            if (columnName.equals(I18n.get("sftp.column.type"))) {
+                sortedLocalItems.setComparator(createTypeSortComparator(ascending));
+            } else {
+                // Use default table comparator for other columns
+                sortedLocalItems.setComparator(table.getComparator());
+            }
+            return true;
         });
         localTable.setItems(sortedLocalItems);
         
         // Set default sort by type (directories first, alphabetically)
         typeColumn.setSortType(TableColumn.SortType.ASCENDING);
         localTable.getSortOrder().add(typeColumn);
-        // Trigger initial sort
-        sortedLocalItems.setComparator(createTypeSortComparator(true));
+        // Apply initial sort
+        localTable.sort();
         
         // Search filter
         localSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
@@ -636,31 +633,33 @@ public class SFTPManagerTab extends Tab {
         filteredRemoteItems = new FilteredList<>(remoteItems, p -> true);
         sortedRemoteItems = new javafx.collections.transformation.SortedList<>(filteredRemoteItems);
         
-        // Bind sorted list to table with custom comparator wrapping
-        remoteTable.comparatorProperty().addListener((obs, oldComp, newComp) -> {
-            if (newComp == null) {
+        // Use custom sort policy for proper type sorting
+        remoteTable.setSortPolicy(table -> {
+            if (table.getSortOrder().isEmpty()) {
                 sortedRemoteItems.setComparator(null);
-            } else {
-                // Check if sorting by type column
-                boolean sortingByType = remoteTable.getSortOrder().stream()
-                    .anyMatch(col -> col.getText().equals(I18n.get("sftp.column.type")));
-                if (sortingByType) {
-                    // Use custom comparator: folders first (alphabetically), then files (alphabetically)
-                    boolean ascending = remoteTable.getSortOrder().isEmpty() || 
-                        remoteTable.getSortOrder().get(0).getSortType() == TableColumn.SortType.ASCENDING;
-                    sortedRemoteItems.setComparator(createTypeSortComparator(ascending));
-                } else {
-                    sortedRemoteItems.setComparator(newComp);
-                }
+                return true;
             }
+            
+            TableColumn<SFTPManagerDialog.FileItem, ?> primaryColumn = table.getSortOrder().get(0);
+            boolean ascending = primaryColumn.getSortType() == TableColumn.SortType.ASCENDING;
+            String columnName = primaryColumn.getText();
+            
+            // Check if sorting by type column
+            if (columnName.equals(I18n.get("sftp.column.type"))) {
+                sortedRemoteItems.setComparator(createTypeSortComparator(ascending));
+            } else {
+                // Use default table comparator for other columns
+                sortedRemoteItems.setComparator(table.getComparator());
+            }
+            return true;
         });
         remoteTable.setItems(sortedRemoteItems);
         
         // Set default sort by type (directories first, alphabetically)
         typeColumn.setSortType(TableColumn.SortType.ASCENDING);
         remoteTable.getSortOrder().add(typeColumn);
-        // Trigger initial sort
-        sortedRemoteItems.setComparator(createTypeSortComparator(true));
+        // Apply initial sort
+        remoteTable.sort();
         
         // Search filter
         remoteSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
@@ -787,15 +786,8 @@ public class SFTPManagerTab extends Tab {
                 }
             }
             localPathField.setText(currentLocalPath.toString());
-            // Trigger re-sort after refresh
-            if (!localTable.getSortOrder().isEmpty()) {
-                boolean sortingByType = localTable.getSortOrder().stream()
-                    .anyMatch(col -> col.getText().equals(I18n.get("sftp.column.type")));
-                if (sortingByType) {
-                    boolean ascending = localTable.getSortOrder().get(0).getSortType() == TableColumn.SortType.ASCENDING;
-                    sortedLocalItems.setComparator(createTypeSortComparator(ascending));
-                }
-            }
+            // Re-apply sort after refresh
+            localTable.sort();
         } catch (Exception e) {
             logger.error("Failed to list local files", e);
             showError(I18n.get("error.title"), I18n.get("sftp.error.listLocalFiles", e.getMessage()));
@@ -872,15 +864,8 @@ public class SFTPManagerTab extends Tab {
             }
             
             remotePathField.setText(currentRemotePath);
-            // Trigger re-sort after refresh
-            if (!remoteTable.getSortOrder().isEmpty()) {
-                boolean sortingByType = remoteTable.getSortOrder().stream()
-                    .anyMatch(col -> col.getText().equals(I18n.get("sftp.column.type")));
-                if (sortingByType) {
-                    boolean ascending = remoteTable.getSortOrder().get(0).getSortType() == TableColumn.SortType.ASCENDING;
-                    sortedRemoteItems.setComparator(createTypeSortComparator(ascending));
-                }
-            }
+            // Re-apply sort after refresh
+            remoteTable.sort();
         } catch (Exception e) {
             logger.error("Failed to list remote files", e);
             showError(I18n.get("error.title"), I18n.get("sftp.error.listRemoteFiles", e.getMessage()));
