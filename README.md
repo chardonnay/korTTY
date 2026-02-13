@@ -8,7 +8,7 @@
 - **Tab Support**: Multiple SSH connections in one window
 - **Font Size Adjustment**: Zoom in/out in running terminal (Ctrl+Plus, Ctrl+Minus, Ctrl+0)
 - **Split-Screen with Broadcast**: Split terminal view and broadcast input to all panes
-- **Multi-Window**: Open multiple windows for different projects
+- **Multi-Window**: Open multiple windows for different projects; drag tabs between windows to move sessions (including split terminals)
 - **Encrypted Passwords**: AES-256-GCM encryption with master password
 - **SSH Key Management**: Centralized management of private SSH keys with encrypted passphrases
 - **Customizable Display**: Font size, colors (global or per connection)
@@ -65,6 +65,19 @@ Each release provides separate packages per platform and architecture; there are
 
 JediTermFX is integrated as a git submodule under `vendor/jeditermfx`.
 You do not need to clone it manually.
+
+**Important — do not edit the submodule in this repo.** All changes to JediTermFX must be made in the [JediTermFX project](https://github.com/techsenger/jeditermfx) (or your local clone, e.g. `/Users/daniel/Cursor/JediTermFX`). The split-terminal UI (e.g. `TerminalSplitPane` with drag-and-drop, left panel factory, extra menu items) lives in JediTermFX so that other projects can use it too. After committing and pushing there (or having a local commit), update the submodule in KorTTY:
+
+```bash
+cd vendor/jeditermfx
+git fetch origin
+git checkout <branch-or-commit-you-want>   # e.g. main or a specific tag
+cd ../..
+git add vendor/jeditermfx
+git commit -m "Update JediTermFX submodule"
+```
+
+This keeps KorTTY pointing at the correct JediTermFX version and avoids local modifications under `vendor/jeditermfx`.
 
 During the build, korTTY will automatically:
 
