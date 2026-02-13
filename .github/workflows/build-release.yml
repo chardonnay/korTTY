@@ -232,7 +232,7 @@ jobs:
         run: |
           pacman-key --init
           pacman-key --populate archlinux
-          pacman -Syu --noconfirm base-devel git
+          pacman -Syu --noconfirm base-devel git jre-openjdk
           useradd -m -s /bin/bash builder
 
       - name: Prepare PKGBUILD and sources
