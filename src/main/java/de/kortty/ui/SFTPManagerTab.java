@@ -2157,30 +2157,34 @@ public class SFTPManagerTab extends Tab {
     }
     
     /**
-     * Creates a comparator for sorting by type: folders first (alphabetically), then files (alphabetically).
-     * The ".." entry always stays at the top.
+     * Sort order for type column (standard):
+     * 1. ".." always at top
+     * 2. Directories starting with "." (hidden dirs), alphabetically
+     * 3. Directories not starting with ".", alphabetically
+     * 4. Files starting with "." (hidden files), alphabetically
+     * 5. All other files, alphabetically
      */
+    private static int typeSortKey(SFTPManagerDialog.FileItem item) {
+        String name = item.getName();
+        if (name.equals("..")) return 0;
+        boolean isDir = !item.isFile();
+        boolean startsWithDot = name.startsWith(".");
+        if (isDir && startsWithDot) return 1;
+        if (isDir && !startsWithDot) return 2;
+        if (!isDir && startsWithDot) return 3;
+        return 4; // file, no leading dot
+    }
+    
     private java.util.Comparator<SFTPManagerDialog.FileItem> createTypeSortComparator(boolean ascending) {
         return (item1, item2) -> {
-            // ".." always at top
-            if (item1.getName().equals("..")) return -1;
-            if (item2.getName().equals("..")) return 1;
-            
-            boolean isDir1 = !item1.isFile();
-            boolean isDir2 = !item2.isFile();
-            
-            int result;
-            if (isDir1 && !isDir2) {
-                // Folders before files
-                result = -1;
-            } else if (!isDir1 && isDir2) {
-                // Files after folders
-                result = 1;
-            } else {
-                // Same type - sort alphabetically by name (case-insensitive)
-                result = item1.getName().compareToIgnoreCase(item2.getName());
+            int key1 = typeSortKey(item1);
+            int key2 = typeSortKey(item2);
+            int result = Integer.compare(key1, key2);
+            if (result != 0) {
+                return ascending ? result : -result;
             }
-            
+            // Same category: sort alphabetically by name (case-insensitive)
+            result = item1.getName().compareToIgnoreCase(item2.getName());
             return ascending ? result : -result;
         };
     }

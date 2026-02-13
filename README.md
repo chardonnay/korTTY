@@ -16,7 +16,7 @@
 - **Import/Export**: Import connections from MTPuTTY, MobaXterm, and PuTTY Connection Manager
 - **JMX Monitoring**: Monitor active connections, memory usage, etc.
 - **Dashboard**: Overview of all open connections in the project
-- **SFTP Manager**: File transfer between local system and remote servers
+- **SFTP Manager**: File transfer between local system and remote servers (User/Group columns, sortable by type with dot-prefix order)
 - **Snippet Manager**: Create, search, favorite, and organize reusable snippets (JSON/XML/YAML import/export)
 - **ASCII Art Banner**: Generate FIGlet banners with multiple styles (Tools menu)
 - **Window Geometry Storage**: Automatic restoration of window position and size
@@ -640,17 +640,18 @@ KorTTY supports multiple languages and automatically detects your system languag
 
 ## SFTP Manager
 
-The integrated SFTP Manager enables direct file transfers:
+The integrated SFTP Manager enables direct file transfers between your local system and remote servers.
 
 ### Features
 
 - **Two-Panel View**: Local and remote files side by side
+- **Columns**: Name, Type, Size, Date, **User**, **Group**, Permissions (sortable)
+- **Default Sort**: By type — parent directory (`..`) first, then dot-prefix directories, then other directories, then dot-prefix files, then other files (each group alphabetically)
 - **Drag & Drop**: Easy file moving
 - **File Operations**: Delete, rename, copy files and directories
-- **Permissions**: Adjust file permissions (chmod) with checkbox interface
+- **Owner/Permissions**: Set owner, group, and permissions (chmod) locally and remotely; separate User/Group fields in dialogs
 - **ZIP Archiving**: Create ZIP archives from multiple files/directories
 - **Search**: Glob pattern search (`*`) in both panels
-- **Sorting**: Sortable table columns (Name, Size, Date)
 
 ### Access
 

@@ -373,9 +373,31 @@ The SFTP Manager uses a **two-panel layout**:
 | Browse local files | Browse remote files |
 | Upload to remote | Download to local |
 
-Both panels display file name, size, date, and permissions in sortable columns.
+Both panels show the same **sortable columns**:
 
-### 7.3 File Operations
+| Column | Description |
+|---|---|
+| **Name** | File or directory name |
+| **Type** | Directory (📁) or file (📄) |
+| **Size** | File size (directories show —) |
+| **Date** | Last modified date/time |
+| **User** | Owner (local: from filesystem; remote: from SFTP or UID) |
+| **Group** | Group (local: from filesystem; remote: from SFTP or GID) |
+| **Permissions** | Permissions (e.g. rwxr-xr-x) |
+
+### 7.3 Default Sort Order (Type Column)
+
+The default sort is by **Type**. The order is:
+
+1. **Parent directory** (`..`) — always at the top
+2. **Directories starting with "."** (e.g. `.git`, `.config`) — alphabetically
+3. **Other directories** — alphabetically
+4. **Files starting with "."** (e.g. `.bashrc`) — alphabetically
+5. **All other files** — alphabetically
+
+You can click any column header to sort by that column; clicking the Type column again toggles ascending/descending.
+
+### 7.4 File Operations
 
 | Operation | How |
 |---|---|
@@ -386,9 +408,9 @@ Both panels display file name, size, date, and permissions in sortable columns.
 | **Copy** | Copy files within the same panel |
 | **Create Directory** | Click "New Folder" in either panel |
 | **Create ZIP** | Select multiple files/directories, click "Create ZIP" |
-| **Change Permissions** | Select a remote file, click Permissions (chmod interface) |
+| **Set Owner/Permissions** | Select file(s), use context menu or button. Separate fields for User, Group, and octal permissions (e.g. 755). Leave a field empty to keep the current value. Available for both local (Unix/macOS) and remote. |
 
-### 7.4 Search
+### 7.5 Search
 
 Both panels support **glob pattern search** using the `*` wildcard. For example, `*.log` finds all log files in the current directory.
 
@@ -945,4 +967,4 @@ If terminal output shows garbled characters:
 
 ---
 
-*KorTTY v1.3.0*
+*KorTTY v1.7.0*

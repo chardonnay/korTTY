@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-_No changes yet._
+### SFTP Manager
+
+- **User and Group columns**: Local and remote file tables show **User** and **Group** columns; you can sort by owner or group. Local values come from the filesystem; remote values use SFTP owner/group or UID/GID as fallback.
+- **Type sort order**: Default sort by type uses a fixed order: parent directory (`..`) first, then directories starting with ".", then other directories, then files starting with ".", then other files — each group sorted alphabetically.
+- **Owner/Permissions dialog**: Separate fields for User, Group, and permissions (octal); current values are pre-filled; leave a field empty to keep the current value. Same behaviour for local and remote.
 
 ---
 
