@@ -200,6 +200,7 @@ jobs:
   build-pacman:
     name: Build pacman (Arch Linux)
     needs: build
+    if: success()
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -237,6 +238,8 @@ jobs:
 
       - name: Install build dependencies (Arch)
         run: |
+          pacman-key --init
+          pacman-key --populate archlinux
           pacman -Syu --noconfirm base-devel git
           useradd -m -s /bin/bash builder
 
@@ -251,9 +254,10 @@ jobs:
 
       - name: Build pacman package
         run: |
+          rm -rf archbuild/pkg archbuild/src
           chown -R builder:builder "$GITHUB_WORKSPACE/archbuild"
-          # Run without -s: PKGBUILD has no makedepends; base-devel (installed as root above) provides all build tools
-          su builder -c "cd $GITHUB_WORKSPACE/archbuild && makepkg --noconfirm"
+          # Run as builder; --clean ensures fresh pkg/ and src/ to avoid permission issues (makepkg exit 8)
+          su builder -c "cd $GITHUB_WORKSPACE/archbuild && makepkg --noconfirm --clean"
 
       - name: Upload pacman artifact
         uses: actions/upload-artifact@v4
@@ -264,7 +268,7 @@ jobs:
 
   upload-release:
     needs: [build, build-pacman]
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' && success()
     runs-on: ubuntu-latest
     permissions:
       contents: write
