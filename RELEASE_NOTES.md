@@ -2,11 +2,7 @@
 
 ## Unreleased
 
-### SFTP Manager
-
-- **User and Group columns**: Local and remote file tables show **User** and **Group** columns; you can sort by owner or group. Local values come from the filesystem; remote values use SFTP owner/group or UID/GID as fallback.
-- **Type sort order**: Default sort by type uses a fixed order: parent directory (`..`) first, then directories starting with ".", then other directories, then files starting with ".", then other files — each group sorted alphabetically.
-- **Owner/Permissions dialog**: Separate fields for User, Group, and permissions (octal); current values are pre-filled; leave a field empty to keep the current value. Same behaviour for local and remote.
+_(None)_
 
 ---
 
@@ -14,9 +10,33 @@
 
 **Release date:** February 2026
 
-### Terminal and UI
+### Terminal and Multi-Window
 
-- **Reconnect via right-click**: Right-click on a terminal tab, inside the terminal area, or on a server entry in the Dashboard to trigger **Reconnect**. If a connection is active, it is closed and immediately re-established without closing the terminal window. If the connection is already disconnected, it is re-established. The terminal remains open in all cases.
+- **Tab drag between windows**: Drag tabs (including tabs with split terminals) from one KorTTY window to another to move the session. Drop anywhere in the target window. Tabs can also be reordered within the same window by dragging in the tab bar.
+- **Split terminal drag-and-drop**: Reorder split panes by holding **Shift+Alt** (Shift+Option on macOS) and dragging a pane onto another; drop zones (above, below, left, right) show where the pane will be placed. Uses JediTermFX `TerminalSplitPane` with event filters and `TransferMode.ANY` for reliable drop on all platforms.
+- **Reconnect via right-click**: Right-click on a terminal tab, inside the terminal area, or on a server entry in the Dashboard to trigger **Reconnect**. If a connection is active, it is closed and immediately re-established without closing the terminal window.
+
+### Theme and UI
+
+- **Theme management**: Apply themes at runtime; theme menu in terminal context menu (right-click). Reconnect and timestamp toggle in context menu.
+- **Cursor visibility**: Fix for cursor visibility in terminal.
+
+### SFTP Manager
+
+- **User and Group columns**: Local and remote file tables show **User** and **Group** columns; sort by owner or group. Remote values use SFTP owner/group or UID/GID as fallback.
+- **Type sort order**: Sort by type uses dot-prefix order: `..`, then dot-prefix directories, then other directories, then dot-prefix files, then other files — each group alphabetically.
+- **Owner/Permissions dialog**: Separate fields for User, Group, and permissions (octal); current values pre-filled; leave a field empty to keep the current value. Dark theme applied; ClassCastException and error handling fixes.
+- **Multi-file transfer fix**: Fix `WritePendingException` when downloading or uploading multiple files.
+- **GUI**: Dark theme for all SFTP dialogs; improved button layout.
+
+### JediTermFX and Build
+
+- **TerminalSplitPane upstream**: Split-terminal UI (left panel factory, extra menu items, Shift+Alt DnD, DropZone) moved into JediTermFX so other projects can use it. KorTTY uses the submodule; local override removed.
+- **Arch Linux**: Pacman (`.pkg.tar.zst`) packaging via GitHub Actions.
+
+### Internationalisation (i18n)
+
+- **Locale fixes**: Remaining English strings in Spanish (ES), French (FR), Italian (IT), Croatian (HR), Dutch (NL), and Portuguese (PT) replaced with correct translations. Covers dialogs, editor, Quick Connect, SFTP, errors, GPG, and status messages.
 
 ---
 
