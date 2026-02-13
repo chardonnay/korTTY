@@ -246,9 +246,11 @@ jobs:
 
       - name: Build pacman package
         run: |
-          rm -rf archbuild/pkg archbuild/src
-          chown -R builder:builder "$GITHUB_WORKSPACE"
-          su builder -c "cd $GITHUB_WORKSPACE/archbuild && makepkg --noconfirm --clean"
+          rm -rf /home/builder/archbuild
+          cp -a archbuild /home/builder/
+          chown -R builder:builder /home/builder/archbuild
+          su builder -c "cd /home/builder/archbuild && makepkg --noconfirm --clean"
+          cp /home/builder/archbuild/*.pkg.tar.zst archbuild/
 
       - name: Upload pacman artifact
         uses: actions/upload-artifact@v4
