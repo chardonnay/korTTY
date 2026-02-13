@@ -9,8 +9,8 @@ pkgdesc="SSH Client with JavaFX interface, tab support, and SFTP"
 arch=('x86_64' 'aarch64')
 url="https://github.com/chardonnay/korTTY"
 license=('Apache-2.0')
-# OpenJDK 25 runtime (Arch: jre-openjdk)
-depends=('jre-openjdk')
+# Java runtime (provider package, e.g. jre-openjdk)
+depends=('java-runtime')
 # Pre-built tarball from GitHub Actions (kortty-Linux-${pkgver}-${CARCH}.tar.gz)
 # kortty.desktop is in this directory (package/arch/)
 source=("kortty-Linux-${pkgver}-${CARCH}.tar.gz" "kortty.desktop")
