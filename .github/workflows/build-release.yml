@@ -10,9 +10,9 @@ on:
         required: false
         default: 'main'
       version:
-        description: 'Version string for artifact names (e.g. 1.4.0-test)'
+        description: 'Numeric app version for jpackage (e.g. 1.4.0)'
         required: false
-        default: '1.4.0-test'
+        default: '1.4.0'
 
 jobs:
   build:
@@ -60,6 +60,13 @@ jobs:
           choco install maven -y
           "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
       - name: Set version
         id: version
         shell: bash
@@ -69,6 +76,10 @@ jobs:
             VERSION=${VERSION#v}
           else
             VERSION="${{ github.event.inputs.version }}"
+            if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+              echo "workflow_dispatch input 'version' must be numeric (e.g. 1.7.0) for jpackage."
+              exit 1
+            fi
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
