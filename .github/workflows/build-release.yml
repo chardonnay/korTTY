@@ -201,15 +201,7 @@ jobs:
     name: Build pacman (Arch Linux)
     needs: build
     if: success()
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            arch: x86_64
-          - os: ubuntu-24.04-arm
-            arch: aarch64
+    runs-on: ubuntu-latest
     container:
       image: archlinux:latest
     steps:
@@ -233,7 +225,7 @@ jobs:
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
-          name: korTTY-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          name: korTTY-Linux-${{ steps.version.outputs.version }}-x86_64
           path: linux-artifact
 
       - name: Install build dependencies (Arch)
@@ -246,7 +238,7 @@ jobs:
       - name: Prepare PKGBUILD and sources
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          ARCH="${{ matrix.arch }}"
+          ARCH=x86_64
           mkdir -p archbuild
           cp linux-artifact/kortty-Linux-"${VERSION}"-"${ARCH}".tar.gz archbuild/
           cp package/arch/kortty.desktop archbuild/
@@ -255,14 +247,13 @@ jobs:
       - name: Build pacman package
         run: |
           rm -rf archbuild/pkg archbuild/src
-          chown -R builder:builder "$GITHUB_WORKSPACE/archbuild"
-          # Run as builder; --clean ensures fresh pkg/ and src/ to avoid permission issues (makepkg exit 8)
+          chown -R builder:builder "$GITHUB_WORKSPACE"
           su builder -c "cd $GITHUB_WORKSPACE/archbuild && makepkg --noconfirm --clean"
 
       - name: Upload pacman artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KorTTY-Arch-${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          name: KorTTY-Arch-${{ steps.version.outputs.version }}-x86_64
           path: archbuild/*.pkg.tar.zst
           retention-days: 30
 
