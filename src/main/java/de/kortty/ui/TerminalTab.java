@@ -16,7 +16,10 @@ import javafx.scene.paint.Color;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
+import javafx.scene.input.MouseButton;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 /**
  * A tab containing a terminal view for an SSH session.
@@ -31,6 +34,8 @@ public class TerminalTab extends Tab {
     private Instant connectionStartTime;
     private Timeline statusBarTimer;
     private Label statusBarLabel;
+    private Label disconnectedStatusBar;
+    private Instant disconnectedAt;
     
     // Tab group (independent from connection group)
     private String tabGroup = null;
@@ -47,16 +52,21 @@ public class TerminalTab extends Tab {
         this.terminalView = new TerminalView(connection, password, temporarySSHKey);
         this.terminalView.setOnReconnectRequested(this::triggerReconnect);
         
-        // Create status bar
+        // Create status bar (connection duration / key validity)
         createStatusBar();
+        // Create disconnected status bar (red bar, shown when server disconnects; double-click to reconnect)
+        createDisconnectedStatusBar();
         
         updateTabTitle();
         
-        // Create container with terminal view and status bar
+        // Create container with terminal view and status bars
         javafx.scene.layout.VBox container = new javafx.scene.layout.VBox();
         container.getChildren().add(terminalView);
         if (statusBarLabel != null) {
             container.getChildren().add(statusBarLabel);
+        }
+        if (disconnectedStatusBar != null) {
+            container.getChildren().add(disconnectedStatusBar);
         }
         javafx.scene.layout.VBox.setVgrow(terminalView, Priority.ALWAYS);
         
@@ -96,6 +106,53 @@ public class TerminalTab extends Tab {
         
         // Start timer to update status bar
         startStatusBarTimer();
+    }
+    
+    /**
+     * Creates the red status bar shown when the server is disconnected.
+     * Displays timestamp and "Double-click to reconnect"; double-click triggers reconnect.
+     */
+    private void createDisconnectedStatusBar() {
+        disconnectedStatusBar = new Label();
+        disconnectedStatusBar.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 6 10; -fx-font-size: 12px; -fx-cursor: hand;");
+        disconnectedStatusBar.setVisible(false);
+        disconnectedStatusBar.setManaged(false);
+        disconnectedStatusBar.setOnMouseClicked(e -> {
+            if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
+                triggerReconnect();
+            }
+        });
+    }
+    
+    /**
+     * Shows the disconnected status bar with timestamp. Hides the normal status bar.
+     */
+    private void showDisconnectedStatusBar() {
+        disconnectedAt = Instant.now();
+        String timeStr = DateTimeFormatter.ofPattern("HH:mm").format(disconnectedAt.atZone(ZoneId.systemDefault()));
+        if (disconnectedStatusBar != null) {
+            disconnectedStatusBar.setText(I18n.get("statusBar.disconnectedAtDoubleClick", timeStr));
+            disconnectedStatusBar.setVisible(true);
+            disconnectedStatusBar.setManaged(true);
+        }
+        if (statusBarLabel != null) {
+            statusBarLabel.setVisible(false);
+            statusBarLabel.setManaged(false);
+        }
+    }
+    
+    /**
+     * Hides the disconnected status bar and restores the normal status bar if present.
+     */
+    private void hideDisconnectedStatusBar() {
+        if (disconnectedStatusBar != null) {
+            disconnectedStatusBar.setVisible(false);
+            disconnectedStatusBar.setManaged(false);
+        }
+        if (statusBarLabel != null) {
+            statusBarLabel.setVisible(true);
+            statusBarLabel.setManaged(true);
+        }
     }
     
     /**
@@ -253,12 +310,13 @@ public class TerminalTab extends Tab {
         // Set tab to yellow color to indicate connection attempt in progress
         setTabConnectingColor();
         
-        // Register disconnect listener: always keep tab open and show as disconnected (red)
+        // Register disconnect listener: keep tab and split open, show red tab and red status bar
         terminalView.setDisconnectListener((reason, wasError) -> {
             Platform.runLater(() -> {
                 isConnectionFailed = true;
                 updateTabTitle(" (DISCONNECT)");
                 setTabErrorColor();
+                showDisconnectedStatusBar();
             });
         });
         
@@ -271,6 +329,7 @@ public class TerminalTab extends Tab {
             Platform.runLater(() -> {
                 updateTabTitle();
                 resetTabColor(); // Reset to default (green/normal)
+                hideDisconnectedStatusBar();
             });
         });
         
@@ -300,6 +359,7 @@ public class TerminalTab extends Tab {
         Platform.runLater(() -> {
             updateTabTitle(" (DISCONNECT)");
             setTabErrorColor();
+            showDisconnectedStatusBar();
         });
     }
     

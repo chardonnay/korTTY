@@ -244,6 +244,9 @@ KorTTY can import connections from several sources:
 
 Open additional windows with **File > New Window** (Ctrl+Shift+N / Cmd+Shift+N). Each window can have its own set of tabs and connections.
 
+- **Move tabs between windows:** Drag a tab from the tab bar and drop it onto another KorTTY window's tab bar to move that tab (and its session, including any split terminals) into the other window.
+- **Reorder tabs:** Drag a tab within the same window to change its order; the "+" tab stays at the end.
+
 ### 4.3 Font Size / Zoom
 
 Adjust the font size of the active terminal without reconnecting:
@@ -264,6 +267,7 @@ Split the terminal view to display multiple connections side by side:
 - **Broadcast Mode:** When enabled, keyboard input is sent simultaneously to all visible panes. This is useful for running the same commands on multiple servers.
 - **Independent Sessions:** Each pane can show a different SSH connection.
 - **Resizable Panes:** Drag dividers to adjust pane sizes.
+- **Move Panes:** Hold **Shift+Alt** (Windows/Linux) or **Shift+Option** (Mac) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.
 
 ### 4.5 Terminal Logging
 

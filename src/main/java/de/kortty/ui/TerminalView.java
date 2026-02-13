@@ -25,6 +25,7 @@ import javafx.geometry.Orientation;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -40,6 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -213,6 +215,15 @@ public class TerminalView extends BorderPane {
         terminalWidget = splitPane.getFocusedWidget();
         if (terminalWidget != null) applyCursorShape(terminalWidget);
         
+        // Require Shift+Alt/Option for pane-move drag; otherwise consume so terminal gets text selection
+        splitPane.addEventFilter(MouseEvent.DRAG_DETECTED, e -> {
+            if (splitPane.getWidgetCount() > 1 && !(e.isShiftDown() && e.isAltDown())) {
+                logger.debug("TerminalView DnD gate: consume DRAG_DETECTED (shift={}, alt={}, ctrl={}, meta={})",
+                        e.isShiftDown(), e.isAltDown(), e.isControlDown(), e.isMetaDown());
+                e.consume();
+            }
+        });
+        
         setCenter(splitPane);
 
         setupDragDrop();
@@ -236,8 +247,22 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /** MIME type used by TerminalSplitPane for internal pane-move DnD. */
+    private static final String SPLIT_DRAG_MIME = "application/x-jeditermfx-terminal-widget";
+
+    /** Check whether a dragboard carries an internal split-pane move payload. */
+    private static boolean isSplitPaneDrag(javafx.scene.input.Dragboard db) {
+        javafx.scene.input.DataFormat fmt = javafx.scene.input.DataFormat.lookupMimeType(SPLIT_DRAG_MIME);
+        return fmt != null && db.hasContent(fmt);
+    }
+
     private void setupDragDrop() {
         setOnDragOver(event -> {
+            // Don't intercept internal split-pane move drags — let them pass through
+            if (isSplitPaneDrag(event.getDragboard())) {
+                logger.debug("TerminalView DragOver: pass split-pane drag through");
+                return;
+            }
             if (!isTerminalDragDropEnabled()) return;
             Dragboard db = event.getDragboard();
             if (db.hasFiles()) {
@@ -249,6 +274,11 @@ public class TerminalView extends BorderPane {
             event.consume();
         });
         setOnDragDropped(event -> {
+            // Don't intercept internal split-pane move drags — let them pass through
+            if (isSplitPaneDrag(event.getDragboard())) {
+                logger.debug("TerminalView DragDropped: pass split-pane drag through");
+                return;
+            }
             if (!isTerminalDragDropEnabled()) return;
             Dragboard db = event.getDragboard();
             if (!db.hasFiles()) {
@@ -1029,18 +1059,24 @@ public class TerminalView extends BorderPane {
                         
                         // Set the connector and start the terminal on JavaFX thread
                         Platform.runLater(() -> {
-                            terminalWidget.setTtyConnector(ttyConnector);
-                            terminalWidget.start();
-                            applyCursorShape(terminalWidget);
-                            if (splitPane != null) {
-                                for (JediTermFxWidget w : splitPane.getAllWidgets()) {
-                                    applyCursorShape(w);
-                                    setCursorVisible(w, true);
+                            try {
+                                if (terminalWidget == null) return; // Tab was closed during connect
+                                terminalWidget.setTtyConnector(ttyConnector);
+                                terminalWidget.start();
+                                applyCursorShape(terminalWidget);
+                                if (splitPane != null) {
+                                    for (JediTermFxWidget w : splitPane.getAllWidgets()) {
+                                        applyCursorShape(w);
+                                        setCursorVisible(w, true);
+                                    }
                                 }
-                            }
-                            setCursorVisible(terminalWidget, true);
-                            if (onConnectedCallback != null) {
-                                onConnectedCallback.run();
+                                setCursorVisible(terminalWidget, true);
+                                if (onConnectedCallback != null) {
+                                    onConnectedCallback.run();
+                                }
+                            } catch (RejectedExecutionException e) {
+                                // Widget was already closed (e.g. tab closed) and its executor terminated
+                                logger.debug("Terminal widget already closed, skipping start: {}", e.getMessage());
                             }
                         });
                         

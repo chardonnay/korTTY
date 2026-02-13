@@ -20,9 +20,15 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.TransferMode;
+import javafx.geometry.Point2D;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.event.Event;
@@ -38,7 +44,9 @@ import java.util.zip.ZipOutputStream;
 import java.util.zip.ZipEntry;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -69,7 +77,14 @@ public class MainWindow {
     private final List<ConnectionImporter> importers;
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
-    
+
+    /** DataFormat for drag-and-drop of tabs between KorTTY windows (value: transfer ID). */
+    private static final DataFormat KORTTY_TAB_TRANSFER_FORMAT = new DataFormat("application/x-kortty-tab-transfer");
+    /** Pending tab transfer: transferId -> (source window, tab). Cleared after drop or drag done. */
+    private static final Map<String, TabTransfer> pendingTabTransfers = new HashMap<>();
+
+    private record TabTransfer(MainWindow sourceWindow, Tab tab) {}
+
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean suppressQuickConnect = false;  // Flag to suppress QuickConnect on programmatic tab selection
     private volatile long lastTabCloseTime = 0; // Timestamp of last tab close to prevent QuickConnect
@@ -165,6 +180,118 @@ public class MainWindow {
                         event.consume();
                     }
                 }
+            }
+        });
+
+        // Tab drag-and-drop: only when drag starts in the tab bar (not in tab content) so text selection works
+        final double tabBarHeightPx = 36;
+        tabPane.addEventFilter(MouseEvent.DRAG_DETECTED, event -> {
+            Point2D inTabPane = tabPane.sceneToLocal(event.getSceneX(), event.getSceneY());
+            if (inTabPane.getY() < 0 || inTabPane.getY() >= tabBarHeightPx) {
+                return; // drag started in content area: allow text selection / split-pane drag
+            }
+            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            if (selected == null || !selected.isClosable() || "+".equals(selected.getText())) {
+                return;
+            }
+            String transferId = UUID.randomUUID().toString();
+            pendingTabTransfers.put(transferId, new TabTransfer(this, selected));
+            Dragboard db = tabPane.startDragAndDrop(TransferMode.MOVE);
+            db.setContent(Map.of(KORTTY_TAB_TRANSFER_FORMAT, transferId));
+            event.consume();
+        });
+        tabPane.setOnDragOver(event -> {
+            if (!event.getDragboard().hasContent(KORTTY_TAB_TRANSFER_FORMAT)) {
+                return;
+            }
+            String transferId = (String) event.getDragboard().getContent(KORTTY_TAB_TRANSFER_FORMAT);
+            TabTransfer xfer = pendingTabTransfers.get(transferId);
+            if (xfer == null) {
+                return;
+            }
+            // Allow drop on any tab pane (same or other window); same-window drop reorders
+            event.acceptTransferModes(TransferMode.MOVE);
+            event.consume();
+        });
+        tabPane.setOnDragDropped(event -> {
+            if (!event.getDragboard().hasContent(KORTTY_TAB_TRANSFER_FORMAT)) {
+                event.setDropCompleted(false);
+                return;
+            }
+            String transferId = (String) event.getDragboard().getContent(KORTTY_TAB_TRANSFER_FORMAT);
+            TabTransfer xfer = pendingTabTransfers.remove(transferId);
+            if (xfer == null) {
+                event.setDropCompleted(false);
+                return;
+            }
+            Tab tab = xfer.tab();
+            MainWindow sourceWindow = xfer.sourceWindow();
+            javafx.scene.control.TabPane sourcePane = sourceWindow.tabPane;
+            if (!sourcePane.getTabs().contains(tab)) {
+                event.setDropCompleted(false);
+                return;
+            }
+            sourcePane.getTabs().remove(tab);
+            // Insert index: before "+" in this pane; approximate position from drop X for reorder
+            int insertIndex = (int) ((event.getX() / Math.max(1, tabPane.getWidth())) * (tabPane.getTabs().size()));
+            insertIndex = Math.max(0, Math.min(insertIndex, tabPane.getTabs().size()));
+            tabPane.getTabs().add(insertIndex, tab);
+            tabPane.getSelectionModel().select(tab);
+            if (tab instanceof TerminalTab tt) {
+                Platform.runLater(() -> tt.getTerminalView().requestFocus());
+            }
+            event.setDropCompleted(true);
+            event.consume();
+            if (sourceWindow != this) {
+                sourceWindow.updateDashboard();
+                updateDashboard();
+                updateAllTabContextMenus();
+                sourceWindow.updateAllTabContextMenus();
+            } else {
+                updateDashboard();
+                updateAllTabContextMenus();
+            }
+        });
+        tabPane.setOnDragDone(event -> {
+            if (!event.isDropCompleted()) {
+                pendingTabTransfers.entrySet().removeIf(entry -> entry.getValue().sourceWindow() == this);
+            }
+        });
+
+        // Accept tab drops anywhere in this window (bubbling handlers so split-terminal DnD is not affected)
+        root.setOnDragOver(event -> {
+            if (!event.getDragboard().hasContent(KORTTY_TAB_TRANSFER_FORMAT)) return;
+            String transferId = (String) event.getDragboard().getContent(KORTTY_TAB_TRANSFER_FORMAT);
+            if (pendingTabTransfers.get(transferId) == null) return;
+            event.acceptTransferModes(TransferMode.MOVE);
+            event.consume();
+        });
+        root.setOnDragDropped(event -> {
+            if (!event.getDragboard().hasContent(KORTTY_TAB_TRANSFER_FORMAT)) return;
+            String transferId = (String) event.getDragboard().getContent(KORTTY_TAB_TRANSFER_FORMAT);
+            TabTransfer xfer = pendingTabTransfers.remove(transferId);
+            if (xfer == null) return;
+            Tab tab = xfer.tab();
+            MainWindow sourceWindow = xfer.sourceWindow();
+            javafx.scene.control.TabPane sourcePane = sourceWindow.tabPane;
+            if (!sourcePane.getTabs().contains(tab)) return;
+            sourcePane.getTabs().remove(tab);
+            int insertIndex = Math.max(0, tabPane.getTabs().size() - 1); // before "+"
+            tabPane.getTabs().add(insertIndex, tab);
+            tabPane.getSelectionModel().select(tab);
+            if (tab instanceof TerminalTab tt) {
+                Platform.runLater(() -> tt.getTerminalView().requestFocus());
+            }
+            event.setDropCompleted(true);
+            event.consume();
+            if (sourceWindow != this) {
+                sourceWindow.updateDashboard();
+                updateDashboard();
+                updateAllTabContextMenus();
+                sourceWindow.updateAllTabContextMenus();
+            } else {
+                updateDashboard();
+                updateAllTabContextMenus();
             }
         });
         
