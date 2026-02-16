@@ -24,6 +24,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import de.kortty.ui.I18n;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -274,13 +275,13 @@ public class TerminalSplitPane extends StackPane {
         ContextMenu menu = new ContextMenu();
         var terminalPanel = widget.getTerminalPanel();
         
-        MenuItem copy = new MenuItem("Copy");
+        MenuItem copy = new MenuItem(I18n.get("terminal.contextMenu.copy"));
         copy.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "handleCopy", null));
-        MenuItem paste = new MenuItem("Paste");
+        MenuItem paste = new MenuItem(I18n.get("terminal.contextMenu.paste"));
         paste.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "pasteFromClipboard", false));
-        MenuItem clearBuffer = new MenuItem("Clear Buffer");
+        MenuItem clearBuffer = new MenuItem(I18n.get("terminal.contextMenu.clearBuffer"));
         clearBuffer.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "clearBuffer", null));
-        MenuItem find = new MenuItem("Find");
+        MenuItem find = new MenuItem(I18n.get("terminal.contextMenu.find"));
         find.setOnAction(e -> invokeWidgetMethod(widget, "showFindComponent"));
         menu.getItems().addAll(copy, paste, clearBuffer, find);
         
@@ -299,32 +300,32 @@ public class TerminalSplitPane extends StackPane {
     }
     
     private @NotNull Menu createExtrasSubmenu(@NotNull JediTermFxWidget widget) {
-        Menu extrasMenu = new Menu("Extras");
-        Menu fontMenu = new Menu("Font Size");
-        MenuItem increaseFont = new MenuItem("Increase");
+        Menu extrasMenu = new Menu(I18n.get("terminal.contextMenu.extras"));
+        Menu fontMenu = new Menu(I18n.get("terminal.contextMenu.fontSize"));
+        MenuItem increaseFont = new MenuItem(I18n.get("terminal.contextMenu.increase"));
         increaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "increaseFontSize", 2));
-        MenuItem decreaseFont = new MenuItem("Decrease");
+        MenuItem decreaseFont = new MenuItem(I18n.get("terminal.contextMenu.decrease"));
         decreaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "decreaseFontSize", 2));
-        MenuItem resetFont = new MenuItem("Reset");
+        MenuItem resetFont = new MenuItem(I18n.get("terminal.contextMenu.reset"));
         resetFont.setOnAction(e -> invokeWidgetFontMethod(widget, "resetFontSize", null));
         fontMenu.getItems().addAll(increaseFont, decreaseFont, resetFont);
         
-        Menu splitMenu = new Menu("Split Terminal");
-        MenuItem splitRightSame = new MenuItem("Split Right (same server)");
+        Menu splitMenu = new Menu(I18n.get("terminal.contextMenu.splitTerminal"));
+        MenuItem splitRightSame = new MenuItem(I18n.get("terminal.contextMenu.splitRightSame"));
         splitRightSame.setOnAction(e -> split(SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, Orientation.HORIZONTAL));
-        MenuItem splitRightNew = new MenuItem("Split Right (new connection)");
+        MenuItem splitRightNew = new MenuItem(I18n.get("terminal.contextMenu.splitRightNew"));
         splitRightNew.setOnAction(e -> split(SplitRequest.SplitMode.NEW_CONNECTION, Orientation.HORIZONTAL));
-        MenuItem splitDownSame = new MenuItem("Split Down (same server)");
+        MenuItem splitDownSame = new MenuItem(I18n.get("terminal.contextMenu.splitDownSame"));
         splitDownSame.setOnAction(e -> split(SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, Orientation.VERTICAL));
-        MenuItem splitDownNew = new MenuItem("Split Down (new connection)");
+        MenuItem splitDownNew = new MenuItem(I18n.get("terminal.contextMenu.splitDownNew"));
         splitDownNew.setOnAction(e -> split(SplitRequest.SplitMode.NEW_CONNECTION, Orientation.VERTICAL));
-        MenuItem closeSplit = new MenuItem("Close Split");
+        MenuItem closeSplit = new MenuItem(I18n.get("terminal.contextMenu.closeSplit"));
         closeSplit.setOnAction(e -> closeSplit(widget));
         closeSplit.setDisable(rootCell.countWidgets() <= 1);
         splitMenu.getItems().addAll(splitRightSame, splitRightNew, new SeparatorMenuItem(),
                                     splitDownSame, splitDownNew, new SeparatorMenuItem(), closeSplit);
         
-        CheckMenuItem broadcastToggle = new CheckMenuItem("Broadcast Mode");
+        CheckMenuItem broadcastToggle = new CheckMenuItem(I18n.get("terminal.contextMenu.broadcastMode"));
         broadcastToggle.setSelected(broadcastMode);
         broadcastToggle.setOnAction(e -> setBroadcastMode(broadcastToggle.isSelected()));
         broadcastToggle.setDisable(rootCell.countWidgets() <= 1);

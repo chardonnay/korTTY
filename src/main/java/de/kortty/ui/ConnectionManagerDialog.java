@@ -14,6 +14,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -243,6 +244,19 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         renameGroupButton.setPrefWidth(buttonWidth);
         refreshTeamworkButton.setPrefWidth(buttonWidth);
         restoreTeamworkButton.setPrefWidth(buttonWidth);
+        
+        // Set icons for buttons (Folder and Refresh are fine at 14px; others use 18px)
+        addButton.setGraphic(iconLabel("\u2795", 18));
+        editButton.setGraphic(iconLabel("\u270E", 18));
+        deleteButton.setGraphic(iconLabel("\u2715", 18));
+        duplicateButton.setGraphic(iconLabel("\u29C9", 18));
+        exportButton.setGraphic(iconLabel("\u2B07", 18));
+        importButton.setGraphic(iconLabel("\u2B06", 18));
+        undoButton.setGraphic(iconLabel("\u21A9", 18));
+        createFolderButton.setGraphic(iconLabel("\uD83D\uDCC1"));
+        renameGroupButton.setGraphic(iconLabel("\u270F", 18));
+        refreshTeamworkButton.setGraphic(iconLabel("\u21BB"));
+        restoreTeamworkButton.setGraphic(iconLabel("\u21BA", 18));
         
         editButton.setDisable(true);
         deleteButton.setDisable(true);
@@ -1350,5 +1364,17 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
                 }
             }
         }
+    }
+    
+    /** Creates a small label with a Unicode symbol for use as button graphic. */
+    private static Label iconLabel(String symbol) {
+        return iconLabel(symbol, 14);
+    }
+    
+    private static Label iconLabel(String symbol, int fontSizePx) {
+        Label l = new Label(symbol);
+        l.setStyle("-fx-font-size: " + fontSizePx + "px;");
+        l.setMinWidth(Region.USE_PREF_SIZE);
+        return l;
     }
 }

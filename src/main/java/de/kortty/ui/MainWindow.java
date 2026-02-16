@@ -27,6 +27,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.TransferMode;
 import javafx.geometry.Point2D;
 import javafx.scene.layout.BorderPane;
@@ -389,6 +391,16 @@ public class MainWindow {
         
         stage.setScene(scene);
         stage.setTitle(KorTTYApplication.getAppName());
+        
+        // Set window icon (e.g. Windows taskbar and title bar)
+        try {
+            var iconUrl = getClass().getResource("/icon/kortty_icon.png");
+            if (iconUrl != null) {
+                stage.getIcons().add(new Image(iconUrl.toExternalForm()));
+            }
+        } catch (Exception e) {
+            logger.warn("Could not set window icon", e);
+        }
         
         // Handle fullscreen changes - resize terminal properly
         stage.fullScreenProperty().addListener((obs, wasFullscreen, isFullscreen) -> {
@@ -1787,6 +1799,15 @@ public class MainWindow {
                 I18n.get("dialog.aboutDeveloped") + "\n\n" +
                 I18n.get("dialog.aboutJMX") + "\n" +
                 "de.kortty:type=SSHClient");
+        var iconUrl = getClass().getResource("/icon/kortty_icon.png");
+        if (iconUrl != null) {
+            ImageView iconView = new ImageView(new Image(iconUrl.toExternalForm()));
+            iconView.setFitWidth(120);
+            iconView.setFitHeight(120);
+            iconView.setPreserveRatio(true);
+            iconView.setSmooth(true);
+            alert.getDialogPane().setGraphic(iconView);
+        }
         alert.showAndWait();
     }
     
