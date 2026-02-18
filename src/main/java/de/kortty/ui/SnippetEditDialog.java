@@ -1,6 +1,8 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.SnippetCodeFormatter;
+import de.kortty.core.SnippetLinter;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.WindowGeometry;
@@ -8,6 +10,8 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -32,6 +36,10 @@ public class SnippetEditDialog extends Dialog<Snippet> {
     private final ComboBox<String> categoryCombo;
     private final TextField tagsField;
     private final InlineCssTextArea contentArea;
+    private final CheckBox wordWrapCheckBox;
+    private final Button formatBtn;
+    private final Button lintBtn;
+    private final Label statusLabel;
     private final Snippet existingSnippet;
     private final EditorSettingsHelper.Settings editorSettings;
     
@@ -48,8 +56,9 @@ public class SnippetEditDialog extends Dialog<Snippet> {
     private static final String STYLE_PLAIN = "-fx-fill: #d4d4d4;";
     
     private static final List<String> LANGUAGES = List.of(
-        "plain", "bash", "python", "java", "javascript", "sql", "xml", "json",
-        "yaml", "properties", "ini", "markdown", "dockerfile", "groovy"
+        "plain", "bash", "shell", "python", "perl", "ruby", "java", "javascript", "groovy",
+        "sql", "xml", "json", "yaml", "yml", "toml", "properties", "ini", "html",
+        "markdown", "dockerfile"
     );
     
     /**
@@ -60,7 +69,16 @@ public class SnippetEditDialog extends Dialog<Snippet> {
      */
     public SnippetEditDialog(Snippet snippet, List<String> existingCategories) {
         this.existingSnippet = snippet;
-        this.editorSettings = EditorSettingsHelper.loadSnippetSettings();
+        EditorSettingsHelper.Settings loaded = EditorSettingsHelper.loadSnippetSettings();
+        // Force a visible block caret in Snippet Editor (user request).
+        this.editorSettings = new EditorSettingsHelper.Settings(
+                loaded.fontFamily(),
+                loaded.fontSize(),
+                loaded.foregroundColor(),
+                loaded.backgroundColor(),
+                "BLOCK",
+                loaded.cursorColor()
+        );
         
         setTitle(snippet == null ? I18n.get("snippets.addTitle") : I18n.get("snippets.editTitle"));
         setResizable(true);
@@ -93,13 +111,24 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         contentArea.setPrefWidth(600);
         EditorSettingsHelper.applyStyle(contentArea, editorSettings);
         EditorSettingsHelper.installPersistentCaretStyling(contentArea, editorSettings);
+        // Ensure block caret remains visible while typing (caret node may be recreated).
+        contentArea.caretPositionProperty().addListener((obs, oldPos, newPos) ->
+                EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings));
+        contentArea.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            KeyCode code = event.getCode();
+            if (code == KeyCode.UP || code == KeyCode.DOWN || code == KeyCode.LEFT || code == KeyCode.RIGHT
+                    || code == KeyCode.HOME || code == KeyCode.END
+                    || code == KeyCode.PAGE_UP || code == KeyCode.PAGE_DOWN) {
+                refreshBlockCaretSoon();
+            }
+        });
         
         // Wrap content area in VirtualizedScrollPane for scrollbars
         var contentScrollPane = EditorSettingsHelper.createScrollPane(contentArea);
         VBox.setVgrow(contentScrollPane, Priority.ALWAYS);
         
         // Word wrap checkbox – persistent setting
-        CheckBox wordWrapCheckBox = new CheckBox(I18n.get("snippets.wordWrap"));
+        wordWrapCheckBox = new CheckBox(I18n.get("snippets.wordWrap"));
         boolean savedWordWrap = loadWordWrapSetting();
         wordWrapCheckBox.setSelected(savedWordWrap);
         contentArea.setWrapText(savedWordWrap);
@@ -109,11 +138,20 @@ public class SnippetEditDialog extends Dialog<Snippet> {
             saveWordWrapSetting(newVal);
         });
         
+        // Right-click context menu on content area
+        contentArea.setContextMenu(createEditorContextMenu());
+        
         // Re-apply highlighting when language changes
-        languageCombo.setOnAction(e -> applyHighlighting());
+        languageCombo.setOnAction(e -> {
+            applyHighlighting();
+            updateFormatLintButtonState();
+        });
         
         // Re-apply highlighting on text change
-        contentArea.textProperty().addListener((obs, oldText, newText) -> applyHighlighting());
+        contentArea.textProperty().addListener((obs, oldText, newText) -> {
+            applyHighlighting();
+            EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings);
+        });
         
         // Placeholder info label
         Label placeholderInfo = new Label(I18n.get("snippets.placeholderInfo"));
@@ -141,8 +179,20 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         formGrid.add(tagsField, 1, 2);
         GridPane.setHgrow(tagsField, Priority.ALWAYS);
         
+        // Content header: label + Format / Lint buttons (with symbols) + Word wrap
+        formatBtn = new Button("\u2728 " + I18n.get("editor.format"));
+        formatBtn.setTooltip(new Tooltip(I18n.get("editor.format.tooltip", I18n.get("editor.format.tooltip.builtin"))));
+        formatBtn.setOnAction(e -> runFormat());
+        
+        lintBtn = new Button("\u2713 " + I18n.get("editor.lint"));
+        lintBtn.setTooltip(new Tooltip(I18n.get("editor.lint.title")));
+        lintBtn.setOnAction(e -> runLint());
+        
+        updateFormatLintButtonState();
+        
         HBox contentHeader = new HBox(10,
-                new Label(I18n.get("snippets.content") + ":"), wordWrapCheckBox);
+                new Label(I18n.get("snippets.content") + ":"),
+                formatBtn, lintBtn, new Separator(), wordWrapCheckBox);
         contentHeader.setAlignment(Pos.CENTER_LEFT);
         formGrid.add(contentHeader, 0, 3, 2, 1);
         
@@ -150,8 +200,16 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         VBox.setVgrow(contentScrollPane, Priority.ALWAYS);
         formGrid.add(contentBox, 0, 4, 2, 1);
         GridPane.setVgrow(contentBox, Priority.ALWAYS);
-        
-        getDialogPane().setContent(formGrid);
+
+        statusLabel = new Label();
+        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #6c757d;");
+        statusLabel.setMinHeight(18);
+        statusLabel.setText("");
+
+        VBox rootLayout = new VBox(0, formGrid, statusLabel);
+        VBox.setVgrow(formGrid, Priority.ALWAYS);
+
+        getDialogPane().setContent(rootLayout);
         getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         getDialogPane().setPrefWidth(700);
         getDialogPane().setPrefHeight(550);
@@ -171,6 +229,7 @@ public class SnippetEditDialog extends Dialog<Snippet> {
             contentArea.replaceText(snippet.getContent() != null ? snippet.getContent() : "");
             applyHighlighting();
         }
+        updateFormatLintButtonState();
         
         // Restore saved geometry
         restoreGeometry();
@@ -251,6 +310,133 @@ public class SnippetEditDialog extends Dialog<Snippet> {
         boolean valid = nameField.getText() != null && !nameField.getText().isBlank()
                 && contentArea.getText() != null && !contentArea.getText().isBlank();
         okButton.setDisable(!valid);
+    }
+
+    private ContextMenu createEditorContextMenu() {
+        ContextMenu menu = new ContextMenu();
+        MenuItem cutItem = new MenuItem(I18n.get("editor.context.cut"));
+        cutItem.setOnAction(e -> contentArea.cut());
+        MenuItem copyItem = new MenuItem(I18n.get("editor.context.copy"));
+        copyItem.setOnAction(e -> contentArea.copy());
+        MenuItem pasteItem = new MenuItem(I18n.get("editor.context.paste"));
+        pasteItem.setOnAction(e -> contentArea.paste());
+        MenuItem deleteItem = new MenuItem(I18n.get("editor.context.delete"));
+        deleteItem.setOnAction(e -> contentArea.replaceSelection(""));
+        MenuItem selectAllItem = new MenuItem(I18n.get("editor.context.selectAll"));
+        selectAllItem.setOnAction(e -> contentArea.selectAll());
+        MenuItem formatItem = new MenuItem(I18n.get("editor.format"));
+        formatItem.setOnAction(e -> runFormat());
+        MenuItem lintItem = new MenuItem(I18n.get("editor.lint"));
+        lintItem.setOnAction(e -> runLint());
+        CheckMenuItem wordWrapItem = new CheckMenuItem(I18n.get("snippets.wordWrap"));
+        wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
+        wordWrapItem.setOnAction(e -> {
+            boolean on = wordWrapItem.isSelected();
+            wordWrapCheckBox.setSelected(on);
+            contentArea.setWrapText(on);
+            saveWordWrapSetting(on);
+        });
+        menu.getItems().addAll(
+                cutItem, copyItem, pasteItem, deleteItem,
+                new SeparatorMenuItem(),
+                selectAllItem,
+                new SeparatorMenuItem(),
+                formatItem, lintItem,
+                new SeparatorMenuItem(),
+                wordWrapItem
+        );
+        menu.setOnShowing(e -> {
+            boolean hasSelection = contentArea.getSelection().getLength() > 0;
+            cutItem.setDisable(!hasSelection);
+            copyItem.setDisable(!hasSelection);
+            deleteItem.setDisable(!hasSelection);
+            wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
+            String lang = languageCombo.getValue();
+            formatItem.setDisable(!SnippetCodeFormatter.isSupported(lang));
+            lintItem.setDisable(!SnippetLinter.isSupported(lang));
+        });
+        return menu;
+    }
+
+    private void updateFormatLintButtonState() {
+        String lang = languageCombo.getValue();
+        formatBtn.setDisable(!SnippetCodeFormatter.isSupported(lang));
+        lintBtn.setDisable(!SnippetLinter.isSupported(lang));
+    }
+
+    private void runFormat() {
+        String lang = languageCombo.getValue();
+        if (!SnippetCodeFormatter.isSupported(lang)) {
+            setStatus(I18n.get("editor.format.notSupported", lang != null ? lang : "plain"));
+            return;
+        }
+        int start = contentArea.getSelection().getStart();
+        int end = contentArea.getSelection().getEnd();
+        String text;
+        boolean selectionOnly = (end > start);
+        if (selectionOnly) {
+            text = contentArea.getSelectedText();
+            if (text == null || text.isBlank()) return;
+        } else {
+            text = contentArea.getText();
+            if (text == null || text.isBlank()) return;
+        }
+        String formatted = SnippetCodeFormatter.format(text, lang);
+        if (formatted == null) {
+            setStatus(I18n.get("editor.format.failed"));
+            return;
+        }
+        if (formatted.equals(text)) {
+            setStatus(I18n.get("editor.format.noChanges"));
+            return;
+        }
+        if (selectionOnly) {
+            contentArea.replaceText(start, end, formatted);
+        } else {
+            contentArea.replaceText(formatted);
+        }
+        applyHighlighting();
+        setStatus(I18n.get("editor.format.success"));
+    }
+
+    private void runLint() {
+        String text = contentArea.getText();
+        String lang = languageCombo.getValue();
+        if (!SnippetLinter.isSupported(lang)) {
+            showAlert(I18n.get("editor.lint.notAvailable", lang != null ? lang : "plain"));
+            return;
+        }
+        SnippetLinter.LintResult result = SnippetLinter.lint(text != null ? text : "", lang);
+        if (result.isSuccess()) {
+            showAlert(I18n.get("editor.lint.success"), Alert.AlertType.INFORMATION);
+        } else {
+            showAlert(I18n.get("editor.lint.errors") + "\n\n" + result.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+
+    private void showAlert(String message) {
+        showAlert(message, Alert.AlertType.INFORMATION);
+    }
+
+    private void showAlert(String message, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(I18n.get("snippets.editTitle"));
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.initOwner(getDialogPane().getScene().getWindow());
+        alert.showAndWait();
+    }
+
+    private void setStatus(String message) {
+        if (statusLabel != null) {
+            statusLabel.setText(message != null ? message : "");
+        }
+    }
+
+    private void refreshBlockCaretSoon() {
+        EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings);
+        // Run once more on the next pulse, because RichTextFX may recreate caret after key handling.
+        Platform.runLater(() -> EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings));
     }
     
     // ---- Syntax Highlighting ----

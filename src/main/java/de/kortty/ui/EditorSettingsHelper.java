@@ -192,6 +192,15 @@ public final class EditorSettingsHelper {
             styleCaretNodesWithRetry(area, settings, 8);
         }
     }
+
+    /**
+     * Re-applies caret styling immediately.
+     * Useful when RichTextFX recreates the caret node during typing.
+     */
+    public static void refreshCaretStyling(InlineCssTextArea area, Settings settings) {
+        applyCaretCss(area, settings);
+        styleCaretNodesWithRetry(area, settings, 8);
+    }
     
     /**
      * Creates a VirtualizedScrollPane wrapping the given InlineCssTextArea
@@ -306,12 +315,11 @@ public final class EditorSettingsHelper {
                     }
                     
                     styled[0] = true;
-                    logger.debug("Styled caret node: color={}, strokeWidth={}, isBlock={}", 
-                            color, strokeWidth, isBlock);
+                    // Debug logging intentionally disabled to avoid log flooding while typing/navigation.
                 }
             }
         } catch (Exception e) {
-            logger.debug("Caret direct styling skipped: {}", e.getMessage());
+            // Debug logging intentionally disabled.
         }
         
         return styled[0];
@@ -339,7 +347,7 @@ public final class EditorSettingsHelper {
         PauseTransition pause = new PauseTransition(Duration.millis(delayMs));
         pause.setOnFinished(event -> {
             if (styleCaretNodesDirect(area, settings)) {
-                logger.debug("Caret styled successfully after retry (remaining={})", retriesLeft);
+                // Debug logging intentionally disabled.
                 return; // Done
             }
             // Retry with slightly longer delay (max 500ms)

@@ -113,6 +113,7 @@ public class SnippetManagementDialog extends Dialog<Void> {
         usedCol.setStyle("-fx-alignment: CENTER-RIGHT;");
         
         snippetTable.getColumns().addAll(java.util.List.of(favCol, nameCol, langCol, catCol, tagsCol, usedCol));
+        snippetTable.setContextMenu(createTableContextMenu());
         
         // Data binding with search filter
         snippetList = FXCollections.observableArrayList(snippetManager.getAllSnippets());
@@ -156,66 +157,53 @@ public class SnippetManagementDialog extends Dialog<Void> {
         HBox previewHeader = new HBox(10, previewLabel, wordWrapCheckBox);
         previewHeader.setAlignment(Pos.CENTER_LEFT);
         
+        // Right-click context menu on preview (vim-style quick actions)
+        previewArea.setContextMenu(createPreviewContextMenu());
+        
         // Update preview when selection changes (show first selected item)
         snippetTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
             updatePreview(newSel);
         });
         
-        // ---- Buttons ----
-        Button addBtn = new Button(I18n.get("snippets.add"));
+        // ---- Buttons (grouped with symbols) ----
+        // CRUD + Favorite
+        Button addBtn = new Button("\u2795 " + I18n.get("snippets.add"));
         addBtn.setOnAction(e -> addSnippet());
         
-        Button editBtn = new Button(I18n.get("snippets.edit"));
+        Button editBtn = new Button("\u270E " + I18n.get("snippets.edit"));
         editBtn.setOnAction(e -> editSnippet());
         editBtn.setDisable(true);
         
-        Button deleteBtn = new Button(I18n.get("snippets.delete"));
+        Button deleteBtn = new Button("\u2715 " + I18n.get("snippets.delete"));
         deleteBtn.setOnAction(e -> deleteSnippets());
         deleteBtn.setDisable(true);
         
-        Button copyBtn = new Button(I18n.get("snippets.copyClipboard"));
-        copyBtn.setOnAction(e -> copyToClipboard());
-        copyBtn.setDisable(true);
-        
-        Button insertEditorBtn = new Button(I18n.get("snippets.insertEditor"));
-        insertEditorBtn.setOnAction(e -> insertIntoEditor());
-        insertEditorBtn.setDisable(true);
-        
-        Button insertTermBtn = new Button(I18n.get("snippets.insertTerminal"));
-        insertTermBtn.setOnAction(e -> insertIntoTerminal());
-        insertTermBtn.setDisable(true);
-        
-        Button favBtn = new Button(I18n.get("snippets.toggleFavorite"));
+        Button favBtn = new Button("\u2605 " + I18n.get("snippets.toggleFavorite"));
         favBtn.setOnAction(e -> toggleFavorite());
         favBtn.setDisable(true);
         
-        Button importBtn = new Button(I18n.get("snippets.import"));
+        // Insert / Copy
+        Button copyBtn = new Button("\uD83D\uDCCB " + I18n.get("snippets.copyClipboard"));
+        copyBtn.setOnAction(e -> copyToClipboard());
+        copyBtn.setDisable(true);
+        
+        Button insertEditorBtn = new Button("\uD83D\uDCC4 " + I18n.get("snippets.insertEditor"));
+        insertEditorBtn.setOnAction(e -> insertIntoEditor());
+        insertEditorBtn.setDisable(true);
+        
+        Button insertTermBtn = new Button("\u2328 " + I18n.get("snippets.insertTerminal"));
+        insertTermBtn.setOnAction(e -> insertIntoTerminal());
+        insertTermBtn.setDisable(true);
+        
+        // Import / Export
+        Button importBtn = new Button("\uD83D\uDCE5 " + I18n.get("snippets.import"));
         importBtn.setOnAction(e -> importSnippets());
         
-        Button exportBtn = new Button(I18n.get("snippets.export"));
+        Button exportBtn = new Button("\uD83D\uDCE4 " + I18n.get("snippets.export"));
         exportBtn.setOnAction(e -> exportSnippets());
         exportBtn.setDisable(true);
         
-        // Enable/disable buttons based on multi-selection
-        snippetTable.getSelectionModel().getSelectedItems().addListener(
-                (ListChangeListener<Snippet>) change -> {
-            ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
-            boolean hasSelection = !selected.isEmpty();
-            boolean hasSingle = selected.size() == 1;
-            
-            editBtn.setDisable(!hasSingle); // Edit only single selection
-            deleteBtn.setDisable(!hasSelection);
-            copyBtn.setDisable(!hasSingle); // Copy only single
-            insertEditorBtn.setDisable(!hasSingle); // Insert only single
-            insertTermBtn.setDisable(!hasSingle); // Insert only single
-            favBtn.setDisable(!hasSelection);
-            exportBtn.setDisable(!hasSelection && snippetList.isEmpty());
-        });
-        
-        HBox crudButtons = new HBox(8, addBtn, editBtn, deleteBtn, new Separator(), favBtn);
-        crudButtons.setAlignment(Pos.CENTER_LEFT);
-        
-        Button variablesBtn = new Button(I18n.get("snippets.variables.manage"));
+        Button variablesBtn = new Button("\u2699 " + I18n.get("snippets.variables.manage"));
         variablesBtn.setOnAction(e -> {
             SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
             if (varManager != null) {
@@ -225,6 +213,27 @@ public class SnippetManagementDialog extends Dialog<Void> {
             }
         });
         
+        // Enable/disable buttons based on multi-selection
+        snippetTable.getSelectionModel().getSelectedItems().addListener(
+                (ListChangeListener<Snippet>) change -> {
+            ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
+            boolean hasSelection = !selected.isEmpty();
+            boolean hasSingle = selected.size() == 1;
+            
+            editBtn.setDisable(!hasSingle);
+            deleteBtn.setDisable(!hasSelection);
+            copyBtn.setDisable(!hasSingle);
+            insertEditorBtn.setDisable(!hasSingle);
+            insertTermBtn.setDisable(!hasSingle);
+            favBtn.setDisable(!hasSelection);
+            exportBtn.setDisable(!hasSelection && snippetList.isEmpty());
+        });
+        
+        // Row 1: CRUD + Favorite
+        HBox crudButtons = new HBox(8, addBtn, editBtn, deleteBtn, new Separator(), favBtn);
+        crudButtons.setAlignment(Pos.CENTER_LEFT);
+        
+        // Row 2: Copy / Insert + Import/Export + Variables
         HBox actionButtons = new HBox(8, copyBtn, insertEditorBtn, insertTermBtn,
                 new Separator(), importBtn, exportBtn, new Separator(), variablesBtn);
         actionButtons.setAlignment(Pos.CENTER_LEFT);
@@ -406,6 +415,113 @@ public class SnippetManagementDialog extends Dialog<Void> {
     }
     
     // ---- Preview ----
+    
+    /**
+     * Context menu for the preview area (right-click): Copy, Select All, Word Wrap,
+     * Insert into Editor, Send to Terminal.
+     */
+    private ContextMenu createPreviewContextMenu() {
+        ContextMenu menu = new ContextMenu();
+        
+        MenuItem copyItem = new MenuItem(I18n.get("snippets.copyClipboard"));
+        copyItem.setOnAction(e -> copyPreviewToClipboard());
+        
+        MenuItem selectAllItem = new MenuItem(I18n.get("editor.context.selectAll"));
+        selectAllItem.setOnAction(e -> previewArea.selectAll());
+        
+        CheckMenuItem wordWrapItem = new CheckMenuItem(I18n.get("snippets.wordWrap"));
+        wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
+        wordWrapItem.setOnAction(e -> {
+            boolean on = wordWrapItem.isSelected();
+            wordWrapCheckBox.setSelected(on);
+            previewArea.setWrapText(on);
+            saveWordWrapSetting(on);
+        });
+        
+        MenuItem insertEditorItem = new MenuItem(I18n.get("snippets.insertEditor"));
+        insertEditorItem.setOnAction(e -> insertIntoEditor());
+        
+        MenuItem insertTerminalItem = new MenuItem(I18n.get("snippets.insertTerminal"));
+        insertTerminalItem.setOnAction(e -> insertIntoTerminal());
+        
+        menu.getItems().addAll(
+                copyItem,
+                selectAllItem,
+                new SeparatorMenuItem(),
+                wordWrapItem,
+                new SeparatorMenuItem(),
+                insertEditorItem,
+                insertTerminalItem
+        );
+        
+        menu.setOnShowing(e -> {
+            boolean hasText = previewArea.getText() != null && !previewArea.getText().isEmpty();
+            copyItem.setDisable(!hasText);
+            selectAllItem.setDisable(!hasText);
+            wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
+            Snippet single = snippetTable.getSelectionModel().getSelectedItem();
+            boolean singleSelected = single != null && snippetTable.getSelectionModel().getSelectedItems().size() == 1;
+            insertEditorItem.setDisable(!singleSelected);
+            insertTerminalItem.setDisable(!singleSelected);
+        });
+        
+        return menu;
+    }
+    
+    /**
+     * Context menu for the snippet table (right-click on a row): Edit, Delete, Copy,
+     * Insert into Editor/Terminal, Toggle Favorite, Export.
+     */
+    private ContextMenu createTableContextMenu() {
+        ContextMenu menu = new ContextMenu();
+        MenuItem editItem = new MenuItem("\u270E " + I18n.get("snippets.edit"));
+        editItem.setOnAction(e -> editSnippet());
+        MenuItem deleteItem = new MenuItem("\u2715 " + I18n.get("snippets.delete"));
+        deleteItem.setOnAction(e -> deleteSnippets());
+        MenuItem copyItem = new MenuItem("\uD83D\uDCCB " + I18n.get("snippets.copyClipboard"));
+        copyItem.setOnAction(e -> copyToClipboard());
+        MenuItem insertEditorItem = new MenuItem("\uD83D\uDCC4 " + I18n.get("snippets.insertEditor"));
+        insertEditorItem.setOnAction(e -> insertIntoEditor());
+        MenuItem insertTerminalItem = new MenuItem("\u2328 " + I18n.get("snippets.insertTerminal"));
+        insertTerminalItem.setOnAction(e -> insertIntoTerminal());
+        MenuItem favItem = new MenuItem("\u2605 " + I18n.get("snippets.toggleFavorite"));
+        favItem.setOnAction(e -> toggleFavorite());
+        MenuItem exportItem = new MenuItem("\uD83D\uDCE4 " + I18n.get("snippets.export"));
+        exportItem.setOnAction(e -> exportSnippets());
+        menu.getItems().addAll(
+                editItem, deleteItem,
+                new SeparatorMenuItem(),
+                copyItem, insertEditorItem, insertTerminalItem,
+                new SeparatorMenuItem(),
+                favItem, exportItem
+        );
+        menu.setOnShowing(e -> {
+            ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
+            boolean hasSelection = !selected.isEmpty();
+            boolean hasSingle = selected.size() == 1;
+            editItem.setDisable(!hasSingle);
+            deleteItem.setDisable(!hasSelection);
+            copyItem.setDisable(!hasSingle);
+            insertEditorItem.setDisable(!hasSingle);
+            insertTerminalItem.setDisable(!hasSingle);
+            favItem.setDisable(!hasSelection);
+            exportItem.setDisable(!hasSelection && snippetList.isEmpty());
+        });
+        return menu;
+    }
+    
+    /** Copies preview content to clipboard: selection if any, otherwise full text. */
+    private void copyPreviewToClipboard() {
+        String text = previewArea.getSelectedText();
+        if (text == null || text.isEmpty()) {
+            text = previewArea.getText();
+        }
+        if (text != null && !text.isEmpty()) {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(text);
+            Clipboard.getSystemClipboard().setContent(content);
+        }
+    }
     
     private void updatePreview(Snippet snippet) {
         if (snippet == null) {
