@@ -63,6 +63,10 @@ public class GlobalSettings {
     @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
     
+    /** When true, temporary SSH key option is shown in Connection Manager and Quick Connect. Default: false. */
+    @XmlElement
+    private boolean temporarySshKeyEnabled = false;
+    
     @XmlElement
     private String language; // Language code (e.g., "en", "de", "fr") - null means auto-detect
     
@@ -317,6 +321,14 @@ public class GlobalSettings {
     
     public void setRequireMasterPasswordOnStartup(boolean requireMasterPasswordOnStartup) {
         this.requireMasterPasswordOnStartup = requireMasterPasswordOnStartup;
+    }
+    
+    public boolean isTemporarySshKeyEnabled() {
+        return temporarySshKeyEnabled;
+    }
+    
+    public void setTemporarySshKeyEnabled(boolean temporarySshKeyEnabled) {
+        this.temporarySshKeyEnabled = temporarySshKeyEnabled;
     }
     
     public String getLanguage() {

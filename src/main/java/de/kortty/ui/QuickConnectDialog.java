@@ -261,6 +261,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         VBox pane = new VBox(15);
         pane.setPadding(new Insets(15));
         
+        boolean temporarySshKeyEnabled = false;
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            if (gsm != null && gsm.getSettings() != null) {
+                temporarySshKeyEnabled = gsm.getSettings().isTemporarySshKeyEnabled();
+            }
+        } catch (Exception e) {
+            // use default false
+        }
+        
         // Create form fields
         hostField = new TextField();
         hostField.setPromptText("hostname or IP");
@@ -286,8 +296,12 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         keyAuthRadio = new RadioButton(I18n.get("quickConnect.authKey"));
         keyAuthRadio.setToggleGroup(authMethodGroup);
         
-        temporaryKeyAuthRadio = new RadioButton(I18n.get("quickConnect.authTemporaryKey"));
-        temporaryKeyAuthRadio.setToggleGroup(authMethodGroup);
+        if (temporarySshKeyEnabled) {
+            temporaryKeyAuthRadio = new RadioButton(I18n.get("quickConnect.authTemporaryKey"));
+            temporaryKeyAuthRadio.setToggleGroup(authMethodGroup);
+        } else {
+            temporaryKeyAuthRadio = null;
+        }
         
         // SSH Key selection
         savedSSHKeysCombo = new ComboBox<>();
@@ -298,66 +312,66 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             savedSSHKeysCombo.getItems().addAll(sshKeyManager.getAllKeys());
         }
         
-        // Temporary SSH Key fields
-        temporaryKeyArea = new TextArea();
-        temporaryKeyArea.setPromptText(I18n.get("quickConnect.temporarySSHKeyPrompt"));
-        temporaryKeyArea.setPrefRowCount(5);
-        temporaryKeyArea.setWrapText(true);
-        temporaryKeyArea.setDisable(true);
-        
-        expirationMinutesSpinner = new Spinner<>(1, 1440, 15); // 1 minute to 24 hours, default 15 minutes
-        expirationMinutesSpinner.setEditable(true);
-        expirationMinutesSpinner.setPrefWidth(80);
-        expirationMinutesSpinner.setDisable(true);
-        
-        remainingTimeLabel = new Label();
-        remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
-        remainingTimeLabel.setDisable(true);
-        
-        // Check for existing temporary key - only show if still valid
-        TemporarySSHKey existingKey = TemporarySSHKeyManager.getInstance().getCurrentTemporaryKey();
-        if (existingKey != null && existingKey.isValid()) {
-            temporaryKeyArea.setText(existingKey.getKeyContent());
-            // Show remaining minutes, not original expiration
-            long remainingMinutes = existingKey.getRemainingSeconds() / 60;
-            expirationMinutesSpinner.getValueFactory().setValue(Math.max(1, (int) remainingMinutes));
-            currentTemporaryKey = existingKey;
-            temporaryKeyAuthRadio.setSelected(true);
-            startExpirationTimer();
-        } else if (existingKey != null) {
-            // Key exists but expired - remove it and don't show
-            TemporarySSHKeyManager.getInstance().removeTemporaryKey(existingKey.getKeyContent());
+        // Temporary SSH Key fields (only when global setting is enabled)
+        if (temporarySshKeyEnabled) {
+            temporaryKeyArea = new TextArea();
+            temporaryKeyArea.setPromptText(I18n.get("quickConnect.temporarySSHKeyPrompt"));
+            temporaryKeyArea.setPrefRowCount(5);
+            temporaryKeyArea.setWrapText(true);
+            temporaryKeyArea.setDisable(true);
+            expirationMinutesSpinner = new Spinner<>(1, 1440, 15);
+            expirationMinutesSpinner.setEditable(true);
+            expirationMinutesSpinner.setPrefWidth(80);
+            expirationMinutesSpinner.setDisable(true);
+            remainingTimeLabel = new Label();
+            remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
+            remainingTimeLabel.setDisable(true);
+            TemporarySSHKey existingKey = TemporarySSHKeyManager.getInstance().getCurrentTemporaryKey();
+            if (existingKey != null && existingKey.isValid()) {
+                temporaryKeyArea.setText(existingKey.getKeyContent());
+                long remainingMinutes = existingKey.getRemainingSeconds() / 60;
+                expirationMinutesSpinner.getValueFactory().setValue(Math.max(1, (int) remainingMinutes));
+                currentTemporaryKey = existingKey;
+                temporaryKeyAuthRadio.setSelected(true);
+                startExpirationTimer();
+            } else if (existingKey != null) {
+                TemporarySSHKeyManager.getInstance().removeTemporaryKey(existingKey.getKeyContent());
+            }
+        } else {
+            temporaryKeyArea = null;
+            expirationMinutesSpinner = null;
+            remainingTimeLabel = null;
         }
         
         // Update field states based on auth method
         authMethodGroup.selectedToggleProperty().addListener((obs, old, newVal) -> {
             boolean useKey = keyAuthRadio.isSelected();
-            boolean useTemporaryKey = temporaryKeyAuthRadio.isSelected();
+            boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
             passwordField.setDisable(useKey || useTemporaryKey);
             savedSSHKeysCombo.setDisable(!useKey || useTemporaryKey);
-            temporaryKeyArea.setDisable(!useTemporaryKey);
-            expirationMinutesSpinner.setDisable(!useTemporaryKey);
-            remainingTimeLabel.setDisable(!useTemporaryKey);
-            
-            if (useTemporaryKey && temporaryKeyArea.getText().isEmpty() && currentTemporaryKey == null) {
-                // User selected temporary key but no key is entered yet
-                temporaryKeyArea.requestFocus();
+            if (temporaryKeyArea != null) {
+                temporaryKeyArea.setDisable(!useTemporaryKey);
+                expirationMinutesSpinner.setDisable(!useTemporaryKey);
+                remainingTimeLabel.setDisable(!useTemporaryKey);
+                if (useTemporaryKey && temporaryKeyArea.getText().isEmpty() && currentTemporaryKey == null) {
+                    temporaryKeyArea.requestFocus();
+                }
             }
         });
         
-        // Start timer when temporary key is entered
-        temporaryKeyArea.textProperty().addListener((obs, old, newVal) -> {
-            if (temporaryKeyAuthRadio.isSelected() && newVal != null && !newVal.trim().isEmpty()) {
-                // Store temporary key when entered
-                long expirationMinutes = expirationMinutesSpinner.getValue();
-                currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
-                    newVal.trim(), expirationMinutes);
-                startExpirationTimer();
-            } else if (newVal == null || newVal.trim().isEmpty()) {
-                stopExpirationTimer();
-                currentTemporaryKey = null;
-            }
-        });
+        if (temporaryKeyArea != null) {
+            temporaryKeyArea.textProperty().addListener((obs, old, newVal) -> {
+                if (temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected() && newVal != null && !newVal.trim().isEmpty()) {
+                    long expirationMinutes = expirationMinutesSpinner.getValue();
+                    currentTemporaryKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                        newVal.trim(), expirationMinutes);
+                    startExpirationTimer();
+                } else if (newVal == null || newVal.trim().isEmpty()) {
+                    stopExpirationTimer();
+                    currentTemporaryKey = null;
+                }
+            });
+        }
         
         // Update expiration time when spinner changes - only update if user explicitly changes it
         // Note: We don't auto-update the key expiration when spinner changes because
@@ -451,7 +465,10 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         grid.add(new Label(I18n.get("quickConnect.authentication")), 0, 2);
         VBox authBox = new VBox(5);
-        authBox.getChildren().addAll(passwordAuthRadio, keyAuthRadio, temporaryKeyAuthRadio);
+        authBox.getChildren().addAll(passwordAuthRadio, keyAuthRadio);
+        if (temporaryKeyAuthRadio != null) {
+            authBox.getChildren().add(temporaryKeyAuthRadio);
+        }
         grid.add(authBox, 1, 2);
         
         grid.add(new Label(I18n.get("quickConnect.password")), 0, 3);
@@ -460,76 +477,79 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         grid.add(new Label(I18n.get("quickConnect.sshKey")), 0, 4);
         grid.add(savedSSHKeysCombo, 1, 4);
         
-        // Temporary SSH Key section
-        grid.add(new Label(I18n.get("quickConnect.temporarySSHKey")), 0, 5);
-        VBox tempKeyBox = new VBox(5);
-        tempKeyBox.getChildren().add(temporaryKeyArea);
-        HBox expirationBox = new HBox(10);
-        expirationBox.getChildren().addAll(
-            new Label(I18n.get("quickConnect.expirationTime")),
-            expirationMinutesSpinner,
-            new Label(I18n.get("quickConnect.expirationMinutes"))
-        );
-        tempKeyBox.getChildren().add(expirationBox);
-        HBox updateBox = new HBox(10);
-        updateBox.getChildren().add(remainingTimeLabel);
-        Button updateTempKeyButton = new Button(I18n.get("quickConnect.updateTempKey"));
-        updateTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.updateTempKey.tooltip")));
-        updateTempKeyButton.setOnAction(e -> {
-            if (temporaryKeyAuthRadio.isSelected() && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
-                long expirationMinutes = expirationMinutesSpinner.getValue();
-                // Use updateKeyExpiration to force new expiration time
-                currentTemporaryKey = TemporarySSHKeyManager.getInstance().updateKeyExpiration(
-                    temporaryKeyArea.getText().trim(), expirationMinutes);
-                if (currentTemporaryKey != null) {
-                    startExpirationTimer();
-                    remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
+        int row = 5;
+        if (temporaryKeyAuthRadio != null && temporaryKeyArea != null) {
+            grid.add(new Label(I18n.get("quickConnect.temporarySSHKey")), 0, row);
+            VBox tempKeyBox = new VBox(5);
+            tempKeyBox.getChildren().add(temporaryKeyArea);
+            HBox expirationBox = new HBox(10);
+            expirationBox.getChildren().addAll(
+                new Label(I18n.get("quickConnect.expirationTime")),
+                expirationMinutesSpinner,
+                new Label(I18n.get("quickConnect.expirationMinutes"))
+            );
+            tempKeyBox.getChildren().add(expirationBox);
+            HBox updateBox = new HBox(10);
+            updateBox.getChildren().add(remainingTimeLabel);
+            Button updateTempKeyButton = new Button(I18n.get("quickConnect.updateTempKey"));
+            updateTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.updateTempKey.tooltip")));
+            updateTempKeyButton.setOnAction(e -> {
+                if (temporaryKeyAuthRadio.isSelected() && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
+                    long expirationMinutes = expirationMinutesSpinner.getValue();
+                    currentTemporaryKey = TemporarySSHKeyManager.getInstance().updateKeyExpiration(
+                        temporaryKeyArea.getText().trim(), expirationMinutes);
+                    if (currentTemporaryKey != null) {
+                        startExpirationTimer();
+                        if (remainingTimeLabel != null) remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
+                    }
                 }
-            }
-        });
-        Button replaceTempKeyButton = new Button(I18n.get("quickConnect.replaceTempKey"));
-        replaceTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.replaceTempKey.tooltip")));
-        replaceTempKeyButton.setOnAction(e -> {
-            if (temporaryKeyAuthRadio.isSelected()) {
-                if (currentTemporaryKey != null) {
-                    TemporarySSHKeyManager.getInstance().removeTemporaryKey(currentTemporaryKey.getKeyContent());
-                    currentTemporaryKey = null;
+            });
+            Button replaceTempKeyButton = new Button(I18n.get("quickConnect.replaceTempKey"));
+            replaceTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.replaceTempKey.tooltip")));
+            replaceTempKeyButton.setOnAction(e -> {
+                if (temporaryKeyAuthRadio.isSelected()) {
+                    if (currentTemporaryKey != null) {
+                        TemporarySSHKeyManager.getInstance().removeTemporaryKey(currentTemporaryKey.getKeyContent());
+                        currentTemporaryKey = null;
+                    }
+                    stopExpirationTimer();
+                    temporaryKeyArea.clear();
+                    temporaryKeyArea.setPromptText(I18n.get("quickConnect.temporarySSHKeyPrompt"));
+                    if (remainingTimeLabel != null) remainingTimeLabel.setText("");
+                    javafx.application.Platform.runLater(() -> temporaryKeyArea.requestFocus());
                 }
-                stopExpirationTimer();
-                temporaryKeyArea.clear();
-                temporaryKeyArea.setPromptText(I18n.get("quickConnect.temporarySSHKeyPrompt"));
-                remainingTimeLabel.setText("");
-                javafx.application.Platform.runLater(() -> temporaryKeyArea.requestFocus());
-            }
-        });
-        updateBox.getChildren().add(updateTempKeyButton);
-        updateBox.getChildren().add(replaceTempKeyButton);
-        tempKeyBox.getChildren().add(updateBox);
-        grid.add(tempKeyBox, 1, 5);
+            });
+            updateBox.getChildren().addAll(updateTempKeyButton, replaceTempKeyButton);
+            tempKeyBox.getChildren().add(updateBox);
+            grid.add(tempKeyBox, 1, row);
+            row++;
+        }
         
-        grid.add(saveConnectionCheck, 1, 6);
+        grid.add(saveConnectionCheck, 1, row++);
         
-        grid.add(new Label(I18n.get("quickConnect.connectionName")), 0, 7);
-        grid.add(connectionNameField, 1, 7);
+        grid.add(new Label(I18n.get("quickConnect.connectionName")), 0, row);
+        grid.add(connectionNameField, 1, row++);
         
-        grid.add(new Separator(), 0, 8, 2, 1);
+        grid.add(new Separator(), 0, row, 2, 1);
+        row++;
         
-        grid.add(new Label(I18n.get("quickConnect.connectionTimeout")), 0, 9);
+        grid.add(new Label(I18n.get("quickConnect.connectionTimeout")), 0, row);
         HBox timeoutBox = new HBox(10);
         timeoutBox.getChildren().addAll(timeoutSpinner, new Label(I18n.get("common.seconds")));
-        grid.add(timeoutBox, 1, 9);
+        grid.add(timeoutBox, 1, row++);
         
-        grid.add(new Label(I18n.get("quickConnect.retries")), 0, 10);
+        grid.add(new Label(I18n.get("quickConnect.retries")), 0, row);
         HBox retryBox = new HBox(10);
         retryBox.getChildren().addAll(retrySpinner, new Label("attempts"));
-        grid.add(retryBox, 1, 10);
+        grid.add(retryBox, 1, row++);
         
-        // Terminal appearance section
-        grid.add(new Separator(), 0, 11, 2, 1);
+        grid.add(new Separator(), 0, row, 2, 1);
+        row++;
         
         Label appearanceLabel = new Label(I18n.get("quickConnect.terminalAppearance"));
         appearanceLabel.setStyle("-fx-font-weight: bold;");
-        grid.add(appearanceLabel, 0, 12, 2, 1);
+        grid.add(appearanceLabel, 0, row, 2, 1);
+        row++;
         
         // Theme selector
         themeCombo = new ComboBox<>();
@@ -567,41 +587,37 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             // Theme manager not available
         }
         
-        grid.add(new Label(I18n.get("quickConnect.theme")), 0, 13);
-        grid.add(themeCombo, 1, 13);
+        grid.add(new Label(I18n.get("quickConnect.theme")), 0, row);
+        grid.add(themeCombo, 1, row++);
         
-        // Font family
         fontFamilyCombo = new ComboBox<>();
         fontFamilyCombo.getItems().addAll(getMonospaceFonts());
         fontFamilyCombo.setValue("Monospaced");
         fontFamilyCombo.setPrefWidth(200);
         
-        // Font size
         fontSizeSpinner = new Spinner<>(8, 72, 14);
         fontSizeSpinner.setEditable(true);
         fontSizeSpinner.setPrefWidth(80);
         
-        grid.add(new Label(I18n.get("quickConnect.font")), 0, 14);
+        grid.add(new Label(I18n.get("quickConnect.font")), 0, row);
         HBox fontBox = new HBox(10);
         fontBox.getChildren().addAll(fontFamilyCombo, new Label(I18n.get("quickConnect.fontSize")), fontSizeSpinner);
-        grid.add(fontBox, 1, 14);
+        grid.add(fontBox, 1, row++);
         
-        // Colors
         foregroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#FFFFFF"));
         backgroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#1E1E1E"));
         
-        grid.add(new Label(I18n.get("quickConnect.textColor")), 0, 15);
-        grid.add(foregroundColorPicker, 1, 15);
+        grid.add(new Label(I18n.get("quickConnect.textColor")), 0, row);
+        grid.add(foregroundColorPicker, 1, row++);
         
-        grid.add(new Label(I18n.get("quickConnect.background")), 0, 16);
-        grid.add(backgroundColorPicker, 1, 16);
+        grid.add(new Label(I18n.get("quickConnect.background")), 0, row);
+        grid.add(backgroundColorPicker, 1, row++);
         
-        // Reset button to restore global default settings
         Button resetButton = new Button(I18n.get("quickConnect.resetToDefaults"));
         resetButton.setOnAction(e -> resetToDefaultSettings());
         HBox buttonBox = new HBox(10);
         buttonBox.getChildren().add(resetButton);
-        grid.add(buttonBox, 1, 17);
+        grid.add(buttonBox, 1, row);
         
         // Load last used settings or default settings from GlobalSettings
         loadTerminalSettings();
@@ -666,22 +682,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         retrySpinner.getValueFactory().setValue(conn.getRetryCount());
         
         // Set authentication method
-        if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
-            // Connection was previously configured with a temporary key
-            // Check if this key is still valid in the manager
+        if (temporaryKeyAuthRadio != null && temporaryKeyArea != null && conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
             TemporarySSHKey existingKey = TemporarySSHKeyManager.getInstance().getTemporaryKey(conn.getTemporaryKeyContent());
-            
             if (existingKey != null && existingKey.isValid()) {
-                // Key is still valid - use it
                 temporaryKeyAuthRadio.setSelected(true);
                 temporaryKeyArea.setText(existingKey.getKeyContent());
-                // Show remaining minutes, not original expiration
                 long remainingMinutes = existingKey.getRemainingSeconds() / 60;
                 expirationMinutesSpinner.getValueFactory().setValue(Math.max(1, (int) remainingMinutes));
                 currentTemporaryKey = existingKey;
                 startExpirationTimer();
             } else {
-                // Key not found in manager (e.g. after app restart) - re-store from saved content
                 temporaryKeyAuthRadio.setSelected(true);
                 String savedContent = conn.getTemporaryKeyContent().trim();
                 Long expMin = conn.getTemporaryKeyExpirationMinutes();
@@ -689,26 +699,26 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 TemporarySSHKey restoredKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
                         savedContent, expirationMinutes);
                 if (restoredKey != null && restoredKey.isValid()) {
-                    // Successfully restored - fill text area with valid key
                     temporaryKeyArea.setText(restoredKey.getKeyContent());
                     long remainingMinutes = restoredKey.getRemainingSeconds() / 60;
                     expirationMinutesSpinner.getValueFactory().setValue(Math.max(1, (int) remainingMinutes));
                     currentTemporaryKey = restoredKey;
                     startExpirationTimer();
                 } else {
-                    // Key content is incomplete (no BEGIN/END markers) - show stored content anyway
                     temporaryKeyArea.setText(savedContent);
                     expirationMinutesSpinner.getValueFactory().setValue((int) expirationMinutes);
                     currentTemporaryKey = null;
                 }
             }
         } else if (conn.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
-            keyAuthRadio.setSelected(true);
-            // Try to find and select SSH key
-            if (conn.getSshKeyId() != null && sshKeyManager != null) {
-                sshKeyManager.findKeyById(conn.getSshKeyId()).ifPresent(key -> {
-                    savedSSHKeysCombo.setValue(key);
-                });
+            boolean connectionUsesTempKey = conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty();
+            if (connectionUsesTempKey && temporaryKeyAuthRadio == null) {
+                passwordAuthRadio.setSelected(true);
+            } else {
+                keyAuthRadio.setSelected(true);
+                if (conn.getSshKeyId() != null && sshKeyManager != null) {
+                    sshKeyManager.findKeyById(conn.getSshKeyId()).ifPresent(key -> savedSSHKeysCombo.setValue(key));
+                }
             }
         } else {
             passwordAuthRadio.setSelected(true);
@@ -740,8 +750,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             // But if auth method changed OR using temporary key, create a modified copy
             // Also update timeout and retries from spinner values
             
-            // Handle temporary key auth - ALWAYS use current key content from text area
-            if (temporaryKeyAuthRadio.isSelected()) {
+            if (temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected()) {
                 ServerConnection modified = new ServerConnection();
                 modified.setId(selected.getId());
                 modified.setName(selected.getName());
@@ -754,12 +763,11 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
                 
-                // Use the CURRENT key content from the text area (not from saved connection)
                 TemporarySSHKey tempKey = null;
-                String keyText = temporaryKeyArea.getText();
+                String keyText = temporaryKeyArea != null ? temporaryKeyArea.getText() : null;
                 if (keyText != null && !keyText.trim().isEmpty()) {
                     // Always store and use the current text area content
-                    long expirationMinutes = expirationMinutesSpinner.getValue();
+                    long expirationMinutes = expirationMinutesSpinner != null ? expirationMinutesSpinner.getValue() : 15L;
                     tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
                         keyText.trim(), expirationMinutes);
                     if (tempKey != null) {
@@ -873,30 +881,23 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
         connection.setRetryCount(retrySpinner.getValue());
         
-        // Set authentication method
         TemporarySSHKey tempKey = null;
-        if (temporaryKeyAuthRadio.isSelected()) {
+        if (temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected()) {
             connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
-            // Use temporary SSH key
             if (currentTemporaryKey != null && currentTemporaryKey.isValid()) {
                 tempKey = currentTemporaryKey;
-                // Store key content in connection for persistence
                 connection.setTemporaryKeyContent(tempKey.getKeyContent());
                 connection.setTemporaryKeyExpirationMinutes(tempKey.getExpirationMinutes());
-                connection.setTemporaryKeyPermanent(false); // Not permanent by default in QuickConnect
-                // Store key content temporarily in privateKeyPath (will be handled in TerminalView)
+                connection.setTemporaryKeyPermanent(false);
                 connection.setPrivateKeyPath("TEMPORARY:" + tempKey.getKeyContent());
-            } else if (temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
-                // Store new temporary key
+            } else if (temporaryKeyArea != null && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
                 String keyText = temporaryKeyArea.getText().trim();
-                long expirationMinutes = expirationMinutesSpinner.getValue();
-                tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(
-                    keyText, expirationMinutes);
-                // Store key content in connection for persistence (use tempKey content if available, raw text as fallback)
+                long expirationMinutes = expirationMinutesSpinner != null ? expirationMinutesSpinner.getValue() : 15L;
+                tempKey = TemporarySSHKeyManager.getInstance().storeTemporaryKey(keyText, expirationMinutes);
                 String keyContent = (tempKey != null) ? tempKey.getKeyContent() : keyText;
                 connection.setTemporaryKeyContent(keyContent);
                 connection.setTemporaryKeyExpirationMinutes(expirationMinutes);
-                connection.setTemporaryKeyPermanent(false); // Not permanent by default in QuickConnect
+                connection.setTemporaryKeyPermanent(false);
                 connection.setPrivateKeyPath("TEMPORARY:" + keyContent);
             }
         } else if (keyAuthRadio.isSelected()) {
@@ -1183,21 +1184,22 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 long remainingSeconds = currentTemporaryKey.getRemainingSeconds();
                 long minutes = remainingSeconds / 60;
                 long seconds = remainingSeconds % 60;
-                remainingTimeLabel.setText(I18n.get("quickConnect.remainingTime", String.format("%02d:%02d", minutes, seconds)));
-                
-                // Change color based on remaining time
-                if (remainingSeconds < 60) {
-                    remainingTimeLabel.setStyle("-fx-text-fill: #ff0000; -fx-font-weight: bold;");
-                } else if (remainingSeconds < 300) {
-                    remainingTimeLabel.setStyle("-fx-text-fill: #ffaa00; -fx-font-weight: bold;");
-                } else {
-                    remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
+                if (remainingTimeLabel != null) {
+                    remainingTimeLabel.setText(I18n.get("quickConnect.remainingTime", String.format("%02d:%02d", minutes, seconds)));
+                    if (remainingSeconds < 60) {
+                        remainingTimeLabel.setStyle("-fx-text-fill: #ff0000; -fx-font-weight: bold;");
+                    } else if (remainingSeconds < 300) {
+                        remainingTimeLabel.setStyle("-fx-text-fill: #ffaa00; -fx-font-weight: bold;");
+                    } else {
+                        remainingTimeLabel.setStyle("-fx-text-fill: #00ff00; -fx-font-weight: bold;");
+                    }
                 }
             } else {
-                // Key expired
-                remainingTimeLabel.setText(I18n.get("quickConnect.keyExpired"));
-                remainingTimeLabel.setStyle("-fx-text-fill: #ff0000; -fx-font-weight: bold;");
-                temporaryKeyArea.clear();
+                if (remainingTimeLabel != null) {
+                    remainingTimeLabel.setText(I18n.get("quickConnect.keyExpired"));
+                    remainingTimeLabel.setStyle("-fx-text-fill: #ff0000; -fx-font-weight: bold;");
+                }
+                if (temporaryKeyArea != null) temporaryKeyArea.clear();
                 currentTemporaryKey = null;
                 stopExpirationTimer();
             }
@@ -1214,7 +1216,9 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             expirationTimer.stop();
             expirationTimer = null;
         }
-        remainingTimeLabel.setText("");
+        if (remainingTimeLabel != null) {
+            remainingTimeLabel.setText("");
+        }
     }
 
 }

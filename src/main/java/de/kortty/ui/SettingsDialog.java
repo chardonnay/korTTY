@@ -67,6 +67,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
+    private final CheckBox temporarySshKeyEnabledCheck;
     
     // SSH Keep-Alive settings
     private final CheckBox sshKeepAliveCheck;
@@ -604,6 +605,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         securityGrid.add(requireMasterPasswordOnStartupCheck, 0, securityRow++, 2, 1);
         securityGrid.add(masterPasswordWarningLabel, 0, securityRow++, 2, 1);
         
+        // Temporary SSH key (Connection Manager + Quick Connect)
+        securityGrid.add(new Separator(), 0, securityRow++, 2, 1);
+        temporarySshKeyEnabledCheck = new CheckBox(I18n.get("settings.security.temporarySshKeyEnabled"));
+        temporarySshKeyEnabledCheck.setSelected(globalSettings != null && globalSettings.isTemporarySshKeyEnabled());
+        temporarySshKeyEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.security.temporarySshKeyEnabled.tooltip")));
+        securityGrid.add(temporarySshKeyEnabledCheck, 0, securityRow++, 2, 1);
+        
         securityTab.setContent(securityGrid);
         
         // Language tab
@@ -938,6 +946,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
+            globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
             
             // Save language setting
             String selectedLanguage = languageCombo.getValue();

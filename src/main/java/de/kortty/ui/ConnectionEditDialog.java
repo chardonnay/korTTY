@@ -54,13 +54,13 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private final ToggleGroup authMethodGroup;
     private final RadioButton passwordAuthRadio;
     private final RadioButton keyAuthRadio;
-    private final RadioButton temporaryKeyAuthRadio;
+    private RadioButton temporaryKeyAuthRadio; // null when global setting "temporary SSH key" is disabled
     private final TextField keyPathField;
     private final Button browseKeyButton;
     private final PasswordField keyPassphraseField;
-    private final TextArea temporaryKeyArea;
-    private final Spinner<Integer> temporaryKeyExpirationSpinner;
-    private final CheckBox temporaryKeyPermanentCheck;
+    private TextArea temporaryKeyArea;
+    private Spinner<Integer> temporaryKeyExpirationSpinner;
+    private CheckBox temporaryKeyPermanentCheck;
     
     // Connection-specific settings
     private CheckBox useCustomSettingsCheck;
@@ -118,6 +118,16 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         this.credentialManager = credentialManager;
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
+        
+        boolean temporarySshKeyEnabled = false;
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            if (gsm != null && gsm.getSettings() != null) {
+                temporarySshKeyEnabled = gsm.getSettings().isTemporarySshKeyEnabled();
+            }
+        } catch (Exception e) {
+            // use default false
+        }
         
         setTitle(existingConnection == null ? I18n.get("connEdit.newTitle") : I18n.get("connEdit.editTitle"));
         setHeaderText(null);
@@ -211,11 +221,15 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         keyAuthRadio = new RadioButton(I18n.get("connEdit.authKey"));
         keyAuthRadio.setToggleGroup(authMethodGroup);
         
-        temporaryKeyAuthRadio = new RadioButton(I18n.get("connEdit.authTempKey"));
-        temporaryKeyAuthRadio.setToggleGroup(authMethodGroup);
+        if (temporarySshKeyEnabled) {
+            temporaryKeyAuthRadio = new RadioButton(I18n.get("connEdit.authTempKey"));
+            temporaryKeyAuthRadio.setToggleGroup(authMethodGroup);
+        } else {
+            temporaryKeyAuthRadio = null;
+        }
         
         // Determine initial selection
-        if (connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
+        if (temporaryKeyAuthRadio != null && connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
             temporaryKeyAuthRadio.setSelected(true);
         } else if (connection.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
             keyAuthRadio.setSelected(true);
@@ -261,28 +275,28 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
             }
         });
         
-        // Temporary SSH Key fields
-        temporaryKeyArea = new TextArea();
-        temporaryKeyArea.setPromptText(I18n.get("connEdit.tempKeyPrompt"));
-        temporaryKeyArea.setPrefRowCount(5);
-        temporaryKeyArea.setWrapText(true);
-        
-        // Load existing temporary key if present
-        if (connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
-            temporaryKeyArea.setText(connection.getTemporaryKeyContent());
+        // Temporary SSH Key fields (only when global setting is enabled)
+        if (temporarySshKeyEnabled) {
+            temporaryKeyArea = new TextArea();
+            temporaryKeyArea.setPromptText(I18n.get("connEdit.tempKeyPrompt"));
+            temporaryKeyArea.setPrefRowCount(5);
+            temporaryKeyArea.setWrapText(true);
+            if (connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
+                temporaryKeyArea.setText(connection.getTemporaryKeyContent());
+            }
+            temporaryKeyExpirationSpinner = new Spinner<>(1, 1440,
+                connection.getTemporaryKeyExpirationMinutes() != null ?
+                    connection.getTemporaryKeyExpirationMinutes().intValue() : 60);
+            temporaryKeyExpirationSpinner.setEditable(true);
+            temporaryKeyExpirationSpinner.setPrefWidth(100);
+            temporaryKeyPermanentCheck = new CheckBox(I18n.get("connEdit.tempKeyPermanent"));
+            temporaryKeyPermanentCheck.setSelected(connection.isTemporaryKeyPermanent());
+            temporaryKeyPermanentCheck.setTooltip(new Tooltip(I18n.get("connEdit.tempKeyPermanentTooltip")));
+        } else {
+            temporaryKeyArea = null;
+            temporaryKeyExpirationSpinner = null;
+            temporaryKeyPermanentCheck = null;
         }
-        
-        temporaryKeyExpirationSpinner = new Spinner<>(1, 1440, 
-            connection.getTemporaryKeyExpirationMinutes() != null ? 
-                connection.getTemporaryKeyExpirationMinutes().intValue() : 60);
-        temporaryKeyExpirationSpinner.setEditable(true);
-        temporaryKeyExpirationSpinner.setPrefWidth(100);
-        
-        temporaryKeyPermanentCheck = new CheckBox(I18n.get("connEdit.tempKeyPermanent"));
-        temporaryKeyPermanentCheck.setSelected(connection.isTemporaryKeyPermanent());
-        temporaryKeyPermanentCheck.setTooltip(new Tooltip(
-            I18n.get("connEdit.tempKeyPermanentTooltip")
-        ));
         
         HBox keyPathBox = new HBox(5, keyPathField, browseKeyButton);
         
@@ -320,7 +334,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
         
         connectionGrid.add(new Label(I18n.get("connEdit.authentication")), 0, row);
-        HBox authBox = new HBox(15, passwordAuthRadio, keyAuthRadio, temporaryKeyAuthRadio);
+        HBox authBox = new HBox(15);
+        authBox.getChildren().addAll(passwordAuthRadio, keyAuthRadio);
+        if (temporaryKeyAuthRadio != null) {
+            authBox.getChildren().add(temporaryKeyAuthRadio);
+        }
         connectionGrid.add(authBox, 1, row++);
         
         
@@ -340,30 +358,30 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         connectionGrid.add(new Label(I18n.get("connEdit.passphrase")), 0, row);
         connectionGrid.add(keyPassphraseField, 1, row++);
         
-        // Temporary SSH Key section
-        connectionGrid.add(new Separator(), 0, row++, 2, 1);
-        connectionGrid.add(new Label(I18n.get("connEdit.tempKey")), 0, row);
-        VBox tempKeyBox = new VBox(5);
-        tempKeyBox.getChildren().add(temporaryKeyArea);
-        Button updateTempKeyButton = new Button(I18n.get("quickConnect.updateTempKey"));
-        updateTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.updateTempKey.tooltip")));
-        updateTempKeyButton.setOnAction(e -> {
-            if (temporaryKeyAuthRadio.isSelected() && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
-                long expirationMinutes = temporaryKeyExpirationSpinner.getValue();
-                de.kortty.core.TemporarySSHKeyManager.getInstance().storeTemporaryKey(
-                    temporaryKeyArea.getText().trim(), expirationMinutes);
-            }
-        });
-        tempKeyBox.getChildren().add(updateTempKeyButton);
-        connectionGrid.add(tempKeyBox, 1, row++);
-        
-        connectionGrid.add(new Label(I18n.get("connEdit.expiration")), 0, row);
-        HBox expirationBox = new HBox(10);
-        expirationBox.getChildren().addAll(temporaryKeyExpirationSpinner, new Label(I18n.get("quickConnect.expirationMinutes")));
-        connectionGrid.add(expirationBox, 1, row++);
-        
-        connectionGrid.add(new Label(""), 0, row);
-        connectionGrid.add(temporaryKeyPermanentCheck, 1, row++);
+        // Temporary SSH Key section (only when global setting is enabled)
+        if (temporaryKeyAuthRadio != null && temporaryKeyArea != null) {
+            connectionGrid.add(new Separator(), 0, row++, 2, 1);
+            connectionGrid.add(new Label(I18n.get("connEdit.tempKey")), 0, row);
+            VBox tempKeyBox = new VBox(5);
+            tempKeyBox.getChildren().add(temporaryKeyArea);
+            Button updateTempKeyButton = new Button(I18n.get("quickConnect.updateTempKey"));
+            updateTempKeyButton.setTooltip(new Tooltip(I18n.get("quickConnect.updateTempKey.tooltip")));
+            updateTempKeyButton.setOnAction(e -> {
+                if (temporaryKeyAuthRadio.isSelected() && temporaryKeyArea.getText() != null && !temporaryKeyArea.getText().trim().isEmpty()) {
+                    long expirationMinutes = temporaryKeyExpirationSpinner.getValue();
+                    de.kortty.core.TemporarySSHKeyManager.getInstance().storeTemporaryKey(
+                        temporaryKeyArea.getText().trim(), expirationMinutes);
+                }
+            });
+            tempKeyBox.getChildren().add(updateTempKeyButton);
+            connectionGrid.add(tempKeyBox, 1, row++);
+            connectionGrid.add(new Label(I18n.get("connEdit.expiration")), 0, row);
+            HBox expirationBox = new HBox(10);
+            expirationBox.getChildren().addAll(temporaryKeyExpirationSpinner, new Label(I18n.get("quickConnect.expirationMinutes")));
+            connectionGrid.add(expirationBox, 1, row++);
+            connectionGrid.add(new Label(""), 0, row);
+            connectionGrid.add(temporaryKeyPermanentCheck, 1, row++);
+        }
         
         connectionTab.setContent(connectionGrid);
         
@@ -634,7 +652,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     
     private void updateAuthFields() {
         boolean useKey = keyAuthRadio.isSelected();
-        boolean useTemporaryKey = temporaryKeyAuthRadio.isSelected();
+        boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
         boolean usePassword = passwordAuthRadio.isSelected();
         
         passwordField.setDisable(useKey || useTemporaryKey);
@@ -644,9 +662,11 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         browseKeyButton.setDisable(!useKey || useTemporaryKey);
         keyPassphraseField.setDisable(!useKey || useTemporaryKey);
         
-        temporaryKeyArea.setDisable(!useTemporaryKey);
-        temporaryKeyExpirationSpinner.setDisable(!useTemporaryKey);
-        temporaryKeyPermanentCheck.setDisable(!useTemporaryKey);
+        if (temporaryKeyArea != null) {
+            temporaryKeyArea.setDisable(!useTemporaryKey);
+            temporaryKeyExpirationSpinner.setDisable(!useTemporaryKey);
+            temporaryKeyPermanentCheck.setDisable(!useTemporaryKey);
+        }
     }
     
     private void validateForm(Button saveButton) {
