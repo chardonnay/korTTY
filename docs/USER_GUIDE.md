@@ -1,6 +1,6 @@
 # KorTTY User Guide
 
-> **Version 1.7.0** | [Back to README](../README.md)
+> **Version 1.8.0** | [Back to README](../README.md)
 
 ---
 

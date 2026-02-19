@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+_(No changes yet.)_
+
+---
+
+## 1.8.0
+
+**Release date:** February 2026
+
 ### Dynamic Translation (i18n)
 
 - **Translation tab in Settings**: New tab **Translation** under Global Settings to generate language files for any language using a translation API.
@@ -10,6 +18,11 @@
 - **Test connection**: Button **Test API Connection** to verify API key and connectivity before generating.
 - **Outdated translations after upgrade**: Generated files store the app version. When the app is upgraded, **Settings → Translation** shows which language files are outdated and offers **Regenerate outdated** to regenerate all of them in one go so new or changed keys are translated again.
 - **Configuration**: `~/.kortty/i18n/` holds dynamically generated language files; API provider and encrypted key in `global-settings.xml`.
+
+### ASCII Art Banner and UI
+
+- **Temporary SSH key option**: Option to use a temporary SSH key is only shown in Connection Manager and Quick Connect when enabled in **Settings → Security** (default: off).
+- **ASCII Art dialog**: Window geometry is saved and restored; prev/next style buttons and arrow keys to change font style; banner font fixed for jfiglet; added big and lean fonts.
 
 ---
 
