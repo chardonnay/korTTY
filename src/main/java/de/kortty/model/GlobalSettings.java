@@ -70,6 +70,18 @@ public class GlobalSettings {
     @XmlElement
     private String language; // Language code (e.g., "en", "de", "fr") - null means auto-detect
     
+    /** Translation API provider for dynamic i18n (Google Translate or DeepL). */
+    @XmlElement
+    private TranslationApiProvider translationApiProvider;
+    
+    /** Encrypted API key for translation service (decrypted with master password). */
+    @XmlElement
+    private String encryptedTranslationApiKey;
+    
+    /** Optional custom API URL for translation service (null = use provider default). */
+    @XmlElement
+    private String translationApiUrl;
+    
     // Default terminal settings for new connections
     @XmlElement
     private ConnectionSettings defaultTerminalSettings;
@@ -145,6 +157,10 @@ public class GlobalSettings {
     
     @XmlElement
     private WindowGeometry snippetEditGeometry;
+    
+    /** Last window geometry of the ASCII Art Banner dialog. */
+    @XmlElement
+    private WindowGeometry asciiArtDialogGeometry;
     
     // Teamwork: shared connection sources (Git or shared file)
     @XmlElementWrapper(name = "teamworkSources")
@@ -337,6 +353,30 @@ public class GlobalSettings {
     
     public void setLanguage(String language) {
         this.language = language;
+    }
+    
+    public TranslationApiProvider getTranslationApiProvider() {
+        return translationApiProvider;
+    }
+    
+    public void setTranslationApiProvider(TranslationApiProvider translationApiProvider) {
+        this.translationApiProvider = translationApiProvider;
+    }
+    
+    public String getEncryptedTranslationApiKey() {
+        return encryptedTranslationApiKey;
+    }
+    
+    public void setEncryptedTranslationApiKey(String encryptedTranslationApiKey) {
+        this.encryptedTranslationApiKey = encryptedTranslationApiKey;
+    }
+    
+    public String getTranslationApiUrl() {
+        return translationApiUrl;
+    }
+    
+    public void setTranslationApiUrl(String translationApiUrl) {
+        this.translationApiUrl = translationApiUrl;
     }
     
     public ConnectionSettings getDefaultTerminalSettings() {
@@ -559,6 +599,9 @@ public class GlobalSettings {
     
     public WindowGeometry getSnippetEditGeometry() { return snippetEditGeometry; }
     public void setSnippetEditGeometry(WindowGeometry snippetEditGeometry) { this.snippetEditGeometry = snippetEditGeometry; }
+    
+    public WindowGeometry getAsciiArtDialogGeometry() { return asciiArtDialogGeometry; }
+    public void setAsciiArtDialogGeometry(WindowGeometry asciiArtDialogGeometry) { this.asciiArtDialogGeometry = asciiArtDialogGeometry; }
     
     // ---- Teamwork ----
     

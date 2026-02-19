@@ -2,7 +2,14 @@
 
 ## Unreleased
 
-_(None)_
+### Dynamic Translation (i18n)
+
+- **Translation tab in Settings**: New tab **Translation** under Global Settings to generate language files for any language using a translation API.
+- **Supported providers**: Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex. API key is stored encrypted (optional for LibreTranslate on public instances). Optional custom API URL for self-hosted or regional endpoints.
+- **Generate language file**: Select target language, click **Generate Language File**; file is saved to `~/.kortty/i18n/messages_XX.properties`. Generated languages appear in **Settings → Language** after restart.
+- **Test connection**: Button **Test API Connection** to verify API key and connectivity before generating.
+- **Outdated translations after upgrade**: Generated files store the app version. When the app is upgraded, **Settings → Translation** shows which language files are outdated and offers **Regenerate outdated** to regenerate all of them in one go so new or changed keys are translated again.
+- **Configuration**: `~/.kortty/i18n/` holds dynamically generated language files; API provider and encrypted key in `global-settings.xml`.
 
 ---
 

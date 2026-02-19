@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import de.kortty.KorTTYApplication;
 import de.kortty.model.GlobalSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.PropertyResourceBundle;
@@ -124,28 +130,32 @@ public class LanguageManager {
     }
     
     /**
-     * Detects if the system locale is supported, otherwise returns English.
+     * Detects if the system locale is supported (static or dynamic), otherwise returns English.
      */
     private Locale detectSupportedLocale(Locale systemLocale) {
-        // Check exact match first
+        String lang = systemLocale.getLanguage();
         for (Locale supported : SUPPORTED_LOCALES) {
-            if (supported.getLanguage().equals(systemLocale.getLanguage())) {
+            if (supported.getLanguage().equals(lang)) {
                 return supported;
             }
         }
-        // Default to English
+        for (Locale dynamic : getAvailableDynamicLocales()) {
+            if (dynamic.getLanguage().equals(lang)) {
+                return dynamic;
+            }
+        }
         return Locale.ENGLISH;
     }
     
     /**
      * Sets the current locale and reloads the resource bundle.
+     * Accepts both static (SUPPORTED_LOCALES) and dynamic (generated) locales.
      */
     public void setLocale(Locale locale) {
         if (locale == null) {
             locale = Locale.ENGLISH;
         }
         
-        // Verify locale is supported
         boolean supported = false;
         Locale previousLocale = currentLocale;
         for (Locale supportedLocale : SUPPORTED_LOCALES) {
@@ -155,13 +165,20 @@ public class LanguageManager {
                 break;
             }
         }
-        
+        if (!supported) {
+            for (Locale dynamic : getAvailableDynamicLocales()) {
+                if (dynamic.getLanguage().equals(locale.getLanguage())) {
+                    supported = true;
+                    currentLocale = dynamic;
+                    break;
+                }
+            }
+        }
         if (!supported) {
             logger.warn("Locale {} is not supported, falling back to English", locale);
             currentLocale = Locale.ENGLISH;
         }
         
-        // Only reload if locale actually changed
         if (previousLocale == null || !previousLocale.getLanguage().equals(currentLocale.getLanguage())) {
             logger.debug("Locale changed from {} to {}, reloading resource bundle", previousLocale, currentLocale);
             loadResourceBundle();
@@ -185,23 +202,120 @@ public class LanguageManager {
     
     /**
      * Loads the resource bundle for the current locale.
-     * Clears the ResourceBundle cache to ensure the correct locale is used.
+     * First tries dynamic file under ~/.kortty/i18n/messages_XX.properties, then classpath.
+     * Clears the ResourceBundle cache to force reload with new locale.
      */
     private void loadResourceBundle() {
+        java.util.ResourceBundle.clearCache();
         try {
-            // Clear ResourceBundle cache to force reload with new locale
-            // This is important when changing languages at runtime
-            java.util.ResourceBundle.clearCache();
-            
+            ResourceBundle fromFile = loadBundleFromConfigDir(currentLocale);
+            if (fromFile != null) {
+                resourceBundle = fromFile;
+                logger.info("Loaded resource bundle from config dir for locale: {} (language: {})", currentLocale, currentLocale.getLanguage());
+                return;
+            }
             resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, currentLocale, UTF8_CONTROL);
             logger.info("Loaded resource bundle for locale: {} (language: {})", currentLocale, currentLocale.getLanguage());
         } catch (MissingResourceException e) {
             logger.error("Failed to load resource bundle for locale: {}, falling back to English", currentLocale, e);
             java.util.ResourceBundle.clearCache();
-            resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, Locale.ENGLISH, UTF8_CONTROL);
+            ResourceBundle fromFile = loadBundleFromConfigDir(Locale.ENGLISH);
+            if (fromFile != null) {
+                resourceBundle = fromFile;
+            } else {
+                resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, Locale.ENGLISH, UTF8_CONTROL);
+            }
         }
     }
-    
+
+    /**
+     * Tries to load a properties bundle from config directory (~/.kortty/i18n/messages_XX.properties).
+     * Returns null if file does not exist or cannot be read.
+     */
+    private ResourceBundle loadBundleFromConfigDir(Locale locale) {
+        try {
+            Path configDir = KorTTYApplication.getConfigDirectory();
+            Path file = configDir.resolve("i18n").resolve("messages_" + locale.getLanguage() + ".properties");
+            if (!Files.isRegularFile(file)) {
+                return null;
+            }
+            try (InputStream in = Files.newInputStream(file)) {
+                return new PropertyResourceBundle(new InputStreamReader(in, StandardCharsets.UTF_8));
+            }
+        } catch (Exception e) {
+            logger.debug("Could not load bundle from config dir for {}: {}", locale, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Returns locales that have a dynamically generated properties file in ~/.kortty/i18n/.
+     */
+    public static List<Locale> getAvailableDynamicLocales() {
+        List<Locale> list = new ArrayList<>();
+        try {
+            Path i18nDir = KorTTYApplication.getConfigDirectory().resolve("i18n");
+            if (!Files.isDirectory(i18nDir)) {
+                return list;
+            }
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(i18nDir, "messages_*.properties")) {
+                for (Path p : stream) {
+                    String name = p.getFileName().toString();
+                    String lang = name.replace("messages_", "").replace(".properties", "");
+                    if (!lang.isEmpty()) {
+                        list.add(Locale.forLanguageTag(lang));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not list dynamic i18n dir: {}", e.getMessage());
+        }
+        return list;
+    }
+
+    /**
+     * Returns dynamic locales whose generated file was created with an older app version
+     * (or has no version header). These should be regenerated after an upgrade to include new keys.
+     */
+    public static List<Locale> getOutdatedDynamicLocales() {
+        String currentVersion = KorTTYApplication.getAppVersion();
+        if (currentVersion == null) return new ArrayList<>();
+        List<Locale> outdated = new ArrayList<>();
+        try {
+            Path i18nDir = KorTTYApplication.getConfigDirectory().resolve("i18n");
+            if (!Files.isDirectory(i18nDir)) return outdated;
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(i18nDir, "messages_*.properties")) {
+                for (Path p : stream) {
+                    String name = p.getFileName().toString();
+                    String lang = name.replace("messages_", "").replace(".properties", "");
+                    if (lang.isEmpty()) continue;
+                    String fileVersion = DynamicLanguageGenerator.readGeneratedVersion(p);
+                    if (fileVersion == null || !fileVersion.equals(currentVersion)) {
+                        outdated.add(Locale.forLanguageTag(lang));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not check outdated dynamic locales: {}", e.getMessage());
+        }
+        return outdated;
+    }
+
+    /**
+     * Returns true if the given locale is either in SUPPORTED_LOCALES or has a dynamic properties file.
+     */
+    public static boolean isLocaleAvailable(Locale locale) {
+        if (locale == null) return false;
+        String lang = locale.getLanguage();
+        for (Locale supported : SUPPORTED_LOCALES) {
+            if (supported.getLanguage().equals(lang)) return true;
+        }
+        for (Locale dynamic : getAvailableDynamicLocales()) {
+            if (dynamic.getLanguage().equals(lang)) return true;
+        }
+        return false;
+    }
+
     /**
      * Gets a translated string for the given key.
      * Returns the key itself if translation is not found.

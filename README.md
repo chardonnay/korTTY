@@ -22,7 +22,7 @@
 - **Window Geometry Storage**: Automatic restoration of window position and size
 - **Dashboard State Storage**: Automatic restoration of dashboard state
 - **Backup & Restore**: Create encrypted backups (password or GPG) and import them
-- **Multilanguage Support**: Available in English, German, Italian, Spanish, Portuguese, French, Croatian, and Dutch
+- **Multilanguage Support**: Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) plus **dynamic translation**: generate language files for any language via translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex) in Settings → Translation
 - **Quick Connect**: Fast connection dialog with frequently used connections and group support
 - **SSH Tunnels**: Local and remote port forwarding (SSH tunnels)
 - **Jump Server**: Support for bastion hosts (SSH hopping)
@@ -334,6 +334,7 @@ All configuration files are stored under `~/.kortty/`:
 ├── kortty.log          # Log file
 ├── history/            # Terminal history (compressed)
 ├── projects/           # Project files (.kortty)
+├── i18n/               # Dynamically generated language files (messages_XX.properties)
 └── ssh-keys/           # Copied SSH keys (optional)
 ```
 
@@ -627,9 +628,9 @@ Configure connection behavior for unreliable networks:
 
 ## Multilanguage Support
 
-KorTTY supports multiple languages and automatically detects your system language:
+KorTTY supports multiple languages and automatically detects your system language.
 
-### Supported Languages
+### Built-in Languages
 
 - English (default)
 - German
@@ -640,16 +641,27 @@ KorTTY supports multiple languages and automatically detects your system languag
 - Croatian
 - Dutch
 
-### Usage
+### Dynamic Translation (Additional Languages)
 
-1. **Change Language**:
-   - **Settings → Language**
-   - Select desired language from dropdown
-   - Language change takes effect after application restart
+You can generate language files for **any language** using a translation API:
 
-2. **Auto-Detect**:
-   - Select "Auto-detect (System Language)" to use your system's language
-   - The application will automatically detect and use your system language
+1. **Settings → Translation**
+2. Choose a **Translation API** (Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex). *Note: Yandex uses the deprecated v1.5 API and requires a legacy API key.*
+3. Enter your **API key** (optional for LibreTranslate on public instances). The key is stored encrypted with your master password.
+4. Optionally set a **custom API URL** (e.g. for self-hosted LibreTranslate).
+5. Click **Test API Connection** to verify the setup.
+6. Select the **target language** and click **Generate Language File**. The file is saved under `~/.kortty/i18n/`.
+7. The new language appears in **Settings → Language** and can be selected after restart.
+
+**After an upgrade:** If the app version changes, generated language files are detected as outdated. In **Settings → Translation** a hint is shown and **Regenerate outdated** lets you refresh all generated languages so new or changed keys are translated again.
+
+### Changing Language
+
+1. **Settings → Language**
+2. Select the desired language (built-in or any previously generated language).
+3. Language change takes effect after application restart.
+
+**Auto-detect:** Select "Auto-detect (System Language)" to use your system's language.
 
 ## SFTP Manager
 

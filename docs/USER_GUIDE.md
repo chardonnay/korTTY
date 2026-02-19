@@ -41,7 +41,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 - **ASCII Art Banner** generator with 11+ FIGlet font styles
 - **SSH tunnels** (local, remote, dynamic) and jump server support
 - **Backup and restore** with password-protected ZIP or GPG encryption
-- **8 languages**: English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch
+- **8 built-in languages** plus **dynamic translation**: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
 - **JMX monitoring** for active connections and memory usage
 
 ### System Requirements
@@ -841,18 +841,35 @@ See [Backup Settings](#134-backup-settings).
 
 ### 15.7 Language
 
-Select from 8 supported languages or use **Auto-detect** to match your system locale:
+Select the application language:
 
-- English (default)
-- German
-- Italian
-- Spanish
-- Portuguese
-- French
-- Croatian
-- Dutch
+- **Built-in languages**: English (default), German, Italian, Spanish, Portuguese, French, Croatian, Dutch.
+- **Auto-detect**: Choose "Auto-detect (System Language)" to use your system locale.
+- **Dynamically generated languages**: Any language you have generated via **Settings → Translation** also appears in the list.
 
 Language changes take effect after restarting the application.
+
+### 15.8 Translation (Dynamic Language Files)
+
+You can generate language files for **any language** using a translation API, so the UI is translated without maintaining properties files manually.
+
+**Setup:**
+
+1. Open **Settings → Translation**.
+2. **Translation API**: Choose Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex.
+3. **API Key**: Enter your API key (required for all except LibreTranslate on some public instances). The key is stored encrypted with your master password.
+4. **API URL** (optional): Override the default endpoint (e.g. for self-hosted LibreTranslate).
+5. Click **Test API Connection** to verify the key and network.
+
+**Generate a language file:**
+
+1. Select the **Target language** from the list (one entry per language, no duplicates).
+2. Click **Generate Language File**. Progress is shown; the file is written to `~/.kortty/i18n/messages_XX.properties`.
+3. The new language then appears in **Settings → Language** and can be selected after restart.
+
+**Generated languages list:** All generated files are listed. Use **Delete** to remove a generated language file.
+
+**After an upgrade:** When you upgrade KorTTY, translation keys often change. Generated language files store the app version. If a file was created with an older version, **Settings → Translation** shows a hint and a **Regenerate outdated** button. Click it to regenerate all outdated languages in one go (with progress). New and changed keys will then be translated again.
 
 ---
 
@@ -902,6 +919,7 @@ All KorTTY data is stored under `~/.kortty/`:
   kortty.log               # Application log
   history/                 # Terminal history (compressed)
   projects/                # Project files (.kortty)
+  i18n/                    # Dynamically generated language files (messages_XX.properties)
   ssh-keys/                # Copied SSH keys (optional)
 ```
 

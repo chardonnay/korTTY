@@ -4,18 +4,29 @@ import de.kortty.KorTTYApplication;
 import de.kortty.ui.I18n;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.DynamicLanguageGenerator;
 import de.kortty.core.GPGKeyManager;
+import de.kortty.core.GoogleTranslationService;
+import de.kortty.core.DeepLTranslationService;
+import de.kortty.core.LibreTranslateTranslationService;
+import de.kortty.core.MicrosoftTranslationService;
+import de.kortty.core.YandexTranslationService;
+import de.kortty.core.LanguageManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
+import de.kortty.core.TranslationService;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.Theme;
+import de.kortty.model.TranslationApiProvider;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
 import de.kortty.model.WindowGeometry;
 import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.PasswordVault;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -26,8 +37,11 @@ import javafx.scene.text.Font;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * Dialog for editing global terminal settings.
@@ -94,6 +108,16 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     
     // Language settings
     private final ComboBox<String> languageCombo;
+    
+    // Translation (dynamic i18n) settings
+    private final ComboBox<TranslationApiProvider> translationProviderCombo;
+    private final PasswordField translationApiKeyField;
+    private final TextField translationApiUrlField;
+    private final ComboBox<Locale> translationTargetLanguageCombo;
+    private final ListView<Locale> translationGeneratedList;
+    private final ProgressIndicator translationProgressIndicator;
+    private Label translationOutdatedLabelRef;
+    private Button translationRegenerateOutdatedButtonRef;
     
     // SFTP settings
     private final CheckBox sftpAutoCloseEnabledCheck;
@@ -631,13 +655,19 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         languageCombo.getItems().add(I18n.get("settings.language.french"));
         languageCombo.getItems().add(I18n.get("settings.language.croatian"));
         languageCombo.getItems().add(I18n.get("settings.language.dutch"));
+        // Add dynamically generated languages (not already in static list)
+        java.util.Set<String> staticCodes = java.util.Set.of("en", "de", "it", "es", "pt", "fr", "hr", "nl");
+        for (Locale dyn : LanguageManager.getAvailableDynamicLocales()) {
+            if (dyn.getLanguage() != null && !staticCodes.contains(dyn.getLanguage())) {
+                languageCombo.getItems().add(LanguageManager.getLocaleDisplayName(dyn) + " (" + dyn.getLanguage() + ")");
+            }
+        }
         
         // Set current language
         String currentLang = globalSettings != null ? globalSettings.getLanguage() : null;
         if (currentLang == null || currentLang.isEmpty()) {
             languageCombo.setValue(I18n.get("settings.language.autoDetect"));
         } else {
-            // Map language codes to display names
             switch (currentLang.toLowerCase()) {
                 case "en": languageCombo.setValue(I18n.get("settings.language.english")); break;
                 case "de": languageCombo.setValue(I18n.get("settings.language.german")); break;
@@ -647,8 +677,20 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 case "fr": languageCombo.setValue(I18n.get("settings.language.french")); break;
                 case "hr": languageCombo.setValue(I18n.get("settings.language.croatian")); break;
                 case "nl": languageCombo.setValue(I18n.get("settings.language.dutch")); break;
-                default: languageCombo.setValue(I18n.get("settings.language.autoDetect"));
+                default:
+                    String dynamicDisplay = null;
+                    for (Locale dyn : LanguageManager.getAvailableDynamicLocales()) {
+                        if (currentLang.equalsIgnoreCase(dyn.getLanguage())) {
+                            dynamicDisplay = LanguageManager.getLocaleDisplayName(dyn) + " (" + dyn.getLanguage() + ")";
+                            break;
+                        }
+                    }
+                    languageCombo.setValue(dynamicDisplay != null ? dynamicDisplay : I18n.get("settings.language.autoDetect"));
+                    break;
             }
+        }
+        if (languageCombo.getValue() == null) {
+            languageCombo.setValue(I18n.get("settings.language.autoDetect"));
         }
         
         languageGrid.add(new Label(I18n.get("settings.language.select")), 0, 0);
@@ -660,6 +702,119 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         languageGrid.add(languageInfo, 0, 1, 2, 1);
         
         languageTab.setContent(languageGrid);
+        
+        // Translation tab (dynamic i18n)
+        Tab translationTab = new Tab(I18n.get("settings.tab.translation"));
+        GridPane translationGrid = new GridPane();
+        translationGrid.setHgap(10);
+        translationGrid.setVgap(10);
+        translationGrid.setPadding(new Insets(20));
+        int transRow = 0;
+        translationGrid.add(new Label(I18n.get("settings.translation.systemLanguage")), 0, transRow);
+        translationGrid.add(new Label(java.util.Locale.getDefault().getDisplayLanguage()), 1, transRow++);
+        translationGrid.add(new Label(I18n.get("settings.translation.provider")), 0, transRow);
+        translationProviderCombo = new ComboBox<>();
+        translationProviderCombo.getItems().addAll(
+            TranslationApiProvider.GOOGLE_TRANSLATE,
+            TranslationApiProvider.DEEPL,
+            TranslationApiProvider.LIBRETRANSLATE,
+            TranslationApiProvider.MICROSOFT,
+            TranslationApiProvider.YANDEX
+        );
+        translationProviderCombo.setConverter(new javafx.util.StringConverter<TranslationApiProvider>() {
+            @Override
+            public String toString(TranslationApiProvider p) {
+                if (p == null) return "";
+                switch (p) {
+                    case GOOGLE_TRANSLATE: return I18n.get("settings.translation.provider.google");
+                    case DEEPL: return I18n.get("settings.translation.provider.deepl");
+                    case LIBRETRANSLATE: return I18n.get("settings.translation.provider.libretranslate");
+                    case MICROSOFT: return I18n.get("settings.translation.provider.microsoft");
+                    case YANDEX: return I18n.get("settings.translation.provider.yandex");
+                    default: return p.name();
+                }
+            }
+            @Override
+            public TranslationApiProvider fromString(String s) { return null; }
+        });
+        if (globalSettings != null && globalSettings.getTranslationApiProvider() != null) {
+            translationProviderCombo.setValue(globalSettings.getTranslationApiProvider());
+        } else {
+            translationProviderCombo.setValue(TranslationApiProvider.GOOGLE_TRANSLATE);
+        }
+        translationProviderCombo.setPrefWidth(220);
+        translationGrid.add(translationProviderCombo, 1, transRow++);
+        translationGrid.add(new Label(I18n.get("settings.translation.apiKey")), 0, transRow);
+        translationApiKeyField = new PasswordField();
+        translationApiKeyField.setPrefWidth(280);
+        translationApiKeyField.setPromptText(I18n.get("settings.translation.apiKey"));
+        translationGrid.add(translationApiKeyField, 1, transRow++);
+        translationGrid.add(new Label(I18n.get("settings.translation.apiUrl")), 0, transRow);
+        translationApiUrlField = new TextField();
+        translationApiUrlField.setPrefWidth(280);
+        if (globalSettings != null && globalSettings.getTranslationApiUrl() != null) {
+            translationApiUrlField.setText(globalSettings.getTranslationApiUrl());
+        }
+        translationGrid.add(translationApiUrlField, 1, transRow++);
+        Button testConnectionButton = new Button(I18n.get("settings.translation.testConnection"));
+        testConnectionButton.setOnAction(e -> testTranslationConnection());
+        translationGrid.add(testConnectionButton, 1, transRow++);
+        translationGrid.add(new Label(I18n.get("settings.translation.targetLanguage")), 0, transRow);
+        translationTargetLanguageCombo = new ComboBox<>();
+        // One entry per language code to avoid duplicates (e.g. en_US, en_GB, en all show "English")
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        List<Locale> allLocales = Arrays.stream(Locale.getAvailableLocales())
+            .filter(l -> l.getLanguage() != null && !l.getLanguage().isEmpty())
+            .filter(l -> seen.add(l.getLanguage()))
+            .sorted((a, b) -> a.getDisplayLanguage().compareToIgnoreCase(b.getDisplayLanguage()))
+            .collect(Collectors.toList());
+        translationTargetLanguageCombo.getItems().addAll(allLocales);
+        translationTargetLanguageCombo.setConverter(new javafx.util.StringConverter<Locale>() {
+            @Override
+            public String toString(Locale l) {
+                return l == null ? "" : l.getDisplayLanguage() + " (" + l.getLanguage() + ")";
+            }
+            @Override
+            public Locale fromString(String s) { return null; }
+        });
+        translationTargetLanguageCombo.setPrefWidth(220);
+        java.util.Locale systemLocale = java.util.Locale.getDefault();
+        translationTargetLanguageCombo.setValue(systemLocale);
+        translationGrid.add(translationTargetLanguageCombo, 1, transRow++);
+        Button generateButton = new Button(I18n.get("settings.translation.generateFile"));
+        translationProgressIndicator = new ProgressIndicator(-1);
+        translationProgressIndicator.setVisible(false);
+        HBox generateBox = new HBox(10, generateButton, translationProgressIndicator);
+        generateBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        generateButton.setOnAction(ev -> generateTranslationFile(generateButton));
+        translationGrid.add(generateBox, 1, transRow++);
+        translationGrid.add(new Label(I18n.get("settings.translation.generatedLanguages")), 0, transRow);
+        translationOutdatedLabelRef = new Label();
+        translationOutdatedLabelRef.setWrapText(true);
+        translationOutdatedLabelRef.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        translationOutdatedLabelRef.setVisible(false);
+        translationRegenerateOutdatedButtonRef = new Button(I18n.get("settings.translation.regenerateOutdated"));
+        translationRegenerateOutdatedButtonRef.setVisible(false);
+        translationRegenerateOutdatedButtonRef.setOnAction(ev -> regenerateOutdatedTranslations(translationRegenerateOutdatedButtonRef, translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef));
+        VBox generatedBox = new VBox(5,
+            translationOutdatedLabelRef,
+            translationRegenerateOutdatedButtonRef,
+            translationGeneratedList = new ListView<>(),
+            new Button(I18n.get("settings.translation.delete")) {{
+                setOnAction(e -> deleteSelectedGeneratedLanguage());
+            }}
+        );
+        translationGeneratedList.setPrefHeight(120);
+        translationGeneratedList.setCellFactory(lv -> new ListCell<Locale>() {
+            @Override
+            protected void updateItem(Locale item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getDisplayLanguage() + " (" + item.getLanguage() + ")");
+            }
+        });
+        refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
+        translationGrid.add(generatedBox, 1, transRow++);
+        translationTab.setContent(translationGrid);
         
         // SFTP tab
         Tab sftpTab = new Tab(I18n.get("settings.tab.sftp"));
@@ -861,7 +1016,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         // Themes tab
         Tab themesTab = createThemesTab(owner);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab);
         
         VBox content = new VBox(tabPane);
         content.setFillWidth(true);
@@ -886,8 +1041,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         
         setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
-                applySettings();
-                
+                if (!applySettings()) {
+                    return null; // abort save and keep dialog open (e.g. vault locked when saving translation API key)
+                }
+
                 // Save settings to both ConnectionSettings and GlobalSettings
                 configManager.setGlobalSettings(settings);
                 globalSettings.setDefaultTerminalSettings(new ConnectionSettings(settings));
@@ -901,8 +1058,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                         de.kortty.core.LanguageManager.getInstance().setLocale(globalSettings.getLanguage());
                     } else if (globalSettings != null && globalSettings.getLanguage() == null) {
                         // Auto-detect: use system locale
-                        java.util.Locale systemLocale = java.util.Locale.getDefault();
-                        de.kortty.core.LanguageManager.getInstance().setLocale(systemLocale);
+                        java.util.Locale defaultLocale = java.util.Locale.getDefault();
+                        de.kortty.core.LanguageManager.getInstance().setLocale(defaultLocale);
                     }
                 } catch (Exception e) {
                     org.slf4j.LoggerFactory.getLogger(getClass())
@@ -918,7 +1075,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         });
     }
     
-    private void applySettings() {
+    /** @return true if save may continue, false to abort (e.g. vault locked and translation API key cannot be encrypted) */
+    private boolean applySettings() {
         settings.setFontFamily(fontFamilyCombo.getValue());
         settings.setFontSize(fontSizeSpinner.getValue());
         settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
@@ -954,7 +1112,6 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             if (selectedLanguage == null || selectedLanguage.equals(autoDetectText)) {
                 globalSettings.setLanguage(null); // null means auto-detect
             } else {
-                // Map display names to language codes
                 String langCode = null;
                 if (selectedLanguage.equals(I18n.get("settings.language.english"))) langCode = "en";
                 else if (selectedLanguage.equals(I18n.get("settings.language.german"))) langCode = "de";
@@ -964,7 +1121,42 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 else if (selectedLanguage.equals(I18n.get("settings.language.french"))) langCode = "fr";
                 else if (selectedLanguage.equals(I18n.get("settings.language.croatian"))) langCode = "hr";
                 else if (selectedLanguage.equals(I18n.get("settings.language.dutch"))) langCode = "nl";
+                else {
+                    // Dynamic language: format is "DisplayName (xx)"
+                    int paren = selectedLanguage != null ? selectedLanguage.lastIndexOf('(') : -1;
+                    if (paren >= 0 && selectedLanguage.endsWith(")")) {
+                        langCode = selectedLanguage.substring(paren + 1, selectedLanguage.length() - 1).trim();
+                    }
+                }
                 globalSettings.setLanguage(langCode);
+            }
+            
+            // Translation API settings
+            globalSettings.setTranslationApiProvider(translationProviderCombo.getValue());
+            String apiUrl = translationApiUrlField.getText();
+            globalSettings.setTranslationApiUrl(apiUrl != null && !apiUrl.trim().isEmpty() ? apiUrl.trim() : null);
+            String apiKeyPlain = translationApiKeyField.getText();
+            if (apiKeyPlain != null && !apiKeyPlain.isEmpty()) {
+                char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+                if (masterPassword == null) {
+                    Alert vaultLocked = new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.vaultLocked"));
+                    vaultLocked.setHeaderText(null);
+                    vaultLocked.showAndWait();
+                    // Abort save so dialog stays open; do not call setEncryptedTranslationApiKey
+                    return false;
+                } else {
+                    try {
+                        de.kortty.security.EncryptionService enc = new de.kortty.security.EncryptionService();
+                        String encrypted = enc.encryptPassword(apiKeyPlain, masterPassword);
+                        globalSettings.setEncryptedTranslationApiKey(encrypted);
+                    } catch (Exception ex) {
+                        org.slf4j.LoggerFactory.getLogger(getClass()).warn("Could not encrypt translation API key", ex);
+                        Alert err = new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.generationFailed") + ": " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()));
+                        err.setHeaderText(null);
+                        err.showAndWait();
+                        // Do not overwrite existing encrypted key; plain key remains in field
+                    }
+                }
             }
             
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
@@ -1034,6 +1226,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             
             globalSettings.setSnippetCursorColor(toHex(snippetCursorColorPicker.getValue()));
         }
+        return true;
     }
     
     private void updatePreviewFont(Label previewLabel) {
@@ -1416,5 +1609,189 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 error.showAndWait();
             }
         });
+    }
+
+    private TranslationService createTranslationService() {
+        String key = getTranslationApiKeyPlain();
+        TranslationApiProvider provider = translationProviderCombo.getValue();
+        if (provider == null) provider = TranslationApiProvider.GOOGLE_TRANSLATE;
+        String url = translationApiUrlField.getText();
+        String urlTrimmed = (url != null && !url.trim().isEmpty()) ? url.trim() : null;
+        switch (provider) {
+            case GOOGLE_TRANSLATE:
+                if (key == null || key.isEmpty()) return null;
+                return new GoogleTranslationService(key, urlTrimmed);
+            case DEEPL:
+                if (key == null || key.isEmpty()) return null;
+                return new DeepLTranslationService(key, urlTrimmed);
+            case LIBRETRANSLATE:
+                return new LibreTranslateTranslationService(key != null ? key : "", urlTrimmed);
+            case MICROSOFT:
+                if (key == null || key.isEmpty()) return null;
+                return new MicrosoftTranslationService(key, urlTrimmed, null);
+            case YANDEX:
+                if (key == null || key.isEmpty()) return null;
+                return new YandexTranslationService(key, urlTrimmed);
+            default:
+                return key != null && !key.isEmpty() ? new GoogleTranslationService(key, urlTrimmed) : null;
+        }
+    }
+
+    private String getTranslationApiKeyPlain() {
+        String fromField = translationApiKeyField.getText();
+        if (fromField != null && !fromField.isEmpty()) return fromField;
+        String encrypted = globalSettings != null ? globalSettings.getEncryptedTranslationApiKey() : null;
+        if (encrypted == null || encrypted.isEmpty()) return null;
+        try {
+            char[] master = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+            if (master == null) return null;
+            de.kortty.security.EncryptionService enc = new de.kortty.security.EncryptionService();
+            return enc.decryptPassword(encrypted, master);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void testTranslationConnection() {
+        TranslationApiProvider provider = translationProviderCombo.getValue();
+        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE;
+        String key = getTranslationApiKeyPlain();
+        if (!keyOptional && (key == null || key.isEmpty())) {
+            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
+            return;
+        }
+        TranslationService svc = createTranslationService();
+        if (svc == null) {
+            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.testFailed")).showAndWait();
+            return;
+        }
+        boolean ok = svc.testConnection();
+        if (ok) {
+            new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.testSuccess")).showAndWait();
+        } else {
+            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.testFailed")).showAndWait();
+        }
+    }
+
+    private void generateTranslationFile(Button generateButton) {
+        TranslationApiProvider provider = translationProviderCombo.getValue();
+        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE;
+        String key = getTranslationApiKeyPlain();
+        if (!keyOptional && (key == null || key.isEmpty())) {
+            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
+            return;
+        }
+        TranslationService svc = createTranslationService();
+        if (svc == null) {
+            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed")).showAndWait();
+            return;
+        }
+        Locale target = translationTargetLanguageCombo.getValue();
+        if (target == null || target.getLanguage() == null || target.getLanguage().isEmpty()) {
+            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.generationFailed")).showAndWait();
+            return;
+        }
+        String targetLang = target.getLanguage();
+        generateButton.setDisable(true);
+        translationProgressIndicator.setVisible(true);
+        Task<java.nio.file.Path> task = new Task<>() {
+            @Override
+            protected java.nio.file.Path call() throws Exception {
+                DynamicLanguageGenerator gen = new DynamicLanguageGenerator(svc, KorTTYApplication.getConfigDirectory());
+                return gen.generate(targetLang, progress -> Platform.runLater(() -> translationProgressIndicator.setProgress(progress)));
+            }
+        };
+        task.setOnSucceeded(ev -> {
+            generateButton.setDisable(false);
+            translationProgressIndicator.setVisible(false);
+            refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
+            new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.success")).showAndWait();
+        });
+        task.setOnFailed(ev -> {
+            generateButton.setDisable(false);
+            translationProgressIndicator.setVisible(false);
+            Throwable t = task.getException();
+            org.slf4j.LoggerFactory.getLogger(getClass()).error("Translation generation failed", t);
+            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
+        });
+        new Thread(task).start();
+    }
+
+    private void refreshTranslationGeneratedList() {
+        refreshTranslationGeneratedList(null, null);
+    }
+
+    private void refreshTranslationGeneratedList(Label outdatedLabel, Button regenerateOutdatedBtn) {
+        translationGeneratedList.getItems().setAll(LanguageManager.getAvailableDynamicLocales());
+        List<Locale> outdated = LanguageManager.getOutdatedDynamicLocales();
+        if (outdatedLabel != null && regenerateOutdatedBtn != null) {
+            if (outdated.isEmpty()) {
+                outdatedLabel.setVisible(false);
+                regenerateOutdatedBtn.setVisible(false);
+            } else {
+                String names = outdated.stream()
+                    .map(LanguageManager::getLocaleDisplayName)
+                    .collect(Collectors.joining(", "));
+                outdatedLabel.setText(I18n.get("settings.translation.outdatedHint", names));
+                outdatedLabel.setVisible(true);
+                regenerateOutdatedBtn.setVisible(true);
+            }
+        }
+    }
+
+    private void deleteSelectedGeneratedLanguage() {
+        Locale selected = translationGeneratedList.getSelectionModel().getSelectedItem();
+        if (selected == null) return;
+        java.nio.file.Path file = KorTTYApplication.getConfigDirectory().resolve("i18n").resolve("messages_" + selected.getLanguage() + ".properties");
+        if (!java.nio.file.Files.isRegularFile(file)) return;
+        try {
+            java.nio.file.Files.delete(file);
+            refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(getClass()).warn("Could not delete {}", file, e);
+        }
+    }
+
+    private void regenerateOutdatedTranslations(Button regenerateButton, Label outdatedLabel, Button regenerateOutdatedBtn) {
+        List<Locale> outdated = LanguageManager.getOutdatedDynamicLocales();
+        if (outdated.isEmpty()) {
+            refreshTranslationGeneratedList(outdatedLabel, regenerateOutdatedBtn);
+            return;
+        }
+        TranslationService svc = createTranslationService();
+        if (svc == null) {
+            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
+            return;
+        }
+        regenerateButton.setDisable(true);
+        translationProgressIndicator.setVisible(true);
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                DynamicLanguageGenerator gen = new DynamicLanguageGenerator(svc, KorTTYApplication.getConfigDirectory());
+                int total = outdated.size();
+                for (int i = 0; i < total; i++) {
+                    final int idx = i;
+                    Locale loc = outdated.get(i);
+                    String lang = loc.getLanguage();
+                    gen.generate(lang, p -> Platform.runLater(() -> translationProgressIndicator.setProgress((idx + p) / total)));
+                }
+                return null;
+            }
+        };
+        task.setOnSucceeded(ev -> {
+            regenerateButton.setDisable(false);
+            translationProgressIndicator.setVisible(false);
+            refreshTranslationGeneratedList(outdatedLabel, regenerateOutdatedBtn);
+            new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.regenerateOutdatedDone")).showAndWait();
+        });
+        task.setOnFailed(ev -> {
+            regenerateButton.setDisable(false);
+            translationProgressIndicator.setVisible(false);
+            Throwable t = task.getException();
+            org.slf4j.LoggerFactory.getLogger(getClass()).error("Regenerate outdated failed", t);
+            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
+        });
+        new Thread(task).start();
     }
 }
