@@ -480,6 +480,9 @@ public class MainWindow {
         closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
         closeTab.setOnAction(e -> closeCurrentTab());
         
+        MenuItem closeAllTabs = new MenuItem(I18n.get("menu.file.closeAllTabs"));
+        closeAllTabs.setOnAction(e -> confirmAndCloseAllTabs());
+        
         MenuItem newWindow = new MenuItem(I18n.get("menu.file.newWindow"));
         newWindow.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         newWindow.setOnAction(e -> openNewWindow());
@@ -508,7 +511,7 @@ public class MainWindow {
         quit.setOnAction(e -> Platform.exit());
         
         fileMenu.getItems().addAll(
-                newTab, closeTab, new SeparatorMenuItem(),
+                newTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
                 newWindow, closeWindow, new SeparatorMenuItem(),
                 openProject, saveProject, new SeparatorMenuItem(),
                 createBackup, importBackup, new SeparatorMenuItem(), quit);
@@ -1094,16 +1097,29 @@ public class MainWindow {
         }
     }
     
+    /**
+     * Asks the user for confirmation and then closes all tabs (without further prompts).
+     */
+    private void confirmAndCloseAllTabs() {
+        long closableCount = tabPane.getTabs().stream().filter(Tab::isClosable).count();
+        if (closableCount == 0) return;
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(I18n.get("dialog.closeAllTabs.title"));
+        alert.setHeaderText(I18n.get("dialog.closeAllTabs.header"));
+        alert.setContentText(I18n.get("dialog.closeAllTabs.content"));
+        if (alert.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) return;
+        closeAllTabs();
+    }
+
     private void closeAllTabs() {
         List<Tab> tabsToClose = new ArrayList<>(tabPane.getTabs());
         for (Tab tab : tabsToClose) {
+            if (!tab.isClosable()) continue;
             if (tab instanceof TerminalTab terminalTab) {
-                // Temporarily disable close confirmation to avoid dialogs when closing all tabs
                 terminalTab.setOnCloseRequest(null);
-                // Cleanup terminal view before removing tab to ensure SSH connections are closed
                 terminalTab.getTerminalView().cleanup();
-                tabPane.getTabs().remove(tab);
             }
+            tabPane.getTabs().remove(tab);
         }
     }
     
