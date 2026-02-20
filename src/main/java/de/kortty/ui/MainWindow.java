@@ -1350,6 +1350,7 @@ public class MainWindow {
                 sessionState.setTabType(SessionState.TabType.TERMINAL);
                 sessionState.setSettings(connection.getSettings());
                 sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
+                sessionState.setTerminalTimestamps(terminalTab.getTerminalView().getPrimaryTimestampEntries());
                 sessionState.setGroup(terminalTab.getGroup()); // Save tab group (not connection group)
                 // Save current font size (zoom level) - may differ from settings when user zoomed
                 int currentFontSize = terminalTab.getTerminalView().getCurrentFontSize();
@@ -1440,6 +1441,8 @@ public class MainWindow {
                                 if (password != null || isKeyAuth) {
                                     String history = sessionState.getTerminalHistory();
                                     TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history, null);
+                                    restoredTab.getTerminalView().restorePrimaryTimestampEntries(
+                                            sessionState.getTerminalTimestamps());
                                     // Restore tab group (not connection group)
                                     if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
                                         restoredTab.setGroup(sessionState.getGroup());

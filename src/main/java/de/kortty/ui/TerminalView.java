@@ -17,6 +17,8 @@ import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.Theme;
 import javafx.application.Platform;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
@@ -40,6 +42,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +52,7 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.Window;
 import javafx.scene.layout.VBox;
 import javafx.scene.Scene;
 import org.apache.sshd.sftp.client.SftpClient;
@@ -108,10 +112,19 @@ public class TerminalView extends BorderPane {
     private final Map<JediTermFxWidget, TimestampGutter> gutterMap = new ConcurrentHashMap<>();
     // Last absolute line we added a timestamp for (per widget), to detect new prompt lines from server
     private final Map<JediTermFxWidget, Integer> lastTimestampLineByWidget = new ConcurrentHashMap<>();
+    // Timestamp history per widget, independent from gutter visibility/UI state
+    private final Map<JediTermFxWidget, TreeMap<Integer, LocalDateTime>> timestampHistoryByWidget = new ConcurrentHashMap<>();
+    // Tracks whether we are waiting for "command finished" timestamp after user pressed Enter.
+    private final Map<JediTermFxWidget, Boolean> awaitingCommandCompletionByWidget = new ConcurrentHashMap<>();
+    // Debounce timer per widget: a short quiet period marks command completion.
+    private final Map<JediTermFxWidget, PauseTransition> commandCompletionTimerByWidget = new ConcurrentHashMap<>();
+    // Absolute line where the current command started (Enter pressed).
+    private final Map<JediTermFxWidget, Integer> commandStartLineByWidget = new ConcurrentHashMap<>();
 
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
     private Runnable onReconnectRequested;
+    private volatile boolean timestampGuttersVisibleState;
     
     public TerminalView(ServerConnection connection, String password) {
         this(connection, password, null);
@@ -152,6 +165,7 @@ public class TerminalView extends BorderPane {
         }
         this.settings = effective;
         this.defaultFontSize = settings.getFontSize();
+        this.timestampGuttersVisibleState = isCommandTimestampsEnabled();
         
         initializeTerminal();
     }
@@ -796,27 +810,40 @@ public class TerminalView extends BorderPane {
     private void setupTimestampGutter(JediTermFxWidget widget) {
         TimestampGutter gutter = new TimestampGutter();
         gutterMap.put(widget, gutter);
+        timestampHistoryByWidget.computeIfAbsent(widget, w -> new TreeMap<>());
         
         // Configure gutter colors and font to match terminal
         gutter.setGutterBackgroundColor(Color.web(settings.getBackgroundColor()));
         gutter.setGutterTextColor(Color.web(settings.getForegroundColor()));
         gutter.setTimestampFont(settings.getFontFamily(), settings.getFontSize());
         
-        // Set initial visibility based on current setting
-        boolean visible = isCommandTimestampsEnabled();
+        // Set initial visibility based on current runtime state (important for new split widgets
+        // created after user toggled timestamps in the active tab).
+        boolean visible = timestampGuttersVisibleState;
         gutter.setVisible(visible);
         gutter.setManaged(visible);
         
         // Note: gutter is registered with the split pane via the leftPanelFactory
         // (passed in the TerminalSplitPane constructor), not here - because this method
         // runs during the TerminalSplitPane constructor when splitPane is not yet assigned.
+        syncGutterFromHistory(widget, gutter);
         
-        // Always listen for Enter key to record timestamps (even when gutter is hidden)
-        widget.getPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+        // Always listen for Enter key to record timestamps (even when gutter is hidden).
+        // Register on pane + focusable node so split widgets reliably capture Enter.
+        javafx.event.EventHandler<KeyEvent> enterHandler = event -> {
             if (event.getCode() == KeyCode.ENTER) {
-                recordTimestamp(widget, gutter);
+                int startAbsoluteLine = getCurrentAbsoluteCursorLine(widget);
+                if (startAbsoluteLine >= 0) {
+                    recordTimestampForLine(widget, startAbsoluteLine, LocalDateTime.now());
+                    commandStartLineByWidget.put(widget, startAbsoluteLine);
+                }
+                awaitingCommandCompletionByWidget.put(widget, true);
             }
-        });
+        };
+        widget.getPane().addEventFilter(KeyEvent.KEY_PRESSED, enterHandler);
+        if (widget.getPreferredFocusableNode() != null) {
+            widget.getPreferredFocusableNode().addEventFilter(KeyEvent.KEY_PRESSED, enterHandler);
+        }
         
         // Synchronize gutter with terminal scrollbar
         var terminalPanel = widget.getTerminalPanel();
@@ -827,26 +854,28 @@ public class TerminalView extends BorderPane {
         scrollBar.valueProperty().addListener((obs, oldV, newV) -> {
             updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
         });
+
+        // Keep timestamp line mapping aligned when terminal geometry changes
+        // (window resize, split resize, divider moves).
+        terminalPanel.getPane().widthProperty().addListener((obs, oldV, newV) -> {
+            handleTerminalGeometryChanged(widget, gutter, scrollBar, textBuffer, terminalPanel);
+        });
+        terminalPanel.getPane().heightProperty().addListener((obs, oldV, newV) -> {
+            handleTerminalGeometryChanged(widget, gutter, scrollBar, textBuffer, terminalPanel);
+        });
         
         // Update gutter when terminal content changes (new output, resize)
         textBuffer.addModelListener(() -> {
             Platform.runLater(() -> {
                 updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
                 // Add timestamp when prompt appears (cursor at start of new line from server output).
-                // Always record so that when user enables timestamps later, past prompts are visible.
+                // For command end tracking, use a short quiet-time debounce after Enter:
+                // this avoids creating timestamps for every output line.
                 try {
                     var terminal = widget.getTerminal();
                     if (terminal == null) return;
-                    int cursorX = terminal.getCursorX();
-                    int cursorY = terminal.getCursorY();
-                    int historyLines = textBuffer.getHistoryLinesCount();
-                    int absoluteLine = historyLines + cursorY;
-                    if (cursorX == 0 && absoluteLine >= 0) {
-                        int last = lastTimestampLineByWidget.getOrDefault(widget, -1);
-                        if (absoluteLine > last && !gutter.hasTimestampForLine(absoluteLine)) {
-                            gutter.addTimestamp(absoluteLine, LocalDateTime.now());
-                            lastTimestampLineByWidget.put(widget, absoluteLine);
-                        }
+                    if (Boolean.TRUE.equals(awaitingCommandCompletionByWidget.get(widget))) {
+                        scheduleCommandCompletionDetection(widget);
                     }
                 } catch (Exception e) {
                     logger.trace("Timestamp on prompt: {}", e.getMessage());
@@ -859,23 +888,138 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Records a timestamp for the current cursor line in the terminal.
+     * Records a timestamp in persistent per-widget history and mirrors it to the gutter.
+     * This keeps data even when gutters are hidden or recreated later.
      */
-    private void recordTimestamp(JediTermFxWidget widget, TimestampGutter gutter) {
+    private void recordTimestampForLine(JediTermFxWidget widget, int absoluteLine, LocalDateTime timestamp) {
+        if (absoluteLine < 0 || timestamp == null) return;
+        TreeMap<Integer, LocalDateTime> history =
+                timestampHistoryByWidget.computeIfAbsent(widget, w -> new TreeMap<>());
+        if (!history.containsKey(absoluteLine)) {
+            history.put(absoluteLine, timestamp);
+        }
+        TimestampGutter widgetGutter = gutterMap.get(widget);
+        if (widgetGutter != null && !widgetGutter.hasTimestampForLine(absoluteLine)) {
+            widgetGutter.addTimestamp(absoluteLine, history.get(absoluteLine));
+        }
+        int last = lastTimestampLineByWidget.getOrDefault(widget, -1);
+        if (absoluteLine > last) {
+            lastTimestampLineByWidget.put(widget, absoluteLine);
+        }
+    }
+
+    private void syncGutterFromHistory(JediTermFxWidget widget, TimestampGutter gutter) {
+        TreeMap<Integer, LocalDateTime> history = timestampHistoryByWidget.get(widget);
+        if (history == null || history.isEmpty()) {
+            return;
+        }
+        gutter.setAllTimestamps(new TreeMap<>(history));
+    }
+
+    private void handleTerminalGeometryChanged(JediTermFxWidget widget, TimestampGutter gutter, ScrollBar scrollBar,
+                                               com.techsenger.jeditermfx.core.model.TerminalTextBuffer textBuffer,
+                                               com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel) {
+        Platform.runLater(() -> {
+            syncGutterFromHistory(widget, gutter);
+            updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
+        });
+    }
+
+    private void scheduleCommandCompletionDetection(JediTermFxWidget widget) {
+        PauseTransition timer = commandCompletionTimerByWidget.computeIfAbsent(widget, w -> {
+            PauseTransition pt = new PauseTransition(Duration.millis(500));
+            pt.setOnFinished(e -> recordCommandCompletionTimestamp(w));
+            return pt;
+        });
+        timer.playFromStart();
+    }
+
+    private void recordCommandCompletionTimestamp(JediTermFxWidget widget) {
+        if (!Boolean.TRUE.equals(awaitingCommandCompletionByWidget.get(widget))) {
+            return;
+        }
+        try {
+            int absoluteLine = getCurrentAbsoluteCursorLine(widget);
+            if (absoluteLine < 0) {
+                return;
+            }
+            int startLine = commandStartLineByWidget.getOrDefault(widget, -1);
+            // Ensure completion marker is never above the command start line.
+            if (startLine >= 0 && absoluteLine < startLine) {
+                absoluteLine = startLine;
+            }
+            recordTimestampForLine(widget, absoluteLine, LocalDateTime.now());
+            awaitingCommandCompletionByWidget.put(widget, false);
+        } catch (Exception e) {
+            logger.debug("Failed to record command completion timestamp: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Returns the current absolute cursor line (0-based over full history+screen buffer),
+     * with bounds clamped to valid terminal rows to avoid transient out-of-bounds states.
+     */
+    private int getCurrentAbsoluteCursorLine(JediTermFxWidget widget) {
         try {
             var terminal = widget.getTerminal();
             var textBuffer = widget.getTerminalTextBuffer();
-            if (terminal == null || textBuffer == null) return;
-            
-            int cursorY = terminal.getCursorY(); // 0-based screen row
-            int historyLines = textBuffer.getHistoryLinesCount();
-            int absoluteLine = historyLines + cursorY;
-            
-            gutter.addTimestamp(absoluteLine, LocalDateTime.now());
-            lastTimestampLineByWidget.put(widget, absoluteLine);
+            if (terminal == null || textBuffer == null) return -1;
+            int screenHeight = Math.max(1, textBuffer.getHeight());
+            int cursorY = terminal.getCursorY() - 1; // JediTerm cursor is 1-based
+            int clampedCursorY = Math.min(Math.max(cursorY, 0), screenHeight - 1);
+            return textBuffer.getHistoryLinesCount() + clampedCursorY;
         } catch (Exception e) {
-            logger.debug("Failed to record timestamp: {}", e.getMessage());
+            logger.trace("Could not resolve current cursor line: {}", e.getMessage());
+            return -1;
         }
+    }
+
+    /**
+     * Returns a snapshot of recorded timestamps for the primary terminal widget.
+     * Used by project save/export.
+     */
+    public java.util.List<de.kortty.model.TerminalTimestampEntry> getPrimaryTimestampEntries() {
+        JediTermFxWidget primary = terminalWidget;
+        if (primary == null) {
+            return java.util.Collections.emptyList();
+        }
+        TreeMap<Integer, LocalDateTime> history = timestampHistoryByWidget.get(primary);
+        if (history == null || history.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        java.util.List<de.kortty.model.TerminalTimestampEntry> entries = new java.util.ArrayList<>(history.size());
+        for (Map.Entry<Integer, LocalDateTime> entry : history.entrySet()) {
+            if (entry.getValue() != null) {
+                entries.add(new de.kortty.model.TerminalTimestampEntry(entry.getKey(), entry.getValue()));
+            }
+        }
+        return entries;
+    }
+
+    /**
+     * Restores recorded timestamps for the primary terminal widget from project import.
+     */
+    public void restorePrimaryTimestampEntries(java.util.List<de.kortty.model.TerminalTimestampEntry> entries) {
+        JediTermFxWidget primary = terminalWidget;
+        if (primary == null) {
+            return;
+        }
+        TreeMap<Integer, LocalDateTime> restored = new TreeMap<>();
+        if (entries != null) {
+            for (de.kortty.model.TerminalTimestampEntry entry : entries) {
+                if (entry == null || entry.getTimestamp() == null) continue;
+                int absoluteLine = entry.getAbsoluteLine();
+                if (absoluteLine < 0) continue;
+                restored.putIfAbsent(absoluteLine, entry.getTimestamp());
+            }
+        }
+        timestampHistoryByWidget.put(primary, restored);
+        TimestampGutter gutter = gutterMap.get(primary);
+        if (gutter != null) {
+            gutter.setAllTimestamps(new TreeMap<>(restored));
+        }
+        int lastLine = restored.isEmpty() ? -1 : restored.lastKey();
+        lastTimestampLineByWidget.put(primary, lastLine);
     }
     
     /**
@@ -889,22 +1033,28 @@ public class TerminalView extends BorderPane {
         try {
             int historyLines = textBuffer.getHistoryLinesCount();
             int visibleRows = textBuffer.getHeight();
-            double pixelHeight = terminalPanel.getPixelHeight();
-            double charHeight = visibleRows > 0 ? pixelHeight / visibleRows : 16;
-            
-            // Compute scroll origin (same formula as TerminalPanel.resolveSwingScrollBarValue)
-            double range = scrollBar.getMax() - scrollBar.getMin();
-            int scrollOrigin;
-            if (range == 0) {
-                scrollOrigin = 0;
-            } else {
-                double normalizedValue = (scrollBar.getValue() - scrollBar.getMin()) / range;
-                double swingValue = scrollBar.getMin()
-                        + normalizedValue * (scrollBar.getMax() - scrollBar.getVisibleAmount() - scrollBar.getMin());
-                scrollOrigin = (int) Math.round(swingValue);
+            // During resize/reflow the buffer can transiently report invalid geometry.
+            // Ignore those intermediate states to avoid "empty" gutter redraws.
+            if (visibleRows <= 0) {
+                return;
             }
-            
-            gutter.updateScrollState(scrollOrigin, historyLines, charHeight, visibleRows);
+            double charHeight = terminalPanel.getCellHeightPixels();
+            if (charHeight <= 0) {
+                double pixelHeight = terminalPanel.getPixelHeight();
+                charHeight = visibleRows > 0 ? pixelHeight / visibleRows : 16;
+            }
+            if (charHeight <= 0) {
+                return;
+            }
+            int scrollOrigin = terminalPanel.getScrollOrigin();
+            int minOrigin = -Math.max(0, historyLines);
+            if (scrollOrigin < minOrigin) scrollOrigin = minOrigin;
+            if (scrollOrigin > 0) scrollOrigin = 0;
+            double baselineOffset = terminalPanel.getCellBaselineOffsetPixels();
+            if (baselineOffset <= 0 || baselineOffset > charHeight * 2.0) {
+                baselineOffset = charHeight * 0.78;
+            }
+            gutter.updateScrollState(scrollOrigin, historyLines, charHeight, visibleRows, baselineOffset);
         } catch (Exception e) {
             logger.debug("Failed to update gutter scroll state: {}", e.getMessage());
         }
@@ -1322,7 +1472,7 @@ public class TerminalView extends BorderPane {
      * @return true if gutters are now visible, false if hidden
      */
     public boolean toggleTimestampGutters() {
-        boolean newVisible = !isTimestampGuttersVisible();
+        boolean newVisible = !timestampGuttersVisibleState;
         setTimestampGuttersVisible(newVisible);
         return newVisible;
     }
@@ -1331,11 +1481,30 @@ public class TerminalView extends BorderPane {
      * Sets the visibility of all timestamp gutters in this terminal view.
      */
     public void setTimestampGuttersVisible(boolean visible) {
-        for (TimestampGutter gutter : gutterMap.values()) {
+        boolean oldVisible = timestampGuttersVisibleState;
+        timestampGuttersVisibleState = visible;
+        for (Map.Entry<JediTermFxWidget, TimestampGutter> entry : gutterMap.entrySet()) {
+            syncGutterFromHistory(entry.getKey(), entry.getValue());
+            TimestampGutter gutter = entry.getValue();
             gutter.setVisible(visible);
             gutter.setManaged(visible);
         }
+        if (oldVisible != visible) {
+            adjustWindowWidthForTimestampToggle(oldVisible, visible);
+        }
     }
+
+    private void adjustWindowWidthForTimestampToggle(boolean oldVisible, boolean newVisible) {
+        if (oldVisible == newVisible) return;
+        Platform.runLater(() -> {
+            Window window = getScene() != null ? getScene().getWindow() : null;
+            if (!(window instanceof Stage stage)) return;
+            if (stage.isMaximized() || stage.isFullScreen()) return;
+            double delta = TimestampGutter.GUTTER_WIDTH;
+            double targetWidth = stage.getWidth() + (newVisible ? delta : -delta);
+            stage.setWidth(Math.max(640, targetWidth));
+        });
+        }
     
     /**
      * Sets a listener that is called whenever timestamp gutter visibility is toggled
@@ -1349,12 +1518,7 @@ public class TerminalView extends BorderPane {
      * Returns whether timestamp gutters are currently visible.
      */
     public boolean isTimestampGuttersVisible() {
-        // Check any gutter - they are all toggled together
-        for (TimestampGutter gutter : gutterMap.values()) {
-            return gutter.isVisible();
-        }
-        // No gutters exist yet - return setting default
-        return isCommandTimestampsEnabled();
+        return timestampGuttersVisibleState;
     }
     
     /**

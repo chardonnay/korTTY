@@ -54,6 +54,11 @@ public class SessionState {
     /** Split pane structure (if terminal has splits). */
     @XmlElement
     private SplitPaneState splitPaneState;
+
+    /** Recorded terminal timestamps mapped to absolute terminal lines. */
+    @XmlElementWrapper(name = "terminalTimestamps")
+    @XmlElement(name = "timestamp")
+    private java.util.List<TerminalTimestampEntry> terminalTimestamps;
     
     // SFTP Manager specific fields
     @XmlElement
@@ -181,6 +186,17 @@ public class SessionState {
     
     public void setSplitPaneState(SplitPaneState splitPaneState) {
         this.splitPaneState = splitPaneState;
+    }
+
+    public java.util.List<TerminalTimestampEntry> getTerminalTimestamps() {
+        if (terminalTimestamps == null) {
+            terminalTimestamps = new java.util.ArrayList<>();
+        }
+        return terminalTimestamps;
+    }
+
+    public void setTerminalTimestamps(java.util.List<TerminalTimestampEntry> terminalTimestamps) {
+        this.terminalTimestamps = terminalTimestamps;
     }
     
     public TabType getTabType() {

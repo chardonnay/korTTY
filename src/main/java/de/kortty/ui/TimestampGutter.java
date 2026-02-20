@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TreeMap;
 
 /**
@@ -30,9 +31,12 @@ public class TimestampGutter extends Pane {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter POPUP_DATE_FORMAT = DateTimeFormatter.ofPattern("EEEE, dd. MMMM yyyy", Locale.getDefault());
     private static final DateTimeFormatter POPUP_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final double GUTTER_WIDTH = 88;
+    public static final double GUTTER_WIDTH = 88;
     private static final double TEXT_LEFT_PADDING = 6;
     private static final Color SEPARATOR_COLOR = Color.web("#444444");
+    private static final double OVERLAY_BACKGROUND_ALPHA = 1.0;
+    private static final double TIME_TEXT_ALPHA = 0.86;
+    private static final double DATE_TEXT_ALPHA = 0.72;
 
     private final Canvas canvas = new Canvas();
 
@@ -50,6 +54,7 @@ public class TimestampGutter extends Pane {
     private final TreeMap<Integer, LocalDateTime> timestamps = new TreeMap<>();
 
     private double charHeight = 16;
+    private double baselineOffset = 12;
     private int scrollOrigin = 0;
     private int historyLinesCount = 0;
     private int visibleRows = 24;
@@ -88,18 +93,32 @@ public class TimestampGutter extends Pane {
     }
 
     /**
+     * Replaces all timestamps with the provided map.
+     * Used to restore/synchronize previously recorded timestamps.
+     */
+    public void setAllTimestamps(Map<Integer, LocalDateTime> allTimestamps) {
+        timestamps.clear();
+        if (allTimestamps != null && !allTimestamps.isEmpty()) {
+            timestamps.putAll(allTimestamps);
+        }
+        render();
+    }
+
+    /**
      * Updates the scroll state to synchronize with the terminal display.
      *
      * @param scrollOrigin the current scroll origin (range [-historyLines, 0])
      * @param historyLinesCount the current number of history lines in the buffer
      * @param charHeight the height of a single character cell in pixels
      * @param visibleRows the number of visible rows in the terminal
+     * @param baselineOffset the terminal text baseline offset inside a row in pixels
      */
-    public void updateScrollState(int scrollOrigin, int historyLinesCount, double charHeight, int visibleRows) {
+    public void updateScrollState(int scrollOrigin, int historyLinesCount, double charHeight, int visibleRows, double baselineOffset) {
         this.scrollOrigin = scrollOrigin;
         this.historyLinesCount = historyLinesCount;
         this.charHeight = charHeight;
         this.visibleRows = visibleRows;
+        this.baselineOffset = baselineOffset;
         render();
     }
 
@@ -107,7 +126,8 @@ public class TimestampGutter extends Pane {
      * Sets the background color to match the terminal.
      */
     public void setGutterBackgroundColor(Color color) {
-        this.backgroundColor = deriveGutterBackground(color);
+        Color base = deriveGutterBackground(color);
+        this.backgroundColor = new Color(base.getRed(), base.getGreen(), base.getBlue(), OVERLAY_BACKGROUND_ALPHA);
         render();
     }
 
@@ -115,8 +135,7 @@ public class TimestampGutter extends Pane {
      * Sets the text color for timestamps.
      */
     public void setGutterTextColor(Color color) {
-        // 50% opacity for subtlety
-        this.textColor = color.deriveColor(0, 1.0, 1.0, 0.5);
+        this.textColor = color.deriveColor(0, 1.0, 1.0, TIME_TEXT_ALPHA);
         render();
     }
 
@@ -168,6 +187,9 @@ public class TimestampGutter extends Pane {
 
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
+        // Clear first, otherwise repeated alpha fills make the overlay appear to change opacity.
+        gc.clearRect(0, 0, width, height);
+
         // Clear background
         gc.setFill(backgroundColor);
         gc.fillRect(0, 0, width, height);
@@ -190,19 +212,19 @@ public class TimestampGutter extends Pane {
 
                 // Top line: short date + duration (e.g. "09.02. +12s")
                 gc.setFont(dateFont);
-                gc.setFill(textColor.deriveColor(0, 1.0, 1.0, 0.65));
+                gc.setFill(textColor.deriveColor(0, 1.0, 1.0, DATE_TEXT_ALPHA));
                 String dateText = ts.format(DATE_SHORT_FORMAT);
                 if (duration != null && !duration.isNegative()) {
                     dateText += " " + formatDuration(duration);
                 }
-                double topY = rowTop + charHeight * 0.22;
+                double topY = rowTop + Math.max(7.0, baselineOffset - charHeight * 0.42);
                 gc.fillText(dateText, TEXT_LEFT_PADDING, topY);
 
                 // Bottom line: time (e.g. "17:20:03")
                 gc.setFont(font);
                 gc.setFill(textColor);
                 String timeText = ts.format(TIME_FORMAT);
-                double bottomY = rowTop + charHeight * 0.72;
+                double bottomY = rowTop + baselineOffset;
                 gc.fillText(timeText, TEXT_LEFT_PADDING, bottomY);
             }
         }
