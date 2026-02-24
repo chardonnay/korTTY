@@ -1,7 +1,5 @@
 package de.kortty.model;
 
-import de.kortty.model.AuthMethod;
-
 import jakarta.xml.bind.annotation.*;
 import java.util.Objects;
 import java.util.UUID;
@@ -39,6 +37,9 @@ public class ServerConnection {
     
     @XmlElement
     private AuthMethod authMethod = AuthMethod.PASSWORD;
+
+    @XmlElement
+    private ConnectionProtocol protocol = ConnectionProtocol.SSH_TCP;
     
     @XmlElement
     private ConnectionSettings settings;
@@ -129,6 +130,7 @@ public class ServerConnection {
         c.privateKeyPath = source.privateKeyPath;
         c.privateKeyPassphrase = source.privateKeyPassphrase;
         c.authMethod = source.authMethod;
+        c.protocol = source.protocol;
         c.settings = source.settings;
         c.windowGeometry = source.windowGeometry;
         c.group = source.group;
@@ -223,6 +225,14 @@ public class ServerConnection {
     
     public void setAuthMethod(AuthMethod authMethod) {
         this.authMethod = authMethod;
+    }
+
+    public ConnectionProtocol getProtocol() {
+        return protocol != null ? protocol : ConnectionProtocol.SSH_TCP;
+    }
+
+    public void setProtocol(ConnectionProtocol protocol) {
+        this.protocol = protocol != null ? protocol : ConnectionProtocol.SSH_TCP;
     }
     
     public ConnectionSettings getSettings() {

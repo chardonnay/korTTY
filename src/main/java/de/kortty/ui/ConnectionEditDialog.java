@@ -1,12 +1,11 @@
 package de.kortty.ui;
 
 import de.kortty.model.AuthMethod;
+import de.kortty.model.ConnectionProtocol;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.SSHKey;
-import de.kortty.model.SSHTunnel;
-import de.kortty.model.TunnelType;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
@@ -48,6 +47,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private final TextField nameField;
     private final TextField hostField;
     private final Spinner<Integer> portSpinner;
+    private final ComboBox<ConnectionProtocol> protocolCombo;
     private final TextField usernameField;
     private final PasswordField passwordField;
     private final TextField groupField;
@@ -157,6 +157,36 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         portSpinner = new Spinner<>(1, 65535, connection.getPort());
         portSpinner.setEditable(true);
         portSpinner.setPrefWidth(80);
+
+        protocolCombo = new ComboBox<>();
+        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH);
+        protocolCombo.setValue(connection.getProtocol());
+        protocolCombo.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(ConnectionProtocol item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else if (item == ConnectionProtocol.MOSH) {
+                    setText(I18n.get("protocol.mosh"));
+                } else {
+                    setText(I18n.get("protocol.sshTcp"));
+                }
+            }
+        });
+        protocolCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ConnectionProtocol item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(I18n.get("protocol.sshTcp"));
+                } else if (item == ConnectionProtocol.MOSH) {
+                    setText(I18n.get("protocol.mosh"));
+                } else {
+                    setText(I18n.get("protocol.sshTcp"));
+                }
+            }
+        });
         
         usernameField = new TextField(connection.getUsername());
         usernameField.setPromptText("root");
@@ -315,6 +345,9 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         
         connectionGrid.add(new Label(I18n.get("common.username") + ":"), 0, row);
         connectionGrid.add(usernameField, 1, row++);
+
+        connectionGrid.add(new Label(I18n.get("connEdit.protocol")), 0, row);
+        connectionGrid.add(protocolCombo, 1, row++);
         
         connectionGrid.add(new Label(I18n.get("connEdit.group")), 0, row);
         connectionGrid.add(groupField, 1, row++);
@@ -437,6 +470,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 connection.setHost(getHostText);
                 connection.setPort(portSpinner.getValue());
                 connection.setUsername(getUsernameText.isEmpty() ? "root" : getUsernameText);
+                connection.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : ConnectionProtocol.SSH_TCP);
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 connection.setRetryCount(retrySpinner.getValue());
@@ -653,7 +687,6 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
     private void updateAuthFields() {
         boolean useKey = keyAuthRadio.isSelected();
         boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
-        boolean usePassword = passwordAuthRadio.isSelected();
         
         passwordField.setDisable(useKey || useTemporaryKey);
         savedCredentialsCombo.setDisable(useKey || useTemporaryKey);

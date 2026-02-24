@@ -12,7 +12,9 @@ import com.techsenger.jeditermfx.ui.split.SplitRequest;
 import com.techsenger.jeditermfx.ui.split.TerminalSplitPane;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SshTtyConnector;
+import de.kortty.core.NativeMoshTtyConnector;
 import de.kortty.core.DisconnectListener;
+import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.Theme;
@@ -99,7 +101,7 @@ public class TerminalView extends BorderPane {
     
     private TerminalSplitPane splitPane;
     private JediTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
-    private SshTtyConnector ttyConnector;
+    private TtyConnector ttyConnector;
     private KorTTYSettingsProvider settingsProvider;
     private final int defaultFontSize;
     
@@ -492,6 +494,57 @@ public class TerminalView extends BorderPane {
         // SAME_SERVER_NEW_SHELL mode - create new SSH session to same server
         return createSameServerConnection();
     }
+
+    private TtyConnector createConnectorForConnection(ServerConnection targetConnection, String targetPassword) {
+        TtyConnector connector;
+        if (targetConnection.getProtocol() == ConnectionProtocol.MOSH) {
+            if (!NativeMoshTtyConnector.isNativeMoshAvailable()) {
+                throw new IllegalStateException("mosh-client binary not found. Please install mosh (e.g. 'brew install mosh').");
+            }
+            NativeMoshTtyConnector nativeMosh = new NativeMoshTtyConnector(targetConnection, targetPassword);
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            if (app != null && app.getSSHKeyManager() != null) {
+                nativeMosh.setSSHKeyManager(
+                        app.getSSHKeyManager(),
+                        app.getMasterPasswordManager().getMasterPassword()
+                );
+            }
+            connector = nativeMosh;
+        } else {
+            SshTtyConnector sshConnector = new SshTtyConnector(targetConnection, targetPassword);
+            if (targetConnection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                if (app != null && app.getSSHKeyManager() != null) {
+                    sshConnector.setSSHKeyManager(
+                            app.getSSHKeyManager(),
+                            app.getMasterPasswordManager().getMasterPassword()
+                    );
+                }
+            }
+            connector = sshConnector;
+        }
+        return connector;
+    }
+
+    private boolean connectConnector(TtyConnector connector) throws Exception {
+        if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
+            return nativeMoshConnector.connect();
+        }
+        if (connector instanceof SshTtyConnector sshConnector) {
+            return sshConnector.connect();
+        }
+        throw new IllegalStateException("Unsupported connector type: " + connector.getClass().getName());
+    }
+
+    private void setConnectorDisconnectListener(TtyConnector connector, DisconnectListener listener) {
+        if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
+            nativeMoshConnector.setDisconnectListener(listener);
+            return;
+        }
+        if (connector instanceof SshTtyConnector sshConnector) {
+            sshConnector.setDisconnectListener(listener);
+        }
+    }
     
     /**
      * Creates a new SSH connection to the same server (for same-server splits).
@@ -543,18 +596,7 @@ public class TerminalView extends BorderPane {
                     temporarySSHKey.getRemainingSeconds());
             }
             
-            SshTtyConnector newConnector = new SshTtyConnector(connection, password);
-            
-            // Set SSHKeyManager if using public key authentication (for non-temporary keys)
-            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY && temporarySSHKey == null) {
-                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                if (app != null && app.getSSHKeyManager() != null) {
-                    newConnector.setSSHKeyManager(
-                            app.getSSHKeyManager(),
-                            app.getMasterPasswordManager().getMasterPassword()
-                    );
-                }
-            }
+            TtyConnector newConnector = createConnectorForConnection(connection, password);
             
             // Run connect() in background thread so JavaFX can show keyboard-interactive dialogs
             AtomicReference<Boolean> connectSuccess = new AtomicReference<>(false);
@@ -571,7 +613,7 @@ public class TerminalView extends BorderPane {
             
             Thread connectThread = new Thread(() -> {
                 try {
-                    boolean ok = newConnector.connect();
+                    boolean ok = connectConnector(newConnector);
                     connectSuccess.set(ok);
                 } catch (Throwable t) {
                     logger.error("Split connect error: {}", t.getMessage(), t);
@@ -666,21 +708,10 @@ public class TerminalView extends BorderPane {
                     connResult.connection.getHost(), 
                     connResult.connection.getPort());
             
-            SshTtyConnector newConnector = new SshTtyConnector(connResult.connection, connResult.password);
-            
-            // Set SSHKeyManager if using public key authentication
-            if (connResult.connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                if (app != null && app.getSSHKeyManager() != null) {
-                    newConnector.setSSHKeyManager(
-                            app.getSSHKeyManager(),
-                            app.getMasterPasswordManager().getMasterPassword()
-                    );
-                }
-            }
+            TtyConnector newConnector = createConnectorForConnection(connResult.connection, connResult.password);
             
             // Connect the new session
-            newConnector.connect();
+            connectConnector(newConnector);
             return newConnector;
         } catch (Exception e) {
             logger.error("Failed to create new connection for split: {}", e.getMessage(), e);
@@ -1175,21 +1206,10 @@ public class TerminalView extends BorderPane {
                     }
                     
                     // Create TtyConnector
-                    ttyConnector = new SshTtyConnector(connection, password);
-                    
-                    // Set SSHKeyManager if available
-                    if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                        if (app != null && app.getSSHKeyManager() != null) {
-                            ttyConnector.setSSHKeyManager(
-                                app.getSSHKeyManager(),
-                                app.getMasterPasswordManager().getMasterPassword()
-                            );
-                        }
-                    }
+                    ttyConnector = createConnectorForConnection(connection, password);
                     
                     // Register disconnect listener
-                    ttyConnector.setDisconnectListener((reason, wasError) -> {
+                    setConnectorDisconnectListener(ttyConnector, (reason, wasError) -> {
                         logger.info("Disconnect event: {} (wasError={})", reason, wasError);
                         
                         // Stop logger if running
@@ -1200,8 +1220,8 @@ public class TerminalView extends BorderPane {
                         }
                     });
                     
-                    // Connect SSH
-                    connected = ttyConnector.connect();
+                    // Connect based on selected protocol
+                    connected = connectConnector(ttyConnector);
                     
                     if (connected) {
                         // Start terminal logger if enabled
@@ -1262,11 +1282,13 @@ public class TerminalView extends BorderPane {
                     // Show clear error message
                     clearTerminal();
                     showMessage(I18n.get("terminal.authFailed"));
-                    showMessage("");
-                    showMessage(I18n.get("terminal.possibleCauses"));
-                    showMessage("  - " + I18n.get("terminal.noSSHKeySelected"));
-                    showMessage("  - " + I18n.get("terminal.sshKeyNotAuthorized"));
-                    showMessage("  - " + I18n.get("terminal.wrongUsername"));
+                    if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                        showMessage("");
+                        showMessage(I18n.get("terminal.possibleCauses"));
+                        showMessage("  - " + I18n.get("terminal.noSSHKeySelected"));
+                        showMessage("  - " + I18n.get("terminal.sshKeyNotAuthorized"));
+                        showMessage("  - " + I18n.get("terminal.wrongUsername"));
+                    }
                     showMessage("");
                     showMessage(I18n.get("error.title") + ": " + e.getMessage());
                     
@@ -1334,8 +1356,8 @@ public class TerminalView extends BorderPane {
             terminalLogger.start();
             
             // Register data listener to capture terminal output
-            if (ttyConnector != null) {
-                ttyConnector.setDataListener(data -> {
+            if (ttyConnector instanceof SshTtyConnector sshConnector) {
+                sshConnector.setDataListener(data -> {
                     if (terminalLogger != null) {
                         terminalLogger.log(data);
                     }
@@ -1725,7 +1747,7 @@ public class TerminalView extends BorderPane {
     }
     
     public SshTtyConnector getTtyConnector() {
-        return ttyConnector;
+        return ttyConnector instanceof SshTtyConnector ssh ? ssh : null;
     }
     
     /**

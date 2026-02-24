@@ -729,6 +729,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             copy.setHost(selected.getHost());
             copy.setPort(selected.getPort());
             copy.setUsername(selected.getUsername());
+            copy.setProtocol(selected.getProtocol());
             copy.setAuthMethod(selected.getAuthMethod());
             copy.setPrivateKeyPath(selected.getPrivateKeyPath());
             copy.setGroup(selected.getGroup());
@@ -937,6 +938,7 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
             copy.setHost(conn.getHost());
             copy.setPort(conn.getPort());
             copy.setGroup(conn.getGroup());
+            copy.setProtocol(conn.getProtocol());
             copy.setAuthMethod(conn.getAuthMethod());
             copy.setPrivateKeyPath(conn.getPrivateKeyPath());
             copy.setSshKeyId(conn.getSshKeyId());
