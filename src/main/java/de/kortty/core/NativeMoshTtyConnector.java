@@ -41,11 +41,11 @@ public class NativeMoshTtyConnector implements TtyConnector {
     private char[] masterPassword;
     private DisconnectListener disconnectListener;
 
-    private PtyProcess ptyProcess;
-    private InputStream inputStream;
-    private OutputStream outputStream;
-    private InputStreamReader reader;
-    private Thread monitorThread;
+    private volatile PtyProcess ptyProcess;
+    private volatile InputStream inputStream;
+    private volatile OutputStream outputStream;
+    private volatile InputStreamReader reader;
+    private volatile Thread monitorThread;
 
     public NativeMoshTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
@@ -66,8 +66,8 @@ public class NativeMoshTtyConnector implements TtyConnector {
     }
 
     public boolean connect() throws SshTtyConnector.AuthenticationException {
-        if (connection.getProtocol() != ConnectionProtocol.MOSH) {
-            throw new IllegalStateException("NativeMoshTtyConnector requires protocol MOSH");
+        if (connection.getProtocol() != ConnectionProtocol.MOSH_CLIENT) {
+            throw new IllegalStateException("NativeMoshTtyConnector requires protocol MOSH_CLIENT");
         }
         try {
             logger.info("Starting native MOSH for {}@{}:{}",
@@ -115,6 +115,9 @@ public class NativeMoshTtyConnector implements TtyConnector {
             while (System.currentTimeMillis() < deadline) {
                 if (bootstrap.ready()) {
                     int count = bootstrap.read(buf, 0, buf.length);
+                    if (count == -1) {
+                        break;
+                    }
                     if (count > 0) {
                         output.append(buf, 0, count);
                         Matcher matcher = MOSH_CONNECT_PATTERN.matcher(output);
@@ -167,9 +170,14 @@ public class NativeMoshTtyConnector implements TtyConnector {
     }
 
     private void startMonitorThread() {
+        final PtyProcess localPty = ptyProcess;
+        if (localPty == null) {
+            connected.set(false);
+            return;
+        }
         monitorThread = new Thread(() -> {
             try {
-                int exitCode = ptyProcess.waitFor();
+                int exitCode = localPty.waitFor();
                 connected.set(false);
                 if (disconnectListener != null) {
                     boolean wasError = exitCode != 0;
@@ -191,13 +199,29 @@ public class NativeMoshTtyConnector implements TtyConnector {
     }
 
     private static String findCommand(String command) {
+        if (command == null || !command.matches("[a-zA-Z0-9._-]+")) {
+            return null;
+        }
+        Process p = null;
         try {
-            Process p = new ProcessBuilder("sh", "-lc", "command -v " + command).start();
+            p = new ProcessBuilder("sh", "-lc", "command -v " + command).start();
             boolean finished = p.waitFor(Duration.ofSeconds(2).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
-            if (finished && p.exitValue() == 0) {
+            if (!finished) {
+                p.destroyForcibly();
+                p.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);
+                return null;
+            }
+            if (p.exitValue() == 0) {
                 return new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
             }
         } catch (Exception ignored) {
+        } finally {
+            if (p != null) {
+                try { p.getInputStream().close(); } catch (Exception ignored) {}
+                try { p.getOutputStream().close(); } catch (Exception ignored) {}
+                try { p.getErrorStream().close(); } catch (Exception ignored) {}
+                p.destroyForcibly();
+            }
         }
         return null;
     }
@@ -205,13 +229,43 @@ public class NativeMoshTtyConnector implements TtyConnector {
     @Override
     public void close() {
         connected.set(false);
-        if (monitorThread != null) {
-            monitorThread.interrupt();
-            monitorThread = null;
+
+        InputStreamReader localReader = reader;
+        InputStream localIn = inputStream;
+        OutputStream localOut = outputStream;
+        reader = null;
+        inputStream = null;
+        outputStream = null;
+
+        if (localReader != null) {
+            try { localReader.close(); } catch (IOException ignored) {}
         }
-        if (ptyProcess != null) {
-            ptyProcess.destroy();
-            ptyProcess = null;
+        if (localIn != null) {
+            try { localIn.close(); } catch (IOException ignored) {}
+        }
+        if (localOut != null) {
+            try { localOut.close(); } catch (IOException ignored) {}
+        }
+
+        Thread localMonitor = monitorThread;
+        monitorThread = null;
+        if (localMonitor != null) {
+            localMonitor.interrupt();
+        }
+
+        PtyProcess localPty = ptyProcess;
+        ptyProcess = null;
+        if (localPty != null) {
+            localPty.destroy();
+            try {
+                if (!localPty.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    localPty.destroyForcibly();
+                    localPty.waitFor(2, java.util.concurrent.TimeUnit.SECONDS);
+                }
+            } catch (InterruptedException e) {
+                localPty.destroyForcibly();
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -222,17 +276,19 @@ public class NativeMoshTtyConnector implements TtyConnector {
 
     @Override
     public int read(char[] buf, int offset, int length) throws IOException {
-        if (!connected.get() || reader == null) {
+        InputStreamReader localReader = reader;
+        if (!connected.get() || localReader == null) {
             return -1;
         }
-        return reader.read(buf, offset, length);
+        return localReader.read(buf, offset, length);
     }
 
     @Override
     public void write(byte[] bytes) throws IOException {
-        if (connected.get() && outputStream != null) {
-            outputStream.write(bytes);
-            outputStream.flush();
+        OutputStream localOut = outputStream;
+        if (connected.get() && localOut != null) {
+            localOut.write(bytes);
+            localOut.flush();
         }
     }
 
@@ -244,7 +300,8 @@ public class NativeMoshTtyConnector implements TtyConnector {
 
     @Override
     public boolean isConnected() {
-        return connected.get() && ptyProcess != null && ptyProcess.isAlive();
+        PtyProcess localPty = ptyProcess;
+        return connected.get() && localPty != null && localPty.isAlive();
     }
 
     @Override
@@ -256,13 +313,15 @@ public class NativeMoshTtyConnector implements TtyConnector {
 
     @Override
     public boolean ready() throws IOException {
-        return connected.get() && inputStream != null && inputStream.available() > 0;
+        InputStream localIn = inputStream;
+        return connected.get() && localIn != null && localIn.available() > 0;
     }
 
     @Override
     public void resize(TermSize termSize) {
-        if (isConnected() && ptyProcess != null) {
-            ptyProcess.setWinSize(new WinSize(termSize.getColumns(), termSize.getRows()));
+        PtyProcess localPty = ptyProcess;
+        if (connected.get() && localPty != null && localPty.isAlive()) {
+            localPty.setWinSize(new WinSize(termSize.getColumns(), termSize.getRows()));
         }
     }
 }

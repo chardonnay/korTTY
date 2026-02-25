@@ -37,6 +37,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private final char[] masterPassword;
     private final int topConnectionsCount;
     
+    private boolean ignoreSavedCredentialsEvents;
+    
     // Individual connection tab
     private ComboBox<ServerConnection> savedConnectionsCombo;
     private TextField hostField;
@@ -284,7 +286,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         portSpinner.setPrefWidth(80);
 
         protocolCombo = new ComboBox<>();
-        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH);
+        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT);
         protocolCombo.setValue(ConnectionProtocol.SSH_TCP);
         protocolCombo.setPrefWidth(180);
         protocolCombo.setCellFactory(lv -> new ListCell<>() {
@@ -293,10 +295,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
-                } else if (item == ConnectionProtocol.MOSH) {
-                    setText(I18n.get("protocol.mosh"));
                 } else {
-                    setText(I18n.get("protocol.sshTcp"));
+                    setText(protocolDisplayName(item));
                 }
             }
         });
@@ -306,10 +306,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(I18n.get("protocol.sshTcp"));
-                } else if (item == ConnectionProtocol.MOSH) {
-                    setText(I18n.get("protocol.mosh"));
                 } else {
-                    setText(I18n.get("protocol.sshTcp"));
+                    setText(protocolDisplayName(item));
                 }
             }
         });
@@ -347,6 +345,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             }
         });
         savedCredentialsCombo.setOnAction(e -> {
+            if (ignoreSavedCredentialsEvents) return;
             StoredCredential cred = savedCredentialsCombo.getValue();
             if (cred != null) {
                 usernameField.setText(cred.getUsername());
@@ -759,7 +758,14 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         protocolCombo.setValue(conn.getProtocol());
         updateCredentialCombo(conn.getHost());
         if (conn.getCredentialId() != null && credentialManager != null) {
-            credentialManager.findCredentialById(conn.getCredentialId()).ifPresent(savedCredentialsCombo::setValue);
+            credentialManager.findCredentialById(conn.getCredentialId()).ifPresent(cred -> {
+                if (savedCredentialsCombo.getItems().contains(cred)) {
+                    savedCredentialsCombo.setValue(cred);
+                } else {
+                    savedCredentialsCombo.getItems().add(cred);
+                    savedCredentialsCombo.setValue(cred);
+                }
+            });
         } else {
             savedCredentialsCombo.setValue(null);
         }
@@ -1014,7 +1020,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setPrivateKeyPath("TEMPORARY:" + selected.getTemporaryKeyContent());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
             }
-            if (savedCredentialsCombo.getValue() != null) {
+            if (savedCredentialsCombo.getValue() != null && modified.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
                 modified.setCredentialId(savedCredentialsCombo.getValue().getId());
             }
             return new ConnectionResult(modified, resolvedPassword, false, true, null, false, existingTempKey);
@@ -1059,7 +1065,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         } else {
             connection.setAuthMethod(AuthMethod.PASSWORD);
         }
-        if (savedCredentialsCombo.getValue() != null) {
+        if (savedCredentialsCombo.getValue() != null && connection.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
             connection.setCredentialId(savedCredentialsCombo.getValue().getId());
         }
         
@@ -1076,16 +1082,21 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
 
     private void updateCredentialCombo(String hostname) {
         if (savedCredentialsCombo == null || credentialManager == null) return;
-        StoredCredential current = savedCredentialsCombo.getValue();
-        savedCredentialsCombo.getItems().clear();
-        if (hostname != null && !hostname.trim().isEmpty()) {
-            List<StoredCredential> matching = credentialManager.getAllCredentials().stream()
-                .filter(c -> c.matchesServer(hostname))
-                .collect(Collectors.toList());
-            savedCredentialsCombo.getItems().addAll(matching);
-            if (current != null && matching.contains(current)) {
-                savedCredentialsCombo.setValue(current);
+        ignoreSavedCredentialsEvents = true;
+        try {
+            StoredCredential current = savedCredentialsCombo.getValue();
+            savedCredentialsCombo.getItems().clear();
+            if (hostname != null && !hostname.trim().isEmpty()) {
+                List<StoredCredential> matching = credentialManager.getAllCredentials().stream()
+                    .filter(c -> c.matchesServer(hostname))
+                    .collect(Collectors.toList());
+                savedCredentialsCombo.getItems().addAll(matching);
+                if (current != null && matching.contains(current)) {
+                    savedCredentialsCombo.setValue(current);
+                }
             }
+        } finally {
+            ignoreSavedCredentialsEvents = false;
         }
     }
 
@@ -1096,6 +1107,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String protocolDisplayName(ConnectionProtocol protocol) {
+        if (protocol == ConnectionProtocol.MOSH) {
+            return I18n.get("protocol.mosh");
+        }
+        if (protocol == ConnectionProtocol.MOSH_CLIENT) {
+            return I18n.get("protocol.moshClient");
+        }
+        return I18n.get("protocol.sshTcp");
     }
     
     /**

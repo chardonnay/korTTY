@@ -176,7 +176,8 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--main-jar", mainJar,
         "--main-class", "de.kortty.Launcher",
         "--dest", outputDir,
-        "--java-options", "-Djava.awt.headless=false"
+        "--java-options", "-Djava.awt.headless=false",
+        "--java-options", "--enable-native-access=javafx.graphics,ALL-UNNAMED"
     )
     return args
 }
@@ -419,7 +420,7 @@ tasks.named<JavaExec>("run") {
         "--add-opens=java.base/java.io=ALL-UNNAMED",
         "--add-opens=java.base/java.nio=ALL-UNNAMED",
         // Aktiviere native Zugriffe für JavaFX (verhindert Warnungen über System::load)
-        "--enable-native-access=javafx.graphics",
+        "--enable-native-access=javafx.graphics,ALL-UNNAMED",
         // Unterdrücke Warnungen über sun.misc.Unsafe::allocateMemory (von JavaFX intern verwendet)
         // Diese Warnungen kommen von JavaFX's Marlin Renderer und sind harmlos
         "--sun-misc-unsafe-memory-access=allow",

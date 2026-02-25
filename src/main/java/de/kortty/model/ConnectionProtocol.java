@@ -5,5 +5,6 @@ package de.kortty.model;
  */
 public enum ConnectionProtocol {
     SSH_TCP,
-    MOSH
+    MOSH,
+    MOSH_CLIENT
 }

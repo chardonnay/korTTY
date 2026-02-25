@@ -1,18 +1,16 @@
 package de.kortty.ui;
 
 import de.kortty.model.ConnectionSettings;
+import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TemporarySSHKey;
-import de.kortty.ui.I18n;
 import javafx.application.Platform;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
 import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.paint.Color;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
@@ -25,7 +23,7 @@ import java.time.format.DateTimeFormatter;
  * A tab containing a terminal view for an SSH session.
  */
 public class TerminalTab extends Tab {
-    
+
     private final ServerConnection connection;
     private final TerminalView terminalView;
     private final ConnectionSettings settings;
@@ -36,6 +34,7 @@ public class TerminalTab extends Tab {
     private Label statusBarLabel;
     private Label disconnectedStatusBar;
     private Instant disconnectedAt;
+    private volatile boolean reconnectInProgress = false;
     
     // Tab group (independent from connection group)
     private String tabGroup = null;
@@ -96,11 +95,7 @@ public class TerminalTab extends Tab {
      * Creates the status bar showing SSH key validity and connection duration.
      */
     private void createStatusBar() {
-        if (temporarySSHKey == null && connection.getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY) {
-            // No status bar needed if no temporary key and not using key auth
-            return;
-        }
-        
+        // Always show status bar so transient network interruption details are visible.
         statusBarLabel = new Label();
         statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
         
@@ -187,6 +182,8 @@ public class TerminalTab extends Tab {
         }
         
         StringBuilder status = new StringBuilder();
+        boolean interrupted = terminalView.isMoshNetworkInterrupted();
+        long interruptedSinceMs = terminalView.getMoshInterruptionStartedAtMs();
         
         // Show temporary SSH key validity if available
         if (temporarySSHKey != null) {
@@ -211,28 +208,49 @@ public class TerminalTab extends Tab {
         // Show connection duration
         if (connectionStartTime != null) {
             long durationSeconds = Instant.now().getEpochSecond() - connectionStartTime.getEpochSecond();
-            long hours = durationSeconds / 3600;
-            long minutes = (durationSeconds % 3600) / 60;
-            long secs = durationSeconds % 60;
-            
             if (status.length() > 0) {
                 status.append(" | ");
             }
-            String durationStr;
-            if (hours > 0) {
-                durationStr = String.format("%d:%02d:%02d", hours, minutes, secs);
-            } else {
-                durationStr = String.format("%02d:%02d", minutes, secs);
-            }
+            String durationStr = formatDuration(durationSeconds);
             status.append(I18n.get("statusBar.connectionDuration", durationStr));
+        }
+
+        if (interrupted && interruptedSinceMs > 0) {
+            long nowMs = System.currentTimeMillis();
+            long elapsedSeconds = Math.max(0L, (nowMs - interruptedSinceMs) / 1000L);
+            String since = DateTimeFormatter.ofPattern("HH:mm:ss")
+                    .format(Instant.ofEpochMilli(interruptedSinceMs).atZone(ZoneId.systemDefault()));
+            String elapsed = formatDuration(elapsedSeconds);
+            if (status.length() > 0) {
+                status.append(" | ");
+            }
+            status.append(I18n.get("statusBar.networkInterruptedSinceElapsed", since, elapsed));
         }
         
         Platform.runLater(() -> {
             statusBarLabel.setText(status.toString());
-            
-            // Always use standard colors - don't change color for expired keys
-            statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+            if (interrupted) {
+                statusBarLabel.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+                if (!isConnectionFailed) {
+                    setTabErrorColor();
+                }
+            } else {
+                statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+                if (!isConnectionFailed) {
+                    resetTabColor();
+                }
+            }
         });
+    }
+
+    private static String formatDuration(long durationSeconds) {
+        long hours = durationSeconds / 3600;
+        long minutes = (durationSeconds % 3600) / 60;
+        long secs = durationSeconds % 60;
+        if (hours > 0) {
+            return String.format("%d:%02d:%02d", hours, minutes, secs);
+        }
+        return String.format("%02d:%02d", minutes, secs);
     }
     
     /**
@@ -278,6 +296,7 @@ public class TerminalTab extends Tab {
      * Use for context-menu "Reconnect" on tab, terminal, or dashboard.
      */
     public void performReconnect() {
+        reconnectInProgress = true;
         if (terminalView.isConnected()) {
             terminalView.disconnectOnly();  // Close connection only, keep UI for reconnect
         }
@@ -313,6 +332,21 @@ public class TerminalTab extends Tab {
         // Register disconnect listener: keep tab and split open, show red tab and red status bar
         terminalView.setDisconnectListener((reason, wasError) -> {
             Platform.runLater(() -> {
+                if (!wasError) {
+                    if (reconnectInProgress) {
+                        reconnectInProgress = false;
+                        return;
+                    }
+                    boolean isMoshSession = connection.getProtocol() == ConnectionProtocol.MOSH;
+                    boolean isRemoteLogout = reason != null
+                            && reason.toLowerCase().contains("remote logout");
+                    if (!isMoshSession || isRemoteLogout) {
+                        closeTabSilently();
+                        return;
+                    }
+                    // Transient mosh disconnect without hard error: keep tab open
+                    // and show reconnect/disconnect UI.
+                }
                 isConnectionFailed = true;
                 updateTabTitle(" (DISCONNECT)");
                 setTabErrorColor();
@@ -321,12 +355,11 @@ public class TerminalTab extends Tab {
         });
         
         // Register callback for successful connection
-        // Store reference to existing callback (if any) to preserve it
-        Runnable existingCallback = null;
         // Note: We can't retrieve existing callback, so external callbacks set after connect()
         // will override this. This is acceptable - MainWindow will set its own callback.
         terminalView.setOnConnectedCallback(() -> {
             Platform.runLater(() -> {
+                reconnectInProgress = false;
                 updateTabTitle();
                 resetTabColor(); // Reset to default (green/normal)
                 hideDisconnectedStatusBar();

@@ -896,16 +896,19 @@ public class MainWindow {
                 return;
             }
             
+            if (result.connection() == null) {
+                return;
+            }
+            
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (result.connection() != null
-                    && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
+            if (result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return; // User cancelled password prompt or no valid password available
             }
             
             // Increment usage count for existing connection
-            if (result.existingSaved() && result.connection() != null) {
+            if (result.existingSaved()) {
                 result.connection().incrementUsageCount();
                 app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
             }
@@ -963,16 +966,19 @@ public class MainWindow {
                 return null;
             }
             
+            if (result.connection() == null) {
+                return null;
+            }
+            
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (result.connection() != null
-                    && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
+            if (result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return null;
             }
             
             // Increment usage count for existing connection
-            if (result.existingSaved() && result.connection() != null) {
+            if (result.existingSaved()) {
                 result.connection().incrementUsageCount();
                 app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
             }
@@ -1013,6 +1019,7 @@ public class MainWindow {
         }
 
         Dialog<String> pwDialog = new Dialog<>();
+        pwDialog.initOwner(stage);
         pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
         pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
         pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -1022,6 +1029,9 @@ public class MainWindow {
         content.getChildren().addAll(new Label(I18n.get("dialog.pleaseEnterPassword")), pwField);
         content.setPadding(new javafx.geometry.Insets(20));
         pwDialog.getDialogPane().setContent(content);
+        Button okButton = (Button) pwDialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.disableProperty().bind(pwField.textProperty().isEmpty());
+        pwField.requestFocus();
         pwDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
         return pwDialog.showAndWait().orElse(null);
     }

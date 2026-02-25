@@ -159,7 +159,7 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
         portSpinner.setPrefWidth(80);
 
         protocolCombo = new ComboBox<>();
-        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH);
+        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT);
         protocolCombo.setValue(connection.getProtocol());
         protocolCombo.setCellFactory(lv -> new ListCell<>() {
             @Override
@@ -167,10 +167,8 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
-                } else if (item == ConnectionProtocol.MOSH) {
-                    setText(I18n.get("protocol.mosh"));
                 } else {
-                    setText(I18n.get("protocol.sshTcp"));
+                    setText(protocolDisplayName(item));
                 }
             }
         });
@@ -180,10 +178,8 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(I18n.get("protocol.sshTcp"));
-                } else if (item == ConnectionProtocol.MOSH) {
-                    setText(I18n.get("protocol.mosh"));
                 } else {
-                    setText(I18n.get("protocol.sshTcp"));
+                    setText(protocolDisplayName(item));
                 }
             }
         });
@@ -1177,6 +1173,16 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 savedCredentialsCombo.setValue(currentSelection);
             }
         }
+    }
+
+    private String protocolDisplayName(ConnectionProtocol protocol) {
+        if (protocol == ConnectionProtocol.MOSH) {
+            return I18n.get("protocol.mosh");
+        }
+        if (protocol == ConnectionProtocol.MOSH_CLIENT) {
+            return I18n.get("protocol.moshClient");
+        }
+        return I18n.get("protocol.sshTcp");
     }
     
     private Tab createGeometryTab() {
