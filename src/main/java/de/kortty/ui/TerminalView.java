@@ -499,7 +499,7 @@ public class TerminalView extends BorderPane {
     private TtyConnector createConnectorForConnection(ServerConnection targetConnection, String targetPassword) {
         TtyConnector connector;
         if (targetConnection.getProtocol() == ConnectionProtocol.MOSH) {
-            if (Mosh4jTtyConnector.isSnapshotSupported()) {
+            if (Mosh4jTtyConnector.isReleaseSupported()) {
                 Mosh4jTtyConnector mosh4jConnector = new Mosh4jTtyConnector(targetConnection, targetPassword);
                 de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
                 if (app != null && app.getSSHKeyManager() != null) {
@@ -512,7 +512,7 @@ public class TerminalView extends BorderPane {
                 return connector;
             }
             throw new IllegalStateException(
-                    "mosh4j snapshot not available. Install GitHub CLI (gh) or configure KORTTY_MOSH4J_SNAPSHOT_DIR. " +
+                    "mosh4j 2.0.0 release not available. Install GitHub CLI (gh) or configure KORTTY_MOSH4J_RELEASE_DIR. " +
                     "Alternatively select protocol 'Mosh Client (native)'.");
         } else if (targetConnection.getProtocol() == ConnectionProtocol.MOSH_CLIENT) {
             if (!NativeMoshTtyConnector.isNativeMoshAvailable()) {

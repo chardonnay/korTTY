@@ -31,8 +31,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Mosh connector that uses mosh4j snapshot artifacts instead of native mosh-client.
- * Snapshot jars are loaded dynamically so korTTY does not need compile-time mosh4j dependencies.
+ * Mosh connector that uses mosh4j release artifacts instead of native mosh-client.
+ * Release jars are loaded dynamically so korTTY does not need compile-time mosh4j dependencies.
  */
 public class Mosh4jTtyConnector implements TtyConnector {
 
@@ -40,8 +40,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
     private static final Pattern MOSH_CONNECT_PATTERN =
             Pattern.compile("MOSH CONNECT\\s+(\\d+)\\s+([A-Za-z0-9+/=]+)");
 
-    private static final String SNAPSHOT_RUN_ID = "22390926211";
-    private static final String SNAPSHOT_COMMIT = "aafbe055e4fa0a13088d653d077cc6ba8cea59d3";
+    private static final String MOSH4J_RELEASE_TAG = "2.0.0";
 
     private static final String DEP_BCPROV_URL =
             "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.jar";
@@ -52,6 +51,8 @@ public class Mosh4jTtyConnector implements TtyConnector {
     private static final boolean DEBUG = Boolean.parseBoolean(System.getenv("KORTTY_MOSH_DEBUG"));
     private static final long KEEPALIVE_INTERVAL_MS = 2500L;
     private static final String LOCAL_MOSH4J_REPO_ENV = "KORTTY_MOSH4J_LOCAL_REPO";
+    private static final String MOSH4J_RELEASE_DIR_ENV = "KORTTY_MOSH4J_RELEASE_DIR";
+    private static final String MOSH4J_SNAPSHOT_DIR_ENV = "KORTTY_MOSH4J_SNAPSHOT_DIR"; // legacy fallback
 
     private final ServerConnection connection;
     private final String password;
@@ -98,10 +99,18 @@ public class Mosh4jTtyConnector implements TtyConnector {
         this.disconnectListener = disconnectListener;
     }
 
-    public static boolean isSnapshotSupported() {
+    public static boolean isReleaseSupported() {
         String arch = mapArchSuffix(System.getProperty("os.arch"));
-        Path snapshotDir = resolveSnapshotBaseDir().resolve("snapshot-" + SNAPSHOT_COMMIT + "-" + arch);
-        return hasRequiredSnapshotJars(snapshotDir, arch) || commandExists("gh");
+        Path releaseDir = resolveReleaseBaseDir().resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
+        return hasRequiredReleaseJars(releaseDir, arch) || commandExists("gh");
+    }
+
+    /**
+     * Kept for compatibility with existing call sites.
+     */
+    @Deprecated
+    public static boolean isSnapshotSupported() {
+        return isReleaseSupported();
     }
 
     public boolean connect() throws SshTtyConnector.AuthenticationException {
@@ -124,13 +133,13 @@ public class Mosh4jTtyConnector implements TtyConnector {
             lastUserInputAtMs = -1L;
             logoutRequestedAtMs = -1L;
             startOutputDrainLoop();
-            logger.info("mosh4j snapshot session started for {}", connection.getDisplayName());
+            logger.info("mosh4j {} session started for {}", MOSH4J_RELEASE_TAG, connection.getDisplayName());
             return true;
         } catch (SshTtyConnector.AuthenticationException e) {
             close();
             throw e;
         } catch (Exception e) {
-            logger.error("Failed to start mosh4j snapshot session for {}: {}", connection.getDisplayName(), e.getMessage(), e);
+            logger.error("Failed to start mosh4j {} session for {}: {}", MOSH4J_RELEASE_TAG, connection.getDisplayName(), e.getMessage(), e);
             close();
             return false;
         }
@@ -175,7 +184,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
     }
 
     private void initMosh4jSession(String host, int udpPort, String keyBase64) throws Exception {
-        List<Path> jars = ensureSnapshotClasspathJars();
+        List<Path> jars = ensureReleaseClasspathJars();
         URL[] urls = new URL[jars.size()];
         for (int i = 0; i < jars.size(); i++) {
             urls[i] = jars.get(i).toUri().toURL();
@@ -231,7 +240,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
         readLogCounter = 0;
     }
 
-    private List<Path> ensureSnapshotClasspathJars() throws Exception {
+    private List<Path> ensureReleaseClasspathJars() throws Exception {
         List<Path> localBuildJars = findLocalBuildClasspathJars();
         if (!localBuildJars.isEmpty()) {
             if (DEBUG) {
@@ -241,15 +250,15 @@ public class Mosh4jTtyConnector implements TtyConnector {
         }
 
         String arch = mapArchSuffix(System.getProperty("os.arch"));
-        Path cacheBase = resolveSnapshotBaseDir();
+        Path cacheBase = resolveReleaseBaseDir();
         Files.createDirectories(cacheBase);
 
-        Path snapshotDir = cacheBase.resolve("snapshot-" + SNAPSHOT_COMMIT + "-" + arch);
-        if (!hasRequiredSnapshotJars(snapshotDir, arch)) {
-            downloadSnapshot(cacheBase);
+        Path releaseDir = cacheBase.resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
+        if (!hasRequiredReleaseJars(releaseDir, arch)) {
+            downloadRelease(cacheBase, arch);
         }
-        if (!hasRequiredSnapshotJars(snapshotDir, arch)) {
-            throw new IOException("mosh4j snapshot jars not found in " + snapshotDir);
+        if (!hasRequiredReleaseJars(releaseDir, arch)) {
+            throw new IOException("mosh4j release jars not found in " + releaseDir);
         }
 
         Path depDir = cacheBase.resolve("deps");
@@ -260,18 +269,18 @@ public class Mosh4jTtyConnector implements TtyConnector {
         downloadIfMissing(protobufJar, DEP_PROTOBUF_URL);
 
         List<Path> classpath = new ArrayList<>();
-        classpath.add(snapshotDir.resolve("mosh4j-protocol-0.1.0-SNAPSHOT-" + arch + ".jar"));
-        classpath.add(snapshotDir.resolve("mosh4j-crypto-0.1.0-SNAPSHOT-" + arch + ".jar"));
-        classpath.add(snapshotDir.resolve("mosh4j-transport-0.1.0-SNAPSHOT-" + arch + ".jar"));
-        classpath.add(snapshotDir.resolve("mosh4j-terminal-0.1.0-SNAPSHOT-" + arch + ".jar"));
-        classpath.add(snapshotDir.resolve("mosh4j-core-0.1.0-SNAPSHOT-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-protocol-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-crypto-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-transport-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-terminal-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-core-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
         classpath.add(bcprovJar);
         classpath.add(protobufJar);
         return classpath;
     }
 
     private List<Path> withSharedDependencies(List<Path> moduleJars) throws IOException {
-        Path cacheBase = resolveSnapshotBaseDir();
+        Path cacheBase = resolveReleaseBaseDir();
         Files.createDirectories(cacheBase);
         Path depDir = cacheBase.resolve("deps");
         Files.createDirectories(depDir);
@@ -295,9 +304,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
         String[] modules = {"protocol", "crypto", "transport", "terminal", "core"};
         List<Path> jars = new ArrayList<>(modules.length);
         for (String module : modules) {
-            Path jar = repoRoot.resolve("mosh4j-" + module)
-                    .resolve("target")
-                    .resolve("mosh4j-" + module + "-0.1.0-SNAPSHOT.jar");
+            Path jar = resolveLocalModuleJar(repoRoot, module);
             if (!Files.isRegularFile(jar)) {
                 return List.of();
             }
@@ -306,12 +313,15 @@ public class Mosh4jTtyConnector implements TtyConnector {
         return jars;
     }
 
-    private static Path resolveSnapshotBaseDir() {
-        String customDir = System.getenv("KORTTY_MOSH4J_SNAPSHOT_DIR");
+    private static Path resolveReleaseBaseDir() {
+        String customDir = System.getenv(MOSH4J_RELEASE_DIR_ENV);
+        if (customDir == null || customDir.isBlank()) {
+            customDir = System.getenv(MOSH4J_SNAPSHOT_DIR_ENV);
+        }
         if (customDir != null && !customDir.isBlank()) {
             return Path.of(customDir.trim());
         }
-        return Path.of(System.getProperty("user.home"), ".kortty", "mosh4j", "snapshot-" + SNAPSHOT_RUN_ID);
+        return Path.of(System.getProperty("user.home"), ".kortty", "mosh4j");
     }
 
     private static String mapArchSuffix(String osArchRaw) {
@@ -322,23 +332,26 @@ public class Mosh4jTtyConnector implements TtyConnector {
         return "amd64";
     }
 
-    private static boolean hasRequiredSnapshotJars(Path snapshotDir, String arch) {
-        if (snapshotDir == null) return false;
-        return Files.isRegularFile(snapshotDir.resolve("mosh4j-core-0.1.0-SNAPSHOT-" + arch + ".jar"))
-                && Files.isRegularFile(snapshotDir.resolve("mosh4j-crypto-0.1.0-SNAPSHOT-" + arch + ".jar"))
-                && Files.isRegularFile(snapshotDir.resolve("mosh4j-protocol-0.1.0-SNAPSHOT-" + arch + ".jar"))
-                && Files.isRegularFile(snapshotDir.resolve("mosh4j-terminal-0.1.0-SNAPSHOT-" + arch + ".jar"))
-                && Files.isRegularFile(snapshotDir.resolve("mosh4j-transport-0.1.0-SNAPSHOT-" + arch + ".jar"));
+    private static boolean hasRequiredReleaseJars(Path releaseDir, String arch) {
+        if (releaseDir == null) return false;
+        return Files.isRegularFile(releaseDir.resolve("mosh4j-core-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"))
+                && Files.isRegularFile(releaseDir.resolve("mosh4j-crypto-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"))
+                && Files.isRegularFile(releaseDir.resolve("mosh4j-protocol-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"))
+                && Files.isRegularFile(releaseDir.resolve("mosh4j-terminal-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"))
+                && Files.isRegularFile(releaseDir.resolve("mosh4j-transport-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
     }
 
-    private static void downloadSnapshot(Path cacheBase) throws Exception {
+    private static void downloadRelease(Path cacheBase, String arch) throws Exception {
+        Path releaseDir = cacheBase.resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
+        Files.createDirectories(releaseDir);
         if (!commandExists("gh")) {
-            throw new IOException("GitHub CLI 'gh' not found. Install gh or provide KORTTY_MOSH4J_SNAPSHOT_DIR.");
+            throw new IOException("GitHub CLI 'gh' not found. Install gh or configure KORTTY_MOSH4J_RELEASE_DIR.");
         }
         Process process = new ProcessBuilder(
-                "gh", "run", "download", SNAPSHOT_RUN_ID,
+                "gh", "release", "download", MOSH4J_RELEASE_TAG,
                 "-R", "chardonnay/mosh4j",
-                "--dir", cacheBase.toString()
+                "--dir", releaseDir.toString(),
+                "--pattern", "mosh4j-*-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"
         )
                 .redirectErrorStream(true)
                 .start();
@@ -347,11 +360,21 @@ public class Mosh4jTtyConnector implements TtyConnector {
         if (!finished) {
             process.destroyForcibly();
             process.waitFor(2, TimeUnit.SECONDS);
-            throw new IOException("Timed out while downloading mosh4j snapshot with gh");
+            throw new IOException("Timed out while downloading mosh4j release with gh");
         }
         if (process.exitValue() != 0) {
-            throw new IOException("gh run download failed: " + new String(output, StandardCharsets.UTF_8));
+            throw new IOException("gh release download failed: " + new String(output, StandardCharsets.UTF_8));
         }
+    }
+
+    private static Path resolveLocalModuleJar(Path repoRoot, String module) {
+        Path targetDir = repoRoot.resolve("mosh4j-" + module).resolve("target");
+        Path releaseJar = targetDir.resolve("mosh4j-" + module + "-" + MOSH4J_RELEASE_TAG + ".jar");
+        if (Files.isRegularFile(releaseJar)) {
+            return releaseJar;
+        }
+        // Fallback for older local builds.
+        return targetDir.resolve("mosh4j-" + module + "-0.1.0-SNAPSHOT.jar");
     }
 
     private static void downloadIfMissing(Path targetFile, String url) throws IOException {
@@ -612,7 +635,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     @Override
     public String getName() {
-        return connection.getDisplayName() + " [MOSH mosh4j-snapshot]";
+        return connection.getDisplayName() + " [MOSH mosh4j-" + MOSH4J_RELEASE_TAG + "]";
     }
 
     @Override
