@@ -7,6 +7,7 @@ import de.kortty.security.EncryptionService;
 import de.kortty.ui.I18n;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
+import org.apache.sshd.client.auth.password.UserAuthPasswordFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
@@ -75,12 +76,23 @@ public class SshTtyConnector implements TtyConnector {
             // Create and start SSH client
             client = SshClient.setUpDefaultClient();
             
-            // Enable public key AND keyboard-interactive authentication
-            // CyberArk requires keyboard-interactive AFTER publickey for access reason
-            client.setUserAuthFactories(java.util.Arrays.asList(
-                new UserAuthPublicKeyFactory(),
-                new UserAuthKeyboardInteractiveFactory()
-            ));
+            // Configure supported auth methods explicitly.
+            // For password logins we must include UserAuthPasswordFactory, otherwise
+            // servers that do not offer keyboard-interactive password prompts will fail.
+            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                // CyberArk requires keyboard-interactive after publickey for access reason prompts.
+                client.setUserAuthFactories(java.util.Arrays.asList(
+                    new UserAuthPublicKeyFactory(),
+                    new UserAuthKeyboardInteractiveFactory(),
+                    new UserAuthPasswordFactory()
+                ));
+            } else {
+                client.setUserAuthFactories(java.util.Arrays.asList(
+                    new UserAuthPasswordFactory(),
+                    new UserAuthKeyboardInteractiveFactory(),
+                    new UserAuthPublicKeyFactory()
+                ));
+            }
             
             // Set up keyboard-interactive handler for CyberArk prompts
             // CyberArk asks for "reason for this operation" after SSH key auth succeeds

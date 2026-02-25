@@ -119,6 +119,9 @@ dependencies {
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.13.2")
 
+    // PTY support for native Mosh client
+    implementation("org.jetbrains.pty4j:pty4j:0.12.25")
+
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("ch.qos.logback:logback-classic:1.4.14")
@@ -173,7 +176,8 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--main-jar", mainJar,
         "--main-class", "de.kortty.Launcher",
         "--dest", outputDir,
-        "--java-options", "-Djava.awt.headless=false"
+        "--java-options", "-Djava.awt.headless=false",
+        "--java-options", "--enable-native-access=javafx.graphics,ALL-UNNAMED"
     )
     return args
 }
@@ -416,7 +420,7 @@ tasks.named<JavaExec>("run") {
         "--add-opens=java.base/java.io=ALL-UNNAMED",
         "--add-opens=java.base/java.nio=ALL-UNNAMED",
         // Aktiviere native Zugriffe für JavaFX (verhindert Warnungen über System::load)
-        "--enable-native-access=javafx.graphics",
+        "--enable-native-access=javafx.graphics,ALL-UNNAMED",
         // Unterdrücke Warnungen über sun.misc.Unsafe::allocateMemory (von JavaFX intern verwendet)
         // Diese Warnungen kommen von JavaFX's Marlin Renderer und sind harmlos
         "--sun-misc-unsafe-memory-access=allow",

@@ -4,6 +4,8 @@ import de.kortty.model.ServerConnection;
 import de.kortty.model.SSHKey;
 import de.kortty.model.Theme;
 import de.kortty.model.AuthMethod;
+import de.kortty.model.ConnectionProtocol;
+import de.kortty.model.StoredCredential;
 import de.kortty.model.TemporarySSHKey;
 import de.kortty.security.PasswordVault;
 import de.kortty.core.SSHKeyManager;
@@ -13,7 +15,6 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.concurrent.Task;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
@@ -36,12 +37,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     private final char[] masterPassword;
     private final int topConnectionsCount;
     
+    private boolean ignoreSavedCredentialsEvents;
+    
     // Individual connection tab
     private ComboBox<ServerConnection> savedConnectionsCombo;
     private TextField hostField;
     private Spinner<Integer> portSpinner;
+    private ComboBox<ConnectionProtocol> protocolCombo;
     private TextField usernameField;
     private PasswordField passwordField;
+    private ComboBox<StoredCredential> savedCredentialsCombo;
     private ToggleGroup authMethodGroup;
     private RadioButton passwordAuthRadio;
     private RadioButton keyAuthRadio;
@@ -279,6 +284,33 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         portSpinner = new Spinner<>(1, 65535, 22);
         portSpinner.setEditable(true);
         portSpinner.setPrefWidth(80);
+
+        protocolCombo = new ComboBox<>();
+        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT);
+        protocolCombo.setValue(ConnectionProtocol.SSH_TCP);
+        protocolCombo.setPrefWidth(180);
+        protocolCombo.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(ConnectionProtocol item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(protocolDisplayName(item));
+                }
+            }
+        });
+        protocolCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ConnectionProtocol item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(I18n.get("protocol.sshTcp"));
+                } else {
+                    setText(protocolDisplayName(item));
+                }
+            }
+        });
         
         usernameField = new TextField();
         usernameField.setPromptText("root");
@@ -286,6 +318,44 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         passwordField = new PasswordField();
         passwordField.setPromptText(I18n.get("quickConnect.password"));
+
+        savedCredentialsCombo = new ComboBox<>();
+        savedCredentialsCombo.setPromptText(I18n.get("connEdit.selectCredential"));
+        savedCredentialsCombo.setPrefWidth(300);
+        savedCredentialsCombo.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(StoredCredential item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " (" + item.getUsername() + ")");
+                }
+            }
+        });
+        savedCredentialsCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(StoredCredential item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(I18n.get("connEdit.selectCredential"));
+                } else {
+                    setText(item.getName() + " (" + item.getUsername() + ")");
+                }
+            }
+        });
+        savedCredentialsCombo.setOnAction(e -> {
+            if (ignoreSavedCredentialsEvents) return;
+            StoredCredential cred = savedCredentialsCombo.getValue();
+            if (cred != null) {
+                usernameField.setText(cred.getUsername());
+                String pw = resolveCredentialPassword(cred);
+                if (pw != null) {
+                    passwordField.setText(pw);
+                }
+                passwordAuthRadio.setSelected(true);
+            }
+        });
         
         // Authentication method
         authMethodGroup = new ToggleGroup();
@@ -348,6 +418,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             boolean useKey = keyAuthRadio.isSelected();
             boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
             passwordField.setDisable(useKey || useTemporaryKey);
+            savedCredentialsCombo.setDisable(useKey || useTemporaryKey);
             savedSSHKeysCombo.setDisable(!useKey || useTemporaryKey);
             if (temporaryKeyArea != null) {
                 temporaryKeyArea.setDisable(!useTemporaryKey);
@@ -394,6 +465,8 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         // Load last used timeout and retries values
         loadConnectionSettings();
+        updateCredentialCombo(hostField.getText());
+        hostField.textProperty().addListener((obs, oldVal, newVal) -> updateCredentialCombo(newVal));
         
         saveConnectionCheck.selectedProperty().addListener((obs, old, newVal) -> {
             connectionNameField.setDisable(!newVal);
@@ -462,22 +535,28 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         
         grid.add(new Label(I18n.get("quickConnect.username")), 0, 1);
         grid.add(usernameField, 1, 1);
+
+        grid.add(new Label(I18n.get("quickConnect.protocol")), 0, 2);
+        grid.add(protocolCombo, 1, 2);
         
-        grid.add(new Label(I18n.get("quickConnect.authentication")), 0, 2);
+        grid.add(new Label(I18n.get("quickConnect.authentication")), 0, 3);
         VBox authBox = new VBox(5);
         authBox.getChildren().addAll(passwordAuthRadio, keyAuthRadio);
         if (temporaryKeyAuthRadio != null) {
             authBox.getChildren().add(temporaryKeyAuthRadio);
         }
-        grid.add(authBox, 1, 2);
+        grid.add(authBox, 1, 3);
         
-        grid.add(new Label(I18n.get("quickConnect.password")), 0, 3);
-        grid.add(passwordField, 1, 3);
+        grid.add(new Label(I18n.get("quickConnect.password")), 0, 4);
+        grid.add(passwordField, 1, 4);
         
-        grid.add(new Label(I18n.get("quickConnect.sshKey")), 0, 4);
-        grid.add(savedSSHKeysCombo, 1, 4);
+        grid.add(new Label(I18n.get("connEdit.savedCredentials")), 0, 5);
+        grid.add(savedCredentialsCombo, 1, 5);
         
-        int row = 5;
+        grid.add(new Label(I18n.get("quickConnect.sshKey")), 0, 6);
+        grid.add(savedSSHKeysCombo, 1, 6);
+        
+        int row = 7;
         if (temporaryKeyAuthRadio != null && temporaryKeyArea != null) {
             grid.add(new Label(I18n.get("quickConnect.temporarySSHKey")), 0, row);
             VBox tempKeyBox = new VBox(5);
@@ -676,6 +755,20 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         hostField.setText(conn.getHost());
         portSpinner.getValueFactory().setValue(conn.getPort());
         usernameField.setText(conn.getUsername());
+        protocolCombo.setValue(conn.getProtocol());
+        updateCredentialCombo(conn.getHost());
+        if (conn.getCredentialId() != null && credentialManager != null) {
+            credentialManager.findCredentialById(conn.getCredentialId()).ifPresent(cred -> {
+                if (savedCredentialsCombo.getItems().contains(cred)) {
+                    savedCredentialsCombo.setValue(cred);
+                } else {
+                    savedCredentialsCombo.getItems().add(cred);
+                    savedCredentialsCombo.setValue(cred);
+                }
+            });
+        } else {
+            savedCredentialsCombo.setValue(null);
+        }
         
         // Set timeout and retry from connection
         timeoutSpinner.getValueFactory().setValue(conn.getConnectionTimeoutSeconds());
@@ -740,8 +833,27 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     }
     
     private ConnectionResult createIndividualResult() {
+        String resolvedPassword = passwordField.getText();
         // Check if using a saved connection
         ServerConnection selected = savedConnectionsCombo.getValue();
+
+        // Resolve password robustly for password-auth flows:
+        // 1) direct input field, 2) selected credential, 3) selected saved connection fallback.
+        if (passwordAuthRadio.isSelected() && (resolvedPassword == null || resolvedPassword.isBlank())) {
+            if (savedCredentialsCombo.getValue() != null) {
+                String credentialPassword = resolveCredentialPassword(savedCredentialsCombo.getValue());
+                if (credentialPassword != null && !credentialPassword.isBlank()) {
+                    resolvedPassword = credentialPassword;
+                }
+            }
+            if ((resolvedPassword == null || resolvedPassword.isBlank()) && selected != null) {
+                String savedConnectionPassword = getConnectionPassword(selected);
+                if (savedConnectionPassword != null && !savedConnectionPassword.isBlank()) {
+                    resolvedPassword = savedConnectionPassword;
+                }
+            }
+        }
+
         if (selected != null && 
             selected.getHost().equals(hostField.getText().trim()) &&
             selected.getPort() == portSpinner.getValue() &&
@@ -762,6 +874,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
                 
                 TemporarySSHKey tempKey = null;
                 String keyText = temporaryKeyArea != null ? temporaryKeyArea.getText() : null;
@@ -799,6 +912,32 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 }
                 return new ConnectionResult(modified, null, false, true, null, false, tempKey);
             }
+
+            if (passwordAuthRadio.isSelected()) {
+                ServerConnection modified = new ServerConnection();
+                modified.setId(selected.getId());
+                modified.setName(selected.getName());
+                modified.setHost(selected.getHost());
+                modified.setPort(selected.getPort());
+                modified.setUsername(selected.getUsername());
+                modified.setGroup(selected.getGroup());
+                modified.setSettings(selected.getSettings());
+                modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+                modified.setRetryCount(retrySpinner.getValue());
+                modified.setAuthMethod(AuthMethod.PASSWORD);
+                modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
+                modified.setSshKeyId(null);
+                modified.setPrivateKeyPath(null);
+                modified.setTemporaryKeyContent(null);
+                modified.setTemporaryKeyExpirationMinutes(null);
+                modified.setTemporaryKeyPermanent(false);
+                if (savedCredentialsCombo.getValue() != null) {
+                    modified.setCredentialId(savedCredentialsCombo.getValue().getId());
+                } else {
+                    modified.setCredentialId(selected.getCredentialId());
+                }
+                return new ConnectionResult(modified, resolvedPassword, false, true, null, false, null);
+            }
             
             if (keyAuthRadio.isSelected() && selected.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
                 // User switched to key auth, need to update connection
@@ -814,6 +953,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
                 if (savedSSHKeysCombo.getValue() != null) {
                     modified.setSshKeyId(savedSSHKeysCombo.getValue().getId());
                     modified.setPrivateKeyPath(sshKeyManager != null ? 
@@ -835,8 +975,16 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PASSWORD);
+                modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
                 modified.setSshKeyId(null);
-                return new ConnectionResult(modified, passwordField.getText(), false, true, null, false, null);
+                modified.setPrivateKeyPath(null);
+                modified.setTemporaryKeyContent(null);
+                modified.setTemporaryKeyExpirationMinutes(null);
+                modified.setTemporaryKeyPermanent(false);
+                if (savedCredentialsCombo.getValue() != null) {
+                    modified.setCredentialId(savedCredentialsCombo.getValue().getId());
+                }
+                return new ConnectionResult(modified, resolvedPassword, false, true, null, false, null);
             }
             // Using an existing saved connection, but update timeout and retries from spinners
             ServerConnection modified = new ServerConnection();
@@ -848,6 +996,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
             modified.setGroup(selected.getGroup());
             modified.setSettings(selected.getSettings());
             modified.setAuthMethod(selected.getAuthMethod());
+            modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
             modified.setSshKeyId(selected.getSshKeyId());
             modified.setPrivateKeyPath(selected.getPrivateKeyPath());
             // Preserve temporary SSH key fields for reconnection
@@ -871,13 +1020,17 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 modified.setPrivateKeyPath("TEMPORARY:" + selected.getTemporaryKeyContent());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
             }
-            return new ConnectionResult(modified, passwordField.getText(), false, true, null, false, existingTempKey);
+            if (savedCredentialsCombo.getValue() != null && modified.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
+                modified.setCredentialId(savedCredentialsCombo.getValue().getId());
+            }
+            return new ConnectionResult(modified, resolvedPassword, false, true, null, false, existingTempKey);
         }
         
         ServerConnection connection = new ServerConnection();
         connection.setHost(hostField.getText().trim());
         connection.setPort(portSpinner.getValue());
         connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
+        connection.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : ConnectionProtocol.SSH_TCP);
         connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
         connection.setRetryCount(retrySpinner.getValue());
         
@@ -912,6 +1065,9 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         } else {
             connection.setAuthMethod(AuthMethod.PASSWORD);
         }
+        if (savedCredentialsCombo.getValue() != null && connection.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
+            connection.setCredentialId(savedCredentialsCombo.getValue().getId());
+        }
         
         if (saveConnectionCheck.isSelected()) {
             String name = connectionNameField.getText().trim();
@@ -921,7 +1077,46 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         // Apply terminal settings from the dialog
         applyTerminalSettings(connection);
         
-        return new ConnectionResult(connection, passwordField.getText(), saveConnectionCheck.isSelected(), false, null, false, tempKey);
+        return new ConnectionResult(connection, resolvedPassword, saveConnectionCheck.isSelected(), false, null, false, tempKey);
+    }
+
+    private void updateCredentialCombo(String hostname) {
+        if (savedCredentialsCombo == null || credentialManager == null) return;
+        ignoreSavedCredentialsEvents = true;
+        try {
+            StoredCredential current = savedCredentialsCombo.getValue();
+            savedCredentialsCombo.getItems().clear();
+            if (hostname != null && !hostname.trim().isEmpty()) {
+                List<StoredCredential> matching = credentialManager.getAllCredentials().stream()
+                    .filter(c -> c.matchesServer(hostname))
+                    .collect(Collectors.toList());
+                savedCredentialsCombo.getItems().addAll(matching);
+                if (current != null && matching.contains(current)) {
+                    savedCredentialsCombo.setValue(current);
+                }
+            }
+        } finally {
+            ignoreSavedCredentialsEvents = false;
+        }
+    }
+
+    private String resolveCredentialPassword(StoredCredential credential) {
+        if (credential == null || credentialManager == null || masterPassword == null) return null;
+        try {
+            return credentialManager.getPassword(credential, masterPassword);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String protocolDisplayName(ConnectionProtocol protocol) {
+        if (protocol == ConnectionProtocol.MOSH) {
+            return I18n.get("protocol.mosh");
+        }
+        if (protocol == ConnectionProtocol.MOSH_CLIENT) {
+            return I18n.get("protocol.moshClient");
+        }
+        return I18n.get("protocol.sshTcp");
     }
     
     /**
