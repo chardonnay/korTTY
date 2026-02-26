@@ -1161,19 +1161,15 @@ public class TerminalView extends BorderPane {
             if (visibleRows <= 0) {
                 return;
             }
-            double charHeight = terminalPanel.getCellHeightPixels();
-            if (charHeight <= 0) {
-                double pixelHeight = terminalPanel.getPixelHeight();
-                charHeight = visibleRows > 0 ? pixelHeight / visibleRows : 16;
-            }
+            double charHeight = resolveCellHeightPixels(terminalPanel, visibleRows);
             if (charHeight <= 0) {
                 return;
             }
-            int scrollOrigin = terminalPanel.getScrollOrigin();
+            int scrollOrigin = resolveScrollOrigin(terminalPanel, scrollBar, historyLines);
             int minOrigin = -Math.max(0, historyLines);
             if (scrollOrigin < minOrigin) scrollOrigin = minOrigin;
             if (scrollOrigin > 0) scrollOrigin = 0;
-            double baselineOffset = terminalPanel.getCellBaselineOffsetPixels();
+            double baselineOffset = resolveCellBaselineOffsetPixels(terminalPanel, charHeight);
             if (baselineOffset <= 0 || baselineOffset > charHeight * 2.0) {
                 baselineOffset = charHeight * 0.78;
             }
@@ -1181,6 +1177,73 @@ public class TerminalView extends BorderPane {
         } catch (Exception e) {
             logger.debug("Failed to update gutter scroll state: {}", e.getMessage());
         }
+    }
+
+    private double resolveCellHeightPixels(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, int visibleRows) {
+        Double fromMethod = invokeTerminalPanelDoubleMethod(terminalPanel, "getCellHeightPixels");
+        if (fromMethod != null && fromMethod > 0) {
+            return fromMethod;
+        }
+        double pixelHeight = terminalPanel.getPixelHeight();
+        if (pixelHeight > 0 && visibleRows > 0) {
+            return pixelHeight / visibleRows;
+        }
+        return 16.0;
+    }
+
+    private int resolveScrollOrigin(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, ScrollBar scrollBar, int historyLines) {
+        Integer fromMethod = invokeTerminalPanelIntMethod(terminalPanel, "getScrollOrigin");
+        if (fromMethod != null) {
+            return fromMethod;
+        }
+        // Fallback for upstream builds that don't expose getScrollOrigin().
+        // ScrollBar value maps to "lines scrolled into history".
+        if (scrollBar != null) {
+            int fromScroll = -(int) Math.round(scrollBar.getValue());
+            int min = -Math.max(0, historyLines);
+            if (fromScroll < min) return min;
+            if (fromScroll > 0) return 0;
+            return fromScroll;
+        }
+        return 0;
+    }
+
+    private double resolveCellBaselineOffsetPixels(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, double charHeight) {
+        Double fromMethod = invokeTerminalPanelDoubleMethod(terminalPanel, "getCellBaselineOffsetPixels");
+        if (fromMethod != null && fromMethod > 0 && fromMethod <= charHeight * 2.0) {
+            return fromMethod;
+        }
+        return charHeight * 0.78;
+    }
+
+    private Double invokeTerminalPanelDoubleMethod(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, String methodName) {
+        try {
+            var method = terminalPanel.getClass().getMethod(methodName);
+            Object result = method.invoke(terminalPanel);
+            if (result instanceof Number number) {
+                return number.doubleValue();
+            }
+        } catch (NoSuchMethodException ignored) {
+            // Method not available in this jeditermfx build.
+        } catch (Exception e) {
+            logger.debug("Failed to call {} on TerminalPanel: {}", methodName, e.getMessage());
+        }
+        return null;
+    }
+
+    private Integer invokeTerminalPanelIntMethod(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, String methodName) {
+        try {
+            var method = terminalPanel.getClass().getMethod(methodName);
+            Object result = method.invoke(terminalPanel);
+            if (result instanceof Number number) {
+                return number.intValue();
+            }
+        } catch (NoSuchMethodException ignored) {
+            // Method not available in this jeditermfx build.
+        } catch (Exception e) {
+            logger.debug("Failed to call {} on TerminalPanel: {}", methodName, e.getMessage());
+        }
+        return null;
     }
     
     /**
