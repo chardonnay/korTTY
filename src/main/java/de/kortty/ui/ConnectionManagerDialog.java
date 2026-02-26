@@ -67,7 +67,13 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
     private Runnable teamworkCacheUpdateListener;
     /** When true, combo/username listeners must not call saveTeamworkAuthSelection (e.g. during applyTeamworkAuthFromSettings). */
     private boolean suppressTeamworkAuthSave;
+    /** Optional callback run when connections are saved successfully (e.g. to refresh open terminal tabs). */
+    private Runnable onConnectionsSavedCallback;
     private final TableView<ServerConnection> table; // Keep for compatibility, but hide it
+    
+    public void setOnConnectionsSavedCallback(Runnable onConnectionsSavedCallback) {
+        this.onConnectionsSavedCallback = onConnectionsSavedCallback;
+    }
     
     public ConnectionManagerDialog(Stage owner, KorTTYApplication app) {
         this.app = app;
@@ -856,6 +862,9 @@ public class ConnectionManagerDialog extends Dialog<ServerConnection> {
         try {
             configManager.save(app.getMasterPasswordManager().getDerivedKey());
             logger.info("Connections saved successfully");
+            if (onConnectionsSavedCallback != null) {
+                javafx.application.Platform.runLater(onConnectionsSavedCallback);
+            }
         } catch (Exception e) {
             logger.error("Failed to save connections", e);
             Alert alert = new Alert(Alert.AlertType.ERROR);

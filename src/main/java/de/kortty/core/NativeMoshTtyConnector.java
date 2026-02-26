@@ -5,6 +5,7 @@ import com.pty4j.PtyProcessBuilder;
 import com.pty4j.WinSize;
 import com.techsenger.jeditermfx.core.TtyConnector;
 import com.techsenger.jeditermfx.core.util.TermSize;
+import de.kortty.model.AuthMethod;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import org.slf4j.Logger;
@@ -67,7 +68,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
 
     public boolean connect() throws SshTtyConnector.AuthenticationException {
         if (connection.getProtocol() != ConnectionProtocol.MOSH_CLIENT) {
-            throw new IllegalStateException("NativeMoshTtyConnector requires protocol MOSH_CLIENT");
+            throw new IllegalStateException(i18n("mosh.native.protocolMismatch", i18n("protocol.moshClient")));
         }
         try {
             logger.info("Starting native MOSH for {}@{}:{}",
@@ -76,7 +77,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
             String connectLine = sshBootstrapMoshServer();
             Matcher m = MOSH_CONNECT_PATTERN.matcher(connectLine);
             if (!m.find()) {
-                throw new IOException("Invalid MOSH CONNECT line: " + connectLine);
+                throw new IOException(i18n("mosh.error.invalidConnectLine", connectLine));
             }
             int udpPort = Integer.parseInt(m.group(1));
             String key = m.group(2);
@@ -98,13 +99,14 @@ public class NativeMoshTtyConnector implements TtyConnector {
     }
 
     private String sshBootstrapMoshServer() throws Exception {
-        SshTtyConnector bootstrap = new SshTtyConnector(connection, password);
-        if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY && sshKeyManager != null) {
+        ServerConnection bootstrapConnection = resolveBootstrapConnection();
+        SshTtyConnector bootstrap = new SshTtyConnector(bootstrapConnection, password);
+        if (bootstrapConnection.getAuthMethod() == AuthMethod.PUBLIC_KEY && sshKeyManager != null) {
             bootstrap.setSSHKeyManager(sshKeyManager, masterPassword);
         }
         try {
             if (!bootstrap.connect()) {
-                throw new IOException("SSH bootstrap connection failed");
+                throw new IOException(i18n("mosh.error.sshBootstrapFailed"));
             }
             int timeoutSec = Math.max(5, connection.getConnectionTimeoutSeconds());
             long deadline = System.currentTimeMillis() + Duration.ofSeconds(timeoutSec).toMillis();
@@ -129,10 +131,34 @@ public class NativeMoshTtyConnector implements TtyConnector {
                     Thread.sleep(40);
                 }
             }
-            throw new IOException("mosh-server handshake timed out. Output: " + output);
+            throw new IOException(i18n("mosh.error.handshakeTimeout", timeoutSec, output.length()));
         } finally {
             bootstrap.close();
         }
+    }
+
+    private ServerConnection resolveBootstrapConnection() {
+        if (connection.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
+            return connection;
+        }
+        boolean hasKeyMaterial = hasConfiguredKeyMaterial(connection);
+        boolean hasPassword = password != null && !password.isBlank();
+        if (hasKeyMaterial) {
+            return connection;
+        }
+        if (!hasPassword) {
+            logger.warn("MOSH bootstrap keeps selected authentication method (no key material configured, no fallback password).");
+            return connection;
+        }
+        ServerConnection fallback = ServerConnection.copyForAuth(connection);
+        fallback.setAuthMethod(AuthMethod.PASSWORD);
+        logger.warn("MOSH bootstrap auth fallback to password (no key configured).");
+        return fallback;
+    }
+
+    private static boolean hasConfiguredKeyMaterial(ServerConnection connection) {
+        return connection.getSshKeyId() != null && !connection.getSshKeyId().isBlank()
+                || connection.getPrivateKeyPath() != null && !connection.getPrivateKeyPath().isBlank();
     }
 
     private void startMoshClient(String host, int port, String key) throws IOException {
@@ -143,7 +169,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
 
         String moshClientPath = findCommand("mosh-client");
         if (moshClientPath == null) {
-            throw new IOException("mosh-client binary not found in PATH");
+            throw new IOException(i18n("mosh.native.clientNotFoundInPath"));
         }
 
         Map<String, String> env = new HashMap<>(System.getenv());
@@ -182,12 +208,19 @@ public class NativeMoshTtyConnector implements TtyConnector {
                 if (disconnectListener != null) {
                     boolean wasError = exitCode != 0;
                     String reason = wasError
-                            ? "Native mosh-client exited with code " + exitCode
-                            : "Native mosh-client ended normally";
+                            ? i18n("mosh.native.disconnectExitCode", exitCode)
+                            : i18n("mosh.native.disconnectNormal");
                     disconnectListener.onDisconnect(reason, wasError);
                 }
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
+            } catch (Throwable t) {
+                logger.warn("Monitor thread error, notifying disconnect", t);
+                connected.set(false);
+                if (disconnectListener != null) {
+                    String detail = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+                    disconnectListener.onDisconnect(safeI18nFallback("mosh.native.disconnectError", detail), true);
+                }
             }
         }, "MOSH-Native-Monitor-" + connection.getDisplayName());
         monitorThread.setDaemon(true);
@@ -271,7 +304,47 @@ public class NativeMoshTtyConnector implements TtyConnector {
 
     @Override
     public String getName() {
-        return connection.getDisplayName() + " [MOSH native]";
+        return connection.getDisplayName() + " [" + i18n("mosh.native.nameSuffix") + "]";
+    }
+
+    private static String i18n(String key, Object... args) {
+        LanguageManager lm = LanguageManager.getInstance();
+        if (lm == null) {
+            return formatFallback(key, args);
+        }
+        String s = lm.getString(key, args);
+        if (s != null && !s.isEmpty()) {
+            return s;
+        }
+        return formatFallback(key, args);
+    }
+
+    private static String formatFallback(String key, Object... args) {
+        if (args == null || args.length == 0) {
+            return key;
+        }
+        try {
+            StringBuilder sb = new StringBuilder(key);
+            for (int i = 0; i < args.length; i++) {
+                sb.append(" ").append(args[i]);
+            }
+            return sb.toString();
+        } catch (Exception ignored) {
+            return key;
+        }
+    }
+
+    /** Null-safe i18n for use in catch blocks where i18n might throw. */
+    private static String safeI18nFallback(String key, Object... args) {
+        try {
+            LanguageManager lm = LanguageManager.getInstance();
+            if (lm != null) {
+                String s = args == null || args.length == 0 ? lm.getString(key) : lm.getString(key, args);
+                if (s != null && !s.isEmpty()) return s;
+            }
+        } catch (Throwable ignored) {
+        }
+        return "Connection ended";
     }
 
     @Override

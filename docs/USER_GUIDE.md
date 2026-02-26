@@ -138,7 +138,7 @@ Open with **File > Quick Connect** or press **Ctrl+K** (Cmd+K on macOS).
 
 The Quick Connect dialog has three sections:
 
-1. **Frequently Used Connections** - The top 10 most-used connections appear as quick-access buttons at the top. Click one to connect immediately.
+1. **Frequently Used Connections** - The 10 last used connections appear as quick-access buttons at the top, ordered by last used (most recent first). Click one to connect immediately. Usage is tracked when you connect from Quick Connect or the Dashboard.
 
 2. **Individual Connection** tab:
    - Select a saved connection from the dropdown, or enter host, port, and username manually.
@@ -198,6 +198,8 @@ When you create or edit a connection, a dialog with multiple tabs opens:
 - Override global font, colors, and terminal size for this specific connection.
 - **Close Confirmation** - Ask before closing this tab.
 
+When you save a connection (e.g. after changing font size or family), any **open terminal tabs** using that connection update their font and appearance **immediately**; no restart or reconnect is required.
+
 #### SSH Tunnels Tab
 - Add, edit, or remove SSH tunnels (see [SSH Tunnels](#5-ssh-tunnels)).
 
@@ -255,9 +257,9 @@ Adjust the font size of the active terminal without reconnecting:
 |---|---|
 | Alt+Plus | Zoom in (increase font size) |
 | Alt+Minus | Zoom out (decrease font size) |
-| Alt+0 | Reset zoom to default |
+| Alt+0 | Reset zoom to saved/default font |
 
-The zoom level applies only to the currently focused terminal.
+**Reset zoom** restores the font size and family to what the connection had when you opened the tab (or the connection’s saved settings, or the global default). The same reset is available via the terminal context menu: right‑click → **Font size** → **Reset**. The zoom level applies only to the currently focused terminal.
 
 ### 4.4 Split-Screen with Broadcast
 
@@ -896,6 +898,7 @@ You can generate language files for **any language** using a translation API, so
 | Alt+Minus | Zoom Out |
 | Alt+0 | Reset Zoom |
 | F11 | Toggle Fullscreen |
+| Ctrl+X | Cut (terminal: copy selection to clipboard) |
 | Ctrl+C | Copy |
 | Ctrl+V | Paste |
 | Ctrl+Q | Quit |

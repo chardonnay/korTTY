@@ -191,16 +191,12 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
     }
     
     private VBox createTopConnectionsSection() {
-        // Get recently used connections (last used > 0), sorted by frequency then last used
+        // Show the N last used connections, ordered by last used (most recent first).
+        int maxCount = Math.max(1, topConnectionsCount);
         List<ServerConnection> recentConnections = savedConnections.stream()
                 .filter(c -> c.getLastUsed() > 0)
-                .sorted((a, b) -> {
-                    // Sort by usage count descending first, then by last used descending
-                    int usageCompare = Integer.compare(b.getUsageCount(), a.getUsageCount());
-                    if (usageCompare != 0) return usageCompare;
-                    return Long.compare(b.getLastUsed(), a.getLastUsed());
-                })
-                .limit(10)
+                .sorted((a, b) -> Long.compare(b.getLastUsed(), a.getLastUsed()))
+                .limit(maxCount)
                 .collect(Collectors.toList());
         
         if (recentConnections.isEmpty()) {
@@ -211,13 +207,15 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         Label label = new Label(I18n.get("quickConnect.frequentlyUsed"));
         label.setStyle("-fx-font-weight: bold;");
         
-        // Create horizontal scrollable container
-        HBox buttonContainer = new HBox(8);
+        javafx.scene.layout.TilePane buttonContainer = new javafx.scene.layout.TilePane();
+        buttonContainer.setHgap(8);
+        buttonContainer.setVgap(8);
         buttonContainer.setPadding(new Insets(5));
+        buttonContainer.setPrefColumns(Math.min(5, maxCount));
         
         for (ServerConnection conn : recentConnections) {
             Button btn = new Button(conn.getName());
-            btn.setPrefWidth(150);
+            btn.setPrefWidth(140);
             btn.setMaxWidth(Double.MAX_VALUE);
             btn.setTooltip(new Tooltip(conn.getUsername() + "@" + conn.getHost() + ":" + conn.getPort() + 
                     "\n" + I18n.get("quickConnect.usageCount") + ": " + conn.getUsageCount() + "x" +
@@ -227,6 +225,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 fillFormWithConnection(conn);
                 // Look up temporary SSH key from manager if connection uses one
                 TemporarySSHKey tempKeyForBtn = null;
+                ServerConnection selectedConn = ServerConnection.copyForAuth(conn);
                 if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
                     tempKeyForBtn = TemporarySSHKeyManager.getInstance().getTemporaryKey(conn.getTemporaryKeyContent());
                     if (tempKeyForBtn == null || !tempKeyForBtn.isValid()) {
@@ -237,28 +236,18 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                         // storeTemporaryKey may return null if key content is incomplete - that's OK
                     }
                     // Ensure privateKeyPath is set for the connector (use stored content directly)
-                    conn.setPrivateKeyPath("TEMPORARY:" + conn.getTemporaryKeyContent());
-                    conn.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                    selectedConn.setPrivateKeyPath("TEMPORARY:" + conn.getTemporaryKeyContent());
+                    selectedConn.setAuthMethod(AuthMethod.PUBLIC_KEY);
                 }
-                setResult(new ConnectionResult(conn, 
+                setResult(new ConnectionResult(selectedConn, 
                         getConnectionPassword(conn), 
                         false, true, null, false, tempKeyForBtn));
                 close();
             });
             buttonContainer.getChildren().add(btn);
         }
-        
-        // Wrap in ScrollPane for horizontal scrolling
-        ScrollPane scrollPane = new ScrollPane(buttonContainer);
-        scrollPane.setFitToHeight(true);
-        scrollPane.setFitToWidth(false);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scrollPane.setPrefHeight(60);
-        scrollPane.setMinHeight(60);
-        scrollPane.setMaxHeight(60);
-        
-        box.getChildren().addAll(label, scrollPane);
+
+        box.getChildren().addAll(label, buttonContainer);
         return box;
     }
     

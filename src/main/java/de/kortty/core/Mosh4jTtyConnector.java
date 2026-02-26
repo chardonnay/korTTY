@@ -42,6 +42,11 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     private static final String MOSH4J_RELEASE_TAG = "2.0.0";
 
+    /** Returns the mosh4j release version (e.g. for i18n messages). */
+    public static String getMosh4jReleaseTag() {
+        return MOSH4J_RELEASE_TAG;
+    }
+
     private static final String DEP_BCPROV_URL =
             "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.jar";
     private static final String DEP_PROTOBUF_URL =
@@ -115,13 +120,13 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     public boolean connect() throws SshTtyConnector.AuthenticationException {
         if (connection.getProtocol() != ConnectionProtocol.MOSH) {
-            throw new IllegalStateException("Mosh4jTtyConnector requires protocol MOSH (mosh4j)");
+            throw new IllegalStateException(i18n("mosh.mosh4j.protocolMismatch", i18n("protocol.mosh")));
         }
         try {
             String connectLine = sshBootstrapMoshServer();
             Matcher m = MOSH_CONNECT_PATTERN.matcher(connectLine);
             if (!m.find()) {
-                throw new IOException("Invalid MOSH CONNECT line: " + connectLine);
+                throw new IOException(i18n("mosh.error.invalidConnectLine", connectLine));
             }
             int udpPort = Integer.parseInt(m.group(1));
             String key = m.group(2);
@@ -146,13 +151,14 @@ public class Mosh4jTtyConnector implements TtyConnector {
     }
 
     private String sshBootstrapMoshServer() throws Exception {
-        SshTtyConnector bootstrap = new SshTtyConnector(connection, password);
-        if (connection.getAuthMethod() == AuthMethod.PUBLIC_KEY && sshKeyManager != null) {
+        ServerConnection bootstrapConnection = resolveBootstrapConnection();
+        SshTtyConnector bootstrap = new SshTtyConnector(bootstrapConnection, password);
+        if (bootstrapConnection.getAuthMethod() == AuthMethod.PUBLIC_KEY && sshKeyManager != null) {
             bootstrap.setSSHKeyManager(sshKeyManager, masterPassword);
         }
         try {
             if (!bootstrap.connect()) {
-                throw new IOException("SSH bootstrap connection failed");
+                throw new IOException(i18n("mosh.error.sshBootstrapFailed"));
             }
             int timeoutSec = Math.max(5, connection.getConnectionTimeoutSeconds());
             long deadline = System.currentTimeMillis() + Duration.ofSeconds(timeoutSec).toMillis();
@@ -177,10 +183,42 @@ public class Mosh4jTtyConnector implements TtyConnector {
                     Thread.sleep(40);
                 }
             }
-            throw new IOException("mosh-server handshake timed out. Output: " + output);
+            String outputStr = output.toString();
+            if (logger.isDebugEnabled()) {
+                logger.debug("Mosh handshake timeout after {} s. Partial server output ({} chars): {}", timeoutSec, outputStr.length(), outputStr);
+            }
+            int maxPreview = 500;
+            String preview = outputStr.length() > maxPreview ? outputStr.substring(0, maxPreview) + "..." : outputStr;
+            String escaped = sanitizePreviewForMessage(preview);
+            String msg = i18n("mosh.error.handshakeTimeout", timeoutSec, output.length()) + i18n("mosh.error.partialOutput", escaped);
+            throw new IOException(msg);
         } finally {
             bootstrap.close();
         }
+    }
+
+    private ServerConnection resolveBootstrapConnection() {
+        if (connection.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
+            return connection;
+        }
+        boolean hasKeyMaterial = hasConfiguredKeyMaterial(connection, sshKeyManager != null);
+        boolean hasPassword = password != null && !password.isBlank();
+        if (hasKeyMaterial || !hasPassword) {
+            return connection;
+        }
+        ServerConnection fallback = ServerConnection.copyForAuth(connection);
+        fallback.setAuthMethod(AuthMethod.PASSWORD);
+        logger.warn("MOSH bootstrap auth fallback to password (no key configured).");
+        return fallback;
+    }
+
+    private static boolean hasConfiguredKeyMaterial(ServerConnection connection, boolean hasSshKeyManager) {
+        boolean hasResolvableSshKeyId = hasSshKeyManager
+                && connection.getSshKeyId() != null
+                && !connection.getSshKeyId().isBlank();
+        boolean hasPrivateKeyPath = connection.getPrivateKeyPath() != null
+                && !connection.getPrivateKeyPath().isBlank();
+        return hasResolvableSshKeyId || hasPrivateKeyPath;
     }
 
     private void initMosh4jSession(String host, int udpPort, String keyBase64) throws Exception {
@@ -258,7 +296,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
             downloadRelease(cacheBase, arch);
         }
         if (!hasRequiredReleaseJars(releaseDir, arch)) {
-            throw new IOException("mosh4j release jars not found in " + releaseDir);
+            throw new IOException(i18n("mosh.mosh4j.releaseJarsNotFound", releaseDir));
         }
 
         Path depDir = cacheBase.resolve("deps");
@@ -345,7 +383,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
         Path releaseDir = cacheBase.resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
         Files.createDirectories(releaseDir);
         if (!commandExists("gh")) {
-            throw new IOException("GitHub CLI 'gh' not found. Install gh or configure KORTTY_MOSH4J_RELEASE_DIR.");
+            throw new IOException(i18n("mosh.mosh4j.ghNotFound"));
         }
         Process process = new ProcessBuilder(
                 "gh", "release", "download", MOSH4J_RELEASE_TAG,
@@ -360,10 +398,10 @@ public class Mosh4jTtyConnector implements TtyConnector {
         if (!finished) {
             process.destroyForcibly();
             process.waitFor(2, TimeUnit.SECONDS);
-            throw new IOException("Timed out while downloading mosh4j release with gh");
+            throw new IOException(i18n("mosh.mosh4j.downloadTimeout"));
         }
         if (process.exitValue() != 0) {
-            throw new IOException("gh release download failed: " + new String(output, StandardCharsets.UTF_8));
+            throw new IOException(i18n("mosh.mosh4j.ghDownloadFailed", new String(output, StandardCharsets.UTF_8)));
         }
     }
 
@@ -391,7 +429,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     private void startOutputDrainLoop() {
         outputDrainThread = new Thread(() -> {
-            String disconnectReason = "Mosh4j session ended";
+            String disconnectReason = i18n("mosh.mosh4j.sessionEnded");
             boolean wasError = false;
             long lastHostBytesAt = System.currentTimeMillis();
             long lastKeepaliveAt = 0;
@@ -510,10 +548,10 @@ public class Mosh4jTtyConnector implements TtyConnector {
                 if (cause instanceof InterruptedException || Thread.currentThread().isInterrupted()) {
                     Thread.currentThread().interrupt();
                     wasError = false;
-                    disconnectReason = "Mosh4j frontend loop stopped";
+                    disconnectReason = i18n("mosh.mosh4j.frontendStopped");
                 } else {
                     wasError = true;
-                    disconnectReason = "Mosh4j frontend loop failed: " + e.getMessage();
+                    disconnectReason = i18n("mosh.mosh4j.frontendFailed", e.getMessage());
                     logger.warn(disconnectReason, e);
                 }
             } finally {
@@ -521,7 +559,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
                     long now = System.currentTimeMillis();
                     // If Ctrl+D was sent recently, classify as remote logout so UI can close tab.
                     if (now - logoutRequestedAtMs <= 5000L) {
-                        disconnectReason = "Mosh4j remote logout";
+                        disconnectReason = i18n("mosh.mosh4j.remoteLogout");
                     }
                 }
                 connected.set(false);
@@ -635,7 +673,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     @Override
     public String getName() {
-        return connection.getDisplayName() + " [MOSH mosh4j-" + MOSH4J_RELEASE_TAG + "]";
+        return connection.getDisplayName() + " [" + i18n("mosh.mosh4j.nameSuffix", MOSH4J_RELEASE_TAG) + "]";
     }
 
     @Override
@@ -676,7 +714,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
         try {
             localSend.invoke(localFrontend, (Object) bytes);
         } catch (Exception e) {
-            throw new IOException("Failed to send input to mosh4j", e);
+            throw new IOException(i18n("mosh.mosh4j.sendInputFailed"), e);
         }
     }
 
@@ -731,5 +769,49 @@ public class Mosh4jTtyConnector implements TtyConnector {
         } catch (Exception e) {
             logger.debug("Failed to send mosh4j resize: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Sanitizes a preview string so it can be safely shown in an IOException message (no raw ESC/CSI/BEL or other control bytes).
+     * Escapes ESC (U+001B), strips CSI sequences to a safe placeholder, and converts BEL (U+0007) and other
+     * non-printable bytes to visible \\xHH escapes.
+     */
+    private static String sanitizePreviewForMessage(String preview) {
+        if (preview == null) return "";
+        StringBuilder sb = new StringBuilder(preview.length() * 2);
+        for (int i = 0; i < preview.length(); i++) {
+            char c = preview.charAt(i);
+            if (c == '\u001B') {
+                if (i + 1 < preview.length() && preview.charAt(i + 1) == '[') {
+                    sb.append("\\x1B[CSI]");
+                    i++;
+                    while (i + 1 < preview.length()) {
+                        char n = preview.charAt(i + 1);
+                        if (n >= 0x40 && n <= 0x7E) {
+                            i++;
+                            break;
+                        }
+                        i++;
+                    }
+                } else {
+                    sb.append("\\x1B");
+                }
+            } else if (c == '\u0007' || (c >= 0x00 && c <= 0x1F) || c == 0x7F) {
+                sb.append(String.format("\\x%02X", (int) c));
+            } else if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String i18n(String key, Object... args) {
+        return LanguageManager.getInstance().getString(key, args);
     }
 }

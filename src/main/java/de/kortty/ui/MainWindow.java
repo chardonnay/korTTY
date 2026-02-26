@@ -150,9 +150,7 @@ public class MainWindow {
         // Auto-focus terminal when tab is selected
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab instanceof TerminalTab terminalTab) {
-                Platform.runLater(() -> {
-                    terminalTab.getTerminalView().requestFocus();
-                });
+                Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
             }
         });
         
@@ -519,6 +517,10 @@ public class MainWindow {
         // Edit Menu
         Menu editMenu = new Menu(I18n.get("menu.edit"));
         
+        MenuItem cut = new MenuItem(I18n.get("menu.edit.cut"));
+        cut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
+        cut.setOnAction(e -> copyFromTerminal()); // Terminal: cut copies selection to clipboard (no delete)
+        
         MenuItem copy = new MenuItem(I18n.get("menu.edit.copy"));
         copy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         copy.setOnAction(e -> copyFromTerminal());
@@ -535,7 +537,7 @@ public class MainWindow {
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
         settings.setOnAction(e -> showSettings());
         
-        editMenu.getItems().addAll(copy, paste, new SeparatorMenuItem(), find, new SeparatorMenuItem(), settings);
+        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, new SeparatorMenuItem(), settings);
         
         // Connections Menu
         Menu connectionsMenu = new Menu(I18n.get("menu.connections"));
@@ -907,10 +909,13 @@ public class MainWindow {
                 return; // User cancelled password prompt or no valid password available
             }
             
-            // Increment usage count for existing connection
+            // Increment usage count for existing saved connection (update stored connection so "last used" is correct)
             if (result.existingSaved()) {
-                result.connection().incrementUsageCount();
-                app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+                ServerConnection stored = app.getConfigManager().getConnectionById(result.connection().getId());
+                if (stored != null) {
+                    stored.incrementUsageCount();
+                    app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+                }
             }
             
             // Save connection if requested (for new connections)
@@ -977,10 +982,13 @@ public class MainWindow {
                 return null;
             }
             
-            // Increment usage count for existing connection
+            // Increment usage count for existing saved connection (update stored connection so "last used" is correct)
             if (result.existingSaved()) {
-                result.connection().incrementUsageCount();
-                app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+                ServerConnection stored = app.getConfigManager().getConnectionById(result.connection().getId());
+                if (stored != null) {
+                    stored.incrementUsageCount();
+                    app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+                }
             }
             
             // Save connection if requested (for new connections)
@@ -1039,6 +1047,7 @@ public class MainWindow {
     private void showConnectionManager() {
         logger.info("showConnectionManager() called - Opening Connection Manager");
         ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
+        dialog.setOnConnectionsSavedCallback(this::refreshAllTerminalTabsConnectionSettings);
         dialog.showAndWait().ifPresent(connection -> {
             // For teamwork connections without auth, apply default credential/SSH key from GlobalSettings
             final ServerConnection conn = resolveTeamworkConnectionAuth(connection);
@@ -1103,6 +1112,24 @@ public class MainWindow {
                 openConnection(conn, password);
             }
         });
+    }
+    
+    /**
+     * Applies the current saved connection settings (font, etc.) to all open terminal tabs.
+     * Called when connections are saved in Connection Manager so changes take effect immediately.
+     */
+    private void refreshAllTerminalTabsConnectionSettings() {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                ServerConnection conn = terminalTab.getConnection();
+                if (conn != null && conn.getId() != null) {
+                    ServerConnection stored = app.getConfigManager().getConnectionById(conn.getId());
+                    if (stored != null && stored.getSettings() != null) {
+                        terminalTab.getTerminalView().applyConnectionSettings(stored.getSettings());
+                    }
+                }
+            }
+        }
     }
     
     private void showSettings() {

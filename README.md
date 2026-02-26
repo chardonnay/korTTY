@@ -6,7 +6,7 @@
 
 - **GUI-based**: Modern JavaFX interface with dark theme
 - **Tab Support**: Multiple SSH connections in one window
-- **Font Size Adjustment**: Zoom in/out in running terminal (Ctrl+Plus, Ctrl+Minus, Ctrl+0)
+- **Font Size Adjustment**: Zoom in/out in running terminal (Alt+Plus, Alt+Minus; on macOS also Cmd). Reset (Alt+0) restores the connection’s font size and family (or the font at tab open).
 - **Split-Screen with Broadcast**: Split terminal view and broadcast input to all panes
 - **Multi-Window**: Open multiple windows for different projects; drag tabs between windows to move sessions (including split terminals)
 - **Encrypted Passwords**: AES-256-GCM encryption with master password
@@ -283,11 +283,11 @@ jconsole
 
 Adjust the font size of the active terminal without reconnecting:
 
-- **Ctrl+Plus** / **Ctrl+=**: Zoom in (increase font size)
-- **Ctrl+Minus**: Zoom out (decrease font size)
-- **Ctrl+0**: Reset zoom to default
+- **Alt+Plus** (or **Ctrl+Plus** on some systems): Zoom in (increase font size)
+- **Alt+Minus** (or **Ctrl+Minus**): Zoom out (decrease font size)
+- **Alt+0** (or **Ctrl+0**): Reset zoom to the connection’s saved font size and family (or the font that was active when you opened the tab)
 
-The zoom level applies to the currently focused terminal tab.
+The zoom level applies to the currently focused terminal tab. The same reset is available via the terminal context menu (**Font size → Reset**).
 
 ### Split-Screen with Broadcast
 
@@ -312,9 +312,12 @@ Useful for running the same commands on multiple servers at once.
 | Ctrl+O | Open Project |
 | Ctrl+S | Save Project |
 | Ctrl+Shift+D | Toggle Dashboard |
-| Ctrl+Plus | Zoom In |
-| Ctrl+Minus | Zoom Out |
-| Ctrl+0 | Reset Zoom |
+| Ctrl+X | Cut (terminal: copy selection) |
+| Ctrl+C | Copy |
+| Ctrl+V | Paste |
+| Alt+Plus | Zoom In |
+| Alt+Minus | Zoom Out |
+| Alt+0 | Reset Zoom |
 | Ctrl+Shift+B | Create Backup |
 | Ctrl+Q | Quit |
 | Ctrl+K | Quick Connect |

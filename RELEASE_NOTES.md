@@ -2,7 +2,19 @@
 
 ## Unreleased
 
-_(No changes yet.)_
+### Edit Menu and Zoom
+
+- **Edit menu – Cut**: **Cut** (Ausschneiden) added next to Copy and Paste with shortcut **Ctrl+X** (Cmd+X on macOS). In the terminal, Cut copies the selection to the clipboard (same as Copy).
+- **Zoom reset**: Reset zoom (shortcut **Alt+0** or context menu **Font size → Reset**) now restores the **font size and family that were active when the tab was opened** (or the connection’s saved settings / global default). This fixes the case where reset previously showed the wrong size after zooming.
+- **Connection settings applied immediately**: When you save a connection in **Connection Manager** (e.g. change font size or family), any **open terminal tabs** using that connection update their font and appearance **immediately** without restart or reconnecting.
+
+### Quick Connect
+
+- **Frequently used connections**: The “Frequently used connections” section now correctly shows the **10 last used** connections, ordered by last used (most recent first). Usage is persisted for the saved connection when you connect from Quick Connect or the dashboard.
+
+### Technical
+
+- **Connection settings in XML**: Font size and font family (and other connection settings) are now correctly loaded from and saved to `connections.xml` (JAXB context includes `ConnectionSettings` and `WindowGeometry`).
 
 ---
 

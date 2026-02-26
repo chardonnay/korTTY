@@ -105,6 +105,9 @@ public class TerminalView extends BorderPane {
     private TtyConnector ttyConnector;
     private KorTTYSettingsProvider settingsProvider;
     private final int defaultFontSize;
+    /** Font size and family at tab open (from connection settings before theme/global). Reset uses these so zoom reset matches what user saw. */
+    private final int connectionSavedFontSize;
+    private final String connectionSavedFontFamily;
     
     private DisconnectListener externalDisconnectListener;
     private Runnable onConnectedCallback;
@@ -137,6 +140,18 @@ public class TerminalView extends BorderPane {
         this.connection = connection;
         this.password = password;
         this.temporarySSHKey = temporarySSHKey;
+        // Capture connection's font size and family at open (before theme/default resolution) for zoom reset.
+        ConnectionSettings connSettingsForReset = (connection != null) ? connection.getSettings() : null;
+        int savedSize = 0;
+        String savedFamily = null;
+        if (connSettingsForReset != null) {
+            if (connSettingsForReset.getFontSize() > 0) savedSize = connSettingsForReset.getFontSize();
+            if (connSettingsForReset.getFontFamily() != null && !connSettingsForReset.getFontFamily().isEmpty()) {
+                savedFamily = connSettingsForReset.getFontFamily();
+            }
+        }
+        this.connectionSavedFontSize = savedSize;
+        this.connectionSavedFontFamily = savedFamily;
         
         // Ensure settings is never null - use connection settings or create defaults
         ConnectionSettings connSettings = connection.getSettings();
@@ -190,6 +205,7 @@ public class TerminalView extends BorderPane {
             applyCursorShape(widget);
             setupTimestampGutter(widget);
         }, widget -> gutterMap.get(widget)); // Left panel factory: returns the gutter created in setupTimestampGutter
+        splitPane.setResetZoomCallback(this::resetZoom); // Reset zoom to connection or global default (not hardcoded 14)
         
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
         splitPane.setExtraMenuItemsFactory(widget -> {
@@ -512,11 +528,10 @@ public class TerminalView extends BorderPane {
                 return connector;
             }
             throw new IllegalStateException(
-                    "mosh4j 2.0.0 release not available. Install GitHub CLI (gh) or configure KORTTY_MOSH4J_RELEASE_DIR. " +
-                    "Alternatively select protocol 'Mosh Client (native)'.");
+                    I18n.get("mosh.mosh4j.releaseUnavailable", de.kortty.core.Mosh4jTtyConnector.getMosh4jReleaseTag()));
         } else if (targetConnection.getProtocol() == ConnectionProtocol.MOSH_CLIENT) {
             if (!NativeMoshTtyConnector.isNativeMoshAvailable()) {
-                throw new IllegalStateException("mosh-client binary not found. Please install mosh (e.g. 'brew install mosh').");
+                throw new IllegalStateException(I18n.get("mosh.native.binaryMissingInstallHint"));
             }
             NativeMoshTtyConnector nativeMosh = new NativeMoshTtyConnector(targetConnection, targetPassword);
             de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
@@ -725,22 +740,61 @@ public class TerminalView extends BorderPane {
             logger.info("User cancelled new connection for split");
             return null;
         }
-        
+
+        TtyConnector newConnector = null;
         try {
             logger.info("Creating new SSH connection for split to {}@{}:{}",
-                    connResult.connection.getUsername(), 
-                    connResult.connection.getHost(), 
+                    connResult.connection.getUsername(),
+                    connResult.connection.getHost(),
                     connResult.connection.getPort());
-            
-            TtyConnector newConnector = createConnectorForConnection(connResult.connection, connResult.password);
-            
+
+            newConnector = createConnectorForConnection(connResult.connection, connResult.password);
+
             // Connect the new session
-            connectConnector(newConnector);
+            boolean connected = connectConnector(newConnector);
+            if (!connected) {
+                logger.warn("Split new-connection failed for {}@{}:{}",
+                        connResult.connection.getUsername(),
+                        connResult.connection.getHost(),
+                        connResult.connection.getPort());
+                showSplitConnectionErrorDialog(
+                        connResult,
+                        I18n.get("split.connectionNoDetails"));
+                try {
+                    newConnector.close();
+                } catch (Exception ignored) {
+                }
+                return null;
+            }
             return newConnector;
         } catch (Exception e) {
             logger.error("Failed to create new connection for split: {}", e.getMessage(), e);
+            if (newConnector != null) {
+                try {
+                    newConnector.close();
+                } catch (Exception closeError) {
+                    logger.debug("Failed to close split new-connection connector after error: {}", closeError.getMessage());
+                }
+            }
+            String errorDetail = e.getMessage();
+            if (errorDetail == null || errorDetail.isBlank()) {
+                errorDetail = e.getClass().getSimpleName();
+            }
+            showSplitConnectionErrorDialog(connResult, errorDetail);
             return null;
         }
+    }
+
+    private void showSplitConnectionErrorDialog(ConnectionResult connResult, String detail) {
+        String identity = connResult.connection.getUsername() + "@"
+                + connResult.connection.getHost() + ":"
+                + connResult.connection.getPort();
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setTitle(I18n.get("error.title"));
+        alert.setHeaderText(I18n.get("split.connectionFailed"));
+        alert.setContentText(I18n.get("split.connectionFailedWithDetails", identity, detail));
+        alert.showAndWait();
     }
     
     /**
@@ -1158,12 +1212,25 @@ public class TerminalView extends BorderPane {
     /**
      * Focuses the terminal input, making it ready for keyboard input.
      * Should be called when switching to this terminal tab.
-     * 
-     * Note: Currently not fully implemented due to Swing/JavaFX focus complexity.
-     * User needs to click into terminal after tab switch.
      */
     public void focusTerminal() {
-        // Empty implementation - focus handling is complex with JediTermFX
+        Runnable focusTask = () -> {
+            JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+            if (focused != null && focused.getPreferredFocusableNode() != null) {
+                focused.getPreferredFocusableNode().requestFocus();
+                return;
+            }
+            if (focused != null && focused.getPane() != null) {
+                focused.getPane().requestFocus();
+                return;
+            }
+            requestFocus();
+        };
+        if (Platform.isFxApplicationThread()) {
+            focusTask.run();
+        } else {
+            Platform.runLater(focusTask);
+        }
     }
     
     /**
@@ -1643,12 +1710,58 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Resets the terminal font size to default.
-     * Uses JediTermFX 1.2.0's native dynamic font size support.
+     * Applies font family and size from the given connection settings to this terminal view.
+     * Use this to refresh the display when connection settings were changed (e.g. in Connection Manager).
+     */
+    public void applyConnectionSettings(ConnectionSettings s) {
+        if (s == null) return;
+        String family = s.getFontFamily();
+        if (family == null || family.isEmpty()) family = "Monospaced";
+        int size = s.getFontSize();
+        if (size <= 0) size = defaultFontSize;
+        settings.setFontFamily(family);
+        settings.setFontSize(size);
+        settingsProvider.setFontSize(size);
+        logger.debug("Applied connection settings: {} {}pt", family, size);
+    }
+    
+    /**
+     * Resets the terminal font size and family to the baseline: what this tab had at open (connectionSaved*),
+     * then config manager, then global. Using the tab-open baseline ensures reset matches what the user saw when connecting.
      */
     public void resetZoom() {
+        // 1) Prefer the font we had at tab open (user connected with this size/family)
+        if (connectionSavedFontSize > 0) {
+            String family = (connectionSavedFontFamily != null && !connectionSavedFontFamily.isEmpty())
+                    ? connectionSavedFontFamily : "Monospaced";
+            settings.setFontFamily(family);
+            settings.setFontSize(connectionSavedFontSize);
+            settingsProvider.setFontSize(connectionSavedFontSize);
+            logger.debug("Zoom reset to tab-open baseline: {} {}pt", family, connectionSavedFontSize);
+            return;
+        }
+        // 2) Fallback: config manager or tab connection or global
+        ConnectionSettings toApply = null;
+        try {
+            if (connection != null && connection.getId() != null) {
+                ServerConnection stored = KorTTYApplication.getInstance().getConfigManager().getConnectionById(connection.getId());
+                if (stored != null && stored.getSettings() != null) toApply = stored.getSettings();
+            }
+            if (toApply == null && connection != null && connection.getSettings() != null && connection.getSettings().getFontSize() > 0) {
+                toApply = connection.getSettings();
+            }
+            if (toApply == null || toApply.getFontSize() <= 0) {
+                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+                if (gs != null && gs.getDefaultTerminalSettings() != null) toApply = gs.getDefaultTerminalSettings();
+            }
+            if (toApply != null && toApply.getFontSize() > 0) {
+                applyConnectionSettings(toApply);
+                return;
+            }
+        } catch (Exception e) {
+            logger.debug("Could not get stored font for reset: {}", e.getMessage());
+        }
         settingsProvider.setFontSize(defaultFontSize);
-        logger.debug("Zoom reset to default font size: {}", defaultFontSize);
     }
     
     /**

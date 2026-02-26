@@ -1,6 +1,8 @@
 package de.kortty.persistence;
 
 import de.kortty.model.ServerConnection;
+import de.kortty.model.ConnectionSettings;
+import de.kortty.model.WindowGeometry;
 import de.kortty.model.SSHTunnel;
 import de.kortty.model.JumpServer;
 import de.kortty.model.AuthMethod;
@@ -33,9 +35,9 @@ public class XMLConnectionRepository {
     static {
         try {
             JAXB_CONTEXT = JAXBContext.newInstance(
-                ConnectionsWrapper.class, ServerConnection.class, SSHTunnel.class,
-                JumpServer.class, AuthMethod.class, TunnelType.class,
-                ConnectionSource.class, de.kortty.model.TerminalLogConfig.class,
+                ConnectionsWrapper.class, ServerConnection.class, ConnectionSettings.class,
+                WindowGeometry.class, SSHTunnel.class, JumpServer.class, AuthMethod.class,
+                TunnelType.class, ConnectionSource.class, de.kortty.model.TerminalLogConfig.class,
                 de.kortty.model.TerminalLogConfig.LogFormat.class);
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);

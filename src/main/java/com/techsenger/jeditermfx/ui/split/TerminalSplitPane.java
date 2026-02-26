@@ -6,6 +6,8 @@ import com.techsenger.jeditermfx.ui.TerminalWidgetListener;
 import com.techsenger.jeditermfx.ui.settings.SettingsProvider;
 import javafx.application.Platform;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
@@ -76,12 +78,16 @@ public class TerminalSplitPane extends StackPane {
 
     // Optional left-side panels (e.g. timestamp gutters) per widget
     private final Map<JediTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
+    private final Map<JediTermFxWidget, Button> widgetCloseButtons = new HashMap<>();
 
     // Track the currently showing context menu so we can hide it properly
     private ContextMenu activeContextMenu;
 
     // Optional supplier of extra menu items to add to the context menu (e.g. timestamp toggle)
     private Function<JediTermFxWidget, List<MenuItem>> extraMenuItemsFactory;
+
+    /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
+    private Runnable resetZoomCallback;
 
     public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
                              @NotNull SplitConnectorFactory connectorFactory) {
@@ -240,6 +246,14 @@ public class TerminalSplitPane extends StackPane {
         this.extraMenuItemsFactory = factory;
     }
 
+    /**
+     * Sets a callback to run when the user chooses "Reset" font size in the context menu.
+     * If set, this is used instead of the widget's default reset (so e.g. zoom can reset to connection/global font size).
+     */
+    public void setResetZoomCallback(@Nullable Runnable resetZoomCallback) {
+        this.resetZoomCallback = resetZoomCallback;
+    }
+
     private void setupContextMenu(@NotNull JediTermFxWidget widget) {
         var terminalPanel = widget.getTerminalPanel();
         var canvas = terminalPanel.getCanvas();
@@ -306,7 +320,13 @@ public class TerminalSplitPane extends StackPane {
         MenuItem decreaseFont = new MenuItem(I18n.get("terminal.contextMenu.decrease"));
         decreaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "decreaseFontSize", 2));
         MenuItem resetFont = new MenuItem(I18n.get("terminal.contextMenu.reset"));
-        resetFont.setOnAction(e -> invokeWidgetFontMethod(widget, "resetFontSize", null));
+        resetFont.setOnAction(e -> {
+            if (resetZoomCallback != null) {
+                resetZoomCallback.run();
+            } else {
+                invokeWidgetFontMethod(widget, "resetFontSize", null);
+            }
+        });
         fontMenu.getItems().addAll(increaseFont, decreaseFont, resetFont);
         
         Menu splitMenu = new Menu(I18n.get("terminal.contextMenu.splitTerminal"));
@@ -390,7 +410,12 @@ public class TerminalSplitPane extends StackPane {
                             @NotNull Orientation orientation) {
         SplitRequest request = new SplitRequest(mode, widget);
         JediTermFxWidget newWidget = createWidget(request);
-        if (newWidget.getTtyConnector() == null) {
+        TtyConnector connector = newWidget.getTtyConnector();
+        if (connector == null || !connector.isConnected()) {
+            try {
+                newWidget.close();
+            } catch (Exception ignored) {
+            }
             return;
         }
         setupWidget(newWidget);
@@ -403,6 +428,7 @@ public class TerminalSplitPane extends StackPane {
             getChildren().add(rootCell.getNode());
             VBox.setVgrow(rootCell.getNode(), Priority.ALWAYS);
             refreshDragAndDrop();
+            refreshSplitCloseButtons();
         }
     }
 
@@ -422,6 +448,7 @@ public class TerminalSplitPane extends StackPane {
             }
             focusedWidget = rootCell != null ? findFirstWidget(rootCell) : null;
             refreshDragAndDrop();
+            refreshSplitCloseButtons();
         }
     }
 
@@ -580,6 +607,17 @@ public class TerminalSplitPane extends StackPane {
 
     public void closeAll() {
         rootCell.closeAll();
+        widgetCloseButtons.clear();
+    }
+
+    private void refreshSplitCloseButtons() {
+        boolean showButtons = rootCell != null && rootCell.countWidgets() > 1;
+        List<JediTermFxWidget> activeWidgets = getAllWidgets();
+        widgetCloseButtons.entrySet().removeIf(entry -> !activeWidgets.contains(entry.getKey()));
+        for (Button button : widgetCloseButtons.values()) {
+            button.setVisible(showButtons);
+            button.setManaged(showButtons);
+        }
     }
 
     private void invokeWidgetFontMethod(@NotNull JediTermFxWidget widget, @NotNull String methodName, @Nullable Integer delta) {
@@ -626,7 +664,23 @@ public class TerminalSplitPane extends StackPane {
             wrapper.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
             VBox.setVgrow(wrapper, Priority.ALWAYS);
             wrapper.setUserData(widget);
+            Button closeButton = new Button("x");
+            closeButton.getStyleClass().add("split-close-button");
+            closeButton.setFocusTraversable(false);
+            closeButton.setMinSize(18, 18);
+            closeButton.setPrefSize(18, 18);
+            closeButton.setMaxSize(18, 18);
+            closeButton.setStyle("-fx-font-size: 10px; -fx-padding: 0; -fx-background-radius: 9;");
+            closeButton.setOnAction(e -> {
+                e.consume();
+                closeSplit(widget);
+            });
+            StackPane.setAlignment(closeButton, Pos.TOP_RIGHT);
+            StackPane.setMargin(closeButton, new javafx.geometry.Insets(4, 4, 0, 0));
+            wrapper.getChildren().add(closeButton);
+            widgetCloseButtons.put(widget, closeButton);
             this.node = wrapper;
+            refreshSplitCloseButtons();
         }
 
         SplitCell(@NotNull SplitCell left, @NotNull SplitCell right, @NotNull Orientation orientation) {
