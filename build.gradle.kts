@@ -10,8 +10,10 @@ group = "de.kortty"
 version = "1.8.0"
 
 java {
+    // Allows CI to pin a compatible toolchain per runner when needed.
+    val toolchainVersion = (findProperty("kortty.javaVersion") as String?)?.toIntOrNull() ?: 25
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(25))
+        languageVersion.set(JavaLanguageVersion.of(toolchainVersion))
         // Explicitly avoid IBM_SEMERU which is not supported in Gradle 9.2.1
         vendor.set(JvmVendorSpec.ADOPTIUM)
     }

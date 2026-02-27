@@ -106,7 +106,7 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.platform }}" = "windows" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
-            echo "cmd=./gradlew -Pjavafx.platform=windows-x86_64" >> $GITHUB_OUTPUT
+            echo "cmd=./gradlew -Pjavafx.platform=windows-x86_64 -Pkortty.javaVersion=21" >> $GITHUB_OUTPUT
           else
             echo "cmd=./gradlew" >> $GITHUB_OUTPUT
           fi
