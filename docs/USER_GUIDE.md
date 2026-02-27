@@ -48,7 +48,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 
 | Requirement | Minimum |
 |---|---|
-| Java | 25 or higher |
+| Java | 25 or higher (CI exception: Windows ARM64 release runner currently uses Java 21) |
 | Gradle | 9.x (included via wrapper) |
 | OS | macOS, Windows, Linux |
 
@@ -77,7 +77,7 @@ cd korTTY
 Ready-to-use packages are published on [GitHub Releases](https://github.com/chardonnay/korTTY/releases). Each asset name includes the architecture (e.g. `-x86_64` or `-aarch64`). Choose the file that matches your system:
 
 - **macOS**: Apple Silicon only — use `-aarch64`.
-- **Windows**: Use `-x86_64` for Intel/AMD.
+- **Windows**: Use `-x86_64` for Intel/AMD, or `-arm64` for Windows on ARM.
 - **Linux**: Use `-x86_64` for Intel/AMD, or `-aarch64` for ARM (e.g. Raspberry Pi 4, many cloud instances). Packages include `.deb`, `.rpm`, `.tar.gz`, and `.zip`.
 
 #### Building Native Packages Locally
@@ -93,6 +93,12 @@ KorTTY can be packaged as a native application using `jpackage`. The output matc
 | Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/korTTY/` |
 | Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-1.3.0.deb` |
 | Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-1.3.0.rpm` |
+
+For GitHub Releases, Windows ARM64 (`-arm64`) is also built and published:
+- `korTTY-Windows-<version>-arm64.msi`
+- `korTTY-Windows-<version>-arm64.zip` (contains the single `korTTY.exe`)
+
+CI note: the `windows-11-arm` release job uses Java 21 for compatibility, while other release jobs continue using Java 25.
 
 ### 2.2 First Launch - Master Password
 
@@ -992,4 +998,4 @@ If terminal output shows garbled characters:
 
 ---
 
-*KorTTY v1.7.0*
+*KorTTY v1.8.0*

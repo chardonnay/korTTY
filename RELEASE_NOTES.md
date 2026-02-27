@@ -15,6 +15,8 @@
 ### Technical
 
 - **Connection settings in XML**: Font size and font family (and other connection settings) are now correctly loaded from and saved to `connections.xml` (JAXB context includes `ConnectionSettings` and `WindowGeometry`).
+- **Release builds - Windows ARM64**: GitHub Actions now also publishes Windows ARM64 artifacts for `v1.8.0` as `korTTY-Windows-<version>-arm64.msi` and `korTTY-Windows-<version>-arm64.zip` (ZIP contains the single `korTTY.exe`).
+- **CI toolchain (Windows ARM64)**: The `windows-11-arm` release job currently uses Java 21 for compatibility; other release jobs continue with Java 25.
 
 ---
 

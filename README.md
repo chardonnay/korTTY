@@ -36,6 +36,7 @@ For a comprehensive step-by-step user guide covering all features, see **[docs/U
 ## Requirements
 
 - Java 25 or higher
+- For GitHub Actions `windows-11-arm` release builds, Java 21 is used in CI for compatibility with currently available runner/toolchain combinations.
 - Gradle 9.x (automatically downloaded via wrapper)
 
 ## Build
@@ -55,7 +56,7 @@ For a comprehensive step-by-step user guide covering all features, see **[docs/U
 Pre-built packages for **x86_64 (amd64)** and **arm64 (aarch64)** are available on the [GitHub Releases](https://github.com/chardonnay/korTTY/releases) page:
 
 - **macOS**: Apple Silicon only — `-aarch64` (separate DMG/ZIP files).
-- **Windows**: `-x86_64` for Intel/AMD (separate MSI/ZIP files).
+- **Windows**: `-x86_64` for Intel/AMD and `-arm64` for Windows on ARM (both as separate MSI/ZIP files).
 - **Linux**: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
 - **Arch Linux**: `-x86_64` (pacman `.pkg.tar.zst`; aarch64: use the Linux tarball).
 
@@ -134,6 +135,10 @@ build/jpackage/korTTY-1.3.0.dmg
 **Icon:** `src/main/resources/icon/kortty_icon.icns`
 
 ### Windows
+
+Both Windows targets produce an MSI installer and a ZIP package:
+- `-x86_64`: ZIP contains the full app-image folder.
+- `-arm64`: ZIP contains the single `korTTY.exe` binary.
 
 #### Create App (.exe)
 
@@ -232,6 +237,7 @@ sudo rpm -i build/jpackage/korTTY-1.3.0.rpm
 - **Bundled JVM**: The app contains a complete JVM (approx. 150-200 MB)
 - **Platform Detection**: Build tasks automatically detect the operating system
 - **Dependencies**: All dependencies (JavaFX, Apache SSHD, etc.) are automatically bundled
+- **CI toolchain note**: Release CI uses Java 25 by default, but the GitHub Actions `windows-11-arm` job uses Java 21 to ensure stable Windows ARM64 packaging.
 - **Icon Management**: The KorTTY icon is always used:
   - **macOS**: `kortty_icon.icns` (fallback: `kortty_icon.png`)
   - **Windows**: `kortty_icon.ico` (fallback: `kortty_icon.png`)
