@@ -76,8 +76,11 @@ jobs:
         if: matrix.platform == 'windows' && matrix.arch == 'arm64'
         shell: pwsh
         run: |
-          choco install wixtoolset --version=3.14.1 -y
-          "C:\Program Files (x86)\WiX Toolset v3.14\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $wixDir = Join-Path $env:RUNNER_TEMP "wix314"
+          New-Item -ItemType Directory -Path $wixDir -Force | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip" -OutFile "$wixDir\\wix314-binaries.zip"
+          Expand-Archive -Path "$wixDir\\wix314-binaries.zip" -DestinationPath $wixDir -Force
+          $wixDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install Linux packaging tools
         if: runner.os == 'Linux'
