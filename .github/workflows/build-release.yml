@@ -72,6 +72,13 @@ jobs:
           choco install maven -y
           "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Install WiX Toolset (Windows ARM runner)
+        if: matrix.platform == 'windows' && matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          choco install wixtoolset --version=3.14.1 -y
+          "C:\Program Files (x86)\WiX Toolset v3.14\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Install Linux packaging tools
         if: runner.os == 'Linux'
         shell: bash
