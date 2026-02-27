@@ -27,6 +27,9 @@ jobs:
           - os: windows-latest
             platform: windows
             arch: x86_64
+          - os: windows-11-arm
+            platform: windows
+            arch: arm64
           - os: ubuntu-latest
             platform: linux
             arch: x86_64
@@ -152,10 +155,23 @@ jobs:
         shell: pwsh
         run: |
           cd build/jpackage
-          Compress-Archive -Path korTTY -DestinationPath korTTY-Windows-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip -Force
+          $artifactBase = "korTTY-Windows-${{ steps.version.outputs.version }}-${{ matrix.arch }}"
+          if ("${{ matrix.arch }}" -eq "arm64") {
+            $exeFile = Get-Item "korTTY\*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $exeFile) {
+              $exeFile = Get-ChildItem -Recurse -Filter *.exe | Where-Object { $_.Name -ieq "korTTY.exe" } | Select-Object -First 1
+            }
+            if (-not $exeFile) {
+              Write-Error "No executable found for Windows ARM64 app-image in build/jpackage."
+              exit 1
+            }
+            Compress-Archive -Path $exeFile.FullName -DestinationPath "$artifactBase.zip" -Force
+          } else {
+            Compress-Archive -Path korTTY -DestinationPath "$artifactBase.zip" -Force
+          }
           if (Test-Path korTTY-*.msi) {
             $msiFile = Get-Item korTTY-*.msi | Select-Object -First 1
-            Copy-Item $msiFile.FullName "korTTY-Windows-${{ steps.version.outputs.version }}-${{ matrix.arch }}.msi"
+            Copy-Item $msiFile.FullName "$artifactBase.msi"
           }
 
       - name: Prepare Linux artifacts
