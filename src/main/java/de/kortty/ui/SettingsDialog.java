@@ -40,7 +40,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -811,18 +810,12 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         translationGrid.add(testConnectionButton, 1, transRow++);
         translationGrid.add(new Label(I18n.get("settings.translation.targetLanguage")), 0, transRow);
         translationTargetLanguageCombo = new ComboBox<>();
-        // One entry per language code to avoid duplicates (e.g. en_US, en_GB, en all show "English")
-        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
-        List<Locale> allLocales = Arrays.stream(Locale.getAvailableLocales())
-            .filter(l -> l.getLanguage() != null && !l.getLanguage().isEmpty())
-            .filter(l -> seen.add(l.getLanguage()))
-            .sorted((a, b) -> a.getDisplayLanguage().compareToIgnoreCase(b.getDisplayLanguage()))
-            .collect(Collectors.toList());
+        List<Locale> allLocales = buildTranslationTargetLocales();
         translationTargetLanguageCombo.getItems().addAll(allLocales);
         translationTargetLanguageCombo.setConverter(new javafx.util.StringConverter<Locale>() {
             @Override
             public String toString(Locale l) {
-                return l == null ? "" : l.getDisplayLanguage() + " (" + l.getLanguage() + ")";
+                return l == null ? "" : getLocaleDisplayNameFallback(l) + " (" + l.getLanguage() + ")";
             }
             @Override
             public Locale fromString(String s) { return null; }
@@ -1470,6 +1463,41 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             if (!preferred.contains(f)) result.add(f);
         }
         return result;
+    }
+
+    /**
+     * Builds the target-language list for dynamic translations.
+     * Uses ISO language codes as base so packaged runtime images still show many entries,
+     * then enriches with any locales available in the current JVM.
+     */
+    private List<Locale> buildTranslationTargetLocales() {
+        java.util.Map<String, Locale> byLanguage = new java.util.LinkedHashMap<>();
+
+        for (String code : Locale.getISOLanguages()) {
+            if (code != null && !code.isBlank()) {
+                byLanguage.putIfAbsent(code, Locale.forLanguageTag(code));
+            }
+        }
+        for (Locale l : Locale.getAvailableLocales()) {
+            if (l.getLanguage() != null && !l.getLanguage().isBlank()) {
+                byLanguage.putIfAbsent(l.getLanguage(), l);
+            }
+        }
+        return byLanguage.values().stream()
+                .sorted((a, b) -> getLocaleDisplayNameFallback(a).compareToIgnoreCase(getLocaleDisplayNameFallback(b)))
+                .collect(Collectors.toList());
+    }
+
+    private String getLocaleDisplayNameFallback(Locale locale) {
+        if (locale == null) return "";
+        String display = locale.getDisplayLanguage();
+        if (display == null || display.isBlank()) {
+            display = locale.getDisplayLanguage(Locale.ENGLISH);
+        }
+        if (display == null || display.isBlank()) {
+            display = locale.getLanguage();
+        }
+        return display;
     }
 
     private void updateThemePreview(Theme theme, VBox previewBox, Label previewSample, HBox previewSwatches) {

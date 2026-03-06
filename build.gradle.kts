@@ -178,6 +178,8 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--main-jar", mainJar,
         "--main-class", "de.kortty.Launcher",
         "--dest", outputDir,
+        // Ensure runtime images include extended locale data (needed for Translation target language list).
+        "--add-modules", "jdk.localedata",
         "--java-options", "-Djava.awt.headless=false",
         "--java-options", "--enable-native-access=javafx.graphics,ALL-UNNAMED"
     )
