@@ -175,7 +175,7 @@ public class TerminalView extends BorderPane {
             try {
                 var tm = KorTTYApplication.getInstance().getThemeManager();
                 if (tm != null) {
-                    effective = tm.resolveSettings(connSettings, themeId);
+                    effective = tm.resolveSettings(connSettings, themeId, isThemeFontApplyEnabled());
                 }
             } catch (Exception e) {
                 // Use connection settings
@@ -802,10 +802,11 @@ public class TerminalView extends BorderPane {
      */
     private void applyThemeAtRuntime(Theme theme) {
         if (theme == null || settings == null) return;
-        theme.applyTo(settings);
+        boolean includeFont = isThemeFontApplyEnabled();
+        theme.applyTo(settings, includeFont);
         ConnectionSettings connSettings = connection.getSettings();
         if (connSettings != null) {
-            theme.applyTo(connSettings);
+            theme.applyTo(connSettings, includeFont);
             connSettings.setThemeId(theme.getId());
         }
         if (splitPane != null) {
@@ -1778,14 +1779,63 @@ public class TerminalView extends BorderPane {
      */
     public void applyConnectionSettings(ConnectionSettings s) {
         if (s == null) return;
-        String family = s.getFontFamily();
+        ConnectionSettings effective = s;
+        String themeId = s.getThemeId();
+        if (themeId != null && !themeId.isEmpty()) {
+            try {
+                var tm = KorTTYApplication.getInstance().getThemeManager();
+                if (tm != null) {
+                    effective = tm.resolveSettings(s, themeId, isThemeFontApplyEnabled());
+                }
+            } catch (Exception e) {
+                logger.debug("Could not resolve theme '{}' while applying settings: {}", themeId, e.getMessage());
+            }
+        }
+
+        String family = effective.getFontFamily();
         if (family == null || family.isEmpty()) family = "Monospaced";
-        int size = s.getFontSize();
+        int size = effective.getFontSize();
         if (size <= 0) size = defaultFontSize;
         settings.setFontFamily(family);
         settings.setFontSize(size);
+        settings.setForegroundColor(effective.getForegroundColor());
+        settings.setBackgroundColor(effective.getBackgroundColor());
+        settings.setCursorColor(effective.getCursorColor());
+        settings.setCursorStyle(effective.getCursorStyle());
         settingsProvider.setFontSize(size);
+
+        if (splitPane != null) {
+            for (JediTermFxWidget w : splitPane.getAllWidgets()) {
+                applyStyleStateColors(w);
+                applyCursorShape(w);
+                setCursorVisible(w, true);
+            }
+        }
+
+        // Keep timestamp gutter colors in sync with applied theme/colors.
+        try {
+            for (var entry : gutterMap.entrySet()) {
+                var gutter = entry.getValue();
+                if (gutter != null) {
+                    gutter.setGutterBackgroundColor(Color.web(settings.getBackgroundColor()));
+                    gutter.setGutterTextColor(Color.web(settings.getForegroundColor()));
+                    gutter.setTimestampFont(settings.getFontFamily(), settingsProvider.getFontSize());
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not refresh timestamp gutter colors: {}", e.getMessage());
+        }
+
         logger.debug("Applied connection settings: {} {}pt", family, size);
+    }
+
+    private boolean isThemeFontApplyEnabled() {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            return gs != null && gs.isApplyThemeFonts();
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     /**

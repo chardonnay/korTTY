@@ -52,7 +52,10 @@ public class ThemeManager {
             JAXBContext context = JAXBContext.newInstance(ThemeList.class, Theme.class);
             Unmarshaller unmarshaller = context.createUnmarshaller();
             themeList = (ThemeList) unmarshaller.unmarshal(themesFile.toFile());
-            ensureBuiltInThemes();
+            boolean updatedBuiltIns = ensureBuiltInThemes();
+            if (updatedBuiltIns) {
+                save();
+            }
             logger.info("Loaded {} themes from {}", themeList.getThemes().size(), themesFile);
         } catch (Exception e) {
             logger.error("Failed to load themes, using defaults", e);
@@ -116,7 +119,8 @@ public class ThemeManager {
     }
 
     public void removeTheme(String themeId) {
-        if (DEFAULT_THEME_ID.equals(themeId) || DARK_THEME_ID.equals(themeId)) {
+        Optional<Theme> theme = getTheme(themeId);
+        if (theme.isPresent() && theme.get().isBuiltIn()) {
             logger.warn("Cannot remove built-in theme: {}", themeId);
             return;
         }
@@ -130,13 +134,20 @@ public class ThemeManager {
     public de.kortty.model.ConnectionSettings resolveSettings(
             de.kortty.model.ConnectionSettings base,
             String themeId) {
+        return resolveSettings(base, themeId, false);
+    }
+
+    public de.kortty.model.ConnectionSettings resolveSettings(
+            de.kortty.model.ConnectionSettings base,
+            String themeId,
+            boolean includeFont) {
         if (themeId == null || themeId.isEmpty()) {
             return base;
         }
         return getTheme(themeId)
                 .map(theme -> {
                     de.kortty.model.ConnectionSettings effective = new de.kortty.model.ConnectionSettings(base);
-                    theme.applyTo(effective);
+                    theme.applyTo(effective, includeFont);
                     return effective;
                 })
                 .orElse(base);
@@ -144,20 +155,44 @@ public class ThemeManager {
 
     private void createDefaultThemes() {
         themeList = new ThemeList();
-        themeList.getThemes().add(createDefaultTheme());
-        themeList.getThemes().add(createDarkTheme());
+        themeList.getThemes().addAll(createBuiltInThemes());
         save();
     }
 
-    private void ensureBuiltInThemes() {
-        boolean hasDefault = themeList.getThemes().stream().anyMatch(t -> DEFAULT_THEME_ID.equals(t.getId()));
-        boolean hasDark = themeList.getThemes().stream().anyMatch(t -> DARK_THEME_ID.equals(t.getId()));
-        if (!hasDefault) {
-            themeList.getThemes().add(0, createDefaultTheme());
+    private boolean ensureBuiltInThemes() {
+        boolean changed = false;
+        int insertPos = 0;
+        for (Theme builtIn : createBuiltInThemes()) {
+            Optional<Theme> existing = getTheme(builtIn.getId());
+            if (existing.isPresent()) {
+                existing.get().setBuiltIn(true);
+                insertPos = Math.max(insertPos, themeList.getThemes().indexOf(existing.get()) + 1);
+                continue;
+            }
+            themeList.getThemes().add(insertPos, builtIn);
+            insertPos++;
+            changed = true;
         }
-        if (!hasDark) {
-            themeList.getThemes().add(hasDefault ? 1 : 0, createDarkTheme());
-        }
+        return changed;
+    }
+
+    private List<Theme> createBuiltInThemes() {
+        List<Theme> themes = new ArrayList<>();
+        themes.add(createDefaultTheme());
+        themes.add(createDarkTheme());
+        themes.add(createDarculaTheme());
+        themes.add(createIntelliJLightTheme());
+        themes.add(createFleetDarkTheme());
+        themes.add(createFleetLightTheme());
+        themes.add(createOneDarkTheme());
+        themes.add(createMonokaiTheme());
+        themes.add(createSolarizedDarkTheme());
+        themes.add(createSolarizedLightTheme());
+        themes.add(createNordTheme());
+        themes.add(createGitHubDarkTheme());
+        themes.add(createGitHubLightTheme());
+        themes.add(createHighContrastDarkTheme());
+        return themes;
     }
 
     private Theme createDefaultTheme() {
@@ -178,6 +213,138 @@ public class ThemeManager {
         t.setForegroundColor("#FFFFFF");
         t.setBackgroundColor("#1E1E1E");
         t.setCursorColor("#FFFFFF");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createDarculaTheme() {
+        Theme t = new Theme("darcula", "IntelliJ Darcula", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#A9B7C6");
+        t.setBackgroundColor("#2B2B2B");
+        t.setCursorColor("#A9B7C6");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createIntelliJLightTheme() {
+        Theme t = new Theme("intellij-light", "IntelliJ Light", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#1E1E1E");
+        t.setBackgroundColor("#FFFFFF");
+        t.setCursorColor("#1E1E1E");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createFleetDarkTheme() {
+        Theme t = new Theme("fleet-dark", "Fleet Dark", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#CAD3F5");
+        t.setBackgroundColor("#1E1F22");
+        t.setCursorColor("#A6DA95");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createFleetLightTheme() {
+        Theme t = new Theme("fleet-light", "Fleet Light", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#2C2D30");
+        t.setBackgroundColor("#F7F8FA");
+        t.setCursorColor("#005FCC");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createOneDarkTheme() {
+        Theme t = new Theme("one-dark", "One Dark", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#ABB2BF");
+        t.setBackgroundColor("#282C34");
+        t.setCursorColor("#61AFEF");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createMonokaiTheme() {
+        Theme t = new Theme("monokai", "Monokai", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#F8F8F2");
+        t.setBackgroundColor("#272822");
+        t.setCursorColor("#A6E22E");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createSolarizedDarkTheme() {
+        Theme t = new Theme("solarized-dark", "Solarized Dark", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#93A1A1");
+        t.setBackgroundColor("#002B36");
+        t.setCursorColor("#93A1A1");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createSolarizedLightTheme() {
+        Theme t = new Theme("solarized-light", "Solarized Light", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#586E75");
+        t.setBackgroundColor("#FDF6E3");
+        t.setCursorColor("#586E75");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createNordTheme() {
+        Theme t = new Theme("nord", "Nord", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#D8DEE9");
+        t.setBackgroundColor("#2E3440");
+        t.setCursorColor("#88C0D0");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createGitHubDarkTheme() {
+        Theme t = new Theme("github-dark", "GitHub Dark", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#C9D1D9");
+        t.setBackgroundColor("#0D1117");
+        t.setCursorColor("#79C0FF");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createGitHubLightTheme() {
+        Theme t = new Theme("github-light", "GitHub Light", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#24292F");
+        t.setBackgroundColor("#FFFFFF");
+        t.setCursorColor("#0969DA");
+        t.setCursorStyle("BLINK_BLOCK");
+        return t;
+    }
+
+    private Theme createHighContrastDarkTheme() {
+        Theme t = new Theme("high-contrast-dark", "High Contrast Dark", true);
+        t.setFontFamily("JetBrains Mono");
+        t.setFontSize(14);
+        t.setForegroundColor("#FFFFFF");
+        t.setBackgroundColor("#000000");
+        t.setCursorColor("#00FFFF");
         t.setCursorStyle("BLINK_BLOCK");
         return t;
     }

@@ -68,6 +68,7 @@ public class MainWindow {
     private final BorderPane root;
     private final TabPane tabPane;
     private final Label statusLabel;
+    private VBox statusBar;
     private final HBox mainContentBox;
     private DashboardView dashboardView;
     private boolean dashboardVisible = false;
@@ -296,7 +297,7 @@ public class MainWindow {
         });
         
         // Status bar
-        VBox statusBar = new VBox(statusLabel);
+        statusBar = new VBox(statusLabel);
         statusBar.setStyle("-fx-padding: 5; -fx-background-color: #2d2d2d;");
         statusLabel.setStyle("-fx-text-fill: #cccccc;");
         
@@ -306,6 +307,7 @@ public class MainWindow {
         
         root.setCenter(mainContentBox);
         root.setBottom(statusBar);
+        applyMainWindowThemeFromGlobalSettings();
         
         // Scene setup
         Scene scene = new Scene(root, 1000, 700);
@@ -1141,7 +1143,8 @@ public class MainWindow {
         dialog.addChangeListener(() -> {
             logger.info("Settings changed, updating all terminal views");
             Platform.runLater(() -> {
-                // Update scrollbar visibility for all open terminal views
+                applyMainWindowThemeFromGlobalSettings();
+                refreshTerminalTabsUsingGlobalDefaults();
                 for (Tab tab : tabPane.getTabs()) {
                     if (tab instanceof TerminalTab terminalTab) {
                         // Scrollbar functionality removed
@@ -1152,6 +1155,72 @@ public class MainWindow {
         });
         
         dialog.showAndWait();
+    }
+
+    private void refreshTerminalTabsUsingGlobalDefaults() {
+        ConnectionSettings globalDefaults = null;
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            if (gs != null && gs.getDefaultTerminalSettings() != null) {
+                globalDefaults = new ConnectionSettings(gs.getDefaultTerminalSettings());
+            }
+        } catch (Exception e) {
+            logger.debug("Could not load global defaults for live refresh: {}", e.getMessage());
+        }
+        if (globalDefaults == null) {
+            return;
+        }
+
+        for (Tab tab : tabPane.getTabs()) {
+            if (!(tab instanceof TerminalTab terminalTab)) {
+                continue;
+            }
+            ServerConnection conn = terminalTab.getConnection();
+            ConnectionSettings connSettings = conn != null ? conn.getSettings() : null;
+            if (connSettings == null || connSettings.isUseGlobalSettings()) {
+                terminalTab.getTerminalView().applyConnectionSettings(globalDefaults);
+            }
+        }
+    }
+
+    private void applyMainWindowThemeFromGlobalSettings() {
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            if (gs == null || gs.getDefaultTerminalSettings() == null) {
+                return;
+            }
+            ConnectionSettings defaults = new ConnectionSettings(gs.getDefaultTerminalSettings());
+            String themeId = defaults.getThemeId();
+            if (themeId != null && !themeId.isEmpty() && app.getThemeManager() != null) {
+                defaults = app.getThemeManager().resolveSettings(defaults, themeId);
+            }
+            String fg = defaults.getForegroundColor();
+            String bg = defaults.getBackgroundColor();
+            if (bg != null && !bg.isEmpty()) {
+                String bgStyle = "-fx-background-color: " + bg + ";";
+                root.setStyle(bgStyle);
+                mainContentBox.setStyle(bgStyle);
+                tabPane.setStyle(bgStyle + " -fx-control-inner-background: " + bg + ";");
+                statusBar.setStyle("-fx-padding: 5; " + bgStyle);
+                if (root.getTop() != null) {
+                    root.getTop().setStyle(bgStyle);
+                }
+                if (dashboardView != null) {
+                    dashboardView.setStyle(bgStyle);
+                }
+                if (stage.getScene() != null) {
+                    stage.getScene().setFill(javafx.scene.paint.Color.web(bg));
+                }
+            }
+            if (fg != null && !fg.isEmpty()) {
+                statusLabel.setStyle("-fx-text-fill: " + fg + ";");
+                if (root.getTop() instanceof javafx.scene.control.MenuBar menuBar) {
+                    menuBar.setStyle("-fx-text-fill: " + fg + ";");
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not apply main window theme from global settings: {}", e.getMessage());
+        }
     }
     
     private void openNewWindow() {

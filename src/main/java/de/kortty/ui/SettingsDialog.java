@@ -26,6 +26,8 @@ import de.kortty.model.WindowGeometry;
 import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.PasswordVault;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -136,6 +138,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ColorPicker snippetBackgroundColorPicker;
     private final ComboBox<String> snippetCursorStyleCombo;
     private final ColorPicker snippetCursorColorPicker;
+    private String selectedGlobalThemeId;
+    private final BooleanProperty applyThemeFontsProperty;
     
     public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
                           GlobalSettings globalSettings, CredentialManager credentialManager, 
@@ -147,6 +151,8 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         this.globalSettings = globalSettings;
         this.credentialManager = credentialManager;
         this.gpgKeyManager = gpgKeyManager;
+        this.selectedGlobalThemeId = this.settings.getThemeId();
+        this.applyThemeFontsProperty = new SimpleBooleanProperty(globalSettings != null && globalSettings.isApplyThemeFonts());
         
         setTitle(I18n.get("settings.title"));
         setHeaderText(I18n.get("settings.header"));
@@ -204,19 +210,63 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         backgroundColorPicker = new ColorPicker(Color.web(settings.getBackgroundColor()));
         cursorColorPicker = new ColorPicker(Color.web(settings.getCursorColor()));
         selectionColorPicker = new ColorPicker(Color.web(settings.getSelectionColor()));
+
+        ThemeManager colorThemeManager = app != null ? app.getThemeManager() : null;
+        ComboBox<Theme> colorProfileCombo = new ComboBox<>();
+        colorProfileCombo.setPrefWidth(240);
+        if (colorThemeManager != null) {
+            colorProfileCombo.getItems().addAll(colorThemeManager.getThemes());
+            if (selectedGlobalThemeId != null && !selectedGlobalThemeId.isEmpty()) {
+                colorThemeManager.getTheme(selectedGlobalThemeId).ifPresent(colorProfileCombo::setValue);
+            }
+        }
+        colorProfileCombo.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(Theme item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        colorProfileCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Theme item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        Button applyProfileButton = new Button(I18n.get("settings.colors.applyProfile"));
+        applyProfileButton.setDisable(colorThemeManager == null);
+        applyProfileButton.setOnAction(e -> {
+            Theme selected = colorProfileCombo.getValue();
+            if (selected == null) {
+                return;
+            }
+            // Apply profile values to terminal base configuration fields.
+            if (applyThemeFontsProperty.get()) {
+                fontFamilyCombo.setValue(selected.getFontFamily());
+                fontSizeSpinner.getValueFactory().setValue(selected.getFontSize());
+            }
+            foregroundColorPicker.setValue(Color.web(selected.getForegroundColor()));
+            backgroundColorPicker.setValue(Color.web(selected.getBackgroundColor()));
+            cursorColorPicker.setValue(Color.web(selected.getCursorColor()));
+            selectedGlobalThemeId = selected.getId();
+        });
+        HBox profileBox = new HBox(8, colorProfileCombo, applyProfileButton);
         
-        colorsGrid.add(new Label(I18n.get("settings.colors.foreground")), 0, 0);
-        colorsGrid.add(foregroundColorPicker, 1, 0);
-        colorsGrid.add(new Label(I18n.get("settings.colors.background")), 0, 1);
-        colorsGrid.add(backgroundColorPicker, 1, 1);
-        colorsGrid.add(new Label(I18n.get("settings.colors.cursor")), 0, 2);
-        colorsGrid.add(cursorColorPicker, 1, 2);
-        colorsGrid.add(new Label(I18n.get("settings.colors.selection")), 0, 3);
-        colorsGrid.add(selectionColorPicker, 1, 3);
+        colorsGrid.add(new Label(I18n.get("settings.colors.profile")), 0, 0);
+        colorsGrid.add(profileBox, 1, 0);
+        colorsGrid.add(new Label(I18n.get("settings.colors.foreground")), 0, 1);
+        colorsGrid.add(foregroundColorPicker, 1, 1);
+        colorsGrid.add(new Label(I18n.get("settings.colors.background")), 0, 2);
+        colorsGrid.add(backgroundColorPicker, 1, 2);
+        colorsGrid.add(new Label(I18n.get("settings.colors.cursor")), 0, 3);
+        colorsGrid.add(cursorColorPicker, 1, 3);
+        colorsGrid.add(new Label(I18n.get("settings.colors.selection")), 0, 4);
+        colorsGrid.add(selectionColorPicker, 1, 4);
         
         // ANSI Colors section
-        colorsGrid.add(new Separator(), 0, 4, 2, 1);
-        colorsGrid.add(new Label(I18n.get("settings.colors.ansi")), 0, 5, 2, 1);
+        colorsGrid.add(new Separator(), 0, 5, 2, 1);
+        colorsGrid.add(new Label(I18n.get("settings.colors.ansi")), 0, 6, 2, 1);
         
         String[] colorNames = {I18n.get("color.black"), I18n.get("color.red"), I18n.get("color.green"), I18n.get("color.yellow"), I18n.get("color.blue"), I18n.get("color.magenta"), I18n.get("color.cyan"), I18n.get("color.white")};
         HBox normalColorsBox = new HBox(5);
@@ -236,10 +286,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             brightColorsBox.getChildren().add(brightPicker);
         }
         
-        colorsGrid.add(new Label(I18n.get("settings.colors.normal")), 0, 6);
-        colorsGrid.add(normalColorsBox, 1, 6);
-        colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 7);
-        colorsGrid.add(brightColorsBox, 1, 7);
+        colorsGrid.add(new Label(I18n.get("settings.colors.normal")), 0, 7);
+        colorsGrid.add(normalColorsBox, 1, 7);
+        colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 8);
+        colorsGrid.add(brightColorsBox, 1, 8);
         
         colorsTab.setContent(colorsGrid);
         
@@ -1083,6 +1133,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
         settings.setCursorColor(toHex(cursorColorPicker.getValue()));
         settings.setSelectionColor(toHex(selectionColorPicker.getValue()));
+        settings.setThemeId(selectedGlobalThemeId);
         settings.setTerminalColumns(columnsSpinner.getValue());
         settings.setTerminalRows(rowsSpinner.getValue());
         settings.setScrollbackLines(scrollbackSpinner.getValue());
@@ -1096,6 +1147,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         if (globalSettings != null) {
             globalSettings.setConnectionRetriesEnabled(connectionRetriesEnabledCheck.isSelected());
             globalSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
+            globalSettings.setApplyThemeFonts(applyThemeFontsProperty.get());
         }
         
         // Save backup settings to GlobalSettings
@@ -1254,6 +1306,19 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         desc.setWrapText(true);
         desc.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         vbox.getChildren().add(desc);
+
+        CheckBox applyThemeFontsCheck = new CheckBox(I18n.get("theme.applyFontOption"));
+        applyThemeFontsCheck.selectedProperty().bindBidirectional(applyThemeFontsProperty);
+        vbox.getChildren().add(applyThemeFontsCheck);
+
+        Label previewHeader = new Label(I18n.get("theme.preview"));
+        previewHeader.setStyle("-fx-font-weight: bold;");
+        Label previewSample = new Label(I18n.get("theme.previewSample"));
+        HBox previewSwatches = new HBox(6);
+        VBox previewBox = new VBox(8, previewSample, previewSwatches);
+        previewBox.setPadding(new Insets(10));
+        previewBox.setStyle("-fx-background-color: #1E1E1E; -fx-background-radius: 6;");
+        vbox.getChildren().addAll(previewHeader, previewBox);
         
         ListView<Theme> themeList = new ListView<>();
         themeList.getItems().addAll(themeManager.getThemes());
@@ -1270,6 +1335,21 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         });
         themeList.setPrefHeight(260);
         VBox.setVgrow(themeList, javafx.scene.layout.Priority.ALWAYS);
+        themeList.getSelectionModel().selectedItemProperty().addListener((obs, oldTheme, newTheme) -> {
+            if (newTheme != null) {
+                selectedGlobalThemeId = newTheme.getId();
+            }
+            updateThemePreview(newTheme, previewBox, previewSample, previewSwatches);
+        });
+
+        if (selectedGlobalThemeId != null && !selectedGlobalThemeId.isEmpty()) {
+            themeManager.getTheme(selectedGlobalThemeId).ifPresent(theme ->
+                themeList.getSelectionModel().select(theme));
+        }
+        if (themeList.getSelectionModel().getSelectedItem() == null && !themeList.getItems().isEmpty()) {
+            themeList.getSelectionModel().selectFirst();
+        }
+        updateThemePreview(themeList.getSelectionModel().getSelectedItem(), previewBox, previewSample, previewSwatches);
         
         HBox buttons = new HBox(10);
         Button addBtn = new Button(I18n.get("theme.add"));
@@ -1289,6 +1369,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 themeManager.addTheme(t);
                 themeList.getItems().clear();
                 themeList.getItems().addAll(themeManager.getThemes());
+                themeList.getSelectionModel().select(t);
             });
         });
         
@@ -1310,6 +1391,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 themeManager.updateTheme(edited);
                 themeList.getItems().clear();
                 themeList.getItems().addAll(themeManager.getThemes());
+                themeList.getSelectionModel().select(edited);
             });
         });
         
@@ -1330,6 +1412,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 themeManager.addTheme(t);
                 themeList.getItems().clear();
                 themeList.getItems().addAll(themeManager.getThemes());
+                themeList.getSelectionModel().select(t);
             });
         });
         
@@ -1341,9 +1424,16 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             confirm.setHeaderText(I18n.get("theme.deleteConfirm", sel.getName()));
             confirm.initOwner(owner);
             if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                String deletedId = sel.getId();
                 themeManager.removeTheme(sel.getId());
                 themeList.getItems().clear();
                 themeList.getItems().addAll(themeManager.getThemes());
+                if (deletedId != null && deletedId.equals(selectedGlobalThemeId)) {
+                    selectedGlobalThemeId = null;
+                    if (!themeList.getItems().isEmpty()) {
+                        themeList.getSelectionModel().selectFirst();
+                    }
+                }
             }
         });
         
@@ -1380,6 +1470,30 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             if (!preferred.contains(f)) result.add(f);
         }
         return result;
+    }
+
+    private void updateThemePreview(Theme theme, VBox previewBox, Label previewSample, HBox previewSwatches) {
+        if (theme == null) {
+            previewSample.setText(I18n.get("theme.previewSample"));
+            previewSample.setStyle("-fx-text-fill: #CCCCCC;");
+            previewBox.setStyle("-fx-background-color: #1E1E1E; -fx-background-radius: 6;");
+            previewSwatches.getChildren().clear();
+            return;
+        }
+
+        previewSample.setText("AaBbCcDdEe 0123456789  " + theme.getName());
+        previewSample.setFont(Font.font(theme.getFontFamily(), Math.max(10, theme.getFontSize())));
+        previewSample.setStyle("-fx-text-fill: " + theme.getForegroundColor() + ";");
+        previewBox.setStyle("-fx-background-color: " + theme.getBackgroundColor() + "; -fx-background-radius: 6;");
+
+        previewSwatches.getChildren().clear();
+        Label fg = new Label("FG");
+        fg.setStyle("-fx-text-fill: " + theme.getBackgroundColor() + "; -fx-background-color: " + theme.getForegroundColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
+        Label bg = new Label("BG");
+        bg.setStyle("-fx-text-fill: " + theme.getForegroundColor() + "; -fx-background-color: " + theme.getBackgroundColor() + "; -fx-padding: 2 8 2 8; -fx-border-color: " + theme.getForegroundColor() + "; -fx-border-radius: 4; -fx-background-radius: 4;");
+        Label cursor = new Label("CURSOR");
+        cursor.setStyle("-fx-text-fill: " + theme.getBackgroundColor() + "; -fx-background-color: " + theme.getCursorColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
+        previewSwatches.getChildren().addAll(fg, bg, cursor);
     }
     
     private String toHex(Color color) {

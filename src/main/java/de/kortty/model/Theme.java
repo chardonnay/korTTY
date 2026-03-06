@@ -137,8 +137,18 @@ public class Theme {
      * Applies this theme's values to the given ConnectionSettings.
      */
     public void applyTo(ConnectionSettings target) {
-        target.setFontFamily(getFontFamily());
-        target.setFontSize(getFontSize());
+        applyTo(target, false);
+    }
+
+    /**
+     * Applies this theme's values to the given ConnectionSettings.
+     * By default, only colors/cursor are applied; font can be enabled explicitly.
+     */
+    public void applyTo(ConnectionSettings target, boolean includeFont) {
+        if (includeFont) {
+            target.setFontFamily(getFontFamily());
+            target.setFontSize(getFontSize());
+        }
         target.setForegroundColor(getForegroundColor());
         target.setBackgroundColor(getBackgroundColor());
         target.setCursorColor(getCursorColor());
@@ -150,7 +160,7 @@ public class Theme {
      */
     public ConnectionSettings toConnectionSettings() {
         ConnectionSettings s = new ConnectionSettings();
-        applyTo(s);
+        applyTo(s, true);
         return s;
     }
 }

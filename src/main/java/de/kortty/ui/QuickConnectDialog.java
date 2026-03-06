@@ -1270,7 +1270,7 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
                 de.kortty.model.ConnectionSettings settings = new de.kortty.model.ConnectionSettings();
                 Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
                 if (selTheme != null) {
-                    selTheme.applyTo(settings);
+                    selTheme.applyTo(settings, isThemeFontApplyEnabled());
                     settings.setThemeId(selTheme.getId());
                 } else {
                     settings.setFontFamily(fontFamilyCombo.getValue());
@@ -1336,10 +1336,19 @@ public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResu
         connection.getSettings().setBackgroundColor(toHex(backgroundColorPicker.getValue()));
         Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
         if (selTheme != null) {
-            selTheme.applyTo(connection.getSettings());
+            selTheme.applyTo(connection.getSettings(), isThemeFontApplyEnabled());
             connection.getSettings().setThemeId(selTheme.getId());
         } else {
             connection.getSettings().setThemeId(null);
+        }
+    }
+
+    private boolean isThemeFontApplyEnabled() {
+        try {
+            var gs = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            return gs != null && gs.isApplyThemeFonts();
+        } catch (Exception e) {
+            return false;
         }
     }
     

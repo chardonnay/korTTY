@@ -61,6 +61,9 @@ public class GlobalSettings {
     private boolean terminalCopyOnSelectEnabled = true; // Copy selected text to clipboard automatically
 
     @XmlElement
+    private boolean applyThemeFonts = false; // Apply font family/size when applying themes
+
+    @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
     
     /** When true, temporary SSH key option is shown in Connection Manager and Quick Connect. Default: false. */
@@ -329,6 +332,14 @@ public class GlobalSettings {
 
     public void setTerminalCopyOnSelectEnabled(boolean terminalCopyOnSelectEnabled) {
         this.terminalCopyOnSelectEnabled = terminalCopyOnSelectEnabled;
+    }
+
+    public boolean isApplyThemeFonts() {
+        return applyThemeFonts;
+    }
+
+    public void setApplyThemeFonts(boolean applyThemeFonts) {
+        this.applyThemeFonts = applyThemeFonts;
     }
 
     public boolean isRequireMasterPasswordOnStartup() {

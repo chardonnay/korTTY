@@ -548,7 +548,8 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                     ConnectionSettings customSettings;
                     Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
                     if (selTheme != null) {
-                        customSettings = selTheme.toConnectionSettings();
+                        customSettings = new ConnectionSettings();
+                        selTheme.applyTo(customSettings, isThemeFontApplyEnabled());
                         customSettings.setThemeId(selTheme.getId());
                     } else {
                         customSettings = new ConnectionSettings();
@@ -869,6 +870,15 @@ public class ConnectionEditDialog extends Dialog<ServerConnection> {
                 (int) (color.getRed() * 255),
                 (int) (color.getGreen() * 255),
                 (int) (color.getBlue() * 255));
+    }
+
+    private boolean isThemeFontApplyEnabled() {
+        try {
+            var gs = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            return gs != null && gs.isApplyThemeFonts();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     
