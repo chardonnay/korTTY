@@ -3263,4 +3263,3 @@ public class SFTPManagerTab extends Tab {
         return state;
     }
 }
-
