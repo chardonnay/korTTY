@@ -29,9 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
@@ -1856,6 +1856,16 @@ public class SFTPManagerTab extends Tab {
         passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
         grid.add(passwordField, 1, row++);
         
+        // Exclude (optional) - patterns to exclude from archive
+        grid.add(new Label(I18n.get("sftp.archive.exclude")), 0, row);
+        TextArea excludeField = new TextArea();
+        excludeField.setPromptText(I18n.get("sftp.archive.excludePrompt"));
+        excludeField.setPrefRowCount(3);
+        excludeField.setWrapText(true);
+        excludeField.setMaxWidth(Double.MAX_VALUE);
+        GridPane.setFillWidth(excludeField, true);
+        grid.add(excludeField, 1, row++);
+        
         // Update extension and password field when format changes
         formatCombo.setOnAction(e -> {
             String currentPath = pathField.getText();
@@ -1936,6 +1946,10 @@ public class SFTPManagerTab extends Tab {
                 String owner = ownerField.getText().trim();
                 String permissions = permissionsField.getText().trim();
                 String password = passwordField.getText();
+                List<String> excludePatterns = java.util.Arrays.stream(excludeField.getText().split("\n"))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
                 
                 // Disable controls during creation
                 createBtn.setDisable(true);
@@ -1945,6 +1959,7 @@ public class SFTPManagerTab extends Tab {
                 ownerField.setDisable(true);
                 permissionsField.setDisable(true);
                 passwordField.setDisable(true);
+                excludeField.setDisable(true);
                 
                 // Show progress
                 progressLabel.setVisible(true);
@@ -1954,7 +1969,7 @@ public class SFTPManagerTab extends Tab {
                 
                 // Create archive in background
                 executeRemoteArchiveCreation(dialog, filesToArchive, archivePath, format, compression, 
-                        owner, permissions, password, progressLabel, progressBar, timeLabel, sizeLabel);
+                        owner, permissions, password, excludePatterns, progressLabel, progressBar, timeLabel, sizeLabel);
             }
             return null;
         });
@@ -1964,7 +1979,8 @@ public class SFTPManagerTab extends Tab {
     
     private void executeRemoteArchiveCreation(Dialog<Void> dialog, List<String> filesToArchive, String archivePath,
                                               ArchiveFormat format, int compression, String owner, String permissions, 
-                                              String password, Label progressLabel, ProgressBar progressBar, 
+                                              String password, List<String> excludePatterns,
+                                              Label progressLabel, ProgressBar progressBar, 
                                               Label timeLabel, Label sizeLabel) {
         long startTime = System.currentTimeMillis();
         
@@ -1988,7 +2004,7 @@ public class SFTPManagerTab extends Tab {
         new Thread(() -> {
             try {
                 // Build the archive command based on format
-                String archiveCommand = buildArchiveCommand(filesToArchive, archivePath, format, compression, password);
+                String archiveCommand = buildArchiveCommand(filesToArchive, archivePath, format, compression, password, excludePatterns);
                 
                 logger.info("Executing remote archive command: {}", archiveCommand.replaceAll("-P '[^']*'", "-P '***'").replaceAll("-p'[^']*'", "-p'***'"));
                 
@@ -2104,9 +2120,10 @@ public class SFTPManagerTab extends Tab {
         }, "Remote-Archive-Creator").start();
     }
     
-    private String buildArchiveCommand(List<String> files, String archivePath, ArchiveFormat format, int compression, String password) {
+    private String buildArchiveCommand(List<String> files, String archivePath, ArchiveFormat format, int compression, String password, List<String> excludePatterns) {
         StringBuilder cmd = new StringBuilder();
         String escapedPath = archivePath.replace("'", "'\\''");
+        List<String> exclude = excludePatterns != null ? excludePatterns : List.of();
         
         switch (format) {
             case ZIP:
@@ -2117,6 +2134,9 @@ public class SFTPManagerTab extends Tab {
                     cmd.append("zip -r -").append(compression).append(" ");
                 }
                 cmd.append("'").append(escapedPath).append("' ");
+                for (String pattern : exclude) {
+                    cmd.append("-x '").append(pattern.replace("'", "'\\''")).append("' ");
+                }
                 for (String file : files) {
                     cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
                 }
@@ -2127,6 +2147,9 @@ public class SFTPManagerTab extends Tab {
                 // -j = bzip2, compression level via BZIP2 env var
                 cmd.append("BZIP2=-").append(compression).append(" tar -cjf '")
                    .append(escapedPath).append("' ");
+                for (String pattern : exclude) {
+                    cmd.append("--exclude='").append(pattern.replace("'", "'\\''")).append("' ");
+                }
                 for (String file : files) {
                     cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
                 }
@@ -2134,10 +2157,13 @@ public class SFTPManagerTab extends Tab {
                 
             case SEVEN_ZIP:
                 // 7z archive - try 7z first, then 7za (p7zip uses 7za on some systems)
-                // -mx=compression level, -p for password
+                // -mx=compression level, -p for password, -x! for exclude
                 cmd.append("$(command -v 7z || command -v 7za) a -mx=").append(compression);
                 if (password != null && !password.isEmpty()) {
                     cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
+                }
+                for (String pattern : exclude) {
+                    cmd.append(" -x!'").append(pattern.replace("'", "'\\''")).append("'");
                 }
                 cmd.append(" '").append(escapedPath).append("' ");
                 for (String file : files) {
@@ -2720,6 +2746,16 @@ public class SFTPManagerTab extends Tab {
         passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
         grid.add(passwordField, 1, row++);
         
+        // Exclude (optional)
+        grid.add(new Label(I18n.get("sftp.archive.exclude")), 0, row);
+        TextArea excludeField = new TextArea();
+        excludeField.setPromptText(I18n.get("sftp.archive.excludePrompt"));
+        excludeField.setPrefRowCount(3);
+        excludeField.setWrapText(true);
+        excludeField.setMaxWidth(Double.MAX_VALUE);
+        GridPane.setFillWidth(excludeField, true);
+        grid.add(excludeField, 1, row++);
+        
         // Update extension and password field when format changes
         formatCombo.setOnAction(e -> {
             String currentPath = pathField.getText();
@@ -2790,6 +2826,10 @@ public class SFTPManagerTab extends Tab {
                 
                 String password = passwordField.getText();
                 ArchiveFormat format = getSelectedFormat.get();
+                List<String> excludePatterns = java.util.Arrays.stream(excludeField.getText().split("\n"))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
                 
                 // Check if the tool is available
                 if (!availableTools.getOrDefault(format, false)) {
@@ -2804,6 +2844,7 @@ public class SFTPManagerTab extends Tab {
                 compressionCombo.setDisable(true);
                 passwordField.setDisable(true);
                 browseButton.setDisable(true);
+                excludeField.setDisable(true);
                 
                 // Show progress
                 progressLabel.setVisible(true);
@@ -2813,7 +2854,7 @@ public class SFTPManagerTab extends Tab {
                 
                 // Create archive
                 executeLocalArchiveCreation(dialog, filesToArchive, archivePath, format, compression, 
-                        password, progressLabel, progressBar, timeLabel, sizeLabel);
+                        password, excludePatterns, progressLabel, progressBar, timeLabel, sizeLabel);
             }
             return null;
         });
@@ -2822,9 +2863,11 @@ public class SFTPManagerTab extends Tab {
     }
     
     private void executeLocalArchiveCreation(Dialog<Void> dialog, List<Path> files, String archivePath,
-                                             ArchiveFormat format, int compression, String password, 
+                                             ArchiveFormat format, int compression, String password,
+                                             List<String> excludePatterns,
                                              Label progressLabel, ProgressBar progressBar, 
                                              Label timeLabel, Label sizeLabel) {
+        List<String> exclude = excludePatterns != null ? excludePatterns : List.of();
         new Thread(() -> {
             long startTime = System.currentTimeMillis();
             
@@ -2846,9 +2889,9 @@ public class SFTPManagerTab extends Tab {
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
                 
                 switch (format) {
-                    case ZIP -> createLocalZip(files, archivePath, compression, password);
-                    case TAR_BZ2 -> createLocalTarBz2(files, archivePath, compression);
-                    case SEVEN_ZIP -> createLocal7z(files, archivePath, compression, password);
+                    case ZIP -> createLocalZip(files, archivePath, compression, password, exclude);
+                    case TAR_BZ2 -> createLocalTarBz2(files, archivePath, compression, exclude);
+                    case SEVEN_ZIP -> createLocal7z(files, archivePath, compression, password, exclude);
                 }
                 
                 // Get actual size and duration
@@ -2897,40 +2940,72 @@ public class SFTPManagerTab extends Tab {
         }, "Local-Archive-Creator").start();
     }
     
-    private void createLocalZip(List<Path> files, String archivePath, int compression, String password) throws Exception {
-        // Use zip4j for ZIP creation with password support
-        net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(archivePath);
-        
-        if (password != null && !password.isEmpty()) {
-            zipFile.setPassword(password.toCharArray());
+    /**
+     * Returns true if the relative path (using /) matches any exclude glob.
+     * Each exclude line is applied so that e.g. "*.log" excludes any .log file
+     * and "node_modules" excludes that directory and its contents.
+     */
+    private static boolean matchesExclude(String relativePath, List<String> excludePatterns) {
+        if (relativePath == null || excludePatterns == null || excludePatterns.isEmpty()) return false;
+        String normalized = relativePath.replace(File.separatorChar, '/');
+        Path path = Paths.get(normalized);
+        for (String p : excludePatterns) {
+            if (p == null || p.trim().isEmpty()) continue;
+            String glob = "**/" + p.trim();
+            if (FileSystems.getDefault().getPathMatcher("glob:" + glob).matches(path)) return true;
+            if (FileSystems.getDefault().getPathMatcher("glob:" + glob + "/**").matches(path)) return true;
         }
-        
-        net.lingala.zip4j.model.ZipParameters zipParams = new net.lingala.zip4j.model.ZipParameters();
-        zipParams.setCompressionLevel(
-            compression == 0 ? net.lingala.zip4j.model.enums.CompressionLevel.NO_COMPRESSION :
-            compression <= 1 ? net.lingala.zip4j.model.enums.CompressionLevel.FASTEST :
-            compression <= 3 ? net.lingala.zip4j.model.enums.CompressionLevel.FAST :
-            compression <= 6 ? net.lingala.zip4j.model.enums.CompressionLevel.NORMAL :
-            net.lingala.zip4j.model.enums.CompressionLevel.MAXIMUM
-        );
-        
-        if (password != null && !password.isEmpty()) {
-            zipParams.setEncryptFiles(true);
-            zipParams.setEncryptionMethod(net.lingala.zip4j.model.enums.EncryptionMethod.AES);
-        }
-        
-        // Add files
-        for (Path file : files) {
-            if (Files.isDirectory(file)) {
-                zipFile.addFolder(file.toFile(), zipParams);
-            } else {
-                zipFile.addFile(file.toFile(), zipParams);
+        return false;
+    }
+    
+    private void createLocalZip(List<Path> files, String archivePath, int compression, String password, List<String> excludePatterns) throws Exception {
+        List<String> exclude = excludePatterns != null ? excludePatterns : List.of();
+        try (net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(archivePath)) {
+            if (password != null && !password.isEmpty()) {
+                zipFile.setPassword(password.toCharArray());
+            }
+            
+            net.lingala.zip4j.model.ZipParameters zipParams = new net.lingala.zip4j.model.ZipParameters();
+            zipParams.setCompressionLevel(
+                compression == 0 ? net.lingala.zip4j.model.enums.CompressionLevel.NO_COMPRESSION :
+                compression <= 1 ? net.lingala.zip4j.model.enums.CompressionLevel.FASTEST :
+                compression <= 3 ? net.lingala.zip4j.model.enums.CompressionLevel.FAST :
+                compression <= 6 ? net.lingala.zip4j.model.enums.CompressionLevel.NORMAL :
+                net.lingala.zip4j.model.enums.CompressionLevel.MAXIMUM
+            );
+            
+            if (password != null && !password.isEmpty()) {
+                zipParams.setEncryptFiles(true);
+                zipParams.setEncryptionMethod(net.lingala.zip4j.model.enums.EncryptionMethod.AES);
+            }
+            
+            for (Path root : files) {
+                if (Files.isDirectory(root)) {
+                    try (var stream = Files.walk(root)) {
+                        stream.filter(Files::isRegularFile).forEach(file -> {
+                            try {
+                                Path rel = root.relativize(file);
+                                String relStr = rel.toString().replace(File.separatorChar, '/');
+                                if (matchesExclude(relStr, exclude)) return;
+                                zipParams.setFileNameInZip(relStr);
+                                zipFile.addFile(file.toFile(), zipParams);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+                    }
+                } else {
+                    String name = root.getFileName().toString();
+                    if (!matchesExclude(name, exclude)) {
+                        zipFile.addFile(root.toFile(), zipParams);
+                    }
+                }
             }
         }
     }
     
-    private void createLocalTarBz2(List<Path> files, String archivePath, int compression) throws Exception {
-        // Use Apache Commons Compress for TAR.BZ2
+    private void createLocalTarBz2(List<Path> files, String archivePath, int compression, List<String> excludePatterns) throws Exception {
+        List<String> exclude = excludePatterns != null ? excludePatterns : List.of();
         try (java.io.FileOutputStream fos = new java.io.FileOutputStream(archivePath);
              java.io.BufferedOutputStream bos = new java.io.BufferedOutputStream(fos);
              org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream bzos = 
@@ -2941,14 +3016,16 @@ public class SFTPManagerTab extends Tab {
             tarOutput.setLongFileMode(org.apache.commons.compress.archivers.tar.TarArchiveOutputStream.LONGFILE_POSIX);
             
             for (Path file : files) {
-                addToTar(tarOutput, file, "");
+                addToTar(tarOutput, file, "", exclude);
             }
         }
     }
     
     private void addToTar(org.apache.commons.compress.archivers.tar.TarArchiveOutputStream tarOutput, 
-                          Path path, String base) throws Exception {
+                          Path path, String base, List<String> excludePatterns) throws Exception {
         String entryName = base + path.getFileName().toString();
+        String entryPath = entryName.replace(File.separatorChar, '/');
+        if (matchesExclude(entryPath, excludePatterns)) return;
         
         org.apache.commons.compress.archivers.tar.TarArchiveEntry entry = 
             new org.apache.commons.compress.archivers.tar.TarArchiveEntry(path.toFile(), entryName);
@@ -2964,7 +3041,7 @@ public class SFTPManagerTab extends Tab {
             try (var stream = Files.list(path)) {
                 stream.forEach(child -> {
                     try {
-                        addToTar(tarOutput, child, entryName + "/");
+                        addToTar(tarOutput, child, entryName + "/", excludePatterns);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -2973,20 +3050,22 @@ public class SFTPManagerTab extends Tab {
         }
     }
     
-    private void createLocal7z(List<Path> files, String archivePath, int compression, String password) throws Exception {
-        // Use local 7z command-line tool (like remote)
+    private void createLocal7z(List<Path> files, String archivePath, int compression, String password, List<String> excludePatterns) throws Exception {
+        List<String> exclude = excludePatterns != null ? excludePatterns : List.of();
         StringBuilder cmd = new StringBuilder();
         
-        // Try both 7z and 7za
         cmd.append("$(command -v 7z || command -v 7za) a -mx=").append(compression);
         
         if (password != null && !password.isEmpty()) {
             cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
         }
         
+        for (String pattern : exclude) {
+            cmd.append(" -x!'").append(pattern.replace("'", "'\\''")).append("'");
+        }
+        
         cmd.append(" '").append(archivePath.replace("'", "'\\''")).append("' ");
         
-        // Add files with absolute paths
         for (Path file : files) {
             cmd.append("'").append(file.toAbsolutePath().toString().replace("'", "'\\''")).append("' ");
         }
