@@ -329,17 +329,17 @@ jobs:
           cd build/jpackage
           rpm_file="kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm"
           if [ -f "$rpm_file" ]; then
-            cat > "$HOME/.rpmmacros" <<EOF
-            %_signature gpg
-            %_gpg_name $LINUX_SIGNING_GPG_KEY_ID
-            %_gpg_path $GNUPGHOME
-            %__gpg /usr/bin/gpg
-            %__gpg_sign_cmd %{__gpg} \
-              gpg --batch --no-verbose --no-armor --pinentry-mode loopback \
-              --passphrase '$LINUX_SIGNING_GPG_PASSPHRASE' \
-              --local-user '%{_gpg_name}' \
-              --detach-sign --sign --output %{__signature_filename} %{__plaintext_filename}
-            EOF
+            {
+              printf '%s\n' '%_signature gpg'
+              printf '%s\n' "%_gpg_name $LINUX_SIGNING_GPG_KEY_ID"
+              printf '%s\n' "%_gpg_path $GNUPGHOME"
+              printf '%s\n' '%__gpg /usr/bin/gpg'
+              printf '%s\n' '%__gpg_sign_cmd %{__gpg} \'
+              printf '%s\n' '  gpg --batch --no-verbose --no-armor --pinentry-mode loopback \'
+              printf '%s\n' "  --passphrase '$LINUX_SIGNING_GPG_PASSPHRASE' \\"
+              printf '%s\n' "  --local-user '%{_gpg_name}' \\"
+              printf '%s\n' '  --detach-sign --sign --output %{__signature_filename} %{__plaintext_filename}'
+            } > "$HOME/.rpmmacros"
             rpmsign --addsign "$rpm_file"
           fi
 
