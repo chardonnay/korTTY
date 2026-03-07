@@ -109,6 +109,20 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
           echo "KORTTY_MAC_SIGNING_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
+      - name: Validate Linux signing secrets
+        if: matrix.platform == 'linux'
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64 }}
+          LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          if [ -z "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" ] || [ -z "$LINUX_SIGNING_GPG_PASSPHRASE" ] || [ -z "$LINUX_SIGNING_GPG_KEY_ID" ]; then
+            echo "Missing required Linux signing secrets."
+            echo "Please set LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64, LINUX_SIGNING_GPG_PASSPHRASE, and LINUX_SIGNING_GPG_KEY_ID."
+            exit 1
+          fi
+
       - name: Install Maven (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -131,7 +145,23 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm
+          sudo apt-get install -y rpm gnupg
+
+      - name: Import Linux signing key
+        if: matrix.platform == 'linux'
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64 }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/kortty-gnupg"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+          echo "allow-loopback-pinentry" > "$GNUPGHOME/gpg-agent.conf"
+          echo "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/kortty-linux-signing.key"
+          gpg --batch --import "$RUNNER_TEMP/kortty-linux-signing.key"
+          gpg --batch --armor --export "$LINUX_SIGNING_GPG_KEY_ID" > "$GITHUB_WORKSPACE/kortty-linux-signing-public.asc"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
 
       - name: Set version
         id: version
@@ -208,6 +238,36 @@ jobs:
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} jpackageRpm
 
+      - name: Prepare Java artifacts
+        if: matrix.platform == 'linux' && matrix.arch == 'x86_64'
+        shell: bash
+        run: |
+          mkdir -p build/release-java
+          jar_file="$(ls -1 build/libs/*.jar | head -n1)"
+          zip_file="$(ls -1 build/distributions/*.zip | head -n1)"
+          tar_file="$(ls -1 build/distributions/*.tar | head -n1)"
+          cp "$jar_file" "build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.jar"
+          cp "$zip_file" "build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.zip"
+          cp "$tar_file" "build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.tar"
+
+      - name: Sign Java artifacts
+        if: matrix.platform == 'linux' && matrix.arch == 'x86_64'
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          cd build/release-java
+          for f in "korTTY-Java-${{ steps.version.outputs.version }}.jar" \
+                   "korTTY-Java-${{ steps.version.outputs.version }}.zip" \
+                   "korTTY-Java-${{ steps.version.outputs.version }}.tar"; do
+            gpg --batch --yes --pinentry-mode loopback \
+              --passphrase "$LINUX_SIGNING_GPG_PASSPHRASE" \
+              --local-user "$LINUX_SIGNING_GPG_KEY_ID" \
+              --output "$f.sig" \
+              --detach-sign "$f"
+          done
+
       - name: Prepare macOS artifacts
         if: matrix.platform == 'macos'
         run: |
@@ -259,6 +319,51 @@ jobs:
           for f in kortty*.deb; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb" && break; done
           for f in kortty*.rpm; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm" && break; done
 
+      - name: Sign RPM package
+        if: matrix.platform == 'linux'
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          cd build/jpackage
+          rpm_file="kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm"
+          if [ -f "$rpm_file" ]; then
+            cat > "$HOME/.rpmmacros" <<EOF
+            %_signature gpg
+            %_gpg_name $LINUX_SIGNING_GPG_KEY_ID
+            %_gpg_path $GNUPGHOME
+            %__gpg /usr/bin/gpg
+            %__gpg_sign_cmd %{__gpg} \
+              gpg --batch --no-verbose --no-armor --pinentry-mode loopback \
+              --passphrase '$LINUX_SIGNING_GPG_PASSPHRASE' \
+              --local-user '%{_gpg_name}' \
+              --detach-sign --sign --output %{__signature_filename} %{__plaintext_filename}
+            EOF
+            rpmsign --addsign "$rpm_file"
+          fi
+
+      - name: Sign Linux artifacts
+        if: matrix.platform == 'linux'
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          cd build/jpackage
+          for f in "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz" \
+                   "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip" \
+                   "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb" \
+                   "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm"; do
+            if [ -f "$f" ]; then
+              gpg --batch --yes --pinentry-mode loopback \
+                --passphrase "$LINUX_SIGNING_GPG_PASSPHRASE" \
+                --local-user "$LINUX_SIGNING_GPG_KEY_ID" \
+                --output "$f.sig" \
+                --detach-sign "$f"
+            fi
+          done
+
       - name: Upload macOS artifacts
         if: matrix.platform == 'macos'
         uses: actions/upload-artifact@v4
@@ -289,6 +394,26 @@ jobs:
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz.sig
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip.sig
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb.sig
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm.sig
+            kortty-linux-signing-public.asc
+          retention-days: 30
+
+      - name: Upload Java artifacts
+        if: matrix.platform == 'linux' && matrix.arch == 'x86_64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: korTTY-Java-${{ steps.version.outputs.version }}
+          path: |
+            build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.jar
+            build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.jar.sig
+            build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.zip
+            build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.zip.sig
+            build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.tar
+            build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.tar.sig
+            kortty-linux-signing-public.asc
           retention-days: 30
 
   build-pacman:
@@ -299,6 +424,19 @@ jobs:
     container:
       image: archlinux:latest
     steps:
+      - name: Validate Linux signing secrets
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64 }}
+          LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          if [ -z "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" ] || [ -z "$LINUX_SIGNING_GPG_PASSPHRASE" ] || [ -z "$LINUX_SIGNING_GPG_KEY_ID" ]; then
+            echo "Missing required Linux signing secrets."
+            echo "Please set LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64, LINUX_SIGNING_GPG_PASSPHRASE, and LINUX_SIGNING_GPG_KEY_ID."
+            exit 1
+          fi
+
       - name: Set version
         id: version
         run: |
@@ -326,8 +464,21 @@ jobs:
         run: |
           pacman-key --init
           pacman-key --populate archlinux
-          pacman -Syu --noconfirm base-devel git jdk-openjdk
+          pacman -Syu --noconfirm base-devel git jdk-openjdk gnupg
           useradd -m -s /bin/bash builder
+
+      - name: Import Linux signing key
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64 }}
+        run: |
+          export GNUPGHOME="$PWD/.gnupg"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+          echo "allow-loopback-pinentry" > "$GNUPGHOME/gpg-agent.conf"
+          echo "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" | base64 --decode > "$PWD/kortty-linux-signing.key"
+          gpg --batch --import "$PWD/kortty-linux-signing.key"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
 
       - name: Prepare PKGBUILD and sources
         run: |
@@ -346,11 +497,26 @@ jobs:
           su builder -c "cd /home/builder/archbuild && makepkg --noconfirm --clean"
           cp /home/builder/archbuild/*.pkg.tar.zst archbuild/
 
+      - name: Sign pacman package
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          pkg_file="$(ls -1 archbuild/*.pkg.tar.zst | head -n1)"
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase "$LINUX_SIGNING_GPG_PASSPHRASE" \
+            --local-user "$LINUX_SIGNING_GPG_KEY_ID" \
+            --output "${pkg_file}.sig" \
+            --detach-sign "$pkg_file"
+
       - name: Upload pacman artifact
         uses: actions/upload-artifact@v4
         with:
           name: KorTTY-Arch-${{ steps.version.outputs.version }}-x86_64
-          path: archbuild/*.pkg.tar.zst
+          path: |
+            archbuild/*.pkg.tar.zst
+            archbuild/*.pkg.tar.zst.sig
           retention-days: 30
 
   upload-release:
@@ -379,7 +545,7 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release
-          find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg.tar.zst' \) -exec cp {} release/ \;
+          find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.tar' -o -name '*.jar' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.sig' -o -name '*.asc' \) -exec cp {} release/ \;
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
