@@ -6,7 +6,7 @@
 
 ---
 
-## 1.8.1
+## v1.8.1
 
 **Release date:** March 2026
 
@@ -16,25 +16,30 @@
 - **Live theme preview in Settings**: Selecting a theme under **Settings → Themes** now shows an immediate preview.
 - **Immediate apply on save**: Saved global theme changes are applied without restart to the main window and to terminals that use global/default settings.
 - **Theme font behavior option**: Themes apply colors by default; font family/size are only applied when explicitly enabled in theme options.
+- **Version consistency**: The application version shown in the About dialog and runtime metadata is now aligned with `v1.8.1`.
 
 ### SFTP Manager
 
 - **Archive exclude patterns**: Local and remote archive dialogs now support exclude patterns (one pattern per line) for files/directories.
 - **Windows path/glob fix**: `matchesExclude()` path handling was hardened so exclude matching works correctly across platforms.
 
-### Translation and Packaging
+### Translation, Packaging, and Startup
 
 - **Target language list in packaged binaries**: Release binaries now include `jdk.localedata` in runtime images so **Settings → Translation → Target language** keeps broad language coverage.
 - **Locale list fallback logic**: Target language population now uses ISO language codes plus available JVM locales for resilient behavior in reduced runtime images.
+- **macOS packaged app startup fix**: The packaged runtime now keeps the required Java modules (including `java.xml`) so the shipped macOS app starts correctly.
 
-### Release Build Matrix
+### Release Build Matrix and Signing
 
+- **macOS signing**: GitHub Actions signs both the macOS `.app` bundle and the `.dmg` installer with Apple Developer ID.
 - **Windows ARM64 artifacts**: GitHub Actions publishes Windows ARM64 artifacts as `korTTY-Windows-<version>-arm64.msi` and `korTTY-Windows-<version>-arm64.zip` (ZIP contains single `korTTY.exe`).
+- **Linux artifact signing**: Linux `tar.gz`, `zip`, `deb`, `rpm`, and Arch `pkg.tar.zst` artifacts are GPG-signed in CI and published with detached `.sig` files plus the public key.
+- **Signed Java distributions**: Release builds also publish GPG-signed Java artifacts (`.jar`, `.zip`, `.tar`) for the generic JVM distribution.
 - **CI Java toolchain note**: The `windows-11-arm` release job uses Java 21 for compatibility; other release jobs continue with Java 25.
 
 ---
 
-## 1.8.1
+## 1.8.0
 
 **Release date:** February 2026
 

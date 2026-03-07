@@ -1,6 +1,6 @@
 # KorTTY - SSH Client
 
-**Version 1.8.1** — A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
+**v1.8.1** — A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
 
 ## Features
 
