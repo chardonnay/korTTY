@@ -1256,14 +1256,24 @@ public class MainWindow {
             double lum = 0.299 * bgColor.getRed() + 0.587 * bgColor.getGreen() + 0.114 * bgColor.getBlue();
             Color blendTarget = lum < 0.5 ? Color.WHITE : Color.BLACK;
 
-            String bgAlt = toHex(bgColor.interpolate(blendTarget, 0.08));
-            String bgHover = toHex(bgColor.interpolate(blendTarget, 0.15));
-            String fgBright = toHex(lum < 0.5
+            String bgAlt    = toHex(bgColor.interpolate(blendTarget, 0.08));
+            String bgHover   = toHex(bgColor.interpolate(blendTarget, 0.15));
+            String bgHoverSub = toHex(bgColor.interpolate(blendTarget, 0.11));
+            String fgBright  = toHex(lum < 0.5
                     ? fgColor.interpolate(Color.WHITE, 0.3)
                     : fgColor.interpolate(Color.BLACK, 0.3));
-            String border = toHex(bgColor.interpolate(blendTarget, 0.20));
+            String border    = toHex(bgColor.interpolate(blendTarget, 0.20));
+            String accent    = "#0066cc";
+            String accentHov = "#0077dd";
 
             String css = String.join("\n",
+                    // Root
+                    ".root { -fx-background-color: " + bg + "; }",
+
+                    // Labels
+                    ".label { -fx-text-fill: " + fg + "; }",
+
+                    // Menu bar
                     ".menu-bar { -fx-background-color: " + bgAlt + "; }",
                     ".menu-bar .menu .label { -fx-text-fill: " + fg + "; }",
                     ".menu-bar .menu:hover, .menu-bar .menu:showing { -fx-background-color: " + bgHover + "; }",
@@ -1272,6 +1282,10 @@ public class MainWindow {
                     ".menu-item .label { -fx-text-fill: " + fg + "; }",
                     ".menu-item:hover, .menu-item:focused { -fx-background-color: " + bgHover + "; }",
                     ".separator:horizontal .line { -fx-border-color: " + border + "; }",
+
+                    // Tab pane
+                    ".tab-pane { -fx-background-color: " + bg + "; }",
+                    ".tab-pane:focused { -fx-background-color: " + bg + "; }",
                     ".tab-pane .tab-header-area { -fx-background-color: " + bgAlt + "; }",
                     ".tab-pane .tab-header-background { -fx-background-color: " + bgAlt + "; }",
                     ".tab { -fx-background-color: " + bgAlt + "; }",
@@ -1279,15 +1293,96 @@ public class MainWindow {
                     ".tab .tab-label { -fx-text-fill: " + fg + "; }",
                     ".tab:selected .tab-label { -fx-text-fill: " + fgBright + "; }",
                     ".tab-close-button { -fx-background-color: " + border + "; }",
+
+                    // Scroll pane / bar
+                    ".scroll-pane { -fx-background-color: " + bg + "; -fx-background: " + bg + "; }",
+                    ".scroll-pane .viewport { -fx-background-color: " + bg + "; }",
                     ".scroll-bar { -fx-background-color: " + bgAlt + "; }",
                     ".scroll-bar .thumb { -fx-background-color: " + border + "; }",
+                    ".scroll-bar .thumb:hover { -fx-background-color: " + bgHover + "; }",
+
+                    // Text flow
+                    ".text-flow { -fx-background-color: " + bg + "; }",
+
+                    // Buttons
+                    ".button { -fx-background-color: " + bgHover + "; -fx-text-fill: " + fg + "; }",
+                    ".button:hover { -fx-background-color: " + border + "; }",
+                    ".button:pressed { -fx-background-color: " + bgAlt + "; }",
+                    ".button:default { -fx-background-color: " + accent + "; -fx-text-fill: #ffffff; }",
+                    ".button:default:hover { -fx-background-color: " + accentHov + "; }",
+
+                    // Text fields
+                    ".text-field, .password-field { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; -fx-border-color: " + border + "; }",
+                    ".text-field:focused, .password-field:focused { -fx-border-color: " + accent + "; }",
+
+                    // Text area
+                    ".text-area { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; }",
+                    ".text-area .content { -fx-background-color: " + bg + "; }",
+
+                    // Tree view
                     ".tree-view { -fx-background-color: " + bg + "; }",
-                    ".tree-cell { -fx-background-color: transparent; }",
+                    ".tree-cell { -fx-background-color: transparent; -fx-text-fill: " + fg + "; }",
                     ".tree-cell:selected { -fx-background-color: " + bgHover + "; }",
                     ".tree-cell:hover { -fx-background-color: " + bgAlt + "; }",
-                    ".button { -fx-background-color: " + bgAlt + "; -fx-text-fill: " + fg + "; }",
-                    ".button:hover { -fx-background-color: " + bgHover + "; }",
-                    ".button:pressed { -fx-background-color: " + bg + "; }"
+
+                    // Table view
+                    ".table-view { -fx-background-color: " + bgAlt + "; }",
+                    ".table-view .column-header { -fx-background-color: " + bgHover + "; }",
+                    ".table-view .column-header .label { -fx-text-fill: " + fg + "; }",
+                    ".table-row-cell { -fx-background-color: " + bgAlt + "; }",
+                    ".table-row-cell:selected { -fx-background-color: " + bgHover + "; }",
+                    ".table-row-cell:hover { -fx-background-color: " + bgHoverSub + "; }",
+                    ".table-cell { -fx-text-fill: " + fg + "; }",
+
+                    // List view
+                    ".list-view { -fx-background-color: " + bg + "; }",
+                    ".list-cell { -fx-background-color: transparent; -fx-text-fill: " + fg + "; }",
+                    ".list-cell:selected { -fx-background-color: " + bgHover + "; }",
+                    ".list-cell:hover { -fx-background-color: " + bgAlt + "; }",
+
+                    // Check box / Radio button
+                    ".check-box { -fx-text-fill: " + fg + "; }",
+                    ".check-box .box { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; }",
+                    ".check-box:selected .mark { -fx-background-color: " + fg + "; }",
+                    ".radio-button { -fx-text-fill: " + fg + "; }",
+                    ".radio-button .radio { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; }",
+                    ".radio-button:selected .dot { -fx-background-color: " + fg + "; }",
+
+                    // Combo box
+                    ".combo-box { -fx-background-color: " + bgHover + "; }",
+                    ".combo-box .list-cell { -fx-text-fill: " + fg + "; -fx-background-color: transparent; }",
+                    ".combo-box-popup .list-view { -fx-background-color: " + bgAlt + "; }",
+                    ".combo-box-popup .list-cell:hover { -fx-background-color: " + bgHover + "; }",
+
+                    // Spinner
+                    ".spinner { -fx-background-color: " + bg + "; }",
+                    ".spinner .text-field { -fx-background-color: " + bg + "; }",
+                    ".spinner .increment-arrow-button, .spinner .decrement-arrow-button { -fx-background-color: " + bgHover + "; }",
+
+                    // Progress bar
+                    ".progress-bar { -fx-background-color: " + bg + "; }",
+                    ".progress-bar .track { -fx-background-color: " + bg + "; }",
+                    ".progress-bar .bar { -fx-background-color: " + accent + "; }",
+
+                    // Split pane
+                    ".split-pane { -fx-background-color: " + bg + "; }",
+                    ".split-pane-divider { -fx-background-color: " + border + "; }",
+
+                    // Dialog pane
+                    ".dialog-pane { -fx-background-color: " + bgAlt + "; }",
+                    ".dialog-pane .header-panel { -fx-background-color: " + bgHover + "; }",
+                    ".dialog-pane .content { -fx-background-color: " + bgAlt + "; }",
+
+                    // Color picker
+                    ".color-picker { -fx-background-color: " + bgHover + "; }",
+                    ".color-picker .label { -fx-text-fill: " + fg + "; }",
+
+                    // Tooltip
+                    ".tooltip { -fx-background-color: " + bgHover + "; -fx-text-fill: " + fg + "; }",
+
+                    // Titled pane (used in some dialogs)
+                    ".titled-pane > .title { -fx-background-color: " + bgAlt + "; }",
+                    ".titled-pane > .content { -fx-background-color: " + bg + "; }"
             );
 
             Path tempCss = Files.createTempFile("kortty-theme-", ".css");
