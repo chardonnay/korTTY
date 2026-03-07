@@ -15,10 +15,12 @@ import de.kortty.persistence.exporter.KorTTYExporter;
 import de.kortty.persistence.exporter.MTPuTTYExporter;
 import de.kortty.persistence.exporter.MobaXTermExporter;
 import de.kortty.security.PasswordVault;
+import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.Scene;
+import javafx.scene.paint.Color;
 import javafx.scene.control.*;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.Dragboard;
@@ -36,6 +38,7 @@ import javafx.scene.layout.VBox;
 import javafx.event.Event;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +51,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -70,6 +74,8 @@ public class MainWindow {
     private final Label statusLabel;
     private VBox statusBar;
     private final HBox mainContentBox;
+    private final boolean unifiedTitleBarEnabled;
+    private String dynamicThemeStylesheetUrl;
     private DashboardView dashboardView;
     private boolean dashboardVisible = false;
     private CheckMenuItem showTimestampsMenuItem;
@@ -99,6 +105,7 @@ public class MainWindow {
         this.app = KorTTYApplication.getInstance();
         this.sessionManager = app.getSessionManager();
         this.projectManager = new ProjectManager(KorTTYApplication.getConfigDirectory());
+        this.unifiedTitleBarEnabled = configureWindowChrome(stage);
         
         // Initialize importers
         this.importers = List.of(new MTPuTTYImporter(), new MobaXTermImporter(), new PuTTYCMImporter());
@@ -114,6 +121,21 @@ public class MainWindow {
         setupKeyBindings();
         
         openWindows.add(this);
+    }
+
+    private boolean configureWindowChrome(Stage stage) {
+        try {
+            String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+            if (!osName.contains("mac") || !Platform.isSupported(ConditionalFeature.UNIFIED_WINDOW)) {
+                return false;
+            }
+
+            stage.initStyle(StageStyle.UNIFIED);
+            return true;
+        } catch (IllegalStateException e) {
+            logger.debug("Could not enable unified window decorations: {}", e.getMessage());
+            return false;
+        }
     }
     
     private void setupUI() {
@@ -311,6 +333,10 @@ public class MainWindow {
         
         // Scene setup
         Scene scene = new Scene(root, 1000, 700);
+        if (unifiedTitleBarEnabled) {
+            // Let the themed root background flow into the macOS title bar area.
+            scene.setFill(Color.TRANSPARENT);
+        }
         
         // Load CSS stylesheet (safely)
         var cssResource = getClass().getResource("/styles/terminal.css");
@@ -639,6 +665,7 @@ public class MainWindow {
         // Menu order: File, Edit, Connections, Management, Tools, View, Help
         menuBar.getMenus().addAll(fileMenu, editMenu, connectionsMenu, managementMenu, sftpMenu, viewMenu, helpMenu);
         root.setTop(menuBar);
+        applyMainWindowThemeFromGlobalSettings();
     }
     
     private void setupKeyBindings() {
@@ -1202,25 +1229,78 @@ public class MainWindow {
                 mainContentBox.setStyle(bgStyle);
                 tabPane.setStyle(bgStyle + " -fx-control-inner-background: " + bg + ";");
                 statusBar.setStyle("-fx-padding: 5; " + bgStyle);
-                if (root.getTop() != null) {
-                    root.getTop().setStyle(bgStyle);
-                }
                 if (dashboardView != null) {
                     dashboardView.setStyle(bgStyle);
                 }
                 if (stage.getScene() != null) {
-                    stage.getScene().setFill(javafx.scene.paint.Color.web(bg));
+                    stage.getScene().setFill(unifiedTitleBarEnabled ? Color.TRANSPARENT : Color.web(bg));
                 }
             }
             if (fg != null && !fg.isEmpty()) {
                 statusLabel.setStyle("-fx-text-fill: " + fg + ";");
-                if (root.getTop() instanceof javafx.scene.control.MenuBar menuBar) {
-                    menuBar.setStyle("-fx-text-fill: " + fg + ";");
-                }
             }
+            updateDynamicThemeStylesheet(bg, fg);
         } catch (Exception e) {
             logger.debug("Could not apply main window theme from global settings: {}", e.getMessage());
         }
+    }
+
+    private void updateDynamicThemeStylesheet(String bg, String fg) {
+        if (stage.getScene() == null || bg == null || bg.isEmpty()) {
+            return;
+        }
+        try {
+            Color bgColor = Color.web(bg);
+            Color fgColor = (fg != null && !fg.isEmpty()) ? Color.web(fg) : Color.web("#cccccc");
+
+            double lum = 0.299 * bgColor.getRed() + 0.587 * bgColor.getGreen() + 0.114 * bgColor.getBlue();
+            Color blendTarget = lum < 0.5 ? Color.WHITE : Color.BLACK;
+
+            String bgAlt = toHex(bgColor.interpolate(blendTarget, 0.08));
+            String bgHover = toHex(bgColor.interpolate(blendTarget, 0.15));
+            String fgBright = toHex(lum < 0.5
+                    ? fgColor.interpolate(Color.WHITE, 0.3)
+                    : fgColor.interpolate(Color.BLACK, 0.3));
+            String border = toHex(bgColor.interpolate(blendTarget, 0.20));
+
+            String css = String.join("\n",
+                    ".menu-bar { -fx-background-color: " + bgAlt + "; }",
+                    ".menu-bar .menu .label { -fx-text-fill: " + fg + "; }",
+                    ".menu-bar .menu:hover, .menu-bar .menu:showing { -fx-background-color: " + bgHover + "; }",
+                    ".context-menu { -fx-background-color: " + bgAlt + "; -fx-padding: 5; }",
+                    ".menu-item { -fx-background-color: transparent; }",
+                    ".menu-item .label { -fx-text-fill: " + fg + "; }",
+                    ".menu-item:hover, .menu-item:focused { -fx-background-color: " + bgHover + "; }",
+                    ".separator:horizontal .line { -fx-border-color: " + border + "; }",
+                    ".tab-pane .tab-header-area { -fx-background-color: " + bgAlt + "; }",
+                    ".tab-pane .tab-header-background { -fx-background-color: " + bgAlt + "; }",
+                    ".tab { -fx-background-color: " + bgAlt + "; }",
+                    ".tab:selected { -fx-background-color: " + bg + "; }",
+                    ".tab .tab-label { -fx-text-fill: " + fg + "; }",
+                    ".tab:selected .tab-label { -fx-text-fill: " + fgBright + "; }",
+                    ".tab-close-button { -fx-background-color: " + border + "; }",
+                    ".scroll-bar { -fx-background-color: " + bgAlt + "; }",
+                    ".scroll-bar .thumb { -fx-background-color: " + border + "; }"
+            );
+
+            Path tempCss = Files.createTempFile("kortty-theme-", ".css");
+            tempCss.toFile().deleteOnExit();
+            Files.writeString(tempCss, css);
+
+            var sheets = stage.getScene().getStylesheets();
+            if (dynamicThemeStylesheetUrl != null) {
+                sheets.remove(dynamicThemeStylesheetUrl);
+            }
+            dynamicThemeStylesheetUrl = tempCss.toUri().toString();
+            sheets.add(dynamicThemeStylesheetUrl);
+        } catch (Exception e) {
+            logger.debug("Could not update dynamic theme stylesheet: {}", e.getMessage());
+        }
+    }
+
+    private static String toHex(Color c) {
+        return String.format("#%02x%02x%02x",
+                (int) (c.getRed() * 255), (int) (c.getGreen() * 255), (int) (c.getBlue() * 255));
     }
     
     private void openNewWindow() {
