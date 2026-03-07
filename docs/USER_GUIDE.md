@@ -1,6 +1,6 @@
 # KorTTY User Guide
 
-> **Version 1.8.0** | [Back to README](../README.md)
+> **Version 1.8.1** | [Back to README](../README.md)
 
 ---
 
@@ -87,12 +87,12 @@ KorTTY can be packaged as a native application using `jpackage`. The output matc
 | Platform | Command | Output |
 |---|---|---|
 | macOS (.app) | `./gradlew jpackage` | `build/jpackage/korTTY.app` |
-| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-1.3.0.dmg` |
+| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-1.8.1.dmg` |
 | Windows (.exe) | `gradlew.bat jpackage` | `build\jpackage\korTTY\` |
-| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-1.3.0.msi` |
+| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-1.8.1.msi` |
 | Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/korTTY/` |
-| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-1.3.0.deb` |
-| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-1.3.0.rpm` |
+| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-1.8.1.deb` |
+| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-1.8.1.rpm` |
 
 For GitHub Releases, Windows ARM64 (`-arm64`) is also built and published:
 - `korTTY-Windows-<version>-arm64.msi`
@@ -879,6 +879,18 @@ You can generate language files for **any language** using a translation API, so
 
 **After an upgrade:** When you upgrade KorTTY, translation keys often change. Generated language files store the app version. If a file was created with an older version, **Settings → Translation** shows a hint and a **Regenerate outdated** button. Click it to regenerate all outdated languages in one go (with progress). New and changed keys will then be translated again.
 
+**Release binaries and target language list:** Starting with `v1.8.1`, packaged runtime images include locale data (`jdk.localedata`) so the **Target language** dropdown in **Settings → Translation** keeps a broad language list in native binaries (`.exe`, `.msi`, `.dmg`, etc.).
+
+### 15.9 Themes and Color Profiles
+
+KorTTY includes multiple built-in color profiles (including IntelliJ-inspired styles) in **Settings → Themes**.
+
+- **Live preview:** Selecting a theme in the list immediately updates the preview panel.
+- **Apply globally:** When you save settings, the selected theme is applied immediately (no restart) to:
+  - main window colors
+  - terminal tabs that use global/default settings
+- **Fonts are optional:** By default, themes apply only colors. Enable the option in the Themes tab if theme font family/size should also be applied.
+
 ---
 
 ## 16. Keyboard Shortcuts
@@ -998,4 +1010,4 @@ If terminal output shows garbled characters:
 
 ---
 
-*KorTTY v1.8.0*
+*KorTTY v1.8.1*

@@ -188,6 +188,9 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
 
 // ==================== macOS ====================
 if (isMac) {
+    val macSignEnabled = (findProperty("kortty.macos.sign") as String?)?.toBoolean() == true
+    val macSigningIdentity = (findProperty("kortty.macos.signingIdentity") as String?)?.trim()
+
     // Icon-Funktion für macOS: Versuche .icns, sonst verwende PNG
     fun getMacIcon(): File {
         val icnsFile = file("src/main/resources/icon/kortty_icon.icns")
@@ -224,6 +227,15 @@ if (isMac) {
             "--mac-package-name", appName,
             "--icon", iconFile.absolutePath
         ))
+        if (macSignEnabled) {
+            if (macSigningIdentity.isNullOrEmpty()) {
+                throw GradleException("macOS signing is enabled but property 'kortty.macos.signingIdentity' is missing.")
+            }
+            args.addAll(listOf(
+                "--mac-sign",
+                "--mac-signing-key-user-name", macSigningIdentity
+            ))
+        }
         
         commandLine(args)
     }
@@ -249,6 +261,15 @@ if (isMac) {
             "--mac-package-name", appName,
             "--icon", iconFile.absolutePath
         ))
+        if (macSignEnabled) {
+            if (macSigningIdentity.isNullOrEmpty()) {
+                throw GradleException("macOS signing is enabled but property 'kortty.macos.signingIdentity' is missing.")
+            }
+            args.addAll(listOf(
+                "--mac-sign",
+                "--mac-signing-key-user-name", macSigningIdentity
+            ))
+        }
         
         commandLine(args)
     }

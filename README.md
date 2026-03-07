@@ -1,6 +1,6 @@
 # KorTTY - SSH Client
 
-**Version 1.8.0** — A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
+**Version 1.8.1** — A modern SSH client with JavaFX interface, tab support, and JMX monitoring.
 
 ## Features
 
@@ -12,11 +12,14 @@
 - **Encrypted Passwords**: AES-256-GCM encryption with master password
 - **SSH Key Management**: Centralized management of private SSH keys with encrypted passphrases
 - **Customizable Display**: Font size, colors (global or per connection)
+- **Theme Profiles**: Multiple built-in color profiles (including IntelliJ-inspired themes) with live preview and one-click apply in Global Settings
+- **Theme Font Control**: Themes apply colors by default; font family/size are applied only when explicitly enabled in settings
 - **Project Management**: Save and load connection sets with history
 - **Import/Export**: Import connections from MTPuTTY, MobaXterm, and PuTTY Connection Manager
 - **JMX Monitoring**: Monitor active connections, memory usage, etc.
 - **Dashboard**: Overview of all open connections in the project
 - **SFTP Manager**: File transfer between local system and remote servers (User/Group columns, sortable by type with dot-prefix order)
+- **SFTP Archive Exclude**: Archive dialogs support exclude patterns (one pattern per line) for files/directories
 - **Snippet Manager**: Create, search, favorite, and organize reusable snippets (JSON/XML/YAML import/export)
 - **ASCII Art Banner**: Generate FIGlet banners with multiple styles (Tools menu)
 - **Window Geometry Storage**: Automatic restoration of window position and size
@@ -129,7 +132,7 @@ Creates a DMG installer:
 
 The DMG file is located at:
 ```
-build/jpackage/korTTY-1.3.0.dmg
+build/jpackage/korTTY-1.8.1.dmg
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.icns`
@@ -168,7 +171,7 @@ gradlew.bat jpackageMsi
 
 The MSI file is located at:
 ```
-build\jpackage\korTTY-1.3.0.msi
+build\jpackage\korTTY-1.8.1.msi
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.ico` (if available, otherwise PNG)
@@ -203,12 +206,12 @@ Creates a Debian/Ubuntu package (requires dpkg):
 
 The DEB package is located at:
 ```
-build/jpackage/korTTY-1.3.0.deb
+build/jpackage/korTTY-1.8.1.deb
 ```
 
 **Installation:**
 ```bash
-sudo dpkg -i build/jpackage/korTTY-1.3.0.deb
+sudo dpkg -i build/jpackage/korTTY-1.8.1.deb
 ```
 
 #### Create RPM Package
@@ -221,12 +224,12 @@ Creates a Red Hat/Fedora package (requires rpmbuild):
 
 The RPM package is located at:
 ```
-build/jpackage/korTTY-1.3.0.rpm
+build/jpackage/korTTY-1.8.1.rpm
 ```
 
 **Installation:**
 ```bash
-sudo rpm -i build/jpackage/korTTY-1.3.0.rpm
+sudo rpm -i build/jpackage/korTTY-1.8.1.rpm
 ```
 
 **Icon:** `src/main/resources/icon/kortty_icon.png`
@@ -261,6 +264,10 @@ sudo rpm -i build/jpackage/korTTY-1.3.0.rpm
 **Linux - DEB/RPM build failed:**
 - DEB: `sudo apt-get install fakeroot dpkg-dev`
 - RPM: `sudo yum install rpm-build` or `sudo dnf install rpm-build`
+
+**Translation target language list is short in release binary:**
+- Current release builds include `jdk.localedata` in the packaged runtime.
+- If you use an older binary, rebuild or update to `v1.8.1+` to get the full target language list in **Settings → Translation**.
 
 ## JMX Monitoring
 

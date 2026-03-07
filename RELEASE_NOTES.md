@@ -2,21 +2,35 @@
 
 ## Unreleased
 
-### Edit Menu and Zoom
+- _No unreleased entries._
 
-- **Edit menu – Cut**: **Cut** (Ausschneiden) added next to Copy and Paste with shortcut **Ctrl+X** (Cmd+X on macOS). In the terminal, Cut copies the selection to the clipboard (same as Copy).
-- **Zoom reset**: Reset zoom (shortcut **Alt+0** or context menu **Font size → Reset**) now restores the **font size and family that were active when the tab was opened** (or the connection’s saved settings / global default). This fixes the case where reset previously showed the wrong size after zooming.
-- **Connection settings applied immediately**: When you save a connection in **Connection Manager** (e.g. change font size or family), any **open terminal tabs** using that connection update their font and appearance **immediately** without restart or reconnecting.
+---
 
-### Quick Connect
+## 1.8.1
 
-- **Frequently used connections**: The “Frequently used connections” section now correctly shows the **10 last used** connections, ordered by last used (most recent first). Usage is persisted for the saved connection when you connect from Quick Connect or the dashboard.
+**Release date:** March 2026
 
-### Technical
+### Themes and UI
 
-- **Connection settings in XML**: Font size and font family (and other connection settings) are now correctly loaded from and saved to `connections.xml` (JAXB context includes `ConnectionSettings` and `WindowGeometry`).
-- **Release builds - Windows ARM64**: GitHub Actions now also publishes Windows ARM64 artifacts for `v1.8.0` as `korTTY-Windows-<version>-arm64.msi` and `korTTY-Windows-<version>-arm64.zip` (ZIP contains the single `korTTY.exe`).
-- **CI toolchain (Windows ARM64)**: The `windows-11-arm` release job currently uses Java 21 for compatibility; other release jobs continue with Java 25.
+- **More built-in theme profiles**: Added a broader set of built-in color profiles, including IntelliJ-inspired themes.
+- **Live theme preview in Settings**: Selecting a theme under **Settings → Themes** now shows an immediate preview.
+- **Immediate apply on save**: Saved global theme changes are applied without restart to the main window and to terminals that use global/default settings.
+- **Theme font behavior option**: Themes apply colors by default; font family/size are only applied when explicitly enabled in theme options.
+
+### SFTP Manager
+
+- **Archive exclude patterns**: Local and remote archive dialogs now support exclude patterns (one pattern per line) for files/directories.
+- **Windows path/glob fix**: `matchesExclude()` path handling was hardened so exclude matching works correctly across platforms.
+
+### Translation and Packaging
+
+- **Target language list in packaged binaries**: Release binaries now include `jdk.localedata` in runtime images so **Settings → Translation → Target language** keeps broad language coverage.
+- **Locale list fallback logic**: Target language population now uses ISO language codes plus available JVM locales for resilient behavior in reduced runtime images.
+
+### Release Build Matrix
+
+- **Windows ARM64 artifacts**: GitHub Actions publishes Windows ARM64 artifacts as `korTTY-Windows-<version>-arm64.msi` and `korTTY-Windows-<version>-arm64.zip` (ZIP contains single `korTTY.exe`).
+- **CI Java toolchain note**: The `windows-11-arm` release job uses Java 21 for compatibility; other release jobs continue with Java 25.
 
 ---
 
