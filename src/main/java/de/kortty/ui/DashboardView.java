@@ -35,13 +35,12 @@ public class DashboardView extends VBox {
         
         setPadding(new Insets(5));
         setSpacing(5);
-        setStyle("-fx-background-color: #2d2d2d;");
         
         HBox titleBox = new HBox(10);
         titleBox.setPadding(new Insets(0, 0, 5, 0));
         
         Button refreshButton = new Button("⟳");
-        refreshButton.setStyle("-fx-text-fill: #cccccc; -fx-background-color: #3d3d3d; -fx-font-size: 32px; -fx-padding: 5 10 5 10;");
+        refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10;");
         refreshButton.setTooltip(new Tooltip("Aktualisieren"));
         refreshButton.setOnAction(e -> refresh());
         
@@ -50,7 +49,6 @@ public class DashboardView extends VBox {
         
         treeView = new TreeView<>();
         treeView.setShowRoot(false);
-        treeView.setStyle("-fx-background-color: #2d2d2d;");
         
         // Custom cell factory with context menu
         treeView.setCellFactory(tv -> {

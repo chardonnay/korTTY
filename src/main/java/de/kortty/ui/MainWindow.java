@@ -1280,7 +1280,14 @@ public class MainWindow {
                     ".tab:selected .tab-label { -fx-text-fill: " + fgBright + "; }",
                     ".tab-close-button { -fx-background-color: " + border + "; }",
                     ".scroll-bar { -fx-background-color: " + bgAlt + "; }",
-                    ".scroll-bar .thumb { -fx-background-color: " + border + "; }"
+                    ".scroll-bar .thumb { -fx-background-color: " + border + "; }",
+                    ".tree-view { -fx-background-color: " + bg + "; }",
+                    ".tree-cell { -fx-background-color: transparent; }",
+                    ".tree-cell:selected { -fx-background-color: " + bgHover + "; }",
+                    ".tree-cell:hover { -fx-background-color: " + bgAlt + "; }",
+                    ".button { -fx-background-color: " + bgAlt + "; -fx-text-fill: " + fg + "; }",
+                    ".button:hover { -fx-background-color: " + bgHover + "; }",
+                    ".button:pressed { -fx-background-color: " + bg + "; }"
             );
 
             Path tempCss = Files.createTempFile("kortty-theme-", ".css");
