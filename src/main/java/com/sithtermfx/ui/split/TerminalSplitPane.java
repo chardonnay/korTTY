@@ -348,7 +348,7 @@ public class TerminalSplitPane extends StackPane {
         broadcastToggle.setSelected(broadcastMode);
         broadcastToggle.setOnAction(e -> setBroadcastMode(broadcastToggle.isSelected()));
         broadcastToggle.setDisable(rootCell.countWidgets() <= 1);
-        extrasMenu.getItems().addAll(fontMenu, splitMenu, new SeparatorMenuItem(), broadcastToggle);
+        extrasMenu.getItems().addAll(splitMenu, fontMenu, new SeparatorMenuItem(), broadcastToggle);
         return extrasMenu;
     }
     
@@ -438,6 +438,8 @@ public class TerminalSplitPane extends StackPane {
         } catch (Exception e) {
             logger.debug("Error closing widget: {}", e.getMessage());
         }
+        widgetLeftPanels.remove(widget);
+        widgetCloseButtons.remove(widget);
         SplitCell replacement = rootCell.removeWidget(widget);
         if (replacement != rootCell) {
             getChildren().clear();
@@ -606,7 +608,10 @@ public class TerminalSplitPane extends StackPane {
     }
 
     public void closeAll() {
-        rootCell.closeAll();
+        if (rootCell != null) {
+            rootCell.closeAll();
+        }
+        widgetLeftPanels.clear();
         widgetCloseButtons.clear();
     }
 
