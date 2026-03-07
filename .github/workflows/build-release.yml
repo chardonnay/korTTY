@@ -485,7 +485,13 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           ARCH=x86_64
           mkdir -p archbuild
-          cp linux-artifact/kortty-Linux-"${VERSION}"-"${ARCH}".tar.gz archbuild/
+          linux_tar="$(find linux-artifact -type f -name "kortty-Linux-${VERSION}-${ARCH}.tar.gz" | head -n1)"
+          if [ -z "$linux_tar" ]; then
+            echo "Expected Linux tarball not found in downloaded artifact."
+            find linux-artifact -maxdepth 3 -type f | sort
+            exit 1
+          fi
+          cp "$linux_tar" archbuild/
           cp package/arch/kortty.desktop archbuild/
           sed "s/VERSION_PLACEHOLDER/${VERSION}/g" package/arch/PKGBUILD > archbuild/PKGBUILD
 
