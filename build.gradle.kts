@@ -190,6 +190,7 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
 if (isMac) {
     val macSignEnabled = (findProperty("kortty.macos.sign") as String?)?.toBoolean() == true
     val macSigningIdentity = (findProperty("kortty.macos.signingIdentity") as String?)?.trim()
+    val macSigningKeychain = (findProperty("kortty.macos.signingKeychain") as String?)?.trim()
 
     // Icon-Funktion für macOS: Versuche .icns, sonst verwende PNG
     fun getMacIcon(): File {
@@ -235,6 +236,9 @@ if (isMac) {
                 "--mac-sign",
                 "--mac-signing-key-user-name", macSigningIdentity
             ))
+            if (!macSigningKeychain.isNullOrEmpty()) {
+                args.addAll(listOf("--mac-signing-keychain", macSigningKeychain))
+            }
         }
         
         commandLine(args)
@@ -269,6 +273,9 @@ if (isMac) {
                 "--mac-sign",
                 "--mac-signing-key-user-name", macSigningIdentity
             ))
+            if (!macSigningKeychain.isNullOrEmpty()) {
+                args.addAll(listOf("--mac-signing-keychain", macSigningKeychain))
+            }
         }
         
         commandLine(args)

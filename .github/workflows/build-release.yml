@@ -105,7 +105,9 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           EXISTING_KEYCHAINS="$(security list-keychains -d user | tr -d '\"')"
           security list-keychains -d user -s "$KEYCHAIN_PATH" $EXISTING_KEYCHAINS
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          echo "KORTTY_MAC_SIGNING_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
       - name: Install Maven (Windows)
         if: runner.os == 'Windows'
@@ -174,12 +176,12 @@ jobs:
       - name: Build macOS .app
         if: matrix.platform == 'macos'
         shell: bash
-        run: ${{ steps.gradle.outputs.cmd }} -Pkortty.macos.sign=true -Pkortty.macos.signingIdentity="${{ secrets.APPLE_SIGNING_IDENTITY }}" jpackage
+        run: ${{ steps.gradle.outputs.cmd }} -Pkortty.macos.sign=true -Pkortty.macos.signingIdentity="${{ secrets.APPLE_SIGNING_IDENTITY }}" -Pkortty.macos.signingKeychain="$KORTTY_MAC_SIGNING_KEYCHAIN" jpackage
 
       - name: Build macOS .dmg
         if: matrix.platform == 'macos'
         shell: bash
-        run: ${{ steps.gradle.outputs.cmd }} -Pkortty.macos.sign=true -Pkortty.macos.signingIdentity="${{ secrets.APPLE_SIGNING_IDENTITY }}" jpackageDmg
+        run: ${{ steps.gradle.outputs.cmd }} -Pkortty.macos.sign=true -Pkortty.macos.signingIdentity="${{ secrets.APPLE_SIGNING_IDENTITY }}" -Pkortty.macos.signingKeychain="$KORTTY_MAC_SIGNING_KEYCHAIN" jpackageDmg
 
       - name: Build Windows .exe
         if: matrix.platform == 'windows'
