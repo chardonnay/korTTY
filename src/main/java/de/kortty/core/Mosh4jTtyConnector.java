@@ -1,7 +1,7 @@
 package de.kortty.core;
 
-import com.techsenger.jeditermfx.core.TtyConnector;
-import com.techsenger.jeditermfx.core.util.TermSize;
+import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.core.util.TermSize;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;

@@ -1,9 +1,9 @@
-package com.techsenger.jeditermfx.ui.split;
+package com.sithtermfx.ui.split;
 
-import com.techsenger.jeditermfx.core.TtyConnector;
-import com.techsenger.jeditermfx.ui.JediTermFxWidget;
-import com.techsenger.jeditermfx.ui.TerminalWidgetListener;
-import com.techsenger.jeditermfx.ui.settings.SettingsProvider;
+import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.ui.SithTermFxWidget;
+import com.sithtermfx.ui.TerminalWidgetListener;
+import com.sithtermfx.ui.settings.SettingsProvider;
 import javafx.application.Platform;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -50,7 +50,7 @@ public class TerminalSplitPane extends StackPane {
 
     private static final Logger logger = LoggerFactory.getLogger(TerminalSplitPane.class);
 
-    private static final DataFormat DRAG_TERMINAL_FORMAT = new DataFormat("application/x-jeditermfx-terminal-widget");
+    private static final DataFormat DRAG_TERMINAL_FORMAT = new DataFormat("application/x-sithtermfx-terminal-widget");
 
     /** Drop placement when moving a split terminal. */
     public enum Placement {
@@ -69,22 +69,22 @@ public class TerminalSplitPane extends StackPane {
 
     private final SettingsProvider settingsProvider;
     private final SplitConnectorFactory connectorFactory;
-    private final Consumer<JediTermFxWidget> widgetConfigurator;
-    private final Function<JediTermFxWidget, Region> leftPanelFactory;
+    private final Consumer<SithTermFxWidget> widgetConfigurator;
+    private final Function<SithTermFxWidget, Region> leftPanelFactory;
 
     private SplitCell rootCell;
-    private JediTermFxWidget focusedWidget;
+    private SithTermFxWidget focusedWidget;
     private boolean broadcastMode = false;
 
     // Optional left-side panels (e.g. timestamp gutters) per widget
-    private final Map<JediTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
-    private final Map<JediTermFxWidget, Button> widgetCloseButtons = new HashMap<>();
+    private final Map<SithTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
+    private final Map<SithTermFxWidget, Button> widgetCloseButtons = new HashMap<>();
 
     // Track the currently showing context menu so we can hide it properly
     private ContextMenu activeContextMenu;
 
     // Optional supplier of extra menu items to add to the context menu (e.g. timestamp toggle)
-    private Function<JediTermFxWidget, List<MenuItem>> extraMenuItemsFactory;
+    private Function<SithTermFxWidget, List<MenuItem>> extraMenuItemsFactory;
 
     /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
     private Runnable resetZoomCallback;
@@ -96,14 +96,14 @@ public class TerminalSplitPane extends StackPane {
 
     public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
                              @NotNull SplitConnectorFactory connectorFactory,
-                             @NotNull Consumer<JediTermFxWidget> widgetConfigurator) {
+                             @NotNull Consumer<SithTermFxWidget> widgetConfigurator) {
         this(settingsProvider, connectorFactory, widgetConfigurator, null);
     }
 
     public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
                              @NotNull SplitConnectorFactory connectorFactory,
-                             @NotNull Consumer<JediTermFxWidget> widgetConfigurator,
-                             @Nullable Function<JediTermFxWidget, Region> leftPanelFactory) {
+                             @NotNull Consumer<SithTermFxWidget> widgetConfigurator,
+                             @Nullable Function<SithTermFxWidget, Region> leftPanelFactory) {
         this.settingsProvider = settingsProvider;
         this.connectorFactory = connectorFactory;
         this.widgetConfigurator = widgetConfigurator;
@@ -124,11 +124,11 @@ public class TerminalSplitPane extends StackPane {
     /**
      * Broadcasts input to all OTHER widgets (not the source widget).
      */
-    private void broadcastToOthers(@NotNull JediTermFxWidget sourceWidget, @NotNull String data) {
+    private void broadcastToOthers(@NotNull SithTermFxWidget sourceWidget, @NotNull String data) {
         if (!broadcastMode) return;
         
-        List<JediTermFxWidget> allWidgets = getAllWidgets();
-        for (JediTermFxWidget widget : allWidgets) {
+        List<SithTermFxWidget> allWidgets = getAllWidgets();
+        for (SithTermFxWidget widget : allWidgets) {
             if (widget != sourceWidget) {
                 TtyConnector connector = widget.getTtyConnector();
                 if (connector != null && connector.isConnected()) {
@@ -175,14 +175,14 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private @NotNull SplitCell createInitialCell() {
-        JediTermFxWidget widget = createWidget(null);
+        SithTermFxWidget widget = createWidget(null);
         setupWidget(widget);
         applyLeftPanel(widget);
         return new SplitCell(widget);
     }
 
-    private @NotNull JediTermFxWidget createWidget(@Nullable SplitRequest request) {
-        JediTermFxWidget widget = new JediTermFxWidget(80, 24, settingsProvider);
+    private @NotNull SithTermFxWidget createWidget(@Nullable SplitRequest request) {
+        SithTermFxWidget widget = new SithTermFxWidget(80, 24, settingsProvider);
         widgetConfigurator.accept(widget);
         TtyConnector connector = connectorFactory.createConnectorForSplit(request);
         if (connector != null) {
@@ -192,7 +192,7 @@ public class TerminalSplitPane extends StackPane {
         return widget;
     }
 
-    private void setupWidget(@NotNull JediTermFxWidget widget) {
+    private void setupWidget(@NotNull SithTermFxWidget widget) {
         focusedWidget = widget;
         widget.getPane().setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.PRIMARY) {
@@ -207,7 +207,7 @@ public class TerminalSplitPane extends StackPane {
         // Auto-close split when session ends (e.g. Ctrl+D / exit)
         widget.addListener(new TerminalWidgetListener() {
             @Override
-            public void allSessionsClosed(com.techsenger.jeditermfx.ui.TerminalWidget w) {
+            public void allSessionsClosed(com.sithtermfx.ui.TerminalWidget w) {
                 Platform.runLater(() -> {
                     if (rootCell != null && rootCell.countWidgets() > 1) {
                         logger.info("Session closed in split widget, auto-closing split pane");
@@ -242,7 +242,7 @@ public class TerminalSplitPane extends StackPane {
         });
     }
 
-    public void setExtraMenuItemsFactory(@Nullable Function<JediTermFxWidget, List<MenuItem>> factory) {
+    public void setExtraMenuItemsFactory(@Nullable Function<SithTermFxWidget, List<MenuItem>> factory) {
         this.extraMenuItemsFactory = factory;
     }
 
@@ -254,7 +254,7 @@ public class TerminalSplitPane extends StackPane {
         this.resetZoomCallback = resetZoomCallback;
     }
 
-    private void setupContextMenu(@NotNull JediTermFxWidget widget) {
+    private void setupContextMenu(@NotNull SithTermFxWidget widget) {
         var terminalPanel = widget.getTerminalPanel();
         var canvas = terminalPanel.getCanvas();
         
@@ -284,7 +284,7 @@ public class TerminalSplitPane extends StackPane {
         });
     }
     
-    private @NotNull ContextMenu createFullContextMenu(@NotNull JediTermFxWidget widget) {
+    private @NotNull ContextMenu createFullContextMenu(@NotNull SithTermFxWidget widget) {
         ContextMenu menu = new ContextMenu();
         var terminalPanel = widget.getTerminalPanel();
         
@@ -312,7 +312,7 @@ public class TerminalSplitPane extends StackPane {
         return menu;
     }
     
-    private @NotNull Menu createExtrasSubmenu(@NotNull JediTermFxWidget widget) {
+    private @NotNull Menu createExtrasSubmenu(@NotNull SithTermFxWidget widget) {
         Menu extrasMenu = new Menu(I18n.get("terminal.contextMenu.extras"));
         Menu fontMenu = new Menu(I18n.get("terminal.contextMenu.fontSize"));
         MenuItem increaseFont = new MenuItem(I18n.get("terminal.contextMenu.increase"));
@@ -379,18 +379,18 @@ public class TerminalSplitPane extends StackPane {
         }
     }
     
-    private void invokeWidgetMethod(@NotNull JediTermFxWidget widget, @NotNull String methodName) {
+    private void invokeWidgetMethod(@NotNull SithTermFxWidget widget, @NotNull String methodName) {
         try {
             var method = widget.getClass().getDeclaredMethod(methodName);
             method.setAccessible(true);
             method.invoke(widget);
         } catch (Exception e) {
-            logger.warn("Failed to invoke {} on JediTermFxWidget: {}", methodName, e.getMessage());
+            logger.warn("Failed to invoke {} on SithTermFxWidget: {}", methodName, e.getMessage());
         }
     }
 
     public void split(@NotNull SplitRequest.SplitMode mode, @NotNull Orientation orientation) {
-        JediTermFxWidget parent = getFocusedWidget();
+        SithTermFxWidget parent = getFocusedWidget();
         if (parent == null) {
             logger.warn("No focused widget to split");
             return;
@@ -406,10 +406,10 @@ public class TerminalSplitPane extends StackPane {
         split(mode != null ? mode : SplitRequest.SplitMode.NEW_CONNECTION, Orientation.VERTICAL);
     }
 
-    private void splitWidget(@NotNull JediTermFxWidget widget, @NotNull SplitRequest.SplitMode mode,
+    private void splitWidget(@NotNull SithTermFxWidget widget, @NotNull SplitRequest.SplitMode mode,
                             @NotNull Orientation orientation) {
         SplitRequest request = new SplitRequest(mode, widget);
-        JediTermFxWidget newWidget = createWidget(request);
+        SithTermFxWidget newWidget = createWidget(request);
         TtyConnector connector = newWidget.getTtyConnector();
         if (connector == null || !connector.isConnected()) {
             try {
@@ -432,7 +432,7 @@ public class TerminalSplitPane extends StackPane {
         }
     }
 
-    private void closeSplit(@NotNull JediTermFxWidget widget) {
+    private void closeSplit(@NotNull SithTermFxWidget widget) {
         try {
             widget.close();
         } catch (Exception e) {
@@ -452,17 +452,17 @@ public class TerminalSplitPane extends StackPane {
         }
     }
 
-    public @Nullable JediTermFxWidget getFocusedWidget() {
+    public @Nullable SithTermFxWidget getFocusedWidget() {
         return focusedWidget;
     }
 
-    public @NotNull List<JediTermFxWidget> getAllWidgets() {
-        List<JediTermFxWidget> widgets = new ArrayList<>();
+    public @NotNull List<SithTermFxWidget> getAllWidgets() {
+        List<SithTermFxWidget> widgets = new ArrayList<>();
         collectWidgets(rootCell, widgets);
         return widgets;
     }
     
-    private void collectWidgets(@Nullable SplitCell cell, @NotNull List<JediTermFxWidget> widgets) {
+    private void collectWidgets(@Nullable SplitCell cell, @NotNull List<SithTermFxWidget> widgets) {
         if (cell == null) return;
         if (cell.widget != null) {
             widgets.add(cell.widget);
@@ -488,7 +488,7 @@ public class TerminalSplitPane extends StackPane {
         setBroadcastMode(!broadcastMode);
     }
 
-    public void moveWidget(@NotNull JediTermFxWidget source, @NotNull JediTermFxWidget target,
+    public void moveWidget(@NotNull SithTermFxWidget source, @NotNull SithTermFxWidget target,
                            @NotNull Placement placement) {
         if (rootCell == null || getWidgetCount() <= 1 || source == target) {
             return;
@@ -531,14 +531,14 @@ public class TerminalSplitPane extends StackPane {
         forEachLeafCell(rootCell, this::attachDragAndDropToCell);
     }
 
-    private @Nullable JediTermFxWidget findWidgetByIdentity(@NotNull String idString) {
+    private @Nullable SithTermFxWidget findWidgetByIdentity(@NotNull String idString) {
         int id;
         try {
             id = Integer.parseInt(idString);
         } catch (NumberFormatException e) {
             return null;
         }
-        for (JediTermFxWidget w : getAllWidgets()) {
+        for (SithTermFxWidget w : getAllWidgets()) {
             if (System.identityHashCode(w) == id) return w;
         }
         return null;
@@ -546,7 +546,7 @@ public class TerminalSplitPane extends StackPane {
 
     private void attachDragAndDropToCell(@NotNull SplitCell cell) {
         Region node = cell.getNode();
-        JediTermFxWidget widget = cell.widget;
+        SithTermFxWidget widget = cell.widget;
         if (widget == null) return;
 
         node.setOnDragDetected(event -> {
@@ -562,7 +562,7 @@ public class TerminalSplitPane extends StackPane {
             if (!event.getDragboard().hasContent(DRAG_TERMINAL_FORMAT)) return;
             String sourceId = (String) event.getDragboard().getContent(DRAG_TERMINAL_FORMAT);
             if (sourceId.equals(String.valueOf(System.identityHashCode(widget)))) return;
-            JediTermFxWidget source = findWidgetByIdentity(sourceId);
+            SithTermFxWidget source = findWidgetByIdentity(sourceId);
             if (source == null) return;
             DropZoneOverlay.show(node, widget, sourceId, this);
             event.consume();
@@ -588,7 +588,7 @@ public class TerminalSplitPane extends StackPane {
         });
     }
 
-    private void applyLeftPanel(@NotNull JediTermFxWidget widget) {
+    private void applyLeftPanel(@NotNull SithTermFxWidget widget) {
         if (leftPanelFactory != null) {
             Region leftPanel = leftPanelFactory.apply(widget);
             if (leftPanel != null) {
@@ -597,11 +597,11 @@ public class TerminalSplitPane extends StackPane {
         }
     }
 
-    public void setWidgetLeftPanel(@NotNull JediTermFxWidget widget, @NotNull Region panel) {
+    public void setWidgetLeftPanel(@NotNull SithTermFxWidget widget, @NotNull Region panel) {
         widgetLeftPanels.put(widget, panel);
     }
 
-    public void removeWidgetLeftPanel(@NotNull JediTermFxWidget widget) {
+    public void removeWidgetLeftPanel(@NotNull SithTermFxWidget widget) {
         widgetLeftPanels.remove(widget);
     }
 
@@ -612,7 +612,7 @@ public class TerminalSplitPane extends StackPane {
 
     private void refreshSplitCloseButtons() {
         boolean showButtons = rootCell != null && rootCell.countWidgets() > 1;
-        List<JediTermFxWidget> activeWidgets = getAllWidgets();
+        List<SithTermFxWidget> activeWidgets = getAllWidgets();
         widgetCloseButtons.entrySet().removeIf(entry -> !activeWidgets.contains(entry.getKey()));
         for (Button button : widgetCloseButtons.values()) {
             button.setVisible(showButtons);
@@ -620,7 +620,7 @@ public class TerminalSplitPane extends StackPane {
         }
     }
 
-    private void invokeWidgetFontMethod(@NotNull JediTermFxWidget widget, @NotNull String methodName, @Nullable Integer delta) {
+    private void invokeWidgetFontMethod(@NotNull SithTermFxWidget widget, @NotNull String methodName, @Nullable Integer delta) {
         try {
             if (delta == null) {
                 var method = widget.getClass().getMethod(methodName);
@@ -630,20 +630,20 @@ public class TerminalSplitPane extends StackPane {
                 method.invoke(widget, delta);
             }
         } catch (NoSuchMethodException e) {
-            logger.debug("Widget method {} not available (upstream JediTermFX)", methodName);
+            logger.debug("Widget method {} not available (upstream SithTermFX)", methodName);
         } catch (Exception e) {
             logger.debug("Failed to invoke widget method {}: {}", methodName, e.getMessage());
         }
     }
 
     private class SplitCell {
-        private final @Nullable JediTermFxWidget widget;
+        private final @Nullable SithTermFxWidget widget;
         private final @Nullable SplitPane splitPane;
         private final @Nullable SplitCell leftCell;
         private final @Nullable SplitCell rightCell;
         private final Region node;
 
-        SplitCell(@NotNull JediTermFxWidget widget) {
+        SplitCell(@NotNull SithTermFxWidget widget) {
             this.widget = widget;
             this.splitPane = null;
             this.leftCell = null;
@@ -712,13 +712,13 @@ public class TerminalSplitPane extends StackPane {
         }
 
         @Nullable
-        SplitCell replaceWidget(@NotNull JediTermFxWidget target, @NotNull SplitCell newCell,
+        SplitCell replaceWidget(@NotNull SithTermFxWidget target, @NotNull SplitCell newCell,
                                @NotNull Orientation orientation) {
             return replaceWidget(target, newCell, orientation, false);
         }
 
         @Nullable
-        SplitCell replaceWidget(@NotNull JediTermFxWidget target, @NotNull SplitCell newCell,
+        SplitCell replaceWidget(@NotNull SithTermFxWidget target, @NotNull SplitCell newCell,
                                @NotNull Orientation orientation, boolean newCellFirst) {
             if (widget == target) {
                 return newCellFirst
@@ -739,7 +739,7 @@ public class TerminalSplitPane extends StackPane {
         }
 
         @Nullable
-        ExtractResult extractWidget(@NotNull JediTermFxWidget target) {
+        ExtractResult extractWidget(@NotNull SithTermFxWidget target) {
             if (widget == target) {
                 return new ExtractResult(this, null);
             }
@@ -765,7 +765,7 @@ public class TerminalSplitPane extends StackPane {
         }
 
         @Nullable
-        SplitCell removeWidget(@NotNull JediTermFxWidget target) {
+        SplitCell removeWidget(@NotNull SithTermFxWidget target) {
             if (widget == target) {
                 return null;
             }
@@ -807,12 +807,12 @@ public class TerminalSplitPane extends StackPane {
         }
     }
 
-    private @Nullable JediTermFxWidget findFirstWidget(@NotNull SplitCell cell) {
+    private @Nullable SithTermFxWidget findFirstWidget(@NotNull SplitCell cell) {
         if (cell.widget != null) {
             return cell.widget;
         }
         if (cell.leftCell != null) {
-            JediTermFxWidget w = findFirstWidget(cell.leftCell);
+            SithTermFxWidget w = findFirstWidget(cell.leftCell);
             if (w != null) return w;
         }
         if (cell.rightCell != null) {
@@ -821,12 +821,12 @@ public class TerminalSplitPane extends StackPane {
         return null;
     }
 
-    private static final String DROP_ZONE_OVERLAY_KEY = "jeditermfx.dropZoneOverlay";
+    private static final String DROP_ZONE_OVERLAY_KEY = "sithtermfx.dropZoneOverlay";
 
     private static final class DropZoneOverlay {
         private final Pane pane;
         private final Region wrapper;
-        private final JediTermFxWidget targetWidget;
+        private final SithTermFxWidget targetWidget;
         private final String sourceId;
         private final TerminalSplitPane splitPane;
         private Placement currentPlacement;
@@ -838,7 +838,7 @@ public class TerminalSplitPane extends StackPane {
         private static final String STYLE_ZONE = "-fx-background-color: rgba(64,128,255,0.25);";
         private static final String STYLE_ZONE_HIGHLIGHT = "-fx-background-color: rgba(64,128,255,0.5);";
 
-        DropZoneOverlay(Region wrapper, JediTermFxWidget targetWidget, String sourceId, TerminalSplitPane splitPane) {
+        DropZoneOverlay(Region wrapper, SithTermFxWidget targetWidget, String sourceId, TerminalSplitPane splitPane) {
             this.wrapper = wrapper;
             this.targetWidget = targetWidget;
             this.sourceId = sourceId;
@@ -896,13 +896,13 @@ public class TerminalSplitPane extends StackPane {
 
         boolean tryDrop() {
             if (currentPlacement == null) return false;
-            JediTermFxWidget source = splitPane.findWidgetByIdentity(sourceId);
+            SithTermFxWidget source = splitPane.findWidgetByIdentity(sourceId);
             if (source == null) return false;
             splitPane.moveWidget(source, targetWidget, currentPlacement);
             return true;
         }
 
-        static void show(Region wrapper, JediTermFxWidget targetWidget, String sourceId, TerminalSplitPane splitPane) {
+        static void show(Region wrapper, SithTermFxWidget targetWidget, String sourceId, TerminalSplitPane splitPane) {
             hide(wrapper);
             DropZoneOverlay overlay = new DropZoneOverlay(wrapper, targetWidget, sourceId, splitPane);
             wrapper.getProperties().put(DROP_ZONE_OVERLAY_KEY, overlay);

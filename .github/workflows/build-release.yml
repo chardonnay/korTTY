@@ -44,11 +44,11 @@ jobs:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
           submodules: false
 
-      - name: Clone JediTermFX for CI (avoids missing submodule ref)
+      - name: Clone SithTermFX for CI (avoids missing submodule ref)
         shell: bash
         run: |
-          rm -rf vendor/jeditermfx
-          git clone --depth 1 https://github.com/techsenger/jeditermfx.git vendor/jeditermfx
+          rm -rf vendor/sithtermfx
+          git clone --depth 1 https://github.com/chardonnay/SithTermFX.git vendor/sithtermfx
 
       - name: Set up JDK 21 (Windows ARM runner)
         if: matrix.platform == 'windows' && matrix.arch == 'arm64'

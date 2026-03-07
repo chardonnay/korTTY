@@ -1,15 +1,15 @@
 package de.kortty.ui;
 
-import com.techsenger.jeditermfx.core.CursorShape;
-import com.techsenger.jeditermfx.core.TerminalColor;
-import com.techsenger.jeditermfx.core.TextStyle;
-import com.techsenger.jeditermfx.core.model.JediTerminal;
-import com.techsenger.jeditermfx.core.TtyConnector;
-import com.techsenger.jeditermfx.ui.JediTermFxWidget;
-import com.techsenger.jeditermfx.ui.settings.DynamicFontSizeSettingsProvider;
-import com.techsenger.jeditermfx.ui.split.SplitConnectorFactory;
-import com.techsenger.jeditermfx.ui.split.SplitRequest;
-import com.techsenger.jeditermfx.ui.split.TerminalSplitPane;
+import com.sithtermfx.core.CursorShape;
+import com.sithtermfx.core.TerminalColor;
+import com.sithtermfx.core.TextStyle;
+import com.sithtermfx.core.model.SithTerminal;
+import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.ui.SithTermFxWidget;
+import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
+import com.sithtermfx.ui.split.SplitConnectorFactory;
+import com.sithtermfx.ui.split.SplitRequest;
+import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.Mosh4jTtyConnector;
 import de.kortty.core.SshTtyConnector;
@@ -62,7 +62,7 @@ import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 
 /**
- * Terminal view component using JediTermFX for professional terminal emulation.
+ * Terminal view component using SithTermFX for professional terminal emulation.
  */
 public class TerminalView extends BorderPane {
     
@@ -101,7 +101,7 @@ public class TerminalView extends BorderPane {
     private de.kortty.model.TemporarySSHKey temporarySSHKey;  // For split connections with temporary key
     
     private TerminalSplitPane splitPane;
-    private JediTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
+    private SithTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
     private TtyConnector ttyConnector;
     private KorTTYSettingsProvider settingsProvider;
     private final int defaultFontSize;
@@ -115,17 +115,17 @@ public class TerminalView extends BorderPane {
     private NewConnectionCallback newConnectionCallback;
     
     // Timestamp gutter support: maps each widget to its gutter
-    private final Map<JediTermFxWidget, TimestampGutter> gutterMap = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, TimestampGutter> gutterMap = new ConcurrentHashMap<>();
     // Last absolute line we added a timestamp for (per widget), to detect new prompt lines from server
-    private final Map<JediTermFxWidget, Integer> lastTimestampLineByWidget = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, Integer> lastTimestampLineByWidget = new ConcurrentHashMap<>();
     // Timestamp history per widget, independent from gutter visibility/UI state
-    private final Map<JediTermFxWidget, TreeMap<Integer, LocalDateTime>> timestampHistoryByWidget = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, TreeMap<Integer, LocalDateTime>> timestampHistoryByWidget = new ConcurrentHashMap<>();
     // Tracks whether we are waiting for "command finished" timestamp after user pressed Enter.
-    private final Map<JediTermFxWidget, Boolean> awaitingCommandCompletionByWidget = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, Boolean> awaitingCommandCompletionByWidget = new ConcurrentHashMap<>();
     // Debounce timer per widget: a short quiet period marks command completion.
-    private final Map<JediTermFxWidget, PauseTransition> commandCompletionTimerByWidget = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, PauseTransition> commandCompletionTimerByWidget = new ConcurrentHashMap<>();
     // Absolute line where the current command started (Enter pressed).
-    private final Map<JediTermFxWidget, Integer> commandStartLineByWidget = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, Integer> commandStartLineByWidget = new ConcurrentHashMap<>();
 
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
@@ -263,7 +263,7 @@ public class TerminalView extends BorderPane {
 
         // Request focus on the terminal
         Platform.runLater(() -> {
-            JediTermFxWidget focused = splitPane.getFocusedWidget();
+            SithTermFxWidget focused = splitPane.getFocusedWidget();
             if (focused != null && focused.getPreferredFocusableNode() != null) {
                 focused.getPreferredFocusableNode().requestFocus();
             }
@@ -281,7 +281,7 @@ public class TerminalView extends BorderPane {
     }
 
     /** MIME type used by TerminalSplitPane for internal pane-move DnD. */
-    private static final String SPLIT_DRAG_MIME = "application/x-jeditermfx-terminal-widget";
+    private static final String SPLIT_DRAG_MIME = "application/x-sithtermfx-terminal-widget";
 
     /** Check whether a dragboard carries an internal split-pane move payload. */
     private static boolean isSplitPaneDrag(javafx.scene.input.Dragboard db) {
@@ -334,7 +334,7 @@ public class TerminalView extends BorderPane {
     }
 
     private TtyConnector getFocusedConnector() {
-        JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : null;
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : null;
         return focused != null ? focused.getTtyConnector() : null;
     }
 
@@ -472,7 +472,7 @@ public class TerminalView extends BorderPane {
         if (splitPane == null) return;
         
         Platform.runLater(() -> {
-            for (JediTermFxWidget widget : splitPane.getAllWidgets()) {
+            for (SithTermFxWidget widget : splitPane.getAllWidgets()) {
                 try {
                     var terminalPanel = widget.getTerminalPanel();
                     var method = terminalPanel.getClass().getDeclaredMethod("reinitFontAndResize");
@@ -810,7 +810,7 @@ public class TerminalView extends BorderPane {
             connSettings.setThemeId(theme.getId());
         }
         if (splitPane != null) {
-            for (JediTermFxWidget w : splitPane.getAllWidgets()) {
+            for (SithTermFxWidget w : splitPane.getAllWidgets()) {
                 applyStyleStateColors(w);
                 applyCursorShape(w);
                 setCursorVisible(w, true);
@@ -819,11 +819,11 @@ public class TerminalView extends BorderPane {
         updateAllTerminalFonts();
     }
 
-    private void applyStyleStateColors(JediTermFxWidget widget) {
+    private void applyStyleStateColors(SithTermFxWidget widget) {
         if (widget == null || settings == null) return;
         var terminal = widget.getTerminal();
-        if (!(terminal instanceof JediTerminal jediTerminal)) return;
-        var styleState = jediTerminal.getStyleState();
+        if (!(terminal instanceof SithTerminal sithTerminal)) return;
+        var styleState = sithTerminal.getStyleState();
         Color fg;
         Color bg;
         try {
@@ -852,7 +852,7 @@ public class TerminalView extends BorderPane {
         Platform.runLater(() -> widget.getTerminalPanel().repaint());
     }
 
-    private void applyCursorShape(JediTermFxWidget widget) {
+    private void applyCursorShape(SithTermFxWidget widget) {
         if (widget == null || settings == null) return;
         String style = settings.getCursorStyle();
         if (style == null || style.isEmpty()) return;
@@ -864,7 +864,7 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    private void setCursorVisible(JediTermFxWidget widget, boolean visible) {
+    private void setCursorVisible(SithTermFxWidget widget, boolean visible) {
         if (widget == null) return;
         var terminal = widget.getTerminal();
         if (terminal != null) {
@@ -878,7 +878,7 @@ public class TerminalView extends BorderPane {
      */
     public void setAllCursorsVisible(boolean visible) {
         if (splitPane != null) {
-            for (JediTermFxWidget w : splitPane.getAllWidgets()) {
+            for (SithTermFxWidget w : splitPane.getAllWidgets()) {
                 setCursorVisible(w, visible);
             }
         } else {
@@ -886,7 +886,7 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    private void setupWidgetEventHandlers(JediTermFxWidget widget) {
+    private void setupWidgetEventHandlers(SithTermFxWidget widget) {
         // Handle ESCAPE key via KEY_PRESSED to send ESC character
         widget.getPane().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
@@ -931,7 +931,7 @@ public class TerminalView extends BorderPane {
      * but the gutter is only visible if command timestamps are enabled.
      * This allows instant toggling without losing recorded timestamps.
      */
-    private void setupTimestampGutter(JediTermFxWidget widget) {
+    private void setupTimestampGutter(SithTermFxWidget widget) {
         TimestampGutter gutter = new TimestampGutter();
         gutterMap.put(widget, gutter);
         timestampHistoryByWidget.computeIfAbsent(widget, w -> new TreeMap<>());
@@ -1015,7 +1015,7 @@ public class TerminalView extends BorderPane {
      * Records a timestamp in persistent per-widget history and mirrors it to the gutter.
      * This keeps data even when gutters are hidden or recreated later.
      */
-    private void recordTimestampForLine(JediTermFxWidget widget, int absoluteLine, LocalDateTime timestamp) {
+    private void recordTimestampForLine(SithTermFxWidget widget, int absoluteLine, LocalDateTime timestamp) {
         if (absoluteLine < 0 || timestamp == null) return;
         TreeMap<Integer, LocalDateTime> history =
                 timestampHistoryByWidget.computeIfAbsent(widget, w -> new TreeMap<>());
@@ -1032,7 +1032,7 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    private void syncGutterFromHistory(JediTermFxWidget widget, TimestampGutter gutter) {
+    private void syncGutterFromHistory(SithTermFxWidget widget, TimestampGutter gutter) {
         TreeMap<Integer, LocalDateTime> history = timestampHistoryByWidget.get(widget);
         if (history == null || history.isEmpty()) {
             return;
@@ -1040,16 +1040,16 @@ public class TerminalView extends BorderPane {
         gutter.setAllTimestamps(new TreeMap<>(history));
     }
 
-    private void handleTerminalGeometryChanged(JediTermFxWidget widget, TimestampGutter gutter, ScrollBar scrollBar,
-                                               com.techsenger.jeditermfx.core.model.TerminalTextBuffer textBuffer,
-                                               com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel) {
+    private void handleTerminalGeometryChanged(SithTermFxWidget widget, TimestampGutter gutter, ScrollBar scrollBar,
+                                               com.sithtermfx.core.model.TerminalTextBuffer textBuffer,
+                                               com.sithtermfx.ui.TerminalPanel terminalPanel) {
         Platform.runLater(() -> {
             syncGutterFromHistory(widget, gutter);
             updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
         });
     }
 
-    private void scheduleCommandCompletionDetection(JediTermFxWidget widget) {
+    private void scheduleCommandCompletionDetection(SithTermFxWidget widget) {
         PauseTransition timer = commandCompletionTimerByWidget.computeIfAbsent(widget, w -> {
             PauseTransition pt = new PauseTransition(Duration.millis(500));
             pt.setOnFinished(e -> recordCommandCompletionTimestamp(w));
@@ -1058,7 +1058,7 @@ public class TerminalView extends BorderPane {
         timer.playFromStart();
     }
 
-    private void recordCommandCompletionTimestamp(JediTermFxWidget widget) {
+    private void recordCommandCompletionTimestamp(SithTermFxWidget widget) {
         if (!Boolean.TRUE.equals(awaitingCommandCompletionByWidget.get(widget))) {
             return;
         }
@@ -1083,13 +1083,13 @@ public class TerminalView extends BorderPane {
      * Returns the current absolute cursor line (0-based over full history+screen buffer),
      * with bounds clamped to valid terminal rows to avoid transient out-of-bounds states.
      */
-    private int getCurrentAbsoluteCursorLine(JediTermFxWidget widget) {
+    private int getCurrentAbsoluteCursorLine(SithTermFxWidget widget) {
         try {
             var terminal = widget.getTerminal();
             var textBuffer = widget.getTerminalTextBuffer();
             if (terminal == null || textBuffer == null) return -1;
             int screenHeight = Math.max(1, textBuffer.getHeight());
-            int cursorY = terminal.getCursorY() - 1; // JediTerm cursor is 1-based
+            int cursorY = terminal.getCursorY() - 1; // cursor is 1-based
             int clampedCursorY = Math.min(Math.max(cursorY, 0), screenHeight - 1);
             return textBuffer.getHistoryLinesCount() + clampedCursorY;
         } catch (Exception e) {
@@ -1103,7 +1103,7 @@ public class TerminalView extends BorderPane {
      * Used by project save/export.
      */
     public java.util.List<de.kortty.model.TerminalTimestampEntry> getPrimaryTimestampEntries() {
-        JediTermFxWidget primary = terminalWidget;
+        SithTermFxWidget primary = terminalWidget;
         if (primary == null) {
             return java.util.Collections.emptyList();
         }
@@ -1124,7 +1124,7 @@ public class TerminalView extends BorderPane {
      * Restores recorded timestamps for the primary terminal widget from project import.
      */
     public void restorePrimaryTimestampEntries(java.util.List<de.kortty.model.TerminalTimestampEntry> entries) {
-        JediTermFxWidget primary = terminalWidget;
+        SithTermFxWidget primary = terminalWidget;
         if (primary == null) {
             return;
         }
@@ -1152,8 +1152,8 @@ public class TerminalView extends BorderPane {
      * as TerminalPanel.resolveSwingScrollBarValue().
      */
     private void updateGutterScrollState(TimestampGutter gutter, ScrollBar scrollBar,
-                                          com.techsenger.jeditermfx.core.model.TerminalTextBuffer textBuffer,
-                                          com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel) {
+                                          com.sithtermfx.core.model.TerminalTextBuffer textBuffer,
+                                          com.sithtermfx.ui.TerminalPanel terminalPanel) {
         try {
             int historyLines = textBuffer.getHistoryLinesCount();
             int visibleRows = textBuffer.getHeight();
@@ -1180,7 +1180,7 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    private double resolveCellHeightPixels(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, int visibleRows) {
+    private double resolveCellHeightPixels(com.sithtermfx.ui.TerminalPanel terminalPanel, int visibleRows) {
         Double fromMethod = invokeTerminalPanelDoubleMethod(terminalPanel, "getCellHeightPixels");
         if (fromMethod != null && fromMethod > 0) {
             return fromMethod;
@@ -1192,7 +1192,7 @@ public class TerminalView extends BorderPane {
         return 16.0;
     }
 
-    private int resolveScrollOrigin(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, ScrollBar scrollBar, int historyLines) {
+    private int resolveScrollOrigin(com.sithtermfx.ui.TerminalPanel terminalPanel, ScrollBar scrollBar, int historyLines) {
         Integer fromMethod = invokeTerminalPanelIntMethod(terminalPanel, "getScrollOrigin");
         if (fromMethod != null) {
             return fromMethod;
@@ -1209,7 +1209,7 @@ public class TerminalView extends BorderPane {
         return 0;
     }
 
-    private double resolveCellBaselineOffsetPixels(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, double charHeight) {
+    private double resolveCellBaselineOffsetPixels(com.sithtermfx.ui.TerminalPanel terminalPanel, double charHeight) {
         Double fromMethod = invokeTerminalPanelDoubleMethod(terminalPanel, "getCellBaselineOffsetPixels");
         if (fromMethod != null && fromMethod > 0 && fromMethod <= charHeight * 2.0) {
             return fromMethod;
@@ -1217,7 +1217,7 @@ public class TerminalView extends BorderPane {
         return charHeight * 0.78;
     }
 
-    private Double invokeTerminalPanelDoubleMethod(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, String methodName) {
+    private Double invokeTerminalPanelDoubleMethod(com.sithtermfx.ui.TerminalPanel terminalPanel, String methodName) {
         try {
             var method = terminalPanel.getClass().getMethod(methodName);
             Object result = method.invoke(terminalPanel);
@@ -1225,14 +1225,14 @@ public class TerminalView extends BorderPane {
                 return number.doubleValue();
             }
         } catch (NoSuchMethodException ignored) {
-            // Method not available in this jeditermfx build.
+            // Method not available in this SithTermFX build.
         } catch (Exception e) {
             logger.debug("Failed to call {} on TerminalPanel: {}", methodName, e.getMessage());
         }
         return null;
     }
 
-    private Integer invokeTerminalPanelIntMethod(com.techsenger.jeditermfx.ui.TerminalPanel terminalPanel, String methodName) {
+    private Integer invokeTerminalPanelIntMethod(com.sithtermfx.ui.TerminalPanel terminalPanel, String methodName) {
         try {
             var method = terminalPanel.getClass().getMethod(methodName);
             Object result = method.invoke(terminalPanel);
@@ -1240,7 +1240,7 @@ public class TerminalView extends BorderPane {
                 return number.intValue();
             }
         } catch (NoSuchMethodException ignored) {
-            // Method not available in this jeditermfx build.
+            // Method not available in this SithTermFX build.
         } catch (Exception e) {
             logger.debug("Failed to call {} on TerminalPanel: {}", methodName, e.getMessage());
         }
@@ -1279,7 +1279,7 @@ public class TerminalView extends BorderPane {
      */
     public void focusTerminal() {
         Runnable focusTask = () -> {
-            JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+            SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
             if (focused != null && focused.getPreferredFocusableNode() != null) {
                 focused.getPreferredFocusableNode().requestFocus();
                 return;
@@ -1404,7 +1404,7 @@ public class TerminalView extends BorderPane {
                                 terminalWidget.start();
                                 applyCursorShape(terminalWidget);
                                 if (splitPane != null) {
-                                    for (JediTermFxWidget w : splitPane.getAllWidgets()) {
+                                    for (SithTermFxWidget w : splitPane.getAllWidgets()) {
                                         applyCursorShape(w);
                                         setCursorVisible(w, true);
                                     }
@@ -1671,7 +1671,7 @@ public class TerminalView extends BorderPane {
      * Copies selected text to clipboard.
      */
     public void copyToClipboard() {
-        JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
         if (focused != null && focused.getTerminalPanel() != null) {
             // handleCopy(withCustomSelectors, byKeyStroke)
             focused.getTerminalPanel().handleCopy(false, false);
@@ -1696,7 +1696,7 @@ public class TerminalView extends BorderPane {
     public void setTimestampGuttersVisible(boolean visible) {
         boolean oldVisible = timestampGuttersVisibleState;
         timestampGuttersVisibleState = visible;
-        for (Map.Entry<JediTermFxWidget, TimestampGutter> entry : gutterMap.entrySet()) {
+        for (Map.Entry<SithTermFxWidget, TimestampGutter> entry : gutterMap.entrySet()) {
             syncGutterFromHistory(entry.getKey(), entry.getValue());
             TimestampGutter gutter = entry.getValue();
             gutter.setVisible(visible);
@@ -1738,7 +1738,7 @@ public class TerminalView extends BorderPane {
      * Shows the find bar in the terminal.
      */
     public void showFind() {
-        JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
         if (focused != null) {
             try {
                 java.lang.reflect.Method m = focused.getClass().getDeclaredMethod("showFindComponent");
@@ -1754,7 +1754,7 @@ public class TerminalView extends BorderPane {
      * Pastes from clipboard.
      */
     public void pasteFromClipboard() {
-        JediTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
         if (focused != null && focused.getTerminalPanel() != null) {
             focused.getTerminalPanel().handlePaste();
         }
@@ -1762,7 +1762,7 @@ public class TerminalView extends BorderPane {
     
     /**
      * Zooms the terminal font.
-     * Uses JediTermFX 1.2.0's native dynamic font size support.
+     * Uses SithTermFX 1.2.0's native dynamic font size support.
      */
     public void zoom(int delta) {
         if (delta > 0) {
@@ -1805,7 +1805,7 @@ public class TerminalView extends BorderPane {
         settingsProvider.setFontSize(size);
 
         if (splitPane != null) {
-            for (JediTermFxWidget w : splitPane.getAllWidgets()) {
+            for (SithTermFxWidget w : splitPane.getAllWidgets()) {
                 applyStyleStateColors(w);
                 applyCursorShape(w);
                 setCursorVisible(w, true);
@@ -1906,7 +1906,7 @@ public class TerminalView extends BorderPane {
     /**
      * Recursively builds SplitPaneState from the cell tree structure.
      */
-    private de.kortty.model.SplitPaneState buildSplitState(Object cell, List<JediTermFxWidget> allWidgets) {
+    private de.kortty.model.SplitPaneState buildSplitState(Object cell, List<SithTermFxWidget> allWidgets) {
         // Use reflection to access private SplitCell fields
         try {
             Class<?> cellClass = cell.getClass();
@@ -1914,7 +1914,7 @@ public class TerminalView extends BorderPane {
             // Check if it's a leaf (has widget)
             var widgetField = cellClass.getDeclaredField("widget");
             widgetField.setAccessible(true);
-            JediTermFxWidget widget = (JediTermFxWidget) widgetField.get(cell);
+            SithTermFxWidget widget = (SithTermFxWidget) widgetField.get(cell);
             
             if (widget != null) {
                 // Leaf node - find widget index
@@ -2053,7 +2053,7 @@ public class TerminalView extends BorderPane {
         Platform.runLater(() -> {
             try {
                 // Start with the currently focused widget (the initial one)
-                JediTermFxWidget initialWidget = splitPane.getFocusedWidget();
+                SithTermFxWidget initialWidget = splitPane.getFocusedWidget();
                 if (initialWidget == null) {
                     logger.warn("No initial widget to start split restoration");
                     return;
@@ -2072,7 +2072,7 @@ public class TerminalView extends BorderPane {
      * Sets the focusedWidget field in TerminalSplitPane using reflection.
      * This is necessary because split() always uses getFocusedWidget().
      */
-    private void setFocusedWidget(JediTermFxWidget widget) {
+    private void setFocusedWidget(SithTermFxWidget widget) {
         try {
             var focusedWidgetField = splitPane.getClass().getDeclaredField("focusedWidget");
             focusedWidgetField.setAccessible(true);
@@ -2090,7 +2090,7 @@ public class TerminalView extends BorderPane {
      * @param state The split state to restore
      * @param widgetToSplit The specific widget that should be split
      */
-    private void restoreSplitRecursive(de.kortty.model.SplitPaneState state, JediTermFxWidget widgetToSplit) {
+    private void restoreSplitRecursive(de.kortty.model.SplitPaneState state, SithTermFxWidget widgetToSplit) {
         if (state == null || state.isLeaf()) {
             return; // Leaf node - nothing to do
         }
@@ -2128,7 +2128,7 @@ public class TerminalView extends BorderPane {
         }
         
         // Get all widgets after the split
-        List<JediTermFxWidget> allWidgets = splitPane.getAllWidgets();
+        List<SithTermFxWidget> allWidgets = splitPane.getAllWidgets();
         int widgetCountAfter = allWidgets.size();
         
         if (widgetCountAfter <= widgetCountBefore) {
@@ -2137,7 +2137,7 @@ public class TerminalView extends BorderPane {
         }
         
         // The new widget is the last one in the list
-        JediTermFxWidget newWidget = allWidgets.get(allWidgets.size() - 1);
+        SithTermFxWidget newWidget = allWidgets.get(allWidgets.size() - 1);
         
         logger.info("Split created: leftWidget={}, rightWidget={}, totalWidgets={}", 
                      widgetToSplit.hashCode(), newWidget.hashCode(), widgetCountAfter);

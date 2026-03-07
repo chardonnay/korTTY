@@ -20,7 +20,7 @@ java {
 }
 
 repositories {
-    mavenLocal()  // For local JediTermFX SNAPSHOT builds
+    mavenLocal()  // For local SithTermFX SNAPSHOT builds
     mavenCentral()
     // JetBrains repository for pty4j and its dependencies
     maven {
@@ -28,19 +28,19 @@ repositories {
     }
 }
 
-// JediTermFX is integrated as a git submodule (vendor/jeditermfx).
+// SithTermFX is integrated as a git submodule (vendor/sithtermfx).
 // The build will auto-init the submodule and install SNAPSHOTs into mavenLocal().
-val jeditermfxDir = rootProject.file("vendor/jeditermfx")
-val skipJeditermfxSubmodule =
-    (findProperty("skipJeditermfxSubmodule") as String?)?.toBoolean() == true ||
+val sithtermfxDir = rootProject.file("vendor/sithtermfx")
+val skipSithtermfxSubmodule =
+    (findProperty("skipSithtermfxSubmodule") as String?)?.toBoolean() == true ||
     (System.getenv("KORTTY_SKIP_SUBMODULE")?.equals("true", ignoreCase = true) == true)
 
-tasks.register("initJeditermfxSubmodule") {
-    description = "Initializes the JediTermFX submodule (if missing). Falls back to git clone if submodule ref is unavailable."
-    onlyIf { !skipJeditermfxSubmodule && !jeditermfxDir.resolve("pom.xml").exists() }
+tasks.register("initSithtermfxSubmodule") {
+    description = "Initializes the SithTermFX submodule (if missing). Falls back to git clone if submodule ref is unavailable."
+    onlyIf { !skipSithtermfxSubmodule && !sithtermfxDir.resolve("pom.xml").exists() }
     doLast {
-        if (skipJeditermfxSubmodule) {
-            logger.lifecycle("Skipping jeditermfx submodule init due to KORTTY_SKIP_SUBMODULE=true")
+        if (skipSithtermfxSubmodule) {
+            logger.lifecycle("Skipping SithTermFX submodule init due to KORTTY_SKIP_SUBMODULE=true")
             return@doLast
         }
         fun runCmd(vararg cmd: String): Int {
@@ -51,29 +51,28 @@ tasks.register("initJeditermfxSubmodule") {
             process.inputStream.copyTo(System.out)
             return process.waitFor()
         }
-        // Try normal submodule update first
-        val exitCode = runCmd("git", "submodule", "update", "--init", "--recursive", "vendor/jeditermfx")
+        val exitCode = runCmd("git", "submodule", "update", "--init", "--recursive", "vendor/sithtermfx")
         if (exitCode != 0) {
             logger.warn("Submodule update failed (exit {}), falling back to git clone", exitCode)
-            if (jeditermfxDir.exists()) {
-                project.delete(jeditermfxDir)
+            if (sithtermfxDir.exists()) {
+                project.delete(sithtermfxDir)
             }
-            runCmd("git", "clone", "--depth", "1", "https://github.com/techsenger/jeditermfx.git", "vendor/jeditermfx")
+            runCmd("git", "clone", "--depth", "1", "https://github.com/chardonnay/SithTermFX.git", "vendor/sithtermfx")
         }
     }
 }
 
-tasks.register<Exec>("installJeditermfxLocal") {
-    description = "Builds and installs local JediTermFX SNAPSHOT into mavenLocal()"
-    workingDir = jeditermfxDir
+tasks.register<Exec>("installSithtermfxLocal") {
+    description = "Builds and installs local SithTermFX SNAPSHOT into mavenLocal()"
+    workingDir = sithtermfxDir
     val mvnCmd = if (System.getProperty("os.name").lowercase().contains("windows")) "mvn.cmd" else "mvn"
     commandLine(mvnCmd, "-q", "-DskipTests", "install")
-    dependsOn("initJeditermfxSubmodule")
-    onlyIf { jeditermfxDir.resolve("pom.xml").exists() }
+    dependsOn("initSithtermfxSubmodule")
+    onlyIf { sithtermfxDir.resolve("pom.xml").exists() }
 }
 
 tasks.named("compileJava") {
-    dependsOn("installJeditermfxLocal")
+    dependsOn("installSithtermfxLocal")
 }
 
 javafx {
@@ -90,10 +89,9 @@ dependencies {
     // ED25519 (EdDSA) key support for SSH
     implementation("net.i2p.crypto:eddsa:0.3.0")
     
-    // JediTermFX - Professional terminal emulator for JavaFX
-    // Using local SNAPSHOT for testing font zoom and split features
-    implementation("com.techsenger.jeditermfx:jeditermfx-core:1.2.0-SNAPSHOT")
-    implementation("com.techsenger.jeditermfx:jeditermfx-ui:1.2.0-SNAPSHOT")
+    // SithTermFX - Terminal emulator for JavaFX
+    implementation("com.sithtermfx:sithtermfx-core:1.2.0-SNAPSHOT")
+    implementation("com.sithtermfx:sithtermfx-ui:1.2.0-SNAPSHOT")
     
     // Lanterna - Text-based terminal emulator with better zoom support
     implementation("com.googlecode.lanterna:lanterna:3.1.2")
@@ -466,7 +464,7 @@ tasks.test {
 }
 
 tasks.jar {
-    dependsOn("installJeditermfxLocal")
+    dependsOn("installSithtermfxLocal")
     doFirst {
         manifest {
             attributes(

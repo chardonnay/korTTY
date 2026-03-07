@@ -1,6 +1,6 @@
-package com.techsenger.jeditermfx.ui.split;
+package com.sithtermfx.ui.split;
 
-import com.techsenger.jeditermfx.core.TtyConnector;
+import com.sithtermfx.core.TtyConnector;
 import org.jetbrains.annotations.Nullable;
 
 /**

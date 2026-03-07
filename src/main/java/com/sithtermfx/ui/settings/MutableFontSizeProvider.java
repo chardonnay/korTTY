@@ -1,4 +1,4 @@
-package com.techsenger.jeditermfx.ui.settings;
+package com.sithtermfx.ui.settings;
 
 /**
  * Interface for settings providers that support dynamic font size changes at runtime.

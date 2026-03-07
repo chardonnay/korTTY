@@ -1,7 +1,7 @@
 package de.kortty.core;
 
-import com.techsenger.jeditermfx.core.TtyConnector;
-import com.techsenger.jeditermfx.core.util.TermSize;
+import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.core.util.TermSize;
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
 import de.kortty.ui.I18n;
@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * TtyConnector implementation for SSH connections using Apache MINA SSHD.
- * This connector integrates with JediTermFX for terminal emulation.
+ * This connector integrates with SithTermFX for terminal emulation.
  */
 public class SshTtyConnector implements TtyConnector {
     

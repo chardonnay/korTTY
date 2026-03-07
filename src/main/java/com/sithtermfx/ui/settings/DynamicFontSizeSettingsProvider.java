@@ -1,4 +1,4 @@
-package com.techsenger.jeditermfx.ui.settings;
+package com.sithtermfx.ui.settings;
 
 import javafx.beans.property.SimpleFloatProperty;
 import org.jetbrains.annotations.NotNull;
@@ -8,8 +8,8 @@ import javafx.scene.text.Font;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static com.techsenger.jeditermfx.core.util.Platform.isMacOS;
-import static com.techsenger.jeditermfx.core.util.Platform.isWindows;
+import static com.sithtermfx.core.util.Platform.isMacOS;
+import static com.sithtermfx.core.util.Platform.isWindows;
 
 /**
  * Settings provider that supports dynamic font size changes at runtime.

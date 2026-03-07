@@ -69,7 +69,7 @@ public class KorTTYApplication extends Application {
     public void init() throws Exception {
         instance = this;
         
-        // Install global exception handler to suppress JediTermFX bug
+        // Install global exception handler to suppress SithTermFX bug
         installGlobalExceptionHandler();
         
         // Initialize configuration directory
@@ -101,13 +101,13 @@ public class KorTTYApplication extends Application {
     private void installGlobalExceptionHandler() {
         // Set default uncaught exception handler for all threads
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-            // Suppress known JediTermFX ClassCastException bug
+            // Suppress known SithTermFX ClassCastException bug
             if (throwable instanceof ClassCastException) {
                 String message = throwable.getMessage();
-                // JediTermFX bug can have null message or the specific KeyFrame/Timeline message
+                // SithTermFX bug can have null message or the specific KeyFrame/Timeline message
                 if (message == null || 
                     (message.contains("javafx.animation.KeyFrame") && message.contains("javafx.animation.Timeline"))) {
-                    // This is the known JediTermFX WeakRedrawTimer bug - silently ignore it
+                    // This is the known SithTermFX WeakRedrawTimer bug - silently ignore it
                     return;
                 }
             }

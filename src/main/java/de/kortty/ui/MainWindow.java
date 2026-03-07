@@ -409,7 +409,7 @@ public class MainWindow {
         // Also consume KEY_TYPED events for zoom to prevent +/- appearing in terminal
         scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
             if (zoomTriggered[0]) {
-                // Consume early to prevent JediTermFX from processing empty character
+                // Consume early to prevent SithTermFX from processing empty character
                 event.consume();
                 zoomTriggered[0] = false; // Reset for next event
             }
@@ -793,7 +793,7 @@ public class MainWindow {
                 }
             }
             
-            // Create terminal tab with JediTermFX
+            // Create terminal tab with SithTermFX
             // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
             TerminalTab terminalTab = new TerminalTab(connection, password, keyToUse);
             

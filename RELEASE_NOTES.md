@@ -66,7 +66,7 @@
 ### Terminal and Multi-Window
 
 - **Tab drag between windows**: Drag tabs (including tabs with split terminals) from one KorTTY window to another to move the session. Drop anywhere in the target window. Tabs can also be reordered within the same window by dragging in the tab bar.
-- **Split terminal drag-and-drop**: Reorder split panes by holding **Shift+Alt** (Shift+Option on macOS) and dragging a pane onto another; drop zones (above, below, left, right) show where the pane will be placed. Uses JediTermFX `TerminalSplitPane` with event filters and `TransferMode.ANY` for reliable drop on all platforms.
+- **Split terminal drag-and-drop**: Reorder split panes by holding **Shift+Alt** (Shift+Option on macOS) and dragging a pane onto another; drop zones (above, below, left, right) show where the pane will be placed. Uses SithTermFX `TerminalSplitPane` with event filters and `TransferMode.ANY` for reliable drop on all platforms.
 - **Reconnect via right-click**: Right-click on a terminal tab, inside the terminal area, or on a server entry in the Dashboard to trigger **Reconnect**. If a connection is active, it is closed and immediately re-established without closing the terminal window.
 
 ### Theme and UI
@@ -82,9 +82,9 @@
 - **Multi-file transfer fix**: Fix `WritePendingException` when downloading or uploading multiple files.
 - **GUI**: Dark theme for all SFTP dialogs; improved button layout.
 
-### JediTermFX and Build
+### SithTermFX and Build
 
-- **TerminalSplitPane upstream**: Split-terminal UI (left panel factory, extra menu items, Shift+Alt DnD, DropZone) moved into JediTermFX so other projects can use it. KorTTY uses the submodule; local override removed.
+- **TerminalSplitPane upstream**: Split-terminal UI (left panel factory, extra menu items, Shift+Alt DnD, DropZone) moved into SithTermFX so other projects can use it. KorTTY uses the submodule; local override removed.
 - **Arch Linux**: Pacman (`.pkg.tar.zst`) packaging via GitHub Actions.
 
 ### Internationalisation (i18n)
