@@ -178,10 +178,11 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--main-jar", mainJar,
         "--main-class", "de.kortty.Launcher",
         "--dest", outputDir,
-        // Ensure runtime images include extended locale data (needed for Translation target language list).
-        "--add-modules", "jdk.localedata",
+        // Keep a complete base runtime for classpath apps and include extended locale data.
+        // Without java.xml, logback initialization can fail at startup (org.xml.sax.InputSource).
+        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.scripting,java.security.jgss,java.sql,java.xml,jdk.crypto.ec,jdk.localedata,jdk.unsupported",
         "--java-options", "-Djava.awt.headless=false",
-        "--java-options", "--enable-native-access=javafx.graphics,ALL-UNNAMED"
+        "--java-options", "--enable-native-access=ALL-UNNAMED"
     )
     return args
 }
