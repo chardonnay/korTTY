@@ -20,6 +20,7 @@ public class DashboardView extends VBox {
     private final TabPane tabPane;
     private final BiConsumer<TerminalTab, DashboardAction> actionHandler;
     private final TreeView<DashboardItem> treeView;
+    private final Button refreshButton;
     
     public enum DashboardAction {
         RECONNECT,
@@ -39,7 +40,7 @@ public class DashboardView extends VBox {
         HBox titleBox = new HBox(10);
         titleBox.setPadding(new Insets(0, 0, 5, 0));
         
-        Button refreshButton = new Button("⟳");
+        refreshButton = new Button("⟳");
         refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10;");
         refreshButton.setTooltip(new Tooltip("Aktualisieren"));
         refreshButton.setOnAction(e -> refresh());
@@ -126,6 +127,24 @@ public class DashboardView extends VBox {
         getChildren().addAll(titleBox, treeView);
         
         refresh();
+    }
+    
+    /**
+     * Applies theme background and foreground colors to the dashboard and its controls.
+     * Called from MainWindow when global theme settings change (or when dashboard is first shown).
+     */
+    public void applyTheme(String bgColor, String fgColor) {
+        if (bgColor == null) {
+            bgColor = "";
+        }
+        if (fgColor == null) {
+            fgColor = "";
+        }
+        String bgStyle = bgColor.isEmpty() ? "" : "-fx-background-color: " + bgColor + ";";
+        String fgStyle = fgColor.isEmpty() ? "" : " -fx-text-fill: " + fgColor + ";";
+        setStyle(bgStyle + fgStyle);
+        treeView.setStyle(bgStyle + fgStyle);
+        refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10;" + fgStyle);
     }
     
     /**

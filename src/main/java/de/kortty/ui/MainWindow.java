@@ -1229,15 +1229,15 @@ public class MainWindow {
                 mainContentBox.setStyle(bgStyle);
                 tabPane.setStyle(bgStyle + " -fx-control-inner-background: " + bg + ";");
                 statusBar.setStyle("-fx-padding: 5; " + bgStyle);
-                if (dashboardView != null) {
-                    dashboardView.setStyle(bgStyle);
-                }
                 if (stage.getScene() != null) {
                     stage.getScene().setFill(unifiedTitleBarEnabled ? Color.TRANSPARENT : Color.web(bg));
                 }
             }
             if (fg != null && !fg.isEmpty()) {
                 statusLabel.setStyle("-fx-text-fill: " + fg + ";");
+            }
+            if (dashboardView != null) {
+                dashboardView.applyTheme(bg, fg);
             }
             updateDynamicThemeStylesheet(bg, fg);
         } catch (Exception e) {
@@ -1548,6 +1548,7 @@ public class MainWindow {
             }
             mainContentBox.getChildren().add(0, dashboardView);
             dashboardVisible = true;
+            applyMainWindowThemeFromGlobalSettings();
         } else if (!show && dashboardVisible) {
             mainContentBox.getChildren().remove(dashboardView);
             dashboardVisible = false;
