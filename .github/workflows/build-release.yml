@@ -76,7 +76,7 @@ jobs:
       - name: Save SithTermFX JDK path
         run: echo "SITHTERMFX_JDK_HOME=$JAVA_HOME" >> $GITHUB_ENV
 
-      - name: Build SithTermFX with Maven (CI: avoid Gradle Exec PATH/JAVA_HOME issues)
+      - name: "Build SithTermFX with Maven (CI: avoid Gradle Exec PATH/JAVA_HOME issues)"
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
