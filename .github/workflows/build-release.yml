@@ -67,14 +67,27 @@ jobs:
           choco install maven -y
           "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Set up JDK 11 for SithTermFX (needs Java 8+ for pom)
+      - name: Set up JDK 17 for SithTermFX (pom needs Java 17)
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '17'
           distribution: 'temurin'
 
       - name: Save SithTermFX JDK path
         run: echo "SITHTERMFX_JDK_HOME=$JAVA_HOME" >> $GITHUB_ENV
+
+      - name: Build SithTermFX with Maven (CI: avoid Gradle Exec PATH/JAVA_HOME issues)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export PATH="/c/ProgramData/chocolatey/bin:$PATH"
+          fi
+          if [ -d vendor/sithtermfx ] && [ -f vendor/sithtermfx/pom.xml ]; then
+            cd vendor/sithtermfx
+            export JAVA_HOME="$SITHTERMFX_JDK_HOME"
+            mvn -q -DskipTests install
+            cd ../..
+          fi
 
       - name: Set up JDK 21 (Windows ARM runner)
         if: matrix.platform == 'windows' && matrix.arch == 'arm64'

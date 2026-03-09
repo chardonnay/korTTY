@@ -123,12 +123,14 @@ tasks.register("cloneSithtermfx") {
     }
 }
 
+val mavenLocalSithtermfxCore = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-core/1.1.0/sithtermfx-core-1.1.0.jar")
+
 tasks.register<Exec>("installSithtermfxLocal") {
     group = "build"
     description = "Build SithTermFX from source and install to local Maven repo (requires Maven)."
     dependsOn("cloneSithtermfx")
     workingDir(sithtermfxDir)
-    // SithTermFX 1.1.0 pom may use Java 5/8; use SITHTERMFX_JDK_HOME or sithtermfx.jdkHome for compatible JDK (e.g. 11)
+    // Use SITHTERMFX_JDK_HOME or -Psithtermfx.jdkHome for Maven (CI may build SithTermFX in workflow instead)
     val jdkHome = project.findProperty("sithtermfx.jdkHome")?.toString()?.takeIf { it.isNotBlank() }
         ?: System.getenv("SITHTERMFX_JDK_HOME")
         ?: System.getenv("JAVA_HOME")
@@ -136,7 +138,9 @@ tasks.register<Exec>("installSithtermfxLocal") {
         environment("JAVA_HOME", jdkHome)
     }
     commandLine("mvn", "-q", "-DskipTests", "install")
-    onlyIf { sithtermfxDir.asFile.resolve("pom.xml").isFile }
+    onlyIf {
+        sithtermfxDir.asFile.resolve("pom.xml").isFile && !mavenLocalSithtermfxCore.exists()
+    }
 }
 
 tasks.named("compileJava") {
