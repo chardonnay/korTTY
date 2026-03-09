@@ -591,20 +591,27 @@ jobs:
 
   upload-release:
     needs: [build, build-pacman]
-    if: github.event_name == 'release' && success()
+    if: success() && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.ref, 'v')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Extract version from release tag
-        id: version
+      - name: Determine release tag and version
+        id: release
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ github.event.inputs.ref }}"
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "Release upload requires a tag ref like v1.9.0."
+            exit 1
+          fi
+          VERSION="$TAG"
           VERSION=${VERSION#v}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
@@ -621,4 +628,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ steps.release.outputs.tag }}
           files: release/*
