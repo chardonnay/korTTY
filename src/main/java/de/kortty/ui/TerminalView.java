@@ -869,13 +869,7 @@ public class TerminalView extends BorderPane {
         String styleUpper = style.toUpperCase();
         try {
             CursorShape shape = CursorShape.valueOf(styleUpper);
-            var panel = widget.getTerminalPanel();
-            // setUserCursorShape exists from SithTermFX 1.2+; optional for 1.1.0 compatibility
-            try {
-                panel.getClass().getMethod("setUserCursorShape", CursorShape.class).invoke(panel, shape);
-            } catch (ReflectiveOperationException ignored) {
-                // SithTermFX 1.1.0: method not present or invocation failed
-            }
+            widget.getTerminalPanel().setCursorShape(shape);
         } catch (IllegalArgumentException e) {
             logger.debug("Cursor shape not supported: {}", styleUpper);
         }

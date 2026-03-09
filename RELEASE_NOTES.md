@@ -6,6 +6,21 @@
 
 ---
 
+## v1.9.0
+
+**Release date:** _TBD_
+
+### Build and Dependencies
+
+- **SithTermFX from source**: Local builds no longer require a GitHub token; SithTermFX is built from source (clone at tag v1.1.0, Maven install). CI uses pre-built JARs from GitHub Packages for faster builds.
+- **mosh4j bundled in release**: mosh4j JARs are included in jpackage output so users do not need to download them on first Mosh connect; bundled path is used when available, then env or `~/.kortty/mosh4j`.
+
+### Version
+
+- **Application version**: Set to 1.9.0 in app, README, documentation, release notes, and Gradle.
+
+---
+
 ## v1.8.1
 
 **Release date:** March 2026

@@ -10,9 +10,9 @@ on:
         required: false
         default: 'main'
       version:
-        description: 'Numeric app version for jpackage (release tag: v1.8.1, jpackage value: 1.8.1)'
+        description: 'Numeric app version for jpackage (release tag: v1.9.0, jpackage value: 1.9.0)'
         required: false
-        default: '1.8.1'
+        default: '1.9.0'
 
 jobs:
   build:
