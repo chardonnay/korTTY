@@ -67,10 +67,10 @@ jobs:
           choco install maven -y
           "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Set up JDK 17 for SithTermFX (pom needs Java 17)
+      - name: Set up JDK 21 for SithTermFX Maven build
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Save SithTermFX JDK path
@@ -85,7 +85,7 @@ jobs:
           if [ -d vendor/sithtermfx ] && [ -f vendor/sithtermfx/pom.xml ]; then
             cd vendor/sithtermfx
             export JAVA_HOME="$SITHTERMFX_JDK_HOME"
-            mvn -q -DskipTests install
+            mvn -q -DskipTests -Dmaven.compiler.source=17 -Dmaven.compiler.target=17 install
             cd ../..
           fi
 
