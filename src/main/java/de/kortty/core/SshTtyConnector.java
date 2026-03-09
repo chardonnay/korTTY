@@ -14,13 +14,17 @@ import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.channel.PtyMode;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.signature.BuiltinSignatures;
+import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,6 +55,13 @@ public class SshTtyConnector implements TtyConnector {
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
     private DataListener dataListener;
+    private volatile String currentRemoteDirectory = "~";
+    private volatile String homeRemoteDirectory = "~";
+    private volatile String previousRemoteDirectory = "~";
+    private final Deque<String> directoryStack = new ArrayDeque<>();
+    private final StringBuilder inputLineBuffer = new StringBuilder();
+    private final StringBuilder osc7Buffer = new StringBuilder();
+    private final Object directoryLock = new Object();
     
     public SshTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
@@ -263,6 +274,8 @@ public class SshTtyConnector implements TtyConnector {
             inputStream = channel.getInvertedOut();
             outputStream = channel.getInvertedIn();
             reader = new InputStreamReader(inputStream, charset);
+
+            initializeCurrentRemoteDirectory();
             
             connected.set(true);
             logger.info("Connected to {}", connection.getDisplayName());
@@ -411,13 +424,16 @@ public class SshTtyConnector implements TtyConnector {
         int count = reader.read(buf, offset, length);
         
         // Notify listener of received data
-        if (count > 0 && dataListener != null) {
-            try {
-                String data = new String(buf, offset, count);
+        if (count > 0) {
+            String data = new String(buf, offset, count);
+            updateCurrentDirectoryFromOutput(data);
+            if (dataListener != null) {
+                try {
                 dataListener.onData(data);
-            } catch (Exception e) {
-                // Don't let listener errors break the connection
-                logger.warn("Data listener error: {}", e.getMessage());
+                } catch (Exception e) {
+                    // Don't let listener errors break the connection
+                    logger.warn("Data listener error: {}", e.getMessage());
+                }
             }
         }
         
@@ -427,6 +443,7 @@ public class SshTtyConnector implements TtyConnector {
     @Override
     public void write(byte[] bytes) throws IOException {
         if (connected.get() && outputStream != null) {
+            trackPotentialDirectoryChange(bytes);
             outputStream.write(bytes);
             outputStream.flush();
         }
@@ -480,6 +497,280 @@ public class SshTtyConnector implements TtyConnector {
     
     public ServerConnection getConnection() {
         return connection;
+    }
+
+    /**
+     * Returns the best-known remote working directory for this terminal session.
+     * The value is initialized from SFTP and then updated passively from terminal
+     * output (OSC 7) and typed directory-changing commands.
+     */
+    public String getCurrentRemoteDirectory() {
+        synchronized (directoryLock) {
+            return currentRemoteDirectory;
+        }
+    }
+
+    private void initializeCurrentRemoteDirectory() {
+        try (var sftp = SftpClientFactory.instance().createSftpClient(session)) {
+            String initialDir = sftp.canonicalPath(".");
+            if (initialDir != null && !initialDir.isBlank()) {
+                synchronized (directoryLock) {
+                    currentRemoteDirectory = initialDir;
+                    homeRemoteDirectory = initialDir;
+                    previousRemoteDirectory = initialDir;
+                    logger.debug("Initialized remote directory to {}", initialDir);
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not initialize remote directory via SFTP: {}", e.getMessage());
+        }
+    }
+
+    private void updateCurrentDirectoryFromOutput(String data) {
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+        synchronized (osc7Buffer) {
+            osc7Buffer.append(data);
+            while (true) {
+                int start = osc7Buffer.indexOf("\u001B]7;file://");
+                if (start < 0) {
+                    trimOsc7Buffer();
+                    return;
+                }
+                int bellEnd = osc7Buffer.indexOf("\u0007", start);
+                int stEnd = osc7Buffer.indexOf("\u001B\\", start);
+                int end = -1;
+                int terminatorLength = 0;
+                if (bellEnd >= 0 && (stEnd < 0 || bellEnd < stEnd)) {
+                    end = bellEnd;
+                    terminatorLength = 1;
+                } else if (stEnd >= 0) {
+                    end = stEnd;
+                    terminatorLength = 2;
+                }
+                if (end < 0) {
+                    if (start > 0) {
+                        osc7Buffer.delete(0, start);
+                    }
+                    trimOsc7Buffer();
+                    return;
+                }
+                String uriText = osc7Buffer.substring(start + 4, end);
+                updateCurrentDirectoryFromOsc7(uriText);
+                osc7Buffer.delete(0, end + terminatorLength);
+            }
+        }
+    }
+
+    private void updateCurrentDirectoryFromOsc7(String uriText) {
+        try {
+            URI uri = URI.create(uriText);
+            String path = uri.getPath();
+            if (path != null && !path.isBlank()) {
+                setCurrentRemoteDirectory(path);
+                logger.debug("Updated remote directory from OSC 7: {}", path);
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to parse OSC 7 URI '{}': {}", uriText, e.getMessage());
+        }
+    }
+
+    private void trimOsc7Buffer() {
+        int maxLength = 4096;
+        if (osc7Buffer.length() > maxLength) {
+            osc7Buffer.delete(0, osc7Buffer.length() - maxLength);
+        }
+    }
+
+    private void trackPotentialDirectoryChange(byte[] bytes) {
+        String text = new String(bytes, charset);
+        synchronized (inputLineBuffer) {
+            for (int i = 0; i < text.length(); i++) {
+                char ch = text.charAt(i);
+                if (ch == '\r' || ch == '\n') {
+                    processInputLine(inputLineBuffer.toString());
+                    inputLineBuffer.setLength(0);
+                } else if (ch == '\b' || ch == 127) {
+                    if (inputLineBuffer.length() > 0) {
+                        inputLineBuffer.deleteCharAt(inputLineBuffer.length() - 1);
+                    }
+                } else if (!Character.isISOControl(ch)) {
+                    inputLineBuffer.append(ch);
+                }
+            }
+            if (inputLineBuffer.length() > 2048) {
+                inputLineBuffer.delete(0, inputLineBuffer.length() - 2048);
+            }
+        }
+    }
+
+    private void processInputLine(String inputLine) {
+        String segment = firstCommandSegment(inputLine);
+        if (segment.isEmpty()) {
+            return;
+        }
+        if (segment.equals("cd") || segment.startsWith("cd ")) {
+            applyCdCommand(segment);
+        } else if (segment.equals("pushd") || segment.startsWith("pushd ")) {
+            applyPushdCommand(segment);
+        } else if (segment.equals("popd")) {
+            applyPopdCommand();
+        }
+    }
+
+    private String firstCommandSegment(String inputLine) {
+        if (inputLine == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        boolean inSingle = false;
+        boolean inDouble = false;
+        boolean escaped = false;
+        for (int i = 0; i < inputLine.length(); i++) {
+            char ch = inputLine.charAt(i);
+            if (escaped) {
+                out.append(ch);
+                escaped = false;
+                continue;
+            }
+            if (ch == '\\') {
+                escaped = true;
+                out.append(ch);
+                continue;
+            }
+            if (ch == '\'' && !inDouble) {
+                inSingle = !inSingle;
+                out.append(ch);
+                continue;
+            }
+            if (ch == '"' && !inSingle) {
+                inDouble = !inDouble;
+                out.append(ch);
+                continue;
+            }
+            if (!inSingle && !inDouble) {
+                if (ch == ';' || ch == '|') {
+                    break;
+                }
+                if (ch == '&' && i + 1 < inputLine.length() && inputLine.charAt(i + 1) == '&') {
+                    break;
+                }
+            }
+            out.append(ch);
+        }
+        return out.toString().trim();
+    }
+
+    private void applyCdCommand(String segment) {
+        String arg = segment.length() <= 2 ? "" : segment.substring(2).trim();
+        if (arg.isEmpty()) {
+            setCurrentRemoteDirectory(homeRemoteDirectory);
+            return;
+        }
+        String target = unquote(arg);
+        if ("-".equals(target)) {
+            setCurrentRemoteDirectory(previousRemoteDirectory);
+            return;
+        }
+        if (target.startsWith("~")) {
+            setCurrentRemoteDirectory(normalizeRemotePath(homeRemoteDirectory + target.substring(1)));
+            return;
+        }
+        if (target.startsWith("/")) {
+            setCurrentRemoteDirectory(normalizeRemotePath(target));
+            return;
+        }
+        setCurrentRemoteDirectory(normalizeRemotePath(currentRemoteDirectory + "/" + target));
+    }
+
+    private void applyPushdCommand(String segment) {
+        String arg = segment.length() <= 5 ? "" : segment.substring(5).trim();
+        if (arg.isEmpty()) {
+            String stacked = directoryStack.pollFirst();
+            if (stacked != null) {
+                directoryStack.addFirst(currentRemoteDirectory);
+                setCurrentRemoteDirectory(stacked);
+            }
+            return;
+        }
+        directoryStack.addFirst(currentRemoteDirectory);
+        String target = unquote(arg);
+        if (target.startsWith("/")) {
+            setCurrentRemoteDirectory(normalizeRemotePath(target));
+        } else if (target.startsWith("~")) {
+            setCurrentRemoteDirectory(normalizeRemotePath(homeRemoteDirectory + target.substring(1)));
+        } else {
+            setCurrentRemoteDirectory(normalizeRemotePath(currentRemoteDirectory + "/" + target));
+        }
+    }
+
+    private void applyPopdCommand() {
+        String stacked = directoryStack.pollFirst();
+        if (stacked != null) {
+            setCurrentRemoteDirectory(stacked);
+        }
+    }
+
+    private void setCurrentRemoteDirectory(String newDirectory) {
+        if (newDirectory == null || newDirectory.isBlank()) {
+            return;
+        }
+        String normalized = normalizeRemotePath(newDirectory);
+        if (normalized.isBlank()) {
+            return;
+        }
+        synchronized (directoryLock) {
+            if (!normalized.equals(currentRemoteDirectory)) {
+                previousRemoteDirectory = currentRemoteDirectory;
+                currentRemoteDirectory = normalized;
+                logger.debug("Tracked remote directory updated to {}", normalized);
+            }
+        }
+    }
+
+    private String normalizeRemotePath(String path) {
+        if (path == null || path.isBlank()) {
+            return currentRemoteDirectory;
+        }
+        boolean absolute = path.startsWith("/");
+        String[] parts = path.split("/");
+        Deque<String> normalized = new ArrayDeque<>();
+        for (String part : parts) {
+            if (part.isEmpty() || ".".equals(part)) {
+                continue;
+            }
+            if ("..".equals(part)) {
+                if (!normalized.isEmpty()) {
+                    normalized.removeLast();
+                }
+            } else {
+                normalized.addLast(part);
+            }
+        }
+        StringBuilder result = new StringBuilder(absolute ? "/" : "");
+        boolean first = true;
+        for (String part : normalized) {
+            if (!first) {
+                result.append('/');
+            }
+            result.append(part);
+            first = false;
+        }
+        if (result.isEmpty()) {
+            return absolute ? "/" : ".";
+        }
+        return result.toString();
+    }
+
+    private String unquote(String text) {
+        if (text == null || text.length() < 2) {
+            return text;
+        }
+        if ((text.startsWith("\"") && text.endsWith("\"")) || (text.startsWith("'") && text.endsWith("'"))) {
+            return text.substring(1, text.length() - 1);
+        }
+        return text;
     }
     
     /**

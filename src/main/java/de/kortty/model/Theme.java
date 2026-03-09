@@ -152,7 +152,7 @@ public class Theme {
         target.setForegroundColor(getForegroundColor());
         target.setBackgroundColor(getBackgroundColor());
         target.setCursorColor(getCursorColor());
-        target.setCursorStyle(getCursorStyle());
+        // Theme.applyTo() does not change cursor style; effective cursor (shape/blink) is set from settings in TerminalView/applySettings.
     }
 
     /**

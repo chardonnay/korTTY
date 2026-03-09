@@ -19,16 +19,23 @@ java {
     }
 }
 
+val useSithtermfxFromPackages = !(System.getenv("GITHUB_TOKEN")?.isNotBlank() == true)
+
 repositories {
-    mavenCentral()
-    // SithTermFX 1.1.0 releases (GitHub Packages; needs GITHUB_TOKEN with read:packages or gpr.token)
-    maven {
-        url = uri("https://maven.pkg.github.com/chardonnay/SithTermFX")
-        credentials {
-            username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR") ?: ""
-            password = project.findProperty("gpr.token") as String? ?: System.getenv("GITHUB_TOKEN") ?: ""
+    mavenLocal()
+    if (useSithtermfxFromPackages) {
+        // Not in CI: only mavenLocal (after installSithtermfxLocal) and mavenCentral
+    } else {
+        // CI: resolve SithTermFX 1.1.0 from GitHub Packages (faster than building from source)
+        maven {
+            url = uri("https://maven.pkg.github.com/chardonnay/SithTermFX")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: ""
+            }
         }
     }
+    mavenCentral()
     // JetBrains repository for pty4j and its dependencies
     maven {
         url = uri("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
@@ -49,7 +56,7 @@ dependencies {
     // ED25519 (EdDSA) key support for SSH
     implementation("net.i2p.crypto:eddsa:0.3.0")
     
-    // SithTermFX - Terminal emulator for JavaFX (released binaries only)
+    // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
     implementation("com.sithtermfx:sithtermfx-core:1.1.0")
     implementation("com.sithtermfx:sithtermfx-ui:1.1.0")
     
@@ -95,6 +102,56 @@ application {
     mainClass.set("de.kortty.KorTTYApplication")
 }
 
+// ==================== SithTermFX from source (no GitHub token required) ====================
+
+val sithtermfxVersion = "1.1.0"
+val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
+
+tasks.register("cloneSithtermfx") {
+    group = "build"
+    description = "Clone SithTermFX source at v$sithtermfxVersion into vendor/sithtermfx (no token required)."
+    val dir = sithtermfxDir.asFile
+    doLast {
+        val needClone = when {
+            !dir.isDirectory -> true
+            !dir.resolve("pom.xml").isFile -> true
+            else -> {
+                val check = ProcessBuilder("git", "describe", "--tags", "--exact-match")
+                    .directory(dir)
+                    .redirectError(ProcessBuilder.Redirect.PIPE)
+                    .redirectOutput(ProcessBuilder.Redirect.PIPE)
+                    .start()
+                check.waitFor()
+                check.inputStream.bufferedReader().readText().trim() != "v$sithtermfxVersion"
+            }
+        }
+        if (needClone) {
+            dir.parentFile.mkdirs()
+            if (dir.exists()) project.delete(dir)
+            val proc = ProcessBuilder(
+                "git", "clone", "--depth", "1", "--branch", "v$sithtermfxVersion",
+                "https://github.com/chardonnay/SithTermFX.git", dir.absolutePath
+            ).directory(project.rootDir).inheritIO().start()
+            if (proc.waitFor() != 0) throw GradleException("git clone SithTermFX failed")
+        }
+    }
+}
+
+tasks.register<Exec>("installSithtermfxLocal") {
+    group = "build"
+    description = "Build SithTermFX from source and install to local Maven repo (requires Maven)."
+    dependsOn("cloneSithtermfx")
+    workingDir(sithtermfxDir)
+    commandLine("mvn", "-q", "-DskipTests", "install")
+    onlyIf { sithtermfxDir.asFile.resolve("pom.xml").isFile }
+}
+
+tasks.named("compileJava") {
+    if (useSithtermfxFromPackages) {
+        dependsOn("installSithtermfxLocal")
+    }
+}
+
 // ==================== jpackage Konfiguration ====================
 
 val jpackageDir = layout.buildDirectory.dir("jpackage")
@@ -119,9 +176,53 @@ tasks.register<Copy>("copyJar") {
     into(jpackageInput.map { it.dir("libs") })
 }
 
+// mosh4j release to bundle (must match Mosh4jTtyConnector.MOSH4J_RELEASE_TAG)
+val mosh4jReleaseTag = "2.0.0"
+val mosh4jReleaseUrl = "https://github.com/chardonnay/mosh4j/releases/download/$mosh4jReleaseTag"
+val mosh4jModules = listOf("protocol", "crypto", "transport", "terminal", "core")
+
+tasks.register("copyMosh4jBundled") {
+    group = "build"
+    description = "Download mosh4j release JARs and deps into jpackage libs so the app ships with mosh4j (no user download)."
+    dependsOn("copyDependencies") // ensures jpackage-input/libs exists
+    doLast {
+        val arch = when (System.getProperty("os.arch", "").lowercase()) {
+            "aarch64", "arm64" -> "arm64"
+            else -> "amd64"
+        }
+        val libsDir = layout.buildDirectory.get().asFile.resolve("jpackage-input").resolve("libs")
+        val mosh4jBase = libsDir.resolve("mosh4j")
+        val releaseDir = mosh4jBase.resolve("release-$mosh4jReleaseTag-$arch")
+        val depsDir = mosh4jBase.resolve("deps")
+        releaseDir.mkdirs()
+        depsDir.mkdirs()
+        val urls = mutableListOf<Pair<String, java.io.File>>()
+        for (module in mosh4jModules) {
+            val jar = "mosh4j-$module-$mosh4jReleaseTag-$arch.jar"
+            urls.add("$mosh4jReleaseUrl/$jar" to releaseDir.resolve(jar))
+        }
+        urls.add(
+            "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.jar"
+                to depsDir.resolve("bcprov-jdk18on-1.78.1.jar")
+        )
+        urls.add(
+            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/4.28.2/protobuf-java-4.28.2.jar"
+                to depsDir.resolve("protobuf-java-4.28.2.jar")
+        )
+        for ((url, file) in urls) {
+            if (file.exists()) continue
+            val proc = ProcessBuilder("curl", "-L", "-o", file.absolutePath, url)
+                .directory(file.parentFile)
+                .inheritIO()
+                .start()
+            if (proc.waitFor() != 0) throw GradleException("curl failed for $url")
+        }
+    }
+}
+
 // Task zum Vorbereiten der jpackage Eingabe
 tasks.register("prepareJpackage") {
-    dependsOn("copyDependencies", "copyJar")
+    dependsOn("copyDependencies", "copyJar", "copyMosh4jBundled")
 }
 
 // Gemeinsame jpackage Parameter

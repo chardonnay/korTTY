@@ -28,6 +28,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.geometry.Orientation;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.DragEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -290,47 +291,53 @@ public class TerminalView extends BorderPane {
     }
 
     private void setupDragDrop() {
-        setOnDragOver(event -> {
-            // Don't intercept internal split-pane move drags — let them pass through
-            if (isSplitPaneDrag(event.getDragboard())) {
-                logger.debug("TerminalView DragOver: pass split-pane drag through");
-                return;
-            }
-            if (!isTerminalDragDropEnabled()) return;
-            Dragboard db = event.getDragboard();
-            if (db.hasFiles()) {
-                TtyConnector conn = getFocusedConnector();
-                if (conn instanceof SshTtyConnector ssh && ssh.isConnected() && ssh.getSession() != null) {
-                    event.acceptTransferModes(TransferMode.COPY);
-                }
-            }
-            event.consume();
-        });
-        setOnDragDropped(event -> {
-            // Don't intercept internal split-pane move drags — let them pass through
-            if (isSplitPaneDrag(event.getDragboard())) {
-                logger.debug("TerminalView DragDropped: pass split-pane drag through");
-                return;
-            }
-            if (!isTerminalDragDropEnabled()) return;
-            Dragboard db = event.getDragboard();
-            if (!db.hasFiles()) {
-                event.setDropCompleted(false);
-                return;
-            }
-            TtyConnector conn = getFocusedConnector();
-            if (!(conn instanceof SshTtyConnector ssh) || !ssh.isConnected() || ssh.getSession() == null) {
-                event.setDropCompleted(false);
-                return;
-            }
-            List<java.io.File> dropped = db.getFiles();
-            if (dropped.isEmpty()) {
-                event.setDropCompleted(false);
-                return;
-            }
-            event.setDropCompleted(true);
-            copyDroppedFilesToServer(ssh, dropped);
-        });
+        // Handlers on this BorderPane (used when drag is over empty area; rarely with terminal in center)
+        setOnDragOver(event -> handleFileDragOver(event));
+        setOnDragDropped(event -> handleFileDragDropped(event));
+        // Capture-phase filters on split pane so we get file drops before cell filters; terminal content is in center so drag target is usually a cell node
+        if (splitPane != null) {
+            splitPane.addEventFilter(DragEvent.DRAG_OVER, event -> {
+                if (handleFileDragOver(event)) event.consume();
+            });
+            splitPane.addEventFilter(DragEvent.DRAG_DROPPED, event -> {
+                if (handleFileDragDropped(event)) event.consume();
+            });
+        }
+    }
+
+    /** Returns true if the event was handled (caller should consume). */
+    private boolean handleFileDragOver(DragEvent event) {
+        if (isSplitPaneDrag(event.getDragboard())) return false;
+        if (!isTerminalDragDropEnabled()) return false;
+        Dragboard db = event.getDragboard();
+        if (!db.hasFiles()) return false;
+        TtyConnector conn = getFocusedConnector();
+        if (conn instanceof SshTtyConnector ssh && ssh.isConnected() && ssh.getSession() != null) {
+            event.acceptTransferModes(TransferMode.COPY);
+            return true;
+        }
+        return false;
+    }
+
+    /** Returns true if the event was handled (caller should consume). */
+    private boolean handleFileDragDropped(DragEvent event) {
+        if (isSplitPaneDrag(event.getDragboard())) return false;
+        if (!isTerminalDragDropEnabled()) return false;
+        Dragboard db = event.getDragboard();
+        if (!db.hasFiles()) return false;
+        TtyConnector conn = getFocusedConnector();
+        if (!(conn instanceof SshTtyConnector ssh) || !ssh.isConnected() || ssh.getSession() == null) {
+            event.setDropCompleted(false);
+            return false;
+        }
+        List<java.io.File> dropped = db.getFiles();
+        if (dropped.isEmpty()) {
+            event.setDropCompleted(false);
+            return false;
+        }
+        event.setDropCompleted(true);
+        copyDroppedFilesToServer(ssh, dropped);
+        return true;
     }
 
     private TtyConnector getFocusedConnector() {
@@ -367,15 +374,18 @@ public class TerminalView extends BorderPane {
         Thread worker = new Thread(() -> {
             try {
                 SftpClient sftp = SftpClientFactory.instance().createSftpClient(sshConnector.getSession());
-                // Resolve remote home (SFTP server does not expand "~")
-                String remoteHome;
-                try {
-                    remoteHome = sftp.canonicalPath(".");
-                } catch (Exception e) {
-                    logger.debug("Could not resolve remote home, using '.'");
-                    remoteHome = ".";
+                // Use the connector's tracked working directory and only fall back to the SFTP start directory.
+                String remoteTargetDir = sshConnector.getCurrentRemoteDirectory();
+                if (remoteTargetDir == null || remoteTargetDir.isEmpty()) {
+                    try {
+                        remoteTargetDir = sftp.canonicalPath(".");
+                    } catch (Exception e) {
+                        logger.debug("Could not resolve remote cwd, using '.'");
+                        remoteTargetDir = ".";
+                    }
                 }
-                if (remoteHome == null || remoteHome.isEmpty()) remoteHome = ".";
+                if (remoteTargetDir == null || remoteTargetDir.isEmpty()) remoteTargetDir = ".";
+                final String remoteHome = remoteTargetDir;
                 int copied = 0;
                 for (int i = 0; i < toUpload.size() && !aborted.get(); i++) {
                     PathPair p = toUpload.get(i);
@@ -856,11 +866,18 @@ public class TerminalView extends BorderPane {
         if (widget == null || settings == null) return;
         String style = settings.getCursorStyle();
         if (style == null || style.isEmpty()) return;
+        String styleUpper = style.toUpperCase();
         try {
-            CursorShape shape = CursorShape.valueOf(style.toUpperCase());
-            widget.getTerminalPanel().setCursorShape(shape);
+            CursorShape shape = CursorShape.valueOf(styleUpper);
+            var panel = widget.getTerminalPanel();
+            // setUserCursorShape exists from SithTermFX 1.2+; optional for 1.1.0 compatibility
+            try {
+                panel.getClass().getMethod("setUserCursorShape", CursorShape.class).invoke(panel, shape);
+            } catch (ReflectiveOperationException ignored) {
+                // SithTermFX 1.1.0: method not present or invocation failed
+            }
         } catch (IllegalArgumentException e) {
-            // Use default
+            logger.debug("Cursor shape not supported: {}", styleUpper);
         }
     }
 
@@ -1810,6 +1827,10 @@ public class TerminalView extends BorderPane {
                 applyCursorShape(w);
                 setCursorVisible(w, true);
             }
+        } else if (terminalWidget != null) {
+            applyStyleStateColors(terminalWidget);
+            applyCursorShape(terminalWidget);
+            setCursorVisible(terminalWidget, true);
         }
 
         // Keep timestamp gutter colors in sync with applied theme/colors.

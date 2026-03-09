@@ -56,7 +56,12 @@ public class CredentialManager {
             
             credentials.clear();
             if (wrapper.getCredentials() != null) {
-                credentials.addAll(wrapper.getCredentials());
+                for (StoredCredential c : wrapper.getCredentials()) {
+                    if (c.getEnvironmentId() == null && c.getEnvironment() != null) {
+                        c.setEnvironmentId(c.getEnvironment().name());
+                    }
+                    credentials.add(c);
+                }
             }
             
             logger.info("Loaded {} credentials from {}", credentials.size(), file);
@@ -130,13 +135,21 @@ public class CredentialManager {
     }
     
     /**
-     * Finds credentials matching a server and environment
+     * Finds credentials matching a server and environment (by environment id).
      */
-    public List<StoredCredential> findMatchingCredentials(String hostname, StoredCredential.Environment environment) {
+    public List<StoredCredential> findMatchingCredentials(String hostname, String environmentId) {
         return credentials.stream()
-                .filter(c -> c.getEnvironment() == environment)
+                .filter(c -> (environmentId != null && environmentId.equals(c.getEnvironmentId())) || (environmentId == null && c.getEnvironmentId() == null))
                 .filter(c -> c.matchesServer(hostname))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Counts credentials that use the given environment id (for preventing delete of in-use environments).
+     */
+    public long countCredentialsByEnvironmentId(String environmentId) {
+        if (environmentId == null) return 0;
+        return credentials.stream().filter(c -> environmentId.equals(c.getEnvironmentId())).count();
     }
     
     /**

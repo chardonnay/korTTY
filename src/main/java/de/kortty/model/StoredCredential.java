@@ -30,6 +30,10 @@ public class StoredCredential {
     
     @XmlElement
     private Environment environment;
+
+    /** Environment id (built-in enum name or custom id). Preferred over environment for new data. */
+    @XmlElement
+    private String environmentId;
     
     @XmlElement
     private String serverPattern;  // e.g., "*.example.com" or "10.0.0.*"
@@ -115,7 +119,28 @@ public class StoredCredential {
     public void setEncryptedExternalCommand(String encryptedExternalCommand) { this.encryptedExternalCommand = encryptedExternalCommand; }
     
     public Environment getEnvironment() { return environment; }
-    public void setEnvironment(Environment environment) { this.environment = environment; }
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
+        this.environmentId = environment != null ? environment.name() : null;
+    }
+
+    /** Id of the environment (built-in: PRODUCTION, DEVELOPMENT, TEST, STAGING; or custom id). */
+    public String getEnvironmentId() {
+        if (environmentId != null && !environmentId.isEmpty()) return environmentId;
+        if (environment != null) return environment.name();
+        return Environment.PRODUCTION.name();
+    }
+
+    public void setEnvironmentId(String environmentId) {
+        this.environmentId = environmentId;
+        if (environmentId != null) {
+            try {
+                this.environment = Environment.valueOf(environmentId);
+            } catch (IllegalArgumentException e) {
+                this.environment = null;
+            }
+        }
+    }
     
     public String getServerPattern() { return serverPattern; }
     public void setServerPattern(String serverPattern) { this.serverPattern = serverPattern; }
@@ -152,9 +177,21 @@ public class StoredCredential {
         return hostname.matches(regex);
     }
     
+    /** Display name for the current environment (caller may use EnvironmentManager for custom ids). */
+    public String getEnvironmentDisplayName(java.util.function.Function<String, String> displayNameResolver) {
+        String id = getEnvironmentId();
+        if (displayNameResolver != null) {
+            String resolved = displayNameResolver.apply(id);
+            if (resolved != null) return resolved;
+        }
+        if (environment != null) return environment.getDisplayName();
+        return id;
+    }
+
     @Override
     public String toString() {
-        return name + " (" + username + "@" + environment.getDisplayName() + ")";
+        String envName = environment != null ? environment.getDisplayName() : (environmentId != null ? environmentId : Environment.PRODUCTION.getDisplayName());
+        return name + " (" + username + "@" + envName + ")";
     }
     
     @Override

@@ -65,6 +65,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ColorPicker foregroundColorPicker;
     private final ColorPicker backgroundColorPicker;
     private final ColorPicker cursorColorPicker;
+    private final CheckBox cursorBlinkCheck;
     private final ColorPicker selectionColorPicker;
     
     // Terminal size
@@ -138,6 +139,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ComboBox<String> snippetCursorStyleCombo;
     private final ColorPicker snippetCursorColorPicker;
     private String selectedGlobalThemeId;
+    private ComboBox<Theme> colorProfileCombo;
     private final BooleanProperty applyThemeFontsProperty;
     
     public SettingsDialog(Stage owner, KorTTYApplication app, ConfigurationManager configManager, 
@@ -205,52 +207,50 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         colorsGrid.setVgap(10);
         colorsGrid.setPadding(new Insets(20));
         
-        foregroundColorPicker = new ColorPicker(Color.web(settings.getForegroundColor()));
-        backgroundColorPicker = new ColorPicker(Color.web(settings.getBackgroundColor()));
-        cursorColorPicker = new ColorPicker(Color.web(settings.getCursorColor()));
-        selectionColorPicker = new ColorPicker(Color.web(settings.getSelectionColor()));
-
         ThemeManager colorThemeManager = app != null ? app.getThemeManager() : null;
-        ComboBox<Theme> colorProfileCombo = new ComboBox<>();
+        ConnectionSettings displaySettings = settings;
+        if (selectedGlobalThemeId != null && !selectedGlobalThemeId.isEmpty() && colorThemeManager != null) {
+            displaySettings = colorThemeManager.resolveSettings(settings, selectedGlobalThemeId);
+        }
+        foregroundColorPicker = new ColorPicker(Color.web(displaySettings.getForegroundColor()));
+        backgroundColorPicker = new ColorPicker(Color.web(displaySettings.getBackgroundColor()));
+        cursorColorPicker = new ColorPicker(Color.web(displaySettings.getCursorColor()));
+        selectionColorPicker = new ColorPicker(Color.web(settings.getSelectionColor()));
+        colorProfileCombo = new ComboBox<>();
         colorProfileCombo.setPrefWidth(240);
+        colorProfileCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override public String toString(Theme t) { return t != null ? t.getName() : ""; }
+            @Override public Theme fromString(String s) { return null; }
+        });
         if (colorThemeManager != null) {
             colorProfileCombo.getItems().addAll(colorThemeManager.getThemes());
             if (selectedGlobalThemeId != null && !selectedGlobalThemeId.isEmpty()) {
                 colorThemeManager.getTheme(selectedGlobalThemeId).ifPresent(colorProfileCombo::setValue);
             }
         }
-        colorProfileCombo.setCellFactory(lv -> new ListCell<>() {
-            @Override
-            protected void updateItem(Theme item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getName());
+        cursorBlinkCheck = new CheckBox(I18n.get("settings.colors.cursorBlink"));
+        cursorBlinkCheck.setSelected(isCursorBlink(settings.getCursorStyle()));
+        cursorBlinkCheck.setTooltip(new Tooltip(I18n.get("settings.colors.cursorBlink.tooltip")));
+        colorProfileCombo.setOnAction(e -> {
+            try {
+                Theme selected = colorProfileCombo.getValue();
+                if (selected == null) return;
+                selectedGlobalThemeId = selected.getId();
+                if (applyThemeFontsProperty.get()) {
+                    fontFamilyCombo.setValue(selected.getFontFamily());
+                    fontSizeSpinner.getValueFactory().setValue(selected.getFontSize());
+                }
+                foregroundColorPicker.setValue(Color.web(selected.getForegroundColor()));
+                backgroundColorPicker.setValue(Color.web(selected.getBackgroundColor()));
+                cursorColorPicker.setValue(Color.web(selected.getCursorColor()));
+                cursorBlinkCheck.setSelected(isCursorBlink(selected.getCursorStyle()));
+                settings.setCursorStyle(selected.getCursorStyle());
+            } catch (Exception ex) {
+                org.slf4j.LoggerFactory.getLogger(getClass())
+                    .error("Error applying theme from combo selection", ex);
             }
         });
-        colorProfileCombo.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(Theme item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getName());
-            }
-        });
-        Button applyProfileButton = new Button(I18n.get("settings.colors.applyProfile"));
-        applyProfileButton.setDisable(colorThemeManager == null);
-        applyProfileButton.setOnAction(e -> {
-            Theme selected = colorProfileCombo.getValue();
-            if (selected == null) {
-                return;
-            }
-            // Apply profile values to terminal base configuration fields.
-            if (applyThemeFontsProperty.get()) {
-                fontFamilyCombo.setValue(selected.getFontFamily());
-                fontSizeSpinner.getValueFactory().setValue(selected.getFontSize());
-            }
-            foregroundColorPicker.setValue(Color.web(selected.getForegroundColor()));
-            backgroundColorPicker.setValue(Color.web(selected.getBackgroundColor()));
-            cursorColorPicker.setValue(Color.web(selected.getCursorColor()));
-            selectedGlobalThemeId = selected.getId();
-        });
-        HBox profileBox = new HBox(8, colorProfileCombo, applyProfileButton);
+        HBox profileBox = new HBox(8, colorProfileCombo);
         
         colorsGrid.add(new Label(I18n.get("settings.colors.profile")), 0, 0);
         colorsGrid.add(profileBox, 1, 0);
@@ -260,12 +260,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         colorsGrid.add(backgroundColorPicker, 1, 2);
         colorsGrid.add(new Label(I18n.get("settings.colors.cursor")), 0, 3);
         colorsGrid.add(cursorColorPicker, 1, 3);
-        colorsGrid.add(new Label(I18n.get("settings.colors.selection")), 0, 4);
-        colorsGrid.add(selectionColorPicker, 1, 4);
+        colorsGrid.add(cursorBlinkCheck, 0, 4, 2, 1);
+        colorsGrid.add(new Label(I18n.get("settings.colors.selection")), 0, 5);
+        colorsGrid.add(selectionColorPicker, 1, 5);
         
         // ANSI Colors section
-        colorsGrid.add(new Separator(), 0, 5, 2, 1);
-        colorsGrid.add(new Label(I18n.get("settings.colors.ansi")), 0, 6, 2, 1);
+        colorsGrid.add(new Separator(), 0, 6, 2, 1);
+        colorsGrid.add(new Label(I18n.get("settings.colors.ansi")), 0, 7, 2, 1);
         
         String[] colorNames = {I18n.get("color.black"), I18n.get("color.red"), I18n.get("color.green"), I18n.get("color.yellow"), I18n.get("color.blue"), I18n.get("color.magenta"), I18n.get("color.cyan"), I18n.get("color.white")};
         HBox normalColorsBox = new HBox(5);
@@ -285,10 +286,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             brightColorsBox.getChildren().add(brightPicker);
         }
         
-        colorsGrid.add(new Label(I18n.get("settings.colors.normal")), 0, 7);
-        colorsGrid.add(normalColorsBox, 1, 7);
-        colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 8);
-        colorsGrid.add(brightColorsBox, 1, 8);
+        colorsGrid.add(new Label(I18n.get("settings.colors.normal")), 0, 8);
+        colorsGrid.add(normalColorsBox, 1, 8);
+        colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 9);
+        colorsGrid.add(brightColorsBox, 1, 9);
         
         colorsTab.setContent(colorsGrid);
         
@@ -1089,6 +1090,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 }
 
                 // Save settings to both ConnectionSettings and GlobalSettings
+                org.slf4j.LoggerFactory.getLogger(getClass()).info(
+                        "Saving settings: themeId='{}', bg='{}', fg='{}', cursorStyle='{}'",
+                        settings.getThemeId(), settings.getBackgroundColor(),
+                        settings.getForegroundColor(), settings.getCursorStyle());
                 configManager.setGlobalSettings(settings);
                 globalSettings.setDefaultTerminalSettings(new ConnectionSettings(settings));
                 
@@ -1125,6 +1130,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
         settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
         settings.setCursorColor(toHex(cursorColorPicker.getValue()));
+        settings.setCursorStyle(deriveCursorStyle(settings.getCursorStyle(), cursorBlinkCheck.isSelected()));
         settings.setSelectionColor(toHex(selectionColorPicker.getValue()));
         settings.setThemeId(selectedGlobalThemeId);
         settings.setTerminalColumns(columnsSpinner.getValue());
@@ -1529,6 +1535,16 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                 (int) (color.getRed() * 255),
                 (int) (color.getGreen() * 255),
                 (int) (color.getBlue() * 255));
+    }
+
+    private static boolean isCursorBlink(String cursorStyle) {
+        return cursorStyle != null && cursorStyle.toUpperCase().startsWith("BLINK");
+    }
+
+    private static String deriveCursorStyle(String currentStyle, boolean blink) {
+        String s = (currentStyle != null && !currentStyle.isEmpty()) ? currentStyle : "BLINK_BLOCK";
+        String suffix = s.contains("_") ? s.substring(s.indexOf('_') + 1) : "BLOCK";
+        return blink ? "BLINK_" + suffix : "STEADY_" + suffix;
     }
 
     

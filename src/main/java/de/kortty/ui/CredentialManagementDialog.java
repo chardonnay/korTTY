@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.CredentialManager;
+import de.kortty.core.EnvironmentManager;
 import de.kortty.model.StoredCredential;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -16,11 +17,19 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
     private static final Logger logger = LoggerFactory.getLogger(CredentialManagementDialog.class);
     
     private final CredentialManager credentialManager;
+    private final EnvironmentManager environmentManager;
     private final char[] masterPassword;
     private final ListView<StoredCredential> credentialListView;
-    
+
     public CredentialManagementDialog(CredentialManager credentialManager, char[] masterPassword) {
+        this(credentialManager, null, masterPassword);
+    }
+
+    public CredentialManagementDialog(CredentialManager credentialManager,
+                                     EnvironmentManager environmentManager,
+                                     char[] masterPassword) {
         this.credentialManager = credentialManager;
+        this.environmentManager = environmentManager;
         this.masterPassword = masterPassword;
         this.credentialListView = new ListView<>();
         
@@ -43,10 +52,13 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
                 } else {
                     String serverInfo = cred.getServerPattern() != null ? 
                         " [" + cred.getServerPattern() + "]" : " [" + I18n.get("credential.allServers") + "]";
+                    String envName = environmentManager != null
+                        ? environmentManager.getDisplayName(cred.getEnvironmentId())
+                        : (cred.getEnvironment() != null ? cred.getEnvironment().getDisplayName() : cred.getEnvironmentId());
                     setText(String.format("%s - %s @ %s%s",
                         cred.getName(),
                         cred.getUsername(),
-                        cred.getEnvironment().getDisplayName(),
+                        envName,
                         serverInfo));
                 }
             }
@@ -58,15 +70,17 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         Button addButton = new Button(I18n.get("dialog.add"));
         Button editButton = new Button(I18n.get("dialog.edit"));
         Button removeButton = new Button(I18n.get("dialog.delete"));
+        Button environmentsButton = new Button(I18n.get("credential.environments.button"));
         
         addButton.setOnAction(e -> addCredential());
         editButton.setOnAction(e -> editCredential());
         removeButton.setOnAction(e -> removeCredential());
+        environmentsButton.setOnAction(e -> showEnvironments());
         
         editButton.disableProperty().bind(credentialListView.getSelectionModel().selectedItemProperty().isNull());
         removeButton.disableProperty().bind(credentialListView.getSelectionModel().selectedItemProperty().isNull());
         
-        buttonBox.getChildren().addAll(addButton, editButton, removeButton);
+        buttonBox.getChildren().addAll(addButton, editButton, removeButton, environmentsButton);
         
         Label infoLabel = new Label(I18n.get("credential.info"));
         infoLabel.setWrapText(true);
@@ -97,8 +111,15 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
         credentialListView.getItems().setAll(credentialManager.getAllCredentials());
     }
     
+    private void showEnvironments() {
+        if (environmentManager == null) return;
+        EnvironmentManagementDialog dialog = new EnvironmentManagementDialog(environmentManager, credentialManager);
+        dialog.initOwner(getDialogPane().getScene().getWindow());
+        dialog.showAndWait();
+    }
+
     private void addCredential() {
-        CredentialEditDialog dialog = new CredentialEditDialog(null, credentialManager, masterPassword);
+        CredentialEditDialog dialog = new CredentialEditDialog(null, credentialManager, environmentManager, masterPassword);
         dialog.initOwner(getDialogPane().getScene().getWindow());
         dialog.showAndWait().ifPresent(result -> {
             credentialManager.addCredential(result.credential);
@@ -110,7 +131,7 @@ public class CredentialManagementDialog extends Dialog<Boolean> {
     private void editCredential() {
         StoredCredential selected = credentialListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            CredentialEditDialog dialog = new CredentialEditDialog(selected, credentialManager, masterPassword);
+            CredentialEditDialog dialog = new CredentialEditDialog(selected, credentialManager, environmentManager, masterPassword);
             dialog.initOwner(getDialogPane().getScene().getWindow());
             dialog.showAndWait().ifPresent(result -> {
                 credentialManager.updateCredential(result.credential);

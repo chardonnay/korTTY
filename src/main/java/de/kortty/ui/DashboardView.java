@@ -21,6 +21,8 @@ public class DashboardView extends VBox {
     private final BiConsumer<TerminalTab, DashboardAction> actionHandler;
     private final TreeView<DashboardItem> treeView;
     private final Button refreshButton;
+    /** Current theme foreground color for tree cells (e.g. from Settings → Themes). */
+    private volatile String themeTextColor = "#cccccc";
     
     public enum DashboardAction {
         RECONNECT,
@@ -41,7 +43,7 @@ public class DashboardView extends VBox {
         titleBox.setPadding(new Insets(0, 0, 5, 0));
         
         refreshButton = new Button("⟳");
-        refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10;");
+        refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10; -fx-background-color: transparent;");
         refreshButton.setTooltip(new Tooltip("Aktualisieren"));
         refreshButton.setOnAction(e -> refresh());
         
@@ -66,10 +68,8 @@ public class DashboardView extends VBox {
                         String statusIcon = item.isConnected() ? "●" : "○";
                         String statusText = item.isConnected() ? I18n.get("dashboard.status.active") : I18n.get("dashboard.status.ended");
                         setText(statusIcon + " " + item.getDisplayName() + " (" + statusText + ")");
-                        
-                        // Color: green for active, red for disconnected
-                        String color = item.isConnected() ? "#00ff00" : "#ff6666";
-                        setStyle("-fx-text-fill: " + color + "; -fx-background-color: transparent;");
+                        String fg = (themeTextColor != null && !themeTextColor.isEmpty()) ? themeTextColor : "#cccccc";
+                        setStyle("-fx-text-fill: " + fg + "; -fx-background-color: transparent;");
                         
                         // Context menu for terminal tabs only (not for window nodes)
                         if (item.getTerminalTab() != null) {
@@ -140,11 +140,17 @@ public class DashboardView extends VBox {
         if (fgColor == null) {
             fgColor = "";
         }
+        themeTextColor = fgColor.isEmpty() ? "#cccccc" : fgColor;
         String bgStyle = bgColor.isEmpty() ? "" : "-fx-background-color: " + bgColor + ";";
         String fgStyle = fgColor.isEmpty() ? "" : " -fx-text-fill: " + fgColor + ";";
         setStyle(bgStyle + fgStyle);
         treeView.setStyle(bgStyle + fgStyle);
-        refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10;" + fgStyle);
+        refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10; -fx-background-color: transparent;" + fgStyle);
+        TreeItem<DashboardItem> root = treeView.getRoot();
+        if (root != null) {
+            treeView.setRoot(null);
+            treeView.setRoot(root);
+        }
     }
     
     /**

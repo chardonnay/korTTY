@@ -16,5 +16,8 @@ Thumbs.db
 # Temporary venv for icon generation
 .venv-icon/
 
+# SithTermFX source (cloned at build time, not a submodule)
+vendor/sithtermfx/
+
 # KorTTY user data (optional - uncomment to ignore)
 # .kortty/

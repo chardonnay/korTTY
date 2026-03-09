@@ -351,7 +351,15 @@ public class Mosh4jTtyConnector implements TtyConnector {
         return jars;
     }
 
+    /**
+     * Base directory for mosh4j release JARs. Prefers bundled lib (jpackage app image)
+     * so users do not need to download; then env; then ~/.kortty/mosh4j.
+     */
     private static Path resolveReleaseBaseDir() {
+        Path bundled = resolveBundledMosh4jBase();
+        if (bundled != null) {
+            return bundled;
+        }
         String customDir = System.getenv(MOSH4J_RELEASE_DIR_ENV);
         if (customDir == null || customDir.isBlank()) {
             customDir = System.getenv(MOSH4J_SNAPSHOT_DIR_ENV);
@@ -360,6 +368,37 @@ public class Mosh4jTtyConnector implements TtyConnector {
             return Path.of(customDir.trim());
         }
         return Path.of(System.getProperty("user.home"), ".kortty", "mosh4j");
+    }
+
+    /** If this app ships with mosh4j (e.g. jpackage release), return the mosh4j base path; else null. */
+    private static Path resolveBundledMosh4jBase() {
+        try {
+            URL codeSource = Mosh4jTtyConnector.class.getProtectionDomain().getCodeSource().getLocation();
+            if (codeSource == null) return null;
+            Path jarPath;
+            String urlStr = codeSource.toString();
+            if (urlStr.startsWith("jar:")) {
+                int end = urlStr.indexOf("!");
+                String filePart = end > 0 ? urlStr.substring(4, end) : urlStr.substring(4);
+                jarPath = Path.of(java.net.URI.create(filePart));
+            } else {
+                jarPath = Path.of(codeSource.toURI());
+            }
+            if (jarPath.getFileName() != null && jarPath.getFileName().toString().toLowerCase().endsWith(".jar")) {
+                Path appLibDir = jarPath.getParent();
+                if (appLibDir != null && Files.isDirectory(appLibDir)) {
+                    Path mosh4jBase = appLibDir.resolve("mosh4j");
+                    String arch = mapArchSuffix(System.getProperty("os.arch"));
+                    Path releaseDir = mosh4jBase.resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
+                    if (hasRequiredReleaseJars(releaseDir, arch)) {
+                        return mosh4jBase;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // not running from a bundled layout
+        }
+        return null;
     }
 
     private static String mapArchSuffix(String osArchRaw) {

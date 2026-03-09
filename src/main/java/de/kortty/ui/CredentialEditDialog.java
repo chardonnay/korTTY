@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
+import de.kortty.model.EnvironmentDefinition;
 import de.kortty.model.StoredCredential;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.EnvironmentManager;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -36,18 +38,19 @@ public class CredentialEditDialog extends Dialog<CredentialResult> {
     private final TextField externalCommandField;
     private final RadioButton storedPasswordRadio;
     private final RadioButton externalCommandRadio;
-    private final ComboBox<StoredCredential.Environment> environmentCombo;
+    private final ComboBox<EnvironmentDefinition> environmentCombo;
     private final TextField serverPatternField;
     private final TextArea descriptionField;
     private final Button testCommandButton;
     private final Label testResultLabel;
     
     public CredentialEditDialog(StoredCredential existingCredential) {
-        this(existingCredential, null, null);
+        this(existingCredential, null, null, null);
     }
     
     public CredentialEditDialog(StoredCredential existingCredential, 
-                                CredentialManager credentialManager, 
+                                CredentialManager credentialManager,
+                                EnvironmentManager environmentManager,
                                 char[] masterPassword) {
         setTitle(existingCredential == null ? I18n.get("credential.edit.addTitle") : I18n.get("credential.edit.editTitle"));
         setHeaderText(existingCredential == null ? I18n.get("credential.edit.addHeader") : I18n.get("credential.edit.editHeader"));
@@ -122,8 +125,25 @@ public class CredentialEditDialog extends Dialog<CredentialResult> {
         
         // Environment, server pattern, description
         environmentCombo = new ComboBox<>();
-        environmentCombo.getItems().addAll(StoredCredential.Environment.values());
-        environmentCombo.setValue(StoredCredential.Environment.PRODUCTION);
+        if (environmentManager != null) {
+            environmentCombo.getItems().addAll(environmentManager.getEnvironments());
+            environmentCombo.setConverter(new javafx.util.StringConverter<>() {
+                @Override public String toString(EnvironmentDefinition d) { return d != null ? d.getDisplayName() : ""; }
+                @Override public EnvironmentDefinition fromString(String s) { return null; }
+            });
+            environmentCombo.setValue(environmentManager.getEnvironments().isEmpty() ? null : environmentManager.getEnvironments().get(0));
+        } else {
+            for (StoredCredential.Environment e : StoredCredential.Environment.values()) {
+                environmentCombo.getItems().add(new EnvironmentDefinition(e.name(), e.getDisplayName()));
+            }
+            environmentCombo.setConverter(new javafx.util.StringConverter<>() {
+                @Override public String toString(EnvironmentDefinition d) { return d != null ? d.getDisplayName() : ""; }
+                @Override public EnvironmentDefinition fromString(String s) { return null; }
+            });
+            if (!environmentCombo.getItems().isEmpty()) {
+                environmentCombo.setValue(environmentCombo.getItems().get(0));
+            }
+        }
         
         serverPatternField = new TextField();
         serverPatternField.setPromptText(I18n.get("credential.edit.serverPatternPrompt"));
@@ -136,7 +156,21 @@ public class CredentialEditDialog extends Dialog<CredentialResult> {
         if (existingCredential != null) {
             nameField.setText(existingCredential.getName());
             usernameField.setText(existingCredential.getUsername());
-            environmentCombo.setValue(existingCredential.getEnvironment());
+            if (environmentManager != null) {
+                String envId = existingCredential.getEnvironmentId();
+                environmentCombo.getItems().stream()
+                    .filter(env -> envId != null && envId.equals(env.getId()))
+                    .findFirst()
+                    .ifPresent(environmentCombo::setValue);
+                if (environmentCombo.getValue() == null && !environmentCombo.getItems().isEmpty()) {
+                    environmentCombo.setValue(environmentCombo.getItems().get(0));
+                }
+            } else {
+                environmentCombo.getItems().stream()
+                    .filter(env -> existingCredential.getEnvironment() != null && existingCredential.getEnvironment().name().equals(env.getId()))
+                    .findFirst()
+                    .ifPresent(environmentCombo::setValue);
+            }
             if (existingCredential.getServerPattern() != null) {
                 serverPatternField.setText(existingCredential.getServerPattern());
             }
@@ -207,7 +241,10 @@ public class CredentialEditDialog extends Dialog<CredentialResult> {
                 StoredCredential credential = existingCredential != null ? existingCredential : new StoredCredential();
                 credential.setName(nameField.getText().trim());
                 credential.setUsername(usernameField.getText().trim());
-                credential.setEnvironment(environmentCombo.getValue());
+                EnvironmentDefinition envDef = environmentCombo.getValue();
+                if (envDef != null) {
+                    credential.setEnvironmentId(envDef.getId());
+                }
                 credential.setServerPattern(serverPatternField.getText().trim().isEmpty() ? null : serverPatternField.getText().trim());
                 credential.setDescription(descriptionField.getText().trim().isEmpty() ? null : descriptionField.getText().trim());
                 

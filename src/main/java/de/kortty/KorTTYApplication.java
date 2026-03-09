@@ -4,6 +4,7 @@ import de.kortty.core.ConfigurationManager;
 import de.kortty.core.SessionManager;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.EnvironmentManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetVariableManager;
@@ -47,6 +48,7 @@ public class KorTTYApplication extends Application {
     private MasterPasswordManager masterPasswordManager;
     private GPGKeyManager gpgKeyManager;
     private CredentialManager credentialManager;
+    private EnvironmentManager environmentManager;
     private SSHKeyManager sshKeyManager;
     private SnippetManager snippetManager;
     private SnippetVariableManager snippetVariableManager;
@@ -85,6 +87,8 @@ public class KorTTYApplication extends Application {
         masterPasswordManager = new MasterPasswordManager(configDir);
         gpgKeyManager = new GPGKeyManager(configDir);
         credentialManager = new CredentialManager(configDir);
+        environmentManager = new EnvironmentManager(configDir);
+        environmentManager.load();
         sshKeyManager = new SSHKeyManager(configDir);
         snippetManager = new SnippetManager(configDir);
         snippetVariableManager = new SnippetVariableManager(configDir);
@@ -345,6 +349,10 @@ public class KorTTYApplication extends Application {
     
     public CredentialManager getCredentialManager() {
         return credentialManager;
+    }
+
+    public EnvironmentManager getEnvironmentManager() {
+        return environmentManager;
     }
     
     public SSHKeyManager getSSHKeyManager() {

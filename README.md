@@ -39,14 +39,19 @@ For a comprehensive step-by-step user guide covering all features, see **[docs/U
 ## Requirements
 
 - Java 25 or higher
+- **Git** and **Maven** (to build SithTermFX from source; no GitHub token needed)
 - For GitHub Actions `windows-11-arm` release builds, Java 21 is used in CI for compatibility with currently available runner/toolchain combinations.
 - Gradle 9.x (automatically downloaded via wrapper)
 
 ## Build
 
+SithTermFX is built from source during the build (no GitHub token required). You need **Git** and **Maven** installed.
+
 ```bash
 ./gradlew build
 ```
+
+On first run, Gradle will clone [SithTermFX](https://github.com/chardonnay/SithTermFX) at tag `v1.1.0` into `vendor/sithtermfx`, build it with Maven, and install it to your local Maven repo. Subsequent builds reuse the clone unless you remove `vendor/sithtermfx`.
 
 ## Run
 
@@ -67,13 +72,10 @@ Each release provides separate packages per platform and architecture; there are
 
 ## SithTermFX Integration
 
-KorTTY uses **SithTermFX 1.1.0** as a released dependency (no submodule or local build). The binaries are resolved from [GitHub Packages](https://github.com/chardonnay/SithTermFX/packages).
+KorTTY uses **SithTermFX 1.1.0**. No GitHub token is required for local builds.
 
-- **CI (GitHub Actions):** The workflow passes `GITHUB_TOKEN` so Gradle can resolve SithTermFX from GitHub Packages. Ensure the repository has **Actions permissions** so `GITHUB_TOKEN` can read packages (e.g. same org or token with `read:packages`).
-- **Local build:** To resolve SithTermFX 1.1.0 you need a GitHub token with `read:packages`:
-  - Set the environment variable `GITHUB_TOKEN`, or
-  - In `~/.gradle/gradle.properties`: `gpr.token=<your_github_token>`
-  - Optional: `gpr.user` or `GITHUB_ACTOR` (defaults to your GitHub username).
+- **Local build:** The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the [SithTermFX](https://github.com/chardonnay/SithTermFX) repo at tag `v1.1.0` into `vendor/sithtermfx`, then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: **Git** and **Maven** on your PATH.
+- **CI (GitHub Actions):** The workflow passes `GITHUB_TOKEN` so Gradle resolves SithTermFX 1.1.0 from [GitHub Packages](https://github.com/chardonnay/SithTermFX/packages). No clone or Maven build in CI, so release builds are faster.
 
 ## Create Native Release
 

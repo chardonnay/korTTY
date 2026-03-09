@@ -78,6 +78,7 @@ public class MainWindow {
     private String dynamicThemeStylesheetUrl;
     private DashboardView dashboardView;
     private boolean dashboardVisible = false;
+    private CheckMenuItem showDashboardMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
     
     private final KorTTYApplication app;
@@ -416,6 +417,8 @@ public class MainWindow {
         });
         
         stage.setScene(scene);
+        // Apply theme again now that scene exists (first call in setupUI had scene == null)
+        applyMainWindowThemeFromGlobalSettings();
         stage.setTitle(KorTTYApplication.getAppName());
         
         // Set window icon (e.g. Windows taskbar and title bar)
@@ -534,7 +537,7 @@ public class MainWindow {
         
         MenuItem quit = new MenuItem(I18n.get("menu.file.quit"));
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
-        quit.setOnAction(e -> Platform.exit());
+        quit.setOnAction(e -> fireCloseRequest());
         
         fileMenu.getItems().addAll(
                 newTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
@@ -627,9 +630,12 @@ public class MainWindow {
         // View Menu
         Menu viewMenu = new Menu(I18n.get("menu.view"));
         
-        CheckMenuItem showDashboard = new CheckMenuItem(I18n.get("menu.view.dashboard"));
-        showDashboard.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-        showDashboard.setOnAction(e -> toggleDashboard(showDashboard.isSelected()));
+        showDashboardMenuItem = new CheckMenuItem(I18n.get("menu.view.dashboard"));
+        showDashboardMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        var gs = app.getGlobalSettingsManager().getSettings();
+        boolean restoreDashboard = gs != null && gs.isRememberDashboardState() && gs.isDashboardVisible();
+        showDashboardMenuItem.setSelected(restoreDashboard);
+        showDashboardMenuItem.setOnAction(e -> toggleDashboard(showDashboardMenuItem.isSelected()));
         
         showTimestampsMenuItem = new CheckMenuItem(I18n.get("menu.view.timestamps"));
         showTimestampsMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
@@ -651,7 +657,7 @@ public class MainWindow {
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
         
-        viewMenu.getItems().addAll(showDashboard, showTimestampsMenuItem, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(showDashboardMenuItem, showTimestampsMenuItem, new SeparatorMenuItem(),
                 zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
         
         // Help Menu
@@ -1218,11 +1224,14 @@ public class MainWindow {
             }
             ConnectionSettings defaults = new ConnectionSettings(gs.getDefaultTerminalSettings());
             String themeId = defaults.getThemeId();
+            logger.info("Applying theme: themeId='{}', saved bg='{}', saved fg='{}'",
+                    themeId, defaults.getBackgroundColor(), defaults.getForegroundColor());
             if (themeId != null && !themeId.isEmpty() && app.getThemeManager() != null) {
                 defaults = app.getThemeManager().resolveSettings(defaults, themeId);
             }
             String fg = defaults.getForegroundColor();
             String bg = defaults.getBackgroundColor();
+            logger.info("Resolved theme: bg='{}', fg='{}', scene={}", bg, fg, stage.getScene() != null);
             if (bg != null && !bg.isEmpty()) {
                 String bgStyle = "-fx-background-color: " + bg + ";";
                 root.setStyle(bgStyle);
@@ -1319,9 +1328,12 @@ public class MainWindow {
                     ".text-area { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; }",
                     ".text-area .content { -fx-background-color: " + bg + "; }",
 
-                    // Tree view
+                    // Tree view (disclosure node transparent; only .arrow triangle gets theme color)
                     ".tree-view { -fx-background-color: " + bg + "; }",
                     ".tree-cell { -fx-background-color: transparent; -fx-text-fill: " + fg + "; }",
+                    ".tree-cell .tree-disclosure-node { -fx-background-color: transparent; }",
+                    ".tree-cell .tree-disclosure-node .arrow { -fx-background-color: " + fg + "; }",
+                    ".tree-cell:expanded .tree-disclosure-node .arrow { -fx-background-color: " + fg + "; }",
                     ".tree-cell:selected { -fx-background-color: " + bgHover + "; }",
                     ".tree-cell:hover { -fx-background-color: " + bgAlt + "; }",
 
@@ -1417,7 +1429,7 @@ public class MainWindow {
     private void fireCloseRequest() {
         Event.fireEvent(stage, new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
     }
-    
+
     private void closeCurrentTab() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
         if (currentTab != null && currentTab.isClosable()) {
@@ -1552,6 +1564,9 @@ public class MainWindow {
         } else if (!show && dashboardVisible) {
             mainContentBox.getChildren().remove(dashboardView);
             dashboardVisible = false;
+        }
+        if (showDashboardMenuItem != null) {
+            showDashboardMenuItem.setSelected(dashboardVisible);
         }
     }
     
@@ -2263,6 +2278,7 @@ public class MainWindow {
         try {
             CredentialManagementDialog dialog = new CredentialManagementDialog(
                 app.getCredentialManager(),
+                app.getEnvironmentManager(),
                 app.getMasterPasswordManager().getMasterPassword()
             );
             dialog.initOwner(stage);

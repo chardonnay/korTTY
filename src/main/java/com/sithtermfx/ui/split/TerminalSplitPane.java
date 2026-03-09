@@ -571,19 +571,22 @@ public class TerminalSplitPane extends StackPane {
         });
 
         node.addEventFilter(DragEvent.DRAG_EXITED, event -> {
-            DropZoneOverlay.hide(node);
-            event.consume();
+            if (event.getDragboard().hasContent(DRAG_TERMINAL_FORMAT)) {
+                DropZoneOverlay.hide(node);
+                event.consume();
+            }
         });
 
         node.addEventFilter(DragEvent.DRAG_OVER, event -> {
             if (event.getDragboard().hasContent(DRAG_TERMINAL_FORMAT)) {
                 event.acceptTransferModes(TransferMode.ANY);
                 DropZoneOverlay.updatePlacement(node, event.getX(), event.getY());
+                event.consume();
             }
-            event.consume();
         });
 
         node.addEventFilter(DragEvent.DRAG_DROPPED, event -> {
+            if (!event.getDragboard().hasContent(DRAG_TERMINAL_FORMAT)) return;
             boolean done = DropZoneOverlay.tryDrop(node, this);
             event.setDropCompleted(done);
             event.consume();
