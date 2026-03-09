@@ -3,8 +3,6 @@
 name: Build Release Binaries
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       ref:
@@ -15,6 +13,8 @@ on:
         description: 'Numeric app version for jpackage (e.g. 1.9.0 for tag v1.9.0)'
         required: false
         default: '1.9.0'
+  release:
+    types: [published]
 
 jobs:
   build:
