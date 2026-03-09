@@ -67,6 +67,15 @@ jobs:
           choco install maven -y
           "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Set up JDK 11 for SithTermFX (needs Java 8+ for pom)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Save SithTermFX JDK path
+        run: echo "SITHTERMFX_JDK_HOME=$JAVA_HOME" >> $GITHUB_ENV
+
       - name: Set up JDK 21 (Windows ARM runner)
         if: matrix.platform == 'windows' && matrix.arch == 'arm64'
         uses: actions/setup-java@v4
@@ -211,7 +220,11 @@ jobs:
 
       - name: Build with Gradle
         shell: bash
-        run: ${{ steps.gradle.outputs.cmd }} clean build
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export PATH="/c/ProgramData/chocolatey/bin:$PATH"
+          fi
+          ${{ steps.gradle.outputs.cmd }} clean build
 
       - name: Build macOS .app
         if: matrix.platform == 'macos'
