@@ -70,8 +70,7 @@ Pre-built packages for **x86_64 (amd64)** and **arm64 (aarch64)** are available 
 
 Each release provides separate packages per platform and architecture; there are no universal binaries. Use the file that matches your OS and CPU.
 
-To **manually trigger** a release build (e.g. after moving the tag without creating a new release), go to **Actions → Build Release Binaries → Run workflow**, choose branch `main`, set **Ref** to the tag (e.g. `v1.9.0`) and **Version** to the numeric version (e.g. `1.9.0`). Or from the CLI (workflow must run from default branch, do not use `--ref`):  
-`gh workflow run build-release.yml -f ref=v1.9.0 -f version=1.9.0`
+To **manually trigger** a release build (e.g. after moving the tag without creating a new release), go to **Actions → Build Release Binaries → Run workflow**, choose branch `main`, set **Ref** to the tag (e.g. `v1.9.0`) and **Version** to the numeric version (e.g. `1.9.0`).
 
 ## SithTermFX Integration
 

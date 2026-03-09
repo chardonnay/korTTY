@@ -1,20 +1,18 @@
-# Manual run: Use workflow from default branch (do not use --ref). Example:
-#   gh workflow run build-release.yml -f ref=v1.9.0 -f version=1.9.0
 name: Build Release Binaries
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Ref to build (branch or tag, e.g. v1.9.0 or main)'
+        description: 'Ref to build (branch or tag)'
         required: false
         default: 'main'
       version:
-        description: 'Numeric app version for jpackage (e.g. 1.9.0 for tag v1.9.0)'
+        description: 'Numeric app version for jpackage (release tag: v1.9.0, jpackage value: 1.9.0)'
         required: false
         default: '1.9.0'
-  release:
-    types: [published]
 
 jobs:
   build:
@@ -43,7 +41,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref || 'main' }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
           submodules: false
 
       - name: Clone SithTermFX (build from source, no token)
@@ -206,7 +204,6 @@ jobs:
             VERSION=${VERSION#v}
           else
             VERSION="${{ github.event.inputs.version }}"
-            [ -z "$VERSION" ] && VERSION="1.9.0"
             if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
               echo "workflow_dispatch input 'version' must be numeric (e.g. 1.7.0) for jpackage."
               exit 1
@@ -484,7 +481,6 @@ jobs:
             VERSION=${VERSION#v}
           else
             VERSION="${{ github.event.inputs.version }}"
-            [ -z "$VERSION" ] && VERSION="1.9.0"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
@@ -492,7 +488,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref || 'main' }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
 
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
