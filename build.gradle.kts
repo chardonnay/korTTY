@@ -234,7 +234,7 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--dest", outputDir,
         // Keep a complete base runtime for classpath apps and include extended locale data.
         // Without java.xml, logback initialization can fail at startup (org.xml.sax.InputSource).
-        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.scripting,java.security.jgss,java.sql,java.xml,jdk.crypto.ec,jdk.localedata,jdk.unsupported",
+        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.crypto.ec,jdk.localedata,jdk.unsupported",
         "--java-options", "-Djava.awt.headless=false",
         "--java-options", "--enable-native-access=ALL-UNNAMED"
     )
