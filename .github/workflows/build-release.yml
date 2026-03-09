@@ -105,13 +105,15 @@ jobs:
       - name: "Build SithTermFX with Maven (CI: avoid Gradle Exec PATH/JAVA_HOME issues)"
         shell: bash
         run: |
+          MVN_ARGS=(-q -DskipTests -pl "sithtermfx-core,sithtermfx-ui" -am install)
           if [ "$RUNNER_OS" = "Windows" ]; then
             export PATH="/c/ProgramData/chocolatey/bin:$PATH"
+            MVN_ARGS+=(-Djavafx.platform=win)
           fi
           if [ -d vendor/sithtermfx ] && [ -f vendor/sithtermfx/pom.xml ]; then
             cd vendor/sithtermfx
             export JAVA_HOME="$SITHTERMFX_JDK_HOME"
-            mvn -q -DskipTests -pl sithtermfx-core,sithtermfx-ui -am install
+            mvn "${MVN_ARGS[@]}"
             cd ../..
           fi
 
