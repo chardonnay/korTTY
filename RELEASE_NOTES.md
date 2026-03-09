@@ -8,16 +8,23 @@
 
 ## v1.9.0
 
-**Release date:** _TBD_
+**Release date:** March 2026
 
-### Build and Dependencies
+### Highlights
 
-- **SithTermFX from source**: Local builds no longer require a GitHub token; SithTermFX is built from source (clone at tag v1.1.0, Maven install). CI uses pre-built JARs from GitHub Packages for faster builds.
-- **mosh4j bundled in release**: mosh4j JARs are included in jpackage output so users do not need to download them on first Mosh connect; bundled path is used when available, then env or `~/.kortty/mosh4j`.
+- **Token-free SithTermFX builds**: KorTTY now builds against **SithTermFX 1.1.0** from source, both locally and in CI. Building the project no longer depends on GitHub Packages credentials.
+- **Bundled mosh4j runtime**: Release packages now ship with the required **mosh4j** JARs, so Mosh support works without a first-run download.
+- **Verified multi-platform release pipeline**: The GitHub Actions release workflow was updated and validated for macOS Apple Silicon, Windows x86_64, Windows ARM64, Linux x86_64, Linux aarch64, Arch Linux, and generic Java distributions.
 
-### Version
+### Build and Packaging
 
-- **Application version**: Set to 1.9.0 in app, README, documentation, release notes, and Gradle.
+- **Local build requirements clarified**: The project now documents the required local toolchain more clearly, including Git and Maven for the embedded SithTermFX build step.
+- **Signed release artifacts**: Linux and Java release artifacts continue to ship with detached signatures and the public signing key.
+- **Release workflow improvements**: Manual release builds started via `workflow_dispatch` can now upload artifacts to an existing tagged GitHub Release.
+
+### Versioning
+
+- **Application version updated**: The application, Gradle build, README, and docs now consistently report **1.9.0**.
 
 ---
 
