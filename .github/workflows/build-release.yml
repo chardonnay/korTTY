@@ -44,12 +44,6 @@ jobs:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
           submodules: false
 
-      - name: Clone SithTermFX for CI (avoids missing submodule ref)
-        shell: bash
-        run: |
-          rm -rf vendor/sithtermfx
-          git clone --depth 1 https://github.com/chardonnay/SithTermFX.git vendor/sithtermfx
-
       - name: Set up JDK 21 (Windows ARM runner)
         if: matrix.platform == 'windows' && matrix.arch == 'arm64'
         uses: actions/setup-java@v4
@@ -200,6 +194,9 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} clean build
 
