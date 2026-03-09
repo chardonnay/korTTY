@@ -50,6 +50,32 @@ jobs:
           rm -rf vendor/sithtermfx
           git clone --depth 1 --branch v1.1.0 https://github.com/chardonnay/SithTermFX.git vendor/sithtermfx
 
+      - name: Patch SithTermFX Maven config for CI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          pom = Path("vendor/sithtermfx/pom.xml")
+          text = pom.read_text(encoding="utf-8")
+          if "<artifactId>maven-compiler-plugin</artifactId>" not in text:
+              build_block = """    <build>
+                  <plugins>
+                      <plugin>
+                          <groupId>org.apache.maven.plugins</groupId>
+                          <artifactId>maven-compiler-plugin</artifactId>
+                          <version>3.13.0</version>
+                          <configuration>
+                              <release>17</release>
+                          </configuration>
+                      </plugin>
+                  </plugins>
+              </build>
+
+          """
+              text = text.replace("    <profiles>\n", build_block + "    <profiles>\n", 1)
+              pom.write_text(text, encoding="utf-8")
+          PY
+
       - name: Install Maven (Linux)
         if: runner.os == 'Linux'
         shell: bash
@@ -85,7 +111,7 @@ jobs:
           if [ -d vendor/sithtermfx ] && [ -f vendor/sithtermfx/pom.xml ]; then
             cd vendor/sithtermfx
             export JAVA_HOME="$SITHTERMFX_JDK_HOME"
-            mvn -q -DskipTests -Dmaven.compiler.source=17 -Dmaven.compiler.target=17 install
+            mvn -q -DskipTests -pl sithtermfx-core,sithtermfx-ui -am install
             cd ../..
           fi
 
