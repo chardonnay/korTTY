@@ -72,10 +72,10 @@ Each release provides separate packages per platform and architecture; there are
 
 ## SithTermFX Integration
 
-KorTTY uses **SithTermFX 1.1.0**. No GitHub token is required for local builds.
+KorTTY uses **SithTermFX 1.1.0**, built from source. No GitHub token required (local or CI).
 
 - **Local build:** The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the [SithTermFX](https://github.com/chardonnay/SithTermFX) repo at tag `v1.1.0` into `vendor/sithtermfx`, then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: **Git** and **Maven** on your PATH.
-- **CI (GitHub Actions):** The workflow passes `GITHUB_TOKEN` so Gradle resolves SithTermFX 1.1.0 from [GitHub Packages](https://github.com/chardonnay/SithTermFX/packages). No clone or Maven build in CI, so release builds are faster.
+- **CI (GitHub Actions):** The workflow clones SithTermFX at tag `v1.1.0` into `vendor/sithtermfx`, installs Maven, then Gradle runs the same `installSithtermfxLocal` task. No GitHub token required.
 
 ## Create Native Release
 

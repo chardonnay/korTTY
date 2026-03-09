@@ -19,22 +19,8 @@ java {
     }
 }
 
-val useSithtermfxFromPackages = !(System.getenv("GITHUB_TOKEN")?.isNotBlank() == true)
-
 repositories {
     mavenLocal()
-    if (useSithtermfxFromPackages) {
-        // Not in CI: only mavenLocal (after installSithtermfxLocal) and mavenCentral
-    } else {
-        // CI: resolve SithTermFX 1.1.0 from GitHub Packages (faster than building from source)
-        maven {
-            url = uri("https://maven.pkg.github.com/chardonnay/SithTermFX")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: ""
-                password = System.getenv("GITHUB_TOKEN") ?: ""
-            }
-        }
-    }
     mavenCentral()
     // JetBrains repository for pty4j and its dependencies
     maven {
@@ -147,9 +133,7 @@ tasks.register<Exec>("installSithtermfxLocal") {
 }
 
 tasks.named("compileJava") {
-    if (useSithtermfxFromPackages) {
-        dependsOn("installSithtermfxLocal")
-    }
+    dependsOn("installSithtermfxLocal")
 }
 
 // ==================== jpackage Konfiguration ====================

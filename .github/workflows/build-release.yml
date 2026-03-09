@@ -44,6 +44,29 @@ jobs:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
           submodules: false
 
+      - name: Clone SithTermFX (build from source, no token)
+        shell: bash
+        run: |
+          rm -rf vendor/sithtermfx
+          git clone --depth 1 --branch v1.1.0 https://github.com/chardonnay/SithTermFX.git vendor/sithtermfx
+
+      - name: Install Maven (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y maven
+
+      - name: Install Maven (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: brew install maven
+
+      - name: Install Maven (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install maven -y
+          "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Set up JDK 21 (Windows ARM runner)
         if: matrix.platform == 'windows' && matrix.arch == 'arm64'
         uses: actions/setup-java@v4
@@ -187,9 +210,6 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} clean build
 
