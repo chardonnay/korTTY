@@ -1,0 +1,59 @@
+%% KorTTY – Java- und externe Module (Übersicht)
+flowchart TB
+    subgraph App["KorTTY Application"]
+        K[de.kortty]
+    end
+
+    subgraph Platform["Java Platform"]
+        JFX[JavaFX 21\ncontrols, fxml, graphics, swing]
+    end
+
+    subgraph SSH["SSH & Crypto"]
+        SSHD[Apache SSHD 2.12\ncore, common, sftp]
+        ED25519[Ed25519\nnet.i2p.crypto:eddsa]
+    end
+
+    subgraph Terminal["Terminal"]
+        SITH[SithTermFX 1.1\ncore, ui]
+        LAN[Lanterna 3.1]
+        PTY[pty4j 0.12]
+    end
+
+    subgraph Data["Data & Serialization"]
+        JAXB[JAXB 4\njakarta.xml.bind\njaxb-runtime]
+        ZIP[zip4j 2.11]
+        GSON[Gson 2.13]
+    end
+
+    subgraph Archive["Archive & Compression"]
+        COMP[commons-compress 1.25]
+        XZ[Tukaani xz 1.9]
+    end
+
+    subgraph UI["UI / Editor"]
+        RICH[RichTextFX 0.11]
+    end
+
+    subgraph Util["Utilities"]
+        JFIG[jfiglet 0.0.9]
+        ZX[zxcvbn 1.9]
+    end
+
+    subgraph Log["Logging"]
+        SLF4J[SLF4J 2.0]
+        LOG[Logback 1.4]
+    end
+
+    subgraph Optional["Optional (runtime)"]
+        MOSH[mosh4j 2.0\nprotocol, crypto, transport,\nterminal, core]
+    end
+
+    K --> JFX
+    K --> SSHD
+    K --> SITH
+    K --> JAXB
+    K --> RICH
+    K --> SLF4J
+    SSHD --> ED25519
+    SITH --> LAN
+    K -.-> MOSH

@@ -1,0 +1,583 @@
+= KorTTY User Guide
+
+*v1.9.0* | link:../README.adoc[Back to README]
+
+:toc:
+:toclevels: 3
+
+== 1. Introduction
+
+KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a tabbed terminal interface with a dark theme, advanced connection management, and tools for everyday server administration.
+
+=== Key Highlights
+
+* *Tabbed terminals* with split-screen and broadcast input
+* *Encrypted credential storage* using AES-256-GCM with a master password
+* *Project workspaces* that save and restore your complete session
+* *SFTP file manager* with a dual-panel view
+* *Code snippet manager* with syntax highlighting, placeholder variables, and import/export
+* *ASCII Art Banner* generator with 11+ FIGlet font styles
+* *SSH tunnels* (local, remote, dynamic) and jump server support
+* *Backup and restore* with password-protected ZIP or GPG encryption
+* *8 built-in languages* plus *dynamic translation*: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
+* *JMX monitoring* for active connections and memory usage
+
+=== System Requirements
+
+[cols="1,1"]
+|===
+| Requirement | Minimum
+| Java | 25 or higher (CI exception: Windows ARM64 release runner currently uses Java 21)
+| Gradle | 9.x (included via wrapper)
+| OS | macOS, Windows, Linux
+|===
+
+== 2. Getting Started
+
+=== 2.1 Installation
+
+==== Build from Source
+
+[source,bash]
+----
+git clone https://github.com/chardonnay/korTTY.git
+cd korTTY
+./gradlew build
+----
+
+==== Run Directly
+
+[source,bash]
+----
+./gradlew run
+----
+
+==== Pre-built Binaries (GitHub Releases)
+
+Ready-to-use packages are published on link:https://github.com/chardonnay/korTTY/releases[GitHub Releases]. Each asset name includes the architecture (e.g. `-x86_64` or `-aarch64`). Choose the file that matches your system:
+
+* *macOS*: Apple Silicon only — use `-aarch64`.
+* *Windows*: Use `-x86_64` for Intel/AMD, or `-arm64` for Windows on ARM.
+* *Linux*: Use `-x86_64` or `-aarch64` for ARM (e.g. Raspberry Pi 4, many cloud instances). Packages include `.deb`, `.rpm`, `.tar.gz`, and `.zip`.
+
+==== Building Native Packages Locally
+
+KorTTY can be packaged as a native application using `jpackage`. The output matches the architecture of the machine you build on (x86_64 or arm64):
+
+[cols="1,1,1"]
+|===
+| Platform | Command | Output
+| macOS (.app) | `./gradlew jpackage` | `build/jpackage/korTTY.app`
+| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-1.9.0.dmg`
+| Windows (.exe) | `gradlew.bat jpackage` | `build\jpackage\korTTY\`
+| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-1.9.0.msi`
+| Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/korTTY/`
+| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-1.9.0.deb`
+| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-1.9.0.rpm`
+|===
+
+=== 2.2 First Launch - Master Password
+
+On the first launch, KorTTY asks you to create a *master password*. This password encrypts all stored connection passwords, SSH key passphrases, and credentials.
+
+1. Enter a password (minimum 6 characters). The field border turns green when the length is sufficient and red when too short. A strength indicator shows the quality. If you choose a weak or common password, a warning is shown but you can still use it if you confirm.
+2. Confirm the password.
+3. Click *Setup*.
+
+On subsequent launches, you are prompted to enter the master password to unlock your encrypted data. You can disable this prompt in *Settings > Security*, but stored passwords will not be accessible until you enter the master password manually.
+
+=== 2.3 Main Window Overview
+
+The following diagram shows the main components of KorTTY (see also the architecture diagram in the README).
+
+image::diagrams/architecture.png[KorTTY architecture,align=center]
+
+[source,text]
+----
++---------------------------------------------------------------+
+| Menu Bar: File | Edit | Connections | Management | Tools |    |
+|           View | Help                                         |
++---------------------------------------------------------------+
+| Tab Bar: [Server-1] [Server-2] [Server-3]            [+]     |
++-------------------+-------------------------------------------+
+| Dashboard         |                                           |
+| (optional)        |           Terminal Area                    |
+|                   |                                           |
+| - Server-1 (ok)  |   user@server:~$                          |
+| - Server-2 (ok)  |                                           |
+| - Server-3 (err) |                                           |
++-------------------+-------------------------------------------+
+| Status Bar                                                    |
++---------------------------------------------------------------+
+----
+
+* *Menu Bar* - Access all features through menus and keyboard shortcuts.
+* *Tab Bar* - Each SSH session runs in its own tab. Ctrl+Tab / Ctrl+Shift+Tab to switch.
+* *Dashboard* - Toggle with Ctrl+Shift+D. Shows all open connections with status indicators. Right-click a connection to *Reconnect* (always available; closes active connection and re-establishes it), duplicate, open SFTP, or close.
+* *Status Bar* - Shows connection status, temporary SSH key timer, and connection duration.
+
+== 3. Connections
+
+=== 3.1 Connection Flow (SSH vs Mosh)
+
+KorTTY supports SSH over TCP and Mosh (via mosh4j). The following diagram illustrates the connection sequence.
+
+image::diagrams/connection-flow.png[Connection flow,align=center]
+
+=== 3.2 Quick Connect
+
+Open with *File > Quick Connect* or press *Ctrl+K* (Cmd+K on macOS).
+
+The Quick Connect dialog has three sections:
+
+1. *Frequently Used Connections* - The 10 last used connections appear as quick-access buttons at the top, ordered by last used (most recent first). Click one to connect immediately. Usage is tracked when you connect from Quick Connect or the Dashboard.
+
+2. *Individual Connection* tab:
+* Select a saved connection from the dropdown, or enter host, port, and username manually.
+* Choose an authentication method (Password, SSH Key, or Temporary SSH Key).
+* Optionally customize terminal appearance (font, size, colors).
+* Check *Save Connection* to add the connection to your library.
+
+3. *Open Group* tab:
+* Select a group from the list.
+* All connections in that group open simultaneously in separate tabs.
+
+=== 3.3 Connection Manager
+
+Open with *Connections > Manage Connections* or press *Ctrl+M* (Cmd+M on macOS).
+
+The Connection Manager provides a tree view of all saved connections organized in groups (folders).
+
+*Key actions:*
+
+[cols="1,2"]
+|===
+| Button | Description
+| *New* | Create a new connection
+| *Edit* | Edit the selected connection
+| *Delete* | Delete selected connection(s) or folder
+| *Duplicate* | Create a copy of the selected connection
+| *Create Folder* | Create a new folder (at root, or under the selected folder)
+| *Rename Folder* | Rename the selected group/folder
+| *Undo* | Undo the last move operation
+| *Import* | Import connections from file
+| *Export* | Export connections to file
+|===
+
+*Context menu (empty area):* Right-click in the free space of the connection tree (not on a folder or connection) to open a context menu with *Create folder* and *Create connection* (New…).
+
+*Searching:* Type in the search field to filter connections. Wildcard patterns are supported (e.g., `prod*` matches all connections starting with "prod").
+
+*Drag and Drop:* Drag connections between groups to reorganize them.
+
+=== 3.4 Creating / Editing a Connection
+
+When you create or edit a connection, a dialog with multiple tabs opens:
+
+==== Connection Tab
+* *Name* - Display name for the connection.
+* *Host* - Server hostname or IP address.
+* *Port* - SSH port (default: 22).
+* *Username* - Login username.
+* *Group* - Folder/group to organize the connection (use `/` for nested groups, e.g., `Production/Web`).
+* *Authentication Method:*
+** *Password* - Enter the password directly (stored encrypted).
+** *Private Key* - Select an SSH key from your key management. If the key has a passphrase (stored with the key or entered in the passphrase field), it is saved with the connection (encrypted) and used automatically when connecting.
+** *Temporary SSH Key* - Paste a time-limited key (e.g., from CyberArk) with an expiration timer.
+* *Credentials* - Select stored credentials from the credential manager.
+* *Connection Timeout* - Maximum wait time in seconds (default: 15).
+* *Retries* - Number of reconnection attempts on failure (default: 4).
+
+==== Terminal Settings Tab
+* Override global font, colors, and terminal size for this specific connection.
+* *Close Confirmation* - Ask before closing this tab.
+
+When you save a connection (e.g. after changing font size or family), any *open terminal tabs* using that connection update their font and appearance *immediately*; no restart or reconnect is required.
+
+==== SSH Tunnels Tab
+* Add, edit, or remove SSH tunnels (see <<#ssh-tunnels,SSH Tunnels>>).
+
+==== Jump Server Tab
+* Configure a bastion host (see <<#jump-server,Jump Server>>).
+
+==== Terminal Logging Tab
+* Enable/disable automatic session logging.
+* Configure log file path, maximum file size, and format (Plain Text, XML, or JSON).
+
+==== Window Geometry Tab
+* Set a fixed window size/position for this connection.
+
+=== 3.5 Import / Export Connections
+
+KorTTY can import connections from several sources:
+
+[cols="1,1"]
+|===
+| Format | Menu Path
+| KorTTY (XML/ZIP/GPG) | Connections > Import
+| MTPuTTY (servers.xml) | Connections > Import
+| MobaXTerm (.ini) | Connections > Import
+| PuTTY Connection Manager (.xml) | Connections > Import
+|===
+
+*Import options* include whether to import usernames, passwords, tunnels, jump servers, and whether to replace with stored credentials or SSH keys.
+
+*Exporting* supports KorTTY, MTPuTTY, MobaXTerm, and PuTTY CM formats. You can select individual connections and optionally encrypt the export (password ZIP or GPG).
+
+NOTE: Passwords are never included when importing from third-party formats for security reasons.
+
+== 4. Terminal
+
+=== 4.1 Session Lifecycle
+
+The following diagram shows the terminal tab and session lifecycle (including split and broadcast).
+
+image::diagrams/session-lifecycle.png[Session lifecycle,align=center]
+
+=== 4.2 Working with Tabs
+
+* *New Tab:* Ctrl+T (Cmd+T) opens Quick Connect to start a new session.
+* *Close Tab:* Ctrl+W (Cmd+W) closes the active tab (with optional confirmation).
+* *Switch Tabs:* Ctrl+Tab (next) / Ctrl+Shift+Tab (previous).
+* *Tab Groups:* Right-click a tab to assign it to a named group for better organization.
+* *Reconnect:* Right-click a tab, the terminal area, or a server entry in the Dashboard to reconnect. If the connection is active, it is closed and re-established immediately; if disconnected, it is re-established. The terminal window stays open.
+
+=== 4.3 Multi-Window
+
+Open additional windows with *File > New Window* (Ctrl+Shift+N / Cmd+Shift+N). Each window can have its own set of tabs and connections.
+
+* *Move tabs between windows:* Drag a tab from the tab bar and drop it onto another KorTTY window's tab bar to move that tab (and its session, including any split terminals) into the other window.
+* *Reorder tabs:* Drag a tab within the same window to change its order; the "+" tab stays at the end.
+
+=== 4.4 Font Size / Zoom
+
+Adjust the font size of the active terminal without reconnecting:
+
+[cols="1,2"]
+|===
+| Shortcut | Action
+| Alt+Plus | Zoom in (increase font size)
+| Alt+Minus | Zoom out (decrease font size)
+| Alt+0 | Reset zoom to saved/default font
+|===
+
+*Reset zoom* restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right‑click → *Font size* → *Reset*. The zoom level applies only to the currently focused terminal.
+
+=== 4.5 Split-Screen with Broadcast
+
+Split the terminal view to display multiple connections side by side:
+
+* *Split Pane:* Create horizontal or vertical splits within a tab.
+* *Broadcast Mode:* When enabled, keyboard input is sent simultaneously to all visible panes. This is useful for running the same commands on multiple servers.
+* *Independent Sessions:* Each pane can show a different SSH connection.
+* *Resizable Panes:* Drag dividers to adjust pane sizes.
+* *Move Panes:* Hold *Shift+Alt* (Windows/Linux) or *Shift+Option* (Mac) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.
+
+=== 4.6 Terminal Logging
+
+Automatically log terminal session output for audit and debugging:
+
+1. Enable logging in the connection's *Terminal Logging* tab.
+2. Choose a log format:
+** *Plain Text* - Raw terminal output.
+** *XML* - Structured XML with timestamps.
+** *JSON* - Structured JSON with timestamps.
+3. Set a *maximum file size* (default: 10 MB). When exceeded, the log file is rotated.
+4. Logs are stored in `~/.kortty/history/` as compressed files.
+
+=== 4.7 SSH Keep-Alive
+
+Prevent connections from dropping due to inactivity:
+
+1. Enable *SSH Keep-Alive* in the connection's Terminal tab or in *Settings > Terminal*.
+2. Set the interval (5 to 600 seconds, default: 60).
+3. KorTTY sends `SSH_MSG_IGNORE` heartbeat messages at the configured interval.
+
+== 5. SSH Tunnels
+[[ssh-tunnels]]
+
+SSH tunnels securely forward traffic between local and remote ports through an encrypted SSH connection.
+
+=== 5.1 Configuring Tunnels
+
+1. Open a connection for editing (*Connection Manager > Edit*).
+2. Go to the *SSH Tunnels* tab.
+3. Click *Add Tunnel* and fill in:
+
+[cols="1,2"]
+|===
+| Field | Description
+| *Type* | Local (`-L`), Remote (`-R`), or Dynamic (`-D`)
+| *Local Host* | Local bind address (usually `localhost`)
+| *Local Port* | Local port number
+| *Remote Host* | Target host (from the SSH server's perspective)
+| *Remote Port* | Target port on the remote host
+| *Description* | Optional label
+| *Enabled* | Toggle on/off without deleting
+|===
+
+=== 5.2 Tunnel Types
+
+*Local Port Forwarding (-L):* Forward a local port to a remote service.
+
+Your machine:8080  --->  SSH Server  --->  database-server:5432
+
+Access the remote database at `localhost:8080`.
+
+*Remote Port Forwarding (-R):* Make a local service accessible from the remote side.
+
+Remote:9090  --->  SSH Server  --->  Your machine:3000
+
+Access your local dev server from the remote machine at `localhost:9090`.
+
+*Dynamic Port Forwarding (-D):* Create a SOCKS proxy.
+
+Your machine:1080  --->  SSH Server  --->  (any destination)
+
+Configure your browser or application to use `localhost:1080` as a SOCKS5 proxy.
+
+== 6. Jump Server (Bastion Host)
+[[jump-server]]
+
+A jump server (bastion host) acts as an intermediate gateway to reach servers on a private network.
+
+image::diagrams/jump-server-flow.png[Jump server connection flow,align=center]
+
+=== Configuration
+
+1. Edit a connection and go to the *Jump Server* tab (or *Advanced* tab).
+2. Enable *Jump Server*.
+3. Enter the jump server's details:
+* *Host* and *Port*
+* *Username*
+* *Authentication* (Password or SSH Key)
+4. Optionally, set an *Auto-Command* to execute after connecting to the jump server (e.g., `ssh internal-server`).
+
+=== How It Works
+
+Your Machine  --->  Jump Server (bastion)  --->  Target Server
+
+KorTTY first establishes an SSH connection to the jump server, then uses it to connect to the target server. All traffic is routed through the jump server.
+
+== 7. SFTP Manager
+
+The integrated SFTP Manager provides a graphical file manager for transferring files between your local machine and remote servers.
+
+=== 7.1 Opening SFTP Manager
+
+* *Menu:* Tools > Open SFTP Manager
+* *Dashboard:* Right-click a connection > "Open SFTP Manager"
+
+If the connection uses a temporary SSH key that has expired, you will be prompted to enter a new key.
+
+=== 7.2 Interface
+
+The SFTP Manager uses a *two-panel layout*:
+
+[cols="1,1"]
+|===
+| Left Panel (Local) | Right Panel (Remote)
+| Browse local files | Browse remote files
+| Upload to remote | Download to local
+|===
+
+Both panels show the same *sortable columns*:
+
+[cols="1,2"]
+|===
+| Column | Description
+| *Name* | File or directory name
+| *Type* | Directory (📁) or file (📄)
+| *Size* | File size (directories show —)
+| *Date* | Last modified date/time
+| *User* | Owner (local: from filesystem; remote: from SFTP or UID)
+| *Group* | Group (local: from filesystem; remote: from SFTP or GID)
+| *Permissions* | Permissions (e.g. rwxr-xr-x)
+|===
+
+=== 7.3 Default Sort Order (Type Column)
+
+The default sort is by *Type*. The order is:
+
+1. *Parent directory* (`..`) — always at the top
+2. *Directories starting with "."* (e.g. `.git`, `.config`) — alphabetically
+3. *Other directories* — alphabetically
+4. *Files starting with "."* (e.g. `.bashrc`) — alphabetically
+5. *All other files* — alphabetically
+
+You can click any column header to sort by that column; clicking the Type column again toggles ascending/descending.
+
+=== 7.4 File Operations
+
+[cols="1,2"]
+|===
+| Operation | How
+| *Upload* | Select local file(s), click Upload (or drag and drop)
+| *Download* | Select remote file(s), click Download
+| *Delete* | Select file(s), click Delete
+| *Rename* | Select a file, click Rename
+| *Copy* | Copy files within the same panel
+| *Create Directory* | Click "New Folder" in either panel
+| *Create ZIP* | Select multiple files/directories, click "Create ZIP"
+| *Set Owner/Permissions* | Select file(s), use context menu or button. Separate fields for User, Group, and octal permissions (e.g. 755).
+|===
+
+=== 7.5 Search
+
+Both panels support *glob pattern search* using the `*` wildcard. For example, `*.log` finds all log files in the current directory.
+
+== 8. Snippet Manager
+
+The Snippet Manager lets you store, organize, and quickly insert reusable code snippets, scripts, and configuration templates.
+
+=== 8.1 Opening the Snippet Manager
+
+* *Menu:* Tools > Snippet Manager
+* *Shortcut:* Ctrl+Shift+S (Cmd+Shift+S on macOS)
+
+=== 8.2 Creating and Editing Snippets
+
+1. Click *Add* (or *Edit* to modify an existing snippet).
+2. Fill in the fields:
+* *Name* - A descriptive name.
+* *Language* - Select the programming language (Bash, Python, Java, JavaScript, SQL, XML, JSON, YAML, and more). This enables syntax highlighting.
+* *Category* - Select an existing category or type a new one.
+* *Tags* - Comma-separated keywords for searching (e.g., `docker, deploy, backup`).
+* *Content* - The snippet code. The editor provides live syntax highlighting based on the selected language.
+3. Click *Save*.
+
+=== 8.3 Placeholder Variables
+
+Snippets can contain placeholder variables that are replaced when you insert the snippet.
+
+*Built-in variables:* `${date}`, `${time}`, `${datetime}`, `${hostname}`, `${username}`, `${clipboard}`, `${cursor}`
+
+*Custom variables:* Any `${variableName}` not in the built-in list is treated as a custom variable. When you insert the snippet, KorTTY checks the Variable Manager for stored values; variables without stored values prompt for input.
+
+=== 8.4 Import / Export
+
+Snippets can be imported and exported in JSON, XML, or YAML format. Use *Export* to save selected or all snippets; use *Import* to merge from a file.
+
+== 9. ASCII Art Banner
+
+Generate ASCII art text banners using FIGlet fonts. *Menu:* Tools > ASCII Art Banner. Select a style, type your text, and click *Copy to Clipboard* to copy the result.
+
+== 10. Credential Management
+
+Centrally manage username/password credentials that can be reused across connections. The following diagram shows how credentials and SSH keys flow from storage to connections.
+
+image::diagrams/credential-flow.png[Credential and authentication flow,align=center]
+
+=== 10.1 Opening
+
+*Menu:* Management > Manage Credentials
+
+=== 10.2 Adding Credentials
+
+1. Click *Add*.
+2. Fill in: *Name*, *Username*, *Password* (stored encrypted), *Environment*, optional *Server Pattern* (glob for automatic matching), and optional *Description*.
+
+=== 10.3 Using Credentials
+
+When editing a connection, select the stored credential from the *Credentials* dropdown; username and password are filled in automatically.
+
+== 11. SSH Key Management
+
+*Menu:* Management > Manage SSH Keys. Add keys with optional encrypted passphrase, search with wildcards, and use *Copy to User Directory* to copy keys to `~/.kortty/ssh-keys/` (included in backups). When editing a connection, set *Authentication* to "Private Key" and select the key from the dropdown.
+
+== 12. GPG Key Management
+
+*Menu:* Management > Manage GPG Keys. Add keys manually or import from your system GPG keyring. Use for *Backup Encryption* (Settings > Backup) and *Export Encryption* when exporting connections.
+
+== 13. Backup and Restore
+
+KorTTY creates encrypted backups of all your settings, connections, credentials, and keys.
+
+image::diagrams/backup-restore.png[Backup and restore flow,align=center]
+
+=== 13.1 Creating a Backup
+
+*Edit > Create Backup* (Ctrl+Shift+B). Select a destination directory. The backup uses the encryption method configured in Settings.
+
+=== 13.2 Importing a Backup
+
+*Edit > Import Backup*. Select the backup file (`.zip` or `.gpg`), enter the password if prompted, choose whether to overwrite existing files, and restart the application for all changes to take effect.
+
+=== 13.3 Backup Settings
+
+Configure in *Settings > Backup*: *Encryption Type* (ZIP or GPG), *Credential / GPG Key*, and *Maximum Backups* (0 = unlimited; oldest backups are deleted automatically).
+
+== 14. Projects
+
+Projects save your complete workspace state: all open windows, tabs, connections, and terminal sessions.
+
+*Save:* *File > Save Project* (Ctrl+S). Enter name and optional description; configure *Auto-Reconnect*.
+
+*Load:* *File > Open Project* (Ctrl+O). Select a `.kortty` file; the *Project Preview* dialog shows windows, tabs, and settings before you click *Open*.
+
+== 15. Settings
+
+Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
+
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state), *Security* (master password), *Language*, *Translation* (dynamic language files), and *Themes* (color profiles with live preview).
+
+== 16. Keyboard Shortcuts
+
+On macOS, "Ctrl" refers to the *Cmd* key; "Alt" refers to the *Option* key.
+
+[cols="1,2"]
+|===
+| Shortcut | Action
+| Ctrl+T | New Tab (Quick Connect)
+| Ctrl+Shift+N | New Window
+| Ctrl+W | Close Tab
+| Ctrl+Tab | Next Tab
+| Ctrl+Shift+Tab | Previous Tab
+| Ctrl+O | Open Project
+| Ctrl+S | Save Project
+| Ctrl+M | Manage Connections
+| Ctrl+K | Quick Connect
+| Ctrl+Shift+D | Toggle Dashboard
+| Ctrl+Shift+B | Create Backup
+| Ctrl+Shift+S | Open Snippet Manager
+| Ctrl+Comma | Global Settings
+| Alt+Plus | Zoom In
+| Alt+Minus | Zoom Out
+| Alt+0 | Reset Zoom
+| F11 | Toggle Fullscreen
+| Ctrl+X | Cut (terminal: copy selection to clipboard)
+| Ctrl+C | Copy
+| Ctrl+V | Paste
+| Ctrl+Q | Quit
+|===
+
+== 17. Configuration Files
+
+All KorTTY data is stored under `~/.kortty/`:
+
+* `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `gpg-keys.xml`, `global-settings.xml`, `snippets.xml`, `snippet-variables.xml`, `master-password-hash`, `kortty.log`
+* `history/` (terminal history), `projects/` (.kortty files), `i18n/` (generated language files), `ssh-keys/` (optional copied keys)
+
+== 18. Troubleshooting
+
+* *macOS - App will not open:* Check logs with `log show --predicate 'process == "korTTY"' --last 5m`; run directly from `Contents/MacOS/korTTY` to see errors.
+* *macOS - Gatekeeper:* Right-click > Open, or Security and Privacy > "Open Anyway".
+* *Windows - MSI build failed:* Install WiX Toolset and add its bin directory to PATH.
+* *Linux - DEB/RPM build failed:* Install `fakeroot dpkg-dev` (DEB) or `rpm-build` (RPM).
+* *Connection timeout:* Increase connection timeout, enable SSH Keep-Alive, increase retry count.
+* *Master password lost:* Encrypted data cannot be recovered; delete `master-password-hash` and `credentials.xml`, restart, set new master password, re-enter passwords.
+* *Encoding issues:* Ensure connection and remote server use the same encoding (e.g. UTF-8); try `LANG=en_US.UTF-8` on the remote server.
+
+== Security Overview
+
+[cols="1,2"]
+|===
+| Feature | Implementation
+| Master Password Hashing | PBKDF2 with 310,000 iterations
+| Password Encryption | AES-256-GCM
+| SSH Key Passphrases | Stored encrypted with master password
+| Backup Encryption | Password-protected ZIP or GPG
+| Credentials | Never stored in plain text
+|===
+
+_KorTTY v1.9.0_

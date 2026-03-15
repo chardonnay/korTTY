@@ -495,6 +495,7 @@ if (isLinux) {
 }
 
 tasks.named<JavaExec>("run") {
+    val jmxEnable = project.findProperty("jmx") == "true"
     // JVM-Argumente zur Unterdrückung von JavaFX-Warnungen
     jvmArgs = listOf(
         // Öffne Zugriff auf interne JavaFX-Module (reduziert Warnungen über restricted methods)
@@ -512,7 +513,13 @@ tasks.named<JavaExec>("run") {
         // Diese Warnungen kommen von JavaFX's Marlin Renderer und sind harmlos
         "--sun-misc-unsafe-memory-access=allow",
         "-Djava.awt.headless=false"
-    )
+    ) + if (jmxEnable) listOf(
+        // JMX remote monitoring (enable with: ./gradlew run -Pjmx=true)
+        "-Dcom.sun.management.jmxremote",
+        "-Dcom.sun.management.jmxremote.port=9010",
+        "-Dcom.sun.management.jmxremote.local.only=false",
+        "-Dcom.sun.management.jmxremote.authenticate=false"
+    ) else emptyList()
 }
 
 tasks.test {

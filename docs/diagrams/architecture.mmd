@@ -1,0 +1,37 @@
+%% KorTTY architecture: vertikal (Höhe statt Breite), korrekte Struktur
+flowchart TB
+    subgraph Outer[" "]
+        direction TB
+        subgraph App["KorTTY Application"]
+            direction TB
+            MW[Main Window]
+            TabBar[Tab Bar]
+            TabBar --> TT[Terminal Tabs]
+            TabBar --> SFTPTab[SFTP Manager Tabs]
+            Dashboard[Dashboard]
+            Menu[Menu Bar]
+            ConnMenu[Connections]
+            ConnMenu --> QConnect[Quick Connect]
+            ConnMenu --> ConnMgr[Connection Manager]
+            ConnMenu --> Import[Import/Export]
+            StatusBar[Status Bar]
+        end
+
+        subgraph Data["Configuration & Data"]
+            direction TB
+            ConnXML[connections.xml]
+            CredXML[credentials.xml]
+            Settings[global-settings.xml]
+            Projects[projects/]
+            Mgmt[Management]
+            Mgmt --> Creds[Credentials]
+            Mgmt --> SSHKeys[SSH Keys]
+            Mgmt --> GPGKeys[GPG Keys]
+            Mgmt --> Env[Environments]
+            Tools[Tools]
+            Tools --> Snippets[Snippet Manager]
+            Tools --> SFTP[Open SFTP]
+        end
+    end
+
+    StatusBar --> ConnXML

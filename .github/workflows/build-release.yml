@@ -15,6 +15,31 @@ on:
         default: '1.9.0'
 
 jobs:
+  docs-render:
+    name: Render Mermaid diagrams
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
+          submodules: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Render Mermaid diagrams to PNG
+        run: ./scripts/render-mermaid.sh
+
+      - name: Upload diagram PNGs
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-diagrams
+          path: docs/diagrams/*.png
+          retention-days: 30
+
   build:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -590,7 +615,7 @@ jobs:
           retention-days: 30
 
   upload-release:
-    needs: [build, build-pacman]
+    needs: [build, build-pacman, docs-render]
     if: success() && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.ref, 'v')))
     runs-on: ubuntu-latest
     permissions:
@@ -623,6 +648,15 @@ jobs:
         run: |
           mkdir -p release
           find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.tar' -o -name '*.jar' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.sig' -o -name '*.asc' \) -exec cp {} release/ \;
+
+      - name: Add docs diagram PNGs to release
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          if [ -d "artifacts/docs-diagrams" ]; then
+            cd artifacts/docs-diagrams
+            zip -r "../../release/KorTTY-docs-diagrams-${VERSION}.zip" . -i "*.png"
+            cd ../..
+          fi
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2

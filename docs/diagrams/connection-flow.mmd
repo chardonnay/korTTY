@@ -1,0 +1,22 @@
+%% Connection flow: user to terminal
+sequenceDiagram
+    participant User
+    participant KorTTY
+    participant ConnMgr as Connection Manager
+    participant SSH as SSH/Mosh Client
+    participant Server as Remote Server
+
+    User->>KorTTY: Open connection (Quick Connect / Tab)
+    KorTTY->>ConnMgr: Load connection settings
+    ConnMgr->>KorTTY: Host, auth, protocol
+    alt Protocol: SSH
+        KorTTY->>SSH: Establish SSH session (TCP)
+        SSH->>Server: SSH handshake
+    else Protocol: Mosh (mosh4j)
+        KorTTY->>SSH: SSH exec mosh-server
+        SSH->>Server: Start mosh-server
+        Server-->>KorTTY: MOSH CONNECT port key
+        KorTTY->>SSH: UDP session (mosh4j)
+    end
+    Server-->>KorTTY: Terminal stream
+    KorTTY->>User: Display terminal (SithTermFX)

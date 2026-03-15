@@ -1,5 +1,7 @@
 # Release Notes
 
+> **Deprecated:** Release notes have been migrated to AsciiDoc. See [docs/RELEASE_NOTES.adoc](docs/RELEASE_NOTES.adoc).
+
 ## Unreleased
 
 - _No unreleased entries._
