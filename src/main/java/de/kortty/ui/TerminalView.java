@@ -112,6 +112,7 @@ public class TerminalView extends BorderPane {
     
     private DisconnectListener externalDisconnectListener;
     private Runnable onConnectedCallback;
+    private Runnable onMoshInterruptedCallback;
     private de.kortty.core.TerminalLogger terminalLogger;
     private NewConnectionCallback newConnectionCallback;
     
@@ -248,6 +249,26 @@ public class TerminalView extends BorderPane {
         
         terminalWidget = splitPane.getFocusedWidget();
         if (terminalWidget != null) applyCursorShape(terminalWidget);
+        
+        // Handle arrow and navigation keys at split-pane level so we run before the terminal widget
+        // (which may consume them for scrolling). Ensures mc and similar apps receive arrow keys.
+        splitPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            String sequence = keyCodeToControlSequence(event.getCode());
+            if (sequence != null) {
+                SithTermFxWidget focused = splitPane.getFocusedWidget();
+                if (focused != null) {
+                    TtyConnector connector = focused.getTtyConnector();
+                    if (connector != null && connector.isConnected()) {
+                        try {
+                            connector.write(sequence);
+                            event.consume();
+                        } catch (java.io.IOException e) {
+                            logger.debug("Failed to send key sequence: {}", e.getMessage());
+                        }
+                    }
+                }
+            }
+        });
         
         // Require Shift+Alt/Option for pane-move drag; otherwise consume so terminal gets text selection
         splitPane.addEventFilter(MouseEvent.DRAG_DETECTED, e -> {
@@ -584,6 +605,14 @@ public class TerminalView extends BorderPane {
     private void setConnectorDisconnectListener(TtyConnector connector, DisconnectListener listener) {
         if (connector instanceof Mosh4jTtyConnector mosh4jConnector) {
             mosh4jConnector.setDisconnectListener(listener);
+            mosh4jConnector.setOnRecoveredCallback(() ->
+                    Platform.runLater(this::requestTerminalFocusAfterRecovery));
+            mosh4jConnector.setOnInterruptedCallback(() ->
+                    Platform.runLater(() -> {
+                        if (onMoshInterruptedCallback != null) {
+                            onMoshInterruptedCallback.run();
+                        }
+                    }));
             return;
         }
         if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
@@ -592,6 +621,36 @@ public class TerminalView extends BorderPane {
         }
         if (connector instanceof SshTtyConnector sshConnector) {
             sshConnector.setDisconnectListener(listener);
+        }
+    }
+
+    /**
+     * Called after mosh recovers from a network interruption. Re-applies the connector to the
+     * terminal widget(s) that use it so the write path is re-bound (Ctrl+C and other keys work again).
+     */
+    private void requestTerminalFocusAfterRecovery() {
+        if (ttyConnector == null) {
+            return;
+        }
+        // Re-set connector on the focused widget if it uses this connector (e.g. single tab or focused split).
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (focused != null && focused.getTtyConnector() == ttyConnector) {
+            focused.setTtyConnector(ttyConnector);
+            if (focused.getPane() != null) {
+                focused.getPane().requestFocus();
+            }
+            return;
+        }
+        // If there are multiple widgets (splits), re-apply to any widget that uses this connector.
+        if (splitPane != null) {
+            for (SithTermFxWidget w : splitPane.getAllWidgets()) {
+                if (w.getTtyConnector() == ttyConnector) {
+                    w.setTtyConnector(ttyConnector);
+                }
+            }
+            if (focused != null && focused.getPane() != null) {
+                focused.getPane().requestFocus();
+            }
         }
     }
     
@@ -915,6 +974,9 @@ public class TerminalView extends BorderPane {
             }
         });
 
+        // Navigation keys (arrow, Tab, etc.) are handled at split-pane level so we run before the
+        // terminal widget consumes them; see splitPane.addEventFilter(KeyEvent.KEY_PRESSED, ...) above.
+
         // Copy-on-select: when user finishes selecting text, copy to clipboard if enabled
         var panel = widget.getTerminalPanel();
         if (panel != null) {
@@ -924,6 +986,41 @@ public class TerminalView extends BorderPane {
                 }
             });
         }
+    }
+
+    /**
+     * Returns the terminal escape sequence for navigation/special keys (arrow, Tab, Home, End, F-keys, etc.).
+     * Used so that e.g. Midnight Commander receives these keys (pane switch with Tab, selection with arrows).
+     * Returns null for keys that should be handled by the default path (Enter, Backspace, printable).
+     */
+    private static String keyCodeToControlSequence(KeyCode code) {
+        return switch (code) {
+            case TAB -> "\t";
+            // Use application keypad mode (SS3) for arrow keys so ncurses apps like mc receive them.
+            case UP -> "\u001BOA";
+            case DOWN -> "\u001BOB";
+            case RIGHT -> "\u001BOC";
+            case LEFT -> "\u001BOD";
+            case HOME -> "\u001B[H";
+            case END -> "\u001B[F";
+            case PAGE_UP -> "\u001B[5~";
+            case PAGE_DOWN -> "\u001B[6~";
+            case INSERT -> "\u001B[2~";
+            case DELETE -> "\u001B[3~";
+            case F1 -> "\u001BOP";
+            case F2 -> "\u001BOQ";
+            case F3 -> "\u001BOR";
+            case F4 -> "\u001BOS";
+            case F5 -> "\u001B[15~";
+            case F6 -> "\u001B[17~";
+            case F7 -> "\u001B[18~";
+            case F8 -> "\u001B[19~";
+            case F9 -> "\u001B[20~";
+            case F10 -> "\u001B[21~";
+            case F11 -> "\u001B[23~";
+            case F12 -> "\u001B[24~";
+            default -> null;
+        };
     }
 
     private boolean isTerminalCopyOnSelectEnabled() {
@@ -1320,6 +1417,14 @@ public class TerminalView extends BorderPane {
      */
     public void setOnConnectedCallback(Runnable callback) {
         this.onConnectedCallback = callback;
+    }
+
+    /**
+     * Sets a callback run when a mosh4j session enters a transient network interruption,
+     * so the tab can show the status bar immediately.
+     */
+    public void setOnMoshInterruptedCallback(Runnable callback) {
+        this.onMoshInterruptedCallback = callback;
     }
     
     public void setOnReconnectRequested(Runnable r) {
@@ -2050,7 +2155,17 @@ public class TerminalView extends BorderPane {
     public SshTtyConnector getTtyConnector() {
         return ttyConnector instanceof SshTtyConnector ssh ? ssh : null;
     }
-    
+
+    /**
+     * Informs the connector whether this terminal tab is the active (focused) one.
+     * Used by Mosh4j to avoid showing a false "connection interrupted" when the user switched to another tab.
+     */
+    public void setTerminalActive(boolean active) {
+        if (ttyConnector instanceof Mosh4jTtyConnector mosh) {
+            mosh.setTerminalActive(active);
+        }
+    }
+
     /**
      * Restores split pane structure from saved state.
      * Recreates the split tree with new SSH connections for each widget.

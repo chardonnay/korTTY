@@ -55,6 +55,8 @@ public class Mosh4jTtyConnector implements TtyConnector {
     private static final int PIPE_BUFFER_CHARS = 1_048_576;
     private static final boolean DEBUG = Boolean.parseBoolean(System.getenv("KORTTY_MOSH_DEBUG"));
     private static final long KEEPALIVE_INTERVAL_MS = 2500L;
+    /** No host bytes for this long → show "connection interrupted" (longer than KEEPALIVE to avoid false positives when app is idle). */
+    private static final long NO_HOST_BYTES_INTERRUPTION_MS = 15_000L;
     private static final String LOCAL_MOSH4J_REPO_ENV = "KORTTY_MOSH4J_LOCAL_REPO";
     private static final String MOSH4J_RELEASE_DIR_ENV = "KORTTY_MOSH4J_RELEASE_DIR";
     private static final String MOSH4J_SNAPSHOT_DIR_ENV = "KORTTY_MOSH4J_SNAPSHOT_DIR"; // legacy fallback
@@ -66,6 +68,8 @@ public class Mosh4jTtyConnector implements TtyConnector {
     private SSHKeyManager sshKeyManager;
     private char[] masterPassword;
     private DisconnectListener disconnectListener;
+    private volatile Runnable onRecoveredCallback;
+    private volatile Runnable onInterruptedCallback;
 
     private volatile URLClassLoader classLoader;
     private volatile Object frontend;
@@ -89,6 +93,10 @@ public class Mosh4jTtyConnector implements TtyConnector {
     private volatile long interruptionStartedAtMs = -1L;
     private volatile long lastUserInputAtMs = -1L;
     private volatile long logoutRequestedAtMs = -1L;
+    /** True when this tab is the selected/focused terminal tab; used to avoid false "interrupted" when user switched away. */
+    private volatile boolean terminalActive = true;
+    /** When terminal became active (tab focused); used to avoid immediate "interrupted" right after switching back. */
+    private volatile long lastActivatedAtMs = System.currentTimeMillis();
 
     public Mosh4jTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
@@ -102,6 +110,35 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     public void setDisconnectListener(DisconnectListener disconnectListener) {
         this.disconnectListener = disconnectListener;
+    }
+
+    /**
+     * Sets a callback run when the session recovers from a transient network interruption
+     * (so the UI can e.g. request focus to restore terminal input).
+     */
+    public void setOnRecoveredCallback(Runnable onRecoveredCallback) {
+        this.onRecoveredCallback = onRecoveredCallback;
+    }
+
+    /**
+     * Sets a callback run when the session enters a transient network interruption
+     * (so the UI can show the status bar immediately without waiting for the next timer tick).
+     */
+    public void setOnInterruptedCallback(Runnable onInterruptedCallback) {
+        this.onInterruptedCallback = onInterruptedCallback;
+    }
+
+    /**
+     * Sets whether this terminal tab is the active (focused) one. When false, "no host bytes"
+     * is not treated as connection interrupted, so switching to another tab does not show a false
+     * "interrupted" status. When set to true, a short grace period is applied before applying
+     * the no-host-bytes heuristic again.
+     */
+    public void setTerminalActive(boolean active) {
+        this.terminalActive = active;
+        if (active) {
+            this.lastActivatedAtMs = System.currentTimeMillis();
+        }
     }
 
     public static boolean isReleaseSupported() {
@@ -479,6 +516,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
                         if (!isFrontendRunning()) {
                             if (interruptionStartedAtMs < 0) {
                                 interruptionStartedAtMs = System.currentTimeMillis();
+                                notifyInterrupted();
                             }
                             // Network glitches should not kill the mosh tab; try to revive
                             // the frontend receive loop and continue.
@@ -486,9 +524,9 @@ public class Mosh4jTtyConnector implements TtyConnector {
                             Thread.sleep(100);
                             continue;
                         }
-                        if (interruptionStartedAtMs > 0) {
-                            interruptionStartedAtMs = -1L;
-                        }
+                        // Do not clear interruptionStartedAtMs here: only clear when we actually
+                        // receive host bytes (data from server). Otherwise isFrontendRunning() can
+                        // flicker and the status bar would appear/disappear repeatedly.
 
                         if (frontendTakeHostBytes != null) {
                             byte[] hostBytes = (byte[]) frontendTakeHostBytes.invoke(frontend, 250L);
@@ -498,7 +536,9 @@ public class Mosh4jTtyConnector implements TtyConnector {
                                 writer.flush();
                                 totalCharsWrittenToPipe += chunk.length();
                                 lastHostBytesAt = System.currentTimeMillis();
+                                long wasInterrupted = interruptionStartedAtMs;
                                 interruptionStartedAtMs = -1L;
+                                notifyRecovered(wasInterrupted);
                                 // Any fresh server output confirms the path is healthy again.
                                 lastUserInputAtMs = -1L;
                                 if (DEBUG) {
@@ -522,19 +562,20 @@ public class Mosh4jTtyConnector implements TtyConnector {
                                 continue;
                             }
                             long now = System.currentTimeMillis();
-                            if (lastUserInputAtMs > 0 && lastUserInputAtMs > lastHostBytesAt
-                                    && now - lastUserInputAtMs >= KEEPALIVE_INTERVAL_MS
-                                    && interruptionStartedAtMs < 0) {
+                            // Show "interrupted" only when this tab is active and we have had no host bytes for a long time.
+                            // When the user switched to another tab, we do not treat idle as disconnected.
+                            long activeForMs = now - lastActivatedAtMs;
+                            if (terminalActive && activeForMs > 2_000L
+                                    && now - lastHostBytesAt >= NO_HOST_BYTES_INTERRUPTION_MS && interruptionStartedAtMs < 0) {
                                 interruptionStartedAtMs = now;
+                                notifyInterrupted();
                             }
-                            // Keep mosh session active with protocol heartbeat (no injected bytes).
+                            // Keep mosh session active with protocol heartbeat only. Do not send NUL (0x00)
+                            // as "user input" — it appears as ^@ on screen and corrupts prompt/input.
                             if (now - lastHostBytesAt >= KEEPALIVE_INTERVAL_MS
-                                    && now - lastKeepaliveAt >= KEEPALIVE_INTERVAL_MS) {
-                                if (frontendSendHeartbeat != null) {
-                                    frontendSendHeartbeat.invoke(frontend);
-                                } else {
-                                    frontendSendUserInput.invoke(frontend, (Object) new byte[]{0});
-                                }
+                                    && now - lastKeepaliveAt >= KEEPALIVE_INTERVAL_MS
+                                    && frontendSendHeartbeat != null) {
+                                frontendSendHeartbeat.invoke(frontend);
                                 lastKeepaliveAt = now;
                                 if (DEBUG) {
                                     logger.info("MOSH4J keepalive heartbeat sent");
@@ -570,6 +611,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
                         }
                         if (interruptionStartedAtMs < 0) {
                             interruptionStartedAtMs = System.currentTimeMillis();
+                            notifyInterrupted();
                         }
                         if (DEBUG) {
                             logger.info("MOSH4J transient frontend loop issue: {}", cause != null ? cause.getMessage() : loopError.getMessage());
@@ -767,7 +809,16 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     @Override
     public boolean isConnected() {
-        return connected.get() && isFrontendRunning();
+        if (!connected.get()) {
+            return false;
+        }
+        // When we have recovered (interruptionStartedAtMs cleared after receiving host bytes),
+        // report connected so the terminal accepts input again. Otherwise isFrontendRunning()
+        // may still be false briefly and would block all key input (e.g. cannot quit "top" with q).
+        if (interruptionStartedAtMs < 0) {
+            return true;
+        }
+        return isFrontendRunning();
     }
 
     public boolean isNetworkInterrupted() {
@@ -776,6 +827,30 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     public long getInterruptionStartedAtMs() {
         return interruptionStartedAtMs;
+    }
+
+    private void notifyInterrupted() {
+        Runnable cb = onInterruptedCallback;
+        if (cb != null) {
+            try {
+                cb.run();
+            } catch (Exception e) {
+                logger.warn("onInterruptedCallback failed: {}", e.getMessage());
+            }
+        }
+    }
+
+    private void notifyRecovered(long wasInterruptedAtMs) {
+        if (wasInterruptedAtMs > 0) {
+            Runnable cb = onRecoveredCallback;
+            if (cb != null) {
+                try {
+                    cb.run();
+                } catch (Exception e) {
+                    logger.warn("onRecoveredCallback failed: {}", e.getMessage());
+                }
+            }
+        }
     }
 
     @Override

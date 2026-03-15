@@ -171,9 +171,13 @@ public class MainWindow {
             }
         });
         
-        // Auto-focus terminal when tab is selected
+        // Auto-focus terminal when tab is selected; tell Mosh connector when this tab is active so it does not show false "interrupted"
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (oldTab instanceof TerminalTab oldTerminalTab) {
+                oldTerminalTab.getTerminalView().setTerminalActive(false);
+            }
             if (newTab instanceof TerminalTab terminalTab) {
+                terminalTab.getTerminalView().setTerminalActive(true);
                 Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
             }
         });
@@ -859,7 +863,8 @@ public class MainWindow {
                             // Reset tab color (TerminalTab's resetTabColor() does setStyle(""))
                             terminalTab.setStyle("");
                             // Update status and dashboard
-                            updateStatus(I18n.get("status.connectedTo", connection.getDisplayName()));
+                            updateStatus(I18n.get("status.connectedToWithHostAndProtocol",
+                                    connection.getDisplayName(), connection.getHost(), getProtocolLabel(connection.getProtocol())));
                             updateDashboard(); // Update dashboard when connection succeeds
                         });
                     });
@@ -2177,6 +2182,15 @@ public class MainWindow {
     private void updateStatus(String message) {
         statusLabel.setText(message);
     }
+
+    private static String getProtocolLabel(ConnectionProtocol protocol) {
+        if (protocol == null) return "SSH";
+        return switch (protocol) {
+            case MOSH -> I18n.get("protocol.mosh");
+            case MOSH_CLIENT -> I18n.get("protocol.moshClient");
+            case SSH_TCP -> I18n.get("protocol.sshTcp");
+        };
+    }
     
     private void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -2781,7 +2795,8 @@ public class MainWindow {
                             // Reset tab color (remove yellow connecting color)
                             newTab.setStyle("");
                             // Update status and dashboard
-                            updateStatus(I18n.get("status.connectedTo", connection.getDisplayName()));
+                            updateStatus(I18n.get("status.connectedToWithHostAndProtocol",
+                                    connection.getDisplayName(), connection.getHost(), getProtocolLabel(connection.getProtocol())));
                             updateDashboard();
                         });
                     });

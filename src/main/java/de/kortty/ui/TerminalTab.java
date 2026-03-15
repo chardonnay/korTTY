@@ -35,6 +35,8 @@ public class TerminalTab extends Tab {
     private Label disconnectedStatusBar;
     private Instant disconnectedAt;
     private volatile boolean reconnectInProgress = false;
+    /** True when the red disconnected bar was shown due to mosh network interruption (so we hide it on recovery). */
+    private boolean moshInterruptedBarVisible = false;
     
     // Tab group (independent from connection group)
     private String tabGroup = null;
@@ -121,12 +123,38 @@ public class TerminalTab extends Tab {
     
     /**
      * Shows the disconnected status bar with timestamp. Hides the normal status bar.
+     * Call this when the connection has fully dropped (e.g. from disconnect listener).
      */
     private void showDisconnectedStatusBar() {
         disconnectedAt = Instant.now();
         String timeStr = DateTimeFormatter.ofPattern("HH:mm").format(disconnectedAt.atZone(ZoneId.systemDefault()));
+        showDisconnectedStatusBar(timeStr, false);
+    }
+
+    /**
+     * Shows the red status bar with a timestamp and message.
+     * @param timeStr time string (e.g. HH:mm)
+     * @param forMoshInterrupt if true, use "interrupted" message and record that we showed for interrupt (so we hide on recovery)
+     */
+    private void showDisconnectedStatusBar(String timeStr, boolean forMoshInterrupt) {
+        showDisconnectedStatusBar(timeStr, null, forMoshInterrupt);
+    }
+
+    /**
+     * Shows the red status bar with optional elapsed duration (for mosh interrupt).
+     * @param timeStr time when interrupt started (e.g. HH:mm)
+     * @param elapsedDuration optional elapsed duration string (e.g. "2m 15s"); if non-null and forMoshInterrupt, shown in bar
+     * @param forMoshInterrupt if true, use "interrupted" message and record that we showed for interrupt
+     */
+    private void showDisconnectedStatusBar(String timeStr, String elapsedDuration, boolean forMoshInterrupt) {
         if (disconnectedStatusBar != null) {
-            disconnectedStatusBar.setText(I18n.get("statusBar.disconnectedAtDoubleClick", timeStr));
+            String key = forMoshInterrupt && elapsedDuration != null
+                    ? "statusBar.interruptedAtDoubleClickWithElapsed"
+                    : forMoshInterrupt ? "statusBar.interruptedAtDoubleClick" : "statusBar.disconnectedAtDoubleClick";
+            String text = forMoshInterrupt && elapsedDuration != null
+                    ? I18n.get(key, timeStr, elapsedDuration)
+                    : I18n.get(key, timeStr);
+            disconnectedStatusBar.setText(text);
             disconnectedStatusBar.setVisible(true);
             disconnectedStatusBar.setManaged(true);
         }
@@ -134,8 +162,24 @@ public class TerminalTab extends Tab {
             statusBarLabel.setVisible(false);
             statusBarLabel.setManaged(false);
         }
+        moshInterruptedBarVisible = forMoshInterrupt;
     }
     
+    /**
+     * Called when mosh4j reports a network interruption (runs on JavaFX thread).
+     * Shows the red status bar immediately so the user sees the drop without waiting for the timer.
+     */
+    private void showMoshInterruptedStatusBarIfNeeded() {
+        long interruptedMs = terminalView.getMoshInterruptionStartedAtMs();
+        if (interruptedMs > 0 && connection.getProtocol() == ConnectionProtocol.MOSH) {
+            String timeStr = DateTimeFormatter.ofPattern("HH:mm").format(Instant.ofEpochMilli(interruptedMs).atZone(ZoneId.systemDefault()));
+            showDisconnectedStatusBar(timeStr, true);
+            if (!isConnectionFailed) {
+                setTabErrorColor();
+            }
+        }
+    }
+
     /**
      * Hides the disconnected status bar and restores the normal status bar if present.
      */
@@ -148,6 +192,7 @@ public class TerminalTab extends Tab {
             statusBarLabel.setVisible(true);
             statusBarLabel.setManaged(true);
         }
+        moshInterruptedBarVisible = false;
     }
     
     /**
@@ -227,14 +272,27 @@ public class TerminalTab extends Tab {
             status.append(I18n.get("statusBar.networkInterruptedSinceElapsed", since, elapsed));
         }
         
+        final boolean wasInterrupted = interrupted;
+        final long interruptedMs = interruptedSinceMs;
         Platform.runLater(() -> {
             statusBarLabel.setText(status.toString());
-            if (interrupted) {
+            if (wasInterrupted) {
                 statusBarLabel.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
                 if (!isConnectionFailed) {
                     setTabErrorColor();
                 }
+                // Show prominent red bar with elapsed duration so user sees disconnect and how long it has been
+                if (interruptedMs > 0) {
+                    long nowMs = System.currentTimeMillis();
+                    long elapsedSeconds = Math.max(0L, (nowMs - interruptedMs) / 1000L);
+                    String timeStr = DateTimeFormatter.ofPattern("HH:mm").format(Instant.ofEpochMilli(interruptedMs).atZone(ZoneId.systemDefault()));
+                    String elapsedStr = formatDuration(elapsedSeconds);
+                    showDisconnectedStatusBar(timeStr, elapsedStr, true);
+                }
             } else {
+                if (moshInterruptedBarVisible) {
+                    hideDisconnectedStatusBar();
+                }
                 statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
                 if (!isConnectionFailed) {
                     resetTabColor();
@@ -329,6 +387,8 @@ public class TerminalTab extends Tab {
         // Set tab to yellow color to indicate connection attempt in progress
         setTabConnectingColor();
         
+        // Show status bar immediately when mosh detects network interruption (don't wait for timer)
+        terminalView.setOnMoshInterruptedCallback(this::showMoshInterruptedStatusBarIfNeeded);
         // Register disconnect listener: keep tab and split open, show red tab and red status bar
         terminalView.setDisconnectListener((reason, wasError) -> {
             Platform.runLater(() -> {
