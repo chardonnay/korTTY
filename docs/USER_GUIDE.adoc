@@ -273,7 +273,41 @@ Split the terminal view to display multiple connections side by side:
 * *Resizable Panes:* Drag dividers to adjust pane sizes.
 * *Move Panes:* Hold *Shift+Alt* (Windows/Linux) or *Shift+Option* (Mac) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.
 
-=== 4.6 Terminal Logging
+=== 4.6 AI Assistant for Terminal Selections
+
+KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint and open the answer in a temporary AI result tab.
+
+[WARNING]
+====
+Selected terminal text is transmitted to the configured AI endpoint for analysis. That text can contain sensitive information such as credentials, hostnames, file paths, stack traces, or other operational details. For sensitive data, prefer a trusted local or OpenAI-compatible endpoint such as *LM Studio*, or verify that you trust the remote endpoint before sending anything. If you provide an *API Key*, KorTTY stores it encrypted with your master password.
+====
+
+*Setup:*
+
+1. Open *Edit > Global Settings*.
+2. Go to *AI*.
+3. Enter the *API URL*.
+4. Optionally enter *Model* and *API Key*. These fields are intentionally optional so local OpenAI-compatible endpoints such as *LM Studio* can be used.
+   The *API Key* is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.
+5. Click *Test AI Connection*.
+
+*Usage:*
+
+1. Select text in the terminal.
+2. Right-click the selected text.
+3. Open *AI* and choose:
+* *Summarize* - Creates a concise summary of the selected output.
+* *Solve Problem* - Analyzes the selected error output and suggests likely fixes.
+4. Confirm the request in the preview dialog. The response opens in a temporary AI tab.
+
+*AI result tab behavior:*
+
+* The tab is read-only and not included in saved project/session state.
+* `<think> ... </think>` blocks are removed from the visible output.
+* The toolbar lets you copy the response, close the tab, and change the font size.
+* The chosen AI tab font size is stored globally and reused for future AI result tabs.
+
+=== 4.7 Terminal Logging
 
 Automatically log terminal session output for audit and debugging:
 
@@ -285,7 +319,7 @@ Automatically log terminal session output for audit and debugging:
 3. Set a *maximum file size* (default: 10 MB). When exceeded, the log file is rotated.
 4. Logs are stored in `~/.kortty/history/` as compressed files.
 
-=== 4.7 SSH Keep-Alive
+=== 4.8 SSH Keep-Alive
 
 Prevent connections from dropping due to inactivity:
 
@@ -519,7 +553,7 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state), *Security* (master password), *Language*, *Translation* (dynamic language files), and *Themes* (color profiles with live preview).
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible terminal analysis), and *Themes* (color profiles with live preview).
 
 == 16. Keyboard Shortcuts
 

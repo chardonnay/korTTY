@@ -2,6 +2,17 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.ui.I18n;
+import de.kortty.core.AiAction;
+import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiRequest;
+import de.kortty.core.AiService;
+import de.kortty.core.AiTokenCounter;
+import de.kortty.core.AiTokenUsage;
+import de.kortty.core.AiTokenUsageManager;
+import de.kortty.core.AiTokenUsageSnapshot;
+import de.kortty.core.AiTokenWarningLevel;
+import de.kortty.core.LanguageManager;
+import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.SSHSession;
 import de.kortty.core.SessionManager;
@@ -17,6 +28,7 @@ import de.kortty.persistence.exporter.MobaXTermExporter;
 import de.kortty.security.PasswordVault;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.Scene;
@@ -33,7 +45,9 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.TransferMode;
 import javafx.geometry.Point2D;
+import javafx.geometry.Insets;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.event.Event;
 import javafx.stage.FileChooser;
@@ -67,6 +81,7 @@ public class MainWindow {
         return instance;
     }
     private static final Logger logger = LoggerFactory.getLogger(MainWindow.class);
+    private static final int DEFAULT_MAX_AI_SELECTION_CHARS = 1_000_000;
     
     private final Stage stage;
     private final BorderPane root;
@@ -266,6 +281,7 @@ public class MainWindow {
             tabPane.getTabs().add(insertIndex, tab);
             tabPane.getSelectionModel().select(tab);
             if (tab instanceof TerminalTab tt) {
+                installAiSelectionHandler(tt);
                 Platform.runLater(() -> tt.getTerminalView().requestFocus());
             }
             event.setDropCompleted(true);
@@ -308,6 +324,7 @@ public class MainWindow {
             tabPane.getTabs().add(insertIndex, tab);
             tabPane.getSelectionModel().select(tab);
             if (tab instanceof TerminalTab tt) {
+                installAiSelectionHandler(tt);
                 Platform.runLater(() -> tt.getTerminalView().requestFocus());
             }
             event.setDropCompleted(true);
@@ -809,6 +826,7 @@ public class MainWindow {
             
             // Set callback for "Split with new connection" feature
             terminalTab.getTerminalView().setNewConnectionCallback(this::requestNewConnectionForSplit);
+            installAiSelectionHandler(terminalTab);
             
             // Register timestamp toggle listener so context menu toggle updates the View menu
             terminalTab.setTimestampToggleListener(() -> {
@@ -2183,6 +2201,507 @@ public class MainWindow {
         statusLabel.setText(message);
     }
 
+    private void handleAiSelectionAction(TerminalTab terminalTab, AiAction action, AiProfile profile, String selectedText) {
+        if (selectedText == null || selectedText.trim().isEmpty()) {
+            return;
+        }
+        int maxSelectionChars = getMaxAiSelectionChars(profile);
+        if (selectedText.length() > maxSelectionChars) {
+            showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
+            return;
+        }
+
+        AiService aiService = createAiService(profile);
+        if (aiService == null) {
+            showAiConfigurationDialog();
+            return;
+        }
+        String connectionName = terminalTab.getConnection() != null ? terminalTab.getConnection().getDisplayName() : null;
+        String languageCode = LanguageManager.getInstance().getCurrentLanguageCode();
+        Optional<AiRequestDraft> confirmedDraft = maybeConfirmAiRequest(action, profile, selectedText, connectionName, languageCode);
+        if (confirmedDraft.isEmpty()) {
+            return;
+        }
+        AiRequestDraft draft = confirmedDraft.get();
+        String requestText = draft.selectedText();
+        if (requestText.trim().isEmpty()) {
+            return;
+        }
+        if (requestText.length() > maxSelectionChars) {
+            showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
+            return;
+        }
+
+        AiRequest request = new AiRequest(action, requestText, connectionName, languageCode, draft.userPrompt());
+        String tabTitle = I18n.get("ai.tab.title", getAiActionLabel(action)) + " [" + getAiProfileDisplayName(profile) + "]";
+        AiResultTab resultTab = new AiResultTab(
+            tabTitle,
+            aiService,
+            profile,
+            requestText,
+            connectionName,
+            languageCode,
+            (usageRequest, usageResult) -> recordAiUsage(profile, usageRequest, usageResult));
+        if (action == AiAction.ASK && draft.userPrompt() != null && !draft.userPrompt().isBlank()) {
+            resultTab.appendUserMessage(draft.userPrompt());
+        }
+        insertTemporaryTab(resultTab);
+        updateStatus(I18n.get("ai.status.running", getAiActionLabel(action)));
+
+        Task<AiExecutionResult> task = new Task<>() {
+            @Override
+            protected AiExecutionResult call() throws Exception {
+                return aiService.execute(request);
+            }
+        };
+        Thread thread = new Thread(task, "ai-selection-" + action.name().toLowerCase(Locale.ROOT));
+        thread.setDaemon(true);
+        resultTab.attachRunningTask(task, thread, I18n.get("ai.result.loading"));
+        task.setOnSucceeded(e -> {
+            AiExecutionResult result = task.getValue();
+            resultTab.showResult(result != null ? result.content() : "");
+            recordAiUsage(profile, request, result);
+            updateStatus(I18n.get("ai.status.finished", getAiActionLabel(action)));
+        });
+        task.setOnCancelled(e -> {
+            resultTab.showCancelled();
+            updateStatus(I18n.get("ai.status.cancelled", getAiActionLabel(action)));
+        });
+        task.setOnFailed(e -> {
+            if (task.isCancelled()) {
+                resultTab.showCancelled();
+                updateStatus(I18n.get("ai.status.cancelled", getAiActionLabel(action)));
+                return;
+            }
+            Throwable error = task.getException();
+            String message = error != null && error.getMessage() != null
+                ? error.getMessage()
+                : I18n.get("ai.result.error");
+            resultTab.showError(I18n.get("ai.result.errorMessage", message));
+            updateStatus(I18n.get("ai.status.failed", getAiActionLabel(action)));
+        });
+
+        thread.start();
+    }
+
+    private int getMaxAiSelectionChars(AiProfile profile) {
+        if (profile != null && profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0) {
+            return profile.getMaxSelectionChars();
+        }
+        return DEFAULT_MAX_AI_SELECTION_CHARS;
+    }
+
+    private AiService createAiService(AiProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        String apiUrl = profile.getApiUrl();
+        String model = profile.getModel();
+        String apiKey = getAiApiKeyPlain(profile);
+        if (apiUrl == null || apiUrl.isBlank()) {
+            return null;
+        }
+        String trimmedApiUrl = apiUrl.trim();
+        if (trimmedApiUrl.matches("^https?://[^/]+/?$")) {
+            return null;
+        }
+        String normalizedApiKey = apiKey != null ? apiKey.trim() : "";
+        return new OpenAiCompatibleAiService(
+            trimmedApiUrl,
+            model != null ? model.trim() : "",
+            normalizedApiKey);
+    }
+
+    private String getAiApiKeyPlain(AiProfile profile) {
+        if (profile == null || profile.getEncryptedApiKey() == null || profile.getEncryptedApiKey().isBlank()) {
+            return null;
+        }
+        try {
+            char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+            if (masterPassword == null) {
+                return null;
+            }
+            de.kortty.security.EncryptionService encryptionService = new de.kortty.security.EncryptionService();
+            String decrypted = encryptionService.decryptPassword(profile.getEncryptedApiKey(), masterPassword);
+            return decrypted != null && !decrypted.isBlank() ? decrypted : null;
+        } catch (Exception e) {
+            logger.warn("Could not decrypt AI API key", e);
+            return null;
+        }
+    }
+
+    private void showAiConfigurationDialog() {
+        ButtonType openSettings = new ButtonType(I18n.get("ai.settings.open"), ButtonBar.ButtonData.OK_DONE);
+        Alert alert = new Alert(Alert.AlertType.WARNING, I18n.get("ai.error.notConfigured"), openSettings, ButtonType.CANCEL);
+        alert.setTitle(I18n.get("ai.error.title"));
+        alert.setHeaderText(null);
+        if (alert.showAndWait().orElse(ButtonType.CANCEL) == openSettings) {
+            showSettings();
+        }
+    }
+
+    private Optional<AiRequestDraft> maybeConfirmAiRequest(
+        AiAction action,
+        AiProfile profile,
+        String selectedText,
+        String connectionName,
+        String languageCode) {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (action != AiAction.ASK && settings != null && !settings.isAiConfirmBeforeSend()) {
+            return Optional.of(new AiRequestDraft(selectedText, null));
+        }
+        return confirmAiRequest(action, profile, selectedText, connectionName, languageCode);
+    }
+
+    private Optional<AiRequestDraft> confirmAiRequest(
+        AiAction action,
+        AiProfile profile,
+        String selectedText,
+        String connectionName,
+        String languageCode) {
+        String model = profile != null && profile.getModel() != null ? profile.getModel() : "";
+        String apiUrl = profile != null && profile.getApiUrl() != null ? profile.getApiUrl() : "";
+        Dialog<AiRequestDraft> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("ai.confirm.title"));
+        dialog.setHeaderText(I18n.get("ai.confirm.header", getAiActionLabel(action)));
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        Label summaryLabel = new Label(buildAiConfirmSummary(action, profile, model, apiUrl, selectedText, connectionName, languageCode, promptAreaInitialValue(action)));
+        summaryLabel.setWrapText(true);
+        AiQuotaBar quotaBar = new AiQuotaBar();
+        quotaBar.setPrefWidth(420);
+
+        TextField searchField = new TextField();
+        searchField.setPromptText(I18n.get("editor.search.findPrompt"));
+        TextField replaceField = new TextField();
+        replaceField.setPromptText(I18n.get("editor.search.replacePrompt"));
+
+        ComboBox<String> promptHistoryCombo = new ComboBox<>();
+        promptHistoryCombo.setPrefWidth(420);
+        Button clearPromptHistoryButton = new Button(I18n.get("ai.confirm.prompt.history.clear"));
+        TextArea promptArea = new TextArea();
+        promptArea.setPrefColumnCount(80);
+        promptArea.setPrefRowCount(5);
+        promptArea.setWrapText(true);
+        promptArea.setPromptText(I18n.get("ai.confirm.prompt.input"));
+        VBox promptBox = new VBox(8);
+        promptBox.setVisible(action == AiAction.ASK);
+        promptBox.setManaged(action == AiAction.ASK);
+        if (action == AiAction.ASK) {
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            List<String> promptHistory = settings != null ? new ArrayList<>(settings.getAiPromptHistory()) : List.of();
+            promptHistoryCombo.getItems().setAll(promptHistory);
+            promptHistoryCombo.setPromptText(I18n.get("ai.confirm.prompt.history"));
+            promptHistoryCombo.setOnAction(e -> {
+                String selectedPrompt = promptHistoryCombo.getValue();
+                if (selectedPrompt != null) {
+                    promptArea.setText(selectedPrompt);
+                }
+            });
+            clearPromptHistoryButton.setOnAction(e -> {
+                GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+                if (globalSettings != null) {
+                    globalSettings.clearAiPromptHistory();
+                    try {
+                        app.getGlobalSettingsManager().save();
+                    } catch (Exception ex) {
+                        logger.warn("Could not clear AI prompt history", ex);
+                    }
+                }
+                promptHistoryCombo.getItems().clear();
+                promptHistoryCombo.setValue(null);
+            });
+            promptBox.getChildren().addAll(
+                new Label(I18n.get("ai.confirm.prompt.label")),
+                new HBox(8, promptHistoryCombo, clearPromptHistoryButton),
+                promptArea
+            );
+        }
+
+        TextArea preview = new TextArea(selectedText);
+        preview.setEditable(true);
+        preview.setWrapText(true);
+        preview.setPrefColumnCount(80);
+        preview.setPrefRowCount(18);
+
+        Label statusLabel = new Label();
+        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        updateAiConfirmQuotaBar(quotaBar, profile, buildAiConfirmTokenEstimate(action, profile, selectedText, connectionName, languageCode, promptArea.getText()));
+
+        if (action == AiAction.ASK) {
+            promptArea.textProperty().addListener((obs, oldValue, newValue) -> {
+                long requestTokens = buildAiConfirmTokenEstimate(action, profile, preview.getText(), connectionName, languageCode, newValue);
+                summaryLabel.setText(buildAiConfirmSummary(action, profile, model, apiUrl, preview.getText(), connectionName, languageCode, newValue));
+                updateAiConfirmQuotaBar(quotaBar, profile, requestTokens);
+            });
+        }
+
+        preview.textProperty().addListener((obs, oldValue, newValue) -> {
+            long requestTokens = buildAiConfirmTokenEstimate(action, profile, newValue, connectionName, languageCode, promptArea.getText());
+            summaryLabel.setText(buildAiConfirmSummary(action, profile, model, apiUrl, newValue, connectionName, languageCode, promptArea.getText()));
+            updateAiConfirmQuotaBar(quotaBar, profile, requestTokens);
+        });
+
+        Button findNextButton = new Button(I18n.get("editor.search.next"));
+        findNextButton.setOnAction(e -> findNextInTextArea(preview, searchField.getText(), statusLabel));
+
+        Button replaceButton = new Button(I18n.get("editor.search.replaceOne"));
+        replaceButton.setOnAction(e -> replaceSelectionInTextArea(preview, searchField.getText(), replaceField.getText(), statusLabel));
+
+        Button replaceAllButton = new Button(I18n.get("editor.search.replaceAll"));
+        replaceAllButton.setOnAction(e -> replaceAllInTextArea(preview, searchField.getText(), replaceField.getText(), statusLabel));
+
+        searchField.setOnAction(e -> findNextInTextArea(preview, searchField.getText(), statusLabel));
+        replaceField.setOnAction(e -> replaceSelectionInTextArea(preview, searchField.getText(), replaceField.getText(), statusLabel));
+
+        GridPane replaceGrid = new GridPane();
+        replaceGrid.setHgap(8);
+        replaceGrid.setVgap(8);
+        replaceGrid.add(new Label(I18n.get("editor.search.find")), 0, 0);
+        replaceGrid.add(searchField, 1, 0);
+        replaceGrid.add(findNextButton, 2, 0);
+        replaceGrid.add(new Label(I18n.get("editor.search.replace")), 0, 1);
+        replaceGrid.add(replaceField, 1, 1);
+        replaceGrid.add(new HBox(8, replaceButton, replaceAllButton), 2, 1);
+
+        VBox content = new VBox(10, summaryLabel, quotaBar, replaceGrid, preview, promptBox, statusLabel);
+        content.setPadding(new Insets(5, 0, 0, 0));
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefWidth(900);
+        dialog.getDialogPane().setPrefHeight(650);
+        Platform.runLater(() -> {
+            if (action == AiAction.ASK) {
+                promptArea.requestFocus();
+                promptArea.positionCaret(promptArea.getLength());
+            } else {
+                searchField.requestFocus();
+            }
+        });
+
+        final Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        if (action == AiAction.ASK) {
+            okButton.setDisable(promptArea.getText() == null || promptArea.getText().trim().isEmpty());
+            promptArea.textProperty().addListener((obs, oldValue, newValue) ->
+                okButton.setDisable(newValue == null || newValue.trim().isEmpty()));
+        }
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType != ButtonType.OK) {
+                return null;
+            }
+            String promptText = promptArea.getText() != null && !promptArea.getText().isBlank() ? promptArea.getText().trim() : null;
+            if (action == AiAction.ASK) {
+                GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+                if (settings != null && promptText != null) {
+                    settings.addAiPromptHistoryEntry(promptText);
+                    try {
+                        app.getGlobalSettingsManager().save();
+                    } catch (Exception e) {
+                        logger.warn("Could not persist AI prompt history", e);
+                    }
+                }
+            }
+            return new AiRequestDraft(preview.getText(), promptText);
+        });
+        return dialog.showAndWait();
+    }
+
+    private String promptAreaInitialValue(AiAction action) {
+        return action == AiAction.ASK ? "" : null;
+    }
+
+    private String buildAiConfirmSummary(
+        AiAction action,
+        AiProfile profile,
+        String model,
+        String apiUrl,
+        String text,
+        String connectionName,
+        String languageCode,
+        String userPrompt) {
+        String safeText = text != null ? text : "";
+        long requestTokens = buildAiConfirmTokenEstimate(action, profile, safeText, connectionName, languageCode, userPrompt);
+        long remainingTokens = AiTokenUsageManager.remainingAfter(profile, requestTokens);
+        AiTokenWarningLevel warningLevel = AiTokenUsageManager.determineProjectedWarningLevel(profile, requestTokens);
+        return I18n.get(
+            "ai.confirm.summary",
+            getAiProfileDisplayName(profile),
+            model,
+            apiUrl,
+            safeText.length(),
+            requestTokens,
+            formatRemainingTokens(remainingTokens),
+            I18n.get("settings.ai.token.warning." + warningLevel.name().toLowerCase(Locale.ROOT)));
+    }
+
+    private long buildAiConfirmTokenEstimate(
+        AiAction action,
+        AiProfile profile,
+        String text,
+        String connectionName,
+        String languageCode,
+        String userPrompt) {
+        AiRequest request = new AiRequest(action, text != null ? text : "", connectionName, languageCode, userPrompt);
+        return countAiRequestTokens(profile, request);
+    }
+
+    private long countAiRequestTokens(AiProfile profile, AiRequest request) {
+        AiTokenizerType tokenizerType = profile != null && profile.getTokenizerType() != null
+            ? profile.getTokenizerType()
+            : AiTokenizerType.ESTIMATE;
+        return AiTokenCounter.countRequestTokens(request, tokenizerType);
+    }
+
+    private String formatRemainingTokens(long remainingTokens) {
+        if (remainingTokens == Long.MAX_VALUE) {
+            return I18n.get("settings.ai.token.unlimited");
+        }
+        return AiTokenUsageManager.formatCompact(remainingTokens);
+    }
+
+    private void updateAiConfirmQuotaBar(AiQuotaBar quotaBar, AiProfile profile, long requestTokens) {
+        if (quotaBar == null) {
+            return;
+        }
+        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.refreshUsage(profile);
+        long projectedUsed = snapshot.usedTotalTokens() + Math.max(0L, requestTokens);
+        double usedFraction = snapshot.unlimited() || snapshot.maxTokens() <= 0
+            ? 0.0
+            : Math.min(1.0, projectedUsed / (double) snapshot.maxTokens());
+        quotaBar.update(
+            usedFraction,
+            profile != null && profile.getTokenWarningYellowPercent() != null ? profile.getTokenWarningYellowPercent() : 75,
+            profile != null && profile.getTokenWarningRedPercent() != null ? profile.getTokenWarningRedPercent() : 90,
+            AiTokenUsageManager.determineProjectedWarningLevel(profile, requestTokens),
+            snapshot.unlimited());
+    }
+
+    private void recordAiUsage(AiProfile profile, AiRequest request, AiExecutionResult result) {
+        if (profile == null || profile.getId() == null) {
+            return;
+        }
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null) {
+            return;
+        }
+        AiProfile mutableProfile = settings.getAiProfiles().stream()
+            .filter(candidate -> candidate != null && profile.getId().equals(candidate.getId()))
+            .findFirst()
+            .orElse(null);
+        if (mutableProfile == null) {
+            return;
+        }
+        AiTokenUsage usage = result != null ? result.usage() : null;
+        if (usage == null) {
+            long promptTokens = countAiRequestTokens(mutableProfile, request);
+            long completionTokens = AiTokenCounter.countTextTokens(
+                result != null ? result.content() : "",
+                mutableProfile.getTokenizerType() != null ? mutableProfile.getTokenizerType() : AiTokenizerType.ESTIMATE);
+            usage = new AiTokenUsage(promptTokens, completionTokens, promptTokens + completionTokens);
+        }
+        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.recordUsage(mutableProfile, usage);
+        logger.debug("Updated AI token usage for profile {} to {}", getAiProfileDisplayName(mutableProfile), snapshot.usedTotalTokens());
+        try {
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.warn("Could not persist AI token usage", e);
+        }
+    }
+
+    private void findNextInTextArea(TextArea textArea, String search, Label statusLabel) {
+        if (search == null || search.isEmpty()) {
+            statusLabel.setText(I18n.get("editor.search.noMatches"));
+            return;
+        }
+        String text = textArea.getText();
+        int searchStart = Math.max(textArea.getSelection().getEnd(), textArea.getCaretPosition());
+        int index = text.indexOf(search, searchStart);
+        if (index < 0 && searchStart > 0) {
+            index = text.indexOf(search);
+        }
+        if (index < 0) {
+            statusLabel.setText(I18n.get("editor.search.noMatches"));
+            return;
+        }
+        textArea.requestFocus();
+        textArea.selectRange(index, index + search.length());
+        textArea.positionCaret(index + search.length());
+        statusLabel.setText(I18n.get("ai.confirm.foundAt", index + 1));
+    }
+
+    private void replaceSelectionInTextArea(TextArea textArea, String search, String replacement, Label statusLabel) {
+        if (search == null || search.isEmpty()) {
+            statusLabel.setText(I18n.get("editor.search.noMatches"));
+            return;
+        }
+        String selectedText = textArea.getSelectedText();
+        if (!search.equals(selectedText)) {
+            findNextInTextArea(textArea, search, statusLabel);
+            selectedText = textArea.getSelectedText();
+            if (!search.equals(selectedText)) {
+                return;
+            }
+        }
+        textArea.replaceSelection(replacement != null ? replacement : "");
+        statusLabel.setText(I18n.get("editor.status.replaced", 1));
+    }
+
+    private void replaceAllInTextArea(TextArea textArea, String search, String replacement, Label statusLabel) {
+        if (search == null || search.isEmpty()) {
+            statusLabel.setText(I18n.get("editor.search.noMatches"));
+            return;
+        }
+        String text = textArea.getText();
+        int replacements = countOccurrences(text, search);
+        if (replacements == 0) {
+            statusLabel.setText(I18n.get("editor.search.noMatches"));
+            return;
+        }
+        textArea.setText(text.replace(search, replacement != null ? replacement : ""));
+        statusLabel.setText(I18n.get("editor.status.replaced", replacements));
+    }
+
+    private int countOccurrences(String text, String search) {
+        if (text == null || text.isEmpty() || search == null || search.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        int index = 0;
+        while ((index = text.indexOf(search, index)) >= 0) {
+            count++;
+            index += search.length();
+        }
+        return count;
+    }
+
+    private void insertTemporaryTab(Tab tab) {
+        int insertIndex = Math.max(0, tabPane.getTabs().size() - 1);
+        tabPane.getTabs().add(insertIndex, tab);
+        tabPane.getSelectionModel().select(tab);
+    }
+
+    private void installAiSelectionHandler(TerminalTab terminalTab) {
+        terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText) ->
+            handleAiSelectionAction(terminalTab, action, profile, selectedText));
+    }
+
+    private String getAiActionLabel(AiAction action) {
+        return switch (action) {
+            case SUMMARIZE -> I18n.get("terminal.contextMenu.ai.summarize");
+            case SOLVE_PROBLEM -> I18n.get("terminal.contextMenu.ai.solve");
+            case ASK -> I18n.get("terminal.contextMenu.ai.ask");
+        };
+    }
+
+    private record AiRequestDraft(String selectedText, String userPrompt) {
+    }
+
+    private String getAiProfileDisplayName(AiProfile profile) {
+        if (profile == null || profile.getName() == null || profile.getName().isBlank()) {
+            return I18n.get("settings.ai.profile.unnamed");
+        }
+        return profile.getName().trim();
+    }
+
     private static String getProtocolLabel(ConnectionProtocol protocol) {
         if (protocol == null) return "SSH";
         return switch (protocol) {
@@ -2259,6 +2778,7 @@ public class MainWindow {
             
             // Open tab
             TerminalTab tab = new TerminalTab(conn, password);
+            installAiSelectionHandler(tab);
             tab.setTimestampToggleListener(() -> Platform.runLater(() -> {
                 if (showTimestampsMenuItem != null) {
                     Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
@@ -2733,6 +3253,7 @@ public class MainWindow {
             
             // Create new tab with the same connection
             TerminalTab newTab = new TerminalTab(connection, password);
+            installAiSelectionHandler(newTab);
             newTab.setTimestampToggleListener(() -> Platform.runLater(() -> {
                 if (showTimestampsMenuItem != null) {
                     Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
@@ -3241,12 +3762,15 @@ public class MainWindow {
     private void organizeTabsByGroup() {
         // Get all terminal tabs (excluding "+" tab)
         List<TerminalTab> terminalTabs = new ArrayList<>();
+        List<Tab> preservedTabs = new ArrayList<>();
         Tab plusTab = null;
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
                 terminalTabs.add(terminalTab);
             } else if ("+".equals(tab.getText())) {
                 plusTab = tab;
+            } else {
+                preservedTabs.add(tab);
             }
         }
         
@@ -3284,6 +3808,8 @@ public class MainWindow {
             tabPane.getTabs().add(tab);
             setupTabContextMenu(tab); // Re-setup context menu
         }
+
+        tabPane.getTabs().addAll(preservedTabs);
         
         // Re-add "+" tab at the end
         if (plusTab != null) {

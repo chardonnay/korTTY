@@ -11,12 +11,17 @@ import com.sithtermfx.ui.split.SplitConnectorFactory;
 import com.sithtermfx.ui.split.SplitRequest;
 import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiAction;
+import de.kortty.core.AiTokenUsageManager;
+import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.Mosh4jTtyConnector;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.NativeMoshTtyConnector;
 import de.kortty.core.DisconnectListener;
+import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.Theme;
 import javafx.application.Platform;
@@ -44,6 +49,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -95,6 +101,11 @@ public class TerminalView extends BorderPane {
             this.password = password;
         }
     }
+
+    @FunctionalInterface
+    public interface AiSelectionHandler {
+        void handle(AiAction action, @Nullable AiProfile profile, String selectedText);
+    }
     
     private final ServerConnection connection;
     private final ConnectionSettings settings;
@@ -132,6 +143,7 @@ public class TerminalView extends BorderPane {
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
     private Runnable onReconnectRequested;
+    private AiSelectionHandler aiSelectionHandler;
     private volatile boolean timestampGuttersVisibleState;
     
     public TerminalView(ServerConnection connection, String password) {
@@ -212,6 +224,40 @@ public class TerminalView extends BorderPane {
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
         splitPane.setExtraMenuItemsFactory(widget -> {
             java.util.List<javafx.scene.control.MenuItem> items = new java.util.ArrayList<>();
+            String selectedText = getSelectedText(widget);
+            if (selectedText != null && !selectedText.isBlank()) {
+                javafx.scene.control.Menu aiMenu = new javafx.scene.control.Menu(I18n.get("terminal.contextMenu.ai"));
+                List<AiProfile> aiProfiles = getConfiguredAiProfiles();
+                if (aiProfiles.isEmpty()) {
+                    javafx.scene.control.MenuItem summarizeItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.summarize"));
+                    summarizeItem.setOnAction(e -> {
+                        if (aiSelectionHandler != null) {
+                            aiSelectionHandler.handle(AiAction.SUMMARIZE, null, selectedText);
+                        }
+                    });
+                    javafx.scene.control.MenuItem solveItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.solve"));
+                    solveItem.setOnAction(e -> {
+                        if (aiSelectionHandler != null) {
+                            aiSelectionHandler.handle(AiAction.SOLVE_PROBLEM, null, selectedText);
+                        }
+                    });
+                    javafx.scene.control.MenuItem askItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.ask"));
+                    askItem.setOnAction(e -> {
+                        if (aiSelectionHandler != null) {
+                            aiSelectionHandler.handle(AiAction.ASK, null, selectedText);
+                        }
+                    });
+                    aiMenu.getItems().addAll(summarizeItem, solveItem, askItem);
+                } else {
+                    aiMenu.getItems().addAll(
+                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.summarize"), AiAction.SUMMARIZE, aiProfiles, selectedText),
+                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.solve"), AiAction.SOLVE_PROBLEM, aiProfiles, selectedText),
+                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.ask"), AiAction.ASK, aiProfiles, selectedText)
+                    );
+                }
+                items.add(aiMenu);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
             javafx.scene.control.Menu themeMenu = new javafx.scene.control.Menu(I18n.get("theme.menu"));
             try {
                 var tm = KorTTYApplication.getInstance().getThemeManager();
@@ -290,6 +336,107 @@ public class TerminalView extends BorderPane {
                 focused.getPreferredFocusableNode().requestFocus();
             }
         });
+    }
+
+    public void setAiSelectionHandler(@Nullable AiSelectionHandler aiSelectionHandler) {
+        this.aiSelectionHandler = aiSelectionHandler;
+    }
+
+    private javafx.scene.control.Menu createAiProfileMenu(
+        String title,
+        AiAction action,
+        List<AiProfile> profiles,
+        String selectedText) {
+        javafx.scene.control.Menu actionMenu = new javafx.scene.control.Menu(title);
+        for (AiProfile profile : profiles) {
+            javafx.scene.control.MenuItem profileItem = new javafx.scene.control.MenuItem();
+            javafx.scene.control.Label profileLabel = new javafx.scene.control.Label(buildAiProfileMenuLabel(profile));
+            AiTokenWarningLevel warningLevel = AiTokenUsageManager.refreshUsage(profile).warningLevel();
+            if (warningLevel == AiTokenWarningLevel.YELLOW) {
+                profileLabel.setTextFill(Color.web("#b7791f"));
+            } else if (warningLevel == AiTokenWarningLevel.RED) {
+                profileLabel.setTextFill(Color.web("#c53030"));
+            }
+            profileItem.setGraphic(profileLabel);
+            profileItem.setOnAction(e -> {
+                if (aiSelectionHandler != null) {
+                    aiSelectionHandler.handle(action, profile, selectedText);
+                }
+            });
+            actionMenu.getItems().add(profileItem);
+        }
+        return actionMenu;
+    }
+
+    private List<AiProfile> getConfiguredAiProfiles() {
+        try {
+            GlobalSettings globalSettings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            if (globalSettings == null) {
+                return Collections.emptyList();
+            }
+            List<AiProfile> profiles = new ArrayList<>();
+            for (AiProfile profile : globalSettings.getAiProfiles()) {
+                if (profile != null) {
+                    profiles.add(new AiProfile(profile));
+                }
+            }
+            return profiles;
+        } catch (Exception e) {
+            logger.warn("Could not load AI profiles for context menu", e);
+            return Collections.emptyList();
+        }
+    }
+
+    private String getAiProfileDisplayName(@Nullable AiProfile profile) {
+        if (profile == null || profile.getName() == null || profile.getName().isBlank()) {
+            return I18n.get("settings.ai.profile.unnamed");
+        }
+        return profile.getName().trim();
+    }
+
+    private String buildAiProfileMenuLabel(@Nullable AiProfile profile) {
+        if (profile == null) {
+            return "";
+        }
+        var snapshot = AiTokenUsageManager.refreshUsage(profile);
+        if (snapshot.unlimited()) {
+            return getAiProfileDisplayName(profile);
+        }
+        return getAiProfileDisplayName(profile)
+            + " ("
+            + AiTokenUsageManager.formatCompact(snapshot.remainingTokens())
+            + " "
+            + I18n.get("settings.ai.token.remaining.short")
+            + ")";
+    }
+
+    private @Nullable String getSelectedText(@NotNull SithTermFxWidget widget) {
+        try {
+            String selectedText = readSelectedTextDirectly(widget.getTerminalPanel());
+            if (selectedText == null || selectedText.isBlank()) {
+                selectedText = widget.getTerminalPanel().selectedTextProperty().get();
+            }
+            if (selectedText == null) {
+                return null;
+            }
+            String trimmed = selectedText.trim();
+            return trimmed.isEmpty() ? null : selectedText;
+        } catch (Exception e) {
+            logger.debug("Could not read selected terminal text: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private @Nullable String readSelectedTextDirectly(@NotNull com.sithtermfx.ui.TerminalPanel terminalPanel) {
+        try {
+            var method = terminalPanel.getClass().getDeclaredMethod("getSelectedText");
+            method.setAccessible(true);
+            Object value = method.invoke(terminalPanel);
+            return value instanceof String str ? str : null;
+        } catch (Exception e) {
+            logger.debug("Could not read selected text directly from TerminalPanel: {}", e.getMessage());
+            return null;
+        }
     }
 
     private boolean isTerminalDragDropEnabled() {

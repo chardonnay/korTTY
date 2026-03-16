@@ -8,6 +8,8 @@ import jakarta.xml.bind.annotation.*;
 @XmlRootElement(name = "globalSettings")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class GlobalSettings {
+
+    private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
     
     @XmlElement
     private int maxBackupCount = 10; // Default: 10 backups, 0 = unlimited
@@ -84,6 +86,31 @@ public class GlobalSettings {
     /** Optional custom API URL for translation service (null = use provider default). */
     @XmlElement
     private String translationApiUrl;
+
+    /** OpenAI-compatible AI API URL used for terminal selection analysis. */
+    @XmlElement
+    private String aiApiUrl = DEFAULT_AI_API_URL;
+
+    /** Model name for the configured OpenAI-compatible AI API. */
+    @XmlElement
+    private String aiModel;
+
+    /** Encrypted API key for the configured AI service. */
+    @XmlElement
+    private String encryptedAiApiKey;
+
+    /** Named AI profiles for OpenAI-compatible endpoints. */
+    @XmlElementWrapper(name = "aiProfiles")
+    @XmlElement(name = "profile")
+    private java.util.List<AiProfile> aiProfiles = new java.util.ArrayList<>();
+
+    /** Font size used in temporary AI result tabs. */
+    @XmlElement
+    private Integer aiResultFontSize = 13;
+
+    /** Show a confirmation dialog before sending selected terminal text to AI. */
+    @XmlElement
+    private boolean aiConfirmBeforeSend = true;
     
     // Default terminal settings for new connections
     @XmlElement
@@ -108,6 +135,10 @@ public class GlobalSettings {
     @XmlElementWrapper(name = "accessReasonHistory")
     @XmlElement(name = "reason")
     private java.util.List<String> accessReasonHistory;
+
+    @XmlElementWrapper(name = "aiPromptHistory")
+    @XmlElement(name = "prompt")
+    private java.util.List<String> aiPromptHistory;
     
     // SFTP Manager settings
     @XmlElement
@@ -389,6 +420,97 @@ public class GlobalSettings {
     public void setTranslationApiUrl(String translationApiUrl) {
         this.translationApiUrl = translationApiUrl;
     }
+
+    public String getAiApiUrl() {
+        return aiApiUrl;
+    }
+
+    public void setAiApiUrl(String aiApiUrl) {
+        this.aiApiUrl = aiApiUrl;
+    }
+
+    public String getAiModel() {
+        return aiModel;
+    }
+
+    public void setAiModel(String aiModel) {
+        this.aiModel = aiModel;
+    }
+
+    public String getEncryptedAiApiKey() {
+        return encryptedAiApiKey;
+    }
+
+    public void setEncryptedAiApiKey(String encryptedAiApiKey) {
+        this.encryptedAiApiKey = encryptedAiApiKey;
+    }
+
+    public java.util.List<AiProfile> getAiProfiles() {
+        return aiProfiles;
+    }
+
+    public void setAiProfiles(java.util.List<AiProfile> aiProfiles) {
+        this.aiProfiles = aiProfiles != null ? aiProfiles : new java.util.ArrayList<>();
+        normalizeAiProfiles();
+    }
+
+    public Integer getAiResultFontSize() {
+        return aiResultFontSize;
+    }
+
+    public void setAiResultFontSize(Integer aiResultFontSize) {
+        this.aiResultFontSize = aiResultFontSize;
+    }
+
+    public boolean isAiConfirmBeforeSend() {
+        return aiConfirmBeforeSend;
+    }
+
+    public void setAiConfirmBeforeSend(boolean aiConfirmBeforeSend) {
+        this.aiConfirmBeforeSend = aiConfirmBeforeSend;
+    }
+
+    public void initializeAiConfiguration() {
+        if (aiProfiles == null) {
+            aiProfiles = new java.util.ArrayList<>();
+        }
+        migrateFromLegacyAiConfiguration();
+        normalizeAiProfiles();
+    }
+
+    public void migrateFromLegacyAiConfiguration() {
+        if ((aiProfiles == null || aiProfiles.isEmpty()) && hasLegacyAiConfiguration()) {
+            AiProfile legacyProfile = new AiProfile();
+            legacyProfile.setId("legacy-default");
+            legacyProfile.setName("Default");
+            legacyProfile.setApiUrl(aiApiUrl);
+            legacyProfile.setModel(aiModel);
+            legacyProfile.setEncryptedApiKey(encryptedAiApiKey);
+            legacyProfile.setMaxSelectionChars(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+            aiProfiles = new java.util.ArrayList<>();
+            aiProfiles.add(legacyProfile);
+            aiApiUrl = null;
+            aiModel = null;
+            encryptedAiApiKey = null;
+        }
+    }
+
+    private void normalizeAiProfiles() {
+        if (aiProfiles == null) {
+            return;
+        }
+        for (AiProfile profile : aiProfiles) {
+            if (profile != null && (profile.getMaxSelectionChars() == null || profile.getMaxSelectionChars() <= 0)) {
+                profile.setMaxSelectionChars(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+            }
+        }
+    }
+
+    private boolean hasLegacyAiConfiguration() {
+        return (aiApiUrl != null && !aiApiUrl.isBlank() && !DEFAULT_AI_API_URL.equals(aiApiUrl.trim()))
+            || (aiModel != null && !aiModel.isBlank())
+            || (encryptedAiApiKey != null && !encryptedAiApiKey.isBlank());
+    }
     
     public ConnectionSettings getDefaultTerminalSettings() {
         if (defaultTerminalSettings == null) {
@@ -460,6 +582,34 @@ public class GlobalSettings {
         while (history.size() > 5) {
             history.remove(history.size() - 1);
         }
+    }
+
+    public java.util.List<String> getAiPromptHistory() {
+        if (aiPromptHistory == null) {
+            aiPromptHistory = new java.util.ArrayList<>();
+        }
+        return aiPromptHistory;
+    }
+
+    public void setAiPromptHistory(java.util.List<String> aiPromptHistory) {
+        this.aiPromptHistory = aiPromptHistory;
+    }
+
+    public void addAiPromptHistoryEntry(String prompt) {
+        if (prompt == null || prompt.trim().isEmpty()) {
+            return;
+        }
+        java.util.List<String> history = getAiPromptHistory();
+        String normalized = prompt.trim();
+        history.remove(normalized);
+        history.add(0, normalized);
+        while (history.size() > 10) {
+            history.remove(history.size() - 1);
+        }
+    }
+
+    public void clearAiPromptHistory() {
+        getAiPromptHistory().clear();
     }
     
     /**

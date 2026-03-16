@@ -32,6 +32,7 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *Dashboard State Storage*: Automatic restoration of dashboard state
 * *Backup & Restore*: Create encrypted backups (password or GPG) and import them
 * *Multilanguage Support*: Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) plus *dynamic translation*: generate language files for any language via translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex) in Settings → Translation
+* *AI Terminal Actions*: Right-click selected terminal text to summarize output or analyze problems via an OpenAI-compatible API (including local tools such as LM Studio)
 * *Quick Connect*: Fast connection dialog with frequently used connections and group support
 * *SSH Tunnels*: Local and remote port forwarding (SSH tunnels)
 * *Jump Server*: Support for bastion hosts (SSH hopping)
@@ -762,6 +763,23 @@ You can generate language files for *any language* using a translation API:
 3. Language change takes effect after application restart.
 
 *Auto-detect:* Select "Auto-detect (System Language)" to use your system's language.
+
+=== AI Assistant for Selected Terminal Text
+
+KorTTY can send selected terminal text to an OpenAI-compatible AI endpoint and open the result in a temporary tab.
+
+1. Open *Settings → AI*.
+2. Enter the *API URL*. *Model* and *API key* are optional so local OpenAI-compatible endpoints such as *LM Studio* can be used without both fields.
+3. Click *Test AI Connection* to verify the endpoint.
+4. In a terminal, mark the text you want to analyze.
+5. Right-click the selected text and choose *AI → Summarize* or *AI → Solve Problem*.
+6. Confirm the request in the preview dialog. The result opens in a new temporary AI tab.
+
+Notes:
+
+* AI result tabs are not saved with projects or session restore.
+* `<think> ... </think>` blocks are stripped from the visible AI output.
+* The font size in AI result tabs can be changed directly in the tab toolbar and is reused for future AI tabs.
 
 == SFTP Manager
 

@@ -462,8 +462,9 @@ public class SnippetEditDialog extends Dialog<Snippet> {
     static StyleSpans<String> computeHighlighting(String text, String language, String plainStyle) {
         if (language == null) language = "plain";
         return switch (language) {
-            case "bash" -> applyPattern(text, computeBashPattern(), plainStyle);
+            case "bash", "shell", "sh", "zsh" -> applyPattern(text, computeBashPattern(), plainStyle);
             case "python" -> applyPattern(text, computePythonPattern(), plainStyle);
+            case "perl", "pl" -> applyPattern(text, computePerlPattern(), plainStyle);
             case "java", "groovy" -> applyPattern(text, computeJavaPattern(), plainStyle);
             case "javascript" -> applyPattern(text, computeJavaScriptPattern(), plainStyle);
             case "sql" -> applyPattern(text, computeSqlPattern(), plainStyle);
@@ -494,6 +495,18 @@ public class SnippetEditDialog extends Dialog<Snippet> {
             "|(?<KEYWORD>\\b(def|class|import|from|as|if|elif|else|for|while|with|try|except|finally|raise|return|yield|lambda|and|or|not|in|is|None|True|False|pass|break|continue|global|nonlocal|assert|del|print)\\b)" +
             "|(?<NUMBER>\\b\\d+\\.?\\d*\\b)" +
             "|(?<VARIABLE>\\bself\\b)"
+        );
+    }
+
+    private static Pattern computePerlPattern() {
+        return Pattern.compile(
+            "(?<COMMENT>#.*)" +
+            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
+            "|(?<KEYWORD>\\b(?:my|our|local|sub|use|require|package|if|elsif|else|unless|while|until|for|foreach|do|next|last|return|die|warn|print|say|chomp|chop|push|pop|shift|unshift|splice|keys|values|exists|delete|defined|undef|BEGIN|END)\\b)" +
+            "|(?<VARIABLE>\\$\\w+|@\\w+|%\\w+)" +
+            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
+            "|(?<FUNCTION>\\b\\w+(?=\\())",
+            Pattern.MULTILINE
         );
     }
     

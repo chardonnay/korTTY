@@ -4,7 +4,12 @@
 
 ## Unreleased
 
-- _No unreleased entries._
+### AI Assistant
+
+- **AI actions for selected terminal text**: Right-click selected text in the terminal and use **AI → Summarize** or **AI → Solve Problem** to send the selection to a configured OpenAI-compatible endpoint and open the result in a temporary tab.
+- **Settings → AI**: New global settings tab for AI integration with configurable API URL plus optional model and API key, so cloud endpoints and local tools like **LM Studio** can be used.
+- **Confirmation and result handling**: AI requests show a preview dialog before sending; result tabs are read-only, excluded from saved project/session state, and strip visible `<think> ... </think>` blocks from the output.
+- **Persistent AI tab font size**: The font size adjusted in an AI result tab is stored globally and reused for future AI tabs.
 
 ---
 

@@ -42,6 +42,7 @@ public class GlobalSettingsManager {
             // Include all nested classes in context
             JAXBContext context = JAXBContext.newInstance(
                 GlobalSettings.class,
+                de.kortty.model.AiProfile.class,
                 de.kortty.model.ConnectionSettings.class,
                 de.kortty.model.WindowGeometry.class,
                 de.kortty.model.TeamworkSourceConfig.class,
@@ -49,6 +50,7 @@ public class GlobalSettingsManager {
             );
             Unmarshaller unmarshaller = context.createUnmarshaller();
             this.settings = (GlobalSettings) unmarshaller.unmarshal(settingsFile.toFile());
+            this.settings.initializeAiConfiguration();
             logger.info("Loaded global settings from {} - language: '{}'", settingsFile, this.settings.getLanguage());
         } catch (Exception e) {
             logger.error("Failed to load settings, using defaults", e);
@@ -65,6 +67,7 @@ public class GlobalSettingsManager {
         // Include all nested classes in context
         JAXBContext context = JAXBContext.newInstance(
             GlobalSettings.class,
+            de.kortty.model.AiProfile.class,
             de.kortty.model.ConnectionSettings.class,
             de.kortty.model.WindowGeometry.class,
             de.kortty.model.TeamworkSourceConfig.class,

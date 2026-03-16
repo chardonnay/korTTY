@@ -6,15 +6,23 @@ import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.DynamicLanguageGenerator;
 import de.kortty.core.GPGKeyManager;
+import de.kortty.core.AiTokenUsageManager;
+import de.kortty.core.AiTokenUsageSnapshot;
+import de.kortty.core.AiTokenWarningLevel;
+import de.kortty.core.AiService;
 import de.kortty.core.GoogleTranslationService;
 import de.kortty.core.DeepLTranslationService;
 import de.kortty.core.LibreTranslateTranslationService;
+import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.core.MicrosoftTranslationService;
 import de.kortty.core.YandexTranslationService;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.TranslationService;
+import de.kortty.model.AiProfile;
+import de.kortty.model.AiTokenLimitUnit;
+import de.kortty.model.AiTokenizerType;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
@@ -40,8 +48,15 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.time.LocalDate;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -120,6 +135,30 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final ProgressIndicator translationProgressIndicator;
     private Label translationOutdatedLabelRef;
     private Button translationRegenerateOutdatedButtonRef;
+
+    // AI settings
+    private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
+    private final ListView<AiProfile> aiProfileListView;
+    private final TextField aiProfileNameField;
+    private final TextField aiApiUrlField;
+    private final TextField aiModelField;
+    private final PasswordField aiApiKeyField;
+    private final CheckBox aiClearApiKeyCheck;
+    private final CheckBox aiConfirmBeforeSendCheck;
+    private final Spinner<Integer> aiMaxSelectionCharsSpinner;
+    private final ComboBox<AiTokenizerType> aiTokenizerCombo;
+    private final Spinner<Integer> aiTokenLimitAmountSpinner;
+    private final ComboBox<AiTokenLimitUnit> aiTokenLimitUnitCombo;
+    private final Spinner<Integer> aiTokenWarningYellowSpinner;
+    private final Spinner<Integer> aiTokenWarningRedSpinner;
+    private final Spinner<Integer> aiTokenResetDaysSpinner;
+    private final DatePicker aiTokenResetAnchorPicker;
+    private final AiQuotaBar aiTokenUsageBar;
+    private final Label aiTokenUsageLabel;
+    private final List<AiProfile> aiProfiles = new ArrayList<>();
+    private final Map<String, String> aiPlainApiKeysByProfileId = new HashMap<>();
+    private final Set<String> aiClearedApiKeysByProfileId = new HashSet<>();
+    private AiProfile selectedAiProfile;
     
     // SFTP settings
     private final CheckBox sftpAutoCloseEnabledCheck;
@@ -859,6 +898,238 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
         translationGrid.add(generatedBox, 1, transRow++);
         translationTab.setContent(translationGrid);
+
+        // AI tab
+        Tab aiTab = new Tab(I18n.get("settings.tab.ai"));
+        VBox aiRoot = new VBox(12);
+        aiRoot.setPadding(new Insets(20));
+
+        Label aiInfo = new Label(I18n.get("settings.ai.info"));
+        aiInfo.setWrapText(true);
+        aiInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiRoot.getChildren().add(aiInfo);
+
+        aiConfirmBeforeSendCheck = new CheckBox(I18n.get("settings.ai.confirmBeforeSend"));
+        aiConfirmBeforeSendCheck.setSelected(globalSettings == null || globalSettings.isAiConfirmBeforeSend());
+        aiRoot.getChildren().add(aiConfirmBeforeSendCheck);
+
+        aiProfiles.addAll(globalSettings.getAiProfiles().stream().map(AiProfile::new).collect(Collectors.toList()));
+
+        aiProfileListView = new ListView<>();
+        aiProfileListView.getItems().addAll(aiProfiles);
+        aiProfileListView.setPrefWidth(220);
+        aiProfileListView.setPrefHeight(220);
+        aiProfileListView.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(getAiProfileDisplayName(item) + "\n" + buildAiProfileUsageInline(item));
+                AiTokenWarningLevel warningLevel = AiTokenUsageManager.refreshUsage(item).warningLevel();
+                setStyle(switch (warningLevel) {
+                    case YELLOW -> "-fx-text-fill: #b7791f;";
+                    case RED -> "-fx-text-fill: #c53030;";
+                    case NONE -> "";
+                });
+            }
+        });
+
+        Button aiAddProfileButton = new Button(I18n.get("settings.ai.profile.add"));
+        aiAddProfileButton.setMinWidth(140);
+        aiAddProfileButton.setPrefWidth(140);
+        aiAddProfileButton.setOnAction(e -> addAiProfile());
+        Button aiRemoveProfileButton = new Button(I18n.get("settings.ai.profile.remove"));
+        aiRemoveProfileButton.setMinWidth(140);
+        aiRemoveProfileButton.setPrefWidth(140);
+        aiRemoveProfileButton.disableProperty().bind(aiProfileListView.getSelectionModel().selectedItemProperty().isNull());
+        aiRemoveProfileButton.setOnAction(e -> removeSelectedAiProfile());
+
+        VBox aiProfilesBox = new VBox(8,
+            new Label(I18n.get("settings.ai.profiles")),
+            aiProfileListView,
+            new HBox(8, aiAddProfileButton, aiRemoveProfileButton)
+        );
+
+        GridPane aiEditorGrid = new GridPane();
+        aiEditorGrid.setHgap(10);
+        aiEditorGrid.setVgap(10);
+        int aiRow = 0;
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.profile.name")), 0, aiRow);
+        aiProfileNameField = new TextField();
+        aiProfileNameField.setPrefWidth(220);
+        aiProfileNameField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setName(newValue);
+                aiProfileListView.refresh();
+            }
+        });
+        aiEditorGrid.add(aiProfileNameField, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.apiUrl")), 0, aiRow);
+        aiApiUrlField = new TextField();
+        aiApiUrlField.setPrefWidth(320);
+        aiEditorGrid.add(aiApiUrlField, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.model")), 0, aiRow);
+        aiModelField = new TextField();
+        aiModelField.setPrefWidth(220);
+        aiEditorGrid.add(aiModelField, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.apiKey")), 0, aiRow);
+        aiApiKeyField = new PasswordField();
+        aiApiKeyField.setPrefWidth(280);
+        aiApiKeyField.setPromptText(I18n.get("settings.ai.apiKey"));
+        aiEditorGrid.add(aiApiKeyField, 1, aiRow++);
+
+        aiClearApiKeyCheck = new CheckBox(I18n.get("settings.ai.clearApiKey"));
+        aiEditorGrid.add(aiClearApiKeyCheck, 1, aiRow++);
+        aiApiKeyField.textProperty().addListener((obs, oldValue, newValue) -> {
+            boolean hasReplacementKey = newValue != null && !newValue.isBlank();
+            aiClearApiKeyCheck.setDisable(hasReplacementKey);
+            if (hasReplacementKey) {
+                aiClearApiKeyCheck.setSelected(false);
+            }
+        });
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.maxChars")), 0, aiRow);
+        aiMaxSelectionCharsSpinner = new Spinner<>(1, 50_000_000, AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+        aiMaxSelectionCharsSpinner.setEditable(true);
+        aiMaxSelectionCharsSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setMaxSelectionChars(newValue != null ? newValue : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+            }
+        });
+        aiEditorGrid.add(aiMaxSelectionCharsSpinner, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.tokenizer")), 0, aiRow);
+        aiTokenizerCombo = new ComboBox<>();
+        aiTokenizerCombo.getItems().addAll(AiTokenizerType.values());
+        aiTokenizerCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiTokenizerType object) {
+                return object == null ? "" : I18n.get("settings.ai.tokenizer." + object.name().toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public AiTokenizerType fromString(String string) {
+                return null;
+            }
+        });
+        aiTokenizerCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setTokenizerType(newValue);
+                updateAiTokenUsagePreview();
+            }
+        });
+        aiEditorGrid.add(aiTokenizerCombo, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.token.limit")), 0, aiRow);
+        aiTokenLimitAmountSpinner = new Spinner<>(0, 1_000_000, 0);
+        aiTokenLimitAmountSpinner.setEditable(true);
+        aiTokenLimitAmountSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setTokenLimitAmount(newValue != null ? newValue.longValue() : 0L);
+                updateAiTokenUsagePreview();
+            }
+        });
+        aiTokenLimitUnitCombo = new ComboBox<>();
+        aiTokenLimitUnitCombo.getItems().addAll(AiTokenLimitUnit.values());
+        aiTokenLimitUnitCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiTokenLimitUnit object) {
+                return object == null ? "" : I18n.get("settings.ai.token.unit." + object.name().toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public AiTokenLimitUnit fromString(String string) {
+                return null;
+            }
+        });
+        aiTokenLimitUnitCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setTokenLimitUnit(newValue);
+                updateAiTokenUsagePreview();
+            }
+        });
+        aiEditorGrid.add(new HBox(8, aiTokenLimitAmountSpinner, aiTokenLimitUnitCombo), 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.token.warn")), 0, aiRow);
+        aiTokenWarningYellowSpinner = new Spinner<>(0, 100, 75);
+        aiTokenWarningYellowSpinner.setEditable(true);
+        aiTokenWarningYellowSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setTokenWarningYellowPercent(newValue);
+                updateAiTokenUsagePreview();
+            }
+        });
+        aiTokenWarningRedSpinner = new Spinner<>(0, 100, 90);
+        aiTokenWarningRedSpinner.setEditable(true);
+        aiTokenWarningRedSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setTokenWarningRedPercent(newValue);
+                updateAiTokenUsagePreview();
+            }
+        });
+        aiEditorGrid.add(new HBox(8,
+            new Label(I18n.get("settings.ai.token.warn.yellow")),
+            aiTokenWarningYellowSpinner,
+            new Label(I18n.get("settings.ai.token.warn.red")),
+            aiTokenWarningRedSpinner), 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.token.reset")), 0, aiRow);
+        aiTokenResetDaysSpinner = new Spinner<>(1, 3650, 30);
+        aiTokenResetDaysSpinner.setEditable(true);
+        aiTokenResetDaysSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setTokenResetPeriodDays(newValue);
+                updateAiTokenUsagePreview();
+            }
+        });
+        aiTokenResetAnchorPicker = new DatePicker();
+        aiTokenResetAnchorPicker.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setTokenResetAnchorDate(newValue != null ? newValue.toString() : null);
+                updateAiTokenUsagePreview();
+            }
+        });
+        aiEditorGrid.add(new HBox(8,
+            aiTokenResetDaysSpinner,
+            new Label(I18n.get("settings.ai.token.reset.days")),
+            new Label(I18n.get("settings.ai.token.reset.anchor")),
+            aiTokenResetAnchorPicker), 1, aiRow++);
+
+        aiTokenUsageBar = new AiQuotaBar();
+        aiTokenUsageBar.setPrefWidth(320);
+        aiEditorGrid.add(aiTokenUsageBar, 1, aiRow++);
+
+        aiTokenUsageLabel = new Label();
+        aiTokenUsageLabel.setWrapText(true);
+        aiTokenUsageLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiEditorGrid.add(aiTokenUsageLabel, 1, aiRow++);
+
+        Button aiTestConnectionButton = new Button(I18n.get("settings.ai.testConnection"));
+        aiTestConnectionButton.setOnAction(e -> testAiConnection(aiTestConnectionButton));
+        aiEditorGrid.add(aiTestConnectionButton, 1, aiRow++);
+
+        HBox aiContent = new HBox(16, aiProfilesBox, aiEditorGrid);
+        aiRoot.getChildren().add(aiContent);
+        aiTab.setContent(aiRoot);
+
+        aiProfileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            snapshotSelectedAiProfileEditorState();
+            selectedAiProfile = newValue;
+            loadAiProfileIntoEditor(newValue);
+        });
+        if (!aiProfiles.isEmpty()) {
+            aiProfileListView.getSelectionModel().selectFirst();
+        } else {
+            addAiProfile();
+        }
         
         // SFTP tab
         Tab sftpTab = new Tab(I18n.get("settings.tab.sftp"));
@@ -1060,7 +1331,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         // Themes tab
         Tab themesTab = createThemesTab(owner);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
         
         VBox content = new VBox(tabPane);
         content.setFillWidth(true);
@@ -1073,11 +1344,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         scrollPane.setFitToHeight(false);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setPrefViewportWidth(580);
+        scrollPane.setPrefViewportWidth(860);
         scrollPane.setPrefViewportHeight(580);
-        scrollPane.setMinViewportWidth(400);
+        scrollPane.setMinViewportWidth(720);
         scrollPane.setMinViewportHeight(400);
         getDialogPane().setContent(scrollPane);
+        getDialogPane().setPrefWidth(980);
+        getDialogPane().setMinWidth(860);
         
         // Buttons
         ButtonType saveButtonType = new ButtonType(I18n.get("settings.save"), ButtonBar.ButtonData.OK_DONE);
@@ -1208,6 +1481,10 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
                         // Do not overwrite existing encrypted key; plain key remains in field
                     }
                 }
+            }
+
+            if (!saveAiProfilesToSettings()) {
+                return false;
             }
             
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
@@ -1828,6 +2105,376 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.testSuccess")).showAndWait();
         } else {
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.testFailed")).showAndWait();
+        }
+    }
+
+    private String getAiProfileDisplayName(AiProfile profile) {
+        if (profile == null) {
+            return "";
+        }
+        String name = profile.getName();
+        if (name != null && !name.isBlank()) {
+            return name.trim();
+        }
+        return I18n.get("settings.ai.profile.unnamed");
+    }
+
+    private void addAiProfile() {
+        snapshotSelectedAiProfileEditorState();
+
+        AiProfile profile = new AiProfile();
+        profile.setId(UUID.randomUUID().toString());
+        profile.setName(createDefaultAiProfileName());
+        String defaultApiUrl = globalSettings != null ? globalSettings.getAiApiUrl() : null;
+        profile.setApiUrl(defaultApiUrl != null && !defaultApiUrl.isBlank() ? defaultApiUrl : DEFAULT_AI_API_URL);
+        profile.setMaxSelectionChars(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+        profile.setTokenizerType(AiTokenizerType.ESTIMATE);
+        profile.setTokenLimitUnit(AiTokenLimitUnit.THOUSANDS);
+        profile.setTokenResetPeriodDays(30);
+        profile.setTokenResetAnchorDate(LocalDate.now().toString());
+        profile.setTokenUsageCycleStartDate(LocalDate.now().toString());
+
+        aiProfiles.add(profile);
+        aiProfileListView.getItems().setAll(aiProfiles);
+        aiProfileListView.getSelectionModel().select(profile);
+        aiProfileListView.refresh();
+    }
+
+    private String createDefaultAiProfileName() {
+        String baseName = I18n.get("settings.ai.profile.newDefault");
+        int suffix = 1;
+        String candidate = baseName;
+        while (containsAiProfileName(candidate)) {
+            suffix++;
+            candidate = baseName + " " + suffix;
+        }
+        return candidate;
+    }
+
+    private boolean containsAiProfileName(String candidate) {
+        for (AiProfile profile : aiProfiles) {
+            if (candidate.equalsIgnoreCase(getAiProfileDisplayName(profile))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void removeSelectedAiProfile() {
+        AiProfile profile = aiProfileListView.getSelectionModel().getSelectedItem();
+        if (profile == null) {
+            return;
+        }
+
+        aiProfiles.remove(profile);
+        if (profile.getId() != null) {
+            aiPlainApiKeysByProfileId.remove(profile.getId());
+            aiClearedApiKeysByProfileId.remove(profile.getId());
+        }
+
+        aiProfileListView.getItems().setAll(aiProfiles);
+        if (aiProfiles.isEmpty()) {
+            selectedAiProfile = null;
+            loadAiProfileIntoEditor(null);
+        } else {
+            aiProfileListView.getSelectionModel().selectFirst();
+        }
+        aiProfileListView.refresh();
+    }
+
+    private void snapshotSelectedAiProfileEditorState() {
+        if (selectedAiProfile == null) {
+            return;
+        }
+        if (selectedAiProfile.getId() == null || selectedAiProfile.getId().isBlank()) {
+            selectedAiProfile.setId(UUID.randomUUID().toString());
+        }
+
+        selectedAiProfile.setName(trimToNull(aiProfileNameField.getText()));
+        selectedAiProfile.setApiUrl(trimToNull(aiApiUrlField.getText()));
+        selectedAiProfile.setModel(trimToNull(aiModelField.getText()));
+        selectedAiProfile.setMaxSelectionChars(aiMaxSelectionCharsSpinner.getValue() != null ? aiMaxSelectionCharsSpinner.getValue() : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+        selectedAiProfile.setTokenizerType(aiTokenizerCombo.getValue());
+        selectedAiProfile.setTokenLimitAmount(aiTokenLimitAmountSpinner.getValue() != null ? aiTokenLimitAmountSpinner.getValue().longValue() : 0L);
+        selectedAiProfile.setTokenLimitUnit(aiTokenLimitUnitCombo.getValue());
+        selectedAiProfile.setTokenWarningYellowPercent(aiTokenWarningYellowSpinner.getValue());
+        selectedAiProfile.setTokenWarningRedPercent(aiTokenWarningRedSpinner.getValue());
+        selectedAiProfile.setTokenResetPeriodDays(aiTokenResetDaysSpinner.getValue());
+        selectedAiProfile.setTokenResetAnchorDate(aiTokenResetAnchorPicker.getValue() != null ? aiTokenResetAnchorPicker.getValue().toString() : null);
+
+        String profileId = selectedAiProfile.getId();
+        String plainApiKey = aiApiKeyField.getText();
+        if (plainApiKey != null && !plainApiKey.isBlank()) {
+            aiPlainApiKeysByProfileId.put(profileId, plainApiKey);
+            aiClearedApiKeysByProfileId.remove(profileId);
+        } else {
+            aiPlainApiKeysByProfileId.remove(profileId);
+            if (aiClearApiKeyCheck.isSelected()) {
+                aiClearedApiKeysByProfileId.add(profileId);
+            } else {
+                aiClearedApiKeysByProfileId.remove(profileId);
+            }
+        }
+        aiProfileListView.refresh();
+        updateAiTokenUsagePreview();
+    }
+
+    private void loadAiProfileIntoEditor(AiProfile profile) {
+        if (profile == null) {
+            aiProfileNameField.clear();
+            aiApiUrlField.clear();
+            aiModelField.clear();
+            aiApiKeyField.clear();
+            aiClearApiKeyCheck.setDisable(false);
+            aiClearApiKeyCheck.setSelected(false);
+            aiMaxSelectionCharsSpinner.getValueFactory().setValue(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+            aiTokenizerCombo.setValue(AiTokenizerType.ESTIMATE);
+            aiTokenLimitAmountSpinner.getValueFactory().setValue(0);
+            aiTokenLimitUnitCombo.setValue(AiTokenLimitUnit.THOUSANDS);
+            aiTokenWarningYellowSpinner.getValueFactory().setValue(75);
+            aiTokenWarningRedSpinner.getValueFactory().setValue(90);
+            aiTokenResetDaysSpinner.getValueFactory().setValue(30);
+            aiTokenResetAnchorPicker.setValue(LocalDate.now());
+            aiTokenUsageBar.update(0.0, 75, 90, AiTokenWarningLevel.NONE, true);
+            aiTokenUsageLabel.setText("");
+            return;
+        }
+
+        aiProfileNameField.setText(profile.getName() != null ? profile.getName() : "");
+        aiApiUrlField.setText(profile.getApiUrl() != null ? profile.getApiUrl() : "");
+        aiModelField.setText(profile.getModel() != null ? profile.getModel() : "");
+        aiMaxSelectionCharsSpinner.getValueFactory().setValue(
+            profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
+                ? profile.getMaxSelectionChars()
+                : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+        aiTokenizerCombo.setValue(profile.getTokenizerType() != null ? profile.getTokenizerType() : AiTokenizerType.ESTIMATE);
+        aiTokenLimitAmountSpinner.getValueFactory().setValue(profile.getTokenLimitAmount() != null ? profile.getTokenLimitAmount().intValue() : 0);
+        aiTokenLimitUnitCombo.setValue(profile.getTokenLimitUnit() != null ? profile.getTokenLimitUnit() : AiTokenLimitUnit.THOUSANDS);
+        aiTokenWarningYellowSpinner.getValueFactory().setValue(profile.getTokenWarningYellowPercent() != null ? profile.getTokenWarningYellowPercent() : 75);
+        aiTokenWarningRedSpinner.getValueFactory().setValue(profile.getTokenWarningRedPercent() != null ? profile.getTokenWarningRedPercent() : 90);
+        aiTokenResetDaysSpinner.getValueFactory().setValue(profile.getTokenResetPeriodDays() != null ? profile.getTokenResetPeriodDays() : 30);
+        aiTokenResetAnchorPicker.setValue(parseLocalDate(profile.getTokenResetAnchorDate(), LocalDate.now()));
+
+        String profileId = profile.getId();
+        String plainApiKey = profileId != null ? aiPlainApiKeysByProfileId.get(profileId) : null;
+        aiApiKeyField.setText(plainApiKey != null ? plainApiKey : "");
+        boolean cleared = profileId != null && aiClearedApiKeysByProfileId.contains(profileId);
+        aiClearApiKeyCheck.setSelected(cleared);
+        aiClearApiKeyCheck.setDisable(plainApiKey != null && !plainApiKey.isBlank());
+        updateAiTokenUsagePreview();
+    }
+
+    private boolean saveAiProfilesToSettings() {
+        if (globalSettings == null) {
+            return true;
+        }
+
+        snapshotSelectedAiProfileEditorState();
+
+        List<AiProfile> profilesToSave = new ArrayList<>();
+        de.kortty.security.EncryptionService encryptionService = new de.kortty.security.EncryptionService();
+
+        for (AiProfile profile : aiProfiles) {
+            if (profile == null) {
+                continue;
+            }
+            AiProfile copy = new AiProfile(profile);
+            if (copy.getId() == null || copy.getId().isBlank()) {
+                String generatedId = UUID.randomUUID().toString();
+                copy.setId(generatedId);
+                profile.setId(generatedId);
+            }
+            String profileName = trimToNull(copy.getName());
+            if (profileName == null) {
+                Alert alert = new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noProfileName"));
+                alert.setHeaderText(null);
+                alert.showAndWait();
+                return false;
+            }
+            copy.setName(profileName);
+            copy.setApiUrl(trimToNull(copy.getApiUrl()));
+            copy.setModel(trimToNull(copy.getModel()));
+
+            String plainApiKey = aiPlainApiKeysByProfileId.get(copy.getId());
+            if (plainApiKey != null && !plainApiKey.isBlank()) {
+                char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+                if (masterPassword == null) {
+                    Alert vaultLocked = new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.vaultLocked"));
+                    vaultLocked.setHeaderText(null);
+                    vaultLocked.showAndWait();
+                    return false;
+                }
+                try {
+                    copy.setEncryptedApiKey(encryptionService.encryptPassword(plainApiKey, masterPassword));
+                } catch (Exception ex) {
+                    org.slf4j.LoggerFactory.getLogger(getClass()).warn("Could not encrypt AI API key", ex);
+                    Alert alert = new Alert(Alert.AlertType.WARNING,
+                        I18n.get("settings.ai.error.testFailed") + ": "
+                            + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()));
+                    alert.setHeaderText(null);
+                    alert.showAndWait();
+                    return false;
+                }
+            } else if (aiClearedApiKeysByProfileId.contains(copy.getId())) {
+                copy.setEncryptedApiKey(null);
+            }
+
+            profilesToSave.add(copy);
+        }
+
+        globalSettings.setAiProfiles(profilesToSave);
+        globalSettings.setAiApiUrl(null);
+        globalSettings.setAiModel(null);
+        globalSettings.setEncryptedAiApiKey(null);
+        globalSettings.setAiConfirmBeforeSend(aiConfirmBeforeSendCheck.isSelected());
+        return true;
+    }
+
+    private AiService createAiService(AiProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        String apiUrl = trimToNull(profile.getApiUrl());
+        String model = trimToNull(profile.getModel());
+        String apiKey = getAiApiKeyPlain(profile);
+        if (apiUrl == null) {
+            return null;
+        }
+        return new OpenAiCompatibleAiService(
+            apiUrl,
+            model != null ? model : "",
+            apiKey != null ? apiKey : "");
+    }
+
+    private String getAiApiKeyPlain(AiProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        String profileId = profile.getId();
+        if (profileId != null) {
+            String plainApiKey = aiPlainApiKeysByProfileId.get(profileId);
+            if (plainApiKey != null && !plainApiKey.isBlank()) {
+                return plainApiKey;
+            }
+            if (aiClearedApiKeysByProfileId.contains(profileId)) {
+                return null;
+            }
+        }
+        String encrypted = profile.getEncryptedApiKey();
+        if (encrypted == null || encrypted.isEmpty()) return null;
+        try {
+            char[] master = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+            if (master == null) return null;
+            de.kortty.security.EncryptionService enc = new de.kortty.security.EncryptionService();
+            String decrypted = enc.decryptPassword(encrypted, master);
+            return decrypted != null && !decrypted.isBlank() ? decrypted : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void testAiConnection(Button aiTestConnectionButton) {
+        snapshotSelectedAiProfileEditorState();
+        if (selectedAiProfile == null) {
+            new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noProfilesConfigured")).showAndWait();
+            return;
+        }
+        if (trimToNull(selectedAiProfile.getApiUrl()) == null) {
+            new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl")).showAndWait();
+            return;
+        }
+        AiService svc = createAiService(selectedAiProfile);
+        if (svc == null) {
+            new Alert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed")).showAndWait();
+            return;
+        }
+        aiTestConnectionButton.setDisable(true);
+        CompletableFuture
+            .supplyAsync(() -> {
+                try {
+                    return svc.testConnection();
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            })
+            .whenComplete((ok, throwable) -> Platform.runLater(() -> {
+                aiTestConnectionButton.setDisable(false);
+                if (throwable != null) {
+                    Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+                    Alert alert = new Alert(Alert.AlertType.ERROR,
+                        I18n.get("settings.ai.error.testFailed") + ": "
+                            + (cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName()));
+                    alert.setHeaderText(null);
+                    alert.showAndWait();
+                    return;
+                }
+                Alert alert = ok != null && ok
+                    ? new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.ai.testSuccess"))
+                    : new Alert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed"));
+                alert.setHeaderText(null);
+                alert.showAndWait();
+            }));
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void updateAiTokenUsagePreview() {
+        if (selectedAiProfile == null) {
+            aiTokenUsageLabel.setText("");
+            return;
+        }
+        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.refreshUsage(selectedAiProfile);
+        String limitText = snapshot.unlimited()
+            ? I18n.get("settings.ai.token.unlimited")
+            : AiTokenUsageManager.formatCompact(snapshot.maxTokens());
+        String remainingText = snapshot.unlimited()
+            ? I18n.get("settings.ai.token.unlimited")
+            : AiTokenUsageManager.formatCompact(snapshot.remainingTokens());
+        String warningText = I18n.get("settings.ai.token.warning." + snapshot.warningLevel().name().toLowerCase(Locale.ROOT));
+        double usedFraction = snapshot.unlimited() || snapshot.maxTokens() <= 0
+            ? 0.0
+            : Math.min(1.0, snapshot.usedTotalTokens() / (double) snapshot.maxTokens());
+        aiTokenUsageBar.update(
+            usedFraction,
+            selectedAiProfile.getTokenWarningYellowPercent() != null ? selectedAiProfile.getTokenWarningYellowPercent() : 75,
+            selectedAiProfile.getTokenWarningRedPercent() != null ? selectedAiProfile.getTokenWarningRedPercent() : 90,
+            snapshot.warningLevel(),
+            snapshot.unlimited());
+        aiTokenUsageLabel.setText(I18n.get(
+            "settings.ai.token.usage.summary",
+            AiTokenUsageManager.formatCompact(snapshot.usedTotalTokens()),
+            limitText,
+            remainingText,
+            snapshot.nextResetDate(),
+            warningText));
+        aiProfileListView.refresh();
+    }
+
+    private String buildAiProfileUsageInline(AiProfile profile) {
+        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.refreshUsage(profile);
+        String limitText = snapshot.unlimited()
+            ? I18n.get("settings.ai.token.unlimited")
+            : AiTokenUsageManager.formatCompact(snapshot.maxTokens());
+        return I18n.get("settings.ai.token.usage.inline",
+            AiTokenUsageManager.formatCompact(snapshot.usedTotalTokens()),
+            limitText,
+            snapshot.nextResetDate());
+    }
+
+    private LocalDate parseLocalDate(String value, LocalDate fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return LocalDate.parse(value.trim());
+        } catch (Exception ignored) {
+            return fallback;
         }
     }
 
