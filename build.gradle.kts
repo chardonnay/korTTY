@@ -71,6 +71,8 @@ dependencies {
     
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.13.2")
+    implementation("com.knuddels:jtokkit:1.1.0")
+    implementation("org.apache.pdfbox:pdfbox:3.0.6")
 
     // PTY support for native Mosh client
     implementation("org.jetbrains.pty4j:pty4j:0.12.25")
