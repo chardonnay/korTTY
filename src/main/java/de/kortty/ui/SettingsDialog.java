@@ -95,6 +95,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     private final CheckBox commandTimestampsCheck;
     private final CheckBox terminalDragDropCheck;
     private final CheckBox terminalCopyOnSelectCheck;
+    private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
@@ -373,6 +374,13 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         terminalCopyOnSelectCheck = new CheckBox(I18n.get("settings.terminal.copyOnSelect"));
         terminalCopyOnSelectCheck.setSelected(globalSettings != null ? globalSettings.isTerminalCopyOnSelectEnabled() : true);
         terminalCopyOnSelectCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.copyOnSelect.tooltip")));
+
+        closeActiveTerminalWindowsWithoutConfirmationCheck = new CheckBox(I18n.get("settings.terminal.closeActiveWithoutConfirmation"));
+        closeActiveTerminalWindowsWithoutConfirmationCheck.setSelected(globalSettings != null
+            && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation());
+        closeActiveTerminalWindowsWithoutConfirmationCheck.setTooltip(
+            new Tooltip(I18n.get("settings.terminal.closeActiveWithoutConfirmation.tooltip"))
+        );
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -408,22 +416,23 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         terminalGrid.add(commandTimestampsCheck, 0, 6, 2, 1);
         terminalGrid.add(terminalDragDropCheck, 0, 7, 2, 1);
         terminalGrid.add(terminalCopyOnSelectCheck, 0, 8, 2, 1);
+        terminalGrid.add(closeActiveTerminalWindowsWithoutConfirmationCheck, 0, 9, 2, 1);
         
         // SSH Keep-Alive section
-        terminalGrid.add(new Separator(), 0, 9, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, 10, 2, 1);
-        terminalGrid.add(sshKeepAliveCheck, 0, 11, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, 12);
+        terminalGrid.add(new Separator(), 0, 10, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, 11, 2, 1);
+        terminalGrid.add(sshKeepAliveCheck, 0, 12, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, 13);
         HBox keepAliveBox = new HBox(10);
         keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label(I18n.get("common.seconds")));
-        terminalGrid.add(keepAliveBox, 1, 12);
+        terminalGrid.add(keepAliveBox, 1, 13);
         
         // Connection section
-        terminalGrid.add(new Separator(), 0, 13, 2, 1);
+        terminalGrid.add(new Separator(), 0, 14, 2, 1);
         Label connectionHeader = new Label(I18n.get("settings.connection.header"));
         connectionHeader.setStyle("-fx-font-weight: bold;");
-        terminalGrid.add(connectionHeader, 0, 14, 2, 1);
-        terminalGrid.add(connectionRetriesEnabledCheck, 0, 15, 2, 1);
+        terminalGrid.add(connectionHeader, 0, 15, 2, 1);
+        terminalGrid.add(connectionRetriesEnabledCheck, 0, 16, 2, 1);
         
         terminalTab.setContent(terminalGrid);
         
@@ -1427,6 +1436,9 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
+            globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
+                closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
+            );
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
             

@@ -1,0 +1,35 @@
+flowchart LR
+    subgraph User["Terminal workflow"]
+        Selection["Selected terminal text"]
+        Menu["Context menu<br/>AI -> Summarize / Solve Problem / Ask"]
+        Confirm["Confirm dialog<br/>preview, prompt, search/replace,<br/>token estimate"]
+    end
+
+    subgraph Config["Local configuration"]
+        Profiles["Settings -> AI<br/>profiles, max chars,<br/>model, API key"]
+        Quotas["Token limits,<br/>warning thresholds,<br/>reset cycle"]
+        Vault["Encrypted API key<br/>stored locally"]
+    end
+
+    subgraph App["KorTTY AI pipeline"]
+        Prompt["AiPromptBuilder<br/>system + user messages"]
+        Service["OpenAiCompatibleAiService<br/>POST /chat/completions"]
+        Usage["AiTokenUsageManager<br/>record usage"]
+        Sanitizer["AiResponseSanitizer<br/>strip visible <think> blocks"]
+        Result["AiResultTab<br/>follow-up, export,<br/>copy code, cancel"]
+    end
+
+    subgraph Endpoint["OpenAI-compatible endpoint"]
+        API["Cloud API or local runtime<br/>(for example LM Studio)"]
+    end
+
+    Selection --> Menu --> Confirm
+    Profiles --> Confirm
+    Quotas --> Confirm
+    Vault --> Service
+    Confirm --> Prompt --> Service --> API
+    API --> Service --> Sanitizer --> Result
+    Service --> Usage
+    Usage --> Result
+    Result -. "follow-up prompt" .-> Prompt
+    Profiles -. "selected profile" .-> Service

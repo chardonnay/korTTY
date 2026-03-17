@@ -1,6 +1,6 @@
 = KorTTY User Guide
 
-*v1.9.0* | link:../README.adoc[Back to README]
+*v2.0.0* | link:../README.adoc[Back to README]
 
 :toc:
 :toclevels: 3
@@ -20,6 +20,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *SSH tunnels* (local, remote, dynamic) and jump server support
 * *Backup and restore* with password-protected ZIP or GPG encryption
 * *8 built-in languages* plus *dynamic translation*: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
+* *AI assistant for terminal selections* with profile-based OpenAI-compatible endpoints, follow-up prompts, and token quota tracking
 * *JMX monitoring* for active connections and memory usage
 
 === System Requirements
@@ -68,12 +69,12 @@ KorTTY can be packaged as a native application using `jpackage`. The output matc
 |===
 | Platform | Command | Output
 | macOS (.app) | `./gradlew jpackage` | `build/jpackage/korTTY.app`
-| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-1.9.0.dmg`
+| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-2.0.0.dmg`
 | Windows (.exe) | `gradlew.bat jpackage` | `build\jpackage\korTTY\`
-| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-1.9.0.msi`
+| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-2.0.0.msi`
 | Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/korTTY/`
-| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-1.9.0.deb`
-| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-1.9.0.rpm`
+| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-2.0.0.deb`
+| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-2.0.0.rpm`
 |===
 
 === 2.2 First Launch - Master Password
@@ -114,7 +115,7 @@ image::diagrams/architecture.png[KorTTY architecture,align=center]
 * *Menu Bar* - Access all features through menus and keyboard shortcuts.
 * *Tab Bar* - Each SSH session runs in its own tab. Ctrl+Tab / Ctrl+Shift+Tab to switch.
 * *Dashboard* - Toggle with Ctrl+Shift+D. Shows all open connections with status indicators. Right-click a connection to *Reconnect* (always available; closes active connection and re-establishes it), duplicate, open SFTP, or close.
-* *Status Bar* - Shows connection status, temporary SSH key timer, and connection duration.
+* *Status Bar* - Shows connection state, host/IP, active protocol, temporary SSH key timer, and connection duration.
 
 == 3. Connections
 
@@ -277,6 +278,8 @@ Split the terminal view to display multiple connections side by side:
 
 KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint and open the answer in a temporary AI result tab.
 
+image::diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
+
 [WARNING]
 ====
 Selected terminal text is transmitted to the configured AI endpoint for analysis. That text can contain sensitive information such as credentials, hostnames, file paths, stack traces, or other operational details. For sensitive data, prefer a trusted local or OpenAI-compatible endpoint such as *LM Studio*, or verify that you trust the remote endpoint before sending anything. If you provide an *API Key*, KorTTY stores it encrypted with your master password.
@@ -286,10 +289,12 @@ Selected terminal text is transmitted to the configured AI endpoint for analysis
 
 1. Open *Edit > Global Settings*.
 2. Go to *AI*.
-3. Enter the *API URL*.
+3. Create one or more AI profiles and enter the *API URL* for each profile you want to use.
 4. Optionally enter *Model* and *API Key*. These fields are intentionally optional so local OpenAI-compatible endpoints such as *LM Studio* can be used.
    The *API Key* is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.
-5. Click *Test AI Connection*.
+5. Optionally configure *Max characters*, *Tokenizer*, *Token limit*, warning thresholds, and the token reset cycle per profile.
+6. Click *Test AI Connection*.
+7. Optionally disable the confirmation dialog for *Summarize* and *Solve Problem* if you want a faster workflow. *Ask* always opens the prompt dialog.
 
 *Usage:*
 
@@ -298,14 +303,18 @@ Selected terminal text is transmitted to the configured AI endpoint for analysis
 3. Open *AI* and choose:
 * *Summarize* - Creates a concise summary of the selected output.
 * *Solve Problem* - Analyzes the selected error output and suggests likely fixes.
-4. Confirm the request in the preview dialog. The response opens in a temporary AI tab.
+* *Ask* - Sends the selection together with your own follow-up question or instruction.
+4. Confirm the request in the preview dialog. You can edit the selected text before sending it. For *Ask*, add your own prompt. The dialog also shows the estimated request tokens and projected remaining quota.
+5. The response opens in a temporary AI tab. You can continue the same context with follow-up prompts from the bottom composer field.
 
 *AI result tab behavior:*
 
-* The tab is read-only and not included in saved project/session state.
+* The conversation transcript is read-only and not included in saved project/session state.
 * `<think> ... </think>` blocks are removed from the visible output.
-* The toolbar lets you copy the response, close the tab, and change the font size.
+* The toolbar lets you copy the conversation, export it to PDF/Markdown/plain text, close the tab, cancel running requests, and change the font size.
+* Detected code blocks get their own copy button.
 * The chosen AI tab font size is stored globally and reused for future AI result tabs.
+* Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate.
 
 === 4.7 Terminal Logging
 
@@ -553,7 +562,7 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible terminal analysis), and *Themes* (color profiles with live preview).
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, confirmations, and token quotas), and *Themes* (color profiles with live preview).
 
 == 16. Keyboard Shortcuts
 
@@ -614,4 +623,4 @@ All KorTTY data is stored under `~/.kortty/`:
 | Credentials | Never stored in plain text
 |===
 
-_KorTTY v1.9.0_
+_KorTTY v2.0.0_

@@ -1466,6 +1466,13 @@ public class MainWindow {
     private void confirmAndCloseAllTabs() {
         long closableCount = tabPane.getTabs().stream().filter(Tab::isClosable).count();
         if (closableCount == 0) return;
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        boolean skipConfirmation = globalSettings != null
+            && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation();
+        if (skipConfirmation) {
+            closeAllTabs();
+            return;
+        }
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(I18n.get("dialog.closeAllTabs.title"));
         alert.setHeaderText(I18n.get("dialog.closeAllTabs.header"));
@@ -1487,6 +1494,11 @@ public class MainWindow {
     }
     
     private boolean confirmClose() {
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        if (globalSettings != null && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation()) {
+            return true;
+        }
+
         // Count only active (connected) sessions
         long activeConnections = tabPane.getTabs().stream()
                 .filter(t -> t instanceof TerminalTab)

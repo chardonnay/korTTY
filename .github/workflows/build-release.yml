@@ -171,6 +171,20 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Apple notarization secrets
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
+          APPLE_NOTARY_APP_PASSWORD: ${{ secrets.APPLE_NOTARY_APP_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_NOTARY_APPLE_ID" ] || [ -z "$APPLE_NOTARY_TEAM_ID" ] || [ -z "$APPLE_NOTARY_APP_PASSWORD" ]; then
+            echo "Missing required Apple notarization secrets."
+            echo "Please set APPLE_NOTARY_APPLE_ID, APPLE_NOTARY_TEAM_ID, and APPLE_NOTARY_APP_PASSWORD."
+            exit 1
+          fi
+
       - name: Import Apple signing certificate
         if: matrix.platform == 'macos'
         shell: bash
@@ -301,6 +315,52 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} -Pkortty.macos.sign=true -Pkortty.macos.signingIdentity="${{ secrets.APPLE_SIGNING_IDENTITY }}" -Pkortty.macos.signingKeychain="$KORTTY_MAC_SIGNING_KEYCHAIN" jpackageDmg
+
+      - name: Store Apple notarization credentials
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
+          APPLE_NOTARY_APP_PASSWORD: ${{ secrets.APPLE_NOTARY_APP_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials "kortty-notary" \
+            --apple-id "$APPLE_NOTARY_APPLE_ID" \
+            --team-id "$APPLE_NOTARY_TEAM_ID" \
+            --password "$APPLE_NOTARY_APP_PASSWORD"
+
+      - name: Create macOS notarization ZIP
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          cd build/jpackage
+          ditto -c -k --keepParent korTTY.app korTTY-notarization-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip
+
+      - name: Notarize and staple macOS app
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          xcrun notarytool submit \
+            build/jpackage/korTTY-notarization-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip \
+            --keychain-profile "kortty-notary" \
+            --wait
+          xcrun stapler staple build/jpackage/korTTY.app
+          xcrun stapler validate build/jpackage/korTTY.app
+
+      - name: Notarize and staple macOS dmg
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          dmg_file="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' | head -n1)"
+          if [ -z "$dmg_file" ]; then
+            echo "No DMG found for notarization."
+            exit 1
+          fi
+          xcrun notarytool submit "$dmg_file" \
+            --keychain-profile "kortty-notary" \
+            --wait
+          xcrun stapler staple "$dmg_file"
+          xcrun stapler validate "$dmg_file"
 
       - name: Build Windows .exe
         if: matrix.platform == 'windows'

@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class GlobalSettingsManagerTest {
 
@@ -117,6 +118,26 @@ class GlobalSettingsManagerTest {
             reloaded.load();
 
             assertEquals(0, reloaded.getSettings().getAiProfiles().size());
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void closeActiveTerminalWindowsWithoutConfirmationDefaultsToFalseAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-close-confirm");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertFalse(manager.getSettings().isCloseActiveTerminalWindowsWithoutConfirmation());
+
+            manager.getSettings().setCloseActiveTerminalWindowsWithoutConfirmation(true);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertEquals(true, reloaded.getSettings().isCloseActiveTerminalWindowsWithoutConfirmation());
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

@@ -1,13 +1,33 @@
 = Release Notes
 
-== Unreleased
+== v2.0.0
 
-=== AI Assistant
+*Release date:* March 2026
 
-* *AI actions for selected terminal text*: Right-click selected text in the terminal and use *AI → Summarize* or *AI → Solve Problem* to send the selection to a configured OpenAI-compatible endpoint and open the result in a temporary tab.
-* *Settings → AI*: New global settings tab for AI integration with configurable API URL plus optional model and API key, so cloud endpoints and local tools like *LM Studio* can be used.
-* *Confirmation and result handling*: AI requests show a preview dialog before sending; result tabs are read-only, excluded from saved project/session state, and strip visible `<think> ... </think>` blocks from the output.
-* *Persistent AI tab font size*: The font size adjusted in an AI result tab is stored globally and reused for future AI tabs.
+=== Highlights
+
+* *OpenAI-compatible AI assistant in the terminal*: Selected terminal text can now be sent directly to *AI → Summarize*, *AI → Solve Problem*, or *AI → Ask* without leaving the session view.
+* *Profile-based AI setup*: *Settings → AI* now supports multiple named profiles with separate endpoint, optional model, optional encrypted API key, selection limit, tokenizer strategy, and token budget.
+* *AI result tabs as working surfaces*: AI responses open in temporary tabs with follow-up prompts, cancellation, copy helpers for code blocks, export to PDF/Markdown/plain text, and persistent AI font size.
+
+=== AI Workflow, Safety, and Quotas
+
+* *Preview before sending*: The confirmation dialog shows the selected text before transmission, lets you edit it, supports search/replace, and displays the estimated request token usage.
+* *Quota visibility*: Per-profile token limits, warning thresholds, and reset cycles are shown in Settings and projected in the confirmation dialog before a request is sent.
+* *Automatic usage accounting*: Prompt and response token counts are persisted after successful AI calls so usage warnings stay accurate across sessions.
+* *Safer output handling*: Visible `<think> ... </think>` blocks are stripped from rendered responses, and AI result tabs are not restored as part of saved project/session state.
+
+=== Terminal and UX
+
+* *Configurable close confirmation for active terminals*: A new global Terminal setting controls whether closing a window with active terminal sessions requires confirmation. The default remains safe: ask before closing.
+* *Status bar improvements*: Terminal status information now surfaces host/IP and the active protocol more clearly.
+* *Mosh background fix*: Mosh tabs no longer show a false "interrupted" state simply because the tab is not focused.
+
+=== Documentation and Release Tooling
+
+* *v2.0.0 documentation refresh*: README, User Guide, and Release Notes were updated for the AI workflows, packaging examples, and current version numbers.
+* *New Mermaid diagram for AI integration*: The docs now include a dedicated AI API integration diagram, and the release pipeline continues to render Mermaid assets automatically.
+* *Version alignment*: The application metadata, Gradle build, README, and documentation now consistently report *2.0.0*.
 
 ---
 

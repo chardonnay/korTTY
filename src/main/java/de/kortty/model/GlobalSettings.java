@@ -63,6 +63,9 @@ public class GlobalSettings {
     private boolean terminalCopyOnSelectEnabled = true; // Copy selected text to clipboard automatically
 
     @XmlElement
+    private boolean closeActiveTerminalWindowsWithoutConfirmation = false; // Ask before closing active terminal windows by default
+
+    @XmlElement
     private boolean applyThemeFonts = false; // Apply font family/size when applying themes
 
     @XmlElement
@@ -363,6 +366,14 @@ public class GlobalSettings {
 
     public void setTerminalCopyOnSelectEnabled(boolean terminalCopyOnSelectEnabled) {
         this.terminalCopyOnSelectEnabled = terminalCopyOnSelectEnabled;
+    }
+
+    public boolean isCloseActiveTerminalWindowsWithoutConfirmation() {
+        return closeActiveTerminalWindowsWithoutConfirmation;
+    }
+
+    public void setCloseActiveTerminalWindowsWithoutConfirmation(boolean closeActiveTerminalWindowsWithoutConfirmation) {
+        this.closeActiveTerminalWindowsWithoutConfirmation = closeActiveTerminalWindowsWithoutConfirmation;
     }
 
     public boolean isApplyThemeFonts() {
