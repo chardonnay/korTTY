@@ -342,10 +342,22 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
+          set +e
           xcrun notarytool submit \
             build/jpackage/korTTY-notarization-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip \
             --keychain-profile "kortty-notary" \
-            --wait
+            --wait > "$RUNNER_TEMP/notary-app-submit.log" 2>&1
+          submit_exit=$?
+          cat "$RUNNER_TEMP/notary-app-submit.log"
+          submission_id="$(sed -n 's/^  id: //p' "$RUNNER_TEMP/notary-app-submit.log" | tail -n1 | tr -d '\r')"
+          if [ $submit_exit -ne 0 ]; then
+            if [ -n "$submission_id" ]; then
+              echo "Fetching notarization log for submission ID: $submission_id"
+              xcrun notarytool log "$submission_id" --keychain-profile "kortty-notary" || true
+            fi
+            exit $submit_exit
+          fi
+          set -e
           xcrun stapler staple build/jpackage/korTTY.app
           xcrun stapler validate build/jpackage/korTTY.app
 
@@ -358,9 +370,21 @@ jobs:
             echo "No DMG found for notarization."
             exit 1
           fi
+          set +e
           xcrun notarytool submit "$dmg_file" \
             --keychain-profile "kortty-notary" \
-            --wait
+            --wait > "$RUNNER_TEMP/notary-dmg-submit.log" 2>&1
+          submit_exit=$?
+          cat "$RUNNER_TEMP/notary-dmg-submit.log"
+          submission_id="$(sed -n 's/^  id: //p' "$RUNNER_TEMP/notary-dmg-submit.log" | tail -n1 | tr -d '\r')"
+          if [ $submit_exit -ne 0 ]; then
+            if [ -n "$submission_id" ]; then
+              echo "Fetching notarization log for submission ID: $submission_id"
+              xcrun notarytool log "$submission_id" --keychain-profile "kortty-notary" || true
+            fi
+            exit $submit_exit
+          fi
+          set -e
           xcrun stapler staple "$dmg_file"
           xcrun stapler validate "$dmg_file"
 
