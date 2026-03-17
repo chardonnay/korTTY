@@ -342,6 +342,27 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
+          require_accepted_notarization() {
+            local submit_log="$1"
+            local submission_id
+            local submission_status
+
+            submission_id="$(sed -n 's/^  id: //p' "$submit_log" | tail -n1 | tr -d '\r')"
+            submission_status="$(sed -n 's/^  status: //p' "$submit_log" | tail -n1 | tr -d '\r')"
+
+            if [ -z "$submission_id" ]; then
+              echo "Unable to determine notarization submission ID."
+              exit 1
+            fi
+
+            if [ "$submission_status" != "Accepted" ]; then
+              echo "Notarization finished with status: ${submission_status:-unknown}"
+              echo "Fetching notarization log for submission ID: $submission_id"
+              xcrun notarytool log "$submission_id" --keychain-profile "kortty-notary" || true
+              exit 1
+            fi
+          }
+
           set +e
           xcrun notarytool submit \
             build/jpackage/korTTY-notarization-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip \
@@ -349,14 +370,11 @@ jobs:
             --wait > "$RUNNER_TEMP/notary-app-submit.log" 2>&1
           submit_exit=$?
           cat "$RUNNER_TEMP/notary-app-submit.log"
-          submission_id="$(sed -n 's/^  id: //p' "$RUNNER_TEMP/notary-app-submit.log" | tail -n1 | tr -d '\r')"
           if [ $submit_exit -ne 0 ]; then
-            if [ -n "$submission_id" ]; then
-              echo "Fetching notarization log for submission ID: $submission_id"
-              xcrun notarytool log "$submission_id" --keychain-profile "kortty-notary" || true
-            fi
+            require_accepted_notarization "$RUNNER_TEMP/notary-app-submit.log"
             exit $submit_exit
           fi
+          require_accepted_notarization "$RUNNER_TEMP/notary-app-submit.log"
           set -e
           xcrun stapler staple build/jpackage/korTTY.app
           xcrun stapler validate build/jpackage/korTTY.app
@@ -365,6 +383,27 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
+          require_accepted_notarization() {
+            local submit_log="$1"
+            local submission_id
+            local submission_status
+
+            submission_id="$(sed -n 's/^  id: //p' "$submit_log" | tail -n1 | tr -d '\r')"
+            submission_status="$(sed -n 's/^  status: //p' "$submit_log" | tail -n1 | tr -d '\r')"
+
+            if [ -z "$submission_id" ]; then
+              echo "Unable to determine notarization submission ID."
+              exit 1
+            fi
+
+            if [ "$submission_status" != "Accepted" ]; then
+              echo "Notarization finished with status: ${submission_status:-unknown}"
+              echo "Fetching notarization log for submission ID: $submission_id"
+              xcrun notarytool log "$submission_id" --keychain-profile "kortty-notary" || true
+              exit 1
+            fi
+          }
+
           dmg_file="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' | head -n1)"
           if [ -z "$dmg_file" ]; then
             echo "No DMG found for notarization."
@@ -376,14 +415,11 @@ jobs:
             --wait > "$RUNNER_TEMP/notary-dmg-submit.log" 2>&1
           submit_exit=$?
           cat "$RUNNER_TEMP/notary-dmg-submit.log"
-          submission_id="$(sed -n 's/^  id: //p' "$RUNNER_TEMP/notary-dmg-submit.log" | tail -n1 | tr -d '\r')"
           if [ $submit_exit -ne 0 ]; then
-            if [ -n "$submission_id" ]; then
-              echo "Fetching notarization log for submission ID: $submission_id"
-              xcrun notarytool log "$submission_id" --keychain-profile "kortty-notary" || true
-            fi
+            require_accepted_notarization "$RUNNER_TEMP/notary-dmg-submit.log"
             exit $submit_exit
           fi
+          require_accepted_notarization "$RUNNER_TEMP/notary-dmg-submit.log"
           set -e
           xcrun stapler staple "$dmg_file"
           xcrun stapler validate "$dmg_file"
