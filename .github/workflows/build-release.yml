@@ -175,13 +175,13 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         env:
-          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
-          APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
-          APPLE_NOTARY_APP_PASSWORD: ${{ secrets.APPLE_NOTARY_APP_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
-          if [ -z "$APPLE_NOTARY_APPLE_ID" ] || [ -z "$APPLE_NOTARY_TEAM_ID" ] || [ -z "$APPLE_NOTARY_APP_PASSWORD" ]; then
+          if [ -z "$APPLE_API_KEY_ID" ] || [ -z "$APPLE_ISSUER_ID" ] || [ -z "$APPLE_API_KEY" ]; then
             echo "Missing required Apple notarization secrets."
-            echo "Please set APPLE_NOTARY_APPLE_ID, APPLE_NOTARY_TEAM_ID, and APPLE_NOTARY_APP_PASSWORD."
+            echo "Please set APPLE_API_KEY_ID, APPLE_ISSUER_ID, and APPLE_API_KEY."
             exit 1
           fi
 
@@ -320,14 +320,16 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         env:
-          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
-          APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
-          APPLE_NOTARY_APP_PASSWORD: ${{ secrets.APPLE_NOTARY_APP_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
+          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY" > "$NOTARY_KEY_PATH"
           xcrun notarytool store-credentials "kortty-notary" \
-            --apple-id "$APPLE_NOTARY_APPLE_ID" \
-            --team-id "$APPLE_NOTARY_TEAM_ID" \
-            --password "$APPLE_NOTARY_APP_PASSWORD"
+            --key "$NOTARY_KEY_PATH" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_ISSUER_ID"
 
       - name: Create macOS notarization ZIP
         if: matrix.platform == 'macos'
