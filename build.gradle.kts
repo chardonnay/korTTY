@@ -248,6 +248,10 @@ if (isMac) {
     val macSignEnabled = (findProperty("kortty.macos.sign") as String?)?.toBoolean() == true
     val macSigningIdentity = (findProperty("kortty.macos.signingIdentity") as String?)?.trim()
     val macSigningKeychain = (findProperty("kortty.macos.signingKeychain") as String?)?.trim()
+    val macNativeJarPatterns = listOf(
+        Regex("""^jna-[\w.\-]+\.jar$"""),
+        Regex("""^pty4j-[\w.\-]+\.jar$""")
+    )
 
     // Icon-Funktion für macOS: Versuche .icns, sonst verwende PNG
     fun getMacIcon(): File {
@@ -263,10 +267,85 @@ if (isMac) {
             else -> throw GradleException("korTTY Icon nicht gefunden! Bitte erstelle src/main/resources/icon/kortty_icon.icns oder kortty_icon.png")
         }
     }
+
+    tasks.register("signMacBundledNativeLibraries") {
+        dependsOn("prepareJpackage")
+        onlyIf { macSignEnabled }
+
+        doLast {
+            if (macSigningIdentity.isNullOrEmpty()) {
+                throw GradleException("macOS signing is enabled but property 'kortty.macos.signingIdentity' is missing.")
+            }
+
+            val libsDir = jpackageInput.get().asFile.resolve("libs")
+            val jarFiles = libsDir.listFiles()
+                ?.filter { file -> macNativeJarPatterns.any { pattern -> pattern.matches(file.name) } }
+                .orEmpty()
+
+            if (jarFiles.isEmpty()) {
+                throw GradleException("No bundled macOS native JARs found in ${libsDir.absolutePath}.")
+            }
+
+            val keychainArgs = if (!macSigningKeychain.isNullOrEmpty()) {
+                listOf("--keychain", macSigningKeychain)
+            } else {
+                emptyList()
+            }
+
+            jarFiles.forEach { jarFile ->
+                val tempDir = layout.buildDirectory.get().asFile
+                    .resolve("mac-native-signing")
+                    .resolve(jarFile.nameWithoutExtension)
+
+                delete(tempDir)
+                tempDir.mkdirs()
+
+                copy {
+                    from(zipTree(jarFile))
+                    into(tempDir)
+                }
+
+                val nativeFiles = tempDir.walkTopDown()
+                    .filter { it.isFile && (it.extension == "dylib" || it.extension == "jnilib") }
+                    .toList()
+
+                if (nativeFiles.isEmpty()) {
+                    println("No macOS native binaries found in ${jarFile.name}; skipping repack.")
+                    delete(tempDir)
+                    return@forEach
+                }
+
+                nativeFiles.forEach { nativeFile ->
+                    val codesignCommand = listOf(
+                        "codesign",
+                        "--force",
+                        "--sign", macSigningIdentity,
+                        "--timestamp",
+                        "--options", "runtime"
+                    ) + keychainArgs + listOf(nativeFile.absolutePath)
+
+                    val codesignProcess = ProcessBuilder(codesignCommand)
+                        .directory(project.rootDir)
+                        .inheritIO()
+                        .start()
+
+                    if (codesignProcess.waitFor() != 0) {
+                        throw GradleException("codesign failed for ${nativeFile.absolutePath}")
+                    }
+                }
+
+                delete(jarFile)
+                ant.withGroovyBuilder {
+                    "zip"("destfile" to jarFile.absolutePath, "basedir" to tempDir.absolutePath)
+                }
+                delete(tempDir)
+            }
+        }
+    }
     
     // jpackage Task für macOS .app
     tasks.register<Exec>("jpackage") {
-        dependsOn("prepareJpackage")
+        dependsOn("signMacBundledNativeLibraries")
         
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
@@ -303,7 +382,7 @@ if (isMac) {
     
     // jpackage Task für macOS .dmg Installer
     tasks.register<Exec>("jpackageDmg") {
-        dependsOn("prepareJpackage")
+        dependsOn("signMacBundledNativeLibraries")
         
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
