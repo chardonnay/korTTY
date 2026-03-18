@@ -40,7 +40,7 @@ public class ConfigurationManager {
      */
     public void load(SecretKey key) {
         try {
-            connections = connectionRepository.loadConnections();
+            connections = connectionRepository.loadConnections(key);
             logger.info("Loaded {} connections", connections.size());
         } catch (Exception e) {
             logger.error("Failed to load connections", e);
@@ -53,7 +53,7 @@ public class ConfigurationManager {
      */
     public void save(SecretKey key) {
         try {
-            connectionRepository.saveConnections(connections);
+            connectionRepository.saveConnections(connections, key);
             logger.info("Saved {} connections", connections.size());
         } catch (Exception e) {
             logger.error("Failed to save connections", e);

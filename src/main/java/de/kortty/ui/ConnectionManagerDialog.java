@@ -23,6 +23,7 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.crypto.SecretKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -999,24 +1000,10 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
      * Exports connections to KorTTY XML format (fallback/default).
      */
     private void exportToKorTTYFormat(List<ServerConnection> exportList, java.io.File exportFile) throws Exception {
-        jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
-            de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
-            ServerConnection.class,
-            de.kortty.model.SSHTunnel.class,
-            de.kortty.model.JumpServer.class,
-            de.kortty.model.AuthMethod.class,
-            de.kortty.model.TunnelType.class,
-            de.kortty.model.TerminalLogConfig.class,
-            de.kortty.model.TerminalLogConfig.LogFormat.class
-        );
-        
-        de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper wrapper = 
-            new de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper();
-        wrapper.setConnections(exportList);
-        
-        jakarta.xml.bind.Marshaller marshaller = context.createMarshaller();
-        marshaller.setProperty(jakarta.xml.bind.Marshaller.JAXB_FORMATTED_OUTPUT, true);
-        marshaller.marshal(wrapper, exportFile);
+        SecretKey persistenceKey = app.getMasterPasswordManager() != null
+            ? app.getMasterPasswordManager().getDerivedKey()
+            : null;
+        de.kortty.persistence.XMLConnectionRepository.writeConnections(exportList, exportFile.toPath(), persistenceKey);
     }
     
     private void importConnections() {
@@ -1240,25 +1227,15 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             }
             
             // Read XML file
-            jakarta.xml.bind.JAXBContext context = jakarta.xml.bind.JAXBContext.newInstance(
-                de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper.class,
-                ServerConnection.class,
-                de.kortty.model.SSHTunnel.class,
-                de.kortty.model.JumpServer.class,
-                de.kortty.model.AuthMethod.class,
-                de.kortty.model.TunnelType.class,
-                de.kortty.model.TerminalLogConfig.class,
-                de.kortty.model.TerminalLogConfig.LogFormat.class
-            );
-            
-            jakarta.xml.bind.Unmarshaller unmarshaller = context.createUnmarshaller();
-            de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper wrapper = 
-                (de.kortty.persistence.XMLConnectionRepository.ConnectionsWrapper) 
-                unmarshaller.unmarshal(actualXmlFile);
+            SecretKey persistenceKey = app.getMasterPasswordManager() != null
+                ? app.getMasterPasswordManager().getDerivedKey()
+                : null;
+            List<ServerConnection> persistedConnections =
+                de.kortty.persistence.XMLConnectionRepository.readConnections(actualXmlFile.toPath(), persistenceKey);
         
             List<ServerConnection> importList = new ArrayList<>();
         
-            for (ServerConnection conn : wrapper.getConnections()) {
+            for (ServerConnection conn : persistedConnections) {
                 // Group filtering
                 if (result.filterGroups && !result.selectedGroups.isEmpty()) {
                     String connGroup = conn.getGroup();
