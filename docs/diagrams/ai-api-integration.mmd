@@ -3,12 +3,14 @@ flowchart LR
         Selection["Selected terminal text"]
         Menu["Context menu<br/>AI -> Summarize / Solve Problem / Ask"]
         Confirm["Confirm dialog<br/>preview, prompt, search/replace,<br/>token estimate"]
+        Manager["Tools -> AI Manager<br/>open saved chats"]
     end
 
     subgraph Config["Local configuration"]
         Profiles["Settings -> AI<br/>profiles, max chars,<br/>model, API key"]
         Quotas["Token limits,<br/>warning thresholds,<br/>reset cycle"]
         Vault["Encrypted API key<br/>stored locally"]
+        SavedChats["Saved AI chats<br/>titles, messages, profile refs"]
     end
 
     subgraph App["KorTTY AI pipeline"]
@@ -16,7 +18,9 @@ flowchart LR
         Service["OpenAiCompatibleAiService<br/>POST /chat/completions"]
         Usage["AiTokenUsageManager<br/>record usage"]
         Sanitizer["AiResponseSanitizer<br/>strip visible <think> blocks"]
-        Result["AiResultTab<br/>follow-up, export,<br/>copy code, cancel"]
+        Result["AiResultTab<br/>follow-up, save/share/export,<br/>copy code/tables, cancel"]
+        ChatManager["AiChatManager + AI Manager<br/>save, reopen, rename, delete"]
+        Fallback["Missing-profile dialog<br/>choose replacement profile"]
     end
 
     subgraph Endpoint["OpenAI-compatible endpoint"]
@@ -32,4 +36,9 @@ flowchart LR
     Service --> Usage
     Usage --> Result
     Result -. "follow-up prompt" .-> Prompt
+    Result -->|save / autosave| ChatManager --> SavedChats
+    Manager --> ChatManager
+    SavedChats --> ChatManager --> Result
+    Profiles -. "missing original profile" .-> Fallback
+    Fallback --> ChatManager
     Profiles -. "selected profile" .-> Service

@@ -5,33 +5,52 @@ flowchart TB
         subgraph App["KorTTY Application"]
             direction TB
             MW[Main Window]
+            Menu[Menu Bar]
+            Dashboard[Dashboard]
+            StatusBar[Status Bar]
             TabBar[Tab Bar]
             TabBar --> TT[Terminal Tabs]
             TabBar --> SFTPTab[SFTP Manager Tabs]
-            Dashboard[Dashboard]
-            Menu[Menu Bar]
-            ConnMenu[Connections]
-            ConnMenu --> QConnect[Quick Connect]
-            ConnMenu --> ConnMgr[Connection Manager]
-            ConnMenu --> Import[Import/Export]
-            StatusBar[Status Bar]
+            TabBar --> AITab[AI Result Tabs]
+
+            subgraph Workflows["Tools & Workflows"]
+                direction LR
+                QConnect[Quick Connect]
+                ConnMgr[Connection Manager]
+                SFTPTool[Open SFTP]
+                Snippets[Snippet Manager]
+                AIManager[AI Manager]
+            end
+
+            subgraph AIFeatures["AI Features"]
+                direction LR
+                ProfilesUI[AI Profiles]
+                SavedChatsUI[Saved Chats]
+            end
         end
 
         subgraph Data["Configuration & Data"]
-            direction TB
+            direction LR
             ConnXML[connections.xml]
             CredXML[credentials.xml]
             Settings[global-settings.xml]
             Projects[projects/]
+            AIData[saved-ai-chats.json]
             Mgmt[Management]
             Mgmt --> Creds[Credentials]
             Mgmt --> SSHKeys[SSH Keys]
             Mgmt --> GPGKeys[GPG Keys]
             Mgmt --> Env[Environments]
-            Tools[Tools]
-            Tools --> Snippets[Snippet Manager]
-            Tools --> SFTP[Open SFTP]
         end
     end
 
+    MW --> Menu
+    MW --> Dashboard
+    MW --> TabBar
+    MW --> StatusBar
+    Menu --> Workflows
+    Menu --> AIFeatures
     StatusBar --> ConnXML
+    AITab --> SavedChatsUI
+    ProfilesUI --> Settings
+    SavedChatsUI --> AIData
