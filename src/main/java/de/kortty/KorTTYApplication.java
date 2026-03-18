@@ -11,6 +11,7 @@ import de.kortty.core.SnippetVariableManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.BackupManager;
+import de.kortty.core.AiChatManager;
 import de.kortty.teamwork.TeamworkSyncService;
 import de.kortty.teamwork.TeamworkRecycleBinService;
 import de.kortty.model.ConnectionSettings;
@@ -59,6 +60,7 @@ public class KorTTYApplication extends Application {
     private GlobalSettingsManager globalSettingsManager;
     private ThemeManager themeManager;
     private BackupManager backupManager;
+    private AiChatManager aiChatManager;
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
     private boolean macDesktopHandlersRegistered = false;
@@ -100,6 +102,7 @@ public class KorTTYApplication extends Application {
         snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
         themeManager = new ThemeManager(configDir);
+        aiChatManager = new AiChatManager(configDir);
         
         // Register JMX MBean
         registerJMXBean();
@@ -177,6 +180,7 @@ public class KorTTYApplication extends Application {
                 sshKeyManager.load();
                 snippetManager.load();
                 snippetVariableManager.load();
+                aiChatManager.load();
                 // Reload global settings to ensure we have the latest version
                 // Note: This reload should preserve the language setting from the file
                 globalSettingsManager.load();
@@ -269,6 +273,9 @@ public class KorTTYApplication extends Application {
             }
             if (snippetVariableManager != null) {
                 snippetVariableManager.save();
+            }
+            if (aiChatManager != null) {
+                aiChatManager.save();
             }
             if (globalSettingsManager != null) {
                 globalSettingsManager.save();
@@ -464,6 +471,10 @@ public class KorTTYApplication extends Application {
     
     public ThemeManager getThemeManager() {
         return themeManager;
+    }
+
+    public AiChatManager getAiChatManager() {
+        return aiChatManager;
     }
     
     public BackupManager getBackupManager() {

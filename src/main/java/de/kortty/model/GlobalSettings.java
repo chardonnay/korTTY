@@ -46,6 +46,9 @@ public class GlobalSettings {
     
     @XmlElement
     private boolean dashboardVisible = false; // Last dashboard visibility state
+
+    @XmlElement
+    private boolean showMenuBar = true; // Show the main menu bar inside the window
     
     @XmlElement
     private double dashboardDividerPosition = 0.2; // Last dashboard divider position (0.0-1.0)
@@ -326,6 +329,14 @@ public class GlobalSettings {
     
     public void setDashboardVisible(boolean dashboardVisible) {
         this.dashboardVisible = dashboardVisible;
+    }
+
+    public boolean isShowMenuBar() {
+        return showMenuBar;
+    }
+
+    public void setShowMenuBar(boolean showMenuBar) {
+        this.showMenuBar = showMenuBar;
     }
     
     public double getDashboardDividerPosition() {

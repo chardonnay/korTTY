@@ -2216,13 +2216,10 @@ public class SFTPManagerTab extends Tab {
     }
     
     /**
-     * Applies the dark theme stylesheet to a dialog.
+     * Applies the active KorTTY theme to a dialog.
      */
     private void applyDarkTheme(Dialog<?> dialog) {
-        var cssResource = getClass().getResource("/styles/terminal.css");
-        if (cssResource != null) {
-            dialog.getDialogPane().getStylesheets().add(cssResource.toExternalForm());
-        }
+        DialogThemeHelper.applyTheme(dialog);
     }
     
     private String formatDuration(long seconds) {

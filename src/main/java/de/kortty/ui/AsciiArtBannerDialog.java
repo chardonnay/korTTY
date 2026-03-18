@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
  * Dialog to create ASCII art banners using the jfiglet library (FIGfonts).
  * Supports multiple font styles (Standard, Slant, and bundled fonts).
  */
-public class AsciiArtBannerDialog extends Dialog<Void> {
+public class AsciiArtBannerDialog extends ThemeAwareDialog<Void> {
 
     private final TextField inputField;
     private final TextArea outputArea;

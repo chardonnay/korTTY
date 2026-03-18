@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Dialog to configure teamwork connection sources (Git or shared file) and check interval.
  */
-public class TeamworkSettingsDialog extends Dialog<Void> {
+public class TeamworkSettingsDialog extends ThemeAwareDialog<Void> {
 
     private static final Logger logger = LoggerFactory.getLogger(TeamworkSettingsDialog.class);
 

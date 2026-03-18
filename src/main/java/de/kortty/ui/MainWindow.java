@@ -32,8 +32,10 @@ import javafx.concurrent.Task;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.control.*;
+import javafx.scene.control.skin.MenuBarSkin;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.DragEvent;
@@ -41,6 +43,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.TransferMode;
@@ -85,6 +88,9 @@ public class MainWindow {
     }
     private static final Logger logger = LoggerFactory.getLogger(MainWindow.class);
     private static final int DEFAULT_MAX_AI_SELECTION_CHARS = 1_000_000;
+    private static final KeyCombination MENU_BAR_TOGGLE_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     
     private final Stage stage;
     private final BorderPane root;
@@ -93,11 +99,19 @@ public class MainWindow {
     private VBox statusBar;
     private final HBox mainContentBox;
     private final boolean unifiedTitleBarEnabled;
+    private MenuBar menuBar;
+    private MenuBar systemMenuBar;
     private String dynamicThemeStylesheetUrl;
     private DashboardView dashboardView;
     private boolean dashboardVisible = false;
     private CheckMenuItem showDashboardMenuItem;
+    private CheckMenuItem systemShowDashboardMenuItem;
+    private MenuItem cutMenuItem;
+    private MenuItem systemCutMenuItem;
+    private CheckMenuItem showMenuBarMenuItem;
+    private CheckMenuItem systemShowMenuBarMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
+    private CheckMenuItem systemShowTimestampsMenuItem;
     
     private final KorTTYApplication app;
     private final SessionManager sessionManager;
@@ -115,6 +129,9 @@ public class MainWindow {
     private static final Map<String, TabTransfer> pendingTabTransfers = new HashMap<>();
 
     private record TabTransfer(MainWindow sourceWindow, Tab tab) {}
+    private enum MenuBarTarget { WINDOW, SYSTEM }
+
+    private final Map<String, AiResultTab> openSavedAiChatTabs = new HashMap<>();
 
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean suppressQuickConnect = false;  // Flag to suppress QuickConnect on programmatic tab selection
@@ -201,6 +218,7 @@ public class MainWindow {
                 terminalTab.getTerminalView().setTerminalActive(true);
                 Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
             }
+            updateEditMenuItemsForSelection();
         });
         
         // Listen for tab removals to update dashboard and suppress QuickConnect
@@ -379,6 +397,12 @@ public class MainWindow {
         final boolean[] zoomTriggered = {false};
         
         scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (MENU_BAR_TOGGLE_ACCELERATOR.match(event)) {
+                toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible());
+                event.consume();
+                return;
+            }
+
             boolean ctrl = event.isControlDown();
             boolean alt = event.isAltDown();
             KeyCode code = event.getCode();
@@ -532,185 +556,258 @@ public class MainWindow {
     }
     
     private void setupMenuBar() {
-        MenuBar menuBar = new MenuBar();
-        if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
-            menuBar.setUseSystemMenuBar(true);
+        menuBar = createApplicationMenuBar(MenuBarTarget.WINDOW);
+        if (isMacOs()) {
+            systemMenuBar = createApplicationMenuBar(MenuBarTarget.SYSTEM);
+            systemMenuBar.setUseSystemMenuBar(true);
+            systemMenuBar.setManaged(false);
+            systemMenuBar.setVisible(false);
+            // Keep a hidden companion menu bar attached to the scene so macOS can
+            // continue to show the application menu even when the in-window bar is hidden.
+            VBox menuContainer = new VBox(systemMenuBar, menuBar);
+            root.setTop(menuContainer);
+            MenuBarSkin.setDefaultSystemMenuBar(systemMenuBar);
+        } else {
+            root.setTop(menuBar);
         }
-        
-        // File Menu
+        applyMenuBarVisibility(isMenuBarVisiblePreference());
+        syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
+        syncTimestampMenuItems(false);
+        applyMainWindowThemeFromGlobalSettings();
+    }
+
+    private MenuBar createApplicationMenuBar(MenuBarTarget target) {
+        MenuBar createdMenuBar = new MenuBar();
+        createdMenuBar.getMenus().addAll(
+            createFileMenu(),
+            createEditMenu(target),
+            createConnectionsMenu(),
+            createManagementMenu(),
+            createToolsMenu(),
+            createViewMenu(target),
+            createHelpMenu()
+        );
+        return createdMenuBar;
+    }
+
+    private Menu createFileMenu() {
         Menu fileMenu = new Menu(I18n.get("menu.file"));
-        
+
         MenuItem newTab = new MenuItem(I18n.get("menu.file.newTab"));
         newTab.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
         newTab.setOnAction(e -> showQuickConnect());
-        
+
         MenuItem closeTab = new MenuItem(I18n.get("menu.file.closeTab"));
         closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
         closeTab.setOnAction(e -> closeCurrentTab());
-        
+
         MenuItem closeAllTabs = new MenuItem(I18n.get("menu.file.closeAllTabs"));
         closeAllTabs.setOnAction(e -> confirmAndCloseAllTabs());
-        
+
         MenuItem newWindow = new MenuItem(I18n.get("menu.file.newWindow"));
         newWindow.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         newWindow.setOnAction(e -> openNewWindow());
-        
+
         MenuItem closeWindow = new MenuItem(I18n.get("menu.file.closeWindow"));
         closeWindow.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         closeWindow.setOnAction(e -> fireCloseRequest());
-        
+
         MenuItem openProject = new MenuItem(I18n.get("menu.file.openProject"));
         openProject.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
         openProject.setOnAction(e -> openProject());
-        
+
         MenuItem saveProject = new MenuItem(I18n.get("menu.file.saveProject"));
         saveProject.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         saveProject.setOnAction(e -> saveProject());
-        
+
         MenuItem createBackup = new MenuItem(I18n.get("menu.edit.createBackup"));
         createBackup.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         createBackup.setOnAction(e -> createBackup());
-        
+
         MenuItem importBackup = new MenuItem(I18n.get("menu.edit.importBackup"));
         importBackup.setOnAction(e -> importBackup());
-        
+
         MenuItem quit = new MenuItem(I18n.get("menu.file.quit"));
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
         quit.setOnAction(e -> requestApplicationQuit());
-        
+
         fileMenu.getItems().addAll(
-                newTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
-                newWindow, closeWindow, new SeparatorMenuItem(),
-                openProject, saveProject, new SeparatorMenuItem(),
-                createBackup, importBackup, new SeparatorMenuItem(), quit);
-        
-        // Edit Menu
+            newTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
+            newWindow, closeWindow, new SeparatorMenuItem(),
+            openProject, saveProject, new SeparatorMenuItem(),
+            createBackup, importBackup, new SeparatorMenuItem(), quit);
+        return fileMenu;
+    }
+
+    private Menu createEditMenu(MenuBarTarget target) {
         Menu editMenu = new Menu(I18n.get("menu.edit"));
-        
+
         MenuItem cut = new MenuItem(I18n.get("menu.edit.cut"));
         cut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
-        cut.setOnAction(e -> copyFromTerminal()); // Terminal: cut copies selection to clipboard (no delete)
-        
+        cut.setOnAction(e -> cutFromCurrentContext());
+        if (target == MenuBarTarget.WINDOW) {
+            cutMenuItem = cut;
+        } else {
+            systemCutMenuItem = cut;
+        }
+        updateEditMenuItemsForSelection();
+
         MenuItem copy = new MenuItem(I18n.get("menu.edit.copy"));
         copy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         copy.setOnAction(e -> copyFromTerminal());
-        
+
         MenuItem paste = new MenuItem(I18n.get("menu.edit.paste"));
         paste.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
         paste.setOnAction(e -> pasteToTerminal());
-        
+
         MenuItem find = new MenuItem(I18n.get("menu.edit.find"));
         find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
         find.setOnAction(e -> findInCurrentTab());
-        
+
         MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
         settings.setOnAction(e -> showSettings());
-        
+
         editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, new SeparatorMenuItem(), settings);
-        
-        // Connections Menu
+        return editMenu;
+    }
+
+    private Menu createConnectionsMenu() {
         Menu connectionsMenu = new Menu(I18n.get("menu.connections"));
-        
+
         MenuItem quickConnect = new MenuItem(I18n.get("menu.connections.quickConnect"));
         quickConnect.setAccelerator(new KeyCodeCombination(KeyCode.K, KeyCombination.SHORTCUT_DOWN));
         quickConnect.setOnAction(e -> showQuickConnect());
-        
+
         MenuItem manageConnections = new MenuItem(I18n.get("menu.connections.manage"));
         manageConnections.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN));
         manageConnections.setOnAction(e -> showConnectionManager());
-        
+
         MenuItem importConnections = new MenuItem(I18n.get("menu.connections.import"));
         importConnections.setOnAction(e -> importConnections());
-        
+
         MenuItem exportConnections = new MenuItem(I18n.get("menu.connections.export"));
         exportConnections.setOnAction(e -> exportConnections());
-        
+
         connectionsMenu.getItems().addAll(quickConnect, manageConnections,
-                new SeparatorMenuItem(), importConnections, exportConnections);
-        
-        // Management Menu
+            new SeparatorMenuItem(), importConnections, exportConnections);
+        return connectionsMenu;
+    }
+
+    private Menu createManagementMenu() {
         Menu managementMenu = new Menu(I18n.get("menu.management"));
-        
+
         MenuItem manageCredentials = new MenuItem(I18n.get("menu.management.credentials"));
         manageCredentials.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageCredentials.setOnAction(e -> showCredentialManagement());
-        
+
         MenuItem manageGPGKeys = new MenuItem(I18n.get("menu.management.gpgKeys"));
         manageGPGKeys.setAccelerator(new KeyCodeCombination(KeyCode.G, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageGPGKeys.setOnAction(e -> showGPGKeyManagement());
-        
+
         MenuItem manageSSHKeys = new MenuItem(I18n.get("menu.management.sshKeys"));
         manageSSHKeys.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
-        
+
         MenuItem teamworkSettings = new MenuItem(I18n.get("menu.management.teamwork"));
         teamworkSettings.setOnAction(e -> showTeamworkSettings());
-        
+
         managementMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys, new SeparatorMenuItem(), teamworkSettings);
-        
-        // Tools Menu
-        Menu sftpMenu = new Menu(I18n.get("menu.tools"));
-        
+        return managementMenu;
+    }
+
+    private Menu createToolsMenu() {
+        Menu toolsMenu = new Menu(I18n.get("menu.tools"));
+
         MenuItem openSFTPManager = new MenuItem(I18n.get("menu.tools.sftpManager"));
         openSFTPManager.setAccelerator(new KeyCodeCombination(KeyCode.U, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         openSFTPManager.setOnAction(e -> showSFTPManager());
-        
+
         MenuItem asciiArtBanner = new MenuItem(I18n.get("menu.tools.asciiArtBanner"));
         asciiArtBanner.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         asciiArtBanner.setOnAction(e -> showAsciiArtBanner());
-        
+
         MenuItem snippetManager = new MenuItem(I18n.get("menu.tools.snippets"));
         snippetManager.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         snippetManager.setOnAction(e -> showSnippetManager());
-        
-        sftpMenu.getItems().addAll(openSFTPManager, asciiArtBanner, new SeparatorMenuItem(), snippetManager);
-        
-        // View Menu
+
+        MenuItem aiManager = new MenuItem(I18n.get("menu.tools.aiManager"));
+        aiManager.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        aiManager.setOnAction(e -> showAiManager());
+
+        toolsMenu.getItems().addAll(openSFTPManager, asciiArtBanner, new SeparatorMenuItem(), snippetManager, aiManager);
+        return toolsMenu;
+    }
+
+    private Menu createViewMenu(MenuBarTarget target) {
         Menu viewMenu = new Menu(I18n.get("menu.view"));
-        
-        showDashboardMenuItem = new CheckMenuItem(I18n.get("menu.view.dashboard"));
-        showDashboardMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-        var gs = app.getGlobalSettingsManager().getSettings();
-        boolean restoreDashboard = gs != null && gs.isRememberDashboardState() && gs.isDashboardVisible();
-        showDashboardMenuItem.setSelected(restoreDashboard);
-        showDashboardMenuItem.setOnAction(e -> toggleDashboard(showDashboardMenuItem.isSelected()));
-        
-        showTimestampsMenuItem = new CheckMenuItem(I18n.get("menu.view.timestamps"));
-        showTimestampsMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-        showTimestampsMenuItem.setOnAction(e -> toggleTimestampsInCurrentTab(showTimestampsMenuItem));
-        
+        boolean restoreDashboard = shouldRestoreDashboardOnStartup();
+
+        CheckMenuItem dashboardItem = new CheckMenuItem(I18n.get("menu.view.dashboard"));
+        dashboardItem.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        dashboardItem.setSelected(restoreDashboard);
+        dashboardItem.setOnAction(e -> toggleDashboard(dashboardItem.isSelected()));
+        if (target == MenuBarTarget.WINDOW) {
+            showDashboardMenuItem = dashboardItem;
+        } else {
+            systemShowDashboardMenuItem = dashboardItem;
+        }
+
+        CheckMenuItem timestampsItem = new CheckMenuItem(I18n.get("menu.view.timestamps"));
+        timestampsItem.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        timestampsItem.setOnAction(e -> toggleTimestampsInCurrentTab(timestampsItem));
+        if (target == MenuBarTarget.WINDOW) {
+            showTimestampsMenuItem = timestampsItem;
+        } else {
+            systemShowTimestampsMenuItem = timestampsItem;
+        }
+
+        CheckMenuItem menuBarItem = new CheckMenuItem(I18n.get("menu.view.menuBar"));
+        menuBarItem.setAccelerator(MENU_BAR_TOGGLE_ACCELERATOR);
+        menuBarItem.setSelected(isMenuBarVisiblePreference());
+        menuBarItem.setOnAction(e -> toggleMenuBarVisibility(menuBarItem.isSelected()));
+        if (target == MenuBarTarget.WINDOW) {
+            showMenuBarMenuItem = menuBarItem;
+        } else {
+            systemShowMenuBarMenuItem = menuBarItem;
+        }
+
         MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
-        
+
         MenuItem zoomOut = new MenuItem(I18n.get("menu.view.zoomOut"));
         zoomOut.setAccelerator(new KeyCodeCombination(KeyCode.MINUS, KeyCombination.ALT_DOWN));
         zoomOut.setOnAction(e -> zoomTerminal(-1));
-        
+
         MenuItem resetZoom = new MenuItem(I18n.get("menu.view.resetZoom"));
         resetZoom.setAccelerator(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.ALT_DOWN));
         resetZoom.setOnAction(e -> resetTerminalZoom());
-        
+
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
-        
-        viewMenu.getItems().addAll(showDashboardMenuItem, showTimestampsMenuItem, new SeparatorMenuItem(),
-                zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
-        
-        // Help Menu
+
+        viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, new SeparatorMenuItem(),
+            zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
+        return viewMenu;
+    }
+
+    private Menu createHelpMenu() {
         Menu helpMenu = new Menu(I18n.get("menu.help"));
-        
         MenuItem about = new MenuItem(I18n.get("menu.help.about") + " " + KorTTYApplication.getAppName());
         about.setOnAction(e -> showAbout());
-        
         helpMenu.getItems().add(about);
-        
-        // Menu order: File, Edit, Connections, Management, Tools, View, Help
-        menuBar.getMenus().addAll(fileMenu, editMenu, connectionsMenu, managementMenu, sftpMenu, viewMenu, helpMenu);
-        root.setTop(menuBar);
-        applyMainWindowThemeFromGlobalSettings();
+        return helpMenu;
+    }
+
+    private boolean isMacOs() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
+    }
+
+    private boolean shouldRestoreDashboardOnStartup() {
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        return globalSettings != null && globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible();
     }
     
     private void setupKeyBindings() {
@@ -762,7 +859,7 @@ public class MainWindow {
         });
         
         // Restore dashboard state if enabled
-        if (globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible()) {
+        if (shouldRestoreDashboardOnStartup()) {
             Platform.runLater(() -> toggleDashboard(true));
         }
     }
@@ -849,11 +946,9 @@ public class MainWindow {
             // Register timestamp toggle listener so context menu toggle updates the View menu
             terminalTab.setTimestampToggleListener(() -> {
                 Platform.runLater(() -> {
-                    if (showTimestampsMenuItem != null) {
-                        Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
-                        if (activeTab instanceof TerminalTab active) {
-                            showTimestampsMenuItem.setSelected(active.isTimestampGuttersVisible());
-                        }
+                    Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
+                    if (activeTab instanceof TerminalTab active) {
+                        syncTimestampMenuItems(active.isTimestampGuttersVisible());
                     }
                 });
             });
@@ -1103,6 +1198,7 @@ public class MainWindow {
         }
 
         Dialog<String> pwDialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(pwDialog);
         pwDialog.initOwner(stage);
         pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
         pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
@@ -1169,6 +1265,7 @@ public class MainWindow {
             String password = getConnectionPassword(conn);
             if (password == null) {
                 Dialog<String> pwDialog = new Dialog<>();
+                DialogThemeHelper.applyTheme(pwDialog);
                 pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
                 pwDialog.setHeaderText(I18n.get("dialog.passwordFor", conn.getDisplayName()));
                 pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -1218,13 +1315,18 @@ public class MainWindow {
             logger.info("Settings changed, updating all terminal views");
             Platform.runLater(() -> {
                 applyMainWindowThemeFromGlobalSettings();
+                applyMenuBarVisibility(isMenuBarVisiblePreference());
                 refreshTerminalTabsUsingGlobalDefaults();
                 for (Tab tab : tabPane.getTabs()) {
                     if (tab instanceof TerminalTab terminalTab) {
                         // Scrollbar functionality removed
                     }
                 }
-                updateStatus(I18n.get("status.globalSettingsSaved"));
+                if (menuBar != null && !menuBar.isVisible()) {
+                    updateStatus(I18n.get("menu.view.menuBar.hiddenHint", MENU_BAR_TOGGLE_SHORTCUT_LABEL));
+                } else {
+                    updateStatus(I18n.get("status.globalSettingsSaved"));
+                }
             });
         });
         
@@ -1259,20 +1361,12 @@ public class MainWindow {
 
     private void applyMainWindowThemeFromGlobalSettings() {
         try {
-            var gs = app.getGlobalSettingsManager().getSettings();
-            if (gs == null || gs.getDefaultTerminalSettings() == null) {
+            ThemeCssSupport.ThemeColors colors = ThemeCssSupport.resolveThemeColors(app);
+            if (colors == null) {
                 return;
             }
-            ConnectionSettings defaults = new ConnectionSettings(gs.getDefaultTerminalSettings());
-            String themeId = defaults.getThemeId();
-            logger.info("Applying theme: themeId='{}', saved bg='{}', saved fg='{}'",
-                    themeId, defaults.getBackgroundColor(), defaults.getForegroundColor());
-            if (themeId != null && !themeId.isEmpty() && app.getThemeManager() != null) {
-                defaults = app.getThemeManager().resolveSettings(defaults, themeId);
-            }
-            String fg = defaults.getForegroundColor();
-            String bg = defaults.getBackgroundColor();
-            logger.info("Resolved theme: bg='{}', fg='{}', scene={}", bg, fg, stage.getScene() != null);
+            String bg = colors.backgroundColor();
+            String fg = colors.foregroundColor();
             if (bg != null && !bg.isEmpty()) {
                 String bgStyle = "-fx-background-color: " + bg + ";";
                 root.setStyle(bgStyle);
@@ -1300,162 +1394,21 @@ public class MainWindow {
             return;
         }
         try {
-            Color bgColor = Color.web(bg);
-            Color fgColor = (fg != null && !fg.isEmpty()) ? Color.web(fg) : Color.web("#cccccc");
-
-            double lum = 0.299 * bgColor.getRed() + 0.587 * bgColor.getGreen() + 0.114 * bgColor.getBlue();
-            Color blendTarget = lum < 0.5 ? Color.WHITE : Color.BLACK;
-
-            String bgAlt    = toHex(bgColor.interpolate(blendTarget, 0.08));
-            String bgHover   = toHex(bgColor.interpolate(blendTarget, 0.15));
-            String bgHoverSub = toHex(bgColor.interpolate(blendTarget, 0.11));
-            String fgBright  = toHex(lum < 0.5
-                    ? fgColor.interpolate(Color.WHITE, 0.3)
-                    : fgColor.interpolate(Color.BLACK, 0.3));
-            String border    = toHex(bgColor.interpolate(blendTarget, 0.20));
-            String accent    = "#0066cc";
-            String accentHov = "#0077dd";
-
-            String css = String.join("\n",
-                    // Root
-                    ".root { -fx-background-color: " + bg + "; }",
-
-                    // Labels
-                    ".label { -fx-text-fill: " + fg + "; }",
-
-                    // Menu bar
-                    ".menu-bar { -fx-background-color: " + bgAlt + "; }",
-                    ".menu-bar .menu .label { -fx-text-fill: " + fg + "; }",
-                    ".menu-bar .menu:hover, .menu-bar .menu:showing { -fx-background-color: " + bgHover + "; }",
-                    ".context-menu { -fx-background-color: " + bgAlt + "; -fx-padding: 5; }",
-                    ".menu-item { -fx-background-color: transparent; }",
-                    ".menu-item .label { -fx-text-fill: " + fg + "; }",
-                    ".menu-item:hover, .menu-item:focused { -fx-background-color: " + bgHover + "; }",
-                    ".separator:horizontal .line { -fx-border-color: " + border + "; }",
-
-                    // Tab pane
-                    ".tab-pane { -fx-background-color: " + bg + "; }",
-                    ".tab-pane:focused { -fx-background-color: " + bg + "; }",
-                    ".tab-pane .tab-header-area { -fx-background-color: " + bgAlt + "; }",
-                    ".tab-pane .tab-header-background { -fx-background-color: " + bgAlt + "; }",
-                    ".tab { -fx-background-color: " + bgAlt + "; }",
-                    ".tab:selected { -fx-background-color: " + bg + "; }",
-                    ".tab .tab-label { -fx-text-fill: " + fg + "; }",
-                    ".tab:selected .tab-label { -fx-text-fill: " + fgBright + "; }",
-                    ".tab-close-button { -fx-background-color: " + border + "; }",
-
-                    // Scroll pane / bar
-                    ".scroll-pane { -fx-background-color: " + bg + "; -fx-background: " + bg + "; }",
-                    ".scroll-pane .viewport { -fx-background-color: " + bg + "; }",
-                    ".scroll-bar { -fx-background-color: " + bgAlt + "; }",
-                    ".scroll-bar .thumb { -fx-background-color: " + border + "; }",
-                    ".scroll-bar .thumb:hover { -fx-background-color: " + bgHover + "; }",
-
-                    // Text flow
-                    ".text-flow { -fx-background-color: " + bg + "; }",
-
-                    // Buttons
-                    ".button { -fx-background-color: " + bgHover + "; -fx-text-fill: " + fg + "; }",
-                    ".button:hover { -fx-background-color: " + border + "; }",
-                    ".button:pressed { -fx-background-color: " + bgAlt + "; }",
-                    ".button:default { -fx-background-color: " + accent + "; -fx-text-fill: #ffffff; }",
-                    ".button:default:hover { -fx-background-color: " + accentHov + "; }",
-
-                    // Text fields
-                    ".text-field, .password-field { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; -fx-border-color: " + border + "; }",
-                    ".text-field:focused, .password-field:focused { -fx-border-color: " + accent + "; }",
-
-                    // Text area
-                    ".text-area { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; }",
-                    ".text-area .content { -fx-background-color: " + bg + "; }",
-
-                    // Tree view (disclosure node transparent; only .arrow triangle gets theme color)
-                    ".tree-view { -fx-background-color: " + bg + "; }",
-                    ".tree-cell { -fx-background-color: transparent; -fx-text-fill: " + fg + "; }",
-                    ".tree-cell .tree-disclosure-node { -fx-background-color: transparent; }",
-                    ".tree-cell .tree-disclosure-node .arrow { -fx-background-color: " + fg + "; }",
-                    ".tree-cell:expanded .tree-disclosure-node .arrow { -fx-background-color: " + fg + "; }",
-                    ".tree-cell:selected { -fx-background-color: " + bgHover + "; }",
-                    ".tree-cell:hover { -fx-background-color: " + bgAlt + "; }",
-
-                    // Table view
-                    ".table-view { -fx-background-color: " + bgAlt + "; }",
-                    ".table-view .column-header { -fx-background-color: " + bgHover + "; }",
-                    ".table-view .column-header .label { -fx-text-fill: " + fg + "; }",
-                    ".table-row-cell { -fx-background-color: " + bgAlt + "; }",
-                    ".table-row-cell:selected { -fx-background-color: " + bgHover + "; }",
-                    ".table-row-cell:hover { -fx-background-color: " + bgHoverSub + "; }",
-                    ".table-cell { -fx-text-fill: " + fg + "; }",
-
-                    // List view
-                    ".list-view { -fx-background-color: " + bg + "; }",
-                    ".list-cell { -fx-background-color: transparent; -fx-text-fill: " + fg + "; }",
-                    ".list-cell:selected { -fx-background-color: " + bgHover + "; }",
-                    ".list-cell:hover { -fx-background-color: " + bgAlt + "; }",
-
-                    // Check box / Radio button
-                    ".check-box { -fx-text-fill: " + fg + "; }",
-                    ".check-box .box { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; }",
-                    ".check-box:selected .mark { -fx-background-color: " + fg + "; }",
-                    ".radio-button { -fx-text-fill: " + fg + "; }",
-                    ".radio-button .radio { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; }",
-                    ".radio-button:selected .dot { -fx-background-color: " + fg + "; }",
-
-                    // Combo box
-                    ".combo-box { -fx-background-color: " + bgHover + "; }",
-                    ".combo-box .list-cell { -fx-text-fill: " + fg + "; -fx-background-color: transparent; }",
-                    ".combo-box-popup .list-view { -fx-background-color: " + bgAlt + "; }",
-                    ".combo-box-popup .list-cell:hover { -fx-background-color: " + bgHover + "; }",
-
-                    // Spinner
-                    ".spinner { -fx-background-color: " + bg + "; }",
-                    ".spinner .text-field { -fx-background-color: " + bg + "; }",
-                    ".spinner .increment-arrow-button, .spinner .decrement-arrow-button { -fx-background-color: " + bgHover + "; }",
-
-                    // Progress bar
-                    ".progress-bar { -fx-background-color: " + bg + "; }",
-                    ".progress-bar .track { -fx-background-color: " + bg + "; }",
-                    ".progress-bar .bar { -fx-background-color: " + accent + "; }",
-
-                    // Split pane
-                    ".split-pane { -fx-background-color: " + bg + "; }",
-                    ".split-pane-divider { -fx-background-color: " + border + "; }",
-
-                    // Dialog pane
-                    ".dialog-pane { -fx-background-color: " + bgAlt + "; }",
-                    ".dialog-pane .header-panel { -fx-background-color: " + bgHover + "; }",
-                    ".dialog-pane .content { -fx-background-color: " + bgAlt + "; }",
-
-                    // Color picker
-                    ".color-picker { -fx-background-color: " + bgHover + "; }",
-                    ".color-picker .label { -fx-text-fill: " + fg + "; }",
-
-                    // Tooltip
-                    ".tooltip { -fx-background-color: " + bgHover + "; -fx-text-fill: " + fg + "; }",
-
-                    // Titled pane (used in some dialogs)
-                    ".titled-pane > .title { -fx-background-color: " + bgAlt + "; }",
-                    ".titled-pane > .content { -fx-background-color: " + bg + "; }"
-            );
-
-            Path tempCss = Files.createTempFile("kortty-theme-", ".css");
-            tempCss.toFile().deleteOnExit();
-            Files.writeString(tempCss, css);
-
+            String stylesheetUrl = ThemeCssSupport.getDynamicStylesheetUrl(bg, fg);
+            if (stylesheetUrl == null) {
+                return;
+            }
             var sheets = stage.getScene().getStylesheets();
-            if (dynamicThemeStylesheetUrl != null) {
+            if (dynamicThemeStylesheetUrl != null && !dynamicThemeStylesheetUrl.equals(stylesheetUrl)) {
                 sheets.remove(dynamicThemeStylesheetUrl);
             }
-            dynamicThemeStylesheetUrl = tempCss.toUri().toString();
-            sheets.add(dynamicThemeStylesheetUrl);
+            dynamicThemeStylesheetUrl = stylesheetUrl;
+            if (!sheets.contains(dynamicThemeStylesheetUrl)) {
+                sheets.add(dynamicThemeStylesheetUrl);
+            }
         } catch (Exception e) {
             logger.debug("Could not update dynamic theme stylesheet: {}", e.getMessage());
         }
-    }
-
-    private static String toHex(Color c) {
-        return String.format("#%02x%02x%02x",
-                (int) (c.getRed() * 255), (int) (c.getGreen() * 255), (int) (c.getBlue() * 255));
     }
     
     private void openNewWindow() {
@@ -1554,6 +1507,7 @@ public class MainWindow {
             return;
         }
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
         alert.setTitle(I18n.get("dialog.closeAllTabs.title"));
         alert.setHeaderText(I18n.get("dialog.closeAllTabs.header"));
         alert.setContentText(I18n.get("dialog.closeAllTabs.content"));
@@ -1593,6 +1547,7 @@ public class MainWindow {
         
         // Show confirmation for active connections
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
         alert.setTitle(I18n.get("dialog.closeWindow"));
         alert.setHeaderText(I18n.get("dialog.activeConnections"));
         alert.setContentText(I18n.get("dialog.activeConnectionsMessage", activeConnections));
@@ -1619,6 +1574,66 @@ public class MainWindow {
             terminalTab.copySelection();
         }
     }
+
+    private void cutFromCurrentContext() {
+        Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
+        if (currentTab instanceof TerminalTab) {
+            return;
+        } else if (currentTab instanceof FileEditorTab editorTab) {
+            editorTab.cut();
+            return;
+        }
+
+        Scene scene = stage.getScene();
+        if (scene == null) {
+            return;
+        }
+
+        Node focusOwner = scene.getFocusOwner();
+        if (focusOwner instanceof TextInputControl textInputControl) {
+            textInputControl.cut();
+            return;
+        }
+        if (focusOwner != null) {
+            if (invokeCutMethodIfPresent(focusOwner)) {
+                return;
+            }
+            focusOwner.fireEvent(new KeyEvent(
+                KeyEvent.KEY_PRESSED,
+                "",
+                "",
+                KeyCode.X,
+                false,
+                !isMacOs(),
+                false,
+                isMacOs()
+            ));
+        }
+    }
+
+    private void updateEditMenuItemsForSelection() {
+        Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
+        boolean disableCut = currentTab instanceof TerminalTab;
+        if (cutMenuItem != null) {
+            cutMenuItem.setDisable(disableCut);
+        }
+        if (systemCutMenuItem != null) {
+            systemCutMenuItem.setDisable(disableCut);
+        }
+    }
+
+    private boolean invokeCutMethodIfPresent(Node focusOwner) {
+        try {
+            var cutMethod = focusOwner.getClass().getMethod("cut");
+            if (cutMethod.getParameterCount() == 0) {
+                cutMethod.invoke(focusOwner);
+                return true;
+            }
+        } catch (ReflectiveOperationException ignored) {
+            // Fall back to firing the standard shortcut event below.
+        }
+        return false;
+    }
     
     private void pasteToTerminal() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
@@ -1644,7 +1659,43 @@ public class MainWindow {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
         if (currentTab instanceof TerminalTab terminalTab) {
             boolean nowVisible = terminalTab.toggleTimestampGutters();
-            menuItem.setSelected(nowVisible);
+            syncTimestampMenuItems(nowVisible);
+        } else if (menuItem != null) {
+            syncTimestampMenuItems(menuItem.isSelected());
+        }
+    }
+
+    private boolean isMenuBarVisiblePreference() {
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        return globalSettings == null || globalSettings.isShowMenuBar();
+    }
+
+    private void applyMenuBarVisibility(boolean visible) {
+        if (menuBar == null) {
+            return;
+        }
+        menuBar.setVisible(visible);
+        menuBar.setManaged(visible);
+        syncMenuBarToggleMenuItems(visible);
+    }
+
+    private void toggleMenuBarVisibility(boolean visible) {
+        applyMenuBarVisibility(visible);
+
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        if (globalSettings != null) {
+            globalSettings.setShowMenuBar(visible);
+            try {
+                app.getGlobalSettingsManager().save();
+            } catch (Exception e) {
+                logger.warn("Could not persist menu bar visibility", e);
+            }
+        }
+
+        if (visible) {
+            updateStatus(I18n.get("menu.view.menuBar.shown"));
+        } else {
+            updateStatus(I18n.get("menu.view.menuBar.hiddenHint", MENU_BAR_TOGGLE_SHORTCUT_LABEL));
         }
     }
     
@@ -1663,6 +1714,33 @@ public class MainWindow {
     }
     
     private static final int DASHBOARD_FIXED_WIDTH = 300;
+
+    private void syncDashboardMenuItems(boolean visible) {
+        if (showDashboardMenuItem != null && showDashboardMenuItem.isSelected() != visible) {
+            showDashboardMenuItem.setSelected(visible);
+        }
+        if (systemShowDashboardMenuItem != null && systemShowDashboardMenuItem.isSelected() != visible) {
+            systemShowDashboardMenuItem.setSelected(visible);
+        }
+    }
+
+    private void syncTimestampMenuItems(boolean visible) {
+        if (showTimestampsMenuItem != null && showTimestampsMenuItem.isSelected() != visible) {
+            showTimestampsMenuItem.setSelected(visible);
+        }
+        if (systemShowTimestampsMenuItem != null && systemShowTimestampsMenuItem.isSelected() != visible) {
+            systemShowTimestampsMenuItem.setSelected(visible);
+        }
+    }
+
+    private void syncMenuBarToggleMenuItems(boolean visible) {
+        if (showMenuBarMenuItem != null && showMenuBarMenuItem.isSelected() != visible) {
+            showMenuBarMenuItem.setSelected(visible);
+        }
+        if (systemShowMenuBarMenuItem != null && systemShowMenuBarMenuItem.isSelected() != visible) {
+            systemShowMenuBarMenuItem.setSelected(visible);
+        }
+    }
     
     private void toggleDashboard(boolean show) {
         if (show && !dashboardVisible) {
@@ -1680,9 +1758,7 @@ public class MainWindow {
             mainContentBox.getChildren().remove(dashboardView);
             dashboardVisible = false;
         }
-        if (showDashboardMenuItem != null) {
-            showDashboardMenuItem.setSelected(dashboardVisible);
-        }
+        syncDashboardMenuItems(dashboardVisible);
     }
     
     private void updateDashboard() {
@@ -2271,6 +2347,7 @@ public class MainWindow {
     
     private void showAbout() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        DialogThemeHelper.applyTheme(alert);
         alert.setTitle(I18n.get("dialog.about") + " " + KorTTYApplication.getAppName());
         alert.setHeaderText(KorTTYApplication.getAppName() + " v" + KorTTYApplication.getAppVersion());
         alert.setContentText(I18n.get("dialog.aboutText") + "\n\n" +
@@ -2325,15 +2402,16 @@ public class MainWindow {
         }
 
         AiRequest request = new AiRequest(action, requestText, connectionName, languageCode, draft.userPrompt());
-        String tabTitle = I18n.get("ai.tab.title", getAiActionLabel(action)) + " [" + getAiProfileDisplayName(profile) + "]";
+        String tabTitle = I18n.get("ai.tab.title", getAiActionLabel(action));
         AiResultTab resultTab = new AiResultTab(
+            this,
             tabTitle,
-            aiService,
             profile,
             requestText,
             connectionName,
             languageCode,
-            (usageRequest, usageResult) -> recordAiUsage(profile, usageRequest, usageResult));
+            null,
+            false);
         if (action == AiAction.ASK && draft.userPrompt() != null && !draft.userPrompt().isBlank()) {
             resultTab.appendUserMessage(draft.userPrompt());
         }
@@ -2425,6 +2503,7 @@ public class MainWindow {
     private void showAiConfigurationDialog() {
         ButtonType openSettings = new ButtonType(I18n.get("ai.settings.open"), ButtonBar.ButtonData.OK_DONE);
         Alert alert = new Alert(Alert.AlertType.WARNING, I18n.get("ai.error.notConfigured"), openSettings, ButtonType.CANCEL);
+        DialogThemeHelper.applyTheme(alert);
         alert.setTitle(I18n.get("ai.error.title"));
         alert.setHeaderText(null);
         if (alert.showAndWait().orElse(ButtonType.CANCEL) == openSettings) {
@@ -2454,6 +2533,7 @@ public class MainWindow {
         String model = profile != null && profile.getModel() != null ? profile.getModel() : "";
         String apiUrl = profile != null && profile.getApiUrl() != null ? profile.getApiUrl() : "";
         Dialog<AiRequestDraft> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
         dialog.setTitle(I18n.get("ai.confirm.title"));
         dialog.setHeaderText(I18n.get("ai.confirm.header", getAiActionLabel(action)));
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -2781,6 +2861,7 @@ public class MainWindow {
             case SUMMARIZE -> I18n.get("terminal.contextMenu.ai.summarize");
             case SOLVE_PROBLEM -> I18n.get("terminal.contextMenu.ai.solve");
             case ASK -> I18n.get("terminal.contextMenu.ai.ask");
+            case GENERATE_CHAT_TITLE -> I18n.get("ai.action.generateTitle");
         };
     }
 
@@ -2794,6 +2875,220 @@ public class MainWindow {
         return profile.getName().trim();
     }
 
+    void updateStatusMessage(String message) {
+        updateStatus(message);
+    }
+
+    List<AiProfile> getAvailableAiProfiles() {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null || settings.getAiProfiles() == null) {
+            return List.of();
+        }
+        return settings.getAiProfiles().stream()
+            .filter(profile -> profile != null)
+            .sorted((left, right) -> getAiProfileDisplayName(left).compareToIgnoreCase(getAiProfileDisplayName(right)))
+            .toList();
+    }
+
+    AiProfile findAiProfileById(String profileId) {
+        if (profileId == null || profileId.isBlank()) {
+            return null;
+        }
+        return getAvailableAiProfiles().stream()
+            .filter(profile -> profileId.equals(profile.getId()))
+            .findFirst()
+            .orElse(null);
+    }
+
+    AiService createAiServiceForProfile(AiProfile profile) {
+        return createAiService(profile);
+    }
+
+    void recordAiUsageForProfile(AiProfile profile, AiRequest request, AiExecutionResult result) {
+        recordAiUsage(profile, request, result);
+    }
+
+    void registerSavedChatTab(AiResultTab tab) {
+        if (tab == null || tab.getSavedChatId() == null || tab.getSavedChatId().isBlank()) {
+            return;
+        }
+        openSavedAiChatTabs.put(tab.getSavedChatId(), tab);
+    }
+
+    void unregisterSavedChatTab(String chatId) {
+        if (chatId == null || chatId.isBlank()) {
+            return;
+        }
+        openSavedAiChatTabs.remove(chatId);
+    }
+
+    AiResultTab findOpenSavedChatTab(String chatId) {
+        if (chatId == null || chatId.isBlank()) {
+            return null;
+        }
+        AiResultTab tab = openSavedAiChatTabs.get(chatId);
+        if (tab == null) {
+            return null;
+        }
+        if (!tabPane.getTabs().contains(tab)) {
+            openSavedAiChatTabs.remove(chatId);
+            return null;
+        }
+        return tab;
+    }
+
+    AiResultTab openSavedAiChat(SavedAiChat chat) {
+        if (chat == null) {
+            return null;
+        }
+
+        AiResultTab existingTab = findOpenSavedChatTab(chat.getId());
+        if (existingTab != null) {
+            tabPane.getSelectionModel().select(existingTab);
+            return existingTab;
+        }
+
+        SavedAiChat workingCopy = new SavedAiChat(chat);
+        List<AiProfile> availableProfiles = getAvailableAiProfiles();
+        AiProfile activeProfile = findAiProfileById(workingCopy.getActiveAiProfileId());
+        boolean readOnly = false;
+
+        if (activeProfile == null && workingCopy.getActiveAiProfileId() != null && !workingCopy.getActiveAiProfileId().isBlank()) {
+            if (availableProfiles.isEmpty()) {
+                readOnly = true;
+            } else {
+                Optional<AiProfile> replacementProfile = promptForSavedChatProfile(workingCopy, availableProfiles);
+                if (replacementProfile.isEmpty()) {
+                    return null;
+                }
+                activeProfile = replacementProfile.get();
+                workingCopy.setActiveAiProfileId(activeProfile.getId());
+                workingCopy.setActiveAiProfileName(getAiProfileDisplayName(activeProfile));
+                try {
+                    workingCopy = app.getAiChatManager().saveChat(workingCopy);
+                } catch (Exception e) {
+                    logger.error("Failed to persist replacement AI profile for saved chat {}", workingCopy.getId(), e);
+                    showError(I18n.get("error.title"), e.getMessage());
+                    return null;
+                }
+            }
+        } else if (activeProfile == null && !availableProfiles.isEmpty()) {
+            activeProfile = availableProfiles.getFirst();
+            workingCopy.setActiveAiProfileId(activeProfile.getId());
+            workingCopy.setActiveAiProfileName(getAiProfileDisplayName(activeProfile));
+            try {
+                workingCopy = app.getAiChatManager().saveChat(workingCopy);
+            } catch (Exception e) {
+                logger.error("Failed to persist default AI profile for saved chat {}", workingCopy.getId(), e);
+                showError(I18n.get("error.title"), e.getMessage());
+                return null;
+            }
+        } else if (activeProfile == null) {
+            readOnly = true;
+        }
+
+        String title = workingCopy.getTitle() != null && !workingCopy.getTitle().isBlank()
+            ? workingCopy.getTitle().trim()
+            : I18n.get("ai.saved.defaultTitle");
+        AiResultTab resultTab = new AiResultTab(
+            this,
+            title,
+            activeProfile,
+            workingCopy.getSelectedText(),
+            workingCopy.getConnectionDisplayName(),
+            workingCopy.getResponseLanguageCode(),
+            workingCopy,
+            readOnly);
+        insertTemporaryTab(resultTab);
+        registerSavedChatTab(resultTab);
+        updateStatus(I18n.get("ai.manager.opened", title));
+        return resultTab;
+    }
+
+    boolean renameSavedAiChat(SavedAiChat chat, String newTitle) {
+        if (chat == null || newTitle == null || newTitle.isBlank()) {
+            return false;
+        }
+        SavedAiChat updatedChat = new SavedAiChat(chat);
+        updatedChat.setTitle(newTitle.trim());
+        try {
+            SavedAiChat saved = app.getAiChatManager().saveChat(updatedChat);
+            AiResultTab openTab = findOpenSavedChatTab(saved.getId());
+            if (openTab != null) {
+                openTab.applySavedChatTitle(saved.getTitle());
+            }
+            updateStatus(I18n.get("ai.manager.renamed", saved.getTitle()));
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to rename saved AI chat {}", chat.getId(), e);
+            showError(I18n.get("error.title"), e.getMessage());
+            return false;
+        }
+    }
+
+    boolean deleteSavedAiChat(SavedAiChat chat) {
+        if (chat == null || chat.getId() == null || chat.getId().isBlank()) {
+            return false;
+        }
+        try {
+            boolean deleted = app.getAiChatManager().deleteChat(chat.getId());
+            if (!deleted) {
+                return false;
+            }
+            AiResultTab openTab = findOpenSavedChatTab(chat.getId());
+            if (openTab != null) {
+                openTab.closeTab();
+            }
+            unregisterSavedChatTab(chat.getId());
+            updateStatus(I18n.get("ai.manager.deleted", chat.getTitle() != null ? chat.getTitle() : ""));
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to delete saved AI chat {}", chat.getId(), e);
+            showError(I18n.get("error.title"), e.getMessage());
+            return false;
+        }
+    }
+
+    private Optional<AiProfile> promptForSavedChatProfile(SavedAiChat chat, List<AiProfile> availableProfiles) {
+        Dialog<AiProfile> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.setTitle(I18n.get("ai.profile.missing.title"));
+        dialog.setHeaderText(I18n.get("ai.profile.missing.header",
+            chat.getTitle() != null && !chat.getTitle().isBlank() ? chat.getTitle().trim() : I18n.get("ai.saved.defaultTitle")));
+        dialog.initOwner(stage);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        ComboBox<AiProfile> profileBox = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(availableProfiles));
+        profileBox.setPrefWidth(360);
+        profileBox.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : getAiProfileDisplayName(item));
+            }
+        });
+        profileBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(AiProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : getAiProfileDisplayName(item));
+            }
+        });
+        profileBox.getSelectionModel().selectFirst();
+
+        VBox content = new VBox(10, new Label(I18n.get("ai.profile.missing.content")), profileBox);
+        content.setPadding(new Insets(8, 0, 0, 0));
+        dialog.getDialogPane().setContent(content);
+
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setDisable(profileBox.getSelectionModel().getSelectedItem() == null);
+        profileBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) ->
+            okButton.setDisable(newValue == null));
+
+        dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK ? profileBox.getSelectionModel().getSelectedItem() : null);
+        return dialog.showAndWait();
+    }
+
     private static String getProtocolLabel(ConnectionProtocol protocol) {
         if (protocol == null) return "SSH";
         return switch (protocol) {
@@ -2805,6 +3100,7 @@ public class MainWindow {
     
     private void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        DialogThemeHelper.applyTheme(alert);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
@@ -2813,6 +3109,7 @@ public class MainWindow {
     
     private void showInfo(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        DialogThemeHelper.applyTheme(alert);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
@@ -2872,11 +3169,9 @@ public class MainWindow {
             TerminalTab tab = new TerminalTab(conn, password);
             installAiSelectionHandler(tab);
             tab.setTimestampToggleListener(() -> Platform.runLater(() -> {
-                if (showTimestampsMenuItem != null) {
-                    Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
-                    if (activeTab instanceof TerminalTab active) {
-                        showTimestampsMenuItem.setSelected(active.isTimestampGuttersVisible());
-                    }
+                Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
+                if (activeTab instanceof TerminalTab active) {
+                    syncTimestampMenuItems(active.isTimestampGuttersVisible());
                 }
             }));
             tabPane.getTabs().add(tab);
@@ -2981,6 +3276,17 @@ public class MainWindow {
             showError(I18n.get("error.title"), e.getMessage());
         }
     }
+
+    private void showAiManager() {
+        try {
+            AiManagerDialog dialog = new AiManagerDialog(this);
+            dialog.initOwner(stage);
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to open AI Manager", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
     
     private void showSFTPManager() {
         logger.info("showSFTPManager() called - Opening SFTP Manager");
@@ -3048,6 +3354,7 @@ public class MainWindow {
             if (password == null && keyToUse == null && !isKeyAuth) {
                 // Ask for password using a simple dialog (only when NOT using key auth)
                 Dialog<String> pwdDialog = new Dialog<>();
+                DialogThemeHelper.applyTheme(pwdDialog);
                 pwdDialog.setTitle(I18n.get("dialog.passwordRequired"));
                 pwdDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
                 pwdDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -3093,6 +3400,7 @@ public class MainWindow {
      */
     private de.kortty.model.TemporarySSHKey requestNewTemporarySSHKey(ServerConnection connection) {
         Dialog<de.kortty.model.TemporarySSHKey> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
         dialog.setTitle(I18n.get("sftp.tempKeyRequired"));
         dialog.setHeaderText(I18n.get("sftp.tempKeyRequiredMessage"));
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -3311,6 +3619,7 @@ public class MainWindow {
         if (password == null) {
             // Password not available, show dialog with masked input
             Dialog<String> pwDialog = new Dialog<>();
+            DialogThemeHelper.applyTheme(pwDialog);
             pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
             pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
             pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -3347,11 +3656,9 @@ public class MainWindow {
             TerminalTab newTab = new TerminalTab(connection, password);
             installAiSelectionHandler(newTab);
             newTab.setTimestampToggleListener(() -> Platform.runLater(() -> {
-                if (showTimestampsMenuItem != null) {
-                    Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
-                    if (activeTab instanceof TerminalTab active) {
-                        showTimestampsMenuItem.setSelected(active.isTimestampGuttersVisible());
-                    }
+                Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
+                if (activeTab instanceof TerminalTab active) {
+                    syncTimestampMenuItems(active.isTimestampGuttersVisible());
                 }
             }));
             newTab.setOnClosed(e -> {
@@ -3474,6 +3781,7 @@ public class MainWindow {
                 }
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
+                DialogThemeHelper.applyTheme(success);
                 success.setTitle(I18n.get("backup.created"));
                 success.setHeaderText(I18n.get("backup.createdSuccess"));
                 success.setContentText(String.format(
@@ -3499,6 +3807,7 @@ public class MainWindow {
             logger.error("Backup creation failed", ex);
             
             Alert error = new Alert(Alert.AlertType.ERROR);
+            DialogThemeHelper.applyTheme(error);
             error.setTitle(I18n.get("error.title"));
             error.setHeaderText(I18n.get("backup.failed"));
             error.setContentText(I18n.get("backup.failedMessage") + "\n" + ex.getMessage());
@@ -3554,6 +3863,7 @@ public class MainWindow {
         if (!isGPGEncrypted) {
             // Ask for password (masked input)
             Dialog<String> passwordDialog = new Dialog<>();
+            DialogThemeHelper.applyTheme(passwordDialog);
             passwordDialog.setTitle(I18n.get("backup.import.password.title"));
             passwordDialog.setHeaderText(I18n.get("backup.import.password.header"));
             passwordDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -3575,6 +3885,7 @@ public class MainWindow {
         javafx.scene.control.Alert overwriteDialog = new javafx.scene.control.Alert(
             javafx.scene.control.Alert.AlertType.CONFIRMATION
         );
+        DialogThemeHelper.applyTheme(overwriteDialog);
         overwriteDialog.setTitle(I18n.get("backup.import.overwrite.title"));
         overwriteDialog.setHeaderText(I18n.get("backup.import.overwrite.header"));
         overwriteDialog.setContentText(I18n.get("backup.import.overwrite.content"));
@@ -3601,6 +3912,7 @@ public class MainWindow {
             int filesImported = importTask.getValue();
             
             Alert success = new Alert(Alert.AlertType.INFORMATION);
+            DialogThemeHelper.applyTheme(success);
             success.setTitle(I18n.get("backup.import.success"));
             success.setHeaderText(I18n.get("backup.import.successHeader"));
             success.setContentText(String.format(
@@ -3627,6 +3939,7 @@ public class MainWindow {
             logger.error("Backup import failed", ex);
             
             Alert error = new Alert(Alert.AlertType.ERROR);
+            DialogThemeHelper.applyTheme(error);
             error.setTitle(I18n.get("error.title"));
             error.setHeaderText(I18n.get("backup.import.failed"));
             error.setContentText(I18n.get("backup.import.failedMessage") + "\n" + ex.getMessage());
@@ -3706,6 +4019,7 @@ public class MainWindow {
         MenuItem newGroupItem = new MenuItem(I18n.get("group.new"));
         newGroupItem.setOnAction(e -> {
             TextInputDialog dialog = new TextInputDialog();
+            DialogThemeHelper.applyTheme(dialog);
             dialog.setTitle(I18n.get("group.new"));
             dialog.setHeaderText(I18n.get("group.enterName"));
             dialog.setContentText(I18n.get("group.name") + ":");
@@ -3729,6 +4043,7 @@ public class MainWindow {
             MenuItem renameGroupItem = new MenuItem(I18n.get("group.rename"));
             renameGroupItem.setOnAction(e -> {
                 TextInputDialog dialog = new TextInputDialog(currentGroup);
+                DialogThemeHelper.applyTheme(dialog);
                 dialog.setTitle(I18n.get("group.rename"));
                 dialog.setHeaderText(I18n.get("group.enterNewName"));
                 dialog.setContentText(I18n.get("group.newName") + ":");

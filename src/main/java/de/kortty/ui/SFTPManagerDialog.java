@@ -43,7 +43,7 @@ import net.lingala.zip4j.model.enums.CompressionLevel;
 /**
  * SFTP File Manager Dialog for transferring files between local and remote systems.
  */
-public class SFTPManagerDialog extends Dialog<Void> {
+public class SFTPManagerDialog extends ThemeAwareDialog<Void> {
     
     private static final Logger logger = LoggerFactory.getLogger(SFTPManagerDialog.class);
     

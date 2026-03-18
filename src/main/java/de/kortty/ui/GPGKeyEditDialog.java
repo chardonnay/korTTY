@@ -11,7 +11,7 @@ import java.io.File;
 /**
  * Dialog for adding/editing a GPG key.
  */
-public class GPGKeyEditDialog extends Dialog<GPGKey> {
+public class GPGKeyEditDialog extends ThemeAwareDialog<GPGKey> {
     
     private final TextField nameField;
     private final TextField keyIdField;

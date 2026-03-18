@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  * - Individual connection
  * - Group selection (open all tabs in a group)
  */
-public class QuickConnectDialog extends Dialog<QuickConnectDialog.ConnectionResult> {
+public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.ConnectionResult> {
     
     private final List<ServerConnection> savedConnections;
     private final PasswordVault passwordVault;

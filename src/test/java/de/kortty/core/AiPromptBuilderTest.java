@@ -42,4 +42,21 @@ class AiPromptBuilderTest {
         assertTrue(userPrompt.contains("write a short perl one-liner"));
         assertTrue(userPrompt.contains("ls -la output"));
     }
+
+    @Test
+    void generateChatTitlePromptContainsSingleLineInstructionAndConversation() {
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_CHAT_TITLE,
+            "fatal: unable to access repository",
+            "prod-shell",
+            "de",
+            null,
+            "You:\nWie loese ich das?\n\nAI:\nPruefe Proxy und DNS.");
+
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertTrue(userPrompt.contains("exactly one plain-text line"));
+        assertTrue(userPrompt.contains("Conversation so far"));
+        assertTrue(userPrompt.contains("fatal: unable to access repository"));
+    }
 }

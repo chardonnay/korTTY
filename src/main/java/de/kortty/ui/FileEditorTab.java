@@ -797,6 +797,10 @@ public class FileEditorTab extends Tab {
         }
         searchField.requestFocus();
     }
+
+    public void cut() {
+        codeArea.cut();
+    }
     
     private void toggleSearchPanel() {
         BorderPane root = (BorderPane) getContent();
@@ -2074,4 +2078,3 @@ public class FileEditorTab extends Tab {
         codeArea.insertText(caretPos, text);
     }
 }
-

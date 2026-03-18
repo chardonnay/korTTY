@@ -29,6 +29,15 @@ public class BackupManager {
     private static final DateTimeFormatter BACKUP_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final String BACKUP_SUBDIR = "old-backups";
     private static final String BACKUP_FILENAME = "kortty-backup.zip";
+    private static final List<String> MANAGED_BACKUP_FILES = List.of(
+        "connections.xml",
+        "credentials.xml",
+        "gpg-keys.xml",
+        "global-settings.xml",
+        "master-password-hash",
+        "snippets.xml",
+        "snippet-variables.xml",
+        "ai-chats.xml");
     
     private final Path configDir;
     private final GlobalSettings settings;
@@ -124,13 +133,9 @@ public class BackupManager {
         zipParameters.setEncryptionMethod(EncryptionMethod.ZIP_STANDARD);
         
         // Add all config files
-        addFileToPasswordZip(zipFile, configDir.resolve("connections.xml"), zipParameters);
-        addFileToPasswordZip(zipFile, configDir.resolve("credentials.xml"), zipParameters);
-        addFileToPasswordZip(zipFile, configDir.resolve("gpg-keys.xml"), zipParameters);
-        addFileToPasswordZip(zipFile, configDir.resolve("global-settings.xml"), zipParameters);
-        addFileToPasswordZip(zipFile, configDir.resolve("master-password-hash"), zipParameters);
-        addFileToPasswordZip(zipFile, configDir.resolve("snippets.xml"), zipParameters);
-        addFileToPasswordZip(zipFile, configDir.resolve("snippet-variables.xml"), zipParameters);
+        for (String fileName : MANAGED_BACKUP_FILES) {
+            addFileToPasswordZip(zipFile, configDir.resolve(fileName), zipParameters);
+        }
         
         // Add projects directory if exists
         Path projectsDir = configDir.resolve("projects");
@@ -162,13 +167,9 @@ public class BackupManager {
         Path tempZip = Files.createTempFile("kortty-backup-temp", ".zip");
         try {
             try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(tempZip))) {
-                addFileToZip(zos, configDir.resolve("connections.xml"), "connections.xml");
-                addFileToZip(zos, configDir.resolve("credentials.xml"), "credentials.xml");
-                addFileToZip(zos, configDir.resolve("gpg-keys.xml"), "gpg-keys.xml");
-                addFileToZip(zos, configDir.resolve("global-settings.xml"), "global-settings.xml");
-                addFileToZip(zos, configDir.resolve("master-password-hash"), "master-password-hash");
-                addFileToZip(zos, configDir.resolve("snippets.xml"), "snippets.xml");
-                addFileToZip(zos, configDir.resolve("snippet-variables.xml"), "snippet-variables.xml");
+                for (String fileName : MANAGED_BACKUP_FILES) {
+                    addFileToZip(zos, configDir.resolve(fileName), fileName);
+                }
                 
                 Path projectsDir = configDir.resolve("projects");
                 if (Files.exists(projectsDir) && Files.isDirectory(projectsDir)) {
@@ -417,15 +418,7 @@ public class BackupManager {
         final int[] filesImported = {0}; // Use array to allow modification in lambda
         
         // List of files to import
-        String[] filesToImport = {
-            "connections.xml",
-            "credentials.xml",
-            "gpg-keys.xml",
-            "global-settings.xml",
-            "master-password-hash",
-            "snippets.xml",
-            "snippet-variables.xml"
-        };
+        String[] filesToImport = MANAGED_BACKUP_FILES.toArray(String[]::new);
         
         // Copy individual files
         for (String fileName : filesToImport) {
@@ -489,5 +482,9 @@ public class BackupManager {
         }
         
         return filesImported[0];
+    }
+
+    static List<String> managedBackupFiles() {
+        return MANAGED_BACKUP_FILES;
     }
 }

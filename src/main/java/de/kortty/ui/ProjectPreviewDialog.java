@@ -15,7 +15,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * Dialog showing project preview before opening.
  */
-public class ProjectPreviewDialog extends Dialog<ProjectPreviewDialog.OpenProjectOptions> {
+public class ProjectPreviewDialog extends ThemeAwareDialog<ProjectPreviewDialog.OpenProjectOptions> {
     
     private final Project project;
     private final CheckBox autoReconnectCheck;

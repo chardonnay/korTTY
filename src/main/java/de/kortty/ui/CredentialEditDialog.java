@@ -30,7 +30,7 @@ class CredentialResult {
  * Dialog for adding/editing stored credentials.
  * Supports two password modes: stored (encrypted) password or external command.
  */
-public class CredentialEditDialog extends Dialog<CredentialResult> {
+public class CredentialEditDialog extends ThemeAwareDialog<CredentialResult> {
     
     private final TextField nameField;
     private final TextField usernameField;

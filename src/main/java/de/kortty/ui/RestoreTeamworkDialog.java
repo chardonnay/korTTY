@@ -22,7 +22,7 @@ import java.util.Optional;
 /**
  * Dialog to restore a previously deleted teamwork connection from the recycle bin.
  */
-public class RestoreTeamworkDialog extends Dialog<ServerConnection> {
+public class RestoreTeamworkDialog extends ThemeAwareDialog<ServerConnection> {
 
     private static final Logger logger = LoggerFactory.getLogger(RestoreTeamworkDialog.class);
 

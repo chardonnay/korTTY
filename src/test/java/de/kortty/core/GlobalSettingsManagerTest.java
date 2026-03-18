@@ -11,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GlobalSettingsManagerTest {
 
@@ -138,6 +139,26 @@ class GlobalSettingsManagerTest {
             reloaded.load();
 
             assertEquals(true, reloaded.getSettings().isCloseActiveTerminalWindowsWithoutConfirmation());
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void showMenuBarDefaultsToTrueAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-menu-bar");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertTrue(manager.getSettings().isShowMenuBar());
+
+            manager.getSettings().setShowMenuBar(false);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertFalse(reloaded.getSettings().isShowMenuBar());
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

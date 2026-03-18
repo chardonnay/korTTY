@@ -6,5 +6,6 @@ package de.kortty.core;
 public enum AiAction {
     SUMMARIZE,
     SOLVE_PROBLEM,
-    ASK
+    ASK,
+    GENERATE_CHAT_TITLE
 }
