@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 /**
  * Dialog for importing connections with options.
  */
-public class ConnectionImportDialog extends Dialog<ConnectionImportDialog.ImportResult> {
+public class ConnectionImportDialog extends ThemeAwareDialog<ConnectionImportDialog.ImportResult> {
     
     private static final Logger logger = LoggerFactory.getLogger(ConnectionImportDialog.class);
     

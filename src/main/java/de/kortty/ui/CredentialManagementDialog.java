@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Dialog for managing stored credentials.
  */
-public class CredentialManagementDialog extends Dialog<Boolean> {
+public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
     
     private static final Logger logger = LoggerFactory.getLogger(CredentialManagementDialog.class);
     

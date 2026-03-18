@@ -12,7 +12,7 @@ import javafx.stage.Stage;
 /**
  * Dialog for editing SSH tunnel configuration.
  */
-public class TunnelEditDialog extends Dialog<SSHTunnel> {
+public class TunnelEditDialog extends ThemeAwareDialog<SSHTunnel> {
     
     private final SSHTunnel tunnel;
     private final boolean isNew;

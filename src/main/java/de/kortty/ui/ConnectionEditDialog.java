@@ -33,7 +33,7 @@ import java.io.File;
 /**
  * Dialog for editing a single connection.
  */
-public class ConnectionEditDialog extends Dialog<ServerConnection> {
+public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     
     private static final Logger logger = LoggerFactory.getLogger(ConnectionEditDialog.class);
     

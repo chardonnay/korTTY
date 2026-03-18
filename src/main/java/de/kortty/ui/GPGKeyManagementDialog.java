@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * Dialog for managing GPG keys.
  */
-public class GPGKeyManagementDialog extends Dialog<Boolean> {
+public class GPGKeyManagementDialog extends ThemeAwareDialog<Boolean> {
     
     private static final Logger logger = LoggerFactory.getLogger(GPGKeyManagementDialog.class);
     

@@ -21,7 +21,7 @@ import java.util.Optional;
 /**
  * Dialog to manage custom snippet variables and their stored values.
  */
-public class SnippetVariableManagementDialog extends Dialog<Void> {
+public class SnippetVariableManagementDialog extends ThemeAwareDialog<Void> {
 
     private static final Logger logger = LoggerFactory.getLogger(SnippetVariableManagementDialog.class);
 

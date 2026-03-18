@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * Simple dialog to select a connection from a list.
  */
-public class ConnectionSelectionDialog extends Dialog<ServerConnection> {
+public class ConnectionSelectionDialog extends ThemeAwareDialog<ServerConnection> {
     
     private final TableView<ServerConnection> table;
     private final ObservableList<ServerConnection> connections;

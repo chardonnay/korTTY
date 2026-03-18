@@ -20,13 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
           submodules: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
 
@@ -34,7 +34,7 @@ jobs:
         run: ./scripts/render-mermaid.sh
 
       - name: Upload diagram PNGs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: docs-diagrams
           path: docs/diagrams/*.png
@@ -64,7 +64,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
           submodules: false
@@ -577,7 +577,7 @@ jobs:
 
       - name: Upload macOS artifacts
         if: matrix.platform == 'macos'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: korTTY-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: |
@@ -587,7 +587,7 @@ jobs:
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: korTTY-Windows-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: |
@@ -597,7 +597,7 @@ jobs:
 
       - name: Upload Linux artifacts
         if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: korTTY-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: |
@@ -614,7 +614,7 @@ jobs:
 
       - name: Upload Java artifacts
         if: matrix.platform == 'linux' && matrix.arch == 'x86_64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: korTTY-Java-${{ steps.version.outputs.version }}
           path: |
@@ -661,7 +661,7 @@ jobs:
           echo "Version: $VERSION"
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
 
@@ -728,7 +728,7 @@ jobs:
             --detach-sign "$pkg_file"
 
       - name: Upload pacman artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: KorTTY-Arch-${{ steps.version.outputs.version }}-x86_64
           path: |

@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  * Provides form fields for name, language, category, tags, and
  * a syntax-highlighted content editor with placeholder help.
  */
-public class SnippetEditDialog extends Dialog<Snippet> {
+public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     
     private final TextField nameField;
     private final ComboBox<String> languageCombo;

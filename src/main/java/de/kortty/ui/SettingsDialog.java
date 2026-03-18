@@ -62,7 +62,7 @@ import java.util.stream.Collectors;
 /**
  * Dialog for editing global terminal settings.
  */
-public class SettingsDialog extends Dialog<ConnectionSettings> {
+public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     
     private final KorTTYApplication app;
     private final ConfigurationManager configManager;
@@ -118,6 +118,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
     // Window settings
     private final CheckBox rememberWindowGeometryCheck;
     private final CheckBox rememberDashboardStateCheck;
+    private final CheckBox showMenuBarCheck;
     private final CheckBox useFixedGeometryCheck;
     private final Spinner<Integer> fixedWidthSpinner;
     private final Spinner<Integer> fixedHeightSpinner;
@@ -614,6 +615,15 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
         Label dashboardInfoLabel = new Label(I18n.get("settings.window.rememberDashboard.info"));
         dashboardInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         windowGrid.add(dashboardInfoLabel, 0, windowRow++, 2, 1);
+
+        showMenuBarCheck = new CheckBox(I18n.get("settings.window.showMenuBar"));
+        showMenuBarCheck.setSelected(globalSettings == null || globalSettings.isShowMenuBar());
+        showMenuBarCheck.setTooltip(new Tooltip(I18n.get("settings.window.showMenuBar.tooltip")));
+        windowGrid.add(showMenuBarCheck, 0, windowRow++, 2, 1);
+
+        Label showMenuBarInfoLabel = new Label(I18n.get("settings.window.showMenuBar.info"));
+        showMenuBarInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        windowGrid.add(showMenuBarInfoLabel, 0, windowRow++, 2, 1);
         
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
@@ -1523,6 +1533,7 @@ public class SettingsDialog extends Dialog<ConnectionSettings> {
             // Save window settings
             globalSettings.setRememberWindowGeometry(rememberWindowGeometryCheck.isSelected());
             globalSettings.setRememberDashboardState(rememberDashboardStateCheck.isSelected());
+            globalSettings.setShowMenuBar(showMenuBarCheck.isSelected());
             
             // Save fixed geometry settings
             globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());

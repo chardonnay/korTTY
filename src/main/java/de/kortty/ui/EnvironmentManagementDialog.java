@@ -13,7 +13,7 @@ import javafx.scene.layout.VBox;
  * Dialog to manage credential environments: add, rename, and delete custom environments.
  * Built-in environments (Production, Development, Test, Staging) are shown but cannot be edited or removed.
  */
-public class EnvironmentManagementDialog extends Dialog<Boolean> {
+public class EnvironmentManagementDialog extends ThemeAwareDialog<Boolean> {
 
     private final EnvironmentManager environmentManager;
     private final CredentialManager credentialManager;

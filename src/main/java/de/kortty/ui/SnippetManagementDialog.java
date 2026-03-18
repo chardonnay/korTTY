@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  * Dialog for managing code snippets: browse, search, preview, and insert into editor or terminal.
  * Supports multi-selection for batch delete/export operations.
  */
-public class SnippetManagementDialog extends Dialog<Void> {
+public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     
     private static final Logger logger = LoggerFactory.getLogger(SnippetManagementDialog.class);
     

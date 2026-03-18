@@ -18,7 +18,7 @@ import java.io.File;
 /**
  * Dialog to add or edit a single teamwork source (Git URL or shared file path).
  */
-public class TeamworkSourceEditDialog extends Dialog<TeamworkSourceConfig> {
+public class TeamworkSourceEditDialog extends ThemeAwareDialog<TeamworkSourceConfig> {
 
     private final Stage owner;
     private final ComboBox<TeamworkSourceType> typeCombo;

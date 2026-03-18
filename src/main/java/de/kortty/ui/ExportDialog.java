@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 /**
  * Dialog for exporting connections with selection and encryption options.
  */
-public class ExportDialog extends Dialog<ExportDialog.ExportResult> {
+public class ExportDialog extends ThemeAwareDialog<ExportDialog.ExportResult> {
     
     private final List<ServerConnection> allConnections;
     private final GPGKeyManager gpgKeyManager;

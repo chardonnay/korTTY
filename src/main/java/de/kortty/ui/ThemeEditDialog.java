@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Dialog for creating or editing a terminal theme.
  */
-public class ThemeEditDialog extends Dialog<Theme> {
+public class ThemeEditDialog extends ThemeAwareDialog<Theme> {
 
     private final Theme theme;
     private final boolean isNew;

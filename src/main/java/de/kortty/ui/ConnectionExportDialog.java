@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Dialog for exporting selected connections with options and format selection.
  */
-public class ConnectionExportDialog extends Dialog<ConnectionExportDialog.ExportResult> {
+public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDialog.ExportResult> {
     
     private final Stage owner;
     private final List<ServerConnection> connections;

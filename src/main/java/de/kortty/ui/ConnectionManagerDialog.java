@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 /**
  * Dialog for managing saved connections with tree view.
  */
-public class ConnectionManagerDialog extends Dialog<ServerConnection> {
+public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> {
     
     private static final Logger logger = LoggerFactory.getLogger(ConnectionManagerDialog.class);
     

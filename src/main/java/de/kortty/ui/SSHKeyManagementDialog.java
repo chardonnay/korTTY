@@ -20,7 +20,7 @@ import java.nio.file.Path;
 /**
  * Dialog for managing SSH keys.
  */
-public class SSHKeyManagementDialog extends Dialog<Boolean> {
+public class SSHKeyManagementDialog extends ThemeAwareDialog<Boolean> {
     
     private static final Logger logger = LoggerFactory.getLogger(SSHKeyManagementDialog.class);
     
@@ -294,7 +294,7 @@ public class SSHKeyManagementDialog extends Dialog<Boolean> {
     /**
      * Dialog for editing SSH keys
      */
-    public static class SSHKeyEditDialog extends Dialog<SSHKeyEditResult> {
+    public static class SSHKeyEditDialog extends ThemeAwareDialog<SSHKeyEditResult> {
         
         private final SSHKeyManager sshKeyManager;
         private final char[] masterPassword;

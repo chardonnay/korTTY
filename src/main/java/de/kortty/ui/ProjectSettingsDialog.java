@@ -11,7 +11,7 @@ import javafx.stage.Stage;
 /**
  * Dialog for editing project settings.
  */
-public class ProjectSettingsDialog extends Dialog<Project> {
+public class ProjectSettingsDialog extends ThemeAwareDialog<Project> {
     
     private final Project project;
     
