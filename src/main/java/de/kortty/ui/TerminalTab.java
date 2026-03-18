@@ -37,6 +37,7 @@ public class TerminalTab extends Tab {
     private volatile boolean reconnectInProgress = false;
     /** True when the red disconnected bar was shown due to mosh network interruption (so we hide it on recovery). */
     private boolean moshInterruptedBarVisible = false;
+    private Runnable externalConnectedCallback;
     
     // Tab group (independent from connection group)
     private String tabGroup = null;
@@ -414,19 +415,24 @@ public class TerminalTab extends Tab {
             });
         });
         
-        // Register callback for successful connection
-        // Note: We can't retrieve existing callback, so external callbacks set after connect()
-        // will override this. This is acceptable - MainWindow will set its own callback.
+        // Register callback for successful connection and preserve optional external listeners.
         terminalView.setOnConnectedCallback(() -> {
             Platform.runLater(() -> {
                 reconnectInProgress = false;
                 updateTabTitle();
                 resetTabColor(); // Reset to default (green/normal)
                 hideDisconnectedStatusBar();
+                if (externalConnectedCallback != null) {
+                    externalConnectedCallback.run();
+                }
             });
         });
         
         terminalView.connect();
+    }
+
+    public void setOnConnectedCallback(Runnable callback) {
+        this.externalConnectedCallback = callback;
     }
     
     /**

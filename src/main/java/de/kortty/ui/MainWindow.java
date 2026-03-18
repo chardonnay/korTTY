@@ -63,11 +63,14 @@ import java.util.zip.ZipOutputStream;
 import java.util.zip.ZipEntry;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -102,6 +105,9 @@ public class MainWindow {
     private final List<ConnectionImporter> importers;
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
+    private static final Set<MainWindow> applicationQuitApprovedWindows =
+        Collections.newSetFromMap(new IdentityHashMap<>());
+    private static volatile boolean applicationQuitRequested = false;
 
     /** DataFormat for drag-and-drop of tabs between KorTTY windows (value: transfer ID). */
     private static final DataFormat KORTTY_TAB_TRANSFER_FORMAT = new DataFormat("application/x-kortty-tab-transfer");
@@ -495,21 +501,30 @@ public class MainWindow {
                 logger.error("Failed to save window settings", ex);
             }
             
-            if (!confirmClose()) {
+            boolean closeConfirmed = applicationQuitApprovedWindows.remove(this) || confirmClose();
+            if (!closeConfirmed) {
+                clearApplicationQuitState();
                 e.consume();
             } else {
                 closeAllTabs();
                 openWindows.remove(this);
-                
-                // If this was the last window, exit the application
+
+                // On macOS the application stays alive after the last window closes so the
+                // dock icon can reopen a new window without restarting the process.
                 if (openWindows.isEmpty()) {
-                    logger.info("Last window closed, exiting application");
-                    // Close all sessions before exiting
-                    if (app.getSessionManager() != null) {
-                        app.getSessionManager().closeAllSessions();
+                    if (applicationQuitRequested) {
+                        logger.info("Application quit requested, exiting");
+                        clearApplicationQuitState();
+                        Platform.exit();
+                        return;
                     }
-                    // Use Platform.exit() - it will call Application.stop() which handles cleanup
-                    // After stop() completes, System.exit() will be called to ensure all threads terminate
+
+                    if (app.shouldKeepRunningAfterLastWindowClosed()) {
+                        logger.info("Last macOS window closed, keeping application alive");
+                        return;
+                    }
+
+                    logger.info("Last window closed, exiting application");
                     Platform.exit();
                 }
             }
@@ -518,6 +533,9 @@ public class MainWindow {
     
     private void setupMenuBar() {
         MenuBar menuBar = new MenuBar();
+        if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
+            menuBar.setUseSystemMenuBar(true);
+        }
         
         // File Menu
         Menu fileMenu = new Menu(I18n.get("menu.file"));
@@ -558,7 +576,7 @@ public class MainWindow {
         
         MenuItem quit = new MenuItem(I18n.get("menu.file.quit"));
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
-        quit.setOnAction(e -> fireCloseRequest());
+        quit.setOnAction(e -> requestApplicationQuit());
         
         fileMenu.getItems().addAll(
                 newTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
@@ -1446,11 +1464,73 @@ public class MainWindow {
         newWindow.show();
     }
 
+    public static void reopenOrCreateWindow() {
+        MainWindow targetWindow = getFocusedOrLastOpenWindow();
+        if (targetWindow != null) {
+            targetWindow.stage.show();
+            targetWindow.stage.toFront();
+            targetWindow.stage.requestFocus();
+            return;
+        }
+
+        Stage newStage = new Stage();
+        MainWindow newWindow = new MainWindow(newStage);
+        newWindow.show();
+    }
+
+    public static boolean hasOpenWindows() {
+        return !openWindows.isEmpty();
+    }
+
+    public static void requestApplicationQuit() {
+        List<MainWindow> windowsToClose = new ArrayList<>(openWindows);
+        if (windowsToClose.isEmpty()) {
+            applicationQuitRequested = true;
+            Platform.exit();
+            return;
+        }
+
+        applicationQuitApprovedWindows.clear();
+        for (MainWindow window : windowsToClose) {
+            if (!window.confirmClose()) {
+                clearApplicationQuitState();
+                return;
+            }
+            applicationQuitApprovedWindows.add(window);
+        }
+
+        applicationQuitRequested = true;
+        for (MainWindow window : windowsToClose) {
+            if (openWindows.contains(window)) {
+                window.fireCloseRequest();
+            }
+        }
+    }
+
     /**
      * Fires the window close request so the same confirmation and cleanup logic runs as when closing via the window button.
      */
     private void fireCloseRequest() {
         Event.fireEvent(stage, new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
+    }
+
+    private static MainWindow getFocusedOrLastOpenWindow() {
+        for (MainWindow window : openWindows) {
+            if (window.stage.isFocused()) {
+                return window;
+            }
+        }
+
+        if (openWindows.isEmpty()) {
+            return null;
+        }
+
+        return openWindows.get(openWindows.size() - 1);
+    }
+
+    private static void clearApplicationQuitState() {
+        applicationQuitRequested = false;
+        applicationQuitApprovedWindows.clear();
     }
 
     private void closeCurrentTab() {
@@ -3313,30 +3393,22 @@ public class MainWindow {
             updateDashboard();
             updateAllTabContextMenus();
             
+            newTab.setOnConnectedCallback(() -> {
+                newTab.updateTabTitle();
+                newTab.setStyle("");
+                updateStatus(I18n.get("status.connectedToWithHostAndProtocol",
+                        connection.getDisplayName(), connection.getHost(), getProtocolLabel(connection.getProtocol())));
+                updateDashboard();
+            });
+
             // Verbinde den neuen Tab
             new Thread(() -> {
                 try {
                     newTab.connect();
-                    
-                    // Set callback to update dashboard and reset tab color when connection succeeds
-                    // This callback will be called AFTER TerminalTab.connect() sets its own callback,
-                    // so we need to ensure the color is reset
-                    newTab.getTerminalView().setOnConnectedCallback(() -> {
-                        Platform.runLater(() -> {
-                            // Update tab title
-                            newTab.updateTabTitle();
-                            // Reset tab color (remove yellow connecting color)
-                            newTab.setStyle("");
-                            // Update status and dashboard
-                            updateStatus(I18n.get("status.connectedToWithHostAndProtocol",
-                                    connection.getDisplayName(), connection.getHost(), getProtocolLabel(connection.getProtocol())));
-                            updateDashboard();
-                        });
-                    });
                 } catch (Exception e) {
                     logger.error("Failed to connect duplicated tab", e);
                 }
-            }).start();
+            }, "Duplicate-Tab-Connect").start();
             
             logger.info("Tab duplicated: {} -> {}", sourceTab.getConnection().getDisplayName(), 
                         newTab.getConnection().getDisplayName());

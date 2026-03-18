@@ -352,10 +352,14 @@ if (isMac) {
         val mainJar = tasks.jar.get().archiveFileName.get()
         val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
         val outputDir = jpackageDir.get().asFile.absolutePath
+        val appBundle = jpackageDir.get().asFile.resolve("$appName.app")
         val iconFile = getMacIcon()
         
         doFirst {
             file(outputDir).mkdirs()
+            if (appBundle.exists()) {
+                delete(appBundle)
+            }
         }
         
         val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
@@ -389,10 +393,14 @@ if (isMac) {
         val mainJar = tasks.jar.get().archiveFileName.get()
         val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
         val outputDir = jpackageDir.get().asFile.absolutePath
+        val dmgFile = jpackageDir.get().asFile.resolve("$appName-$appVersion.dmg")
         val iconFile = getMacIcon()
         
         doFirst {
             file(outputDir).mkdirs()
+            if (dmgFile.exists()) {
+                delete(dmgFile)
+            }
         }
         
         val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
@@ -618,5 +626,16 @@ tasks.jar {
                 "Class-Path" to configurations.runtimeClasspath.get().files.joinToString(" ") { it.name }
             )
         }
+    }
+}
+
+if (isMac) {
+    tasks.register<Exec>("runMacApp") {
+        group = "application"
+        description = "Build the macOS app bundle with jpackage and open the generated .app."
+        dependsOn("jpackage")
+
+        val appBundle = jpackageDir.get().asFile.resolve("korTTY.app")
+        commandLine("open", appBundle.absolutePath)
     }
 }

@@ -1,11 +1,14 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.SftpFileTransferService;
 import de.kortty.core.SFTPSession;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TemporarySSHKey;
-import de.kortty.security.PasswordVault;
+import de.kortty.ui.sftp.SftpFileItem;
+import de.kortty.ui.sftp.SftpManagerViewModel;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -28,8 +31,11 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.ZipParameters;
 import net.lingala.zip4j.model.enums.CompressionLevel;
@@ -44,24 +50,25 @@ public class SFTPManagerDialog extends Dialog<Void> {
     private final KorTTYApplication app;
     private final ServerConnection connection;
     private final String password;
-    private final TemporarySSHKey temporarySSHKey;  // When opened from tab that used temp key
-    private SFTPSession sftpSession;
+    private final TemporarySSHKey temporarySSHKey;
+    private final SftpManagerViewModel viewModel = new SftpManagerViewModel();
+    private final SftpFileTransferService transferService = new SftpFileTransferService();
+    private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "SFTP-Dialog-Worker");
+        thread.setDaemon(true);
+        return thread;
+    });
     
-    private TableView<FileItem> localTable;
-    private TableView<FileItem> remoteTable;
+    private TableView<SftpFileItem> localTable;
+    private TableView<SftpFileItem> remoteTable;
     private TextField localPathField;
     private TextField remotePathField;
     private TextField localSearchField;
     private TextField remoteSearchField;
     private Label statusLabel;
     
-    private Path currentLocalPath;
-    private String currentRemotePath;
-    
-    private FilteredList<FileItem> filteredLocalItems;
-    private FilteredList<FileItem> filteredRemoteItems;
-    private ObservableList<FileItem> localItems;
-    private ObservableList<FileItem> remoteItems;
+    private FilteredList<SftpFileItem> filteredLocalItems;
+    private FilteredList<SftpFileItem> filteredRemoteItems;
     
     public SFTPManagerDialog(Stage owner, KorTTYApplication app, ServerConnection connection, String password) {
         this(owner, app, connection, password, null);
@@ -78,10 +85,6 @@ public class SFTPManagerDialog extends Dialog<Void> {
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         setResizable(true);
-        
-        // Initialize paths
-        currentLocalPath = Paths.get(System.getProperty("user.home"));
-        currentRemotePath = "~";
         
         // Create UI
         VBox content = createContent();
@@ -102,7 +105,9 @@ public class SFTPManagerDialog extends Dialog<Void> {
         mainBox.setPadding(new Insets(10));
         
         // Status bar
-        statusLabel = new Label(I18n.get("sftp.connecting"));
+        viewModel.setStatusText(I18n.get("sftp.connecting"));
+        statusLabel = new Label();
+        statusLabel.textProperty().bind(viewModel.statusTextProperty());
         statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         
         // Split pane for local and remote
@@ -124,11 +129,9 @@ public class SFTPManagerDialog extends Dialog<Void> {
         
         Button uploadButton = new Button("→ " + I18n.get("sftp.upload"));
         uploadButton.setOnAction(e -> uploadSelected());
-        uploadButton.setDisable(true);
         
         Button downloadButton = new Button("← " + I18n.get("sftp.download"));
         downloadButton.setOnAction(e -> downloadSelected());
-        downloadButton.setDisable(true);
         
         Button refreshLocalButton = new Button(I18n.get("sftp.refreshLocal"));
         refreshLocalButton.setOnAction(e -> refreshLocal());
@@ -154,11 +157,15 @@ public class SFTPManagerDialog extends Dialog<Void> {
         
         // Enable/disable buttons based on selection
         localTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
-            uploadButton.setDisable(selected == null);
+            uploadButton.setDisable(selected == null || viewModel.isBusy());
         });
         
         remoteTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
-            downloadButton.setDisable(selected == null);
+            downloadButton.setDisable(selected == null || viewModel.isBusy());
+        });
+        viewModel.busyProperty().addListener((obs, old, busy) -> {
+            uploadButton.setDisable(busy || localTable.getSelectionModel().getSelectedItem() == null);
+            downloadButton.setDisable(busy || remoteTable.getSelectionModel().getSelectedItem() == null);
         });
         
         // Enable multiple selection
@@ -204,7 +211,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         localTable = new TableView<>();
         localTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         
-        TableColumn<FileItem, String> nameColumn = new TableColumn<>();
+        TableColumn<SftpFileItem, String> nameColumn = new TableColumn<>();
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameColumn.setPrefWidth(200);
         nameColumn.setMinWidth(100);
@@ -217,7 +224,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         });
         setupSortableColumnHeader(nameColumn, "Name", localTable, nameColumn);
         
-        TableColumn<FileItem, String> sizeColumn = new TableColumn<>();
+        TableColumn<SftpFileItem, String> sizeColumn = new TableColumn<>();
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         sizeColumn.setPrefWidth(100);
         sizeColumn.setMinWidth(80);
@@ -231,7 +238,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         });
         setupSortableColumnHeader(sizeColumn, I18n.get("sftp.column.size"), localTable, sizeColumn);
         
-        TableColumn<FileItem, String> dateColumn = new TableColumn<>();
+        TableColumn<SftpFileItem, String> dateColumn = new TableColumn<>();
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         dateColumn.setPrefWidth(150);
         dateColumn.setMinWidth(120);
@@ -243,7 +250,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         
         // Double-click to navigate and context menu for local files
         localTable.setRowFactory(tv -> {
-            TableRow<FileItem> row = new TableRow<>();
+            TableRow<SftpFileItem> row = new TableRow<>();
             ContextMenu contextMenu = new ContextMenu();
             
             MenuItem renameItem = new MenuItem(I18n.get("sftp.rename"));
@@ -270,7 +277,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
-                    FileItem item = row.getItem();
+                    SftpFileItem item = row.getItem();
                     if (!item.isFile()) {
                         navigateLocal(item.getPath());
                     }
@@ -281,8 +288,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         });
         
         // Search filter
-        localItems = FXCollections.observableArrayList();
-        filteredLocalItems = new FilteredList<>(localItems, p -> true);
+        filteredLocalItems = new FilteredList<>(viewModel.getLocalItems(), p -> true);
         localSearchField.setPromptText(I18n.get("sftp.searchPrompt"));
         localSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null || newVal.trim().isEmpty()) {
@@ -335,6 +341,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             }
         });
         localTable.setItems(filteredLocalItems);
+        localPathField.setText(viewModel.getCurrentLocalPath().toString());
         
         panel.getChildren().addAll(titleLabel, pathBox, searchBox, localTable);
         VBox.setVgrow(localTable, Priority.ALWAYS);
@@ -375,7 +382,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         remoteTable = new TableView<>();
         remoteTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         
-        TableColumn<FileItem, String> nameColumn = new TableColumn<>();
+        TableColumn<SftpFileItem, String> nameColumn = new TableColumn<>();
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameColumn.setPrefWidth(200);
         nameColumn.setMinWidth(100);
@@ -388,7 +395,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         });
         setupSortableColumnHeader(nameColumn, "Name", remoteTable, nameColumn);
         
-        TableColumn<FileItem, String> sizeColumn = new TableColumn<>();
+        TableColumn<SftpFileItem, String> sizeColumn = new TableColumn<>();
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         sizeColumn.setPrefWidth(100);
         sizeColumn.setMinWidth(80);
@@ -402,7 +409,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         });
         setupSortableColumnHeader(sizeColumn, I18n.get("sftp.column.size"), remoteTable, sizeColumn);
         
-        TableColumn<FileItem, String> dateColumn = new TableColumn<>();
+        TableColumn<SftpFileItem, String> dateColumn = new TableColumn<>();
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         dateColumn.setPrefWidth(150);
         dateColumn.setMinWidth(120);
@@ -414,7 +421,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         
         // Double-click to navigate and context menu
         remoteTable.setRowFactory(tv -> {
-            TableRow<FileItem> row = new TableRow<>();
+            TableRow<SftpFileItem> row = new TableRow<>();
             ContextMenu contextMenu = new ContextMenu();
             
             MenuItem renameItem = new MenuItem(I18n.get("sftp.rename"));
@@ -448,7 +455,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
-                    FileItem item = row.getItem();
+                    SftpFileItem item = row.getItem();
                     if (!item.isFile()) {
                         navigateRemote(item.getPath());
                     }
@@ -459,8 +466,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         });
         
         // Search filter
-        remoteItems = FXCollections.observableArrayList();
-        filteredRemoteItems = new FilteredList<>(remoteItems, p -> true);
+        filteredRemoteItems = new FilteredList<>(viewModel.getRemoteItems(), p -> true);
         remoteSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null || newVal.trim().isEmpty()) {
                 filteredRemoteItems.setPredicate(p -> true);
@@ -512,6 +518,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             }
         });
         remoteTable.setItems(filteredRemoteItems);
+        remotePathField.setText(viewModel.getCurrentRemotePath());
         
         panel.getChildren().addAll(titleLabel, pathBox, searchBox, remoteTable);
         VBox.setVgrow(remoteTable, Priority.ALWAYS);
@@ -520,402 +527,255 @@ public class SFTPManagerDialog extends Dialog<Void> {
     }
     
     private void connectToSFTP() {
-        new Thread(() -> {
-            try {
-                // When opened from tab with temp key, use it for SFTP connection
-                ServerConnection connToUse = connection;
-                if (temporarySSHKey != null && temporarySSHKey.isValid()) {
-                    connToUse = new ServerConnection();
-                    connToUse.setId(connection.getId());
-                    connToUse.setName(connection.getName());
-                    connToUse.setHost(connection.getHost());
-                    connToUse.setPort(connection.getPort());
-                    connToUse.setUsername(connection.getUsername());
-                    connToUse.setSettings(connection.getSettings());
-                    connToUse.setConnectionTimeoutSeconds(connection.getConnectionTimeoutSeconds());
-                    connToUse.setAuthMethod(de.kortty.model.AuthMethod.PUBLIC_KEY);
-                    connToUse.setPrivateKeyPath("TEMPORARY:" + temporarySSHKey.getKeyContent());
-                }
-                
-                sftpSession = new SFTPSession(connToUse, password);
-                
-                // Set SSHKeyManager if available (for permanent keys, not temp)
-                if (temporarySSHKey == null && connToUse.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                    de.kortty.KorTTYApplication appInstance = de.kortty.KorTTYApplication.getInstance();
-                    if (appInstance != null && appInstance.getSSHKeyManager() != null) {
-                        sftpSession.setSSHKeyManager(
-                            appInstance.getSSHKeyManager(),
-                            appInstance.getMasterPasswordManager().getMasterPassword()
-                        );
-                    }
-                }
-                
-                sftpSession.connect();
-                
-                Platform.runLater(() -> {
-                    try {
-                        statusLabel.setText(I18n.get("sftp.connected"));
-                        currentRemotePath = sftpSession.getCurrentDirectory();
-                        remotePathField.setText(currentRemotePath);
-                        refreshLocal();
-                        refreshRemote();
-                    } catch (java.io.IOException e) {
-                        logger.error("Failed to get current directory", e);
-                        statusLabel.setText(I18n.get("sftp.error.getDirectory"));
-                    }
-                });
-            } catch (Exception e) {
-                logger.error("Failed to connect to SFTP", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.connectionError") + ": " + e.getMessage());
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle(I18n.get("sftp.error.connection"));
-                    alert.setHeaderText(I18n.get("sftp.error.connectionFailedHeader"));
-                    alert.setContentText(e.getMessage());
-                    alert.showAndWait();
-                    close();
-                });
+        executeTask(
+            I18n.get("sftp.connecting"),
+            () -> transferService.connect(createConfiguredSession()),
+            remotePath -> {
+                viewModel.setConnected(true);
+                viewModel.setCurrentRemotePath(remotePath);
+                remotePathField.setText(remotePath);
+                viewModel.setStatusText(I18n.get("sftp.connected"));
+                refreshLocal();
+                refreshRemote();
+            },
+            error -> {
+                logger.error("Failed to connect to SFTP", error);
+                viewModel.setConnected(false);
+                viewModel.setStatusText(I18n.get("sftp.connectionError") + ": " + safeMessage(error));
+                showErrorAlert(I18n.get("sftp.error.connection"), I18n.get("sftp.error.connectionFailedHeader"), error);
+                close();
             }
-        }).start();
+        );
     }
-    
-    private void refreshLocal() {
-        try {
-            java.util.List<FileItem> items = new java.util.ArrayList<>();
-            
-            // Add parent directory
-            if (currentLocalPath.getParent() != null) {
-                items.add(new FileItem("..", currentLocalPath.getParent().toString(), false, "", ""));
-            }
-            
-            // List files
-            File[] files = currentLocalPath.toFile().listFiles();
-            if (files != null) {
-                SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
-                for (File file : files) {
-                    String size = file.isDirectory() ? "<DIR>" : formatSize(file.length());
-                    String date = sdf.format(new Date(file.lastModified()));
-                    items.add(new FileItem(file.getName(), file.getAbsolutePath(), file.isFile(), size, date));
-                }
-            }
-            
-            localItems.clear();
-            localItems.addAll(items);
-            localPathField.setText(currentLocalPath.toString());
-        } catch (Exception e) {
-            logger.error("Failed to refresh local files", e);
-            statusLabel.setText(I18n.get("sftp.error.refresh", e.getMessage()));
+
+    private SFTPSession createConfiguredSession() {
+        ServerConnection connToUse = connection;
+        if (temporarySSHKey != null && temporarySSHKey.isValid()) {
+            connToUse = new ServerConnection();
+            connToUse.setId(connection.getId());
+            connToUse.setName(connection.getName());
+            connToUse.setHost(connection.getHost());
+            connToUse.setPort(connection.getPort());
+            connToUse.setUsername(connection.getUsername());
+            connToUse.setSettings(connection.getSettings());
+            connToUse.setConnectionTimeoutSeconds(connection.getConnectionTimeoutSeconds());
+            connToUse.setAuthMethod(de.kortty.model.AuthMethod.PUBLIC_KEY);
+            connToUse.setPrivateKeyPath("TEMPORARY:" + temporarySSHKey.getKeyContent());
         }
+
+        SFTPSession session = new SFTPSession(connToUse, password);
+        if (temporarySSHKey == null
+                && connToUse.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY
+                && app.getSSHKeyManager() != null) {
+            session.setSSHKeyManager(app.getSSHKeyManager(), app.getMasterPasswordManager().getMasterPassword());
+        }
+        return session;
     }
-    
+
+    private void refreshLocal() {
+        Path targetPath = viewModel.getCurrentLocalPath();
+        executeTask(
+            null,
+            () -> new LocalListing(targetPath, transferService.listLocal(targetPath)),
+            listing -> {
+                viewModel.setCurrentLocalPath(listing.path());
+                localPathField.setText(listing.path().toString());
+                viewModel.replaceLocalItems(listing.items());
+            },
+            error -> {
+                logger.error("Failed to refresh local files", error);
+                viewModel.setStatusText(I18n.get("sftp.error.refresh", safeMessage(error)));
+            }
+        );
+    }
+
     private void refreshRemote() {
-        if (sftpSession == null || !sftpSession.isConnected()) {
+        if (!viewModel.isConnected() || !transferService.isConnected()) {
             return;
         }
-        
-        new Thread(() -> {
-            try {
-                List<SftpClient.DirEntry> entries = sftpSession.listFiles(currentRemotePath);
-                java.util.List<FileItem> items = new java.util.ArrayList<>();
-                
-                // Add parent directory
-                if (!currentRemotePath.equals("/") && !currentRemotePath.equals("~")) {
-                    String parent = currentRemotePath.substring(0, currentRemotePath.lastIndexOf('/'));
-                    if (parent.isEmpty()) parent = "/";
-                    items.add(new FileItem("..", parent, false, "", ""));
-                }
-                
-                SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
-                for (SftpClient.DirEntry entry : entries) {
-                    String name = entry.getFilename();
-                    if (name.equals(".") || name.equals("..")) continue;
-                    
-                    SftpClient.Attributes attrs = entry.getAttributes();
-                    boolean isFile = attrs.isRegularFile();
-                    String size = isFile ? formatSize(attrs.getSize()) : "<DIR>";
-                    
-                    long mtime = attrs.getModifyTime().toMillis();
-                    String date = sdf.format(new Date(mtime));
-                    
-                    String fullPath = currentRemotePath.endsWith("/") ? 
-                        currentRemotePath + name : currentRemotePath + "/" + name;
-                    
-                    items.add(new FileItem(name, fullPath, isFile, size, date));
-                }
-                
-                Platform.runLater(() -> {
-                    remoteItems.clear();
-                    remoteItems.addAll(items);
-                    remotePathField.setText(currentRemotePath);
-                });
-            } catch (Exception e) {
-                logger.error("Failed to refresh remote files", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.error.refresh", e.getMessage()));
-                });
+        String remotePath = viewModel.getCurrentRemotePath();
+        executeTask(
+            null,
+            () -> new RemoteListing(remotePath, transferService.listRemote(remotePath)),
+            listing -> {
+                viewModel.setCurrentRemotePath(listing.path());
+                remotePathField.setText(listing.path());
+                viewModel.replaceRemoteItems(listing.items());
+            },
+            error -> {
+                logger.error("Failed to refresh remote files", error);
+                viewModel.setStatusText(I18n.get("sftp.error.refresh", safeMessage(error)));
             }
-        }).start();
+        );
     }
-    
+
     private void navigateLocal(String path) {
         try {
-            Path newPath = Paths.get(path);
-            if (Files.exists(newPath) && Files.isDirectory(newPath)) {
-                currentLocalPath = newPath.toAbsolutePath();
-                refreshLocal();
-            } else {
-                statusLabel.setText(I18n.get("sftp.error.pathNotExists", path));
+            Path newPath = Paths.get(path).toAbsolutePath();
+            if (!Files.exists(newPath) || !Files.isDirectory(newPath)) {
+                viewModel.setStatusText(I18n.get("sftp.error.pathNotExists", path));
+                return;
             }
+            executeTask(
+                null,
+                () -> new LocalListing(newPath, transferService.listLocal(newPath)),
+                listing -> {
+                    viewModel.setCurrentLocalPath(listing.path());
+                    localPathField.setText(listing.path().toString());
+                    viewModel.replaceLocalItems(listing.items());
+                },
+                error -> {
+                    logger.error("Failed to navigate local path", error);
+                    viewModel.setStatusText(I18n.get("sftp.error.generic", safeMessage(error)));
+                }
+            );
         } catch (Exception e) {
-            statusLabel.setText(I18n.get("sftp.error.generic", e.getMessage()));
+            viewModel.setStatusText(I18n.get("sftp.error.generic", safeMessage(e)));
         }
     }
-    
+
     private void navigateLocalUp() {
-        if (currentLocalPath.getParent() != null) {
-            navigateLocal(currentLocalPath.getParent().toString());
+        Path currentPath = viewModel.getCurrentLocalPath();
+        if (currentPath.getParent() != null) {
+            navigateLocal(currentPath.getParent().toString());
         }
     }
-    
+
     private void navigateRemote(String path) {
-        if (sftpSession == null || !sftpSession.isConnected()) {
+        if (!viewModel.isConnected() || !transferService.isConnected()) {
             return;
         }
-        
-        new Thread(() -> {
-            try {
-                String resolvedPath = path.equals("~") ? sftpSession.getCurrentDirectory() : path;
-                sftpSession.changeDirectory(resolvedPath);
-                currentRemotePath = sftpSession.getCurrentDirectory();
-                Platform.runLater(() -> refreshRemote());
-            } catch (Exception e) {
-                logger.error("Failed to navigate remote", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.error.generic", e.getMessage()));
-                });
+        executeTask(
+            null,
+            () -> {
+                String resolvedPath = transferService.changeRemoteDirectory(path);
+                return new RemoteListing(resolvedPath, transferService.listRemote(resolvedPath));
+            },
+            listing -> {
+                viewModel.setCurrentRemotePath(listing.path());
+                remotePathField.setText(listing.path());
+                viewModel.replaceRemoteItems(listing.items());
+            },
+            error -> {
+                logger.error("Failed to navigate remote path", error);
+                viewModel.setStatusText(I18n.get("sftp.error.generic", safeMessage(error)));
             }
-        }).start();
+        );
     }
-    
+
     private void navigateRemoteUp() {
+        String currentRemotePath = viewModel.getCurrentRemotePath();
         if (currentRemotePath.equals("/") || currentRemotePath.equals("~")) {
             return;
         }
         String parent = currentRemotePath.substring(0, currentRemotePath.lastIndexOf('/'));
-        if (parent.isEmpty()) parent = "/";
-        navigateRemote(parent);
+        navigateRemote(parent.isEmpty() ? "/" : parent);
     }
-    
+
     private void uploadSelected() {
-        List<FileItem> selected = localTable.getSelectionModel().getSelectedItems();
-        if (selected == null || selected.isEmpty()) {
+        List<SftpFileItem> selected = snapshotSelection(localTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty() || !viewModel.isConnected()) {
             return;
         }
-        
-        for (FileItem item : selected) {
-            if (item.getName().equals("..")) continue;
-            
-            File file = new File(item.getPath());
-            if (!file.exists()) {
-                continue;
-            }
-            
-            if (file.isDirectory()) {
-                // Upload directory recursively
-                uploadDirectory(file, currentRemotePath);
-            } else {
-                uploadSingleFile(file);
-            }
-        }
-    }
-    
-    private void uploadSingleFile(File file) {
-        String remoteFileName = file.getName();
-        String remotePath = currentRemotePath.endsWith("/") ? 
-            currentRemotePath + remoteFileName : currentRemotePath + "/" + remoteFileName;
-        
-        new Thread(() -> {
-            try {
-                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.uploading", file.getName())));
-                sftpSession.uploadFile(file.toPath(), remotePath);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.uploadComplete", file.getName()));
-                    refreshRemote();
-                });
-            } catch (Exception e) {
-                logger.error("Failed to upload file", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.uploadFailed", e.getMessage()));
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle(I18n.get("sftp.error.upload"));
-                    alert.setHeaderText(I18n.get("sftp.error.uploadHeader"));
-                    alert.setContentText(e.getMessage());
-                    alert.showAndWait();
-                });
-            }
-        }).start();
-    }
-    
-    private void uploadDirectory(File dir, String remoteBasePath) {
-        new Thread(() -> {
-            try {
-                String remoteDirPath = remoteBasePath.endsWith("/") ? 
-                    remoteBasePath + dir.getName() : remoteBasePath + "/" + dir.getName();
-                
-                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.creatingDirectory", dir.getName())));
-                sftpSession.createDirectory(remoteDirPath);
-                
-                File[] files = dir.listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        if (file.isDirectory()) {
-                            uploadDirectory(file, remoteDirPath);
-                        } else {
-                            uploadSingleFileToPath(file, remoteDirPath);
-                        }
+        String remotePath = viewModel.getCurrentRemotePath();
+        executeTask(
+            I18n.get("sftp.upload"),
+            () -> {
+                for (SftpFileItem item : selected) {
+                    Path localPath = Paths.get(item.getPath());
+                    if (Files.isDirectory(localPath)) {
+                        transferService.uploadDirectory(localPath, remotePath);
+                    } else {
+                        transferService.uploadFile(localPath, remotePath);
                     }
                 }
-                
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.directoryUploaded", dir.getName()));
-                    refreshRemote();
-                });
-            } catch (Exception e) {
-                logger.error("Failed to upload directory", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.error.uploadDirectory", e.getMessage()));
-                });
+                return null;
+            },
+            ignored -> {
+                viewModel.setStatusText(selected.size() == 1
+                    ? I18n.get("sftp.uploadComplete", selected.get(0).getName())
+                    : I18n.get("sftp.copyComplete"));
+                refreshRemote();
+            },
+            error -> {
+                logger.error("Failed to upload selected files", error);
+                viewModel.setStatusText(I18n.get("sftp.uploadFailed", safeMessage(error)));
+                showErrorAlert(I18n.get("sftp.error.upload"), I18n.get("sftp.error.uploadHeader"), error);
             }
-        }).start();
+        );
     }
-    
-    private void uploadSingleFileToPath(File file, String remotePath) {
-        String remoteFilePath = remotePath.endsWith("/") ? 
-            remotePath + file.getName() : remotePath + "/" + file.getName();
-        
-        try {
-            sftpSession.uploadFile(file.toPath(), remoteFilePath);
-        } catch (Exception e) {
-            logger.error("Failed to upload file to path", e);
-        }
-    }
-    
+
     private void downloadSelected() {
-        List<FileItem> selected = remoteTable.getSelectionModel().getSelectedItems();
-        if (selected == null || selected.isEmpty()) {
+        List<SftpFileItem> selected = snapshotSelection(remoteTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty() || !viewModel.isConnected()) {
             return;
         }
-        
-        // If single file, ask for destination file
+
         if (selected.size() == 1 && selected.get(0).isFile()) {
-            FileItem item = selected.get(0);
+            SftpFileItem item = selected.get(0);
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
             fileChooser.setTitle(I18n.get("sftp.saveFileAs"));
             fileChooser.setInitialFileName(item.getName());
-            fileChooser.setInitialDirectory(currentLocalPath.toFile());
-            
+            fileChooser.setInitialDirectory(viewModel.getCurrentLocalPath().toFile());
+
             File destination = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
             if (destination == null) {
                 return;
             }
-            
-            downloadSingleFile(item, destination.toPath());
-        } else {
-            // Multiple items or directory - ask for destination directory
-            javafx.stage.DirectoryChooser dirChooser = new javafx.stage.DirectoryChooser();
-            dirChooser.setTitle(I18n.get("sftp.selectTargetFolder"));
-            dirChooser.setInitialDirectory(currentLocalPath.toFile());
-            
-            File destinationDir = dirChooser.showDialog(getDialogPane().getScene().getWindow());
-            if (destinationDir == null) {
-                return;
-            }
-            
-            for (FileItem item : selected) {
-                if (item.getName().equals("..")) continue;
-                
-                if (item.isFile()) {
-                    downloadSingleFile(item, destinationDir.toPath().resolve(item.getName()));
-                } else {
-                    downloadDirectory(item, destinationDir.toPath());
-                }
-            }
-        }
-    }
-    
-    private void downloadSingleFile(FileItem item, Path localPath) {
-        new Thread(() -> {
-            try {
-                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.downloading", item.getName())));
-                sftpSession.downloadFile(item.getPath(), localPath);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.downloadComplete", item.getName()));
+
+            executeTask(
+                I18n.get("sftp.downloading", item.getName()),
+                () -> {
+                    transferService.downloadFile(item.getPath(), destination.toPath());
+                    return destination.toPath();
+                },
+                ignored -> {
+                    viewModel.setStatusText(I18n.get("sftp.downloadComplete", item.getName()));
                     refreshLocal();
-                });
-            } catch (Exception e) {
-                logger.error("Failed to download file", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.downloadFailed", e.getMessage()));
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle(I18n.get("sftp.error.download"));
-                    alert.setHeaderText(I18n.get("sftp.error.downloadHeader"));
-                    alert.setContentText(e.getMessage());
-                    alert.showAndWait();
-                });
-            }
-        }).start();
-    }
-    
-    private void downloadDirectory(FileItem item, Path localBasePath) {
-        new Thread(() -> {
-            try {
-                Path localDirPath = localBasePath.resolve(item.getName());
-                Files.createDirectories(localDirPath);
-                
-                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.downloadingDirectory", item.getName())));
-                
-                try {
-                    downloadDirectoryRecursive(item.getPath(), localDirPath);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                },
+                error -> {
+                    logger.error("Failed to download file", error);
+                    viewModel.setStatusText(I18n.get("sftp.downloadFailed", safeMessage(error)));
+                    showErrorAlert(I18n.get("sftp.error.download"), I18n.get("sftp.error.downloadHeader"), error);
                 }
-                
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.directoryDownloaded", item.getName()));
-                    refreshLocal();
-                });
-            } catch (Exception e) {
-                logger.error("Failed to download directory", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.error.downloadDirectory", e.getMessage()));
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle(I18n.get("sftp.error.download"));
-                    alert.setHeaderText(I18n.get("sftp.error.downloadDirectoryHeader"));
-                    alert.setContentText(e.getMessage());
-                    alert.showAndWait();
-                });
-            }
-        }).start();
-    }
-    
-    private void downloadDirectoryRecursive(String remotePath, Path localPath) throws Exception {
-        List<SftpClient.DirEntry> entries = sftpSession.listFiles(remotePath);
-        
-        for (SftpClient.DirEntry entry : entries) {
-            String name = entry.getFilename();
-            if (name.equals(".") || name.equals("..")) continue;
-            
-            String remoteEntryPath = remotePath.endsWith("/") ? remotePath + name : remotePath + "/" + name;
-            Path localEntryPath = localPath.resolve(name);
-            
-            SftpClient.Attributes attrs = entry.getAttributes();
-            if (attrs.isDirectory()) {
-                Files.createDirectories(localEntryPath);
-                downloadDirectoryRecursive(remoteEntryPath, localEntryPath);
-            } else {
-                sftpSession.downloadFile(remoteEntryPath, localEntryPath);
-            }
+            );
+            return;
         }
+
+        javafx.stage.DirectoryChooser dirChooser = new javafx.stage.DirectoryChooser();
+        dirChooser.setTitle(I18n.get("sftp.selectTargetFolder"));
+        dirChooser.setInitialDirectory(viewModel.getCurrentLocalPath().toFile());
+
+        File destinationDir = dirChooser.showDialog(getDialogPane().getScene().getWindow());
+        if (destinationDir == null) {
+            return;
+        }
+
+        Path destinationPath = destinationDir.toPath();
+        executeTask(
+            I18n.get("sftp.downloadingDirectory", selected.get(0).getName()),
+            () -> {
+                for (SftpFileItem item : selected) {
+                    if (item.isFile()) {
+                        transferService.downloadFile(item.getPath(), destinationPath.resolve(item.getName()));
+                    } else {
+                        transferService.downloadDirectory(item.getPath(), destinationPath);
+                    }
+                }
+                return null;
+            },
+            ignored -> {
+                viewModel.setStatusText(selected.size() == 1
+                    ? I18n.get("sftp.directoryDownloaded", selected.get(0).getName())
+                    : I18n.get("sftp.copyComplete"));
+                refreshLocal();
+            },
+            error -> {
+                logger.error("Failed to download selected entries", error);
+                viewModel.setStatusText(I18n.get("sftp.error.downloadDirectory", safeMessage(error)));
+                showErrorAlert(I18n.get("sftp.error.download"), I18n.get("sftp.error.downloadDirectoryHeader"), error);
+            }
+        );
     }
     
     private String formatSize(long bytes) {
@@ -948,8 +808,8 @@ public class SFTPManagerDialog extends Dialog<Void> {
     /**
      * Sets up a sortable column header with an icon button.
      */
-    private void setupSortableColumnHeader(TableColumn<FileItem, String> column, String title, 
-                                           TableView<FileItem> table, TableColumn<FileItem, String> sortColumn) {
+    private void setupSortableColumnHeader(TableColumn<SftpFileItem, String> column, String title,
+                                           TableView<SftpFileItem> table, TableColumn<SftpFileItem, String> sortColumn) {
         HBox headerBox = new HBox(5);
         headerBox.setAlignment(Pos.CENTER_LEFT);
         
@@ -963,7 +823,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
         javafx.beans.property.SimpleIntegerProperty sortState = new javafx.beans.property.SimpleIntegerProperty(0);
         
         sortButton.setOnAction(e -> {
-            javafx.collections.ObservableList<TableColumn<FileItem, ?>> sortOrder = table.getSortOrder();
+            javafx.collections.ObservableList<TableColumn<SftpFileItem, ?>> sortOrder = table.getSortOrder();
             int currentState = sortState.get();
             
             // Determine next sort state: 0 -> 1 (asc), 1 -> 2 (desc), 2 -> 1 (asc)
@@ -973,7 +833,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             sortOrder.clear();
             
             // Reset all column sort states
-            for (TableColumn<FileItem, ?> col : table.getColumns()) {
+            for (TableColumn<SftpFileItem, ?> col : table.getColumns()) {
                 if (col != sortColumn) {
                     col.setSortType(null);
                 }
@@ -989,7 +849,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
             
             // Apply sorting - need to sort the underlying list
             if (table == localTable) {
-                FXCollections.sort(localItems, (a, b) -> {
+                FXCollections.sort(viewModel.getLocalItems(), (a, b) -> {
                     int result = sortColumn.getComparator().compare(
                         sortColumn.getCellData(a), 
                         sortColumn.getCellData(b)
@@ -997,7 +857,7 @@ public class SFTPManagerDialog extends Dialog<Void> {
                     return isAscending ? result : -result;
                 });
             } else if (table == remoteTable) {
-                FXCollections.sort(remoteItems, (a, b) -> {
+                FXCollections.sort(viewModel.getRemoteItems(), (a, b) -> {
                     int result = sortColumn.getComparator().compare(
                         sortColumn.getCellData(a), 
                         sortColumn.getCellData(b)
@@ -1011,16 +871,11 @@ public class SFTPManagerDialog extends Dialog<Void> {
         column.setGraphic(headerBox);
     }
     
-    private void deleteLocalFile(FileItem item) {
-        if (item == null || item.getName().equals("..")) {
+    private void deleteLocalFile(SftpFileItem item) {
+        if (item == null || item.isParentEntry()) {
             return;
         }
-        
-        File file = new File(item.getPath());
-        if (!file.exists()) {
-            return;
-        }
-        
+
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle(I18n.get("sftp.confirmDelete"));
         confirm.setHeaderText(I18n.get("sftp.confirmDelete"));
@@ -1028,422 +883,201 @@ public class SFTPManagerDialog extends Dialog<Void> {
         
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                try {
-                    if (file.isDirectory()) {
-                        deleteDirectory(file);
-                    } else {
-                        file.delete();
-                    }
-                    statusLabel.setText(I18n.get("sftp.deleted", item.getName()));
-                    refreshLocal();
-                } catch (Exception e) {
-                    logger.error("Failed to delete local file", e);
-                    Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle(I18n.get("sftp.error.deleteFailed"));
-                    error.setHeaderText(I18n.get("sftp.error.deleteFailedHeader"));
-                    error.setContentText(e.getMessage());
-                    error.showAndWait();
-                }
-            }
-        });
-    }
-    
-    private void deleteDirectory(File dir) throws Exception {
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectory(file);
-                } else {
-                    file.delete();
-                }
-            }
-        }
-        dir.delete();
-    }
-    
-    private void renameLocalFile(FileItem item) {
-        if (item == null || item.getName().equals("..")) {
-            return;
-        }
-        
-        File file = new File(item.getPath());
-        if (!file.exists()) {
-            return;
-        }
-        
-        TextInputDialog dialog = new TextInputDialog(item.getName());
-        dialog.setTitle(I18n.get("sftp.rename"));
-        dialog.setHeaderText(I18n.get("sftp.renamePrompt", item.getName()));
-        dialog.setContentText(I18n.get("sftp.nameLabel"));
-        
-        dialog.showAndWait().ifPresent(newName -> {
-            if (newName != null && !newName.trim().isEmpty() && !newName.equals(item.getName())) {
-                try {
-                    File newFile = new File(file.getParent(), newName.trim());
-                    if (file.renameTo(newFile)) {
-                        statusLabel.setText(I18n.get("sftp.renamed", item.getName(), newName));
-                        refreshLocal();
-                    } else {
-                        Alert error = new Alert(Alert.AlertType.ERROR);
-                        error.setTitle(I18n.get("sftp.error.renameFailed"));
-                        error.setHeaderText(I18n.get("sftp.error.renameFailedHeader"));
-                        error.setContentText(I18n.get("sftp.error.renameFileExists"));
-                        error.showAndWait();
-                    }
-                } catch (Exception e) {
-                    logger.error("Failed to rename local file", e);
-                    Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle(I18n.get("sftp.error.renameFailed"));
-                    error.setHeaderText(I18n.get("sftp.error.renameFailedHeader"));
-                    error.setContentText(e.getMessage());
-                    error.showAndWait();
-                }
-            }
-        });
-    }
-    
-    private void deleteRemoteFile(FileItem item) {
-        if (item == null || item.getName().equals("..")) {
-            return;
-        }
-        
-        if (sftpSession == null || !sftpSession.isConnected()) {
-            return;
-        }
-        
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle(I18n.get("sftp.confirmDelete"));
-        confirm.setHeaderText(I18n.get("sftp.confirmDelete"));
-        confirm.setContentText(I18n.get("sftp.confirmDeleteMessage", item.getName()));
-        
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                new Thread(() -> {
-                    try {
-                        Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.deleting", item.getName())));
-                        sftpSession.deleteFile(item.getPath());
-                        Platform.runLater(() -> {
-                            statusLabel.setText(I18n.get("sftp.deleted", item.getName()));
-                            refreshRemote();
-                        });
-                    } catch (Exception e) {
-                        logger.error("Failed to delete remote file", e);
-                        Platform.runLater(() -> {
-                            statusLabel.setText(I18n.get("sftp.error.deleteMessage", e.getMessage()));
-                            Alert error = new Alert(Alert.AlertType.ERROR);
-                            error.setTitle(I18n.get("sftp.error.deleteFailed"));
-                            error.setHeaderText(I18n.get("sftp.error.deleteFailedHeader"));
-                            error.setContentText(e.getMessage());
-                            error.showAndWait();
-                        });
-                    }
-                }).start();
-            }
-        });
-    }
-    
-    private void renameRemoteFile(FileItem item) {
-        if (item == null || item.getName().equals("..")) {
-            return;
-        }
-        
-        if (sftpSession == null || !sftpSession.isConnected()) {
-            return;
-        }
-        
-        TextInputDialog dialog = new TextInputDialog(item.getName());
-        dialog.setTitle(I18n.get("sftp.rename"));
-        dialog.setHeaderText(I18n.get("sftp.renamePrompt", item.getName()));
-        dialog.setContentText(I18n.get("sftp.nameLabel"));
-        
-        dialog.showAndWait().ifPresent(newName -> {
-            if (newName != null && !newName.trim().isEmpty() && !newName.equals(item.getName())) {
-                new Thread(() -> {
-                    try {
-                        String parentPath = item.getPath().substring(0, item.getPath().lastIndexOf('/'));
-                        if (parentPath.isEmpty()) parentPath = "/";
-                        String newPath = parentPath + "/" + newName.trim();
-                        
-                        Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.renaming", item.getName(), newName)));
-                        sftpSession.renameFile(item.getPath(), newPath);
-                        Platform.runLater(() -> {
-                            statusLabel.setText(I18n.get("sftp.renamed", item.getName(), newName));
-                            refreshRemote();
-                        });
-                    } catch (Exception e) {
-                        logger.error("Failed to rename remote file", e);
-                        Platform.runLater(() -> {
-                            statusLabel.setText(I18n.get("sftp.error.renameMessage", e.getMessage()));
-                            Alert error = new Alert(Alert.AlertType.ERROR);
-                            error.setTitle(I18n.get("sftp.error.renameFailed"));
-                            error.setHeaderText(I18n.get("sftp.error.renameFailedHeader"));
-                            error.setContentText(e.getMessage());
-                            error.showAndWait();
-                        });
-                    }
-                }).start();
-            }
-        });
-    }
-    
-    private void changeRemotePermissions(FileItem item) {
-        if (item == null || item.getName().equals("..")) {
-            return;
-        }
-        
-        if (sftpSession == null || !sftpSession.isConnected()) {
-            return;
-        }
-        
-        new Thread(() -> {
-            try {
-                String currentPerms = sftpSession.getPermissions(item.getPath());
-                int currentPermsInt = Integer.parseInt(currentPerms, 8);
-                
-                Platform.runLater(() -> {
-                    Dialog<int[]> permDialog = new Dialog<>();
-                    permDialog.setTitle(I18n.get("sftp.permissions"));
-                    permDialog.setHeaderText(I18n.get("sftp.permissionsFor", item.getName()));
-                    permDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-                    
-                    VBox content = new VBox(15);
-                    content.setPadding(new Insets(20));
-                    
-                    Label infoLabel = new Label(I18n.get("sftp.currentPermissions", currentPerms));
-                    infoLabel.setStyle("-fx-font-weight: bold;");
-                    
-                    // Owner permissions
-                    Label ownerLabel = new Label(I18n.get("sftp.ownerLabel"));
-                    ownerLabel.setStyle("-fx-font-weight: bold;");
-                    CheckBox ownerRead = new CheckBox(I18n.get("sftp.read"));
-                    CheckBox ownerWrite = new CheckBox(I18n.get("sftp.write"));
-                    CheckBox ownerExecute = new CheckBox(I18n.get("sftp.execute"));
-                    ownerRead.setSelected((currentPermsInt & 0400) != 0);
-                    ownerWrite.setSelected((currentPermsInt & 0200) != 0);
-                    ownerExecute.setSelected((currentPermsInt & 0100) != 0);
-                    
-                    HBox ownerBox = new HBox(10);
-                    ownerBox.getChildren().addAll(ownerRead, ownerWrite, ownerExecute);
-                    
-                    // Group permissions
-                    Label groupLabel = new Label(I18n.get("sftp.groupLabel"));
-                    groupLabel.setStyle("-fx-font-weight: bold;");
-                    CheckBox groupRead = new CheckBox(I18n.get("sftp.read"));
-                    CheckBox groupWrite = new CheckBox(I18n.get("sftp.write"));
-                    CheckBox groupExecute = new CheckBox(I18n.get("sftp.execute"));
-                    groupRead.setSelected((currentPermsInt & 0040) != 0);
-                    groupWrite.setSelected((currentPermsInt & 0020) != 0);
-                    groupExecute.setSelected((currentPermsInt & 0010) != 0);
-                    
-                    HBox groupBox = new HBox(10);
-                    groupBox.getChildren().addAll(groupRead, groupWrite, groupExecute);
-                    
-                    // Other permissions
-                    Label otherLabel = new Label(I18n.get("sftp.otherLabel"));
-                    otherLabel.setStyle("-fx-font-weight: bold;");
-                    CheckBox otherRead = new CheckBox(I18n.get("sftp.read"));
-                    CheckBox otherWrite = new CheckBox(I18n.get("sftp.write"));
-                    CheckBox otherExecute = new CheckBox(I18n.get("sftp.execute"));
-                    otherRead.setSelected((currentPermsInt & 0004) != 0);
-                    otherWrite.setSelected((currentPermsInt & 0002) != 0);
-                    otherExecute.setSelected((currentPermsInt & 0001) != 0);
-                    
-                    HBox otherBox = new HBox(10);
-                    otherBox.getChildren().addAll(otherRead, otherWrite, otherExecute);
-                    
-                    content.getChildren().addAll(infoLabel, 
-                        ownerLabel, ownerBox,
-                        groupLabel, groupBox,
-                        otherLabel, otherBox);
-                    
-                    permDialog.getDialogPane().setContent(content);
-                    
-                    permDialog.setResultConverter(buttonType -> {
-                        if (buttonType == ButtonType.OK) {
-                            int perms = 0;
-                            if (ownerRead.isSelected()) perms |= 0400;
-                            if (ownerWrite.isSelected()) perms |= 0200;
-                            if (ownerExecute.isSelected()) perms |= 0100;
-                            if (groupRead.isSelected()) perms |= 0040;
-                            if (groupWrite.isSelected()) perms |= 0020;
-                            if (groupExecute.isSelected()) perms |= 0010;
-                            if (otherRead.isSelected()) perms |= 0004;
-                            if (otherWrite.isSelected()) perms |= 0002;
-                            if (otherExecute.isSelected()) perms |= 0001;
-                            return new int[]{perms};
-                        }
+                executeTask(
+                    I18n.get("sftp.deleting", item.getName()),
+                    () -> {
+                        transferService.deleteLocal(Paths.get(item.getPath()));
                         return null;
-                    });
-                    
-                    permDialog.showAndWait().ifPresent(result -> {
-                        if (result != null && result[0] != currentPermsInt) {
-                            new Thread(() -> {
-                                try {
-                                    String newPerms = String.format("%04o", result[0]);
-                                    Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.changingPermissions", item.getName())));
-                                    sftpSession.setPermissions(item.getPath(), newPerms);
-                                    Platform.runLater(() -> {
-                                        statusLabel.setText(I18n.get("sftp.permissionsChanged", item.getName()));
-                                        refreshRemote();
-                                    });
-                                } catch (Exception e) {
-                                    logger.error("Failed to change permissions", e);
-                                    Platform.runLater(() -> {
-                                        statusLabel.setText(I18n.get("sftp.error.changePermissions", e.getMessage()));
-                                        Alert error = new Alert(Alert.AlertType.ERROR);
-                                        error.setTitle(I18n.get("sftp.error.changePermissionsFailed"));
-                                        error.setHeaderText(I18n.get("sftp.error.changePermissionsFailedHeader"));
-                                        error.setContentText(e.getMessage());
-                                        error.showAndWait();
-                                    });
-                                }
-                            }).start();
-                        }
-                    });
-                });
-            } catch (Exception e) {
-                logger.error("Failed to get current permissions", e);
-                Platform.runLater(() -> {
-                    Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle(I18n.get("sftp.error.title"));
-                    error.setHeaderText(I18n.get("sftp.error.getPermissionsHeader"));
-                    error.setContentText(e.getMessage());
-                    error.showAndWait();
-                });
+                    },
+                    ignored -> {
+                        viewModel.setStatusText(I18n.get("sftp.deleted", item.getName()));
+                        refreshLocal();
+                    },
+                    error -> {
+                        logger.error("Failed to delete local file", error);
+                        showErrorAlert(I18n.get("sftp.error.deleteFailed"), I18n.get("sftp.error.deleteFailedHeader"), error);
+                    }
+                );
             }
-        }).start();
+        });
     }
-    
+
+    private void renameLocalFile(SftpFileItem item) {
+        if (item == null || item.isParentEntry()) {
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(item.getName());
+        dialog.setTitle(I18n.get("sftp.rename"));
+        dialog.setHeaderText(I18n.get("sftp.renamePrompt", item.getName()));
+        dialog.setContentText(I18n.get("sftp.nameLabel"));
+        
+        dialog.showAndWait().ifPresent(newName -> {
+            if (newName != null && !newName.trim().isEmpty() && !newName.equals(item.getName())) {
+                executeTask(
+                    I18n.get("sftp.renaming", item.getName(), newName),
+                    () -> transferService.renameLocal(Paths.get(item.getPath()), newName.trim()),
+                    ignored -> {
+                        viewModel.setStatusText(I18n.get("sftp.renamed", item.getName(), newName));
+                        refreshLocal();
+                    },
+                    error -> {
+                        logger.error("Failed to rename local file", error);
+                        showErrorAlert(I18n.get("sftp.error.renameFailed"), I18n.get("sftp.error.renameFailedHeader"), error);
+                    }
+                );
+            }
+        });
+    }
+
+    private void deleteRemoteFile(SftpFileItem item) {
+        if (item == null || item.isParentEntry() || !viewModel.isConnected()) {
+            return;
+        }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("sftp.confirmDelete"));
+        confirm.setHeaderText(I18n.get("sftp.confirmDelete"));
+        confirm.setContentText(I18n.get("sftp.confirmDeleteMessage", item.getName()));
+        
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                executeTask(
+                    I18n.get("sftp.deleting", item.getName()),
+                    () -> {
+                        transferService.deleteRemote(item.getPath());
+                        return null;
+                    },
+                    ignored -> {
+                        viewModel.setStatusText(I18n.get("sftp.deleted", item.getName()));
+                        refreshRemote();
+                    },
+                    error -> {
+                        logger.error("Failed to delete remote file", error);
+                        viewModel.setStatusText(I18n.get("sftp.error.deleteMessage", safeMessage(error)));
+                        showErrorAlert(I18n.get("sftp.error.deleteFailed"), I18n.get("sftp.error.deleteFailedHeader"), error);
+                    }
+                );
+            }
+        });
+    }
+
+    private void renameRemoteFile(SftpFileItem item) {
+        if (item == null || item.isParentEntry() || !viewModel.isConnected()) {
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(item.getName());
+        dialog.setTitle(I18n.get("sftp.rename"));
+        dialog.setHeaderText(I18n.get("sftp.renamePrompt", item.getName()));
+        dialog.setContentText(I18n.get("sftp.nameLabel"));
+        
+        dialog.showAndWait().ifPresent(newName -> {
+            if (newName != null && !newName.trim().isEmpty() && !newName.equals(item.getName())) {
+                executeTask(
+                    I18n.get("sftp.renaming", item.getName(), newName),
+                    () -> transferService.renameRemote(item.getPath(), newName.trim()),
+                    ignored -> {
+                        viewModel.setStatusText(I18n.get("sftp.renamed", item.getName(), newName));
+                        refreshRemote();
+                    },
+                    error -> {
+                        logger.error("Failed to rename remote file", error);
+                        viewModel.setStatusText(I18n.get("sftp.error.renameMessage", safeMessage(error)));
+                        showErrorAlert(I18n.get("sftp.error.renameFailed"), I18n.get("sftp.error.renameFailedHeader"), error);
+                    }
+                );
+            }
+        });
+    }
+
+    private void changeRemotePermissions(SftpFileItem item) {
+        if (item == null || item.isParentEntry() || !viewModel.isConnected()) {
+            return;
+        }
+        executeTask(
+            null,
+            () -> transferService.getRemotePermissions(item.getPath()),
+            currentPerms -> showPermissionDialog(item, currentPerms),
+            error -> {
+                logger.error("Failed to get current permissions", error);
+                showErrorAlert(I18n.get("sftp.error.title"), I18n.get("sftp.error.getPermissionsHeader"), error);
+            }
+        );
+    }
+
     private void copyLocalSelected() {
-        List<FileItem> selected = localTable.getSelectionModel().getSelectedItems();
-        if (selected == null || selected.isEmpty()) {
+        List<SftpFileItem> selected = snapshotSelection(localTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty()) {
             return;
         }
-        
-        TextInputDialog dialog = new TextInputDialog(currentLocalPath.toString());
+
+        TextInputDialog dialog = new TextInputDialog(viewModel.getCurrentLocalPath().toString());
         dialog.setTitle(I18n.get("sftp.copyTo"));
         dialog.setHeaderText(I18n.get("sftp.targetDir"));
         dialog.setContentText(I18n.get("sftp.path"));
         
         dialog.showAndWait().ifPresent(destPath -> {
             if (destPath != null && !destPath.trim().isEmpty()) {
-                new Thread(() -> {
-                    try {
-                        Path dest = Paths.get(destPath.trim());
-                        if (!Files.exists(dest)) {
-                            Files.createDirectories(dest);
-                        }
-                        
-                        for (FileItem item : selected) {
-                            if (item.getName().equals("..")) continue;
-                            
-                            File source = new File(item.getPath());
-                            Path target = dest.resolve(item.getName());
-                            
-                            Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.copying", item.getName())));
-                            
-                            if (source.isDirectory()) {
-                                copyDirectory(source.toPath(), target);
-                            } else {
-                                Files.copy(source.toPath(), target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                            }
-                        }
-                        
-                        Platform.runLater(() -> {
-                            statusLabel.setText(I18n.get("sftp.copyComplete"));
-                            refreshLocal();
-                        });
-                    } catch (Exception e) {
-                        logger.error("Failed to copy local files", e);
-                        Platform.runLater(() -> {
-                            statusLabel.setText(I18n.get("sftp.error.copyMessage", e.getMessage()));
-                            Alert error = new Alert(Alert.AlertType.ERROR);
-                            error.setTitle(I18n.get("sftp.error.copy"));
-                            error.setHeaderText(I18n.get("sftp.error.copyFailedHeader"));
-                            error.setContentText(e.getMessage());
-                            error.showAndWait();
-                        });
+                executeTask(
+                    I18n.get("sftp.copying", selected.get(0).getName()),
+                    () -> {
+                        transferService.copyLocal(toLocalPaths(selected), Paths.get(destPath.trim()));
+                        return null;
+                    },
+                    ignored -> {
+                        viewModel.setStatusText(I18n.get("sftp.copyComplete"));
+                        refreshLocal();
+                    },
+                    error -> {
+                        logger.error("Failed to copy local files", error);
+                        viewModel.setStatusText(I18n.get("sftp.error.copyMessage", safeMessage(error)));
+                        showErrorAlert(I18n.get("sftp.error.copy"), I18n.get("sftp.error.copyFailedHeader"), error);
                     }
-                }).start();
+                );
             }
         });
     }
-    
-    private void copyDirectory(Path source, Path target) throws Exception {
-        Files.createDirectories(target);
-        Files.walk(source).forEach(sourcePath -> {
-            try {
-                Path targetPath = target.resolve(source.relativize(sourcePath));
-                if (Files.isDirectory(sourcePath)) {
-                    Files.createDirectories(targetPath);
-                } else {
-                    Files.copy(sourcePath, targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-    
+
     private void copyRemoteSelected() {
-        List<FileItem> selected = remoteTable.getSelectionModel().getSelectedItems();
-        if (selected == null || selected.isEmpty()) {
+        List<SftpFileItem> selected = snapshotSelection(remoteTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty() || !viewModel.isConnected()) {
             return;
         }
-        
-        if (sftpSession == null || !sftpSession.isConnected()) {
-            return;
-        }
-        
-        TextInputDialog dialog = new TextInputDialog(currentRemotePath);
+
+        TextInputDialog dialog = new TextInputDialog(viewModel.getCurrentRemotePath());
         dialog.setTitle(I18n.get("sftp.copyTo"));
         dialog.setHeaderText(I18n.get("sftp.targetDir"));
         dialog.setContentText(I18n.get("sftp.path"));
         
         dialog.showAndWait().ifPresent(destPath -> {
             if (destPath != null && !destPath.trim().isEmpty()) {
-                new Thread(() -> {
-                    try {
-                        String dest = destPath.trim();
-                        if (!dest.endsWith("/")) dest += "/";
-                        
-                        for (FileItem item : selected) {
-                            if (item.getName().equals("..")) continue;
-                            
-                            String sourcePath = item.getPath();
-                            String targetPath = dest + item.getName();
-                            
-                            Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.copying", item.getName())));
-                            sftpSession.copyFile(sourcePath, targetPath);
-                        }
-                        
-                        Platform.runLater(() -> {
-                            statusLabel.setText(I18n.get("sftp.copyComplete"));
-                            refreshRemote();
-                        });
-                    } catch (Exception e) {
-                        logger.error("Failed to copy remote files", e);
-                        Platform.runLater(() -> {
-                            statusLabel.setText(I18n.get("sftp.error.copyMessage", e.getMessage()));
-                            Alert error = new Alert(Alert.AlertType.ERROR);
-                            error.setTitle(I18n.get("sftp.error.copy"));
-                            error.setHeaderText(I18n.get("sftp.error.copyFailedHeader"));
-                            error.setContentText(e.getMessage());
-                            error.showAndWait();
-                        });
+                executeTask(
+                    I18n.get("sftp.copying", selected.get(0).getName()),
+                    () -> {
+                        transferService.copyRemote(toRemotePaths(selected), destPath.trim());
+                        return null;
+                    },
+                    ignored -> {
+                        viewModel.setStatusText(I18n.get("sftp.copyComplete"));
+                        refreshRemote();
+                    },
+                    error -> {
+                        logger.error("Failed to copy remote files", error);
+                        viewModel.setStatusText(I18n.get("sftp.error.copyMessage", safeMessage(error)));
+                        showErrorAlert(I18n.get("sftp.error.copy"), I18n.get("sftp.error.copyFailedHeader"), error);
                     }
-                }).start();
+                );
             }
         });
     }
     
     private void createZipArchive() {
-        List<FileItem> selected = remoteTable.getSelectionModel().getSelectedItems();
-        if (selected == null || selected.isEmpty()) {
+        List<SftpFileItem> selected = snapshotSelection(remoteTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty()) {
             // Try local selection
-            selected = localTable.getSelectionModel().getSelectedItems();
-            if (selected == null || selected.isEmpty()) {
+            selected = snapshotSelection(localTable.getSelectionModel().getSelectedItems());
+            if (selected.isEmpty()) {
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
                 alert.setTitle(I18n.get("sftp.noSelection"));
                 alert.setHeaderText(I18n.get("sftp.selectFilesPrompt"));
@@ -1456,56 +1090,35 @@ public class SFTPManagerDialog extends Dialog<Void> {
         }
     }
     
-    private void createZipFromLocal(List<FileItem> selected) {
+    private void createZipFromLocal(List<SftpFileItem> selected) {
         javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
         fileChooser.setTitle(I18n.get("sftp.saveZipAs"));
         fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("ZIP-Dateien", "*.zip"));
         fileChooser.setInitialFileName("archive.zip");
-        fileChooser.setInitialDirectory(currentLocalPath.toFile());
+        fileChooser.setInitialDirectory(viewModel.getCurrentLocalPath().toFile());
         
         File zipFile = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
         if (zipFile == null) {
             return;
         }
-        
-        new Thread(() -> {
-            try {
-                ZipFile zip = new ZipFile(zipFile);
-                ZipParameters parameters = new ZipParameters();
-                parameters.setCompressionLevel(CompressionLevel.NORMAL);
-                
-                for (FileItem item : selected) {
-                    if (item.getName().equals("..")) continue;
-                    
-                    File source = new File(item.getPath());
-                    Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.adding", item.getName())));
-                    
-                    if (source.isDirectory()) {
-                        zip.addFolder(source, parameters);
-                    } else {
-                        zip.addFile(source, parameters);
-                    }
-                }
-                
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.zipCreated", zipFile.getName()));
-                });
-            } catch (Exception e) {
-                logger.error("Failed to create ZIP archive", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.error.createZip", e.getMessage()));
-                    Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle(I18n.get("sftp.error.createZipFailed"));
-                    error.setHeaderText(I18n.get("sftp.error.createZipFailedHeader"));
-                    error.setContentText(e.getMessage());
-                    error.showAndWait();
-                });
+
+        executeTask(
+            I18n.get("sftp.adding", selected.get(0).getName()),
+            () -> {
+                transferService.createLocalZip(toLocalPaths(selected), zipFile.toPath());
+                return null;
+            },
+            ignored -> viewModel.setStatusText(I18n.get("sftp.zipCreated", zipFile.getName())),
+            error -> {
+                logger.error("Failed to create ZIP archive", error);
+                viewModel.setStatusText(I18n.get("sftp.error.createZip", safeMessage(error)));
+                showErrorAlert(I18n.get("sftp.error.createZipFailed"), I18n.get("sftp.error.createZipFailedHeader"), error);
             }
-        }).start();
+        );
     }
     
-    private void createZipFromRemote(List<FileItem> selected) {
-        if (sftpSession == null || !sftpSession.isConnected()) {
+    private void createZipFromRemote(List<SftpFileItem> selected) {
+        if (!viewModel.isConnected()) {
             return;
         }
         
@@ -1513,172 +1126,268 @@ public class SFTPManagerDialog extends Dialog<Void> {
         fileChooser.setTitle(I18n.get("sftp.saveZipAs"));
         fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("ZIP-Dateien", "*.zip"));
         fileChooser.setInitialFileName("archive.zip");
-        fileChooser.setInitialDirectory(currentLocalPath.toFile());
+        fileChooser.setInitialDirectory(viewModel.getCurrentLocalPath().toFile());
         
         File zipFile = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
         if (zipFile == null) {
             return;
         }
-        
-        new Thread(() -> {
-            try {
-                ZipFile zip = new ZipFile(zipFile);
-                ZipParameters parameters = new ZipParameters();
-                parameters.setCompressionLevel(CompressionLevel.NORMAL);
-                
-                // Create temporary directory for downloaded files
-                Path tempDir = Files.createTempDirectory("sftp_zip_");
-                
-                try {
-                    for (FileItem item : selected) {
-                        if (item.getName().equals("..")) continue;
-                        
-                        Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.downloading", item.getName())));
-                        Path tempFile = tempDir.resolve(item.getName());
-                        
-                        if (item.isFile()) {
-                            sftpSession.downloadFile(item.getPath(), tempFile);
-                            zip.addFile(tempFile.toFile(), parameters);
-                        } else {
-                            // Download directory recursively
-                            downloadDirectoryRecursiveForZip(item.getPath(), tempFile, zip, parameters);
-                        }
+
+        executeTask(
+            I18n.get("sftp.downloading", selected.get(0).getName()),
+            () -> {
+                transferService.createRemoteZip(toRemotePaths(selected), zipFile.toPath());
+                return null;
+            },
+            ignored -> viewModel.setStatusText(I18n.get("sftp.zipCreated", zipFile.getName())),
+            error -> {
+                logger.error("Failed to create ZIP archive from remote", error);
+                viewModel.setStatusText(I18n.get("sftp.error.createZip", safeMessage(error)));
+                showErrorAlert(I18n.get("sftp.error.createZipFailed"), I18n.get("sftp.error.createZipFailedHeader"), error);
+            }
+        );
+    }
+
+    private void showPermissionDialog(SftpFileItem item, String currentPermissions) {
+        String normalizedPermissions = currentPermissions != null ? currentPermissions.trim() : "";
+        int fallbackPermissions = item.isFile() ? 0644 : 0755;
+        int currentPermissionsInt = fallbackPermissions;
+        if (normalizedPermissions.matches("^[0-7]{1,4}$")) {
+            currentPermissionsInt = Integer.parseInt(normalizedPermissions, 8);
+        } else {
+            logger.warn(
+                "Received invalid octal permissions '{}' for {}, using fallback {}",
+                currentPermissions,
+                item.getPath(),
+                String.format("%04o", fallbackPermissions)
+            );
+        }
+        final int initialPermissionsInt = currentPermissionsInt;
+        String displayedPermissions = String.format("%04o", currentPermissionsInt);
+
+        Dialog<int[]> permissionDialog = new Dialog<>();
+        permissionDialog.setTitle(I18n.get("sftp.permissions"));
+        permissionDialog.setHeaderText(I18n.get("sftp.permissionsFor", item.getName()));
+        permissionDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+
+        Label infoLabel = new Label(I18n.get("sftp.currentPermissions", displayedPermissions));
+        infoLabel.setStyle("-fx-font-weight: bold;");
+
+        CheckBox ownerRead = new CheckBox(I18n.get("sftp.read"));
+        CheckBox ownerWrite = new CheckBox(I18n.get("sftp.write"));
+        CheckBox ownerExecute = new CheckBox(I18n.get("sftp.execute"));
+        ownerRead.setSelected((currentPermissionsInt & 0400) != 0);
+        ownerWrite.setSelected((currentPermissionsInt & 0200) != 0);
+        ownerExecute.setSelected((currentPermissionsInt & 0100) != 0);
+
+        CheckBox groupRead = new CheckBox(I18n.get("sftp.read"));
+        CheckBox groupWrite = new CheckBox(I18n.get("sftp.write"));
+        CheckBox groupExecute = new CheckBox(I18n.get("sftp.execute"));
+        groupRead.setSelected((currentPermissionsInt & 0040) != 0);
+        groupWrite.setSelected((currentPermissionsInt & 0020) != 0);
+        groupExecute.setSelected((currentPermissionsInt & 0010) != 0);
+
+        CheckBox otherRead = new CheckBox(I18n.get("sftp.read"));
+        CheckBox otherWrite = new CheckBox(I18n.get("sftp.write"));
+        CheckBox otherExecute = new CheckBox(I18n.get("sftp.execute"));
+        otherRead.setSelected((currentPermissionsInt & 0004) != 0);
+        otherWrite.setSelected((currentPermissionsInt & 0002) != 0);
+        otherExecute.setSelected((currentPermissionsInt & 0001) != 0);
+
+        content.getChildren().addAll(
+            infoLabel,
+            createPermissionSection(I18n.get("sftp.ownerLabel"), ownerRead, ownerWrite, ownerExecute),
+            createPermissionSection(I18n.get("sftp.groupLabel"), groupRead, groupWrite, groupExecute),
+            createPermissionSection(I18n.get("sftp.otherLabel"), otherRead, otherWrite, otherExecute)
+        );
+
+        permissionDialog.getDialogPane().setContent(content);
+        permissionDialog.setResultConverter(buttonType -> {
+            if (buttonType != ButtonType.OK) {
+                return null;
+            }
+            int permissions = 0;
+            if (ownerRead.isSelected()) permissions |= 0400;
+            if (ownerWrite.isSelected()) permissions |= 0200;
+            if (ownerExecute.isSelected()) permissions |= 0100;
+            if (groupRead.isSelected()) permissions |= 0040;
+            if (groupWrite.isSelected()) permissions |= 0020;
+            if (groupExecute.isSelected()) permissions |= 0010;
+            if (otherRead.isSelected()) permissions |= 0004;
+            if (otherWrite.isSelected()) permissions |= 0002;
+            if (otherExecute.isSelected()) permissions |= 0001;
+            return new int[]{permissions};
+        });
+
+        permissionDialog.showAndWait().ifPresent(result -> {
+            if (result != null && result[0] != initialPermissionsInt) {
+                String newPermissions = String.format("%04o", result[0]);
+                executeTask(
+                    I18n.get("sftp.changingPermissions", item.getName()),
+                    () -> {
+                        transferService.setRemotePermissions(item.getPath(), newPermissions);
+                        return null;
+                    },
+                    ignored -> {
+                        viewModel.setStatusText(I18n.get("sftp.permissionsChanged", item.getName()));
+                        refreshRemote();
+                    },
+                    error -> {
+                        logger.error("Failed to change permissions", error);
+                        viewModel.setStatusText(I18n.get("sftp.error.changePermissions", safeMessage(error)));
+                        showErrorAlert(I18n.get("sftp.error.changePermissionsFailed"), I18n.get("sftp.error.changePermissionsFailedHeader"), error);
                     }
-                    
-                    Platform.runLater(() -> {
-                        statusLabel.setText(I18n.get("sftp.zipCreated", zipFile.getName()));
-                    });
-                } finally {
-                    // Cleanup temp directory
-                    deleteDirectoryRecursive(tempDir.toFile());
-                }
-            } catch (Exception e) {
-                logger.error("Failed to create ZIP archive from remote", e);
-                Platform.runLater(() -> {
-                    statusLabel.setText(I18n.get("sftp.error.createZip", e.getMessage()));
-                    Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle(I18n.get("sftp.error.createZipFailed"));
-                    error.setHeaderText(I18n.get("sftp.error.createZipFailedHeader"));
-                    error.setContentText(e.getMessage());
-                    error.showAndWait();
-                });
+                );
             }
-        }).start();
+        });
     }
-    
-    private void downloadDirectoryRecursiveForZip(String remotePath, Path localPath, ZipFile zip, ZipParameters parameters) throws Exception {
-        Files.createDirectories(localPath);
-        List<SftpClient.DirEntry> entries = sftpSession.listFiles(remotePath);
-        
-        for (SftpClient.DirEntry entry : entries) {
-            String name = entry.getFilename();
-            if (name.equals(".") || name.equals("..")) continue;
-            
-            String remoteEntryPath = remotePath.endsWith("/") ? remotePath + name : remotePath + "/" + name;
-            Path localEntryPath = localPath.resolve(name);
-            
-            SftpClient.Attributes attrs = entry.getAttributes();
-            if (attrs.isDirectory()) {
-                downloadDirectoryRecursiveForZip(remoteEntryPath, localEntryPath, zip, parameters);
-            } else {
-                sftpSession.downloadFile(remoteEntryPath, localEntryPath);
-                zip.addFile(localEntryPath.toFile(), parameters);
-            }
-        }
+
+    private VBox createPermissionSection(String title, CheckBox read, CheckBox write, CheckBox execute) {
+        Label titleLabel = new Label(title);
+        titleLabel.setStyle("-fx-font-weight: bold;");
+        HBox checkBoxRow = new HBox(10, read, write, execute);
+        VBox section = new VBox(5, titleLabel, checkBoxRow);
+        return section;
     }
-    
-    private void deleteDirectoryRecursive(File dir) {
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectoryRecursive(file);
-                } else {
-                    file.delete();
-                }
-            }
+
+    private List<SftpFileItem> snapshotSelection(List<SftpFileItem> selectedItems) {
+        if (selectedItems == null || selectedItems.isEmpty()) {
+            return List.of();
         }
-        dir.delete();
+        return selectedItems.stream()
+            .filter(item -> item != null && !item.isParentEntry())
+            .toList();
+    }
+
+    private List<Path> toLocalPaths(List<SftpFileItem> items) {
+        List<Path> paths = new ArrayList<>();
+        for (SftpFileItem item : items) {
+            paths.add(Paths.get(item.getPath()));
+        }
+        return paths;
+    }
+
+    private List<String> toRemotePaths(List<SftpFileItem> items) {
+        List<String> paths = new ArrayList<>();
+        for (SftpFileItem item : items) {
+            paths.add(item.getPath());
+        }
+        return paths;
+    }
+
+    private void showErrorAlert(String title, String header, Throwable error) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(safeMessage(error));
+        alert.showAndWait();
+    }
+
+    private String safeMessage(Throwable error) {
+        if (error == null) {
+            return "";
+        }
+        if (error.getMessage() == null || error.getMessage().isBlank()) {
+            return error.getClass().getSimpleName();
+        }
+        return error.getMessage();
+    }
+
+    private <T> void executeTask(String initialStatus, CheckedSupplier<T> action,
+                                 java.util.function.Consumer<T> onSuccess,
+                                 java.util.function.Consumer<Throwable> onFailure) {
+        Task<T> task = new Task<>() {
+            @Override
+            protected T call() throws Exception {
+                return action.get();
+            }
+        };
+        if (initialStatus != null && !initialStatus.isBlank()) {
+            viewModel.setStatusText(initialStatus);
+        }
+        task.setOnRunning(event -> viewModel.setBusy(true));
+        task.setOnSucceeded(event -> {
+            viewModel.setBusy(false);
+            onSuccess.accept(task.getValue());
+        });
+        task.setOnFailed(event -> {
+            viewModel.setBusy(false);
+            onFailure.accept(task.getException());
+        });
+        task.setOnCancelled(event -> viewModel.setBusy(false));
+        backgroundExecutor.submit(task);
     }
     
     private void cleanup() {
-        if (sftpSession != null) {
-            sftpSession.close();
-        }
+        backgroundExecutor.shutdownNow();
+        transferService.close();
     }
-    
+
+    @FunctionalInterface
+    private interface CheckedSupplier<T> {
+        T get() throws Exception;
+    }
+
+    private record LocalListing(Path path, List<SftpFileItem> items) { }
+
+    private record RemoteListing(String path, List<SftpFileItem> items) { }
+
     /**
-     * Represents a file or directory item in the file manager.
+     * Legacy compatibility wrapper for older SFTP views still referencing SFTPManagerDialog.FileItem.
      */
-    public static class FileItem {
-        private final String name;
-        private final String path;
-        private final boolean file;
-        private final String size;
-        private final String date;
-        private final String permissions;
-        private final String owner;
-        private final String group;
-        private final long sizeBytes; // For sorting
-        
+    @Deprecated
+    public static class FileItem extends SftpFileItem {
+
         public FileItem(String name, String path, boolean file, String size, String date) {
             this(name, path, file, size, date, "", "", "");
         }
-        
+
         public FileItem(String name, String path, boolean file, String size, String date, String permissions) {
             this(name, path, file, size, date, permissions, "", "");
         }
-        
-        public FileItem(String name, String path, boolean file, String size, String date, String permissions, String owner, String group) {
-            this.name = name;
-            this.path = path;
-            this.file = file;
-            this.size = size;
-            this.date = date;
-            this.permissions = permissions;
-            this.owner = owner != null ? owner : "";
-            this.group = group != null ? group : "";
-            this.sizeBytes = parseSizeToBytes(size);
+
+        public FileItem(String name, String path, boolean file, String size, String date,
+                        String permissions, String owner, String group) {
+            super(
+                name,
+                path,
+                file,
+                size,
+                date,
+                permissions,
+                owner,
+                group,
+                parseSizeToBytes(size),
+                "..".equals(name)
+            );
         }
-        
-        private long parseSizeToBytes(String sizeStr) {
-            if (sizeStr == null || sizeStr.isEmpty() || sizeStr.equals("-") || 
-                sizeStr.equals("<DIR>") || sizeStr.equals("...") || sizeStr.equals("—")) {
-                return 0;
+
+        private static long parseSizeToBytes(String sizeStr) {
+            if (sizeStr == null || sizeStr.isEmpty() || sizeStr.equals("-")
+                || sizeStr.equals("<DIR>") || sizeStr.equals("...") || sizeStr.equals("—")) {
+                return 0L;
             }
             try {
-                // Remove non-numeric characters except for decimals and parse
                 String cleaned = sizeStr.replaceAll("[^0-9.]", "");
-                if (cleaned.isEmpty()) return 0;
-                
-                // Handle formatted sizes (KB, MB, GB)
-                if (sizeStr.contains("KB")) {
-                    return (long)(Double.parseDouble(cleaned) * 1024);
-                } else if (sizeStr.contains("MB")) {
-                    return (long)(Double.parseDouble(cleaned) * 1024 * 1024);
-                } else if (sizeStr.contains("GB")) {
-                    return (long)(Double.parseDouble(cleaned) * 1024 * 1024 * 1024);
-                } else {
-                    return Long.parseLong(cleaned);
+                if (cleaned.isEmpty()) {
+                    return 0L;
                 }
+                if (sizeStr.contains("KB")) {
+                    return (long) (Double.parseDouble(cleaned) * 1024);
+                }
+                if (sizeStr.contains("MB")) {
+                    return (long) (Double.parseDouble(cleaned) * 1024 * 1024);
+                }
+                if (sizeStr.contains("GB")) {
+                    return (long) (Double.parseDouble(cleaned) * 1024 * 1024 * 1024);
+                }
+                return Long.parseLong(cleaned);
             } catch (NumberFormatException e) {
-                return 0;
+                return 0L;
             }
-        }
-        
-        public String getName() { return name; }
-        public String getPath() { return path; }
-        public boolean isFile() { return file; }
-        public String getSize() { return size; }
-        public String getDate() { return date; }
-        public String getPermissions() { return permissions; }
-        public String getOwner() { return owner; }
-        public String getGroup() { return group; }
-        public long getSizeBytes() { return sizeBytes; }
-        
-        // Type for display in table (📁 or 📄)
-        public String getType() {
-            return file ? "📄" : "📁";
         }
     }
 }

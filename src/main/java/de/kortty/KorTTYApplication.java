@@ -19,6 +19,10 @@ import de.kortty.jmx.SSHClientMonitor;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.ui.MainWindow;
 import de.kortty.ui.MasterPasswordDialog;
+import java.awt.Desktop;
+import java.awt.desktop.AppForegroundListener;
+import java.awt.desktop.AppReopenedListener;
+import java.awt.desktop.QuitHandler;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -57,6 +61,8 @@ public class KorTTYApplication extends Application {
     private BackupManager backupManager;
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
+    private boolean macDesktopHandlersRegistered = false;
+    private Boolean packagedMacApp;
     
     public static void main(String[] args) {
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
@@ -125,6 +131,8 @@ public class KorTTYApplication extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
+            prepareMacApplicationLifecycle();
+
             // Load global settings first (they are not encrypted) to check if master password is required
             try {
                 globalSettingsManager.load();
@@ -212,12 +220,13 @@ public class KorTTYApplication extends Application {
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
+            registerMacDesktopHandlers();
             
             logger.info("{} started successfully", APP_NAME);
             
-        } catch (Throwable t) {
-            logger.error("Failed to start application", t);
-            String msg = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+        } catch (Exception e) {
+            logger.error("Failed to start application", e);
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             showErrorAndExit(msg);
         }
     }
@@ -226,15 +235,10 @@ public class KorTTYApplication extends Application {
     public void stop() throws Exception {
         logger.info("Shutting down {}...", APP_NAME);
         
-        // Close all SSH sessions first (this may take a moment)
+        // Close all SSH sessions first.
         if (sessionManager != null) {
             try {
                 sessionManager.closeAllSessions();
-                // Give sessions a moment to close gracefully
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                logger.warn("Interrupted while closing sessions");
             } catch (Exception e) {
                 logger.error("Error closing sessions", e);
             }
@@ -285,6 +289,10 @@ public class KorTTYApplication extends Application {
         // This prevents the application from hanging after Platform.exit()
         System.exit(0);
     }
+
+    public boolean shouldKeepRunningAfterLastWindowClosed() {
+        return isMacOs() && isPackagedMacApplication();
+    }
     
     private boolean handleMasterPassword(Stage ownerStage) {
         MasterPasswordDialog dialog = new MasterPasswordDialog(ownerStage, masterPasswordManager);
@@ -311,11 +319,98 @@ public class KorTTYApplication extends Application {
             alert.setHeaderText(null);
             alert.setContentText(message != null && message.length() > 2000 ? message.substring(0, 2000) + "…" : message);
             alert.showAndWait();
-        } catch (Throwable t) {
-            logger.error("Could not show error dialog", t);
+        } catch (Exception e) {
+            logger.error("Could not show error dialog", e);
         } finally {
             Platform.exit();
         }
+    }
+
+    private void prepareMacApplicationLifecycle() {
+        if (!shouldKeepRunningAfterLastWindowClosed()) {
+            return;
+        }
+
+        Platform.setImplicitExit(false);
+        logger.info("Configured JavaFX implicit exit to keep the packaged macOS app alive after the last window closes");
+    }
+
+    private void registerMacDesktopHandlers() {
+        if (!shouldKeepRunningAfterLastWindowClosed() || macDesktopHandlersRegistered) {
+            return;
+        }
+
+        if (!Desktop.isDesktopSupported()) {
+            logger.info("AWT Desktop integration is not supported on this platform");
+            macDesktopHandlersRegistered = true;
+            return;
+        }
+
+        try {
+            Desktop desktop = Desktop.getDesktop();
+            logger.info("Registering macOS Desktop handlers");
+            desktop.addAppEventListener(new AppForegroundListener() {
+                @Override
+                public void appRaisedToForeground(java.awt.desktop.AppForegroundEvent event) {
+                    logger.info("Received macOS Desktop foreground event");
+                    Platform.runLater(KorTTYApplication.this::reopenWindowIfNeeded);
+                }
+
+                @Override
+                public void appMovedToBackground(java.awt.desktop.AppForegroundEvent event) {
+                    // No-op.
+                }
+            });
+            desktop.addAppEventListener((AppReopenedListener) event ->
+                Platform.runLater(() -> {
+                    logger.info("Received macOS Desktop reopen event");
+                    reopenWindowIfNeeded();
+                })
+            );
+            desktop.setQuitHandler((QuitHandler) (event, response) -> {
+                logger.info("Received macOS Desktop quit request");
+                boolean hasOpenWindows = MainWindow.hasOpenWindows();
+                if (hasOpenWindows) {
+                    Platform.runLater(MainWindow::requestApplicationQuit);
+                    response.cancelQuit();
+                    return;
+                }
+
+                Platform.runLater(Platform::exit);
+                response.performQuit();
+            });
+            macDesktopHandlersRegistered = true;
+        } catch (UnsupportedOperationException | SecurityException e) {
+            logger.warn("Could not configure macOS application lifecycle integration", e);
+        }
+    }
+
+    private void reopenWindowIfNeeded() {
+        if (MainWindow.hasOpenWindows()) {
+            return;
+        }
+
+        logger.info("macOS app reactivated without open windows, opening a new main window");
+        MainWindow.reopenOrCreateWindow();
+    }
+
+    private boolean isMacOs() {
+        return System.getProperty("os.name", "").toLowerCase().contains("mac");
+    }
+
+    private boolean isPackagedMacApplication() {
+        if (packagedMacApp != null) {
+            return packagedMacApp;
+        }
+
+        String jpackageAppPath = System.getProperty("jpackage.app-path");
+        packagedMacApp = jpackageAppPath != null && !jpackageAppPath.isBlank();
+
+        if (isMacOs()) {
+            logger.info("macOS packaged app launcher detected: {}", packagedMacApp);
+        }
+
+        return packagedMacApp;
     }
     
     public static Path getConfigDirectory() {
