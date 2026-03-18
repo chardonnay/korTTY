@@ -1352,24 +1352,32 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
         
+        final double defaultContentHeight = 900;
+        final double defaultViewportHeight = 700;
+        final double minimumViewportHeight = 520;
+        final double defaultDialogHeight = 860;
+        final double minimumDialogHeight = 720;
+
         VBox content = new VBox(tabPane);
         content.setFillWidth(true);
         // TabPane does not report preferred height well to ScrollPane (JavaFX quirk), so set a min height
         // so the scrollable area is large enough and the vertical scrollbar appears
-        content.setMinHeight(800);
-        content.setPrefHeight(800);
+        content.setMinHeight(defaultContentHeight);
+        content.setPrefHeight(defaultContentHeight);
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(false);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scrollPane.setPrefViewportWidth(860);
-        scrollPane.setPrefViewportHeight(580);
+        scrollPane.setPrefViewportHeight(defaultViewportHeight);
         scrollPane.setMinViewportWidth(720);
-        scrollPane.setMinViewportHeight(400);
+        scrollPane.setMinViewportHeight(minimumViewportHeight);
         getDialogPane().setContent(scrollPane);
         getDialogPane().setPrefWidth(980);
         getDialogPane().setMinWidth(860);
+        getDialogPane().setPrefHeight(defaultDialogHeight);
+        getDialogPane().setMinHeight(minimumDialogHeight);
         
         // Buttons
         ButtonType saveButtonType = new ButtonType(I18n.get("settings.save"), ButtonBar.ButtonData.OK_DONE);

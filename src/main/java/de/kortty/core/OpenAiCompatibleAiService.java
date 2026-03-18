@@ -26,8 +26,10 @@ public class OpenAiCompatibleAiService implements AiService {
     private static final Logger logger = LoggerFactory.getLogger(OpenAiCompatibleAiService.class);
     private static final Gson GSON = new Gson();
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(20);
-    private static final Duration TEST_CONNECT_TIMEOUT = Duration.ofSeconds(3);
-    private static final Duration TEST_REQUEST_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration TEST_CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration TEST_REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final String CONNECTION_TEST_SYSTEM_PROMPT = "Reply with exactly OK.";
+    private static final String CONNECTION_TEST_USER_PROMPT = "Connection test.";
     private static final java.util.regex.Pattern LOGGED_PREDICTION_PATTERN =
         java.util.regex.Pattern.compile("(?s)Generated prediction:\\s*(\\{.*\\})");
     private static final java.util.regex.Pattern PROMPT_TOKENS_PATTERN =
@@ -77,11 +79,7 @@ public class OpenAiCompatibleAiService implements AiService {
     public boolean testConnection() {
         try {
             HttpClient testClient = HttpClient.newBuilder().connectTimeout(TEST_CONNECT_TIMEOUT).build();
-            AiExecutionResult result = executeWithClient(new AiRequest(
-                AiAction.SUMMARIZE,
-                "Connection test from KorTTY.",
-                "KorTTY",
-                "en"), testClient, TEST_REQUEST_TIMEOUT);
+            AiExecutionResult result = executeConnectionTestWithClient(testClient, TEST_REQUEST_TIMEOUT);
             return result != null && result.content() != null && !result.content().isBlank();
         } catch (Exception e) {
             logger.warn("AI API test connection failed: {}", e.getMessage());
@@ -98,6 +96,17 @@ public class OpenAiCompatibleAiService implements AiService {
             throw new IllegalStateException("AI API URL must be configured.");
         }
         String body = buildRequestBody(request);
+        return buildJsonPostRequest(body, timeout);
+    }
+
+    HttpRequest buildConnectionTestHttpRequest(Duration timeout) {
+        if (apiUrl.isBlank()) {
+            throw new IllegalStateException("AI API URL must be configured.");
+        }
+        return buildJsonPostRequest(buildConnectionTestRequestBody(), timeout);
+    }
+
+    private HttpRequest buildJsonPostRequest(String body, Duration timeout) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
             .uri(URI.create(apiUrl))
             .header("Content-Type", "application/json")
@@ -133,6 +142,28 @@ public class OpenAiCompatibleAiService implements AiService {
         return GSON.toJson(root);
     }
 
+    String buildConnectionTestRequestBody() {
+        JsonObject root = new JsonObject();
+        if (!model.isBlank()) {
+            root.addProperty("model", model);
+        }
+
+        JsonArray messages = new JsonArray();
+        JsonObject system = new JsonObject();
+        system.addProperty("role", "system");
+        system.addProperty("content", CONNECTION_TEST_SYSTEM_PROMPT);
+        messages.add(system);
+
+        JsonObject user = new JsonObject();
+        user.addProperty("role", "user");
+        user.addProperty("content", CONNECTION_TEST_USER_PROMPT);
+        messages.add(user);
+
+        root.add("messages", messages);
+        root.addProperty("temperature", 0.0);
+        return GSON.toJson(root);
+    }
+
     String readResponseBody(InputStream responseStream) throws IOException {
         if (responseStream == null) {
             return "";
@@ -156,6 +187,21 @@ public class OpenAiCompatibleAiService implements AiService {
             }
             return output.toString(StandardCharsets.UTF_8);
         }
+    }
+
+    private AiExecutionResult executeConnectionTestWithClient(HttpClient client, Duration timeout) throws Exception {
+        HttpRequest httpRequest = buildConnectionTestHttpRequest(timeout);
+        HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        String responseBody = readResponseBody(response.body());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IOException("AI API error " + response.statusCode() + ": " + extractErrorMessage(responseBody));
+        }
+        AiExecutionResult result = parseResponseBody(responseBody);
+        String content = result != null ? result.content() : null;
+        if (content == null || content.isBlank()) {
+            throw new IOException("AI API returned an empty response.");
+        }
+        return new AiExecutionResult(content.trim(), result != null ? result.usage() : null);
     }
 
     AiExecutionResult parseResponseBody(String responseBody) {

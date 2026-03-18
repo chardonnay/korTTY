@@ -63,6 +63,22 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void buildConnectionTestRequestBodyUsesMinimalHealthCheckPrompt() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        String body = service.buildConnectionTestRequestBody();
+
+        assertTrue(body.contains("\"model\":\"qwen-test\""));
+        assertTrue(body.contains("Reply with exactly OK."));
+        assertTrue(body.contains("Connection test."));
+        assertTrue(!body.contains("Summarize the selected terminal text"));
+        assertTrue(!body.contains("Selected terminal text"));
+    }
+
+    @Test
     void readResponseBodyKeepsPartialPayloadWhenStreamEndsWithEof() throws Exception {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",

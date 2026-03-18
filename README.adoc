@@ -408,7 +408,9 @@ Useful for running the same commands on multiple servers at once.
 | Ctrl+O | Open Project
 | Ctrl+S | Save Project
 | Ctrl+Shift+D | Toggle Dashboard
-| Ctrl+X | Cut (terminal: copy selection)
+| Ctrl+Shift+L | Show/Hide Menu Bar
+| Ctrl+Shift+Y | Open AI Manager
+| Ctrl+X | Cut (disabled for terminal tabs)
 | Ctrl+C | Copy
 | Ctrl+V | Paste
 | Alt+Plus | Zoom In
