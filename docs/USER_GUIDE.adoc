@@ -306,15 +306,19 @@ Selected terminal text is transmitted to the configured AI endpoint for analysis
 * *Ask* - Sends the selection together with your own follow-up question or instruction.
 4. Confirm the request in the preview dialog. You can edit the selected text before sending it. For *Ask*, add your own prompt. The dialog also shows the estimated request tokens and projected remaining quota.
 5. The response opens in a temporary AI tab. You can continue the same context with follow-up prompts from the bottom composer field.
+6. Use *Save* in the AI tab to store the conversation under a custom title.
+7. Reopen saved conversations later via *Tools > AI Manager* or *Ctrl/Cmd+Shift+Y*. There you can open, rename, refresh, or delete saved chats.
 
 *AI result tab behavior:*
 
 * The conversation transcript is read-only and not included in saved project/session state.
 * `<think> ... </think>` blocks are removed from the visible output.
-* The toolbar lets you copy the conversation, export it to PDF/Markdown/plain text, close the tab, cancel running requests, and change the font size.
+* The toolbar lets you copy the conversation, save or rename the chat, share/export it to PDF/Markdown/plain text, close the tab, cancel running requests, and change the font size.
 * Detected code blocks get their own copy button.
+* Rendered markdown tables can be copied as a whole table, a single column, or a single cell.
 * The chosen AI tab font size is stored globally and reused for future AI result tabs.
 * Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate.
+* If a saved chat references an AI profile that no longer exists, KorTTY asks you to choose a replacement profile before you continue with follow-up prompts.
 
 === 4.7 Terminal Logging
 
@@ -562,7 +566,7 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, confirmations, and token quotas), and *Themes* (color profiles with live preview).
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, confirmations, saved-chat compatibility, and token quotas), and *Themes* (color profiles with live preview).
 
 == 16. Keyboard Shortcuts
 
@@ -581,6 +585,8 @@ On macOS, "Ctrl" refers to the *Cmd* key; "Alt" refers to the *Option* key.
 | Ctrl+M | Manage Connections
 | Ctrl+K | Quick Connect
 | Ctrl+Shift+D | Toggle Dashboard
+| Ctrl+Shift+L | Show/Hide Menu Bar
+| Ctrl+Shift+Y | Open AI Manager
 | Ctrl+Shift+B | Create Backup
 | Ctrl+Shift+S | Open Snippet Manager
 | Ctrl+Comma | Global Settings

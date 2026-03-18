@@ -8,7 +8,8 @@
 
 * *OpenAI-compatible AI assistant in the terminal*: Selected terminal text can now be sent directly to *AI → Summarize*, *AI → Solve Problem*, or *AI → Ask* without leaving the session view.
 * *Profile-based AI setup*: *Settings → AI* now supports multiple named profiles with separate endpoint, optional model, optional encrypted API key, selection limit, tokenizer strategy, and token budget.
-* *AI result tabs as working surfaces*: AI responses open in temporary tabs with follow-up prompts, cancellation, copy helpers for code blocks, export to PDF/Markdown/plain text, and persistent AI font size.
+* *AI result tabs as working surfaces*: AI responses open in temporary tabs with follow-up prompts, saving/renaming, OS sharing, export to PDF/Markdown/plain text, markdown-table copy helpers, and persistent AI font size.
+* *Saved AI chats and AI Manager*: Conversations can now be saved as named chats and reopened, renamed, refreshed, or deleted from *Tools → AI Manager*.
 
 === AI Workflow, Safety, and Quotas
 
@@ -16,18 +17,21 @@
 * *Quota visibility*: Per-profile token limits, warning thresholds, and reset cycles are shown in Settings and projected in the confirmation dialog before a request is sent.
 * *Automatic usage accounting*: Prompt and response token counts are persisted after successful AI calls so usage warnings stay accurate across sessions.
 * *Safer output handling*: Visible `<think> ... </think>` blocks are stripped from rendered responses, and AI result tabs are not restored as part of saved project/session state.
+* *Profile fallback for saved chats*: If the original AI profile of a saved chat no longer exists, KorTTY prompts for a replacement profile before follow-up requests continue.
 
 === Terminal and UX
 
 * *Configurable close confirmation for active terminals*: A new global Terminal setting controls whether closing a window with active terminal sessions requires confirmation. The default remains safe: ask before closing.
 * *Status bar improvements*: Terminal status information now surfaces host/IP and the active protocol more clearly.
 * *Mosh background fix*: Mosh tabs no longer show a false "interrupted" state simply because the tab is not focused.
+* *Menu bar visibility preference*: The in-window menu bar can now be shown or hidden via *View* or *Settings → Window*, and restored with *Cmd/Ctrl+Shift+L* if hidden.
 
 === Documentation and Release Tooling
 
 * *v2.0.0 documentation refresh*: README, User Guide, and Release Notes were updated for the AI workflows, packaging examples, and current version numbers.
 * *New Mermaid diagram for AI integration*: The docs now include a dedicated AI API integration diagram, and the release pipeline continues to render Mermaid assets automatically.
 * *Version alignment*: The application metadata, Gradle build, README, and documentation now consistently report *2.0.0*.
+* *Node-24-ready release workflow actions*: The GitHub release workflow now uses current action majors for checkout, Node setup, and artifact upload so it stays compatible with the GitHub Actions Node 24 transition.
 
 ---
 

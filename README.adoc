@@ -34,12 +34,14 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *Multilanguage Support*: Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) plus *dynamic translation*: generate language files for any language via translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex) in Settings → Translation
 * *AI Terminal Actions*: Right-click selected terminal text and choose *Summarize*, *Solve Problem*, or *Ask* via OpenAI-compatible chat-completions APIs, including local tools such as *LM Studio*
 * *AI Profiles & Quotas*: Manage multiple named AI profiles with per-profile endpoint/model/API key, maximum selection size, tokenizer strategy, token budgets, warning thresholds, and reset cycles
-* *AI Result Tabs*: Continue with follow-up prompts, export to PDF/Markdown/Text, copy detected code blocks, and persist the AI tab font size across sessions
+* *AI Result Tabs*: Continue with follow-up prompts, save named chats, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables, and persist the AI tab font size across sessions
+* *AI Chat Manager*: Reopen, rename, refresh, and delete saved AI chats via *Tools → AI Manager* (shortcut: *Ctrl/Cmd+Shift+Y*)
 * *Quick Connect*: Fast connection dialog with frequently used connections and group support
 * *SSH Tunnels*: Local and remote port forwarding (SSH tunnels)
 * *Jump Server*: Support for bastion hosts (SSH hopping)
 * *Terminal Logging*: Automatic logging of terminal sessions
 * *GPG Key Management*: Manage GPG keys for backup encryption
+* *Menu Bar Visibility Toggle*: Show or hide the in-window menu bar from *View* or *Settings → Window*; if hidden, restore it with *Ctrl/Cmd+Shift+L*
 
 == AI Integration Overview
 
@@ -785,6 +787,7 @@ image::docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=cent
 5. In a terminal, mark the text you want to analyze and choose *AI → Summarize*, *AI → Solve Problem*, or *AI → Ask*.
 6. Review and, if needed, edit the selected text in the preview dialog. For *Ask*, add a custom prompt. The dialog also shows the estimated request tokens and remaining budget.
 7. Submit the request. The response opens in a temporary AI tab and can be continued with follow-up prompts.
+8. Optionally click *Save* in the AI tab to keep the conversation as a named chat and reopen it later from *Tools → AI Manager*.
 
 Notes:
 
@@ -792,7 +795,8 @@ Notes:
 * AI profiles are stored locally; API keys are encrypted with the master password.
 * AI result tabs are not saved with projects or session restore.
 * `<think> ... </think>` blocks are stripped from the visible AI output.
-* AI result tabs support follow-up prompts, export to PDF/Markdown/Text, code-block copy helpers, request cancellation, and a font size that is reused for future AI tabs.
+* AI result tabs support follow-up prompts, saving/reopening named chats, export and OS sharing, code-block copy helpers, markdown table copy helpers, request cancellation, and a font size that is reused for future AI tabs.
+* When you reopen a saved AI chat and the original AI profile is no longer available, KorTTY prompts you to select a replacement profile before continuing.
 
 == SFTP Manager
 
@@ -820,8 +824,9 @@ KorTTY automatically remembers:
 
 * *Window Geometry*: Position, size, and maximized status of the main window
 * *Dashboard State*: Whether the dashboard was open when closing
+* *Menu Bar Visibility*: Whether the in-window menu bar should stay visible
 
-These features can be disabled in settings (*Settings → Window*).
+These features can be configured in *Settings → Window*. The menu bar can also be toggled temporarily from *View → Show Menu Bar* or restored with *Ctrl/Cmd+Shift+L* when hidden.
 
 == Security
 
@@ -840,7 +845,7 @@ The documentation uses Mermaid diagrams (`.mmd` files in `docs/diagrams/`). To r
 
 PNGs are written to `docs/diagrams/` and are embedded in the AsciiDoc documentation.
 
-*CI and releases:* The build-release workflow runs the render script in the `docs-render` job before other steps. The generated PNGs are uploaded as the `docs-diagrams` artifact and, on release, packaged into `KorTTY-docs-diagrams-<version>.zip` on the GitHub Release. Use that zip for doc publication or to get the diagrams without running the render script locally.
+*CI and releases:* The build-release workflow runs the render script in the `docs-render` job before other steps. The generated PNGs are uploaded as the `docs-diagrams` artifact and, on release, packaged into `KorTTY-docs-diagrams-<version>.zip` on the GitHub Release. The workflow now also uses current Node-24-ready GitHub Actions majors for checkout, Node setup, and artifact upload. Use the diagram zip for doc publication or to get the diagrams without running the render script locally.
 
 == License
 
