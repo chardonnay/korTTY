@@ -15,6 +15,7 @@ import de.kortty.core.DeepLTranslationService;
 import de.kortty.core.LibreTranslateTranslationService;
 import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.core.MicrosoftTranslationService;
+import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.core.YandexTranslationService;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.SSHKeyManager;
@@ -26,6 +27,7 @@ import de.kortty.model.AiTokenizerType;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.Theme;
 import de.kortty.model.TranslationApiProvider;
 import de.kortty.model.StoredCredential;
@@ -147,6 +149,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final PasswordField aiApiKeyField;
     private final CheckBox aiClearApiKeyCheck;
     private final CheckBox aiConfirmBeforeSendCheck;
+    private final CheckBox aiPromptHookEnabledCheck;
+    private final CheckBox aiShowDebugMessagesCheck;
+    private final CheckBox aiShowRuntimeMessagesCheck;
+    private final TextField aiAgentCommandNameField;
+    private final ComboBox<TerminalAgentExecutionTarget> aiExecutionTargetCombo;
     private final Spinner<Integer> aiMaxSelectionCharsSpinner;
     private final ComboBox<AiTokenizerType> aiTokenizerCombo;
     private final Spinner<Integer> aiTokenLimitAmountSpinner;
@@ -932,6 +939,73 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiConfirmBeforeSendCheck.setSelected(globalSettings == null || globalSettings.isAiConfirmBeforeSend());
         aiRoot.getChildren().add(aiConfirmBeforeSendCheck);
 
+        aiPromptHookEnabledCheck = new CheckBox(I18n.get("settings.ai.promptHook"));
+        aiPromptHookEnabledCheck.setSelected(globalSettings == null || globalSettings.isDefaultPromptHookEnabled());
+        aiRoot.getChildren().add(aiPromptHookEnabledCheck);
+
+        aiShowDebugMessagesCheck = new CheckBox(I18n.get("settings.ai.showDebugMessages"));
+        aiShowDebugMessagesCheck.setSelected(globalSettings != null && globalSettings.isTerminalAgentShowDebugMessages());
+        aiRoot.getChildren().add(aiShowDebugMessagesCheck);
+
+        aiShowRuntimeMessagesCheck = new CheckBox(I18n.get("settings.ai.showRuntimeMessages"));
+        aiShowRuntimeMessagesCheck.setSelected(globalSettings != null && globalSettings.isTerminalAgentShowRuntimeMessages());
+        aiRoot.getChildren().add(aiShowRuntimeMessagesCheck);
+
+        aiAgentCommandNameField = new TextField(globalSettings != null ? globalSettings.getTerminalAgentCommandName() : "");
+        aiAgentCommandNameField.setPrefWidth(220);
+        Label aiAgentCommandInfoLabel = new Label();
+        aiAgentCommandInfoLabel.setWrapText(true);
+        aiAgentCommandInfoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+
+        Runnable updateAgentCommandInfo = () -> {
+            String configured = aiAgentCommandNameField.getText();
+            String normalized = TerminalAgentCommandSupport.normalizeCommandName(configured);
+            String validationMessage = TerminalAgentCommandSupport.validateCommandName(configured);
+            if (validationMessage != null) {
+                aiAgentCommandInfoLabel.setText(validationMessage);
+                aiAgentCommandInfoLabel.setTextFill(Color.web("#c53030"));
+            } else {
+                aiAgentCommandInfoLabel.setText(I18n.get(
+                    "settings.ai.agentCommandInfo",
+                    normalized,
+                    TerminalAgentCommandSupport.getAskCommandName(normalized),
+                    TerminalAgentCommandSupport.getPlanCommandName(normalized)));
+                aiAgentCommandInfoLabel.setTextFill(Color.GRAY);
+            }
+        };
+        aiAgentCommandNameField.textProperty().addListener((obs, oldValue, newValue) -> updateAgentCommandInfo.run());
+        updateAgentCommandInfo.run();
+
+        HBox aiAgentCommandBox = new HBox(10,
+            new Label(I18n.get("settings.ai.agentCommandName")),
+            aiAgentCommandNameField);
+        aiRoot.getChildren().addAll(aiAgentCommandBox, aiAgentCommandInfoLabel);
+
+        aiExecutionTargetCombo = new ComboBox<>();
+        aiExecutionTargetCombo.getItems().addAll(TerminalAgentExecutionTarget.values());
+        aiExecutionTargetCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(TerminalAgentExecutionTarget object) {
+                if (object == null) {
+                    return "";
+                }
+                return I18n.get(object == TerminalAgentExecutionTarget.CHAT_WINDOW
+                    ? "settings.ai.executionTarget.chatWindow"
+                    : "settings.ai.executionTarget.terminalWindow");
+            }
+
+            @Override
+            public TerminalAgentExecutionTarget fromString(String string) {
+                return null;
+            }
+        });
+        aiExecutionTargetCombo.setValue(
+            globalSettings != null ? globalSettings.getTerminalAgentExecutionTarget() : TerminalAgentExecutionTarget.TERMINAL_WINDOW);
+        HBox aiExecutionTargetBox = new HBox(10,
+            new Label(I18n.get("settings.ai.executionTarget")),
+            aiExecutionTargetCombo);
+        aiRoot.getChildren().add(aiExecutionTargetBox);
+
         aiProfiles.addAll(globalSettings.getAiProfiles().stream().map(AiProfile::new).collect(Collectors.toList()));
 
         aiProfileListView = new ListView<>();
@@ -1511,6 +1585,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                         // Do not overwrite existing encrypted key; plain key remains in field
                     }
                 }
+            }
+
+            String commandNameValidationMessage = TerminalAgentCommandSupport.validateCommandName(aiAgentCommandNameField.getText());
+            if (commandNameValidationMessage != null) {
+                Alert alert = new Alert(Alert.AlertType.WARNING, commandNameValidationMessage);
+                alert.setHeaderText(null);
+                alert.showAndWait();
+                return false;
             }
 
             if (!saveAiProfilesToSettings()) {
@@ -2358,6 +2440,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         globalSettings.setAiModel(null);
         globalSettings.setEncryptedAiApiKey(null);
         globalSettings.setAiConfirmBeforeSend(aiConfirmBeforeSendCheck.isSelected());
+        globalSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
+        globalSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());
+        globalSettings.setTerminalAgentShowRuntimeMessages(aiShowRuntimeMessagesCheck.isSelected());
+        globalSettings.setTerminalAgentCommandName(TerminalAgentCommandSupport.normalizeCommandName(aiAgentCommandNameField.getText()));
+        globalSettings.setTerminalAgentExecutionTarget(aiExecutionTargetCombo.getValue());
         return true;
     }
 

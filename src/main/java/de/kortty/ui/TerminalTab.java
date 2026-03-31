@@ -18,6 +18,7 @@ import javafx.scene.input.MouseButton;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 /**
  * A tab containing a terminal view for an SSH session.
@@ -28,6 +29,7 @@ public class TerminalTab extends Tab {
     private final TerminalView terminalView;
     private final ConnectionSettings settings;
     private final TemporarySSHKey temporarySSHKey;
+    private final String aiSessionId;
     private boolean isConnectionFailed = false;
     private Instant connectionStartTime;
     private Timeline statusBarTimer;
@@ -50,6 +52,7 @@ public class TerminalTab extends Tab {
         this.connection = connection;
         this.settings = connection.getSettings();
         this.temporarySSHKey = temporarySSHKey;
+        this.aiSessionId = UUID.randomUUID().toString();
         this.connectionStartTime = Instant.now();
         this.terminalView = new TerminalView(connection, password, temporarySSHKey);
         this.terminalView.setOnReconnectRequested(this::triggerReconnect);
@@ -537,6 +540,10 @@ public class TerminalTab extends Tab {
      */
     public TemporarySSHKey getTemporarySSHKey() {
         return temporarySSHKey;
+    }
+
+    public String getAiSessionId() {
+        return aiSessionId;
     }
     
     /**

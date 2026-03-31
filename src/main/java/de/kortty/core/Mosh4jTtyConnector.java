@@ -809,16 +809,10 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     @Override
     public boolean isConnected() {
-        if (!connected.get()) {
-            return false;
-        }
-        // When we have recovered (interruptionStartedAtMs cleared after receiving host bytes),
-        // report connected so the terminal accepts input again. Otherwise isFrontendRunning()
-        // may still be false briefly and would block all key input (e.g. cannot quit "top" with q).
-        if (interruptionStartedAtMs < 0) {
-            return true;
-        }
-        return isFrontendRunning();
+        // A mosh session stays locally alive during transient network interruptions.
+        // Returning false here blocks the terminal widget from forwarding user input,
+        // which defeats mosh's ability to continue accepting and queueing keystrokes.
+        return connected.get();
     }
 
     public boolean isNetworkInterrupted() {

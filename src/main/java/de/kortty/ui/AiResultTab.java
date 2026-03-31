@@ -8,6 +8,9 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiResponseSanitizer;
 import de.kortty.core.AiService;
+import de.kortty.core.AiTokenUsageManager;
+import de.kortty.core.AiTokenUsageSnapshot;
+import de.kortty.core.LanguageManager;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
@@ -60,8 +63,10 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -81,17 +86,20 @@ public class AiResultTab extends Tab {
     private final VBox messagesBox;
     private final ScrollPane messagesScrollPane;
     private final ComboBox<AiProfile> profileComboBox;
+    private final ComboBox<AiLanguageOption> languageComboBox;
     private final TextArea promptInputArea;
     private final Button sendButton;
     private final Button cancelButton;
     private final Button saveButton;
+    private final Button retryButton;
     private final Label statusLabel;
     private final Label fontSizeLabel;
+    private final Label quotaLabel;
     private final AiChatExportService exportService;
     private final AiChatShareService shareService;
     private final String selectedText;
     private final String connectionDisplayName;
-    private final String languageCode;
+    private String languageCode;
     private final List<SavedAiChatMessage> messageEntries = new ArrayList<>();
     private final StringBuilder plainTranscript = new StringBuilder();
     private final Timeline waitingTimeline;
@@ -109,19 +117,26 @@ public class AiResultTab extends Tab {
     private String activeProfileName;
     private String baseTitle;
 
+    private record AiLanguageOption(String code, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     public AiResultTab(
         MainWindow ownerWindow,
         String title,
         AiProfile initialProfile,
         String selectedText,
         String connectionDisplayName,
-        String languageCode,
+        String initialLanguageCode,
         SavedAiChat savedChat,
         boolean readOnlyMode) {
         this.ownerWindow = Objects.requireNonNull(ownerWindow, "ownerWindow");
         this.selectedText = selectedText != null ? selectedText : "";
         this.connectionDisplayName = connectionDisplayName;
-        this.languageCode = languageCode != null ? languageCode : "en";
+        this.languageCode = resolveInitialLanguageCode(initialLanguageCode, savedChat);
         this.exportService = new AiChatExportService();
         this.shareService = new AiChatShareService();
         this.readOnlyMode = readOnlyMode;
@@ -153,10 +168,38 @@ public class AiResultTab extends Tab {
                 setText(empty || item == null ? "" : getAiProfileDisplayName(item));
             }
         });
+
+        languageComboBox = new ComboBox<>();
+        languageComboBox.setPrefWidth(220);
+        languageComboBox.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiLanguageOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.label());
+            }
+        });
+        languageComboBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(AiLanguageOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.label());
+            }
+        });
+        languageComboBox.getItems().setAll(buildAvailableLanguageOptions());
+        selectLanguageOption(this.languageCode);
+        languageComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue == null) {
+                return;
+            }
+            languageCode = newValue.code();
+            persistBoundChatQuietly();
+        });
+
         refreshAvailableProfiles(initialProfile);
         profileComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             updateActiveProfileMetadata(newValue);
             updateTabText();
+            refreshQuotaLabel();
             updateSendAvailability();
             persistBoundChatQuietly();
         });
@@ -174,6 +217,8 @@ public class AiResultTab extends Tab {
 
         Button copyButton = new Button(I18n.get("ai.result.copy"));
         copyButton.setOnAction(e -> copyContent());
+        retryButton = new Button(I18n.get("ai.result.retry"));
+        retryButton.setOnAction(e -> retryLastUserMessage());
         Button zoomOutButton = new Button(I18n.get("ai.result.zoomOut"));
         zoomOutButton.setOnAction(e -> changeFontSize(-1));
         Button zoomInButton = new Button(I18n.get("ai.result.zoomIn"));
@@ -199,6 +244,7 @@ public class AiResultTab extends Tab {
 
         ToolBar toolBar = new ToolBar(
             copyButton,
+            retryButton,
             new Separator(),
             zoomOutButton,
             zoomInButton,
@@ -215,11 +261,15 @@ public class AiResultTab extends Tab {
 
         statusLabel = new Label();
         statusLabel.setStyle("-fx-padding: 6px;");
+        quotaLabel = new Label();
+        quotaLabel.setWrapText(true);
+        quotaLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         waitingTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> refreshWaitingStatus()));
         waitingTimeline.setCycleCount(Timeline.INDEFINITE);
 
         Label profileLabel = new Label(I18n.get("ai.result.profile"));
-        HBox profileRow = new HBox(8, profileLabel, profileComboBox);
+        Label languageLabel = new Label(I18n.get("ai.result.language"));
+        HBox profileRow = new HBox(8, profileLabel, profileComboBox, languageLabel, languageComboBox);
         profileRow.setAlignment(Pos.CENTER_LEFT);
 
         Label composerLabel = new Label(I18n.get("ai.result.followup.label"));
@@ -232,7 +282,7 @@ public class AiResultTab extends Tab {
         HBox.setHgrow(promptFrame, Priority.ALWAYS);
         HBox composerRow = new HBox(10, promptFrame, sendButton);
         composerRow.setAlignment(Pos.BOTTOM_RIGHT);
-        VBox composerBox = new VBox(6, profileRow, composerLabel, composerRow);
+        VBox composerBox = new VBox(6, profileRow, quotaLabel, composerLabel, composerRow);
         composerBox.setPadding(new Insets(8, 0, 0, 0));
 
         BorderPane content = new BorderPane();
@@ -242,6 +292,7 @@ public class AiResultTab extends Tab {
         setContent(content);
 
         applyFontSize();
+        refreshQuotaLabel();
 
         if (savedChat != null) {
             initializeFromSavedChat(savedChat, title);
@@ -368,6 +419,76 @@ public class AiResultTab extends Tab {
             profileComboBox.getSelectionModel().select(selection);
             updateActiveProfileMetadata(selection);
         }
+    }
+
+    private String resolveInitialLanguageCode(String preferredLanguageCode, SavedAiChat savedChat) {
+        if (savedChat != null && savedChat.getResponseLanguageCode() != null && !savedChat.getResponseLanguageCode().isBlank()) {
+            return savedChat.getResponseLanguageCode().trim();
+        }
+        if (preferredLanguageCode != null && !preferredLanguageCode.isBlank()) {
+            return preferredLanguageCode.trim();
+        }
+        String guiLanguageCode = LanguageManager.getInstance().getCurrentLanguageCode();
+        return guiLanguageCode != null && !guiLanguageCode.isBlank() ? guiLanguageCode.trim() : "en";
+    }
+
+    private List<AiLanguageOption> buildAvailableLanguageOptions() {
+        Map<String, AiLanguageOption> optionsByCode = new LinkedHashMap<>();
+        for (Locale locale : LanguageManager.getSupportedLocales()) {
+            addLanguageOption(optionsByCode, locale);
+        }
+        for (Locale locale : LanguageManager.getAvailableDynamicLocales()) {
+            addLanguageOption(optionsByCode, locale);
+        }
+        addLanguageOption(optionsByCode, LanguageManager.getInstance().getCurrentLocale());
+        if (languageCode != null && !languageCode.isBlank()) {
+            addLanguageOption(optionsByCode, Locale.forLanguageTag(languageCode));
+        }
+        return new ArrayList<>(optionsByCode.values());
+    }
+
+    private void addLanguageOption(Map<String, AiLanguageOption> optionsByCode, Locale locale) {
+        if (locale == null || locale.getLanguage() == null || locale.getLanguage().isBlank()) {
+            return;
+        }
+        String code = locale.getLanguage().trim();
+        optionsByCode.putIfAbsent(code, new AiLanguageOption(code, buildLanguageLabel(locale)));
+    }
+
+    private String buildLanguageLabel(Locale locale) {
+        String code = locale.getLanguage() != null ? locale.getLanguage().trim() : "en";
+        String displayName = LanguageManager.getLocaleDisplayName(locale);
+        if (displayName == null || displayName.isBlank()) {
+            displayName = locale.getDisplayLanguage(Locale.ENGLISH);
+        }
+        if (displayName == null || displayName.isBlank()) {
+            return code;
+        }
+        return displayName + " (" + code + ")";
+    }
+
+    private void selectLanguageOption(String preferredCode) {
+        if (preferredCode == null || preferredCode.isBlank()) {
+            if (!languageComboBox.getItems().isEmpty()) {
+                languageComboBox.getSelectionModel().selectFirst();
+                AiLanguageOption selection = languageComboBox.getSelectionModel().getSelectedItem();
+                if (selection != null) {
+                    languageCode = selection.code();
+                }
+            }
+            return;
+        }
+        for (AiLanguageOption option : languageComboBox.getItems()) {
+            if (preferredCode.equalsIgnoreCase(option.code())) {
+                languageComboBox.getSelectionModel().select(option);
+                languageCode = option.code();
+                return;
+            }
+        }
+        AiLanguageOption fallback = new AiLanguageOption(preferredCode.trim(), preferredCode.trim());
+        languageComboBox.getItems().add(fallback);
+        languageComboBox.getSelectionModel().select(fallback);
+        languageCode = fallback.code();
     }
 
     private void updateActiveProfileMetadata(AiProfile profile) {
@@ -530,6 +651,8 @@ public class AiResultTab extends Tab {
             appendAssistantMessage(result != null ? result.content() : "");
             if (result != null) {
                 ownerWindow.recordAiUsageForProfile(selectedProfile, request, result);
+                refreshAvailableProfiles(selectedProfile);
+                refreshQuotaLabel();
             }
             stopWaiting();
             statusLabel.setText(I18n.get("ai.result.ready"));
@@ -563,7 +686,9 @@ public class AiResultTab extends Tab {
         boolean hasProfile = profileComboBox.getSelectionModel().getSelectedItem() != null;
         sendButton.setDisable(busy || readOnlyMode || !hasProfile || !hasPrompt);
         cancelButton.setDisable(!busy);
+        retryButton.setDisable(busy || readOnlyMode || !hasProfile || findLastUserPrompt() == null);
         profileComboBox.setDisable(busy || readOnlyMode || profileComboBox.getItems().isEmpty());
+        languageComboBox.setDisable(busy || readOnlyMode || languageComboBox.getItems().isEmpty());
         saveButton.setDisable(messageEntries.isEmpty());
     }
 
@@ -611,6 +736,58 @@ public class AiResultTab extends Tab {
                 showCancelled();
             }
         }
+    }
+
+    private void retryLastUserMessage() {
+        String lastPrompt = findLastUserPrompt();
+        if (lastPrompt == null || lastPrompt.isBlank()) {
+            return;
+        }
+        promptInputArea.setText(lastPrompt);
+        promptInputArea.positionCaret(promptInputArea.getLength());
+        sendFollowUp();
+    }
+
+    private String findLastUserPrompt() {
+        for (int index = messageEntries.size() - 1; index >= 0; index--) {
+            SavedAiChatMessage entry = messageEntries.get(index);
+            if (entry != null && SavedAiChatMessage.ROLE_USER.equals(entry.getRole())) {
+                String content = entry.getContent();
+                if (content != null && !content.isBlank()) {
+                    return content.trim();
+                }
+            }
+        }
+        return null;
+    }
+
+    private void refreshQuotaLabel() {
+        AiProfile selectedProfile = profileComboBox.getSelectionModel().getSelectedItem();
+        if (selectedProfile == null) {
+            quotaLabel.setText("");
+            return;
+        }
+        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.refreshUsage(selectedProfile);
+        if (snapshot.unlimited()) {
+            quotaLabel.setText(I18n.get("settings.ai.token.preview.unlimited", formatCompact(snapshot.usedTotalTokens())));
+            return;
+        }
+        double percentUsed = snapshot.maxTokens() <= 0 ? 0.0 : (snapshot.usedTotalTokens() * 100.0) / snapshot.maxTokens();
+        quotaLabel.setText(I18n.get(
+            "settings.ai.token.preview",
+            formatCompact(snapshot.usedTotalTokens()),
+            formatCompact(snapshot.maxTokens()),
+            String.format(Locale.ROOT, "%.1f%%", percentUsed)));
+    }
+
+    private String formatCompact(long value) {
+        if (value >= 1_000_000L) {
+            return String.format(Locale.ROOT, "%.1fM", value / 1_000_000.0);
+        }
+        if (value >= 1_000L) {
+            return String.format(Locale.ROOT, "%.1fk", value / 1_000.0);
+        }
+        return Long.toString(value);
     }
 
     private void rebuildMessages() {

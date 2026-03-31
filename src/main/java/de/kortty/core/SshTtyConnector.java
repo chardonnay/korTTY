@@ -27,6 +27,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -54,7 +55,7 @@ public class SshTtyConnector implements TtyConnector {
     
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
-    private DataListener dataListener;
+    private final CopyOnWriteArrayList<DataListener> dataListeners = new CopyOnWriteArrayList<>();
     private volatile String currentRemoteDirectory = "~";
     private volatile String homeRemoteDirectory = "~";
     private volatile String previousRemoteDirectory = "~";
@@ -427,9 +428,9 @@ public class SshTtyConnector implements TtyConnector {
         if (count > 0) {
             String data = new String(buf, offset, count);
             updateCurrentDirectoryFromOutput(data);
-            if (dataListener != null) {
+            for (DataListener dataListener : dataListeners) {
                 try {
-                dataListener.onData(data);
+                    dataListener.onData(data);
                 } catch (Exception e) {
                     // Don't let listener errors break the connection
                     logger.warn("Data listener error: {}", e.getMessage());
@@ -492,7 +493,22 @@ public class SshTtyConnector implements TtyConnector {
     }
     
     public void setDataListener(DataListener listener) {
-        this.dataListener = listener;
+        dataListeners.clear();
+        if (listener != null) {
+            dataListeners.add(listener);
+        }
+    }
+
+    public void addDataListener(DataListener listener) {
+        if (listener != null) {
+            dataListeners.addIfAbsent(listener);
+        }
+    }
+
+    public void removeDataListener(DataListener listener) {
+        if (listener != null) {
+            dataListeners.remove(listener);
+        }
     }
     
     public ServerConnection getConnection() {

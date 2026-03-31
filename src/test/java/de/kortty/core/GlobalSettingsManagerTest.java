@@ -3,6 +3,7 @@ package de.kortty.core;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
+import de.kortty.model.TerminalAgentExecutionTarget;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -44,6 +45,11 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setEncryptedAiApiKey(null);
             manager.getSettings().setAiResultFontSize(18);
             manager.getSettings().setAiConfirmBeforeSend(false);
+            manager.getSettings().setDefaultPromptHookEnabled(false);
+            manager.getSettings().setTerminalAgentShowDebugMessages(true);
+            manager.getSettings().setTerminalAgentShowRuntimeMessages(true);
+            manager.getSettings().setTerminalAgentCommandName("susi");
+            manager.getSettings().setTerminalAgentExecutionTarget(TerminalAgentExecutionTarget.CHAT_WINDOW);
             manager.getSettings().addAiPromptHistoryEntry("first prompt");
             manager.getSettings().addAiPromptHistoryEntry("second prompt");
             manager.save();
@@ -72,6 +78,11 @@ class GlobalSettingsManagerTest {
             assertEquals(579L, reloadedProfile.getUsedTotalTokens());
             assertEquals(18, reloaded.getSettings().getAiResultFontSize());
             assertEquals(false, reloaded.getSettings().isAiConfirmBeforeSend());
+            assertFalse(reloaded.getSettings().isDefaultPromptHookEnabled());
+            assertTrue(reloaded.getSettings().isTerminalAgentShowDebugMessages());
+            assertTrue(reloaded.getSettings().isTerminalAgentShowRuntimeMessages());
+            assertEquals("susi", reloaded.getSettings().getTerminalAgentCommandName());
+            assertEquals(TerminalAgentExecutionTarget.CHAT_WINDOW, reloaded.getSettings().getTerminalAgentExecutionTarget());
             assertEquals(2, reloaded.getSettings().getAiPromptHistory().size());
             assertEquals("second prompt", reloaded.getSettings().getAiPromptHistory().get(0));
             assertEquals("first prompt", reloaded.getSettings().getAiPromptHistory().get(1));
