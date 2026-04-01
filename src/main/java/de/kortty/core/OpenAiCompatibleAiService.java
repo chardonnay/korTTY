@@ -60,8 +60,21 @@ public class OpenAiCompatibleAiService implements AiService {
         return executeWithClient(request, httpClient, null);
     }
 
+    public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) throws Exception {
+        return executePromptWithClient(systemPrompt, userPrompt, httpClient, null);
+    }
+
     AiExecutionResult executeWithClient(AiRequest request, HttpClient client, Duration timeout) throws Exception {
         HttpRequest httpRequest = buildHttpRequest(request, timeout);
+        return executeRequestWithClient(httpRequest, client);
+    }
+
+    AiExecutionResult executePromptWithClient(String systemPrompt, String userPrompt, HttpClient client, Duration timeout) throws Exception {
+        HttpRequest httpRequest = buildPromptHttpRequest(systemPrompt, userPrompt, timeout);
+        return executeRequestWithClient(httpRequest, client);
+    }
+
+    private AiExecutionResult executeRequestWithClient(HttpRequest httpRequest, HttpClient client) throws Exception {
         HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -106,6 +119,13 @@ public class OpenAiCompatibleAiService implements AiService {
         return buildJsonPostRequest(buildConnectionTestRequestBody(), timeout);
     }
 
+    HttpRequest buildPromptHttpRequest(String systemPrompt, String userPrompt, Duration timeout) {
+        if (apiUrl.isBlank()) {
+            throw new IllegalStateException("AI API URL must be configured.");
+        }
+        return buildJsonPostRequest(buildPromptRequestBody(systemPrompt, userPrompt), timeout);
+    }
+
     private HttpRequest buildJsonPostRequest(String body, Duration timeout) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
             .uri(URI.create(apiUrl))
@@ -143,6 +163,14 @@ public class OpenAiCompatibleAiService implements AiService {
     }
 
     String buildConnectionTestRequestBody() {
+        return buildPromptRequestBody(CONNECTION_TEST_SYSTEM_PROMPT, CONNECTION_TEST_USER_PROMPT, 0.0);
+    }
+
+    String buildPromptRequestBody(String systemPrompt, String userPrompt) {
+        return buildPromptRequestBody(systemPrompt, userPrompt, 0.2);
+    }
+
+    private String buildPromptRequestBody(String systemPrompt, String userPrompt, double temperature) {
         JsonObject root = new JsonObject();
         if (!model.isBlank()) {
             root.addProperty("model", model);
@@ -151,16 +179,16 @@ public class OpenAiCompatibleAiService implements AiService {
         JsonArray messages = new JsonArray();
         JsonObject system = new JsonObject();
         system.addProperty("role", "system");
-        system.addProperty("content", CONNECTION_TEST_SYSTEM_PROMPT);
+        system.addProperty("content", systemPrompt != null ? systemPrompt : "");
         messages.add(system);
 
         JsonObject user = new JsonObject();
         user.addProperty("role", "user");
-        user.addProperty("content", CONNECTION_TEST_USER_PROMPT);
+        user.addProperty("content", userPrompt != null ? userPrompt : "");
         messages.add(user);
 
         root.add("messages", messages);
-        root.addProperty("temperature", 0.0);
+        root.addProperty("temperature", temperature);
         return GSON.toJson(root);
     }
 

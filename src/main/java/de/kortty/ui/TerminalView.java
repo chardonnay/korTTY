@@ -18,6 +18,7 @@ import de.kortty.core.Mosh4jTtyConnector;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.NativeMoshTtyConnector;
 import de.kortty.core.DisconnectListener;
+import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
@@ -27,6 +28,7 @@ import de.kortty.model.Theme;
 import javafx.application.Platform;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
+import javafx.scene.Node;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
@@ -58,6 +60,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import javafx.scene.control.ProgressIndicator;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -144,6 +147,15 @@ public class TerminalView extends BorderPane {
     private Runnable timestampToggleListener;
     private Runnable onReconnectRequested;
     private AiSelectionHandler aiSelectionHandler;
+    private Runnable aiAgentHandler;
+    private Runnable aiAgentAskHandler;
+    private Runnable aiPlanningHandler;
+    private Consumer<String> terminalAgentShortcutHandler;
+    private SshTtyConnector.DataListener terminalLoggerDataListener;
+    private SshTtyConnector.DataListener terminalAgentPromptDataListener;
+    private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
+    private final StringBuilder agentShortcutPromptTail = new StringBuilder();
+    private volatile boolean agentShortcutPromptReady;
     private volatile boolean timestampGuttersVisibleState;
     
     public TerminalView(ServerConnection connection, String password) {
@@ -225,8 +237,29 @@ public class TerminalView extends BorderPane {
         splitPane.setExtraMenuItemsFactory(widget -> {
             java.util.List<javafx.scene.control.MenuItem> items = new java.util.ArrayList<>();
             String selectedText = getSelectedText(widget);
-            if (selectedText != null && !selectedText.isBlank()) {
+            boolean hasAgentMenu = aiAgentHandler != null || aiAgentAskHandler != null || aiPlanningHandler != null
+                || (selectedText != null && !selectedText.isBlank());
+            if (hasAgentMenu) {
                 javafx.scene.control.Menu aiMenu = new javafx.scene.control.Menu(I18n.get("terminal.contextMenu.ai"));
+                if (aiAgentHandler != null) {
+                    javafx.scene.control.MenuItem agentItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.agent"));
+                    agentItem.setOnAction(e -> aiAgentHandler.run());
+                    aiMenu.getItems().add(agentItem);
+                }
+                if (aiAgentAskHandler != null) {
+                    javafx.scene.control.MenuItem agentAskItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.agentAsk"));
+                    agentAskItem.setOnAction(e -> aiAgentAskHandler.run());
+                    aiMenu.getItems().add(agentAskItem);
+                }
+                if (aiPlanningHandler != null) {
+                    javafx.scene.control.MenuItem planningItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.plan"));
+                    planningItem.setOnAction(e -> aiPlanningHandler.run());
+                    aiMenu.getItems().add(planningItem);
+                }
+                if (!aiMenu.getItems().isEmpty() && selectedText != null && !selectedText.isBlank()) {
+                    aiMenu.getItems().add(new javafx.scene.control.SeparatorMenuItem());
+                }
+                if (selectedText != null && !selectedText.isBlank()) {
                 List<AiProfile> aiProfiles = getConfiguredAiProfiles();
                 if (aiProfiles.isEmpty()) {
                     javafx.scene.control.MenuItem summarizeItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.summarize"));
@@ -254,6 +287,7 @@ public class TerminalView extends BorderPane {
                         createAiProfileMenu(I18n.get("terminal.contextMenu.ai.solve"), AiAction.SOLVE_PROBLEM, aiProfiles, selectedText),
                         createAiProfileMenu(I18n.get("terminal.contextMenu.ai.ask"), AiAction.ASK, aiProfiles, selectedText)
                     );
+                }
                 }
                 items.add(aiMenu);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
@@ -340,6 +374,22 @@ public class TerminalView extends BorderPane {
 
     public void setAiSelectionHandler(@Nullable AiSelectionHandler aiSelectionHandler) {
         this.aiSelectionHandler = aiSelectionHandler;
+    }
+
+    public void setAiAgentHandler(Runnable aiAgentHandler) {
+        this.aiAgentHandler = aiAgentHandler;
+    }
+
+    public void setAiAgentAskHandler(Runnable aiAgentAskHandler) {
+        this.aiAgentAskHandler = aiAgentAskHandler;
+    }
+
+    public void setAiPlanningHandler(Runnable aiPlanningHandler) {
+        this.aiPlanningHandler = aiPlanningHandler;
+    }
+
+    public void setTerminalAgentShortcutHandler(Consumer<String> terminalAgentShortcutHandler) {
+        this.terminalAgentShortcutHandler = terminalAgentShortcutHandler;
     }
 
     private javafx.scene.control.Menu createAiProfileMenu(
@@ -511,6 +561,14 @@ public class TerminalView extends BorderPane {
     private TtyConnector getFocusedConnector() {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : null;
         return focused != null ? focused.getTtyConnector() : null;
+    }
+
+    public SshTtyConnector getActiveSshConnector() {
+        TtyConnector focusedConnector = getFocusedConnector();
+        if (focusedConnector instanceof SshTtyConnector sshConnector) {
+            return sshConnector;
+        }
+        return ttyConnector instanceof SshTtyConnector sshConnector ? sshConnector : null;
     }
 
     private void copyDroppedFilesToServer(SshTtyConnector sshConnector, List<java.io.File> dropped) {
@@ -1104,8 +1162,8 @@ public class TerminalView extends BorderPane {
     }
 
     private void setupWidgetEventHandlers(SithTermFxWidget widget) {
-        // Handle ESCAPE key via KEY_PRESSED to send ESC character
-        widget.getPane().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+        Node keyEventTarget = getPrimaryKeyEventTarget(widget);
+        javafx.event.EventHandler<KeyEvent> keyPressedHandler = event -> {
             if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
                 TtyConnector connector = widget.getTtyConnector();
                 if (connector != null && connector.isConnected()) {
@@ -1118,8 +1176,14 @@ public class TerminalView extends BorderPane {
                     widget.getTerminal().writeCharacters("\u001B");
                 }
                 event.consume();
+                return;
             }
-        });
+            handleAgentShortcutKeyPressed(widget, event);
+        };
+        keyEventTarget.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, keyPressedHandler);
+
+        javafx.event.EventHandler<KeyEvent> keyTypedHandler = event -> handleAgentShortcutKeyTyped(widget, event);
+        keyEventTarget.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, keyTypedHandler);
 
         // Navigation keys (arrow, Tab, etc.) are handled at split-pane level so we run before the
         // terminal widget consumes them; see splitPane.addEventFilter(KeyEvent.KEY_PRESSED, ...) above.
@@ -1133,6 +1197,217 @@ public class TerminalView extends BorderPane {
                 }
             });
         }
+    }
+
+    private void handleAgentShortcutKeyPressed(SithTermFxWidget widget, KeyEvent event) {
+        if (!isTerminalAgentPromptHookEnabled() || terminalAgentShortcutHandler == null) {
+            return;
+        }
+
+        StringBuilder buffer = agentShortcutBuffers.computeIfAbsent(widget, ignored -> new StringBuilder());
+        if (event.getCode() == KeyCode.BACK_SPACE) {
+            if (!buffer.isEmpty()) {
+                buffer.setLength(buffer.length() - 1);
+            }
+            return;
+        }
+        if (event.getCode() == KeyCode.DELETE) {
+            return;
+        }
+        if (event.getCode() == KeyCode.U && event.isControlDown() && !event.isAltDown() && !event.isMetaDown()) {
+            buffer.setLength(0);
+            return;
+        }
+        if (event.getCode() != KeyCode.ENTER) {
+            return;
+        }
+
+        String rawCommand = buffer.toString().trim();
+        buffer.setLength(0);
+        boolean promptReadyAtEnter = agentShortcutPromptReady || hasVisiblePromptForCommand(widget, rawCommand);
+        agentShortcutPromptReady = false;
+        if (!canInterceptAgentShortcut(rawCommand, promptReadyAtEnter)) {
+            return;
+        }
+
+        TtyConnector connector = widget.getTtyConnector();
+        if (connector == null || !connector.isConnected()) {
+            return;
+        }
+
+        try {
+            connector.write("\u0015");
+        } catch (Exception e) {
+            logger.debug("Failed to clear terminal line before AI shortcut interception: {}", e.getMessage());
+        }
+        event.consume();
+        Platform.runLater(() -> terminalAgentShortcutHandler.accept(rawCommand));
+    }
+
+    private void handleAgentShortcutKeyTyped(SithTermFxWidget widget, KeyEvent event) {
+        if (!isTerminalAgentPromptHookEnabled() || terminalAgentShortcutHandler == null) {
+            return;
+        }
+        String character = event.getCharacter();
+        if (character == null || character.isEmpty()) {
+            return;
+        }
+        char first = character.charAt(0);
+        if (first == '\r' || first == '\n' || first == '\b' || first == 127) {
+            return;
+        }
+        if (first < 32) {
+            return;
+        }
+        agentShortcutBuffers.computeIfAbsent(widget, ignored -> new StringBuilder()).append(character);
+    }
+
+    private boolean canInterceptAgentShortcut(String rawCommand) {
+        return canInterceptAgentShortcut(rawCommand, agentShortcutPromptReady);
+    }
+
+    private boolean canInterceptAgentShortcut(String rawCommand, boolean promptReady) {
+        if (rawCommand == null || rawCommand.isBlank()) {
+            return false;
+        }
+        String commandName = getTerminalAgentCommandName();
+        return canInterceptAgentShortcut(rawCommand, promptReady, commandName);
+    }
+
+    static boolean canInterceptAgentShortcut(String rawCommand, boolean promptReady, String commandName) {
+        if (rawCommand == null || rawCommand.isBlank() || !promptReady) {
+            return false;
+        }
+        return TerminalAgentCommandSupport.parseShortcut(rawCommand, commandName) != null;
+    }
+
+    private boolean isTerminalAgentPromptHookEnabled() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs == null || gs.isDefaultPromptHookEnabled();
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private String getTerminalAgentCommandName() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return TerminalAgentCommandSupport.normalizeCommandName(
+                gs != null ? gs.getTerminalAgentCommandName() : null);
+        } catch (Exception e) {
+            return TerminalAgentCommandSupport.DEFAULT_COMMAND_NAME;
+        }
+    }
+
+    private void recordAgentShortcutPromptSignal(String data) {
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+        if (data.contains("\u001B]133;A") || data.contains("\u001B]133;B")) {
+            agentShortcutPromptReady = true;
+        }
+        if (data.contains("\u001B]133;C")) {
+            agentShortcutPromptReady = false;
+        }
+
+        synchronized (agentShortcutPromptTail) {
+            agentShortcutPromptTail.append(data);
+            int overflow = agentShortcutPromptTail.length() - 2048;
+            if (overflow > 0) {
+                agentShortcutPromptTail.delete(0, overflow);
+            }
+            String lastLine = extractLastVisibleLine(agentShortcutPromptTail.toString());
+            if (!lastLine.isBlank()) {
+                if (looksLikeShellPrompt(lastLine)) {
+                    agentShortcutPromptReady = true;
+                } else if (shouldResetPromptReady(lastLine, hasPendingAgentShortcutInput())) {
+                    agentShortcutPromptReady = false;
+                }
+            }
+        }
+    }
+
+    private boolean hasPendingAgentShortcutInput() {
+        return agentShortcutBuffers.values().stream()
+            .anyMatch(buffer -> buffer != null && !buffer.isEmpty());
+    }
+
+    private Node getPrimaryKeyEventTarget(SithTermFxWidget widget) {
+        Node preferred = widget.getPreferredFocusableNode();
+        return preferred != null ? preferred : widget.getPane();
+    }
+
+    private boolean hasVisiblePromptForCommand(SithTermFxWidget widget, String rawCommand) {
+        if (widget == null || rawCommand == null || rawCommand.isBlank()) {
+            return false;
+        }
+        try {
+            String screenLines = widget.getTerminalTextBuffer() != null
+                ? widget.getTerminalTextBuffer().getScreenLines()
+                : "";
+            String lastVisibleLine = extractLastVisibleLine(screenLines);
+            return hasVisiblePromptForCommand(lastVisibleLine, rawCommand);
+        } catch (Exception e) {
+            logger.debug("Failed to inspect visible terminal prompt for AI shortcut interception: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    static boolean hasVisiblePromptForCommand(String lastVisibleLine, String rawCommand) {
+        if (lastVisibleLine == null || lastVisibleLine.isBlank()) {
+            return false;
+        }
+        if (looksLikeShellPrompt(lastVisibleLine)) {
+            return true;
+        }
+        if (rawCommand == null || rawCommand.isBlank()) {
+            return false;
+        }
+
+        String normalizedLine = lastVisibleLine.stripTrailing();
+        String normalizedCommand = rawCommand.trim();
+        if (!normalizedLine.endsWith(normalizedCommand)) {
+            return false;
+        }
+
+        String promptPrefix = normalizedLine.substring(0, normalizedLine.length() - normalizedCommand.length())
+            .stripTrailing();
+        return looksLikeShellPrompt(promptPrefix);
+    }
+
+    static String extractLastVisibleLine(String value) {
+        String normalized = value
+            .replace("\r\n", "\n")
+            .replace('\r', '\n')
+            .replaceAll("\\u001B\\[[;?0-9]*[ -/]*[@-~]", "")
+            .replaceAll("\\u001B\\].*?(\\u0007|\\u001B\\\\)", "");
+        int index = normalized.lastIndexOf('\n');
+        return index >= 0 ? normalized.substring(index + 1).trim() : normalized.trim();
+    }
+
+    private static boolean looksLikeShellPrompt(String line) {
+        String normalized = line == null ? "" : line.stripTrailing();
+        return normalized.endsWith("$")
+            || normalized.endsWith("#")
+            || normalized.endsWith("%")
+            || normalized.endsWith(">")
+            || normalized.matches(".*\\[[^\\]]+\\]\\$");
+    }
+
+    static boolean shouldResetPromptReady(String lastVisibleLine, boolean localCommandEntryInProgress) {
+        if (lastVisibleLine == null || lastVisibleLine.isBlank()) {
+            return false;
+        }
+        if (looksLikeShellPrompt(lastVisibleLine)) {
+            return false;
+        }
+        if (localCommandEntryInProgress) {
+            return false;
+        }
+        return !lastVisibleLine.endsWith(" ");
     }
 
     /**
@@ -1208,7 +1483,7 @@ public class TerminalView extends BorderPane {
         syncGutterFromHistory(widget, gutter);
         
         // Always listen for Enter key to record timestamps (even when gutter is hidden).
-        // Register on pane + focusable node so split widgets reliably capture Enter.
+        // Register on the primary focusable target only; attaching to parent + child duplicates the event.
         javafx.event.EventHandler<KeyEvent> enterHandler = event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 int startAbsoluteLine = getCurrentAbsoluteCursorLine(widget);
@@ -1219,10 +1494,7 @@ public class TerminalView extends BorderPane {
                 awaitingCommandCompletionByWidget.put(widget, true);
             }
         };
-        widget.getPane().addEventFilter(KeyEvent.KEY_PRESSED, enterHandler);
-        if (widget.getPreferredFocusableNode() != null) {
-            widget.getPreferredFocusableNode().addEventFilter(KeyEvent.KEY_PRESSED, enterHandler);
-        }
+        getPrimaryKeyEventTarget(widget).addEventFilter(KeyEvent.KEY_PRESSED, enterHandler);
         
         // Synchronize gutter with terminal scrollbar
         var terminalPanel = widget.getTerminalPanel();
@@ -1656,6 +1928,12 @@ public class TerminalView extends BorderPane {
                     connected = connectConnector(ttyConnector);
                     
                     if (connected) {
+                        if (ttyConnector instanceof SshTtyConnector sshConnector) {
+                            if (terminalAgentPromptDataListener == null) {
+                                terminalAgentPromptDataListener = this::recordAgentShortcutPromptSignal;
+                            }
+                            sshConnector.addDataListener(terminalAgentPromptDataListener);
+                        }
                         // Start terminal logger if enabled
                         startLogger();
                         
@@ -1789,11 +2067,16 @@ public class TerminalView extends BorderPane {
             
             // Register data listener to capture terminal output
             if (ttyConnector instanceof SshTtyConnector sshConnector) {
-                sshConnector.setDataListener(data -> {
+                terminalLoggerDataListener = data -> {
                     if (terminalLogger != null) {
                         terminalLogger.log(data);
                     }
-                });
+                };
+                sshConnector.addDataListener(terminalLoggerDataListener);
+                if (terminalAgentPromptDataListener == null) {
+                    terminalAgentPromptDataListener = this::recordAgentShortcutPromptSignal;
+                }
+                sshConnector.addDataListener(terminalAgentPromptDataListener);
             }
             
             logger.info("Terminal logging started for {}", connection.getDisplayName());
@@ -1811,6 +2094,15 @@ public class TerminalView extends BorderPane {
             terminalLogger.stop();
             terminalLogger = null;
             logger.info("Terminal logging stopped for {}", connection.getDisplayName());
+        }
+        if (ttyConnector instanceof SshTtyConnector sshConnector) {
+            if (terminalLoggerDataListener != null) {
+                sshConnector.removeDataListener(terminalLoggerDataListener);
+                terminalLoggerDataListener = null;
+            }
+            if (terminalAgentPromptDataListener != null) {
+                sshConnector.removeDataListener(terminalAgentPromptDataListener);
+            }
         }
     }
     
@@ -1832,8 +2124,9 @@ public class TerminalView extends BorderPane {
     public void showError(String message) {
         Platform.runLater(() -> {
             // Display error in terminal if possible
-            if (terminalWidget != null && terminalWidget.getTerminal() != null) {
-                terminalWidget.getTerminal().writeCharacters("\r\n*** " + message + " ***\r\n");
+            SithTermFxWidget targetWidget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+            if (targetWidget != null && targetWidget.getTerminal() != null) {
+                targetWidget.getTerminal().writeCharacters("\r\n*** " + message + " ***\r\n");
             }
         });
     }
@@ -1843,8 +2136,9 @@ public class TerminalView extends BorderPane {
      */
     public void showMessage(String message) {
         Platform.runLater(() -> {
-            if (terminalWidget != null && terminalWidget.getTerminal() != null) {
-                terminalWidget.getTerminal().writeCharacters("\r\n" + message + "\r\n");
+            SithTermFxWidget targetWidget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+            if (targetWidget != null && targetWidget.getTerminal() != null) {
+                targetWidget.getTerminal().writeCharacters("\r\n" + message + "\r\n");
             }
         });
     }

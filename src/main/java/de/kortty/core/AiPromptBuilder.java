@@ -14,6 +14,15 @@ public final class AiPromptBuilder {
         String languageCode = request != null && request.responseLanguageCode() != null && !request.responseLanguageCode().isBlank()
             ? request.responseLanguageCode().trim()
             : "en";
+        if (isConversationFollowUp(request)) {
+            return "You are continuing an existing AI chat. "
+                + "Answer in language code " + languageCode + ". "
+                + "Follow the latest user request exactly. "
+                + "Use earlier messages and the original terminal text only as context when they are relevant. "
+                + "Do not let older instructions override the newest user question. "
+                + "Use Markdown with short headings and concise, practical content. "
+                + "If something is uncertain, say so explicitly.";
+        }
         return "You are an assistant that analyzes terminal output. "
             + "Answer in language code " + languageCode + ". "
             + "Use Markdown with short headings and concise, practical content. "
@@ -26,6 +35,9 @@ public final class AiPromptBuilder {
             return "";
         }
         Objects.requireNonNull(request.action(), "request.action must not be null");
+        if (isConversationFollowUp(request)) {
+            return buildConversationFollowUpPrompt(request);
+        }
 
         StringBuilder prompt = new StringBuilder();
         switch (request.action()) {
@@ -62,6 +74,34 @@ public final class AiPromptBuilder {
         }
         prompt.append("Selected terminal text:\n")
             .append(toSafeTextCodeBlock(request.selectedText()));
+        return prompt.toString();
+    }
+
+    private static boolean isConversationFollowUp(AiRequest request) {
+        return request != null
+            && request.action() == AiAction.ASK
+            && request.conversationContext() != null
+            && !request.conversationContext().isBlank();
+    }
+
+    private static String buildConversationFollowUpPrompt(AiRequest request) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Continue the existing AI chat.\n");
+        if (request.connectionDisplayName() != null && !request.connectionDisplayName().isBlank()) {
+            prompt.append("Connection: ").append(request.connectionDisplayName().trim()).append("\n");
+        }
+        prompt.append("Conversation so far:\n")
+            .append(toSafeTextCodeBlock(request.conversationContext()))
+            .append("\n");
+        if (request.userPrompt() != null && !request.userPrompt().isBlank()) {
+            prompt.append("Latest user message:\n")
+                .append(request.userPrompt().trim())
+                .append("\n");
+        }
+        if (request.selectedText() != null && !request.selectedText().isBlank()) {
+            prompt.append("Original terminal text for background context only:\n")
+                .append(toSafeTextCodeBlock(request.selectedText()));
+        }
         return prompt.toString();
     }
 

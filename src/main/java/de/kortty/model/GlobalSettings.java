@@ -117,6 +117,26 @@ public class GlobalSettings {
     /** Show a confirmation dialog before sending selected terminal text to AI. */
     @XmlElement
     private boolean aiConfirmBeforeSend = true;
+
+    /** Prefer OSC 133 prompt markers when the shell emits them. */
+    @XmlElement
+    private boolean defaultPromptHookEnabled = true;
+
+    /** Show verbose AI agent debug messages by default. */
+    @XmlElement
+    private boolean terminalAgentShowDebugMessages = false;
+
+    /** Show AI agent runtime notices by default. */
+    @XmlElement
+    private boolean terminalAgentShowRuntimeMessages = false;
+
+    /** Base command name for terminal-agent shortcuts like agent, agent-ask and agent-plan. */
+    @XmlElement
+    private String terminalAgentCommandName = "agent";
+
+    /** Preferred presentation target for AI agent runs. */
+    @XmlElement
+    private TerminalAgentExecutionTarget terminalAgentExecutionTarget = TerminalAgentExecutionTarget.TERMINAL_WINDOW;
     
     // Default terminal settings for new connections
     @XmlElement
@@ -492,12 +512,65 @@ public class GlobalSettings {
         this.aiConfirmBeforeSend = aiConfirmBeforeSend;
     }
 
+    public boolean isDefaultPromptHookEnabled() {
+        return defaultPromptHookEnabled;
+    }
+
+    public void setDefaultPromptHookEnabled(boolean defaultPromptHookEnabled) {
+        this.defaultPromptHookEnabled = defaultPromptHookEnabled;
+    }
+
+    public boolean isTerminalAgentShowDebugMessages() {
+        return terminalAgentShowDebugMessages;
+    }
+
+    public void setTerminalAgentShowDebugMessages(boolean terminalAgentShowDebugMessages) {
+        this.terminalAgentShowDebugMessages = terminalAgentShowDebugMessages;
+    }
+
+    public boolean isTerminalAgentShowRuntimeMessages() {
+        return terminalAgentShowRuntimeMessages;
+    }
+
+    public void setTerminalAgentShowRuntimeMessages(boolean terminalAgentShowRuntimeMessages) {
+        this.terminalAgentShowRuntimeMessages = terminalAgentShowRuntimeMessages;
+    }
+
+    public String getTerminalAgentCommandName() {
+        return terminalAgentCommandName;
+    }
+
+    public void setTerminalAgentCommandName(String terminalAgentCommandName) {
+        this.terminalAgentCommandName =
+            terminalAgentCommandName != null && !terminalAgentCommandName.isBlank()
+                ? terminalAgentCommandName.trim()
+                : "agent";
+    }
+
+    public TerminalAgentExecutionTarget getTerminalAgentExecutionTarget() {
+        return terminalAgentExecutionTarget != null
+            ? terminalAgentExecutionTarget
+            : TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+    }
+
+    public void setTerminalAgentExecutionTarget(TerminalAgentExecutionTarget terminalAgentExecutionTarget) {
+        this.terminalAgentExecutionTarget = terminalAgentExecutionTarget != null
+            ? terminalAgentExecutionTarget
+            : TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+    }
+
     public void initializeAiConfiguration() {
         if (aiProfiles == null) {
             aiProfiles = new java.util.ArrayList<>();
         }
         migrateFromLegacyAiConfiguration();
         normalizeAiProfiles();
+        if (terminalAgentCommandName == null || terminalAgentCommandName.isBlank()) {
+            terminalAgentCommandName = "agent";
+        }
+        if (terminalAgentExecutionTarget == null) {
+            terminalAgentExecutionTarget = TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+        }
     }
 
     public void migrateFromLegacyAiConfiguration() {

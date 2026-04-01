@@ -44,6 +44,29 @@ class AiPromptBuilderTest {
     }
 
     @Test
+    void askFollowUpPromptUsesConversationModeInsteadOfReframingOriginalAction() {
+        AiRequest request = new AiRequest(
+            AiAction.ASK,
+            "fatal: repository not found",
+            "dev-box",
+            "de",
+            "What should I check next?",
+            "Assistant:\nCheck credentials first.");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertTrue(systemPrompt.contains("continuing an existing AI chat"));
+        assertTrue(systemPrompt.contains("language code de"));
+        assertTrue(userPrompt.contains("Continue the existing AI chat"));
+        assertTrue(userPrompt.contains("Latest user message"));
+        assertTrue(userPrompt.contains("What should I check next?"));
+        assertTrue(userPrompt.contains("background context only"));
+        assertTrue(!userPrompt.contains("Treat the selected text as the primary source of truth"));
+        assertTrue(!userPrompt.contains("Answer the user's question or instruction about the selected terminal text"));
+    }
+
+    @Test
     void generateChatTitlePromptContainsSingleLineInstructionAndConversation() {
         AiRequest request = new AiRequest(
             AiAction.GENERATE_CHAT_TITLE,
