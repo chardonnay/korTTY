@@ -38,6 +38,8 @@ dependencies {
     implementation("org.apache.sshd:sshd-core:2.12.0")
     implementation("org.apache.sshd:sshd-common:2.12.0")
     implementation("org.apache.sshd:sshd-sftp:2.12.0")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
     
     // ED25519 (EdDSA) key support for SSH
     implementation("net.i2p.crypto:eddsa:0.3.0")
