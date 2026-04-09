@@ -2,13 +2,24 @@ package de.kortty.ui;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.InlineCssTextArea;
+import org.fxmisc.richtext.LineNumberFactory;
+import org.reactfx.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +35,9 @@ import java.util.Set;
 public final class EditorSettingsHelper {
     
     private static final Logger logger = LoggerFactory.getLogger(EditorSettingsHelper.class);
+
+    /** Cleanup for line-number hooks (text + viewport + scroll + layout listeners). */
+    private static final String LINE_NUMBER_HOOKS_CLEANUP_KEY = "korTTY.lineNumberHooksCleanup";
     
     // Defaults
     private static final String DEFAULT_FONT_FAMILY = "Monospaced";
@@ -155,6 +169,7 @@ public final class EditorSettingsHelper {
         
         // Apply caret via CSS stylesheet (evaluated when node enters scene)
         applyCaretCss(area, settings);
+        scheduleThemedLineNumberLabels(area, settings);
     }
     
     /**
@@ -228,6 +243,103 @@ public final class EditorSettingsHelper {
         
         return scrollPane;
     }
+
+    /**
+     * Shows or hides a RichTextFX line-number gutter for the given area (snippet editor / preview).
+     * RichTextFX uses a fixed light-grey ({@code #ddd}) background on line labels; this method
+     * re-applies background and text colors from {@code settings} so the gutter matches the editor.
+     */
+    public static void applyLineNumbers(InlineCssTextArea area, boolean show, Settings settings) {
+        clearLineNumberViewportHooks(area);
+        if (!show) {
+            area.setParagraphGraphicFactory(null);
+            return;
+        }
+        Runnable restyle = () -> scheduleThemedLineNumberLabels(area, settings);
+        ChangeListener<String> textListener = (o, a, b) -> restyle.run();
+        area.textProperty().addListener(textListener);
+        Subscription viewportSub = area.viewportDirtyEvents().subscribe(ignored -> restyle.run());
+        ChangeListener<Number> scrollYListener = (o, a, b) -> restyle.run();
+        area.estimatedScrollYProperty().addListener(scrollYListener);
+        ChangeListener<Number> scrollXListener = (o, a, b) -> restyle.run();
+        area.estimatedScrollXProperty().addListener(scrollXListener);
+        ChangeListener<Bounds> layoutListener = (o, a, b) -> restyle.run();
+        area.layoutBoundsProperty().addListener(layoutListener);
+        Runnable cleanup = () -> {
+            area.textProperty().removeListener(textListener);
+            viewportSub.unsubscribe();
+            area.estimatedScrollYProperty().removeListener(scrollYListener);
+            area.estimatedScrollXProperty().removeListener(scrollXListener);
+            area.layoutBoundsProperty().removeListener(layoutListener);
+        };
+        area.getProperties().put(LINE_NUMBER_HOOKS_CLEANUP_KEY, cleanup);
+        area.setParagraphGraphicFactory(LineNumberFactory.get(area));
+        restyle.run();
+        scheduleThemedLineNumberLabels(area, settings);
+    }
+
+    /**
+     * RichTextFX creates new {@code .lineno} labels when scrolling; layout may lag one frame — double defer.
+     */
+    private static void scheduleThemedLineNumberLabels(InlineCssTextArea area, Settings settings) {
+        Platform.runLater(() -> Platform.runLater(() -> styleThemedLineNumberLabels(area, settings)));
+    }
+
+    private static void clearLineNumberViewportHooks(InlineCssTextArea area) {
+        Runnable cleanup = (Runnable) area.getProperties().remove(LINE_NUMBER_HOOKS_CLEANUP_KEY);
+        if (cleanup != null) {
+            cleanup.run();
+        }
+    }
+
+    private record SnippetGutterPalette(Color editorBg, Color gutterBg, Color numberFg) {}
+
+    private static SnippetGutterPalette snippetGutterPalette(Settings settings) {
+        Color editorBg = parseColor(settings.backgroundColor(), Color.web(DEFAULT_BACKGROUND));
+        Color fgBase = parseColor(settings.foregroundColor(), Color.web(DEFAULT_FOREGROUND));
+        Color gutterBg = luminance(editorBg) > 0.55
+                ? editorBg.interpolate(Color.WHITE, 0.08)
+                : editorBg.interpolate(Color.BLACK, 0.12);
+        Color numberFg = fgBase.interpolate(gutterBg, 0.36);
+        return new SnippetGutterPalette(editorBg, gutterBg, numberFg);
+    }
+
+    /**
+     * Overrides RichTextFX {@code LineNumberFactory} defaults ({@code #ddd} / {@code #666}) on
+     * {@code .lineno} labels so the gutter matches snippet editor colors.
+     */
+    public static void styleThemedLineNumberLabels(InlineCssTextArea area, Settings settings) {
+        if (settings == null) {
+            return;
+        }
+        SnippetGutterPalette pal = snippetGutterPalette(settings);
+        BackgroundFill bf = new BackgroundFill(pal.gutterBg(), CornerRadii.EMPTY, Insets.EMPTY);
+        Background bg = new Background(bf);
+        int fs = Math.max(8, settings.fontSize() - 1);
+        Font f = Font.font(settings.fontFamily(), FontWeight.NORMAL, fs);
+        for (var n : area.lookupAll(".lineno")) {
+            if (n instanceof Label label) {
+                label.setBackground(bg);
+                label.setTextFill(pal.numberFg());
+                label.setFont(f);
+            }
+        }
+    }
+
+    private static double luminance(Color c) {
+        return 0.2126 * c.getRed() + 0.7152 * c.getGreen() + 0.0722 * c.getBlue();
+    }
+
+    private static Color parseColor(String web, Color fallback) {
+        if (web == null || web.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Color.web(web.trim());
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
     
     /**
      * Returns the inline CSS style for plain (non-highlighted) text using the foreground color.
@@ -270,19 +382,41 @@ public final class EditorSettingsHelper {
     }
     
     /**
-     * Applies caret CSS stylesheet via data URI.
+     * Applies caret + RichTextFX chrome (paragraph rows / line gutter) via data URI stylesheet.
+     * Virtualized scrolling recreates nodes; CSS keeps row backgrounds aligned with the editor theme.
      */
     private static void applyCaretCss(InlineCssTextArea area, Settings settings) {
         double strokeWidth = caretStrokeWidth(settings.cursorStyle(), settings.fontFamily(), settings.fontSize());
         String color = settings.cursorColor();
-        
+        SnippetGutterPalette pal = snippetGutterPalette(settings);
+        String editorBgLiteral = cssColorLiteral(settings.backgroundColor(), pal.editorBg());
+        String gutterLiteral = cssColorLiteral(null, pal.gutterBg());
+        String numberLiteral = cssColorLiteral(null, pal.numberFg());
         String caretCss = String.format(Locale.US,
-            ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; -fx-stroke-line-cap: butt; }",
-            color, strokeWidth
-        );
+                ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; -fx-stroke-line-cap: butt; }\n"
+                        + ".paragraph-box { -fx-background-color: %s; }\n"
+                        + ".lineno { -fx-background-color: %s; -fx-text-fill: %s; }\n",
+                color, strokeWidth, editorBgLiteral, gutterLiteral, numberLiteral);
         area.getStylesheets().removeIf(s -> s.startsWith("data:"));
         String dataUri = "data:text/css;charset=utf-8," + URLEncoder.encode(caretCss, StandardCharsets.UTF_8);
         area.getStylesheets().add(dataUri);
+    }
+
+    /** CSS color literal: use original web string when parseable, else {@code rgb(r,g,b)} from {@code fallback}. */
+    private static String cssColorLiteral(String web, Color fallback) {
+        if (web != null && !web.isBlank()) {
+            try {
+                Color.web(web.trim());
+                return web.trim();
+            } catch (IllegalArgumentException ignored) {
+                // fall through
+            }
+        }
+        Color c = fallback != null ? fallback : Color.web(DEFAULT_BACKGROUND);
+        return String.format(Locale.US, "rgb(%d,%d,%d)",
+                Math.round(c.getRed() * 255.0),
+                Math.round(c.getGreen() * 255.0),
+                Math.round(c.getBlue() * 255.0));
     }
     
     /**

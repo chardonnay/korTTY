@@ -118,6 +118,10 @@ public class GlobalSettings {
     @XmlElement
     private Integer aiResultFontSize = 13;
 
+    /** When false, AI menu entries and terminal AI context actions are disabled. Default: enabled. */
+    @XmlElement
+    private boolean aiFeaturesEnabled = true;
+
     /** Show a confirmation dialog before sending selected terminal text to AI. */
     @XmlElement
     private boolean aiConfirmBeforeSend = true;
@@ -214,6 +218,9 @@ public class GlobalSettings {
     
     @XmlElement
     private boolean snippetWordWrap = false; // Word wrap in snippet preview & editor (default: off)
+    
+    @XmlElement
+    private boolean snippetLineNumbers = false; // line-number gutter in snippet editor & manager preview (default: off)
     
     // Snippet dialog geometries
     @XmlElement
@@ -525,6 +532,14 @@ public class GlobalSettings {
 
     public void setAiConfirmBeforeSend(boolean aiConfirmBeforeSend) {
         this.aiConfirmBeforeSend = aiConfirmBeforeSend;
+    }
+
+    public boolean isAiFeaturesEnabled() {
+        return aiFeaturesEnabled;
+    }
+
+    public void setAiFeaturesEnabled(boolean aiFeaturesEnabled) {
+        this.aiFeaturesEnabled = aiFeaturesEnabled;
     }
 
     public boolean isDefaultPromptHookEnabled() {
@@ -868,6 +883,9 @@ public class GlobalSettings {
     
     public boolean isSnippetWordWrap() { return snippetWordWrap; }
     public void setSnippetWordWrap(boolean snippetWordWrap) { this.snippetWordWrap = snippetWordWrap; }
+    
+    public boolean isSnippetLineNumbers() { return snippetLineNumbers; }
+    public void setSnippetLineNumbers(boolean snippetLineNumbers) { this.snippetLineNumbers = snippetLineNumbers; }
     
     // ---- Snippet Dialog Geometries ----
     

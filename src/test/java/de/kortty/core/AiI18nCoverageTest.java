@@ -95,6 +95,8 @@ class AiI18nCoverageTest {
         "terminal.contextMenu.ai.agent",
         "terminal.contextMenu.ai.agentAsk",
         "terminal.contextMenu.ai.plan",
+        "settings.ai.featuresEnabled",
+        "settings.ai.featuresEnabled.hint",
         "settings.ai.promptHook",
         "settings.ai.showDebugMessages",
         "settings.ai.showRuntimeMessages",

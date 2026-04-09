@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SnippetCodeFormatter;
 import de.kortty.core.SnippetLinter;
+import de.kortty.core.SnippetOneLiner;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.WindowGeometry;
@@ -10,6 +11,8 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
@@ -37,8 +40,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final TextField tagsField;
     private final InlineCssTextArea contentArea;
     private final CheckBox wordWrapCheckBox;
+    private final CheckBox lineNumbersCheckBox;
     private final Button formatBtn;
     private final Button lintBtn;
+    private final MenuButton oneLinerMenu;
     private final Label statusLabel;
     private final Snippet existingSnippet;
     private final EditorSettingsHelper.Settings editorSettings;
@@ -138,6 +143,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             saveWordWrapSetting(newVal);
         });
         
+        lineNumbersCheckBox = new CheckBox(I18n.get("snippets.lineNumbers"));
+        boolean savedLineNumbers = loadLineNumbersSetting();
+        lineNumbersCheckBox.setSelected(savedLineNumbers);
+        EditorSettingsHelper.applyLineNumbers(contentArea, savedLineNumbers, editorSettings);
+        lineNumbersCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            EditorSettingsHelper.applyLineNumbers(contentArea, newVal, editorSettings);
+            saveLineNumbersSetting(newVal);
+        });
+        
         // Right-click context menu on content area
         contentArea.setContextMenu(createEditorContextMenu());
         
@@ -145,6 +159,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         languageCombo.setOnAction(e -> {
             applyHighlighting();
             updateFormatLintButtonState();
+            updateOneLinerButtonState();
         });
         
         // Re-apply highlighting on text change
@@ -187,12 +202,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         lintBtn = new Button("\u2713 " + I18n.get("editor.lint"));
         lintBtn.setTooltip(new Tooltip(I18n.get("editor.lint.title")));
         lintBtn.setOnAction(e -> runLint());
+
+        MenuItem oneLinerCompactItem = new MenuItem(I18n.get("snippets.oneliner.compact"));
+        oneLinerCompactItem.setOnAction(e -> runOneLiner(true));
+        MenuItem oneLinerEmbeddedItem = new MenuItem(I18n.get("snippets.oneliner.embedded"));
+        oneLinerEmbeddedItem.setOnAction(e -> runOneLiner(false));
+        oneLinerMenu = new MenuButton("\u2192 " + I18n.get("snippets.oneliner.menu"));
+        oneLinerMenu.getItems().addAll(oneLinerCompactItem, oneLinerEmbeddedItem);
+        oneLinerMenu.setTooltip(new Tooltip(I18n.get("snippets.oneliner.tooltip")));
         
         updateFormatLintButtonState();
+        updateOneLinerButtonState();
         
         HBox contentHeader = new HBox(10,
                 new Label(I18n.get("snippets.content") + ":"),
-                formatBtn, lintBtn, new Separator(), wordWrapCheckBox);
+                formatBtn, lintBtn, oneLinerMenu, new Separator(), wordWrapCheckBox, lineNumbersCheckBox);
         contentHeader.setAlignment(Pos.CENTER_LEFT);
         formGrid.add(contentHeader, 0, 3, 2, 1);
         
@@ -218,7 +242,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
         okButton.setDisable(true);
         nameField.textProperty().addListener((obs, o, n) -> validateForm(okButton));
-        contentArea.textProperty().addListener((obs, o, n) -> validateForm(okButton));
+        contentArea.textProperty().addListener((obs, o, n) -> {
+            validateForm(okButton);
+            updateOneLinerButtonState();
+        });
         
         // Pre-fill if editing
         if (snippet != null) {
@@ -230,6 +257,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             applyHighlighting();
         }
         updateFormatLintButtonState();
+        updateOneLinerButtonState();
         
         // Restore saved geometry
         restoreGeometry();
@@ -306,6 +334,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
     
+    private boolean loadLineNumbersSetting() {
+        try {
+            return KorTTYApplication.getInstance().getGlobalSettingsManager()
+                    .getSettings().isSnippetLineNumbers();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    private void saveLineNumbersSetting(boolean enabled) {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            gs.setSnippetLineNumbers(enabled);
+            KorTTYApplication.getInstance().getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            // Ignore - non-critical
+        }
+    }
+    
     private void validateForm(Button okButton) {
         boolean valid = nameField.getText() != null && !nameField.getText().isBlank()
                 && contentArea.getText() != null && !contentArea.getText().isBlank();
@@ -328,6 +375,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         formatItem.setOnAction(e -> runFormat());
         MenuItem lintItem = new MenuItem(I18n.get("editor.lint"));
         lintItem.setOnAction(e -> runLint());
+        MenuItem oneLinerCompactCtx = new MenuItem(I18n.get("snippets.oneliner.compact"));
+        oneLinerCompactCtx.setOnAction(e -> runOneLiner(true));
+        MenuItem oneLinerEmbeddedCtx = new MenuItem(I18n.get("snippets.oneliner.embedded"));
+        oneLinerEmbeddedCtx.setOnAction(e -> runOneLiner(false));
         CheckMenuItem wordWrapItem = new CheckMenuItem(I18n.get("snippets.wordWrap"));
         wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
         wordWrapItem.setOnAction(e -> {
@@ -336,6 +387,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             contentArea.setWrapText(on);
             saveWordWrapSetting(on);
         });
+        CheckMenuItem lineNumbersItem = new CheckMenuItem(I18n.get("snippets.lineNumbers"));
+        lineNumbersItem.setSelected(lineNumbersCheckBox.isSelected());
+        lineNumbersItem.setOnAction(e -> {
+            boolean on = lineNumbersItem.isSelected();
+            lineNumbersCheckBox.setSelected(on);
+            EditorSettingsHelper.applyLineNumbers(contentArea, on, editorSettings);
+            saveLineNumbersSetting(on);
+        });
         menu.getItems().addAll(
                 cutItem, copyItem, pasteItem, deleteItem,
                 new SeparatorMenuItem(),
@@ -343,7 +402,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 new SeparatorMenuItem(),
                 formatItem, lintItem,
                 new SeparatorMenuItem(),
-                wordWrapItem
+                oneLinerCompactCtx, oneLinerEmbeddedCtx,
+                new SeparatorMenuItem(),
+                wordWrapItem, lineNumbersItem
         );
         menu.setOnShowing(e -> {
             boolean hasSelection = contentArea.getSelection().getLength() > 0;
@@ -351,9 +412,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             copyItem.setDisable(!hasSelection);
             deleteItem.setDisable(!hasSelection);
             wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
+            lineNumbersItem.setSelected(lineNumbersCheckBox.isSelected());
             String lang = languageCombo.getValue();
             formatItem.setDisable(!SnippetCodeFormatter.isSupported(lang));
             lintItem.setDisable(!SnippetLinter.isSupported(lang));
+            String t = contentArea.getText();
+            boolean oneLinerOk = t != null && !t.isBlank() && SnippetOneLiner.isEmbeddedSupported(lang);
+            oneLinerCompactCtx.setDisable(!oneLinerOk);
+            oneLinerEmbeddedCtx.setDisable(!oneLinerOk);
         });
         return menu;
     }
@@ -362,6 +428,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String lang = languageCombo.getValue();
         formatBtn.setDisable(!SnippetCodeFormatter.isSupported(lang));
         lintBtn.setDisable(!SnippetLinter.isSupported(lang));
+    }
+
+    private void updateOneLinerButtonState() {
+        String lang = languageCombo.getValue();
+        String text = contentArea.getText();
+        boolean ok = text != null && !text.isBlank() && SnippetOneLiner.isEmbeddedSupported(lang);
+        oneLinerMenu.setDisable(!ok);
+    }
+
+    private void runOneLiner(boolean compact) {
+        String text = contentArea.getText();
+        String lang = languageCombo.getValue();
+        SnippetOneLiner.OneLinerResult r = compact
+                ? SnippetOneLiner.toCompact(text, lang)
+                : SnippetOneLiner.toEmbedded(text, lang);
+        if (!r.isOk()) {
+            setStatus(I18n.get(r.errorKey(), r.errorArgs()));
+            return;
+        }
+        ClipboardContent clip = new ClipboardContent();
+        clip.putString(r.line());
+        Clipboard.getSystemClipboard().setContent(clip);
+        setStatus(I18n.get("snippets.oneliner.success"));
     }
 
     private void runFormat() {

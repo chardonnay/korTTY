@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SnippetManager;
+import de.kortty.core.SnippetOneLiner;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
@@ -19,6 +20,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 /**
  * Dialog for managing code snippets: browse, search, preview, and insert into editor or terminal.
  * Supports multi-selection for batch delete/export operations.
+ * Double-click a table row to open the snippet in the edit dialog; use the row context menu for other actions.
  */
 public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     
@@ -50,6 +53,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     private final FilteredList<Snippet> filteredList;
     private final EditorSettingsHelper.Settings editorSettings;
     private final CheckBox wordWrapCheckBox;
+    private final CheckBox lineNumbersCheckBox;
     
     public SnippetManagementDialog(SnippetManager snippetManager) {
         this.snippetManager = snippetManager;
@@ -113,6 +117,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         usedCol.setStyle("-fx-alignment: CENTER-RIGHT;");
         
         snippetTable.getColumns().addAll(java.util.List.of(favCol, nameCol, langCol, catCol, tagsCol, usedCol));
+        installSnippetTableTooltipColumns(nameCol, langCol, catCol, tagsCol);
         snippetTable.setContextMenu(createTableContextMenu());
         
         // Data binding with search filter
@@ -125,6 +130,23 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             return Integer.compare(b.getUsageCount(), a.getUsageCount());
         });
         snippetTable.setItems(sortedList);
+
+        snippetTable.setRowFactory(tv -> {
+            TableRow<Snippet> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() != 2 || event.getButton() != MouseButton.PRIMARY || row.isEmpty()) {
+                    return;
+                }
+                Snippet s = row.getItem();
+                if (s != null) {
+                    snippetTable.getSelectionModel().clearSelection();
+                    snippetTable.getSelectionModel().select(s);
+                    editSnippet();
+                    event.consume();
+                }
+            });
+            return row;
+        });
         
         // Search filter
         searchField.textProperty().addListener((obs, oldVal, newVal) -> updateFilter());
@@ -151,10 +173,19 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             saveWordWrapSetting(newVal);
         });
         
+        lineNumbersCheckBox = new CheckBox(I18n.get("snippets.lineNumbers"));
+        boolean savedLineNumbers = loadLineNumbersSetting();
+        lineNumbersCheckBox.setSelected(savedLineNumbers);
+        EditorSettingsHelper.applyLineNumbers(previewArea, savedLineNumbers, editorSettings);
+        lineNumbersCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            EditorSettingsHelper.applyLineNumbers(previewArea, newVal, editorSettings);
+            saveLineNumbersSetting(newVal);
+        });
+        
         Label previewLabel = new Label(I18n.get("snippets.preview") + ":");
         previewLabel.setStyle("-fx-font-weight: bold;");
         
-        HBox previewHeader = new HBox(10, previewLabel, wordWrapCheckBox);
+        HBox previewHeader = new HBox(10, previewLabel, wordWrapCheckBox, lineNumbersCheckBox);
         previewHeader.setAlignment(Pos.CENTER_LEFT);
         
         // Right-click context menu on preview (vim-style quick actions)
@@ -325,6 +356,59 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         }
     }
     
+    private boolean loadLineNumbersSetting() {
+        try {
+            return KorTTYApplication.getInstance().getGlobalSettingsManager()
+                    .getSettings().isSnippetLineNumbers();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    private void saveLineNumbersSetting(boolean enabled) {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            gs.setSnippetLineNumbers(enabled);
+            KorTTYApplication.getInstance().getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.debug("Could not save line numbers setting", e);
+        }
+    }
+
+    /**
+     * Shows the full cell text in a tooltip when hovering (for values wider than the column).
+     */
+    private void installSnippetTableTooltipColumns(TableColumn<Snippet, String> nameColumn,
+            TableColumn<Snippet, String> langColumn,
+            TableColumn<Snippet, String> catColumn,
+            TableColumn<Snippet, String> tagsColumn) {
+        javafx.util.Callback<TableColumn<Snippet, String>, TableCell<Snippet, String>> factory = col ->
+                new TableCell<>() {
+                    @Override
+                    protected void updateItem(String item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setText(null);
+                            setTooltip(null);
+                        } else {
+                            setText(item);
+                            if (item.isEmpty()) {
+                                setTooltip(null);
+                            } else {
+                                Tooltip tip = new Tooltip(item);
+                                tip.setWrapText(true);
+                                tip.setMaxWidth(520);
+                                setTooltip(tip);
+                            }
+                        }
+                    }
+                };
+        nameColumn.setCellFactory(factory);
+        langColumn.setCellFactory(factory);
+        catColumn.setCellFactory(factory);
+        tagsColumn.setCellFactory(factory);
+    }
+    
     // ---- Filter ----
     
     private void updateFilter() {
@@ -417,7 +501,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     // ---- Preview ----
     
     /**
-     * Context menu for the preview area (right-click): Copy, Select All, Word Wrap,
+     * Context menu for the preview area (right-click): Copy, Select All, Word Wrap, Line numbers,
      * Insert into Editor, Send to Terminal.
      */
     private ContextMenu createPreviewContextMenu() {
@@ -438,6 +522,15 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             saveWordWrapSetting(on);
         });
         
+        CheckMenuItem lineNumbersItem = new CheckMenuItem(I18n.get("snippets.lineNumbers"));
+        lineNumbersItem.setSelected(lineNumbersCheckBox.isSelected());
+        lineNumbersItem.setOnAction(e -> {
+            boolean on = lineNumbersItem.isSelected();
+            lineNumbersCheckBox.setSelected(on);
+            EditorSettingsHelper.applyLineNumbers(previewArea, on, editorSettings);
+            saveLineNumbersSetting(on);
+        });
+        
         MenuItem insertEditorItem = new MenuItem(I18n.get("snippets.insertEditor"));
         insertEditorItem.setOnAction(e -> insertIntoEditor());
         
@@ -449,6 +542,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 selectAllItem,
                 new SeparatorMenuItem(),
                 wordWrapItem,
+                lineNumbersItem,
                 new SeparatorMenuItem(),
                 insertEditorItem,
                 insertTerminalItem
@@ -459,6 +553,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             copyItem.setDisable(!hasText);
             selectAllItem.setDisable(!hasText);
             wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
+            lineNumbersItem.setSelected(lineNumbersCheckBox.isSelected());
             Snippet single = snippetTable.getSelectionModel().getSelectedItem();
             boolean singleSelected = single != null && snippetTable.getSelectionModel().getSelectedItems().size() == 1;
             insertEditorItem.setDisable(!singleSelected);
@@ -469,13 +564,11 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
     
     /**
-     * Context menu for the snippet table (right-click on a row): Edit, Delete, Copy,
-     * Insert into Editor/Terminal, Toggle Favorite, Export.
+     * Context menu for the snippet table (right-click): Delete, Copy, Insert into Editor/Terminal,
+     * Toggle Favorite, Export. Open in editor: double-click a row or use the Edit toolbar button.
      */
     private ContextMenu createTableContextMenu() {
         ContextMenu menu = new ContextMenu();
-        MenuItem editItem = new MenuItem("\u270E " + I18n.get("snippets.edit"));
-        editItem.setOnAction(e -> editSnippet());
         MenuItem deleteItem = new MenuItem("\u2715 " + I18n.get("snippets.delete"));
         deleteItem.setOnAction(e -> deleteSnippets());
         MenuItem copyItem = new MenuItem("\uD83D\uDCCB " + I18n.get("snippets.copyClipboard"));
@@ -489,7 +582,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         MenuItem exportItem = new MenuItem("\uD83D\uDCE4 " + I18n.get("snippets.export"));
         exportItem.setOnAction(e -> exportSnippets());
         menu.getItems().addAll(
-                editItem, deleteItem,
+                deleteItem,
                 new SeparatorMenuItem(),
                 copyItem, insertEditorItem, insertTerminalItem,
                 new SeparatorMenuItem(),
@@ -499,7 +592,6 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
             boolean hasSelection = !selected.isEmpty();
             boolean hasSingle = selected.size() == 1;
-            editItem.setDisable(!hasSingle);
             deleteItem.setDisable(!hasSelection);
             copyItem.setDisable(!hasSingle);
             insertEditorItem.setDisable(!hasSingle);
@@ -619,6 +711,29 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     
     // ---- Insert / Copy ----
     
+    /**
+     * Resolves built-in and custom variables without opening a dialog: stored custom values are used,
+     * any other custom placeholder is replaced with an empty string.
+     */
+    private String resolveForTerminalWithoutPrompt(Snippet snippet) {
+        SnippetManager.ResolvedSnippet resolved = snippetManager.resolveBuiltInVariables(snippet.getContent());
+        String text = resolved.text();
+        List<String> customVars = snippetManager.findCustomVariables(text);
+        if (!customVars.isEmpty()) {
+            SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
+            Map<String, String> values = new LinkedHashMap<>();
+            for (String varName : customVars) {
+                String stored = varManager != null ? varManager.getValue(varName) : null;
+                values.put(varName, stored != null ? stored : "");
+            }
+            text = snippetManager.replaceCustomVariables(text, values);
+        }
+        snippetManager.incrementUsage(snippet);
+        saveQuietly();
+        refreshTable();
+        return text;
+    }
+
     private String resolveAndPrompt(Snippet snippet) {
         // Resolve built-in variables
         SnippetManager.ResolvedSnippet resolved = snippetManager.resolveBuiltInVariables(snippet.getContent());
@@ -751,8 +866,19 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
         
-        String resolved = resolveAndPrompt(selected);
-        if (resolved == null) return;
+        String resolved = resolveForTerminalWithoutPrompt(selected);
+        if (resolved.isBlank()) {
+            return;
+        }
+
+        String rawName = selected.getName();
+        String displayName = (rawName != null && !rawName.isBlank()) ? rawName.trim() : I18n.get("snippets.insertTerminal.unnamed");
+        String bannerText = I18n.get("snippets.insertTerminal.banner", displayName);
+        String toSend = buildOneLinerPayloadForTerminal(resolved, selected.getLanguage(), bannerText);
+        if (toSend == null) {
+            showInfo(I18n.get("snippets.insertTerminal.onelinerFailed"));
+            return;
+        }
         
         // Find active TerminalTab in MainWindow
         try {
@@ -761,14 +887,38 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             
             Tab activeTab = mainWindow.getActiveTab();
             if (activeTab instanceof TerminalTab terminalTab) {
-                terminalTab.getTerminalView().sendInput(resolved);
-                logger.info("Snippet '{}' sent to terminal", selected.getName());
+                terminalTab.getTerminalView().sendInputLine(toSend);
+                logger.info("Snippet '{}' sent to terminal (one-liner where supported)", selected.getName());
             } else {
                 showInfo(I18n.get("snippets.noTerminalOpen"));
             }
         } catch (Exception e) {
             logger.error("Failed to insert snippet into terminal", e);
         }
+    }
+
+    /**
+     * For bash/shell/python/perl/ruby, sends a one-liner (stderr banner, then embedded base64 pipe or compact fallback).
+     * Other languages: full resolved text (no shell banner — content may not be shell).
+     */
+    private String buildOneLinerPayloadForTerminal(String resolved, String language, String bannerText) {
+        if (!SnippetOneLiner.isEmbeddedSupported(language)) {
+            return resolved;
+        }
+        String prefix = SnippetOneLiner.terminalStderrBannerShellPrefix(bannerText);
+        SnippetOneLiner.OneLinerResult embedded = SnippetOneLiner.toEmbedded(resolved, language);
+        if (embedded.isOk()) {
+            String line = embedded.line();
+            if (line.indexOf('\n') >= 0) {
+                return prefix + " && \n" + line;
+            }
+            return prefix + " && " + line;
+        }
+        SnippetOneLiner.OneLinerResult compact = SnippetOneLiner.toCompact(resolved, language);
+        if (compact.isOk()) {
+            return prefix + " && " + compact.line();
+        }
+        return null;
     }
     
     // ---- Import / Export ----

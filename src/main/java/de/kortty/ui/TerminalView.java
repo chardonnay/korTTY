@@ -416,6 +416,14 @@ public class TerminalView extends BorderPane {
     }
 
     static boolean shouldShowAiContextMenu(List<AiProfile> profiles, boolean hasSelectedText, boolean hasAgentActions) {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            if (gs != null && !gs.isAiFeaturesEnabled()) {
+                return false;
+            }
+        } catch (Exception ignored) {
+            // Fall through: if settings unavailable, keep previous visibility rules
+        }
         if (profiles == null || profiles.isEmpty()) {
             return false;
         }
@@ -2207,6 +2215,14 @@ public class TerminalView extends BorderPane {
                 logger.error("Failed to send input to terminal", e);
             }
         }
+    }
+
+    /**
+     * Sends {@code text} followed by a Unix newline ({@code \n}) so an interactive POSIX shell
+     * accepts the buffer as a complete line and executes it (same effect as pressing Enter).
+     */
+    public void sendInputLine(String text) {
+        sendInput(text + "\n");
     }
     
     /**

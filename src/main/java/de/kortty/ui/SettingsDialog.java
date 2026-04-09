@@ -148,6 +148,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final TextField aiModelField;
     private final PasswordField aiApiKeyField;
     private final CheckBox aiClearApiKeyCheck;
+    private final CheckBox aiFeaturesEnabledCheck;
     private final CheckBox aiConfirmBeforeSendCheck;
     private final CheckBox aiPromptHookEnabledCheck;
     private final CheckBox aiShowDebugMessagesCheck;
@@ -930,6 +931,16 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Tab aiTab = new Tab(I18n.get("settings.tab.ai"));
         VBox aiRoot = new VBox(12);
         aiRoot.setPadding(new Insets(20));
+
+        aiFeaturesEnabledCheck = new CheckBox(I18n.get("settings.ai.featuresEnabled"));
+        aiFeaturesEnabledCheck.setStyle("-fx-font-weight: bold;");
+        aiFeaturesEnabledCheck.setSelected(globalSettings == null || globalSettings.isAiFeaturesEnabled());
+        aiRoot.getChildren().add(aiFeaturesEnabledCheck);
+
+        Label aiFeaturesHint = new Label(I18n.get("settings.ai.featuresEnabled.hint"));
+        aiFeaturesHint.setWrapText(true);
+        aiFeaturesHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiRoot.getChildren().add(aiFeaturesHint);
 
         Label aiInfo = new Label(I18n.get("settings.ai.info"));
         aiInfo.setWrapText(true);
@@ -2478,6 +2489,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         globalSettings.setAiApiUrl(null);
         globalSettings.setAiModel(null);
         globalSettings.setEncryptedAiApiKey(null);
+        globalSettings.setAiFeaturesEnabled(aiFeaturesEnabledCheck.isSelected());
         globalSettings.setAiConfirmBeforeSend(aiConfirmBeforeSendCheck.isSelected());
         globalSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
         globalSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());

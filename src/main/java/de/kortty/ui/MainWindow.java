@@ -58,6 +58,7 @@ import javafx.event.Event;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,9 +70,9 @@ import java.util.zip.ZipEntry;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -117,6 +118,9 @@ public class MainWindow {
     private CheckMenuItem showTimestampsMenuItem;
     private CheckMenuItem systemShowTimestampsMenuItem;
     private long lastTerminalPasteShortcutAtNanos = -1L;
+
+    /** Window + system menu bar: AI Manager / Agent / Planning items (disable when AI is turned off). */
+    private final List<MenuItem> toolsAiMenuItems = new ArrayList<>(6);
     
     private final KorTTYApplication app;
     private final SessionManager sessionManager;
@@ -584,6 +588,31 @@ public class MainWindow {
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
         syncTimestampMenuItems(false);
         applyMainWindowThemeFromGlobalSettings();
+        syncAiFeaturesMenuItemsEnabled();
+    }
+
+    private void syncAiFeaturesMenuItemsEnabled() {
+        boolean enabled = true;
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            if (gs != null) {
+                enabled = gs.isAiFeaturesEnabled();
+            }
+        } catch (Exception e) {
+            logger.debug("syncAiFeaturesMenuItemsEnabled: {}", e.getMessage());
+        }
+        for (MenuItem mi : toolsAiMenuItems) {
+            mi.setDisable(!enabled);
+        }
+    }
+
+    private boolean isAiFeaturesEnabled() {
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            return gs == null || gs.isAiFeaturesEnabled();
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     private MenuBar createApplicationMenuBar(MenuBarTarget target) {
@@ -751,11 +780,16 @@ public class MainWindow {
         MenuItem aiPlanning = new MenuItem(I18n.get("menu.tools.aiPlanning"));
         aiPlanning.setOnAction(e -> showAiPlanning());
 
+        toolsAiMenuItems.add(aiManager);
+        toolsAiMenuItems.add(aiAgent);
+        toolsAiMenuItems.add(aiPlanning);
+
         toolsMenu.getItems().addAll(
             openSFTPManager,
             asciiArtBanner,
             new SeparatorMenuItem(),
             snippetManager,
+            new SeparatorMenuItem(),
             aiManager,
             aiAgent,
             aiPlanning);
@@ -1339,6 +1373,7 @@ public class MainWindow {
             Platform.runLater(() -> {
                 applyMainWindowThemeFromGlobalSettings();
                 applyMenuBarVisibility(isMenuBarVisiblePreference());
+                syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
                 for (Tab tab : tabPane.getTabs()) {
                     if (tab instanceof TerminalTab terminalTab) {
@@ -1660,12 +1695,38 @@ public class MainWindow {
     
     private void pasteToTerminal() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
-        if (currentTab instanceof TerminalTab terminalTab) {
-            if (wasTriggeredByTerminalPasteShortcut()) {
-                return;
-            }
-            terminalTab.paste();
+        if (!(currentTab instanceof TerminalTab terminalTab)) {
+            return;
         }
+        Scene mainScene = tabPane.getScene();
+        if (mainScene == null) {
+            return;
+        }
+        Window hostWindow = mainScene.getWindow();
+        // While a modal dialog (e.g. Snippet Manager) is focused, the main window is not focused —
+        // do not route Edit→Paste to the terminal behind it.
+        if (hostWindow == null || !hostWindow.isFocused()) {
+            return;
+        }
+        Node focusOwner = mainScene.getFocusOwner();
+        Node terminalRoot = terminalTab.getContent();
+        if (terminalRoot != null && focusOwner != null
+                && !isNodeUnderRoot(focusOwner, terminalRoot)) {
+            return;
+        }
+        if (wasTriggeredByTerminalPasteShortcut()) {
+            return;
+        }
+        terminalTab.paste();
+    }
+
+    private static boolean isNodeUnderRoot(Node node, Node root) {
+        for (Node n = node; n != null; n = n.getParent()) {
+            if (n == root) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean wasTriggeredByTerminalPasteShortcut() {
@@ -2403,6 +2464,9 @@ public class MainWindow {
     }
 
     private void handleAiSelectionAction(TerminalTab terminalTab, AiAction action, AiProfile profile, String selectedText) {
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
         if (selectedText == null || selectedText.trim().isEmpty()) {
             return;
         }
@@ -2925,6 +2989,9 @@ public class MainWindow {
     }
 
     private void showAiAgent() {
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
         TerminalTab terminalTab = getActiveTerminalTab();
         if (terminalTab == null || !terminalTab.isConnected()) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
@@ -2934,6 +3001,9 @@ public class MainWindow {
     }
 
     private void showAiPlanning() {
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
         TerminalTab terminalTab = getActiveTerminalTab();
         if (terminalTab == null || !terminalTab.isConnected()) {
             showError(I18n.get("ai.plan.title"), I18n.get("ai.agent.error.noTerminal"));
@@ -2949,6 +3019,9 @@ public class MainWindow {
         String requestedProfileName,
         boolean askConfirmationBeforeEveryCommand,
         boolean autoApproveRootCommands) {
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
         List<AiProfile> profiles = getAvailableAiProfiles();
         if (profiles.isEmpty()) {
             showAiManager();
@@ -2984,6 +3057,9 @@ public class MainWindow {
     }
 
     private void requestAiPlanningForTab(TerminalTab terminalTab, String initialPrompt, String requestedProfileName) {
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
         List<AiProfile> profiles = getAvailableAiProfiles();
         if (profiles.isEmpty()) {
             showAiManager();
@@ -3699,6 +3775,9 @@ public class MainWindow {
     }
 
     private void showAiManager() {
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
         try {
             AiManagerDialog dialog = new AiManagerDialog(this);
             dialog.initOwner(stage);
