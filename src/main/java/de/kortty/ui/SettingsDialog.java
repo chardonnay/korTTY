@@ -167,6 +167,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final List<AiProfile> aiProfiles = new ArrayList<>();
     private final Map<String, String> aiPlainApiKeysByProfileId = new HashMap<>();
     private final Set<String> aiClearedApiKeysByProfileId = new HashSet<>();
+    private final ComboBox<AiProfile> aiDefaultProfileCombo;
     private AiProfile selectedAiProfile;
     
     // SFTP settings
@@ -1008,6 +1009,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         aiProfiles.addAll(globalSettings.getAiProfiles().stream().map(AiProfile::new).collect(Collectors.toList()));
 
+        aiDefaultProfileCombo = new ComboBox<>();
+        aiDefaultProfileCombo.setPrefWidth(260);
+        aiDefaultProfileCombo.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : getAiProfileDisplayName(item));
+            }
+        });
+        aiDefaultProfileCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(AiProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : getAiProfileDisplayName(item));
+            }
+        });
+        refreshDefaultAiProfileSelection(globalSettings != null ? globalSettings.getDefaultAiProfileId() : null);
+        HBox aiDefaultProfileBox = new HBox(10,
+            new Label(I18n.get("settings.ai.defaultProfile")),
+            aiDefaultProfileCombo);
+        aiRoot.getChildren().add(aiDefaultProfileBox);
+
         aiProfileListView = new ListView<>();
         aiProfileListView.getItems().addAll(aiProfiles);
         aiProfileListView.setPrefWidth(220);
@@ -1059,6 +1082,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             if (selectedAiProfile != null) {
                 selectedAiProfile.setName(newValue);
                 aiProfileListView.refresh();
+                refreshDefaultAiProfileSelection(getSelectedDefaultAiProfileId());
             }
         });
         aiEditorGrid.add(aiProfileNameField, 1, aiRow++);
@@ -1426,11 +1450,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
         
-        final double defaultContentHeight = 900;
-        final double defaultViewportHeight = 700;
-        final double minimumViewportHeight = 520;
-        final double defaultDialogHeight = 860;
-        final double minimumDialogHeight = 720;
+        final double defaultContentHeight = 1140;
+        final double defaultViewportHeight = 920;
+        final double minimumViewportHeight = 720;
+        final double defaultDialogHeight = 1080;
+        final double minimumDialogHeight = 960;
 
         VBox content = new VBox(tabPane);
         content.setFillWidth(true);
@@ -1443,13 +1467,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         scrollPane.setFitToHeight(false);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setPrefViewportWidth(860);
+        scrollPane.setPrefViewportWidth(1000);
         scrollPane.setPrefViewportHeight(defaultViewportHeight);
-        scrollPane.setMinViewportWidth(720);
+        scrollPane.setMinViewportWidth(860);
         scrollPane.setMinViewportHeight(minimumViewportHeight);
         getDialogPane().setContent(scrollPane);
-        getDialogPane().setPrefWidth(980);
-        getDialogPane().setMinWidth(860);
+        getDialogPane().setPrefWidth(1120);
+        getDialogPane().setMinWidth(1000);
         getDialogPane().setPrefHeight(defaultDialogHeight);
         getDialogPane().setMinHeight(minimumDialogHeight);
         
@@ -2234,6 +2258,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private void addAiProfile() {
         snapshotSelectedAiProfileEditorState();
+        String currentDefaultProfileId = getSelectedDefaultAiProfileId();
 
         AiProfile profile = new AiProfile();
         profile.setId(UUID.randomUUID().toString());
@@ -2249,6 +2274,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         aiProfiles.add(profile);
         aiProfileListView.getItems().setAll(aiProfiles);
+        refreshDefaultAiProfileSelection(currentDefaultProfileId != null ? currentDefaultProfileId : profile.getId());
         aiProfileListView.getSelectionModel().select(profile);
         aiProfileListView.refresh();
     }
@@ -2278,6 +2304,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (profile == null) {
             return;
         }
+        String currentDefaultProfileId = getSelectedDefaultAiProfileId();
 
         aiProfiles.remove(profile);
         if (profile.getId() != null) {
@@ -2286,6 +2313,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
 
         aiProfileListView.getItems().setAll(aiProfiles);
+        refreshDefaultAiProfileSelection(currentDefaultProfileId);
         if (aiProfiles.isEmpty()) {
             selectedAiProfile = null;
             loadAiProfileIntoEditor(null);
@@ -2435,7 +2463,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             profilesToSave.add(copy);
         }
 
+        String defaultProfileId = null;
+        AiProfile defaultProfile = aiDefaultProfileCombo.getSelectionModel().getSelectedItem();
+        if (defaultProfile != null) {
+            if (defaultProfile.getId() == null || defaultProfile.getId().isBlank()) {
+                String generatedId = UUID.randomUUID().toString();
+                defaultProfile.setId(generatedId);
+            }
+            defaultProfileId = defaultProfile.getId();
+        }
+
         globalSettings.setAiProfiles(profilesToSave);
+        globalSettings.setDefaultAiProfileId(defaultProfileId);
         globalSettings.setAiApiUrl(null);
         globalSettings.setAiModel(null);
         globalSettings.setEncryptedAiApiKey(null);
@@ -2446,6 +2485,35 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         globalSettings.setTerminalAgentCommandName(TerminalAgentCommandSupport.normalizeCommandName(aiAgentCommandNameField.getText()));
         globalSettings.setTerminalAgentExecutionTarget(aiExecutionTargetCombo.getValue());
         return true;
+    }
+
+    private void refreshDefaultAiProfileSelection(String preferredProfileId) {
+        aiDefaultProfileCombo.getItems().setAll(aiProfiles);
+        AiProfile selection = findLocalAiProfileById(preferredProfileId);
+        if (selection == null && globalSettings != null) {
+            selection = findLocalAiProfileById(globalSettings.getDefaultAiProfileId());
+        }
+        if (selection == null && !aiProfiles.isEmpty()) {
+            selection = aiProfiles.getFirst();
+        }
+        aiDefaultProfileCombo.getSelectionModel().select(selection);
+    }
+
+    private AiProfile findLocalAiProfileById(String profileId) {
+        if (profileId == null || profileId.isBlank()) {
+            return null;
+        }
+        for (AiProfile profile : aiProfiles) {
+            if (profile != null && profileId.equals(profile.getId())) {
+                return profile;
+            }
+        }
+        return null;
+    }
+
+    private String getSelectedDefaultAiProfileId() {
+        AiProfile selectedDefaultProfile = aiDefaultProfileCombo.getSelectionModel().getSelectedItem();
+        return selectedDefaultProfile != null ? selectedDefaultProfile.getId() : null;
     }
 
     private AiService createAiService(AiProfile profile) {

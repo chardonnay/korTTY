@@ -45,6 +45,7 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setEncryptedAiApiKey(null);
             manager.getSettings().setAiResultFontSize(18);
             manager.getSettings().setAiConfirmBeforeSend(false);
+            manager.getSettings().setDefaultAiProfileId("profile-1");
             manager.getSettings().setDefaultPromptHookEnabled(false);
             manager.getSettings().setTerminalAgentShowDebugMessages(true);
             manager.getSettings().setTerminalAgentShowRuntimeMessages(true);
@@ -78,6 +79,7 @@ class GlobalSettingsManagerTest {
             assertEquals(579L, reloadedProfile.getUsedTotalTokens());
             assertEquals(18, reloaded.getSettings().getAiResultFontSize());
             assertEquals(false, reloaded.getSettings().isAiConfirmBeforeSend());
+            assertEquals("profile-1", reloaded.getSettings().getDefaultAiProfileId());
             assertFalse(reloaded.getSettings().isDefaultPromptHookEnabled());
             assertTrue(reloaded.getSettings().isTerminalAgentShowDebugMessages());
             assertTrue(reloaded.getSettings().isTerminalAgentShowRuntimeMessages());
@@ -130,6 +132,29 @@ class GlobalSettingsManagerTest {
             reloaded.load();
 
             assertEquals(0, reloaded.getSettings().getAiProfiles().size());
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void loadClearsUnknownDefaultAiProfileId() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-default-ai-id");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            AiProfile profile = new AiProfile();
+            profile.setId("profile-1");
+            profile.setName("Only Profile");
+            manager.getSettings().setAiProfiles(List.of(profile));
+            manager.getSettings().setDefaultAiProfileId("missing-profile");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertEquals(1, reloaded.getSettings().getAiProfiles().size());
+            assertEquals(null, reloaded.getSettings().getDefaultAiProfileId());
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

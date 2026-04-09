@@ -237,9 +237,10 @@ public class TerminalView extends BorderPane {
         splitPane.setExtraMenuItemsFactory(widget -> {
             java.util.List<javafx.scene.control.MenuItem> items = new java.util.ArrayList<>();
             String selectedText = getSelectedText(widget);
-            boolean hasAgentMenu = aiAgentHandler != null || aiAgentAskHandler != null || aiPlanningHandler != null
-                || (selectedText != null && !selectedText.isBlank());
-            if (hasAgentMenu) {
+            List<AiProfile> aiProfiles = getConfiguredAiProfiles();
+            boolean hasSelectedText = selectedText != null && !selectedText.isBlank();
+            boolean hasAgentActions = aiAgentHandler != null || aiAgentAskHandler != null || aiPlanningHandler != null;
+            if (shouldShowAiContextMenu(aiProfiles, hasSelectedText, hasAgentActions)) {
                 javafx.scene.control.Menu aiMenu = new javafx.scene.control.Menu(I18n.get("terminal.contextMenu.ai"));
                 if (aiAgentHandler != null) {
                     javafx.scene.control.MenuItem agentItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.agent"));
@@ -256,38 +257,15 @@ public class TerminalView extends BorderPane {
                     planningItem.setOnAction(e -> aiPlanningHandler.run());
                     aiMenu.getItems().add(planningItem);
                 }
-                if (!aiMenu.getItems().isEmpty() && selectedText != null && !selectedText.isBlank()) {
+                if (!aiMenu.getItems().isEmpty() && hasSelectedText) {
                     aiMenu.getItems().add(new javafx.scene.control.SeparatorMenuItem());
                 }
-                if (selectedText != null && !selectedText.isBlank()) {
-                List<AiProfile> aiProfiles = getConfiguredAiProfiles();
-                if (aiProfiles.isEmpty()) {
-                    javafx.scene.control.MenuItem summarizeItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.summarize"));
-                    summarizeItem.setOnAction(e -> {
-                        if (aiSelectionHandler != null) {
-                            aiSelectionHandler.handle(AiAction.SUMMARIZE, null, selectedText);
-                        }
-                    });
-                    javafx.scene.control.MenuItem solveItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.solve"));
-                    solveItem.setOnAction(e -> {
-                        if (aiSelectionHandler != null) {
-                            aiSelectionHandler.handle(AiAction.SOLVE_PROBLEM, null, selectedText);
-                        }
-                    });
-                    javafx.scene.control.MenuItem askItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.ask"));
-                    askItem.setOnAction(e -> {
-                        if (aiSelectionHandler != null) {
-                            aiSelectionHandler.handle(AiAction.ASK, null, selectedText);
-                        }
-                    });
-                    aiMenu.getItems().addAll(summarizeItem, solveItem, askItem);
-                } else {
+                if (hasSelectedText) {
                     aiMenu.getItems().addAll(
                         createAiProfileMenu(I18n.get("terminal.contextMenu.ai.summarize"), AiAction.SUMMARIZE, aiProfiles, selectedText),
                         createAiProfileMenu(I18n.get("terminal.contextMenu.ai.solve"), AiAction.SOLVE_PROBLEM, aiProfiles, selectedText),
                         createAiProfileMenu(I18n.get("terminal.contextMenu.ai.ask"), AiAction.ASK, aiProfiles, selectedText)
                     );
-                }
                 }
                 items.add(aiMenu);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
@@ -435,6 +413,13 @@ public class TerminalView extends BorderPane {
             logger.warn("Could not load AI profiles for context menu", e);
             return Collections.emptyList();
         }
+    }
+
+    static boolean shouldShowAiContextMenu(List<AiProfile> profiles, boolean hasSelectedText, boolean hasAgentActions) {
+        if (profiles == null || profiles.isEmpty()) {
+            return false;
+        }
+        return hasSelectedText || hasAgentActions;
     }
 
     private String getAiProfileDisplayName(@Nullable AiProfile profile) {

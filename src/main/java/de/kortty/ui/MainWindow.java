@@ -2406,20 +2406,21 @@ public class MainWindow {
         if (selectedText == null || selectedText.trim().isEmpty()) {
             return;
         }
-        int maxSelectionChars = getMaxAiSelectionChars(profile);
+        AiProfile effectiveProfile = profile != null ? profile : getDefaultAiProfile();
+        int maxSelectionChars = getMaxAiSelectionChars(effectiveProfile);
         if (selectedText.length() > maxSelectionChars) {
             showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
             return;
         }
 
-        AiService aiService = createAiService(profile);
+        AiService aiService = createAiService(effectiveProfile);
         if (aiService == null) {
             showAiConfigurationDialog();
             return;
         }
         String connectionName = terminalTab.getConnection() != null ? terminalTab.getConnection().getDisplayName() : null;
         String languageCode = LanguageManager.getInstance().getCurrentLanguageCode();
-        Optional<AiRequestDraft> confirmedDraft = maybeConfirmAiRequest(action, profile, selectedText, connectionName, languageCode);
+        Optional<AiRequestDraft> confirmedDraft = maybeConfirmAiRequest(action, effectiveProfile, selectedText, connectionName, languageCode);
         if (confirmedDraft.isEmpty()) {
             return;
         }
@@ -2438,7 +2439,7 @@ public class MainWindow {
         AiResultTab resultTab = new AiResultTab(
             this,
             tabTitle,
-            profile,
+            effectiveProfile,
             requestText,
             connectionName,
             languageCode,
@@ -2462,7 +2463,7 @@ public class MainWindow {
         task.setOnSucceeded(e -> {
             AiExecutionResult result = task.getValue();
             resultTab.showResult(result != null ? result.content() : "");
-            recordAiUsage(profile, request, result);
+            recordAiUsage(effectiveProfile, request, result);
             updateStatus(I18n.get("ai.status.finished", getAiActionLabel(action)));
         });
         task.setOnCancelled(e -> {
@@ -3006,10 +3007,12 @@ public class MainWindow {
     }
 
     private List<AiProfile> reorderProfilesForLookup(List<AiProfile> profiles, String requestedProfileName) {
-        if (requestedProfileName == null || requestedProfileName.isBlank() || profiles.isEmpty()) {
+        if (profiles.isEmpty()) {
             return profiles;
         }
-        AiProfile matched = findAiProfileByLookup(requestedProfileName);
+        AiProfile matched = requestedProfileName != null && !requestedProfileName.isBlank()
+            ? findAiProfileByLookup(requestedProfileName)
+            : getDefaultAiProfile();
         if (matched == null) {
             return profiles;
         }
@@ -3285,6 +3288,20 @@ public class MainWindow {
             .toList();
     }
 
+    String getDefaultAiProfileId() {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return settings != null ? settings.getDefaultAiProfileId() : null;
+    }
+
+    AiProfile getDefaultAiProfile() {
+        AiProfile configuredDefault = findAiProfileById(getDefaultAiProfileId());
+        if (configuredDefault != null) {
+            return configuredDefault;
+        }
+        List<AiProfile> availableProfiles = getAvailableAiProfiles();
+        return availableProfiles.isEmpty() ? null : availableProfiles.getFirst();
+    }
+
     AiProfile findAiProfileById(String profileId) {
         if (profileId == null || profileId.isBlank()) {
             return null;
@@ -3368,7 +3385,7 @@ public class MainWindow {
                 }
             }
         } else if (activeProfile == null && !availableProfiles.isEmpty()) {
-            activeProfile = availableProfiles.getFirst();
+            activeProfile = getDefaultAiProfile();
             workingCopy.setActiveAiProfileId(activeProfile.getId());
             workingCopy.setActiveAiProfileName(getAiProfileDisplayName(activeProfile));
             try {
@@ -3469,7 +3486,16 @@ public class MainWindow {
                 setText(empty || item == null ? "" : getAiProfileDisplayName(item));
             }
         });
-        profileBox.getSelectionModel().selectFirst();
+        AiProfile defaultProfile = getDefaultAiProfile();
+        if (defaultProfile != null) {
+            profileBox.getSelectionModel().select(
+                availableProfiles.stream()
+                    .filter(profile -> defaultProfile.getId() != null && defaultProfile.getId().equals(profile.getId()))
+                    .findFirst()
+                    .orElse(availableProfiles.getFirst()));
+        } else {
+            profileBox.getSelectionModel().selectFirst();
+        }
 
         VBox content = new VBox(10, new Label(I18n.get("ai.profile.missing.content")), profileBox);
         content.setPadding(new Insets(8, 0, 0, 0));

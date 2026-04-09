@@ -110,6 +110,10 @@ public class GlobalSettings {
     @XmlElement(name = "profile")
     private java.util.List<AiProfile> aiProfiles = new java.util.ArrayList<>();
 
+    /** Preferred AI profile used when no explicit profile is selected by the user. */
+    @XmlElement
+    private String defaultAiProfileId;
+
     /** Font size used in temporary AI result tabs. */
     @XmlElement
     private Integer aiResultFontSize = 13;
@@ -496,6 +500,17 @@ public class GlobalSettings {
         normalizeAiProfiles();
     }
 
+    public String getDefaultAiProfileId() {
+        return defaultAiProfileId;
+    }
+
+    public void setDefaultAiProfileId(String defaultAiProfileId) {
+        this.defaultAiProfileId = defaultAiProfileId != null && !defaultAiProfileId.isBlank()
+            ? defaultAiProfileId.trim()
+            : null;
+        normalizeAiProfiles();
+    }
+
     public Integer getAiResultFontSize() {
         return aiResultFontSize;
     }
@@ -592,12 +607,18 @@ public class GlobalSettings {
 
     private void normalizeAiProfiles() {
         if (aiProfiles == null) {
+            defaultAiProfileId = null;
             return;
         }
         for (AiProfile profile : aiProfiles) {
             if (profile != null && (profile.getMaxSelectionChars() == null || profile.getMaxSelectionChars() <= 0)) {
                 profile.setMaxSelectionChars(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
             }
+        }
+        if (defaultAiProfileId != null && aiProfiles.stream()
+            .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())
+            .noneMatch(profile -> defaultAiProfileId.equals(profile.getId()))) {
+            defaultAiProfileId = null;
         }
     }
 

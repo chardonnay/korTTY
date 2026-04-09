@@ -412,6 +412,15 @@ public class AiResultTab extends Tab {
                 .findFirst()
                 .orElse(null);
         }
+        if (selection == null) {
+            String defaultProfileId = ownerWindow.getDefaultAiProfileId();
+            if (defaultProfileId != null) {
+                selection = profiles.stream()
+                    .filter(profile -> defaultProfileId.equals(profile.getId()))
+                    .findFirst()
+                    .orElse(null);
+            }
+        }
         if (selection == null && !profiles.isEmpty()) {
             selection = profiles.get(0);
         }
