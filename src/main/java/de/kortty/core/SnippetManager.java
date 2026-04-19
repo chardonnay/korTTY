@@ -195,6 +195,10 @@ public class SnippetManager {
         if (snippet.getContent() != null && snippet.getContent().toLowerCase().contains(lowerQuery)) {
             return true;
         }
+        // Search in description
+        if (snippet.getDescription() != null && snippet.getDescription().toLowerCase().contains(lowerQuery)) {
+            return true;
+        }
         // Search in category
         if (snippet.getCategory() != null && snippet.getCategory().toLowerCase().contains(lowerQuery)) {
             return true;
@@ -311,6 +315,7 @@ public class SnippetManager {
             json.append("      \"content\": ").append(escapeJson(s.getContent())).append(",\n");
             json.append("      \"language\": ").append(escapeJson(s.getLanguage())).append(",\n");
             json.append("      \"category\": ").append(escapeJson(s.getCategory())).append(",\n");
+            json.append("      \"description\": ").append(escapeJson(s.getDescription())).append(",\n");
             json.append("      \"tags\": [");
             List<String> tags = s.getTags();
             for (int j = 0; j < tags.size(); j++) {
@@ -361,6 +366,7 @@ public class SnippetManager {
             snippet.setContent(extractJsonString(obj, "content"));
             snippet.setLanguage(extractJsonString(obj, "language"));
             snippet.setCategory(extractJsonString(obj, "category"));
+            snippet.setDescription(extractJsonString(obj, "description"));
             
             // Parse tags array
             List<String> tags = extractJsonStringArray(obj, "tags");
@@ -397,6 +403,9 @@ public class SnippetManager {
             xml.append("    <language>").append(escapeXml(s.getLanguage())).append("</language>\n");
             if (s.getCategory() != null) {
                 xml.append("    <category>").append(escapeXml(s.getCategory())).append("</category>\n");
+            }
+            if (s.getDescription() != null && !s.getDescription().isEmpty()) {
+                xml.append("    <description>").append(escapeXml(s.getDescription())).append("</description>\n");
             }
             if (s.getTags() != null && !s.getTags().isEmpty()) {
                 xml.append("    <tags>\n");
@@ -436,6 +445,7 @@ public class SnippetManager {
             snippet.setContent(unescapeXml(extractXmlValue(block, "content")));
             snippet.setLanguage(extractXmlValue(block, "language"));
             snippet.setCategory(extractXmlValue(block, "category"));
+            snippet.setDescription(unescapeXml(extractXmlValue(block, "description")));
             
             // Parse tags
             List<String> tags = new ArrayList<>();
@@ -481,6 +491,9 @@ public class SnippetManager {
             yaml.append("    language: ").append(escapeYaml(s.getLanguage())).append("\n");
             if (s.getCategory() != null && !s.getCategory().isEmpty()) {
                 yaml.append("    category: ").append(escapeYaml(s.getCategory())).append("\n");
+            }
+            if (s.getDescription() != null && !s.getDescription().isEmpty()) {
+                yaml.append("    description: ").append(escapeYaml(s.getDescription())).append("\n");
             }
             if (s.getTags() != null && !s.getTags().isEmpty()) {
                 yaml.append("    tags:\n");
@@ -568,6 +581,8 @@ public class SnippetManager {
                 current.setLanguage(unescapeYaml(extractYamlValue(line)));
             } else if (trimmed.startsWith("category:")) {
                 current.setCategory(unescapeYaml(extractYamlValue(line)));
+            } else if (trimmed.startsWith("description:")) {
+                current.setDescription(unescapeYaml(extractYamlValue(line)));
             } else if (trimmed.equals("tags:")) {
                 inTags = true;
                 current.setTags(new ArrayList<>());

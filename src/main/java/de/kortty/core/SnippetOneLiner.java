@@ -359,8 +359,13 @@ public final class SnippetOneLiner {
                     char d = line.charAt(i);
                     out.append(d);
                     if (d == '\\' && i + 1 < n) {
-                        out.append(line.charAt(i + 1));
-                        i += 2;
+                        char next = line.charAt(i + 1);
+                        if (next == '\\' || next == '\'') {
+                            out.append(next);
+                            i += 2;
+                            continue;
+                        }
+                        i++;
                         continue;
                     }
                     if (d == '\'') {

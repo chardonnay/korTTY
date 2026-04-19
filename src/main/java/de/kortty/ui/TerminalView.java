@@ -2222,6 +2222,9 @@ public class TerminalView extends BorderPane {
      * accepts the buffer as a complete line and executes it (same effect as pressing Enter).
      */
     public void sendInputLine(String text) {
+        if (text == null) {
+            return;
+        }
         sendInput(text + "\n");
     }
     

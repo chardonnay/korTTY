@@ -51,6 +51,9 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setTerminalAgentShowRuntimeMessages(true);
             manager.getSettings().setTerminalAgentCommandName("susi");
             manager.getSettings().setTerminalAgentExecutionTarget(TerminalAgentExecutionTarget.CHAT_WINDOW);
+            manager.getSettings().setAiCodeTextDefaultLanguage("de");
+            manager.getSettings().setAiSnippetEditorAdditionalInstructionsEnabled(true);
+            manager.getSettings().setAiSnippetAlternativeSolutionCount(5);
             manager.getSettings().addAiPromptHistoryEntry("first prompt");
             manager.getSettings().addAiPromptHistoryEntry("second prompt");
             manager.save();
@@ -85,6 +88,9 @@ class GlobalSettingsManagerTest {
             assertTrue(reloaded.getSettings().isTerminalAgentShowRuntimeMessages());
             assertEquals("susi", reloaded.getSettings().getTerminalAgentCommandName());
             assertEquals(TerminalAgentExecutionTarget.CHAT_WINDOW, reloaded.getSettings().getTerminalAgentExecutionTarget());
+            assertEquals("de", reloaded.getSettings().getAiCodeTextDefaultLanguage());
+            assertTrue(reloaded.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled());
+            assertEquals(5, reloaded.getSettings().getAiSnippetAlternativeSolutionCount());
             assertEquals(2, reloaded.getSettings().getAiPromptHistory().size());
             assertEquals("second prompt", reloaded.getSettings().getAiPromptHistory().get(0));
             assertEquals("first prompt", reloaded.getSettings().getAiPromptHistory().get(1));
@@ -195,6 +201,27 @@ class GlobalSettingsManagerTest {
             reloaded.load();
 
             assertFalse(reloaded.getSettings().isShowMenuBar());
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void snippetAiSettingsDefaultAndClampToExpectedRange() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-snippet-ai");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertFalse(manager.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled());
+            assertEquals(3, manager.getSettings().getAiSnippetAlternativeSolutionCount());
+
+            manager.getSettings().setAiSnippetAlternativeSolutionCount(99);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertEquals(10, reloaded.getSettings().getAiSnippetAlternativeSolutionCount());
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

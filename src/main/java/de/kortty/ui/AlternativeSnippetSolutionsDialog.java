@@ -1,0 +1,308 @@
+package de.kortty.ui;
+
+import de.kortty.KorTTYApplication;
+import de.kortty.core.SnippetAiResponseSupport;
+import de.kortty.model.WindowGeometry;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
+import javafx.concurrent.Task;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import org.fxmisc.flowless.VirtualizedScrollPane;
+import org.fxmisc.richtext.InlineCssTextArea;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Dialog that shows AI-generated alternative implementations for a selected code region.
+ */
+public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetAiResponseSupport.AlternativeSolution> {
+
+    @FunctionalInterface
+    public interface AlternativeSolutionLoader {
+        List<SnippetAiResponseSupport.AlternativeSolution> load(String additionalInstructions) throws Exception;
+    }
+
+    private final String snippetLanguage;
+    private final AlternativeSolutionLoader loader;
+    private final TextArea instructionsArea;
+    private final Button reloadButton;
+    private final ProgressIndicator progressIndicator;
+    private final Label statusLabel;
+    private final VBox solutionsBox;
+    private final ScrollPane solutionsScrollPane;
+    private final VBox root;
+    private final List<SolutionCard> solutionCards = new ArrayList<>();
+    private Task<List<SnippetAiResponseSupport.AlternativeSolution>> loadTask;
+    private SolutionCard zoomedCard;
+
+    private record SolutionCard(
+        VBox container,
+        Label summaryLabel,
+        VirtualizedScrollPane<InlineCssTextArea> previewScrollPane,
+        Button zoomButton) {
+    }
+
+    public AlternativeSnippetSolutionsDialog(
+        Window owner,
+        String snippetLanguage,
+        AlternativeSolutionLoader loader) {
+
+        this.snippetLanguage = snippetLanguage;
+        this.loader = loader;
+
+        setTitle(I18n.get("snippets.ai.alternatives.title"));
+        setResizable(true);
+        if (owner != null) {
+            initOwner(owner);
+        }
+
+        instructionsArea = new TextArea();
+        instructionsArea.setPromptText(I18n.get("snippets.ai.alternatives.instructions.prompt"));
+        instructionsArea.setWrapText(true);
+        instructionsArea.setPrefRowCount(3);
+        instructionsArea.setMinHeight(Region.USE_PREF_SIZE);
+
+        reloadButton = new Button("\u21bb");
+        reloadButton.setTooltip(new javafx.scene.control.Tooltip(I18n.get("snippets.ai.alternatives.reload")));
+        reloadButton.setOnAction(event -> loadSolutions());
+
+        progressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
+        progressIndicator.setPrefSize(16, 16);
+        progressIndicator.setMinSize(16, 16);
+        progressIndicator.setMaxSize(16, 16);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+
+        statusLabel = new Label();
+        statusLabel.setWrapText(true);
+        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+
+        HBox topBar = new HBox(10, instructionsArea, reloadButton, progressIndicator);
+        topBar.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(instructionsArea, Priority.ALWAYS);
+
+        solutionsBox = new VBox(12);
+        solutionsBox.setFillWidth(true);
+        solutionsScrollPane = new ScrollPane(solutionsBox);
+        solutionsScrollPane.setFitToWidth(true);
+        solutionsScrollPane.setFitToHeight(true);
+        VBox.setVgrow(solutionsScrollPane, Priority.ALWAYS);
+
+        root = new VBox(10, topBar, statusLabel, solutionsScrollPane);
+        root.setPadding(new Insets(14));
+        VBox.setVgrow(solutionsScrollPane, Priority.ALWAYS);
+
+        getDialogPane().setContent(root);
+        getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        getDialogPane().setPrefWidth(920);
+        getDialogPane().setPrefHeight(760);
+        restoreGeometry();
+        setOnShown(event -> loadSolutions());
+        setOnCloseRequest(event -> saveGeometry());
+        setOnHidden(event -> {
+            cancelLoadTask();
+            saveGeometry();
+        });
+    }
+
+    private void loadSolutions() {
+        if (loader == null) {
+            return;
+        }
+        cancelLoadTask();
+        loadTask = new Task<>() {
+            @Override
+            protected List<SnippetAiResponseSupport.AlternativeSolution> call() throws Exception {
+                return loader.load(instructionsArea.getText());
+            }
+        };
+        loadTask.setOnRunning(event -> {
+            solutionsBox.getChildren().clear();
+            setBusy(true);
+            statusLabel.setText(I18n.get("snippets.ai.alternatives.loading"));
+        });
+        loadTask.setOnSucceeded(event -> {
+            setBusy(false);
+            List<SnippetAiResponseSupport.AlternativeSolution> solutions = loadTask.getValue();
+            solutionCards.clear();
+            zoomedCard = null;
+            if (solutions == null || solutions.isEmpty()) {
+                statusLabel.setText(I18n.get("snippets.ai.alternatives.empty"));
+                return;
+            }
+            List<VBox> cards = new ArrayList<>();
+            for (SnippetAiResponseSupport.AlternativeSolution solution : solutions) {
+                SolutionCard card = createSolutionCard(solution);
+                solutionCards.add(card);
+                cards.add(card.container());
+            }
+            solutionsBox.getChildren().setAll(cards);
+            updateZoomState();
+            statusLabel.setText(I18n.get("snippets.ai.alternatives.loaded", solutions.size()));
+        });
+        loadTask.setOnFailed(event -> {
+            setBusy(false);
+            statusLabel.setText(I18n.get("snippets.ai.alternatives.failed"));
+        });
+        Thread thread = new Thread(loadTask, "snippet-alternative-solutions");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private SolutionCard createSolutionCard(SnippetAiResponseSupport.AlternativeSolution solution) {
+        Label titleLabel = new Label(solution.title());
+        titleLabel.setStyle("-fx-font-weight: bold;");
+
+        Label summaryLabel = new Label(solution.summary());
+        summaryLabel.setWrapText(true);
+        summaryLabel.setVisible(solution.summary() != null && !solution.summary().isBlank());
+        summaryLabel.setManaged(summaryLabel.isVisible());
+
+        InlineCssTextArea previewArea = new InlineCssTextArea();
+        previewArea.setEditable(false);
+        previewArea.setWrapText(false);
+        previewArea.setPrefHeight(180);
+        EditorSettingsHelper.Settings settings = EditorSettingsHelper.loadSnippetSettings();
+        EditorSettingsHelper.applyStyle(previewArea, settings);
+        previewArea.replaceText(solution.code());
+        previewArea.setStyleSpans(0, SnippetEditDialog.computeHighlighting(
+            solution.code(),
+            snippetLanguage,
+            EditorSettingsHelper.getPlainTextStyle(settings)));
+        VirtualizedScrollPane<InlineCssTextArea> previewScrollPane = EditorSettingsHelper.createScrollPane(previewArea);
+        previewScrollPane.setMaxWidth(Double.MAX_VALUE);
+        VBox.setVgrow(previewScrollPane, Priority.ALWAYS);
+
+        Button applyButton = new Button(I18n.get("snippets.ai.alternatives.apply"));
+        applyButton.setOnAction(event -> {
+            setResult(solution);
+            close();
+        });
+
+        Button zoomButton = new Button("\u2922");
+        zoomButton.setTooltip(new javafx.scene.control.Tooltip(I18n.get("snippets.ai.alternatives.zoom")));
+
+        HBox buttonBar = new HBox(8, applyButton, zoomButton);
+        buttonBar.setAlignment(Pos.CENTER_LEFT);
+
+        VBox card = new VBox(8, titleLabel, summaryLabel, previewScrollPane, buttonBar);
+        card.setPadding(new Insets(10));
+        card.setFillWidth(true);
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setStyle("-fx-border-color: rgba(128,128,128,0.35); -fx-border-radius: 6; -fx-background-radius: 6;");
+        previewScrollPane.prefWidthProperty().bind(Bindings.max(520.0, solutionsScrollPane.widthProperty().subtract(48)));
+
+        SolutionCard solutionCard = new SolutionCard(card, summaryLabel, previewScrollPane, zoomButton);
+        DoubleBinding normalHeightBinding = Bindings.createDoubleBinding(
+            () -> Math.max(180.0, root.getHeight() * 0.24),
+            root.heightProperty());
+        DoubleBinding zoomHeightBinding = Bindings.createDoubleBinding(
+            () -> Math.max(320.0, root.getHeight() - 180.0),
+            root.heightProperty());
+        bindPreviewHeight(solutionCard, normalHeightBinding, zoomHeightBinding);
+        zoomButton.setOnAction(event -> toggleZoom(solutionCard, normalHeightBinding, zoomHeightBinding));
+        return solutionCard;
+    }
+
+    private void bindPreviewHeight(
+        SolutionCard card,
+        DoubleBinding normalHeightBinding,
+        DoubleBinding zoomHeightBinding) {
+
+        card.previewScrollPane().prefHeightProperty().unbind();
+        if (zoomedCard == card) {
+            card.previewScrollPane().prefHeightProperty().bind(zoomHeightBinding);
+        } else {
+            card.previewScrollPane().prefHeightProperty().bind(normalHeightBinding);
+        }
+    }
+
+    private void toggleZoom(
+        SolutionCard card,
+        DoubleBinding normalHeightBinding,
+        DoubleBinding zoomHeightBinding) {
+
+        zoomedCard = zoomedCard == card ? null : card;
+        for (SolutionCard currentCard : solutionCards) {
+            bindPreviewHeight(currentCard, normalHeightBinding, zoomHeightBinding);
+        }
+        updateZoomState();
+    }
+
+    private void updateZoomState() {
+        for (SolutionCard card : solutionCards) {
+            boolean visible = zoomedCard == null || zoomedCard == card;
+            boolean zoomed = zoomedCard == card;
+            card.container().setManaged(visible);
+            card.container().setVisible(visible);
+            card.summaryLabel().setManaged(visible && card.summaryLabel().isVisible());
+            card.zoomButton().setText(zoomed ? "\u2921" : "\u2922");
+            card.zoomButton().setTooltip(new javafx.scene.control.Tooltip(I18n.get(
+                zoomed ? "snippets.ai.alternatives.zoom.restore" : "snippets.ai.alternatives.zoom")));
+        }
+    }
+
+    private void restoreGeometry() {
+        try {
+            var settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            WindowGeometry geometry = settings != null ? settings.getAlternativeSnippetSolutionsDialogGeometry() : null;
+            if (geometry != null && geometry.getWidth() > 100 && geometry.getHeight() > 100) {
+                getDialogPane().setPrefWidth(geometry.getWidth());
+                getDialogPane().setPrefHeight(geometry.getHeight());
+                setOnShowing(event -> {
+                    Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+                    if (window instanceof Stage stage) {
+                        stage.setX(geometry.getX());
+                        stage.setY(geometry.getY());
+                        stage.setWidth(geometry.getWidth());
+                        stage.setHeight(geometry.getHeight());
+                    }
+                });
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void saveGeometry() {
+        try {
+            Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+            if (window instanceof Stage stage) {
+                WindowGeometry geometry = new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+                var settingsManager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+                if (settingsManager != null && settingsManager.getSettings() != null) {
+                    settingsManager.getSettings().setAlternativeSnippetSolutionsDialogGeometry(geometry);
+                    settingsManager.save();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void setBusy(boolean busy) {
+        reloadButton.setDisable(busy);
+        progressIndicator.setManaged(busy);
+        progressIndicator.setVisible(busy);
+    }
+
+    private void cancelLoadTask() {
+        if (loadTask != null) {
+            loadTask.cancel(true);
+            loadTask = null;
+        }
+        setBusy(false);
+    }
+}

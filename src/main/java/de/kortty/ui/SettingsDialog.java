@@ -9,6 +9,7 @@ import de.kortty.core.GPGKeyManager;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
+import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiService;
 import de.kortty.core.GoogleTranslationService;
 import de.kortty.core.DeepLTranslationService;
@@ -169,6 +170,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Map<String, String> aiPlainApiKeysByProfileId = new HashMap<>();
     private final Set<String> aiClearedApiKeysByProfileId = new HashSet<>();
     private final ComboBox<AiProfile> aiDefaultProfileCombo;
+    private final ComboBox<AiLanguageSupport.LanguageOption> aiCodeTextLanguageCombo;
+    private final CheckBox aiSnippetEditorInstructionsCheck;
+    private final Spinner<Integer> aiSnippetAlternativeSolutionCountSpinner;
     private AiProfile selectedAiProfile;
     
     // SFTP settings
@@ -1042,6 +1046,48 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiDefaultProfileCombo);
         aiRoot.getChildren().add(aiDefaultProfileBox);
 
+        aiCodeTextLanguageCombo = new ComboBox<>();
+        aiCodeTextLanguageCombo.getItems().setAll(
+            AiLanguageSupport.buildAvailableLanguageOptions(globalSettings != null ? globalSettings.getAiCodeTextDefaultLanguage() : null));
+        aiCodeTextLanguageCombo.setPrefWidth(260);
+        aiCodeTextLanguageCombo.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiLanguageSupport.LanguageOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.label());
+            }
+        });
+        aiCodeTextLanguageCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(AiLanguageSupport.LanguageOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.label());
+            }
+        });
+        AiLanguageSupport.LanguageOption selectedCodeTextLanguage = AiLanguageSupport.findOption(
+            aiCodeTextLanguageCombo.getItems(),
+            globalSettings != null ? globalSettings.getAiCodeTextDefaultLanguage() : null);
+        if (selectedCodeTextLanguage != null && !aiCodeTextLanguageCombo.getItems().contains(selectedCodeTextLanguage)) {
+            aiCodeTextLanguageCombo.getItems().add(selectedCodeTextLanguage);
+        }
+        aiCodeTextLanguageCombo.getSelectionModel().select(selectedCodeTextLanguage);
+        HBox aiCodeTextLanguageBox = new HBox(10,
+            new Label(I18n.get("settings.ai.codeTextLanguage")),
+            aiCodeTextLanguageCombo);
+        aiRoot.getChildren().add(aiCodeTextLanguageBox);
+
+        aiSnippetEditorInstructionsCheck = new CheckBox(I18n.get("settings.ai.snippetInstructionsEnabled"));
+        aiSnippetEditorInstructionsCheck.setSelected(globalSettings != null && globalSettings.isAiSnippetEditorAdditionalInstructionsEnabled());
+        aiRoot.getChildren().add(aiSnippetEditorInstructionsCheck);
+
+        aiSnippetAlternativeSolutionCountSpinner = new Spinner<>(1, 10,
+            globalSettings != null ? globalSettings.getAiSnippetAlternativeSolutionCount() : 3);
+        aiSnippetAlternativeSolutionCountSpinner.setEditable(true);
+        HBox aiSnippetAlternativeCountBox = new HBox(10,
+            new Label(I18n.get("settings.ai.alternativeSolutionCount")),
+            aiSnippetAlternativeSolutionCountSpinner);
+        aiRoot.getChildren().add(aiSnippetAlternativeCountBox);
+
         aiProfileListView = new ListView<>();
         aiProfileListView.getItems().addAll(aiProfiles);
         aiProfileListView.setPrefWidth(220);
@@ -1622,16 +1668,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 }
             }
 
-            String commandNameValidationMessage = TerminalAgentCommandSupport.validateCommandName(aiAgentCommandNameField.getText());
-            if (commandNameValidationMessage != null) {
-                Alert alert = new Alert(Alert.AlertType.WARNING, commandNameValidationMessage);
-                alert.setHeaderText(null);
-                alert.showAndWait();
-                return false;
-            }
+            if (!shouldSkipAiValidationOnSave()) {
+                String commandNameValidationMessage = TerminalAgentCommandSupport.validateCommandName(aiAgentCommandNameField.getText());
+                if (commandNameValidationMessage != null) {
+                    Alert alert = new Alert(Alert.AlertType.WARNING, commandNameValidationMessage);
+                    alert.setHeaderText(null);
+                    alert.showAndWait();
+                    return false;
+                }
 
-            if (!saveAiProfilesToSettings()) {
-                return false;
+                if (!saveAiProfilesToSettings()) {
+                    return false;
+                }
+            } else {
+                globalSettings.setAiFeaturesEnabled(aiFeaturesEnabledCheck != null && aiFeaturesEnabledCheck.isSelected());
             }
             
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
@@ -2496,7 +2546,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         globalSettings.setTerminalAgentShowRuntimeMessages(aiShowRuntimeMessagesCheck.isSelected());
         globalSettings.setTerminalAgentCommandName(TerminalAgentCommandSupport.normalizeCommandName(aiAgentCommandNameField.getText()));
         globalSettings.setTerminalAgentExecutionTarget(aiExecutionTargetCombo.getValue());
+        AiLanguageSupport.LanguageOption selectedLanguage = aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem();
+        globalSettings.setAiCodeTextDefaultLanguage(selectedLanguage != null ? selectedLanguage.code() : null);
+        globalSettings.setAiSnippetEditorAdditionalInstructionsEnabled(aiSnippetEditorInstructionsCheck.isSelected());
+        globalSettings.setAiSnippetAlternativeSolutionCount(aiSnippetAlternativeSolutionCountSpinner.getValue());
         return true;
+    }
+
+    private boolean shouldSkipAiValidationOnSave() {
+        if (aiFeaturesEnabledCheck != null) {
+            return !aiFeaturesEnabledCheck.isSelected();
+        }
+        return globalSettings == null || !globalSettings.isAiFeaturesEnabled();
     }
 
     private void refreshDefaultAiProfileSelection(String preferredProfileId) {

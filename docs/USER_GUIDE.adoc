@@ -15,12 +15,12 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *Encrypted credential storage* using AES-256-GCM with a master password
 * *Project workspaces* that save and restore your complete session
 * *SFTP file manager* with a dual-panel view
-* *Code snippet manager* with syntax highlighting, placeholder variables, and import/export
+* *Code snippet manager* with syntax highlighting, line numbers, one-liner export, placeholder variables, and import/export
 * *ASCII Art Banner* generator with 11+ FIGlet font styles
 * *SSH tunnels* (local, remote, dynamic) and jump server support
 * *Backup and restore* with password-protected ZIP or GPG encryption
 * *8 built-in languages* plus *dynamic translation*: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
-* *AI assistant for terminal selections* with profile-based OpenAI-compatible endpoints, follow-up prompts, and token quota tracking
+* *AI assistant for terminal selections* with profile-based OpenAI-compatible endpoints, follow-up prompts, AI Agent / Planning workflows, and token quota tracking
 * *JMX monitoring* for active connections and memory usage
 
 === System Requirements
@@ -289,12 +289,15 @@ Selected terminal text is transmitted to the configured AI endpoint for analysis
 
 1. Open *Edit > Global Settings*.
 2. Go to *AI*.
-3. Create one or more AI profiles and enter the *API URL* for each profile you want to use.
+3. Create one or more AI profiles and enter the *API URL* for each profile you want to use. You can manage profiles in *Settings > AI* or in *Tools > AI Manager > Profiles*.
 4. Optionally enter *Model* and *API Key*. These fields are intentionally optional so local OpenAI-compatible endpoints such as *LM Studio* can be used.
    The *API Key* is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.
 5. Optionally configure *Max characters*, *Tokenizer*, *Token limit*, warning thresholds, and the token reset cycle per profile.
 6. Click *Test AI Connection*.
-7. Optionally disable the confirmation dialog for *Summarize* and *Solve Problem* if you want a faster workflow. *Ask* always opens the prompt dialog.
+7. Optionally choose a *Default profile* for terminal AI actions and follow-up chats that do not explicitly select another profile.
+8. Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.
+9. Optionally configure the agent command name, execution target, prompt-hook usage, and debug/runtime visibility for *AI Agent* and *AI Planning*.
+10. Optionally disable the confirmation dialog for *Summarize* and *Solve Problem* if you want a faster workflow. *Ask* always opens the prompt dialog.
 
 *Usage:*
 
@@ -313,12 +316,47 @@ Selected terminal text is transmitted to the configured AI endpoint for analysis
 
 * The conversation transcript is read-only and not included in saved project/session state.
 * `<think> ... </think>` blocks are removed from the visible output.
-* The toolbar lets you copy the conversation, save or rename the chat, share/export it to PDF/Markdown/plain text, close the tab, cancel running requests, and change the font size.
-* Detected code blocks get their own copy button.
+* The toolbar lets you copy the conversation, save or rename the chat, share/export it to PDF/Markdown/plain text, retry the last request, close the tab, cancel running requests, and change the font size.
+* The response language defaults to the current GUI language. You can change the response language and the active AI profile per chat before sending a follow-up prompt.
+* Follow-up prompts in *Summarize* and *Solve Problem* continue as normal chat questions; they are not forced back into the original summarizing/problem-analysis prompt.
+* Detected code blocks get their own copy button and can also be saved directly into the Snippet Manager.
 * Rendered markdown tables can be copied as a whole table, a single column, or a single cell.
 * The chosen AI tab font size is stored globally and reused for future AI result tabs.
 * Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate.
 * If a saved chat references an AI profile that no longer exists, KorTTY asks you to choose a replacement profile before you continue with follow-up prompts.
+
+==== AI Manager
+
+Open *Tools > AI Manager* or press *Ctrl/Cmd+Shift+Y*.
+
+The AI Manager has two working areas:
+
+* *Profiles* - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile.
+* *Saved Chats* - Open, rename, refresh, or delete previously saved AI conversations.
+
+Use *Settings > AI* for the global defaults and behavior switches, and *AI Manager* for day-to-day profile/chat management.
+
+==== AI Agent and AI Planning
+
+KorTTY also supports agent-style workflows for an active terminal session.
+
+* *AI Agent* - Start from *Tools > AI Agent...* or from the terminal right-click menu. The agent can open in a dedicated chat tab or target the active terminal window, depending on *Settings > AI*.
+* *AI Planning* - Start from *Tools > AI Planning...* or from the terminal right-click menu. Planning mode asks clarifying questions, proposes one or more options, and lets you start the accepted plan.
+* *Approvals* - The agent can request explicit approval before risky commands and can prompt for sudo passwords when needed.
+* *Transcripts* - Agent and planning tabs can copy and save their transcript.
+
+==== Terminal agent shortcut commands
+
+When *Settings > AI > Use OSC 133 prompt markers* is enabled and the terminal is at a shell prompt, KorTTY intercepts these commands locally instead of sending them to the server:
+
+[source,text]
+----
+agent <goal>
+agent-ask <question>
+agent-plan <task>
+----
+
+The base command name is configurable in *Settings > AI*. If you rename `agent`, KorTTY derives the matching `-ask` and `-plan` commands automatically.
 
 === 4.7 Terminal Logging
 
@@ -490,8 +528,45 @@ The Snippet Manager lets you store, organize, and quickly insert reusable code s
 * *Language* - Select the programming language (Bash, Python, Java, JavaScript, SQL, XML, JSON, YAML, and more). This enables syntax highlighting.
 * *Category* - Select an existing category or type a new one.
 * *Tags* - Comma-separated keywords for searching (e.g., `docker, deploy, backup`).
+* *Description* - Optional free-text description of the snippet.
 * *Content* - The snippet code. The editor provides live syntax highlighting based on the selected language.
 3. Click *Save*.
+
+The snippet editor toolbar also provides *Format Code*, *Check Syntax*, *AI Text*, *One-liner*, *Word Wrap*, and *Line numbers*.
+
+==== AI-assisted editor functions
+
+If AI is configured, the snippet editor offers these additional actions:
+
+* *AI suggestion* - Generates a file name, description, and matching language from the current code content.
+* *Correct spelling* on the description field - Sends only the description text to the AI and replaces it with the corrected result.
+* *AI Text* menu - Runs *Correct spelling in selection*, *Translate selection...*, or *Technical description* for the current editor content.
+* *Optional additional instructions* - If enabled in *Settings > AI*, the editor shows a shared instructions field that is sent with spelling correction, translation, and technical description requests.
+* *Last AI change toggle* - The `↺` button switches between the original code and the last AI-generated editor change.
+
+For selection-based text correction and translation, KorTTY only rewrites editable comment text, string literals, and other user-facing text segments. It does not intentionally rewrite the logical code structure.
+
+*Technical description* works in two modes:
+
+* If text is selected, the AI describes only the selected code region.
+* If nothing is selected, the AI describes the whole snippet.
+
+The description dialog lets you:
+
+* copy the generated description,
+* format it with the comment syntax of the current snippet language,
+* insert it back into the snippet above the selected code or at the top of the snippet.
+
+The editor context menu exposes the same AI text actions and also adds *Alternative solution* for a selected code region.
+
+*Alternative solution* opens a dedicated dialog that:
+
+* requests up to the configured number of alternative implementations,
+* keeps a 3-line field for additional instructions,
+* can reload and regenerate new alternatives,
+* supports zooming an individual preview to the full dialog area,
+* remembers the dialog size you last used,
+* replaces exactly the originally selected code when you click *Apply*.
 
 === 8.3 Placeholder Variables
 
@@ -566,7 +641,7 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, confirmations, saved-chat compatibility, and token quotas), and *Themes* (color profiles with live preview).
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, default profile, agent/planning runtime options, snippet-AI behavior switches, saved-chat compatibility, and token quotas), and *Themes* (color profiles with live preview).
 
 == 16. Keyboard Shortcuts
 
@@ -604,7 +679,7 @@ On macOS, "Ctrl" refers to the *Cmd* key; "Alt" refers to the *Option* key.
 
 All KorTTY data is stored under `~/.kortty/`:
 
-* `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `gpg-keys.xml`, `global-settings.xml`, `snippets.xml`, `snippet-variables.xml`, `master-password-hash`, `kortty.log`
+* `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `gpg-keys.xml`, `global-settings.xml`, `ai-chats.xml`, `snippets.xml`, `snippet-variables.xml`, `master-password-hash`, `kortty.log`
 * `history/` (terminal history), `projects/` (.kortty files), `i18n/` (generated language files), `ssh-keys/` (optional copied keys)
 
 == 18. Troubleshooting

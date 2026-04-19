@@ -27,6 +27,9 @@ public class Snippet {
     
     @XmlElement
     private String category;
+
+    @XmlElement
+    private String description;
     
     @XmlElementWrapper(name = "tags")
     @XmlElement(name = "tag")
@@ -70,6 +73,9 @@ public class Snippet {
     
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
     
     public List<String> getTags() { return tags; }
     public void setTags(List<String> tags) { this.tags = tags != null ? tags : new ArrayList<>(); }

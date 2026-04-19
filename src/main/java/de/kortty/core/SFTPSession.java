@@ -3,7 +3,9 @@ package de.kortty.core;
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
 import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.auth.UserAuthFactory;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
+import org.apache.sshd.client.auth.password.UserAuthPasswordFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.sftp.client.SftpClient;
@@ -57,12 +59,7 @@ public class SFTPSession {
                 connection.getUsername(), connection.getHost(), connection.getPort());
         
         client = SshClient.setUpDefaultClient();
-        
-        // Enable public key AND keyboard-interactive (CyberArk requires access reason after key auth)
-        client.setUserAuthFactories(java.util.Arrays.asList(
-            new UserAuthPublicKeyFactory(),
-            new UserAuthKeyboardInteractiveFactory()
-        ));
+        client.setUserAuthFactories(buildUserAuthFactories(connection));
         
         // Set up keyboard-interactive handler - use last access reason from TAB connection
         client.setUserInteraction(new org.apache.sshd.client.auth.keyboard.UserInteraction() {
@@ -174,6 +171,24 @@ public class SFTPSession {
         }
         
         logger.info("SFTP connected to {}", connection.getDisplayName());
+    }
+
+    static List<UserAuthFactory> buildUserAuthFactories(ServerConnection connection) {
+        if (connection != null && connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+            // CyberArk requires keyboard-interactive after public-key auth for access-reason prompts.
+            return java.util.List.of(
+                new UserAuthPublicKeyFactory(),
+                new UserAuthKeyboardInteractiveFactory(),
+                new UserAuthPasswordFactory()
+            );
+        }
+        // For password logins we must explicitly include password auth. Without it, servers that do
+        // not offer keyboard-interactive password prompts fail with "No more authentication methods available".
+        return java.util.List.of(
+            new UserAuthPasswordFactory(),
+            new UserAuthKeyboardInteractiveFactory(),
+            new UserAuthPublicKeyFactory()
+        );
     }
     
     /**

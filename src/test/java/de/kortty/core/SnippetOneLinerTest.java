@@ -53,6 +53,13 @@ class SnippetOneLinerTest {
     }
 
     @Test
+    void stripCommentsHashLangLinePreservesLiteralBackslashesInsideSingleQuotes() {
+        String line = "puts 'path\\temp#still literal' # trailing";
+
+        assertEquals("puts 'path\\temp#still literal'", SnippetOneLiner.stripCommentsHashLangLine(line));
+    }
+
+    @Test
     void compactPythonStripsInlineComment() {
         String script = "x = 1  # init\nprint(x)\n";
         SnippetOneLiner.OneLinerResult r = SnippetOneLiner.toCompact(script, "python");

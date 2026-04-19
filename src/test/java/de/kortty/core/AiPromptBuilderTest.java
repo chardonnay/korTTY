@@ -82,4 +82,103 @@ class AiPromptBuilderTest {
         assertTrue(userPrompt.contains("Conversation so far"));
         assertTrue(userPrompt.contains("fatal: unable to access repository"));
     }
+
+    @Test
+    void generateSnippetMetadataPromptRequiresJsonFileNameAndDescription() {
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_METADATA,
+            "#!/usr/bin/env python3\nprint('ok')",
+            "dev-box",
+            "de",
+            "python",
+            "User asked for a reusable cleanup script.");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertTrue(systemPrompt.contains("exactly one JSON object"));
+        assertTrue(systemPrompt.contains("language code de"));
+        assertTrue(userPrompt.contains("fileName"));
+        assertTrue(userPrompt.contains("description"));
+        assertTrue(userPrompt.contains("language"));
+        assertTrue(userPrompt.contains("Detected script language: python"));
+        assertTrue(userPrompt.contains("Conversation so far"));
+    }
+
+    @Test
+    void correctSnippetDescriptionPromptRequiresPlainTextCorrection() {
+        AiRequest request = new AiRequest(
+            AiAction.CORRECT_SNIPPET_DESCRIPTION,
+            "#!/bin/bash\necho ok",
+            "prod-shell",
+            "de",
+            "dieses script erstellt backup von log datein",
+            "bash");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertTrue(systemPrompt.contains("correct spelling and grammar"));
+        assertTrue(systemPrompt.contains("plain text"));
+        assertTrue(userPrompt.contains("Description to correct"));
+        assertTrue(userPrompt.contains("Script content for context only"));
+        assertTrue(userPrompt.contains("Detected script language: bash"));
+    }
+
+    @Test
+    void correctSnippetSelectionPromptRequiresStructuredSegmentResponseAndNoCodeMutation() {
+        AiRequest request = new AiRequest(
+            AiAction.CORRECT_SNIPPET_SELECTION_TEXT,
+            "# backup log filez",
+            "prod-shell",
+            "de",
+            "Keep existing command wording",
+            "Snippet language: bash\nEditable text segments JSON:\n[{\"index\":0,\"text\":\"backup log filez\"}]");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertTrue(systemPrompt.contains("Never modify code"));
+        assertTrue(systemPrompt.contains("segments"));
+        assertTrue(userPrompt.contains("JSON object"));
+        assertTrue(userPrompt.contains("Additional user instructions"));
+        assertTrue(userPrompt.contains("Snippet context"));
+    }
+
+    @Test
+    void translateSnippetSelectionPromptUsesTargetLanguageAndStructuredSegments() {
+        AiRequest request = new AiRequest(
+            AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT,
+            "echo \"Backup complete\"",
+            "prod-shell",
+            "fr",
+            "Translate formal",
+            "Snippet language: bash\nEditable text segments JSON:\n[{\"index\":0,\"text\":\"Backup complete\"}]");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertTrue(systemPrompt.contains("Translate into language code fr"));
+        assertTrue(systemPrompt.contains("Never modify code"));
+        assertTrue(userPrompt.contains("Translate only the provided editable text segments"));
+    }
+
+    @Test
+    void alternativeSnippetPromptRequiresJsonSolutionsInSameLanguage() {
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_ALTERNATIVES,
+            "for file in *.log; do gzip \"$file\"; done",
+            "prod-shell",
+            "de",
+            "Use only Bash builtins",
+            "Snippet language: bash\nReturn at most 3 solutions.\nFull snippet for context:\n```text\n...\n```");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertTrue(systemPrompt.contains("solutions array"));
+        assertTrue(systemPrompt.contains("same programming language"));
+        assertTrue(userPrompt.contains("\"solutions\""));
+        assertTrue(userPrompt.contains("Additional user instructions"));
+    }
 }

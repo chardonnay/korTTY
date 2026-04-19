@@ -26,16 +26,19 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *Dashboard*: Overview of all open connections in the project
 * *SFTP Manager*: File transfer between local system and remote servers (User/Group columns, sortable by type with dot-prefix order)
 * *SFTP Archive Exclude*: Archive dialogs support exclude patterns (one pattern per line) for files/directories
-* *Snippet Manager*: Create, search, favorite, and organize reusable snippets (JSON/XML/YAML import/export)
+* *Snippet Manager*: Create, search, favorite, and organize reusable snippets with syntax highlighting, line numbers, one-liner export, and JSON/XML/YAML import/export
+* *AI-assisted Snippet Editing*: Generate snippet name/description/language from code, correct description text, transform selected comments and user-facing output text, create technical descriptions, and request alternative implementations
 * *ASCII Art Banner*: Generate FIGlet banners with multiple styles (Tools menu)
 * *Window Geometry Storage*: Automatic restoration of window position and size
 * *Dashboard State Storage*: Automatic restoration of dashboard state
 * *Backup & Restore*: Create encrypted backups (password or GPG) and import them
 * *Multilanguage Support*: Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) plus *dynamic translation*: generate language files for any language via translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex) in Settings → Translation
 * *AI Terminal Actions*: Right-click selected terminal text and choose *Summarize*, *Solve Problem*, or *Ask* via OpenAI-compatible chat-completions APIs, including local tools such as *LM Studio*
-* *AI Profiles & Quotas*: Manage multiple named AI profiles with per-profile endpoint/model/API key, maximum selection size, tokenizer strategy, token budgets, warning thresholds, and reset cycles
-* *AI Result Tabs*: Continue with follow-up prompts, save named chats, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables, and persist the AI tab font size across sessions
-* *AI Chat Manager*: Reopen, rename, refresh, and delete saved AI chats via *Tools → AI Manager* (shortcut: *Ctrl/Cmd+Shift+Y*)
+* *AI Profiles, Defaults, and Quotas*: Manage multiple named AI profiles with per-profile endpoint/model/API key, choose a default AI profile, configure tokenizer strategy, token budgets, warning thresholds, reset cycles, and code-text language defaults
+* *AI Result Tabs*: Continue with follow-up prompts, switch profile and response language per chat, retry or cancel requests, save named chats, save generated scripts as snippets, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables/columns/cells, and persist the AI tab font size across sessions
+* *AI Manager*: Reopen, rename, refresh, and delete saved AI chats, and manage AI profiles from *Tools → AI Manager* (shortcut: *Ctrl/Cmd+Shift+Y*)
+* *AI Agent & Planning*: Start AI Agent and AI Planning from *Tools* or the terminal context menu, choose terminal or chat execution targets, and use dedicated planning/run tabs with transcript export
+* *Terminal AI Commands*: Intercept configurable local shortcut commands such as `agent`, `agent-ask`, and `agent-plan` directly at the shell prompt
 * *Quick Connect*: Fast connection dialog with frequently used connections and group support
 * *SSH Tunnels*: Local and remote port forwarding (SSH tunnels)
 * *Jump Server*: Support for bastion hosts (SSH hopping)

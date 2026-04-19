@@ -1,9 +1,18 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiAction;
+import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiRequest;
+import de.kortty.core.AiService;
+import de.kortty.core.SnippetAiResponseSupport;
+import de.kortty.core.AiSnippetMetadataSupport;
+import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
+import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetVariableManager;
+import de.kortty.model.AiProfile;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import javafx.application.Platform;
@@ -45,6 +54,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     private static final Logger logger = LoggerFactory.getLogger(SnippetManagementDialog.class);
     
     private final SnippetManager snippetManager;
+    private final MainWindow ownerWindow;
     private final TableView<Snippet> snippetTable;
     private final TextField searchField;
     private final ComboBox<String> categoryFilter;
@@ -55,8 +65,9 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     private final CheckBox wordWrapCheckBox;
     private final CheckBox lineNumbersCheckBox;
     
-    public SnippetManagementDialog(SnippetManager snippetManager) {
+    public SnippetManagementDialog(SnippetManager snippetManager, MainWindow ownerWindow) {
         this.snippetManager = snippetManager;
+        this.ownerWindow = ownerWindow;
         this.editorSettings = EditorSettingsHelper.loadSnippetSettings();
         
         setTitle(I18n.get("snippets.title"));
@@ -631,6 +642,145 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             // Ignore highlighting errors
         }
     }
+
+    private SnippetEditDialog.AiAssist createSnippetAiAssist() {
+        if (ownerWindow == null) {
+            return null;
+        }
+        AiProfile profile = ownerWindow.getDefaultAiProfile();
+        if (profile == null) {
+            return null;
+        }
+        AiService aiService = ownerWindow.createAiServiceForProfile(profile);
+        if (aiService == null) {
+            return null;
+        }
+        return new SnippetEditDialog.AiAssist(
+            (content, language) -> generateSnippetMetadata(profile, aiService, content, language),
+            (content, language, description) -> correctSnippetDescription(profile, aiService, content, language, description),
+            request -> correctSnippetSelectionText(profile, aiService, request),
+            request -> translateSnippetSelectionText(profile, aiService, request),
+            request -> describeSnippet(profile, aiService, request),
+            request -> generateAlternativeSolutions(profile, aiService, request));
+    }
+
+    private SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(
+        AiProfile profile,
+        AiService aiService,
+        String content,
+        String language) throws Exception {
+        String scriptContent = content != null ? content : "";
+        String snippetLanguage = SnippetLanguageSupport.detectSnippetLanguage(language, scriptContent);
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_METADATA,
+            scriptContent,
+            null,
+            currentLanguageCode(),
+            snippetLanguage,
+            null);
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null) {
+            ownerWindow.recordAiUsageForProfile(profile, request, result);
+        }
+        AiSnippetMetadataSupport.SuggestedSnippetMetadata metadata = AiSnippetMetadataSupport.parseMetadataResponse(
+            result != null ? result.content() : null,
+            snippetLanguage,
+            scriptContent);
+        return new SnippetEditDialog.SuggestedSnippetMetadata(metadata.fileName(), metadata.description(), metadata.language());
+    }
+
+    private String correctSnippetDescription(
+        AiProfile profile,
+        AiService aiService,
+        String content,
+        String language,
+        String description) throws Exception {
+        String scriptContent = content != null ? content : "";
+        String snippetLanguage = SnippetLanguageSupport.detectSnippetLanguage(language, scriptContent);
+        AiRequest request = new AiRequest(
+            AiAction.CORRECT_SNIPPET_DESCRIPTION,
+            scriptContent,
+            null,
+            currentLanguageCode(),
+            description,
+            snippetLanguage);
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null) {
+            ownerWindow.recordAiUsageForProfile(profile, request, result);
+        }
+        return AiSnippetMetadataSupport.normalizeDescription(result != null ? result.content() : description);
+    }
+
+    private String correctSnippetSelectionText(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.SelectionTextTransformRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.correctSelectionText(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private String translateSnippetSelectionText(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.SelectionTextTransformRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.translateSelectionText(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            null,
+            request.targetLanguageCode(),
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private String describeSnippet(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.SnippetDescriptionRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.describeSnippet(
+            request.wholeSnippet() ? AiAction.DESCRIBE_SNIPPET_FULL : AiAction.DESCRIBE_SNIPPET_SELECTION,
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private List<SnippetAiResponseSupport.AlternativeSolution> generateAlternativeSolutions(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.AlternativeSolutionsRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.generateAlternativeSolutions(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.maxSolutions(),
+            request.additionalInstructions());
+    }
+
+    private String currentLanguageCode() {
+        return de.kortty.core.LanguageManager.getInstance().getCurrentLanguageCode();
+    }
     
     // ---- CRUD ----
     
@@ -638,7 +788,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         List<String> categoryNames = snippetManager.getAllCategories().stream()
                 .map(SnippetCategory::getName).collect(Collectors.toList());
         
-        SnippetEditDialog dialog = new SnippetEditDialog(null, categoryNames);
+        SnippetEditDialog dialog = new SnippetEditDialog(null, categoryNames, createSnippetAiAssist());
         dialog.initOwner(getDialogPane().getScene().getWindow());
         
         Optional<Snippet> result = dialog.showAndWait();
@@ -656,7 +806,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         List<String> categoryNames = snippetManager.getAllCategories().stream()
                 .map(SnippetCategory::getName).collect(Collectors.toList());
         
-        SnippetEditDialog dialog = new SnippetEditDialog(selected, categoryNames);
+        SnippetEditDialog dialog = new SnippetEditDialog(selected, categoryNames, createSnippetAiAssist());
         dialog.initOwner(getDialogPane().getScene().getWindow());
         
         Optional<Snippet> result = dialog.showAndWait();

@@ -7,9 +7,11 @@
 === Highlights
 
 * *OpenAI-compatible AI assistant in the terminal*: Selected terminal text can now be sent directly to *AI → Summarize*, *AI → Solve Problem*, or *AI → Ask* without leaving the session view.
-* *Profile-based AI setup*: *Settings → AI* now supports multiple named profiles with separate endpoint, optional model, optional encrypted API key, selection limit, tokenizer strategy, and token budget.
-* *AI result tabs as working surfaces*: AI responses open in temporary tabs with follow-up prompts, saving/renaming, OS sharing, export to PDF/Markdown/plain text, markdown-table copy helpers, and persistent AI font size.
-* *Saved AI chats and AI Manager*: Conversations can now be saved as named chats and reopened, renamed, refreshed, or deleted from *Tools → AI Manager*.
+* *Profile-based AI setup*: *Settings → AI* now supports multiple named profiles with separate endpoint, optional model, optional encrypted API key, selection limit, tokenizer strategy, token budget, default profile selection, and code-text language defaults.
+* *AI result tabs as working surfaces*: AI responses open in temporary tabs with follow-up prompts, profile/language switching, retry/cancel, saving/renaming, OS sharing, export to PDF/Markdown/plain text, markdown-table copy helpers, snippet export from generated code blocks, and persistent AI font size.
+* *Saved AI chats and AI Manager*: Conversations can now be saved as named chats and reopened, renamed, refreshed, or deleted from *Tools → AI Manager*, which also provides a dedicated profile management tab.
+* *AI Agent and Planning*: Terminal-focused agent and planning workflows can be started from *Tools* or from the terminal context menu, with dedicated transcript tabs and configurable execution targets.
+* *AI-assisted snippet editing*: The snippet editor now supports AI-generated metadata, snippet-language suggestions, selection-based spelling correction and translation, technical descriptions, and alternative code solutions.
 
 === AI Workflow, Safety, and Quotas
 
@@ -18,6 +20,22 @@
 * *Automatic usage accounting*: Prompt and response token counts are persisted after successful AI calls so usage warnings stay accurate across sessions.
 * *Safer output handling*: Visible `<think> ... </think>` blocks are stripped from rendered responses, and AI result tabs are not restored as part of saved project/session state.
 * *Profile fallback for saved chats*: If the original AI profile of a saved chat no longer exists, KorTTY prompts for a replacement profile before follow-up requests continue.
+* *Per-chat language control*: AI chat responses default to the GUI language and can be changed per chat for future follow-up requests.
+* *Terminal shortcut trio*: Configurable local commands such as `agent`, `agent-ask`, and `agent-plan` are intercepted at the shell prompt when the prompt hook is enabled.
+
+=== AI Agent and Planning
+
+* *Agent execution target*: Agent tasks can target the active terminal window or open in a dedicated chat tab.
+* *Planning flow*: AI Planning collects clarifying answers, proposes options, and can start the accepted plan.
+* *Operational prompts*: Agent workflows can surface command approvals and sudo password requests when required by the generated plan.
+
+=== Snippet Manager and Editor
+
+* *AI metadata generation*: The snippet editor can derive snippet name, description, and language from the current code content.
+* *Editor-side AI text tools*: Selected comments and user-facing text can be corrected or translated without rewriting the surrounding logic.
+* *Technical descriptions*: A selected code region or a whole snippet can be summarized in a dedicated dialog and inserted back as comments.
+* *Alternative solutions dialog*: Selected code can be replaced by one of several AI-generated alternative implementations, with configurable result count, reload, zoom, and remembered dialog geometry.
+* *Persistent editor controls*: Snippet editor line numbers, word wrap, and AI-driven change toggling are now part of the day-to-day editing workflow.
 
 === Terminal and UX
 

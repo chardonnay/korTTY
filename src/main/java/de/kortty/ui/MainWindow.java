@@ -592,7 +592,7 @@ public class MainWindow {
     }
 
     private void syncAiFeaturesMenuItemsEnabled() {
-        boolean enabled = true;
+        boolean enabled = false;
         try {
             var gs = app.getGlobalSettingsManager().getSettings();
             if (gs != null) {
@@ -609,9 +609,9 @@ public class MainWindow {
     private boolean isAiFeaturesEnabled() {
         try {
             var gs = app.getGlobalSettingsManager().getSettings();
-            return gs == null || gs.isAiFeaturesEnabled();
+            return gs != null && gs.isAiFeaturesEnabled();
         } catch (Exception e) {
-            return true;
+            return false;
         }
     }
 
@@ -1703,9 +1703,7 @@ public class MainWindow {
             return;
         }
         Window hostWindow = mainScene.getWindow();
-        // While a modal dialog (e.g. Snippet Manager) is focused, the main window is not focused —
-        // do not route Edit→Paste to the terminal behind it.
-        if (hostWindow == null || !hostWindow.isFocused()) {
+        if (hostWindow == null) {
             return;
         }
         Node focusOwner = mainScene.getFocusOwner();
@@ -2964,6 +2962,12 @@ public class MainWindow {
             case SOLVE_PROBLEM -> I18n.get("terminal.contextMenu.ai.solve");
             case ASK -> I18n.get("terminal.contextMenu.ai.ask");
             case GENERATE_CHAT_TITLE -> I18n.get("ai.action.generateTitle");
+            case GENERATE_SNIPPET_METADATA -> I18n.get("ai.result.saveSnippet");
+            case CORRECT_SNIPPET_DESCRIPTION -> I18n.get("snippets.description.correct");
+            case CORRECT_SNIPPET_SELECTION_TEXT -> I18n.get("snippets.ai.menu.correct");
+            case TRANSLATE_SNIPPET_SELECTION_TEXT -> I18n.get("snippets.ai.menu.translate");
+            case DESCRIBE_SNIPPET_SELECTION, DESCRIBE_SNIPPET_FULL -> I18n.get("snippets.ai.menu.describe");
+            case GENERATE_SNIPPET_ALTERNATIVES -> I18n.get("snippets.ai.alternatives.context");
         };
     }
 
@@ -3765,7 +3769,7 @@ public class MainWindow {
                 showError(I18n.get("error.title"), "Snippet Manager not initialized");
                 return;
             }
-            SnippetManagementDialog dialog = new SnippetManagementDialog(mgr);
+            SnippetManagementDialog dialog = new SnippetManagementDialog(mgr, this);
             dialog.initOwner(stage);
             dialog.showAndWait();
         } catch (Exception e) {

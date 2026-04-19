@@ -2,14 +2,20 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
+import de.kortty.core.AiChatContentSupport;
 import de.kortty.core.AiChatExportContext;
 import de.kortty.core.AiChatExportService;
 import de.kortty.core.AiChatShareService;
 import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiMarkdownTableSupport;
 import de.kortty.core.AiPdfExportOptions;
+import de.kortty.core.AiSnippetMetadataSupport;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiResponseSanitizer;
+import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.AiService;
+import de.kortty.core.SnippetAiWorkflowSupport;
+import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.LanguageManager;
@@ -17,6 +23,8 @@ import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedAiChatMessage;
+import de.kortty.model.Snippet;
+import de.kortty.model.SnippetCategory;
 import de.kortty.core.GlobalSettingsManager;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -70,8 +78,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * AI chat tab that supports follow-up questions, saving, sharing, and reopening.
@@ -82,8 +88,6 @@ public class AiResultTab extends Tab {
     private static final int MIN_FONT_SIZE = 10;
     private static final int MAX_FONT_SIZE = 32;
     private static final DateTimeFormatter EXPORT_FILE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
-    private static final Pattern CODE_BLOCK_PATTERN = Pattern.compile("(?s)```([\\w#+.-]*)\\n(.*?)```");
-
     private final MainWindow ownerWindow;
     private final VBox messagesBox;
     private final ScrollPane messagesScrollPane;
@@ -823,7 +827,7 @@ public class AiResultTab extends Tab {
         if (!SavedAiChatMessage.ROLE_ASSISTANT.equals(entry.getRole())) {
             messageCard.getChildren().add(createSelectableTextBlock(entry.getContent()));
         } else {
-            for (ContentSection section : splitContent(entry.getContent())) {
+            for (AiChatContentSupport.ContentSection section : AiChatContentSupport.splitContent(entry.getContent())) {
                 if (section.code()) {
                     messageCard.getChildren().add(createCodeBlock(section.language(), section.content()));
                 } else if (!section.content().isBlank()) {
@@ -847,16 +851,25 @@ public class AiResultTab extends Tab {
     }
 
     private VBox createCodeBlock(String language, String code) {
-        String normalizedLanguage = normalizeCodeLanguage(language);
+        String normalizedLanguage = SnippetLanguageSupport.detectSnippetLanguage(language, code);
         Label languageLabel = new Label(language != null && !language.isBlank() ? language : I18n.get("ai.result.code"));
         languageLabel.setStyle("-fx-font-weight: bold;");
         Button copyCodeButton = new Button("⧉");
         copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
         copyCodeButton.setOnAction(e -> copyToClipboard(code));
         copyCodeButton.setStyle("-fx-padding: 3 8 3 8;");
+        Button saveSnippetButton = null;
+        if (SnippetLanguageSupport.isScriptSnippetCandidate(language, code)) {
+            saveSnippetButton = new Button(I18n.get("ai.result.saveSnippet"));
+            saveSnippetButton.setTooltip(new Tooltip(I18n.get("ai.result.saveSnippet.tooltip")));
+            saveSnippetButton.setOnAction(e -> saveCodeBlockAsSnippet(normalizedLanguage, code));
+            saveSnippetButton.setStyle("-fx-padding: 3 10 3 10;");
+        }
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(8, languageLabel, spacer, copyCodeButton);
+        HBox header = saveSnippetButton != null
+            ? new HBox(8, languageLabel, spacer, saveSnippetButton, copyCodeButton)
+            : new HBox(8, languageLabel, spacer, copyCodeButton);
 
         InlineCssTextArea codeArea = new InlineCssTextArea();
         codeArea.setEditable(false);
@@ -874,83 +887,13 @@ public class AiResultTab extends Tab {
     }
 
     private void appendStructuredTextContent(VBox parent, String content) {
-        List<String> lines = List.of((content != null ? content : "").split("\\R", -1));
-        StringBuilder plainBuffer = new StringBuilder();
-        int index = 0;
-        while (index < lines.size()) {
-            if (isMarkdownTableHeader(lines, index)) {
-                flushPlainBuffer(parent, plainBuffer);
-                List<List<String>> tableRows = new ArrayList<>();
-                tableRows.add(parseMarkdownTableRow(lines.get(index)));
-                index += 2;
-                while (index < lines.size() && isMarkdownTableRow(lines.get(index))) {
-                    tableRows.add(parseMarkdownTableRow(lines.get(index)));
-                    index++;
-                }
-                if (tableRows.size() >= 2) {
-                    parent.getChildren().add(createMarkdownTable(tableRows));
-                }
-                continue;
-            }
-
-            if (plainBuffer.length() > 0) {
-                plainBuffer.append("\n");
-            }
-            plainBuffer.append(lines.get(index));
-            index++;
-        }
-        flushPlainBuffer(parent, plainBuffer);
-    }
-
-    private void flushPlainBuffer(VBox parent, StringBuilder plainBuffer) {
-        String text = plainBuffer.toString().trim();
-        if (!text.isEmpty()) {
-            parent.getChildren().add(createSelectableTextBlock(text));
-        }
-        plainBuffer.setLength(0);
-    }
-
-    private boolean isMarkdownTableHeader(List<String> lines, int index) {
-        return index + 1 < lines.size()
-            && isMarkdownTableRow(lines.get(index))
-            && isMarkdownTableSeparator(lines.get(index + 1));
-    }
-
-    private boolean isMarkdownTableRow(String line) {
-        if (line == null) {
-            return false;
-        }
-        String trimmed = line.trim();
-        return trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length() > 2;
-    }
-
-    private boolean isMarkdownTableSeparator(String line) {
-        if (!isMarkdownTableRow(line)) {
-            return false;
-        }
-        for (String cell : parseMarkdownTableRow(line)) {
-            String normalized = cell.replace(":", "").replace("-", "").trim();
-            if (!normalized.isEmpty()) {
-                return false;
+        for (AiChatContentSupport.StructuredTextBlock block : AiChatContentSupport.splitStructuredText(content)) {
+            if (block.type() == AiChatContentSupport.StructuredTextBlock.Type.TABLE) {
+                parent.getChildren().add(createMarkdownTable(block.tableRows()));
+            } else {
+                parent.getChildren().add(createSelectableTextBlock(block.text()));
             }
         }
-        return true;
-    }
-
-    private List<String> parseMarkdownTableRow(String line) {
-        String normalized = line != null ? line.trim() : "";
-        if (normalized.startsWith("|")) {
-            normalized = normalized.substring(1);
-        }
-        if (normalized.endsWith("|")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        String[] rawCells = normalized.split("\\|", -1);
-        List<String> cells = new ArrayList<>(rawCells.length);
-        for (String cell : rawCells) {
-            cells.add(cell != null ? cell.trim() : "");
-        }
-        return cells;
     }
 
     private VBox createMarkdownTable(List<List<String>> tableRows) {
@@ -1116,6 +1059,194 @@ public class AiResultTab extends Tab {
         ClipboardContent content = new ClipboardContent();
         content.putString(value != null ? value : "");
         Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    private void saveCodeBlockAsSnippet(String language, String code) {
+        var snippetManager = KorTTYApplication.getInstance().getSnippetManager();
+        if (snippetManager == null) {
+            showErrorAlert(I18n.get("ai.result.saveSnippet.failed"), "Snippet Manager not initialized");
+            return;
+        }
+
+        Snippet snippet = new Snippet();
+        snippet.setLanguage(SnippetLanguageSupport.detectSnippetLanguage(language, code));
+        snippet.setContent(code != null ? code : "");
+        List<String> categoryNames = snippetManager.getAllCategories().stream()
+            .map(SnippetCategory::getName)
+            .filter(Objects::nonNull)
+            .sorted(String::compareToIgnoreCase)
+            .toList();
+
+        SnippetEditDialog dialog = new SnippetEditDialog(
+            snippet,
+            categoryNames,
+            createSnippetAiAssist(snippet.getLanguage(), snippet.getContent()));
+        dialog.initOwner(getOwnerWindow());
+        dialog.showAndWait().ifPresent(savedSnippet -> {
+            try {
+                ensureSnippetCategoryExists(savedSnippet.getCategory());
+                snippetManager.addSnippet(savedSnippet);
+                snippetManager.save();
+                statusLabel.setText(I18n.get("ai.result.saveSnippet.success", savedSnippet.getName()));
+                ownerWindow.updateStatusMessage(I18n.get("ai.result.saveSnippet.success", savedSnippet.getName()));
+            } catch (Exception e) {
+                showErrorAlert(
+                    I18n.get("ai.result.saveSnippet.failed"),
+                    e.getMessage() != null ? e.getMessage() : e.toString());
+                statusLabel.setText(I18n.get("ai.result.saveSnippet.failed"));
+            }
+        });
+    }
+
+    private SnippetEditDialog.AiAssist createSnippetAiAssist(String snippetLanguage, String code) {
+        GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+        if (settings != null && !settings.isAiFeaturesEnabled()) {
+            return null;
+        }
+        AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
+        if (profile == null) {
+            return null;
+        }
+        AiService aiService = ownerWindow.createAiServiceForProfile(profile);
+        if (aiService == null) {
+            return null;
+        }
+        return new SnippetEditDialog.AiAssist(
+            (currentContent, currentLanguage) -> generateSnippetMetadata(
+                profile,
+                aiService,
+                currentLanguage != null ? currentLanguage : snippetLanguage,
+                currentContent != null ? currentContent : code),
+            (currentContent, currentLanguage, description) -> correctSnippetDescription(
+                profile,
+                aiService,
+                currentLanguage != null ? currentLanguage : snippetLanguage,
+                currentContent != null ? currentContent : code,
+                description),
+            request -> correctSnippetSelectionText(profile, aiService, request),
+            request -> translateSnippetSelectionText(profile, aiService, request),
+            request -> describeSnippet(profile, aiService, request),
+            request -> generateAlternativeSolutions(profile, aiService, request));
+    }
+
+    private SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(
+        AiProfile profile,
+        AiService aiService,
+        String snippetLanguage,
+        String code) throws Exception {
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_METADATA,
+            code,
+            connectionDisplayName,
+            languageCode,
+            snippetLanguage,
+            null);
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null) {
+            ownerWindow.recordAiUsageForProfile(profile, request, result);
+        }
+        AiSnippetMetadataSupport.SuggestedSnippetMetadata metadata = AiSnippetMetadataSupport.parseMetadataResponse(
+            result != null ? result.content() : null,
+            snippetLanguage,
+            code);
+        return new SnippetEditDialog.SuggestedSnippetMetadata(metadata.fileName(), metadata.description(), metadata.language());
+    }
+
+    private String correctSnippetDescription(
+        AiProfile profile,
+        AiService aiService,
+        String snippetLanguage,
+        String code,
+        String description) throws Exception {
+        AiRequest request = new AiRequest(
+            AiAction.CORRECT_SNIPPET_DESCRIPTION,
+            code,
+            connectionDisplayName,
+            languageCode,
+            description,
+            snippetLanguage);
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null) {
+            ownerWindow.recordAiUsageForProfile(profile, request, result);
+        }
+        return AiSnippetMetadataSupport.normalizeDescription(result != null ? result.content() : description);
+    }
+
+    private String correctSnippetSelectionText(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.SelectionTextTransformRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.correctSelectionText(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            connectionDisplayName,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private String translateSnippetSelectionText(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.SelectionTextTransformRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.translateSelectionText(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            connectionDisplayName,
+            request.targetLanguageCode(),
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private String describeSnippet(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.SnippetDescriptionRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.describeSnippet(
+            request.wholeSnippet() ? AiAction.DESCRIBE_SNIPPET_FULL : AiAction.DESCRIBE_SNIPPET_SELECTION,
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            connectionDisplayName,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private List<SnippetAiResponseSupport.AlternativeSolution> generateAlternativeSolutions(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.AlternativeSolutionsRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.generateAlternativeSolutions(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            connectionDisplayName,
+            request.fallbackLanguageCode(),
+            request.maxSolutions(),
+            request.additionalInstructions());
+    }
+
+    private void ensureSnippetCategoryExists(String categoryName) {
+        if (categoryName == null || categoryName.isBlank()) {
+            return;
+        }
+        var snippetManager = KorTTYApplication.getInstance().getSnippetManager();
+        if (snippetManager != null && snippetManager.findCategoryByName(categoryName.trim()).isEmpty()) {
+            snippetManager.addCategory(new SnippetCategory(categoryName.trim()));
+        }
     }
 
     private void exportConversation(AiChatExportService.Format format) {
@@ -1361,40 +1492,6 @@ public class AiResultTab extends Tab {
         alert.setHeaderText(title);
         alert.setContentText(message);
         alert.showAndWait();
-    }
-
-    private List<ContentSection> splitContent(String content) {
-        List<ContentSection> sections = new ArrayList<>();
-        Matcher matcher = CODE_BLOCK_PATTERN.matcher(content != null ? content : "");
-        int lastEnd = 0;
-        while (matcher.find()) {
-            if (matcher.start() > lastEnd) {
-                sections.add(new ContentSection(false, null, content.substring(lastEnd, matcher.start()).trim()));
-            }
-            sections.add(new ContentSection(true, matcher.group(1), matcher.group(2)));
-            lastEnd = matcher.end();
-        }
-        if (content != null && lastEnd < content.length()) {
-            sections.add(new ContentSection(false, null, content.substring(lastEnd).trim()));
-        }
-        if (sections.isEmpty()) {
-            sections.add(new ContentSection(false, null, content != null ? content : ""));
-        }
-        return sections;
-    }
-
-    private String normalizeCodeLanguage(String language) {
-        if (language == null || language.isBlank()) {
-            return "plain";
-        }
-        return switch (language.trim().toLowerCase(Locale.ROOT)) {
-            case "sh", "shell", "zsh", "bash" -> "bash";
-            case "pl", "perl" -> "perl";
-            default -> language.trim().toLowerCase(Locale.ROOT);
-        };
-    }
-
-    private record ContentSection(boolean code, String language, String content) {
     }
 
 }

@@ -114,6 +114,10 @@ public class GlobalSettings {
     @XmlElement
     private String defaultAiProfileId;
 
+    /** Preferred natural language for AI-generated text inside program code comments and descriptions. */
+    @XmlElement
+    private String aiCodeTextDefaultLanguage;
+
     /** Font size used in temporary AI result tabs. */
     @XmlElement
     private Integer aiResultFontSize = 13;
@@ -145,6 +149,14 @@ public class GlobalSettings {
     /** Preferred presentation target for AI agent runs. */
     @XmlElement
     private TerminalAgentExecutionTarget terminalAgentExecutionTarget = TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+
+    /** Show optional additional instruction text area for snippet-editor AI actions. */
+    @XmlElement
+    private boolean aiSnippetEditorAdditionalInstructionsEnabled = false;
+
+    /** Maximum number of alternative snippet solutions generated per request. */
+    @XmlElement
+    private Integer aiSnippetAlternativeSolutionCount = 3;
     
     // Default terminal settings for new connections
     @XmlElement
@@ -232,6 +244,10 @@ public class GlobalSettings {
     /** Last window geometry of the ASCII Art Banner dialog. */
     @XmlElement
     private WindowGeometry asciiArtDialogGeometry;
+
+    /** Last window geometry of the alternative snippet solutions dialog. */
+    @XmlElement
+    private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
     
     // Teamwork: shared connection sources (Git or shared file)
     @XmlElementWrapper(name = "teamworkSources")
@@ -526,6 +542,17 @@ public class GlobalSettings {
         this.aiResultFontSize = aiResultFontSize;
     }
 
+    public String getAiCodeTextDefaultLanguage() {
+        return aiCodeTextDefaultLanguage;
+    }
+
+    public void setAiCodeTextDefaultLanguage(String aiCodeTextDefaultLanguage) {
+        this.aiCodeTextDefaultLanguage =
+            aiCodeTextDefaultLanguage != null && !aiCodeTextDefaultLanguage.isBlank()
+                ? aiCodeTextDefaultLanguage.trim()
+                : null;
+    }
+
     public boolean isAiConfirmBeforeSend() {
         return aiConfirmBeforeSend;
     }
@@ -589,6 +616,28 @@ public class GlobalSettings {
             : TerminalAgentExecutionTarget.TERMINAL_WINDOW;
     }
 
+    public boolean isAiSnippetEditorAdditionalInstructionsEnabled() {
+        return aiSnippetEditorAdditionalInstructionsEnabled;
+    }
+
+    public void setAiSnippetEditorAdditionalInstructionsEnabled(boolean aiSnippetEditorAdditionalInstructionsEnabled) {
+        this.aiSnippetEditorAdditionalInstructionsEnabled = aiSnippetEditorAdditionalInstructionsEnabled;
+    }
+
+    public int getAiSnippetAlternativeSolutionCount() {
+        return aiSnippetAlternativeSolutionCount != null && aiSnippetAlternativeSolutionCount > 0
+            ? Math.min(aiSnippetAlternativeSolutionCount, 10)
+            : 3;
+    }
+
+    public void setAiSnippetAlternativeSolutionCount(Integer aiSnippetAlternativeSolutionCount) {
+        if (aiSnippetAlternativeSolutionCount == null) {
+            this.aiSnippetAlternativeSolutionCount = 3;
+            return;
+        }
+        this.aiSnippetAlternativeSolutionCount = Math.max(1, Math.min(aiSnippetAlternativeSolutionCount, 10));
+    }
+
     public void initializeAiConfiguration() {
         if (aiProfiles == null) {
             aiProfiles = new java.util.ArrayList<>();
@@ -600,6 +649,11 @@ public class GlobalSettings {
         }
         if (terminalAgentExecutionTarget == null) {
             terminalAgentExecutionTarget = TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+        }
+        if (aiSnippetAlternativeSolutionCount == null || aiSnippetAlternativeSolutionCount <= 0) {
+            aiSnippetAlternativeSolutionCount = 3;
+        } else if (aiSnippetAlternativeSolutionCount > 10) {
+            aiSnippetAlternativeSolutionCount = 10;
         }
     }
 
@@ -897,6 +951,11 @@ public class GlobalSettings {
     
     public WindowGeometry getAsciiArtDialogGeometry() { return asciiArtDialogGeometry; }
     public void setAsciiArtDialogGeometry(WindowGeometry asciiArtDialogGeometry) { this.asciiArtDialogGeometry = asciiArtDialogGeometry; }
+
+    public WindowGeometry getAlternativeSnippetSolutionsDialogGeometry() { return alternativeSnippetSolutionsDialogGeometry; }
+    public void setAlternativeSnippetSolutionsDialogGeometry(WindowGeometry alternativeSnippetSolutionsDialogGeometry) {
+        this.alternativeSnippetSolutionsDialogGeometry = alternativeSnippetSolutionsDialogGeometry;
+    }
     
     // ---- Teamwork ----
     
