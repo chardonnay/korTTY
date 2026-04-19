@@ -2,9 +2,11 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
+import de.kortty.core.AiChatExportContext;
 import de.kortty.core.AiChatExportService;
 import de.kortty.core.AiChatShareService;
 import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiPdfExportOptions;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiResponseSanitizer;
 import de.kortty.core.AiService;
@@ -1117,13 +1119,19 @@ public class AiResultTab extends Tab {
     }
 
     private void exportConversation(AiChatExportService.Format format) {
+        AiChatExportContext exportContext = buildExportContext();
+        AiPdfExportOptions pdfOptions = resolvePdfExportOptions(format, exportContext);
+        if (format == AiChatExportService.Format.PDF && pdfOptions == null) {
+            return;
+        }
+
         File targetFile = chooseExportTarget(format);
         if (targetFile == null) {
             return;
         }
 
         try {
-            exportService.exportChat(targetFile.toPath(), format, messageEntries, currentFontSize);
+            exportService.exportChat(targetFile.toPath(), format, messageEntries, currentFontSize, exportContext, pdfOptions);
             statusLabel.setText(I18n.get("ai.result.export.success", targetFile.getName()));
         } catch (Exception ex) {
             showExportError(ex);
@@ -1132,9 +1140,16 @@ public class AiResultTab extends Tab {
 
     private void shareConversation(AiChatExportService.Format format) {
         try {
+            AiChatExportContext exportContext = buildExportContext();
             Path tempFile = Files.createTempFile("ai-chat-share-" + LocalDateTime.now().format(EXPORT_FILE_FORMAT), format.getExtension());
             tempFile.toFile().deleteOnExit();
-            exportService.exportChat(tempFile, format, messageEntries, currentFontSize);
+            exportService.exportChat(
+                tempFile,
+                format,
+                messageEntries,
+                currentFontSize,
+                exportContext,
+                AiPdfExportOptions.defaults(exportContext.title()));
             AiChatShareService.ShareResult result = shareService.share(tempFile);
             if (result.openedParentDirectory()) {
                 statusLabel.setText(I18n.get("ai.result.share.directoryFallback", tempFile.getFileName().toString()));
@@ -1155,6 +1170,22 @@ public class AiResultTab extends Tab {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*"));
         Window owner = getOwnerWindow();
         return fileChooser.showSaveDialog(owner);
+    }
+
+    private AiChatExportContext buildExportContext() {
+        AiProfile selectedProfile = profileComboBox.getSelectionModel().getSelectedItem();
+        String profileName = selectedProfile != null ? getAiProfileDisplayName(selectedProfile) : activeProfileName;
+        String title = baseTitle != null && !baseTitle.isBlank() ? baseTitle : buildFallbackTitle();
+        return new AiChatExportContext(title, LocalDateTime.now(), profileName, messageEntries.size());
+    }
+
+    private AiPdfExportOptions resolvePdfExportOptions(AiChatExportService.Format format, AiChatExportContext exportContext) {
+        if (format != AiChatExportService.Format.PDF) {
+            return null;
+        }
+        Window owner = getOwnerWindow();
+        AiPdfExportDialog dialog = new AiPdfExportDialog(owner, exportContext, AiPdfExportOptions.defaults(exportContext.title()));
+        return dialog.showAndWait().orElse(null);
     }
 
     private void saveChat() {
