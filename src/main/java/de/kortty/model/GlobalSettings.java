@@ -142,13 +142,33 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalAgentShowRuntimeMessages = false;
 
+    /** Show the terminal-agent setup dialog before starting prompt-based terminal commands. */
+    @XmlElement
+    private boolean terminalAgentShowRunDialog = true;
+
     /** Base command name for terminal-agent shortcuts like agent, agent-ask and agent-plan. */
     @XmlElement
     private String terminalAgentCommandName = "agent";
 
+    /** When true, terminal-agent shortcut names are matched without case sensitivity. */
+    @XmlElement
+    private boolean terminalAgentCommandNameCaseInsensitive = false;
+
     /** Preferred presentation target for AI agent runs. */
     @XmlElement
     private TerminalAgentExecutionTarget terminalAgentExecutionTarget = TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+
+    /** Remember the inline terminal-agent panel height and font size across application restarts. */
+    @XmlElement
+    private boolean terminalAgentRememberPanelLayout = false;
+
+    /** Last saved inline terminal-agent panel height, used only when layout remembering is enabled. */
+    @XmlElement
+    private Double terminalAgentPanelHeight;
+
+    /** Last saved inline terminal-agent panel font size, used only when layout remembering is enabled. */
+    @XmlElement
+    private Double terminalAgentPanelFontSize;
 
     /** Show optional additional instruction text area for snippet-editor AI actions. */
     @XmlElement
@@ -593,6 +613,14 @@ public class GlobalSettings {
         this.terminalAgentShowRuntimeMessages = terminalAgentShowRuntimeMessages;
     }
 
+    public boolean isTerminalAgentShowRunDialog() {
+        return terminalAgentShowRunDialog;
+    }
+
+    public void setTerminalAgentShowRunDialog(boolean terminalAgentShowRunDialog) {
+        this.terminalAgentShowRunDialog = terminalAgentShowRunDialog;
+    }
+
     public String getTerminalAgentCommandName() {
         return terminalAgentCommandName;
     }
@@ -602,6 +630,14 @@ public class GlobalSettings {
             terminalAgentCommandName != null && !terminalAgentCommandName.isBlank()
                 ? terminalAgentCommandName.trim()
                 : "agent";
+    }
+
+    public boolean isTerminalAgentCommandNameCaseInsensitive() {
+        return terminalAgentCommandNameCaseInsensitive;
+    }
+
+    public void setTerminalAgentCommandNameCaseInsensitive(boolean terminalAgentCommandNameCaseInsensitive) {
+        this.terminalAgentCommandNameCaseInsensitive = terminalAgentCommandNameCaseInsensitive;
     }
 
     public TerminalAgentExecutionTarget getTerminalAgentExecutionTarget() {
@@ -614,6 +650,34 @@ public class GlobalSettings {
         this.terminalAgentExecutionTarget = terminalAgentExecutionTarget != null
             ? terminalAgentExecutionTarget
             : TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+    }
+
+    public boolean isTerminalAgentRememberPanelLayout() {
+        return terminalAgentRememberPanelLayout;
+    }
+
+    public void setTerminalAgentRememberPanelLayout(boolean terminalAgentRememberPanelLayout) {
+        this.terminalAgentRememberPanelLayout = terminalAgentRememberPanelLayout;
+    }
+
+    public Double getTerminalAgentPanelHeight() {
+        return terminalAgentPanelHeight;
+    }
+
+    public void setTerminalAgentPanelHeight(Double terminalAgentPanelHeight) {
+        this.terminalAgentPanelHeight = isPositiveFinite(terminalAgentPanelHeight)
+            ? terminalAgentPanelHeight
+            : null;
+    }
+
+    public Double getTerminalAgentPanelFontSize() {
+        return terminalAgentPanelFontSize;
+    }
+
+    public void setTerminalAgentPanelFontSize(Double terminalAgentPanelFontSize) {
+        this.terminalAgentPanelFontSize = isPositiveFinite(terminalAgentPanelFontSize)
+            ? terminalAgentPanelFontSize
+            : null;
     }
 
     public boolean isAiSnippetEditorAdditionalInstructionsEnabled() {
@@ -649,6 +713,12 @@ public class GlobalSettings {
         }
         if (terminalAgentExecutionTarget == null) {
             terminalAgentExecutionTarget = TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+        }
+        if (!isPositiveFinite(terminalAgentPanelHeight)) {
+            terminalAgentPanelHeight = null;
+        }
+        if (!isPositiveFinite(terminalAgentPanelFontSize)) {
+            terminalAgentPanelFontSize = null;
         }
         if (aiSnippetAlternativeSolutionCount == null || aiSnippetAlternativeSolutionCount <= 0) {
             aiSnippetAlternativeSolutionCount = 3;
@@ -695,6 +765,10 @@ public class GlobalSettings {
         return (aiApiUrl != null && !aiApiUrl.isBlank() && !DEFAULT_AI_API_URL.equals(aiApiUrl.trim()))
             || (aiModel != null && !aiModel.isBlank())
             || (encryptedAiApiKey != null && !encryptedAiApiKey.isBlank());
+    }
+
+    private boolean isPositiveFinite(Double value) {
+        return value != null && Double.isFinite(value) && value > 0.0;
     }
     
     public ConnectionSettings getDefaultTerminalSettings() {

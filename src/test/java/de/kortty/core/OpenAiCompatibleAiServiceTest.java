@@ -79,6 +79,19 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void buildPromptRequestBodyCanRequestJsonObjectResponseFormat() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        String body = service.buildPromptRequestBody("Reply with JSON.", "Return JSON.", true);
+
+        assertTrue(body.contains("\"response_format\""));
+        assertTrue(body.contains("\"type\":\"json_object\""));
+    }
+
+    @Test
     void readResponseBodyKeepsPartialPayloadWhenStreamEndsWithEof() throws Exception {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",

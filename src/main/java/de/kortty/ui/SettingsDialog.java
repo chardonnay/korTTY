@@ -154,7 +154,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox aiPromptHookEnabledCheck;
     private final CheckBox aiShowDebugMessagesCheck;
     private final CheckBox aiShowRuntimeMessagesCheck;
+    private final CheckBox aiTerminalAgentShowRunDialogCheck;
     private final TextField aiAgentCommandNameField;
+    private final CheckBox aiAgentCommandNameCaseInsensitiveCheck;
     private final ComboBox<TerminalAgentExecutionTarget> aiExecutionTargetCombo;
     private final Spinner<Integer> aiMaxSelectionCharsSpinner;
     private final ComboBox<AiTokenizerType> aiTokenizerCombo;
@@ -967,6 +969,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiShowRuntimeMessagesCheck.setSelected(globalSettings != null && globalSettings.isTerminalAgentShowRuntimeMessages());
         aiRoot.getChildren().add(aiShowRuntimeMessagesCheck);
 
+        aiTerminalAgentShowRunDialogCheck = new CheckBox(I18n.get("settings.ai.terminalAgentShowRunDialog"));
+        aiTerminalAgentShowRunDialogCheck.setSelected(globalSettings == null || globalSettings.isTerminalAgentShowRunDialog());
+        aiRoot.getChildren().add(aiTerminalAgentShowRunDialogCheck);
+
         aiAgentCommandNameField = new TextField(globalSettings != null ? globalSettings.getTerminalAgentCommandName() : "");
         aiAgentCommandNameField.setPrefWidth(220);
         Label aiAgentCommandInfoLabel = new Label();
@@ -996,6 +1002,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Label(I18n.get("settings.ai.agentCommandName")),
             aiAgentCommandNameField);
         aiRoot.getChildren().addAll(aiAgentCommandBox, aiAgentCommandInfoLabel);
+
+        aiAgentCommandNameCaseInsensitiveCheck = new CheckBox(I18n.get("settings.ai.agentCommandNameCaseInsensitive"));
+        aiAgentCommandNameCaseInsensitiveCheck.setSelected(
+            globalSettings != null && globalSettings.isTerminalAgentCommandNameCaseInsensitive());
+        aiRoot.getChildren().add(aiAgentCommandNameCaseInsensitiveCheck);
 
         aiExecutionTargetCombo = new ComboBox<>();
         aiExecutionTargetCombo.getItems().addAll(TerminalAgentExecutionTarget.values());
@@ -1668,6 +1679,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 }
             }
 
+            saveAiToggleFlagsToSettings();
+
             if (!shouldSkipAiValidationOnSave()) {
                 String commandNameValidationMessage = TerminalAgentCommandSupport.validateCommandName(aiAgentCommandNameField.getText());
                 if (commandNameValidationMessage != null) {
@@ -1680,8 +1693,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 if (!saveAiProfilesToSettings()) {
                     return false;
                 }
-            } else {
-                globalSettings.setAiFeaturesEnabled(aiFeaturesEnabledCheck != null && aiFeaturesEnabledCheck.isSelected());
             }
             
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
@@ -1859,6 +1870,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             copy.setBackgroundColor(sel.getBackgroundColor());
             copy.setCursorColor(sel.getCursorColor());
             copy.setCursorStyle(sel.getCursorStyle());
+            copy.setAgentPanelBackgroundColor(sel.getAgentPanelBackgroundColor());
+            copy.setAgentPanelBorderColor(sel.getAgentPanelBorderColor());
+            copy.setAgentPanelTextColor(sel.getAgentPanelTextColor());
+            copy.setAgentPanelMutedTextColor(sel.getAgentPanelMutedTextColor());
+            copy.setAgentPanelAccentColor(sel.getAgentPanelAccentColor());
+            copy.setAgentPanelErrorColor(sel.getAgentPanelErrorColor());
             copy.setBuiltIn(sel.isBuiltIn());
             ThemeEditDialog dlg = new ThemeEditDialog(owner, copy);
             dlg.showAndWait().ifPresent(edited -> {
@@ -1880,6 +1897,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             dup.setBackgroundColor(sel.getBackgroundColor());
             dup.setCursorColor(sel.getCursorColor());
             dup.setCursorStyle(sel.getCursorStyle());
+            dup.setAgentPanelBackgroundColor(sel.getAgentPanelBackgroundColor());
+            dup.setAgentPanelBorderColor(sel.getAgentPanelBorderColor());
+            dup.setAgentPanelTextColor(sel.getAgentPanelTextColor());
+            dup.setAgentPanelMutedTextColor(sel.getAgentPanelMutedTextColor());
+            dup.setAgentPanelAccentColor(sel.getAgentPanelAccentColor());
+            dup.setAgentPanelErrorColor(sel.getAgentPanelErrorColor());
             dup.setBuiltIn(false);
             ThemeEditDialog dlg = new ThemeEditDialog(owner, dup);
             dlg.showAndWait().ifPresent(t -> {
@@ -2002,7 +2025,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         bg.setStyle("-fx-text-fill: " + theme.getForegroundColor() + "; -fx-background-color: " + theme.getBackgroundColor() + "; -fx-padding: 2 8 2 8; -fx-border-color: " + theme.getForegroundColor() + "; -fx-border-radius: 4; -fx-background-radius: 4;");
         Label cursor = new Label("CURSOR");
         cursor.setStyle("-fx-text-fill: " + theme.getBackgroundColor() + "; -fx-background-color: " + theme.getCursorColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
-        previewSwatches.getChildren().addAll(fg, bg, cursor);
+        Label agentBg = new Label(I18n.get("settings.preview.aiBg"));
+        agentBg.setStyle("-fx-text-fill: " + theme.getAgentPanelTextColor() + "; -fx-background-color: " + theme.getAgentPanelBackgroundColor() + "; -fx-padding: 2 8 2 8; -fx-border-color: " + theme.getAgentPanelBorderColor() + "; -fx-border-radius: 4; -fx-background-radius: 4;");
+        Label agentAccent = new Label(I18n.get("settings.preview.aiRun"));
+        agentAccent.setStyle("-fx-text-fill: " + theme.getAgentPanelBackgroundColor() + "; -fx-background-color: " + theme.getAgentPanelAccentColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
+        Label agentError = new Label(I18n.get("settings.preview.aiErr"));
+        agentError.setStyle("-fx-text-fill: " + theme.getAgentPanelTextColor() + "; -fx-background-color: " + theme.getAgentPanelErrorColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
+        previewSwatches.getChildren().addAll(fg, bg, cursor, agentBg, agentAccent, agentError);
     }
     
     private String toHex(Color color) {
@@ -2544,13 +2573,45 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         globalSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
         globalSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());
         globalSettings.setTerminalAgentShowRuntimeMessages(aiShowRuntimeMessagesCheck.isSelected());
+        globalSettings.setTerminalAgentShowRunDialog(aiTerminalAgentShowRunDialogCheck.isSelected());
         globalSettings.setTerminalAgentCommandName(TerminalAgentCommandSupport.normalizeCommandName(aiAgentCommandNameField.getText()));
+        globalSettings.setTerminalAgentCommandNameCaseInsensitive(aiAgentCommandNameCaseInsensitiveCheck.isSelected());
         globalSettings.setTerminalAgentExecutionTarget(aiExecutionTargetCombo.getValue());
         AiLanguageSupport.LanguageOption selectedLanguage = aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem();
         globalSettings.setAiCodeTextDefaultLanguage(selectedLanguage != null ? selectedLanguage.code() : null);
         globalSettings.setAiSnippetEditorAdditionalInstructionsEnabled(aiSnippetEditorInstructionsCheck.isSelected());
         globalSettings.setAiSnippetAlternativeSolutionCount(aiSnippetAlternativeSolutionCountSpinner.getValue());
         return true;
+    }
+
+    private void saveAiToggleFlagsToSettings() {
+        if (globalSettings == null) {
+            return;
+        }
+        if (aiFeaturesEnabledCheck != null) {
+            globalSettings.setAiFeaturesEnabled(aiFeaturesEnabledCheck.isSelected());
+        }
+        if (aiConfirmBeforeSendCheck != null) {
+            globalSettings.setAiConfirmBeforeSend(aiConfirmBeforeSendCheck.isSelected());
+        }
+        if (aiPromptHookEnabledCheck != null) {
+            globalSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
+        }
+        if (aiShowDebugMessagesCheck != null) {
+            globalSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());
+        }
+        if (aiShowRuntimeMessagesCheck != null) {
+            globalSettings.setTerminalAgentShowRuntimeMessages(aiShowRuntimeMessagesCheck.isSelected());
+        }
+        if (aiTerminalAgentShowRunDialogCheck != null) {
+            globalSettings.setTerminalAgentShowRunDialog(aiTerminalAgentShowRunDialogCheck.isSelected());
+        }
+        if (aiAgentCommandNameCaseInsensitiveCheck != null) {
+            globalSettings.setTerminalAgentCommandNameCaseInsensitive(aiAgentCommandNameCaseInsensitiveCheck.isSelected());
+        }
+        if (aiSnippetEditorInstructionsCheck != null) {
+            globalSettings.setAiSnippetEditorAdditionalInstructionsEnabled(aiSnippetEditorInstructionsCheck.isSelected());
+        }
     }
 
     private boolean shouldSkipAiValidationOnSave() {

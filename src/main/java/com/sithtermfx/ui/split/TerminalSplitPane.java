@@ -7,6 +7,7 @@ import com.sithtermfx.ui.settings.SettingsProvider;
 import javafx.application.Platform;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javafx.scene.layout.HBox;
@@ -71,6 +73,7 @@ public class TerminalSplitPane extends StackPane {
     private final SplitConnectorFactory connectorFactory;
     private final Consumer<SithTermFxWidget> widgetConfigurator;
     private final Function<SithTermFxWidget, Region> leftPanelFactory;
+    private final BiFunction<SithTermFxWidget, TtyConnector, TtyConnector> connectorDecorator;
 
     private SplitCell rootCell;
     private SithTermFxWidget focusedWidget;
@@ -104,10 +107,19 @@ public class TerminalSplitPane extends StackPane {
                              @NotNull SplitConnectorFactory connectorFactory,
                              @NotNull Consumer<SithTermFxWidget> widgetConfigurator,
                              @Nullable Function<SithTermFxWidget, Region> leftPanelFactory) {
+        this(settingsProvider, connectorFactory, widgetConfigurator, leftPanelFactory, (widget, connector) -> connector);
+    }
+
+    public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
+                             @NotNull SplitConnectorFactory connectorFactory,
+                             @NotNull Consumer<SithTermFxWidget> widgetConfigurator,
+                             @Nullable Function<SithTermFxWidget, Region> leftPanelFactory,
+                             @NotNull BiFunction<SithTermFxWidget, TtyConnector, TtyConnector> connectorDecorator) {
         this.settingsProvider = settingsProvider;
         this.connectorFactory = connectorFactory;
         this.widgetConfigurator = widgetConfigurator;
         this.leftPanelFactory = leftPanelFactory;
+        this.connectorDecorator = connectorDecorator;
         this.rootCell = createInitialCell();
         getChildren().add(rootCell.getNode());
         VBox.setVgrow(this, Priority.ALWAYS);
@@ -186,7 +198,8 @@ public class TerminalSplitPane extends StackPane {
         widgetConfigurator.accept(widget);
         TtyConnector connector = connectorFactory.createConnectorForSplit(request);
         if (connector != null) {
-            widget.setTtyConnector(connector);
+            TtyConnector decoratedConnector = connectorDecorator.apply(widget, connector);
+            widget.setTtyConnector(decoratedConnector != null ? decoratedConnector : connector);
             widget.start();
         }
         return widget;
@@ -197,6 +210,7 @@ public class TerminalSplitPane extends StackPane {
         widget.getPane().setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.PRIMARY) {
                 focusedWidget = widget;
+                requestWidgetFocus(widget);
             }
         });
         widget.getPreferredFocusableNode().focusedProperty().addListener((obs, oldV, newV) -> {
@@ -240,6 +254,19 @@ public class TerminalSplitPane extends StackPane {
                 broadcastToOthers(widget, sequence);
             }
         });
+    }
+
+    private void requestWidgetFocus(@NotNull SithTermFxWidget widget) {
+        if (widget.getTerminalPanel() != null && widget.getTerminalPanel().getCanvas() != null) {
+            widget.getTerminalPanel().getCanvas().requestFocus();
+            return;
+        }
+        Node focusTarget = widget.getPreferredFocusableNode();
+        if (focusTarget != null) {
+            focusTarget.requestFocus();
+        } else {
+            widget.getPane().requestFocus();
+        }
     }
 
     public void setExtraMenuItemsFactory(@Nullable Function<SithTermFxWidget, List<MenuItem>> factory) {

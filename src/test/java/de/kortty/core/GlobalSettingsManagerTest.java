@@ -49,8 +49,13 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setDefaultPromptHookEnabled(false);
             manager.getSettings().setTerminalAgentShowDebugMessages(true);
             manager.getSettings().setTerminalAgentShowRuntimeMessages(true);
+            manager.getSettings().setTerminalAgentShowRunDialog(false);
             manager.getSettings().setTerminalAgentCommandName("susi");
+            manager.getSettings().setTerminalAgentCommandNameCaseInsensitive(true);
             manager.getSettings().setTerminalAgentExecutionTarget(TerminalAgentExecutionTarget.CHAT_WINDOW);
+            manager.getSettings().setTerminalAgentRememberPanelLayout(true);
+            manager.getSettings().setTerminalAgentPanelHeight(312.5);
+            manager.getSettings().setTerminalAgentPanelFontSize(16.0);
             manager.getSettings().setAiCodeTextDefaultLanguage("de");
             manager.getSettings().setAiSnippetEditorAdditionalInstructionsEnabled(true);
             manager.getSettings().setAiSnippetAlternativeSolutionCount(5);
@@ -86,8 +91,13 @@ class GlobalSettingsManagerTest {
             assertFalse(reloaded.getSettings().isDefaultPromptHookEnabled());
             assertTrue(reloaded.getSettings().isTerminalAgentShowDebugMessages());
             assertTrue(reloaded.getSettings().isTerminalAgentShowRuntimeMessages());
+            assertFalse(reloaded.getSettings().isTerminalAgentShowRunDialog());
             assertEquals("susi", reloaded.getSettings().getTerminalAgentCommandName());
+            assertTrue(reloaded.getSettings().isTerminalAgentCommandNameCaseInsensitive());
             assertEquals(TerminalAgentExecutionTarget.CHAT_WINDOW, reloaded.getSettings().getTerminalAgentExecutionTarget());
+            assertTrue(reloaded.getSettings().isTerminalAgentRememberPanelLayout());
+            assertEquals(312.5, reloaded.getSettings().getTerminalAgentPanelHeight());
+            assertEquals(16.0, reloaded.getSettings().getTerminalAgentPanelFontSize());
             assertEquals("de", reloaded.getSettings().getAiCodeTextDefaultLanguage());
             assertTrue(reloaded.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled());
             assertEquals(5, reloaded.getSettings().getAiSnippetAlternativeSolutionCount());

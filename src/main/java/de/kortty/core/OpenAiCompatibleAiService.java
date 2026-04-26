@@ -64,13 +64,26 @@ public class OpenAiCompatibleAiService implements AiService {
         return executePromptWithClient(systemPrompt, userPrompt, httpClient, null);
     }
 
+    public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) throws Exception {
+        return executePromptWithClient(systemPrompt, userPrompt, httpClient, null, true);
+    }
+
     AiExecutionResult executeWithClient(AiRequest request, HttpClient client, Duration timeout) throws Exception {
         HttpRequest httpRequest = buildHttpRequest(request, timeout);
         return executeRequestWithClient(httpRequest, client);
     }
 
     AiExecutionResult executePromptWithClient(String systemPrompt, String userPrompt, HttpClient client, Duration timeout) throws Exception {
-        HttpRequest httpRequest = buildPromptHttpRequest(systemPrompt, userPrompt, timeout);
+        return executePromptWithClient(systemPrompt, userPrompt, client, timeout, false);
+    }
+
+    AiExecutionResult executePromptWithClient(
+        String systemPrompt,
+        String userPrompt,
+        HttpClient client,
+        Duration timeout,
+        boolean jsonResponseFormat) throws Exception {
+        HttpRequest httpRequest = buildPromptHttpRequest(systemPrompt, userPrompt, timeout, jsonResponseFormat);
         return executeRequestWithClient(httpRequest, client);
     }
 
@@ -120,10 +133,14 @@ public class OpenAiCompatibleAiService implements AiService {
     }
 
     HttpRequest buildPromptHttpRequest(String systemPrompt, String userPrompt, Duration timeout) {
+        return buildPromptHttpRequest(systemPrompt, userPrompt, timeout, false);
+    }
+
+    HttpRequest buildPromptHttpRequest(String systemPrompt, String userPrompt, Duration timeout, boolean jsonResponseFormat) {
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
         }
-        return buildJsonPostRequest(buildPromptRequestBody(systemPrompt, userPrompt), timeout);
+        return buildJsonPostRequest(buildPromptRequestBody(systemPrompt, userPrompt, jsonResponseFormat), timeout);
     }
 
     private HttpRequest buildJsonPostRequest(String body, Duration timeout) {
@@ -167,10 +184,22 @@ public class OpenAiCompatibleAiService implements AiService {
     }
 
     String buildPromptRequestBody(String systemPrompt, String userPrompt) {
-        return buildPromptRequestBody(systemPrompt, userPrompt, 0.2);
+        return buildPromptRequestBody(systemPrompt, userPrompt, false);
+    }
+
+    String buildPromptRequestBody(String systemPrompt, String userPrompt, boolean jsonResponseFormat) {
+        return buildPromptRequestBody(systemPrompt, userPrompt, 0.2, jsonResponseFormat);
     }
 
     private String buildPromptRequestBody(String systemPrompt, String userPrompt, double temperature) {
+        return buildPromptRequestBody(systemPrompt, userPrompt, temperature, false);
+    }
+
+    private String buildPromptRequestBody(
+        String systemPrompt,
+        String userPrompt,
+        double temperature,
+        boolean jsonResponseFormat) {
         JsonObject root = new JsonObject();
         if (!model.isBlank()) {
             root.addProperty("model", model);
@@ -189,6 +218,11 @@ public class OpenAiCompatibleAiService implements AiService {
 
         root.add("messages", messages);
         root.addProperty("temperature", temperature);
+        if (jsonResponseFormat) {
+            JsonObject responseFormat = new JsonObject();
+            responseFormat.addProperty("type", "json_object");
+            root.add("response_format", responseFormat);
+        }
         return GSON.toJson(root);
     }
 

@@ -26,6 +26,12 @@ public class ThemeEditDialog extends ThemeAwareDialog<Theme> {
     private final ColorPicker backgroundColorPicker;
     private final ColorPicker cursorColorPicker;
     private final ComboBox<String> cursorStyleCombo;
+    private final ColorPicker agentPanelBackgroundColorPicker;
+    private final ColorPicker agentPanelBorderColorPicker;
+    private final ColorPicker agentPanelTextColorPicker;
+    private final ColorPicker agentPanelMutedTextColorPicker;
+    private final ColorPicker agentPanelAccentColorPicker;
+    private final ColorPicker agentPanelErrorColorPicker;
 
     private static final List<String> CURSOR_STYLES = Arrays.asList(
             "BLINK_BLOCK", "STEADY_BLOCK",
@@ -89,6 +95,36 @@ public class ThemeEditDialog extends ThemeAwareDialog<Theme> {
         grid.add(new Label(I18n.get("theme.edit.cursorStyle")), 0, row);
         grid.add(cursorStyleCombo, 1, row++);
 
+        grid.add(new Separator(), 0, row++, 2, 1);
+
+        Label agentPanelLabel = new Label(I18n.get("theme.edit.agentPanel"));
+        agentPanelLabel.setStyle("-fx-font-weight: bold;");
+        grid.add(agentPanelLabel, 0, row++, 2, 1);
+
+        agentPanelBackgroundColorPicker = new ColorPicker(Color.web(theme.getAgentPanelBackgroundColor()));
+        grid.add(new Label(I18n.get("theme.edit.agentPanelBackground")), 0, row);
+        grid.add(agentPanelBackgroundColorPicker, 1, row++);
+
+        agentPanelBorderColorPicker = new ColorPicker(Color.web(theme.getAgentPanelBorderColor()));
+        grid.add(new Label(I18n.get("theme.edit.agentPanelBorder")), 0, row);
+        grid.add(agentPanelBorderColorPicker, 1, row++);
+
+        agentPanelTextColorPicker = new ColorPicker(Color.web(theme.getAgentPanelTextColor()));
+        grid.add(new Label(I18n.get("theme.edit.agentPanelText")), 0, row);
+        grid.add(agentPanelTextColorPicker, 1, row++);
+
+        agentPanelMutedTextColorPicker = new ColorPicker(Color.web(theme.getAgentPanelMutedTextColor()));
+        grid.add(new Label(I18n.get("theme.edit.agentPanelMutedText")), 0, row);
+        grid.add(agentPanelMutedTextColorPicker, 1, row++);
+
+        agentPanelAccentColorPicker = new ColorPicker(Color.web(theme.getAgentPanelAccentColor()));
+        grid.add(new Label(I18n.get("theme.edit.agentPanelAccent")), 0, row);
+        grid.add(agentPanelAccentColorPicker, 1, row++);
+
+        agentPanelErrorColorPicker = new ColorPicker(Color.web(theme.getAgentPanelErrorColor()));
+        grid.add(new Label(I18n.get("theme.edit.agentPanelError")), 0, row);
+        grid.add(agentPanelErrorColorPicker, 1, row++);
+
         getDialogPane().setContent(grid);
 
         ButtonType saveType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.OK_DONE);
@@ -116,6 +152,12 @@ public class ThemeEditDialog extends ThemeAwareDialog<Theme> {
         theme.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
         theme.setCursorColor(toHex(cursorColorPicker.getValue()));
         theme.setCursorStyle(cursorStyleCombo.getValue());
+        theme.setAgentPanelBackgroundColor(toHex(agentPanelBackgroundColorPicker.getValue()));
+        theme.setAgentPanelBorderColor(toHex(agentPanelBorderColorPicker.getValue()));
+        theme.setAgentPanelTextColor(toHex(agentPanelTextColorPicker.getValue()));
+        theme.setAgentPanelMutedTextColor(toHex(agentPanelMutedTextColorPicker.getValue()));
+        theme.setAgentPanelAccentColor(toHex(agentPanelAccentColorPicker.getValue()));
+        theme.setAgentPanelErrorColor(toHex(agentPanelErrorColorPicker.getValue()));
     }
 
     private static String toHex(Color c) {

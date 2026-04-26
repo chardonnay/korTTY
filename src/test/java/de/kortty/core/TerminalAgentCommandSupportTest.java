@@ -43,6 +43,18 @@ class TerminalAgentCommandSupportTest {
     }
 
     @Test
+    void parseShortcutCanUseCaseInsensitiveCommandNamesWhenEnabled() {
+        assertNull(TerminalAgentCommandSupport.parseShortcut("Agent install tmux", "agent"));
+
+        TerminalAgentCommandSupport.Invocation invocation =
+            TerminalAgentCommandSupport.parseShortcut("Agent install tmux", "agent", true);
+
+        assertNotNull(invocation);
+        assertEquals(TerminalAgentCommandSupport.InvocationKind.EXECUTE, invocation.kind());
+        assertEquals("install tmux", invocation.userPrompt());
+    }
+
+    @Test
     void invalidOrBlankCommandNamesFallBackOrValidate() {
         assertEquals("agent", TerminalAgentCommandSupport.normalizeCommandName(" "));
         assertNull(TerminalAgentCommandSupport.validateCommandName("agent_2"));

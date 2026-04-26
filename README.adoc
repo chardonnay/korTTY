@@ -18,7 +18,7 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *Encrypted Passwords*: AES-256-GCM encryption with master password
 * *SSH Key Management*: Centralized management of private SSH keys with encrypted passphrases
 * *Customizable Display*: Font size, colors (global or per connection)
-* *Theme Profiles*: Multiple built-in color profiles (including IntelliJ-inspired themes) with live preview and one-click apply in Global Settings
+* *Theme Profiles*: Multiple built-in color profiles (including IntelliJ-inspired themes) with live preview, one-click apply in Global Settings, and dedicated Terminal AI agent panel colors
 * *Theme Font Control*: Themes apply colors by default; font family/size are applied only when explicitly enabled in settings
 * *Project Management*: Save and load connection sets with history
 * *Import/Export*: Import connections from MTPuTTY, MobaXterm, and PuTTY Connection Manager
@@ -38,7 +38,8 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *AI Result Tabs*: Continue with follow-up prompts, switch profile and response language per chat, retry or cancel requests, save named chats, save generated scripts as snippets, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables/columns/cells, and persist the AI tab font size across sessions
 * *AI Manager*: Reopen, rename, refresh, and delete saved AI chats, and manage AI profiles from *Tools → AI Manager* (shortcut: *Ctrl/Cmd+Shift+Y*)
 * *AI Agent & Planning*: Start AI Agent and AI Planning from *Tools* or the terminal context menu, choose terminal or chat execution targets, and use dedicated planning/run tabs with transcript export
-* *Terminal AI Commands*: Intercept configurable local shortcut commands such as `agent`, `agent-ask`, and `agent-plan` directly at the shell prompt
+* *Terminal AI Activity Feed*: Terminal-targeted agent runs show an inline activity panel with status dots, task timing, collapsible details, history navigation, rerun, resize, font controls, cancel, sudo password prompts, and run export to Markdown/Text/YAML/XML/JSON/PDF/Asciidoctor
+* *Terminal AI Commands*: Intercept configurable local shortcut commands such as `agent`, `agent-ask`, and `agent-plan` directly at the shell prompt, including the active remote working directory for terminal-targeted tasks
 * *Quick Connect*: Fast connection dialog with frequently used connections and group support
 * *SSH Tunnels*: Local and remote port forwarding (SSH tunnels)
 * *Jump Server*: Support for bastion hosts (SSH hopping)
@@ -48,7 +49,7 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 
 == AI Integration Overview
 
-KorTTY keeps profile selection, quota tracking, and result handling local while sending only the reviewed terminal selection and optional prompt to the configured OpenAI-compatible endpoint.
+KorTTY keeps profile selection, quota tracking, and result handling local while sending only the reviewed terminal selection and optional prompt to the configured OpenAI-compatible endpoint for selection-based AI actions. Terminal-agent runs send the agent goal together with a compact SSH-session snapshot, including the active remote working directory captured from the shell.
 
 image::docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
 
@@ -802,6 +803,25 @@ Notes:
 * `<think> ... </think>` blocks are stripped from the visible AI output.
 * AI result tabs support follow-up prompts, saving/reopening named chats, export and OS sharing, code-block copy helpers, markdown table copy helpers, request cancellation, and a font size that is reused for future AI tabs.
 * When you reopen a saved AI chat and the original AI profile is no longer available, KorTTY prompts you to select a replacement profile before continuing.
+
+=== Terminal AI Agent Commands
+
+When terminal agent shortcuts are enabled in *Settings → AI*, the active SSH shell can start KorTTY-side agent runs with:
+
+[source,text]
+----
+agent <goal>
+agent-ask <question>
+agent-plan <task>
+----
+
+The base command name is configurable. A separate setting can make the command name case-insensitive. KorTTY installs the shortcuts as shell aliases and emits a hidden terminal marker instead of sending the command to the remote shell as a normal executable.
+
+For terminal-targeted agent runs, the inline activity panel at the bottom of the terminal shows the current task, token usage when reported by the endpoint, command/read actions, collapsible details, previous/next run navigation, rerun, close, collapse, resize, font controls, export controls, and a red cancel button. While the agent is running, normal terminal input is locked; *Esc*, *Ctrl+C*, or the panel cancel button aborts the run.
+
+Completed terminal-agent runs can be exported individually or as the full panel history. Export formats are Markdown, plain text, YAML, XML, JSON, PDF, and Asciidoctor. The export includes the AI profile, configured model/LLM, run timestamps, total runtime, per-activity runtimes, reported token usage when available, summaries, and expanded detail text.
+
+The shell shortcut captures the current remote directory with `pwd -P` and sends it to KorTTY. Agent commands then run relative to that directory, so generated files are created where the user is currently working on the server. If sudo is required, KorTTY asks for the password in the activity panel with a masked input field instead of echoing it in the terminal.
 
 == SFTP Manager
 

@@ -1,5 +1,32 @@
 = Release Notes
 
+== Unreleased
+
+=== Terminal AI Agent
+
+* *Inline activity feed*: Terminal-targeted AI Agent runs now show a Cloud-Code-style activity panel in the active terminal tab with message/action/status indicators, task timing, reported token usage, collapsible details, and auto-scrolling.
+* *Panel controls*: The terminal agent panel now supports previous/next run navigation, rerun, close, collapse/expand, resize, font-size controls, an *Expand all* option, remembered panel size/font settings, and a red cancel button.
+* *Activity export*: Completed terminal-agent runs can be exported for the current run or the full panel history as Markdown, plain text, YAML, XML, JSON, PDF, or Asciidoctor, including AI profile, model/LLM, run timestamps, runtimes, token usage, summaries, and detail text.
+* *Terminal input lock*: While a terminal agent run is active, regular terminal input is blocked for that tab. *Esc*, *Ctrl+C*, and the panel cancel button abort the run.
+* *Current-directory aware runs*: Terminal shortcut commands now capture the active remote directory with `pwd -P` and pass it to the agent, so relative commands and generated files run in the directory where the user started the task.
+* *Sudo prompt handling*: When sudo access is required, the agent panel can ask for a masked sudo password and reuse it for the current session. Unsupported interactive sudo modes are rejected instead of hanging the terminal.
+* *Terminal final output*: Final terminal-agent answers are written into the terminal transcript, while the activity panel remains available for detailed execution state.
+
+=== AI Settings and Theme Support
+
+* *Agent command matching*: *Settings → AI* can now match the configured terminal agent command name case-insensitively.
+* *Default-profile terminal runs*: *Settings → AI* can disable the terminal-agent setup dialog before each shortcut run; in that mode KorTTY uses the configured default AI profile.
+* *Theme colors*: Themes can define Terminal AI agent panel colors separately from the normal terminal palette, and existing themes derive sensible defaults.
+
+=== Terminal Agent Fixes
+
+* Fixed terminal shortcut handling so `agent`, `agent-ask`, and `agent-plan` are intercepted by KorTTY instead of reaching the remote shell as unknown commands.
+* Fixed duplicate prompt artifacts and startup alias leakage in shell history after reconnecting to an SSH session.
+* Fixed incomplete or status-bar-only terminal-agent output by routing the final answer back into the terminal area.
+* Fixed activity-panel usability issues around auto-scroll, closing, resizing, collapsed-state status, and visible busy indication.
+
+---
+
 == v2.0.0
 
 *Release date:* March 2026

@@ -1355,7 +1355,7 @@ public class MainWindow {
                 if (conn != null && conn.getId() != null) {
                     ServerConnection stored = app.getConfigManager().getConnectionById(conn.getId());
                     if (stored != null && stored.getSettings() != null) {
-                        terminalTab.getTerminalView().applyConnectionSettings(stored.getSettings());
+                        terminalTab.applyConnectionSettings(stored.getSettings());
                     }
                 }
             }
@@ -1412,7 +1412,9 @@ public class MainWindow {
             ServerConnection conn = terminalTab.getConnection();
             ConnectionSettings connSettings = conn != null ? conn.getSettings() : null;
             if (connSettings == null || connSettings.isUseGlobalSettings()) {
-                terminalTab.getTerminalView().applyConnectionSettings(globalDefaults);
+                terminalTab.applyConnectionSettings(globalDefaults);
+            } else {
+                terminalTab.applyConnectionSettings(connSettings);
             }
         }
     }
@@ -2874,6 +2876,30 @@ public class MainWindow {
         }
     }
 
+    private void recordAiUsage(AiProfile profile, AiTokenUsage usage) {
+        if (profile == null || profile.getId() == null || usage == null) {
+            return;
+        }
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null) {
+            return;
+        }
+        AiProfile mutableProfile = settings.getAiProfiles().stream()
+            .filter(candidate -> candidate != null && profile.getId().equals(candidate.getId()))
+            .findFirst()
+            .orElse(null);
+        if (mutableProfile == null) {
+            return;
+        }
+        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.recordUsage(mutableProfile, usage);
+        logger.debug("Updated AI token usage for profile {} to {}", getAiProfileDisplayName(mutableProfile), snapshot.usedTotalTokens());
+        try {
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.warn("Could not persist AI token usage", e);
+        }
+    }
+
     private void findNextInTextArea(TextArea textArea, String search, Label statusLabel) {
         if (search == null || search.isEmpty()) {
             statusLabel.setText(I18n.get("editor.search.noMatches"));
@@ -2952,8 +2978,8 @@ public class MainWindow {
         terminalTab.getTerminalView().setAiAgentHandler(() -> requestAiAgentForTab(terminalTab, false, null, null, false, false));
         terminalTab.getTerminalView().setAiAgentAskHandler(() -> requestAiAgentForTab(terminalTab, true, null, null, false, false));
         terminalTab.getTerminalView().setAiPlanningHandler(() -> requestAiPlanningForTab(terminalTab, null, null));
-        terminalTab.getTerminalView().setTerminalAgentShortcutHandler(rawCommand ->
-            handleTerminalAgentShortcut(terminalTab, rawCommand));
+        terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
+            handleTerminalAgentShortcut(terminalTab, rawCommand, runContext));
     }
 
     private String getAiActionLabel(AiAction action) {
@@ -2982,9 +3008,35 @@ public class MainWindow {
             settings != null ? settings.getTerminalAgentCommandName() : null);
     }
 
+    private boolean isTerminalAgentCommandNameCaseInsensitive() {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return settings != null && settings.isTerminalAgentCommandNameCaseInsensitive();
+    }
+
     private TerminalAgentExecutionTarget getTerminalAgentExecutionTarget() {
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         return settings != null ? settings.getTerminalAgentExecutionTarget() : TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+    }
+
+    private boolean shouldShowTerminalAgentRunDialog() {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return settings == null || settings.isTerminalAgentShowRunDialog();
+    }
+
+    private boolean shouldShowTerminalAgentDebugMessages() {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return settings != null && settings.isTerminalAgentShowDebugMessages();
+    }
+
+    private boolean shouldShowTerminalAgentRuntimeMessages() {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return settings != null && settings.isTerminalAgentShowRuntimeMessages();
+    }
+
+    private String getConnectionDisplayName(TerminalTab terminalTab) {
+        return terminalTab.getConnection() != null
+            ? terminalTab.getConnection().getDisplayName()
+            : I18n.get("ai.agent.connection.unknown");
     }
 
     private boolean isTerminalPromptHookEnabled() {
@@ -3023,6 +3075,24 @@ public class MainWindow {
         String requestedProfileName,
         boolean askConfirmationBeforeEveryCommand,
         boolean autoApproveRootCommands) {
+        requestAiAgentForTab(
+            terminalTab,
+            queryOnly,
+            initialPrompt,
+            requestedProfileName,
+            askConfirmationBeforeEveryCommand,
+            autoApproveRootCommands,
+            null);
+    }
+
+    private void requestAiAgentForTab(
+        TerminalTab terminalTab,
+        boolean queryOnly,
+        String initialPrompt,
+        String requestedProfileName,
+        boolean askConfirmationBeforeEveryCommand,
+        boolean autoApproveRootCommands,
+        TerminalView.TerminalAgentRunContext runContext) {
         if (!isAiFeaturesEnabled()) {
             return;
         }
@@ -3032,15 +3102,42 @@ public class MainWindow {
             showError(I18n.get(queryOnly ? "ai.agent.ask.title" : "ai.agent.title"), I18n.get("settings.ai.error.noProfilesConfigured"));
             return;
         }
+        if (!shouldShowTerminalAgentRunDialog() && initialPrompt != null && !initialPrompt.isBlank()) {
+            AiProfile resolvedProfile = requestedProfileName != null && !requestedProfileName.isBlank()
+                ? findAiProfileByLookup(requestedProfileName)
+                : null;
+            if (resolvedProfile == null) {
+                resolvedProfile = getDefaultAiProfile();
+            }
+            if (resolvedProfile == null) {
+                showAiManager();
+                showError(I18n.get(queryOnly ? "ai.agent.ask.title" : "ai.agent.title"), I18n.get("settings.ai.error.noProfilesConfigured"));
+                return;
+            }
+            TerminalAgentModels.Request directRequest = new TerminalAgentModels.Request(
+                terminalTab.getAiSessionId(),
+                resolvedProfile.getId(),
+                initialPrompt.trim(),
+                getConnectionDisplayName(terminalTab),
+                "",
+                getTerminalAgentExecutionTarget(),
+                shouldShowTerminalAgentDebugMessages(),
+                shouldShowTerminalAgentRuntimeMessages(),
+                askConfirmationBeforeEveryCommand,
+                autoApproveRootCommands,
+                queryOnly);
+            launchTerminalAgent(terminalTab, directRequest, runContext);
+            return;
+        }
 
         List<AiProfile> orderedProfiles = reorderProfilesForLookup(profiles, requestedProfileName);
         AiAgentDialog dialog = new AiAgentDialog(
             stage,
             orderedProfiles,
-            terminalTab.getConnection() != null ? terminalTab.getConnection().getDisplayName() : null,
+            getConnectionDisplayName(terminalTab),
             getTerminalAgentExecutionTarget(),
-            app.getGlobalSettingsManager().getSettings() != null && app.getGlobalSettingsManager().getSettings().isTerminalAgentShowDebugMessages(),
-            app.getGlobalSettingsManager().getSettings() != null && app.getGlobalSettingsManager().getSettings().isTerminalAgentShowRuntimeMessages(),
+            shouldShowTerminalAgentDebugMessages(),
+            shouldShowTerminalAgentRuntimeMessages(),
             queryOnly,
             initialPrompt);
         dialog.showAndWait().ifPresent(request -> {
@@ -3056,7 +3153,7 @@ public class MainWindow {
                 askConfirmationBeforeEveryCommand || request.askConfirmationBeforeEveryCommand(),
                 autoApproveRootCommands || request.autoApproveRootCommands(),
                 request.queryOnly());
-            launchTerminalAgent(terminalTab, enrichedRequest);
+            launchTerminalAgent(terminalTab, enrichedRequest, runContext);
         });
     }
 
@@ -3126,6 +3223,13 @@ public class MainWindow {
     }
 
     private void launchTerminalAgent(TerminalTab terminalTab, TerminalAgentModels.Request request) {
+        launchTerminalAgent(terminalTab, request, null);
+    }
+
+    private void launchTerminalAgent(
+        TerminalTab terminalTab,
+        TerminalAgentModels.Request request,
+        TerminalView.TerminalAgentRunContext runContext) {
         AiProfile profile = findAiProfileById(request.profileId());
         if (profile == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.profileMissing"));
@@ -3149,7 +3253,7 @@ public class MainWindow {
             return;
         }
 
-        runTerminalAgentInTerminalWindow(terminalTab, profile, aiService, request);
+        runTerminalAgentInTerminalWindow(terminalTab, profile, aiService, request, runContext);
     }
 
     private void openDirectAiAskTab(AiProfile profile, String prompt, String connectionDisplayName) {
@@ -3199,69 +3303,78 @@ public class MainWindow {
         TerminalTab terminalTab,
         AiProfile profile,
         OpenAiCompatibleAiService aiService,
-        TerminalAgentModels.Request request) {
+        TerminalAgentModels.Request request,
+        TerminalView.TerminalAgentRunContext runContext) {
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        AiAgentActivityPanel activityPanel = terminalTab.getAiAgentActivityPanel();
+        TerminalView.TerminalAgentRunContext resolvedRunContext = runContext != null
+            ? runContext
+            : terminalTab.getTerminalView().captureTerminalAgentRunContext();
+        Runnable cancelRun = () -> cancelled.set(true);
+        Runnable reloadRun = () -> launchTerminalAgent(terminalTab, request, resolvedRunContext);
+        terminalTab.getTerminalView().setTerminalAgentInputLocked(
+            resolvedRunContext,
+            true,
+            cancelRun,
+            activityPanel::toggleThinkingDetails);
+        AiAgentActivityPanel.RunMetadata runMetadata = new AiAgentActivityPanel.RunMetadata(
+            profile.getId(),
+            profile.getName(),
+            profile.getModel());
+        Platform.runLater(() -> {
+            activityPanel.beginRun(request.userPrompt(), cancelRun, reloadRun, runMetadata);
+        });
         Thread worker = new Thread(() -> {
             try {
                 terminalAgentService.runAgent(terminalTab, profile, aiService, request, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
-                        Platform.runLater(() -> updateStatus(
-                            state.userMessage() != null && !state.userMessage().isBlank()
-                                ? state.userMessage()
-                                : state.summary()));
+                        if (state != null && isTerminalAgentFinalPhase(state.phase())) {
+                            String message = formatTerminalAgentFinalMessage(state);
+                            if (message != null && !message.isBlank()) {
+                                terminalTab.getTerminalView().showAgentMessage(message);
+                            }
+                        }
                     }
 
                     @Override
                     public void appendTranscript(String text) {
                         if (request.showDebugMessages()) {
-                            terminalTab.getTerminalView().showMessage(text.endsWith("\n") ? text.trim() : text);
+                            activityPanel.publishActivity(new TerminalAgentModels.AgentActivity(
+                                "debug-" + System.nanoTime(),
+                                TerminalAgentModels.AgentActivityType.MESSAGE,
+                                TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                                I18n.get("ai.agent.activity.debug"),
+                                I18n.get("ai.agent.activity.debug"),
+                                text != null ? text.trim() : "",
+                                TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+                                0L,
+                                text != null && !text.isBlank(),
+                                true));
                         }
                     }
 
                     @Override
+                    public void publishActivity(TerminalAgentModels.AgentActivity activity) {
+                        activityPanel.publishActivity(activity);
+                    }
+
+                    @Override
+                    public void recordTokenUsage(AiTokenUsage usage) {
+                        if (usage == null) {
+                            return;
+                        }
+                        recordAiUsageForProfile(profile, usage);
+                    }
+
+                    @Override
                     public TerminalAgentService.ApprovalDecision requestApproval(TerminalAgentModels.Approval approval) {
-                        Dialog<TerminalAgentService.ApprovalDecision> dialog = new Dialog<>();
-                        DialogThemeHelper.applyTheme(dialog);
-                        dialog.initOwner(stage);
-                        dialog.setTitle(I18n.get("ai.agent.approval.title"));
-                        dialog.setHeaderText(approval.summary());
-                        ButtonType onceButton = new ButtonType(I18n.get("ai.agent.approval.once"), ButtonBar.ButtonData.OK_DONE);
-                        ButtonType alwaysButton = new ButtonType(I18n.get("ai.agent.approval.always"), ButtonBar.ButtonData.YES);
-                        dialog.getDialogPane().getButtonTypes().addAll(onceButton, alwaysButton, ButtonType.CANCEL);
-                        TextArea area = new TextArea(approval.commands().stream()
-                            .map(command -> "$ " + command.command() + "\n" + command.purpose())
-                            .reduce((left, right) -> left + "\n\n" + right)
-                            .orElse(""));
-                        area.setEditable(false);
-                        area.setWrapText(true);
-                        area.setPrefRowCount(10);
-                        dialog.getDialogPane().setContent(area);
-                        dialog.setResultConverter(buttonType -> {
-                            if (buttonType == onceButton) {
-                                return TerminalAgentService.ApprovalDecision.APPROVE_ONCE;
-                            }
-                            if (buttonType == alwaysButton) {
-                                return TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS;
-                            }
-                            return TerminalAgentService.ApprovalDecision.CANCEL;
-                        });
-                        return dialog.showAndWait().orElse(TerminalAgentService.ApprovalDecision.CANCEL);
+                        return activityPanel.requestApproval(approval);
                     }
 
                     @Override
                     public String requestPassword(TerminalAgentModels.PasswordRequest passwordRequest) {
-                        Dialog<String> dialog = new Dialog<>();
-                        DialogThemeHelper.applyTheme(dialog);
-                        dialog.initOwner(stage);
-                        dialog.setTitle(I18n.get("ai.agent.password.title"));
-                        dialog.setHeaderText(passwordRequest.summary());
-                        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-                        PasswordField passwordField = new PasswordField();
-                        passwordField.setPromptText(I18n.get("common.password"));
-                        dialog.getDialogPane().setContent(new VBox(8, new Label(passwordRequest.userMessage()), passwordField));
-                        dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK ? passwordField.getText() : null);
-                        return dialog.showAndWait().orElse(null);
+                        return activityPanel.requestPassword(passwordRequest);
                     }
 
                     @Override
@@ -3270,12 +3383,68 @@ public class MainWindow {
                     }
                 });
             } catch (Exception e) {
-                Platform.runLater(() -> showError(I18n.get("ai.agent.title"),
-                    e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+                if (TerminalAgentService.isCancellation(e) || cancelled.get()) {
+                    activityPanel.publishActivity(new TerminalAgentModels.AgentActivity(
+                        "cancelled-" + System.nanoTime(),
+                        TerminalAgentModels.AgentActivityType.MESSAGE,
+                        TerminalAgentModels.AgentActivityStatus.CANCELLED,
+                        I18n.get("ai.agent.activity.cancelled"),
+                        I18n.get("ai.agent.activity.cancelled"),
+                        "",
+                        TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+                        0L,
+                        false,
+                        true));
+                    terminalTab.getTerminalView().showAgentMessage(I18n.get("ai.agent.activity.cancelled"));
+                } else {
+                    activityPanel.publishActivity(new TerminalAgentModels.AgentActivity(
+                        "failed-" + System.nanoTime(),
+                        TerminalAgentModels.AgentActivityType.ERROR,
+                        TerminalAgentModels.AgentActivityStatus.FAILED,
+                        I18n.get("ai.agent.run.phase.failed"),
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
+                        "",
+                        TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+                        0L,
+                        false,
+                        true));
+                    Platform.runLater(() -> showError(I18n.get("ai.agent.title"),
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+                }
+            } finally {
+                Platform.runLater(() -> {
+                    activityPanel.finishRun();
+                    terminalTab.getTerminalView().setTerminalAgentInputLocked(resolvedRunContext, false, null, null);
+                });
             }
         }, "ai-agent-terminal");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    private boolean isTerminalAgentFinalPhase(TerminalAgentModels.Phase phase) {
+        return phase == TerminalAgentModels.Phase.DONE
+            || phase == TerminalAgentModels.Phase.BLOCKED
+            || phase == TerminalAgentModels.Phase.CANCELLED
+            || phase == TerminalAgentModels.Phase.FAILED;
+    }
+
+    private String formatTerminalAgentFinalMessage(TerminalAgentModels.RunState state) {
+        if (state == null) {
+            return "";
+        }
+        String userMessage = state.userMessage() != null ? state.userMessage().trim() : "";
+        String summary = state.summary() != null ? state.summary().trim() : "";
+        if (userMessage.isBlank()) {
+            return summary;
+        }
+        if (summary.isBlank() || userMessage.equals(summary) || userMessage.contains(summary)) {
+            return userMessage;
+        }
+        if (summary.contains(userMessage)) {
+            return summary;
+        }
+        return userMessage + "\n" + summary;
     }
 
     private void launchTerminalAgentPlan(TerminalTab terminalTab, TerminalAgentModels.PlanRequest request) {
@@ -3322,16 +3491,22 @@ public class MainWindow {
         launchTerminalAgent(terminalTab, request);
     }
 
-    private void handleTerminalAgentShortcut(TerminalTab terminalTab, String rawCommand) {
+    private void handleTerminalAgentShortcut(
+        TerminalTab terminalTab,
+        String rawCommand,
+        TerminalView.TerminalAgentRunContext runContext) {
         String commandName = getTerminalAgentCommandName();
         TerminalAgentCommandSupport.Invocation invocation =
-            TerminalAgentCommandSupport.parseShortcut(rawCommand, commandName);
+            TerminalAgentCommandSupport.parseShortcut(
+                rawCommand,
+                commandName,
+                isTerminalAgentCommandNameCaseInsensitive());
         if (invocation == null) {
             terminalTab.getTerminalView().showError(TerminalAgentCommandSupport.buildUsageText(commandName));
             return;
         }
         switch (invocation.kind()) {
-            case ASK -> requestAiAgentForTab(terminalTab, true, invocation.userPrompt(), invocation.profileName(), false, false);
+            case ASK -> requestAiAgentForTab(terminalTab, true, invocation.userPrompt(), invocation.profileName(), false, false, runContext);
             case PLAN -> requestAiPlanningForTab(terminalTab, invocation.userPrompt(), invocation.profileName());
             case EXECUTE -> requestAiAgentForTab(
                 terminalTab,
@@ -3339,7 +3514,8 @@ public class MainWindow {
                 invocation.userPrompt(),
                 invocation.profileName(),
                 invocation.askConfirmationBeforeEveryCommand(),
-                invocation.autoApproveRootCommands());
+                invocation.autoApproveRootCommands(),
+                runContext);
         }
     }
 
@@ -3398,6 +3574,10 @@ public class MainWindow {
 
     void recordAiUsageForProfile(AiProfile profile, AiRequest request, AiExecutionResult result) {
         recordAiUsage(profile, request, result);
+    }
+
+    void recordAiUsageForProfile(AiProfile profile, AiTokenUsage usage) {
+        recordAiUsage(profile, usage);
     }
 
     void registerSavedChatTab(AiResultTab tab) {

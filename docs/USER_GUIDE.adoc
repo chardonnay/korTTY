@@ -20,7 +20,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *SSH tunnels* (local, remote, dynamic) and jump server support
 * *Backup and restore* with password-protected ZIP or GPG encryption
 * *8 built-in languages* plus *dynamic translation*: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
-* *AI assistant for terminal selections* with profile-based OpenAI-compatible endpoints, follow-up prompts, AI Agent / Planning workflows, and token quota tracking
+* *AI assistant for terminal selections* with profile-based OpenAI-compatible endpoints, follow-up prompts, Terminal AI Agent / Planning workflows, inline activity feed, and token quota tracking
 * *JMX monitoring* for active connections and memory usage
 
 === System Requirements
@@ -296,7 +296,7 @@ Selected terminal text is transmitted to the configured AI endpoint for analysis
 6. Click *Test AI Connection*.
 7. Optionally choose a *Default profile* for terminal AI actions and follow-up chats that do not explicitly select another profile.
 8. Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.
-9. Optionally configure the agent command name, execution target, prompt-hook usage, and debug/runtime visibility for *AI Agent* and *AI Planning*.
+9. Optionally configure the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, and debug/runtime visibility for *AI Agent* and *AI Planning*.
 10. Optionally disable the confirmation dialog for *Summarize* and *Solve Problem* if you want a faster workflow. *Ask* always opens the prompt dialog.
 
 *Usage:*
@@ -340,14 +340,18 @@ Use *Settings > AI* for the global defaults and behavior switches, and *AI Manag
 
 KorTTY also supports agent-style workflows for an active terminal session.
 
-* *AI Agent* - Start from *Tools > AI Agent...* or from the terminal right-click menu. The agent can open in a dedicated chat tab or target the active terminal window, depending on *Settings > AI*.
-* *AI Planning* - Start from *Tools > AI Planning...* or from the terminal right-click menu. Planning mode asks clarifying questions, proposes one or more options, and lets you start the accepted plan.
-* *Approvals* - The agent can request explicit approval before risky commands and can prompt for sudo passwords when needed.
-* *Transcripts* - Agent and planning tabs can copy and save their transcript.
+* *AI Agent* - Start from *Tools > AI Agent...*, from the terminal right-click menu, or with the terminal shortcut command. The agent can open in a dedicated chat tab or target the active terminal window, depending on *Settings > AI*.
+* *AI Planning* - Start from *Tools > AI Planning...*, from the terminal right-click menu, or with `agent-plan`. Planning mode asks clarifying questions, proposes one or more options, and lets you start the accepted plan.
+* *Inline activity panel* - Terminal-targeted runs appear at the bottom of the active terminal tab. The panel shows agent messages, read/run actions, task timing, reported token usage, collapsible details, previous/next run navigation, rerun, close, collapse/expand, resize, font-size controls, and export controls.
+* *Input lock and cancel* - While the agent is active, normal terminal input is blocked for that terminal tab. Press *Esc*, press *Ctrl+C*, or use the red cancel button in the panel to abort the run.
+* *Current directory* - Terminal shortcut runs capture the current remote directory with `pwd -P` and pass it to the agent. Commands and generated files are executed relative to that directory.
+* *Approvals and sudo* - The agent can request explicit approval before command execution and can ask for a sudo password in the activity panel. Password input is masked; if a password is cached, it is used only for the current agent/session context.
+* *Terminal output* - Final terminal-agent answers are written back to the terminal area so the shell transcript contains the answer, not only the activity panel state.
+* *Transcripts* - Dedicated agent and planning tabs can copy and save their transcript.
 
 ==== Terminal agent shortcut commands
 
-When *Settings > AI > Use OSC 133 prompt markers* is enabled and the terminal is at a shell prompt, KorTTY intercepts these commands locally instead of sending them to the server:
+When terminal agent shortcuts are enabled and the terminal is at a shell prompt, KorTTY intercepts these commands locally instead of sending them to the server as normal executables:
 
 [source,text]
 ----
@@ -356,7 +360,20 @@ agent-ask <question>
 agent-plan <task>
 ----
 
-The base command name is configurable in *Settings > AI*. If you rename `agent`, KorTTY derives the matching `-ask` and `-plan` commands automatically.
+The base command name is configurable in *Settings > AI*. If you rename `agent`, KorTTY derives the matching `-ask` and `-plan` commands automatically. The same settings page can make the command name case-insensitive and can disable the per-run setup dialog; when the dialog is disabled, KorTTY uses the configured default profile.
+
+KorTTY installs these shortcuts as shell aliases that emit a hidden `OSC 777` marker back to the application. The marker includes the requested agent mode, the user text, and the current remote directory from `pwd -P`. The startup alias itself is removed from Bash history after installation, while user-entered agent commands remain available in shell history.
+
+The terminal activity panel can be adjusted during use:
+
+* Use the arrow buttons to move through previous and next agent runs.
+* Use the reload button to run the selected agent command again.
+* Use the export format list and export menu to save the current run or all panel-history runs as Markdown, plain text, YAML, XML, JSON, PDF, or Asciidoctor. Exports include the AI profile, configured model/LLM, run timestamps, total runtime, per-activity runtimes, reported token usage when available, summaries, and expanded detail text.
+* Use *Expand all* to keep activity details open instead of compacting them.
+* Use *A-* and *A+* to change the activity font size.
+* Drag the resize handle to change the panel height.
+* Enable *Remember size* to persist panel height and activity font size across application restarts.
+* Use the collapse/expand button to hide or show the panel. If the panel is collapsed while the agent is waiting for sudo input, the status line still shows that input is required.
 
 === 4.7 Terminal Logging
 
@@ -641,7 +658,7 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, default profile, agent/planning runtime options, snippet-AI behavior switches, saved-chat compatibility, and token quotas), and *Themes* (color profiles with live preview).
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, snippet-AI behavior switches, saved-chat compatibility, and token quotas), and *Themes* (color profiles with live preview, including dedicated Terminal AI agent panel colors).
 
 == 16. Keyboard Shortcuts
 

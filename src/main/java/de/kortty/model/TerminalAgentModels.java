@@ -42,6 +42,54 @@ public final class TerminalAgentModels {
         REQUIRES_CONFIRMATION
     }
 
+    public enum AgentActivityType {
+        MESSAGE,
+        ACTION,
+        THINKING,
+        QUESTION,
+        ERROR
+    }
+
+    public enum AgentActivityStatus {
+        RUNNING,
+        COMPLETED,
+        CANCELLED,
+        FAILED
+    }
+
+    public record AgentActivityTokenUsage(
+        boolean known,
+        long promptTokens,
+        long completionTokens,
+        long totalTokens) {
+
+        public AgentActivityTokenUsage {
+            promptTokens = Math.max(0L, promptTokens);
+            completionTokens = Math.max(0L, completionTokens);
+            totalTokens = Math.max(0L, totalTokens);
+            if (known) {
+                totalTokens = Math.max(totalTokens, promptTokens + completionTokens);
+            }
+        }
+
+        public static AgentActivityTokenUsage unknown() {
+            return new AgentActivityTokenUsage(false, 0L, 0L, 0L);
+        }
+    }
+
+    public record AgentActivity(
+        String id,
+        AgentActivityType type,
+        AgentActivityStatus status,
+        String title,
+        String summary,
+        String detail,
+        AgentActivityTokenUsage tokenUsage,
+        long elapsedSeconds,
+        boolean collapsible,
+        boolean collapsed) {
+    }
+
     public record Request(
         String sessionId,
         String profileId,

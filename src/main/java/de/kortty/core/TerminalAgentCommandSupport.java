@@ -52,16 +52,24 @@ public final class TerminalAgentCommandSupport {
     }
 
     public static Invocation parseShortcut(String rawCommand, String configuredCommandName) {
+        return parseShortcut(rawCommand, configuredCommandName, false);
+    }
+
+    public static Invocation parseShortcut(
+        String rawCommand,
+        String configuredCommandName,
+        boolean caseInsensitiveCommandName) {
         if (rawCommand == null || rawCommand.isBlank()) {
             return null;
         }
         String commandName = normalizeCommandName(configuredCommandName);
-        Matcher askMatcher = buildAskPattern(commandName).matcher(rawCommand.trim());
+        int patternFlags = caseInsensitiveCommandName ? Pattern.CASE_INSENSITIVE : 0;
+        Matcher askMatcher = buildAskPattern(commandName, patternFlags).matcher(rawCommand.trim());
         if (askMatcher.matches()) {
             return new Invocation(InvocationKind.ASK, null, false, false, askMatcher.group(1).trim());
         }
 
-        Matcher planMatcher = buildPlanPattern(commandName).matcher(rawCommand.trim());
+        Matcher planMatcher = buildPlanPattern(commandName, patternFlags).matcher(rawCommand.trim());
         if (planMatcher.matches()) {
             InlineOptions options = parseInlineOptions(planMatcher.group(1));
             return new Invocation(
@@ -72,7 +80,7 @@ public final class TerminalAgentCommandSupport {
                 planMatcher.group(2).trim());
         }
 
-        Matcher executeMatcher = buildExecutePattern(commandName).matcher(rawCommand.trim());
+        Matcher executeMatcher = buildExecutePattern(commandName, patternFlags).matcher(rawCommand.trim());
         if (executeMatcher.matches()) {
             InlineOptions options = parseInlineOptions(executeMatcher.group(1));
             return new Invocation(
@@ -104,19 +112,19 @@ public final class TerminalAgentCommandSupport {
             + "(profile=name) <prompt>`.";
     }
 
-    private static Pattern buildExecutePattern(String commandName) {
+    private static Pattern buildExecutePattern(String commandName, int patternFlags) {
         return Pattern.compile("^" + Pattern.quote(normalizeCommandName(commandName))
-            + "(?:\\s*\\(([^)]*)\\))?(?:(?:\\s*:\\s*)|\\s+)(.+)$", Pattern.CASE_INSENSITIVE);
+            + "(?:\\s*\\(([^)]*)\\))?(?:(?:\\s*:\\s*)|\\s+)(.+)$", patternFlags);
     }
 
-    private static Pattern buildAskPattern(String commandName) {
+    private static Pattern buildAskPattern(String commandName, int patternFlags) {
         return Pattern.compile("^" + Pattern.quote(getAskCommandName(commandName))
-            + "(?:(?:\\s*:\\s*)|\\s+)(.+)$", Pattern.CASE_INSENSITIVE);
+            + "(?:(?:\\s*:\\s*)|\\s+)(.+)$", patternFlags);
     }
 
-    private static Pattern buildPlanPattern(String commandName) {
+    private static Pattern buildPlanPattern(String commandName, int patternFlags) {
         return Pattern.compile("^" + Pattern.quote(getPlanCommandName(commandName))
-            + "(?:\\s*\\(([^)]*)\\))?(?:(?:\\s*:\\s*)|\\s+)(.+)$", Pattern.CASE_INSENSITIVE);
+            + "(?:\\s*\\(([^)]*)\\))?(?:(?:\\s*:\\s*)|\\s+)(.+)$", patternFlags);
     }
 
     private static InlineOptions parseInlineOptions(String rawOptions) {

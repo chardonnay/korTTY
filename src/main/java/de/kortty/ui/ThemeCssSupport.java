@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.ThemeManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.Theme;
 import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ final class ThemeCssSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(ThemeCssSupport.class);
     private static final Map<String, String> DYNAMIC_STYLESHEET_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, String> AGENT_ACTIVITY_STYLESHEET_CACHE = new ConcurrentHashMap<>();
 
     private ThemeCssSupport() {
     }
@@ -177,8 +179,114 @@ final class ThemeCssSupport {
         );
     }
 
+    static String getAgentActivityStylesheetUrl(Theme theme) {
+        AgentActivityColors colors = resolveAgentActivityColors(theme);
+        String cacheKey = String.join("|",
+            colors.backgroundColor(),
+            colors.borderColor(),
+            colors.textColor(),
+            colors.mutedTextColor(),
+            colors.accentColor(),
+            colors.errorColor());
+        return AGENT_ACTIVITY_STYLESHEET_CACHE.computeIfAbsent(cacheKey, ignored -> {
+            try {
+                Path tempCss = Files.createTempFile("kortty-agent-theme-", ".css");
+                tempCss.toFile().deleteOnExit();
+                Files.writeString(tempCss, buildAgentActivityCss(colors));
+                return tempCss.toUri().toString();
+            } catch (Exception e) {
+                logger.debug("Could not create dynamic terminal-agent stylesheet: {}", e.getMessage());
+                return null;
+            }
+        });
+    }
+
+    static String buildAgentActivityCss(Theme theme) {
+        return buildAgentActivityCss(resolveAgentActivityColors(theme));
+    }
+
+    static AgentActivityColors resolveAgentActivityColors(Theme theme) {
+        if (theme == null) {
+            return new AgentActivityColors("#052f35", "#1f5961", "#e8f3f2", "#8fb0b4", "#18c26e", "#e36a4d");
+        }
+        return new AgentActivityColors(
+            normalizeColorOrDefault(theme.getAgentPanelBackgroundColor(), "#052f35"),
+            normalizeColorOrDefault(theme.getAgentPanelBorderColor(), "#1f5961"),
+            normalizeColorOrDefault(theme.getAgentPanelTextColor(), "#e8f3f2"),
+            normalizeColorOrDefault(theme.getAgentPanelMutedTextColor(), "#8fb0b4"),
+            normalizeColorOrDefault(theme.getAgentPanelAccentColor(), "#18c26e"),
+            normalizeColorOrDefault(theme.getAgentPanelErrorColor(), "#e36a4d"));
+    }
+
+    private static String buildAgentActivityCss(AgentActivityColors colors) {
+        String bg = colors.backgroundColor();
+        String border = colors.borderColor();
+        String text = colors.textColor();
+        String muted = colors.mutedTextColor();
+        String accent = colors.accentColor();
+        String error = colors.errorColor();
+
+        Color bgColor = Color.web(bg);
+        Color textColor = Color.web(text);
+        Color errorColor = Color.web(error);
+        double luminance = 0.299 * bgColor.getRed() + 0.587 * bgColor.getGreen() + 0.114 * bgColor.getBlue();
+        Color blendTarget = luminance < 0.5 ? Color.WHITE : Color.BLACK;
+        String surface = toHex(bgColor.interpolate(blendTarget, luminance < 0.5 ? 0.08 : 0.04));
+        String hover = toHex(bgColor.interpolate(blendTarget, luminance < 0.5 ? 0.14 : 0.08));
+        String commandBackground = toHex(bgColor.interpolate(Color.BLACK, luminance < 0.5 ? 0.18 : 0.04));
+        String textStrong = toHex(textColor.interpolate(blendTarget, luminance < 0.5 ? 0.16 : 0.10));
+        String cancelHover = toHex(errorColor.interpolate(blendTarget, luminance < 0.5 ? 0.18 : 0.10));
+        String cancelDisabled = toHex(errorColor.interpolate(bgColor, 0.45));
+
+        return String.join("\n",
+            ".ai-agent-activity-panel { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; }",
+            ".ai-agent-activity-title { -fx-text-fill: " + text + "; }",
+            ".ai-agent-header-busy-dot { -fx-background-color: " + accent + "; -fx-effect: dropshadow(gaussian, " + accent + ", 10, 0.55, 0, 0); }",
+            ".ai-agent-header-busy-label { -fx-text-fill: " + text + "; }",
+            ".ai-agent-activity-meta { -fx-text-fill: " + muted + "; }",
+            ".ai-agent-resize-handle { -fx-border-color: " + border + "; }",
+            ".ai-agent-resize-handle:hover { -fx-background-color: " + hover + "; }",
+            ".ai-agent-activity-scroll { -fx-border-color: " + border + "; }",
+            ".ai-agent-activity-scroll .viewport { -fx-background-color: transparent; }",
+            ".ai-agent-activity-text { -fx-text-fill: " + text + "; }",
+            ".ai-agent-detail { -fx-text-fill: " + muted + "; }",
+            ".ai-agent-dot-message { -fx-background-color: " + textStrong + "; }",
+            ".ai-agent-dot-action { -fx-background-color: " + accent + "; }",
+            ".ai-agent-dot-error { -fx-background-color: " + error + "; }",
+            ".ai-agent-dot-running { -fx-effect: dropshadow(gaussian, " + accent + ", 8, 0.45, 0, 0); }",
+            ".ai-agent-spinner { -fx-text-fill: " + error + "; }",
+            ".ai-agent-activity-panel .ai-agent-toggle-button, .ai-agent-activity-panel .ai-agent-font-button { -fx-background-color: transparent; -fx-border-color: " + border + "; -fx-text-fill: " + muted + "; }",
+            ".ai-agent-activity-panel .ai-agent-toggle-button:hover, .ai-agent-activity-panel .ai-agent-font-button:hover { -fx-background-color: " + hover + "; -fx-text-fill: " + text + "; }",
+            ".ai-agent-activity-panel .ai-agent-cancel-button { -fx-background-color: " + error + "; -fx-border-color: " + cancelHover + "; -fx-text-fill: " + textStrong + "; }",
+            ".ai-agent-activity-panel .ai-agent-cancel-button:hover { -fx-background-color: " + cancelHover + "; -fx-border-color: " + textStrong + "; -fx-text-fill: " + textStrong + "; }",
+            ".ai-agent-activity-panel .ai-agent-cancel-button:disabled { -fx-background-color: " + cancelDisabled + "; -fx-border-color: " + border + "; }",
+            ".ai-agent-activity-panel .ai-agent-collapse-button { -fx-border-color: " + border + "; -fx-text-fill: " + text + "; }",
+            ".ai-agent-activity-panel .ai-agent-collapse-button:hover { -fx-background-color: " + hover + "; -fx-text-fill: " + textStrong + "; }",
+            ".ai-agent-option-check { -fx-text-fill: " + muted + "; }",
+            ".ai-agent-option-check .box { -fx-background-color: transparent; -fx-border-color: " + border + "; }",
+            ".ai-agent-option-check:selected .mark { -fx-background-color: " + accent + "; }",
+            ".ai-agent-activity-panel .ai-agent-close-button { -fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: " + muted + "; }",
+            ".ai-agent-activity-panel .ai-agent-close-button:hover { -fx-background-color: " + hover + "; -fx-text-fill: " + text + "; }",
+            ".ai-agent-prompt-box { -fx-background-color: " + surface + "; -fx-border-color: " + border + "; }",
+            ".ai-agent-prompt-label { -fx-text-fill: " + text + "; }",
+            ".ai-agent-command-preview { -fx-background-color: " + commandBackground + "; -fx-border-color: " + border + "; }",
+            ".ai-agent-command-line { -fx-text-fill: " + textStrong + "; }",
+            ".terminal-agent-busy-overlay { -fx-background-color: " + surface + "; -fx-border-color: " + border + "; }",
+            ".terminal-agent-busy-robot { -fx-text-fill: " + accent + "; -fx-effect: dropshadow(gaussian, " + accent + ", 8, 0.35, 0, 0); }",
+            ".terminal-agent-busy-text { -fx-text-fill: " + text + "; }"
+        );
+    }
+
     private static String normalizeColorOrDefault(String color, String fallback) {
-        return color != null && !color.isBlank() ? color : fallback;
+        if (color == null || color.isBlank()) {
+            return fallback;
+        }
+        try {
+            Color.web(color.trim());
+            return color.trim();
+        } catch (IllegalArgumentException e) {
+            return fallback;
+        }
     }
 
     private static String toHex(Color color) {
@@ -189,5 +297,14 @@ final class ThemeCssSupport {
     }
 
     record ThemeColors(String backgroundColor, String foregroundColor) {
+    }
+
+    record AgentActivityColors(
+        String backgroundColor,
+        String borderColor,
+        String textColor,
+        String mutedTextColor,
+        String accentColor,
+        String errorColor) {
     }
 }

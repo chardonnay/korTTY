@@ -177,6 +177,287 @@
     -fx-text-fill: #cccccc;
 }
 
+/* AI agent inline activity feed */
+.ai-agent-activity-panel {
+    -fx-background-color: #052f35;
+    -fx-border-color: #1f5961;
+    -fx-border-width: 1 0 0 0;
+    -fx-font-family: "Noto Sans Mono", "Monospaced";
+}
+
+.ai-agent-activity-title {
+    -fx-text-fill: #e8f3f2;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.ai-agent-header {
+    -fx-min-height: 26px;
+}
+
+.ai-agent-header-status {
+    -fx-alignment: center;
+}
+
+.ai-agent-header-actions {
+    -fx-alignment: center-right;
+}
+
+.ai-agent-header-busy-dot {
+    -fx-background-color: #18c26e;
+    -fx-background-radius: 5;
+    -fx-effect: dropshadow(gaussian, #18c26e, 10, 0.55, 0, 0);
+}
+
+.ai-agent-header-busy-label {
+    -fx-text-fill: #b8ded6;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.ai-agent-activity-meta {
+    -fx-text-fill: #8fb0b4;
+    -fx-font-size: 12px;
+}
+
+.ai-agent-control-row {
+    -fx-padding: 0 0 2 0;
+}
+
+.ai-agent-resize-handle {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-width: 1 0 0 0;
+}
+
+.ai-agent-resize-handle:hover {
+    -fx-background-color: #12464d;
+}
+
+.ai-agent-activity-scroll {
+    -fx-background: transparent;
+    -fx-border-color: #19525a;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.ai-agent-activity-scroll .viewport {
+    -fx-background-color: transparent;
+}
+
+.ai-agent-activity-row {
+    -fx-padding: 2 0 2 0;
+}
+
+.ai-agent-activity-text {
+    -fx-text-fill: #b8ced0;
+    -fx-font-size: 13px;
+}
+
+.ai-agent-detail {
+    -fx-text-fill: #78999f;
+    -fx-font-size: 12px;
+}
+
+.ai-agent-dot {
+    -fx-background-radius: 5;
+}
+
+.ai-agent-dot-message {
+    -fx-background-color: #f5f7f7;
+}
+
+.ai-agent-dot-action {
+    -fx-background-color: #18c26e;
+}
+
+.ai-agent-dot-error {
+    -fx-background-color: #e36a4d;
+}
+
+.ai-agent-dot-running {
+    -fx-effect: dropshadow(gaussian, #18c26e, 8, 0.45, 0, 0);
+}
+
+.ai-agent-spinner {
+    -fx-text-fill: #e36a4d;
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+}
+
+.ai-agent-toggle-button {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+    -fx-padding: 0 5 0 5;
+    -fx-text-fill: #91b4b9;
+    -fx-font-size: 11px;
+}
+
+.ai-agent-toggle-button:hover {
+    -fx-background-color: #12464d;
+}
+
+.ai-agent-font-button {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+    -fx-padding: 0 6 0 6;
+    -fx-text-fill: #91b4b9;
+    -fx-font-size: 11px;
+}
+
+.ai-agent-font-button:hover {
+    -fx-background-color: #12464d;
+    -fx-text-fill: #e8f3f2;
+}
+
+.ai-agent-font-button:disabled {
+    -fx-opacity: 0.35;
+}
+
+.ai-agent-export-format {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+    -fx-padding: 0 2 0 2;
+    -fx-font-size: 11px;
+}
+
+.ai-agent-export-format .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #91b4b9;
+}
+
+.ai-agent-export-format:disabled {
+    -fx-opacity: 0.35;
+}
+
+.ai-agent-cancel-button {
+    -fx-background-color: #8f211d;
+    -fx-border-color: #e65a4f;
+    -fx-text-fill: #fff0ed;
+    -fx-font-weight: bold;
+    -fx-padding: 1 10 1 10;
+}
+
+.ai-agent-cancel-button:hover {
+    -fx-background-color: #b52b24;
+    -fx-border-color: #ff7669;
+    -fx-text-fill: #ffffff;
+}
+
+.ai-agent-cancel-button:disabled {
+    -fx-background-color: #692522;
+    -fx-border-color: #8c4039;
+    -fx-opacity: 0.55;
+}
+
+.ai-agent-collapse-button {
+    -fx-border-color: #2f6870;
+    -fx-text-fill: #b8ced0;
+    -fx-font-weight: bold;
+    -fx-padding: 0 8 0 8;
+}
+
+.ai-agent-collapse-button:hover {
+    -fx-background-color: #12464d;
+    -fx-text-fill: #e8f3f2;
+}
+
+.ai-agent-option-check {
+    -fx-text-fill: #91b4b9;
+    -fx-font-size: 11px;
+}
+
+.ai-agent-option-check .box {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+}
+
+.ai-agent-option-check:selected .mark {
+    -fx-background-color: #18c26e;
+}
+
+.ai-agent-close-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 2;
+    -fx-border-radius: 2;
+    -fx-padding: 0 6 0 6;
+    -fx-text-fill: #91b4b9;
+    -fx-font-size: 12px;
+}
+
+.ai-agent-close-button:hover {
+    -fx-background-color: #12464d;
+    -fx-text-fill: #e8f3f2;
+}
+
+.ai-agent-close-button:disabled {
+    -fx-opacity: 0.35;
+}
+
+.ai-agent-prompt-box {
+    -fx-padding: 8;
+    -fx-background-color: #073941;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.ai-agent-prompt-label {
+    -fx-text-fill: #e8f3f2;
+    -fx-font-size: 13px;
+}
+
+.ai-agent-command-preview {
+    -fx-padding: 6;
+    -fx-background-color: #03272d;
+    -fx-border-color: #19525a;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.ai-agent-command-line {
+    -fx-text-fill: #d7e7e8;
+    -fx-font-size: 12px;
+}
+
+.ai-agent-password-field {
+    -fx-max-width: 320px;
+}
+
+.terminal-agent-busy-overlay {
+    -fx-padding: 5 9 5 9;
+    -fx-spacing: 8;
+    -fx-background-color: #073941;
+    -fx-border-color: #2f6870;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-effect: dropshadow(gaussian, #000000, 8, 0.25, 0, 2);
+}
+
+.terminal-agent-busy-robot {
+    -fx-text-fill: #18c26e;
+    -fx-font-family: "Noto Sans Mono", "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.terminal-agent-busy-text {
+    -fx-text-fill: #e8f3f2;
+    -fx-font-family: "Noto Sans Mono", "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
 /* Tree View */
 .tree-view {
     -fx-background-color: #2d2d2d;

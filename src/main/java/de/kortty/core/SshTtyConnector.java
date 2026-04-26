@@ -24,6 +24,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Base64;
 import java.util.Deque;
 import java.util.EnumMap;
 import java.util.Map;
@@ -52,16 +53,20 @@ public class SshTtyConnector implements TtyConnector {
     
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final Charset charset = StandardCharsets.UTF_8;
+    private final Object outputWriteLock = new Object();
     
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
     private final CopyOnWriteArrayList<DataListener> dataListeners = new CopyOnWriteArrayList<>();
+    private volatile InputInterceptor inputInterceptor;
+    private volatile String shellStartupCommand;
     private volatile String currentRemoteDirectory = "~";
     private volatile String homeRemoteDirectory = "~";
     private volatile String previousRemoteDirectory = "~";
     private final Deque<String> directoryStack = new ArrayDeque<>();
     private final StringBuilder inputLineBuffer = new StringBuilder();
     private final StringBuilder osc7Buffer = new StringBuilder();
+    private final StringBuilder agentOscBuffer = new StringBuilder();
     private final Object directoryLock = new Object();
     
     public SshTtyConnector(ServerConnection connection, String password) {
@@ -261,7 +266,7 @@ public class SshTtyConnector implements TtyConnector {
             
             // Configure PTY modes
             Map<PtyMode, Integer> ptyModes = new EnumMap<>(PtyMode.class);
-            ptyModes.put(PtyMode.ECHO, 1);
+            ptyModes.put(PtyMode.ECHO, hasShellStartupCommand() ? 0 : 1);
             ptyModes.put(PtyMode.ICRNL, 1);
             ptyModes.put(PtyMode.ONLCR, 1);
             ptyModes.put(PtyMode.ISIG, 1);
@@ -276,6 +281,7 @@ public class SshTtyConnector implements TtyConnector {
             outputStream = channel.getInvertedIn();
             reader = new InputStreamReader(inputStream, charset);
 
+            writeShellStartupCommandIfConfigured();
             initializeCurrentRemoteDirectory();
             
             connected.set(true);
@@ -444,9 +450,16 @@ public class SshTtyConnector implements TtyConnector {
     @Override
     public void write(byte[] bytes) throws IOException {
         if (connected.get() && outputStream != null) {
-            trackPotentialDirectoryChange(bytes);
-            outputStream.write(bytes);
-            outputStream.flush();
+            logOutboundLineBreakBeforeInterceptor(bytes);
+            byte[] bytesToWrite = applyInputInterceptor(bytes);
+            if (bytesToWrite == null || bytesToWrite.length == 0) {
+                return;
+            }
+            trackPotentialDirectoryChange(bytesToWrite);
+            synchronized (outputWriteLock) {
+                outputStream.write(bytesToWrite);
+                outputStream.flush();
+            }
         }
     }
     
@@ -510,6 +523,27 @@ public class SshTtyConnector implements TtyConnector {
             dataListeners.remove(listener);
         }
     }
+
+    public void setInputInterceptor(InputInterceptor inputInterceptor) {
+        this.inputInterceptor = inputInterceptor;
+    }
+
+    public void setShellStartupCommand(String shellStartupCommand) {
+        this.shellStartupCommand = shellStartupCommand;
+    }
+
+    public boolean hasShellStartupCommandConfigured() {
+        return hasShellStartupCommand();
+    }
+
+    public void sendShellKeepAliveBlankLine() throws IOException {
+        if (isConnected() && outputStream != null) {
+            synchronized (outputWriteLock) {
+                outputStream.write('\r');
+                outputStream.flush();
+            }
+        }
+    }
     
     public ServerConnection getConnection() {
         return connection;
@@ -546,6 +580,7 @@ public class SshTtyConnector implements TtyConnector {
         if (data == null || data.isEmpty()) {
             return;
         }
+        updateCurrentDirectoryFromAgentOsc(data);
         synchronized (osc7Buffer) {
             osc7Buffer.append(data);
             while (true) {
@@ -579,6 +614,45 @@ public class SshTtyConnector implements TtyConnector {
         }
     }
 
+    private void updateCurrentDirectoryFromAgentOsc(String data) {
+        synchronized (agentOscBuffer) {
+            agentOscBuffer.append(data);
+            while (true) {
+                String prefix = "\u001B]777;korTTY-agent;";
+                int start = agentOscBuffer.indexOf(prefix);
+                if (start < 0) {
+                    trimAgentOscBuffer();
+                    return;
+                }
+                int bellEnd = agentOscBuffer.indexOf("\u0007", start);
+                int stEnd = agentOscBuffer.indexOf("\u001B\\", start);
+                int end = -1;
+                int terminatorLength = 0;
+                if (bellEnd >= 0 && (stEnd < 0 || bellEnd < stEnd)) {
+                    end = bellEnd;
+                    terminatorLength = 1;
+                } else if (stEnd >= 0) {
+                    end = stEnd;
+                    terminatorLength = 2;
+                }
+                if (end < 0) {
+                    if (start > 0) {
+                        agentOscBuffer.delete(0, start);
+                    }
+                    trimAgentOscBuffer();
+                    return;
+                }
+                String payload = agentOscBuffer.substring(start + prefix.length(), end);
+                agentOscBuffer.delete(0, end + terminatorLength);
+                String cwd = extractWorkingDirectoryFromAgentOscPayload(payload);
+                if (cwd != null && !cwd.isBlank()) {
+                    setCurrentRemoteDirectory(cwd);
+                    logger.debug("Updated remote directory from terminal agent hook: {}", cwd);
+                }
+            }
+        }
+    }
+
     private void updateCurrentDirectoryFromOsc7(String uriText) {
         try {
             URI uri = URI.create(uriText);
@@ -596,6 +670,13 @@ public class SshTtyConnector implements TtyConnector {
         int maxLength = 4096;
         if (osc7Buffer.length() > maxLength) {
             osc7Buffer.delete(0, osc7Buffer.length() - maxLength);
+        }
+    }
+
+    private void trimAgentOscBuffer() {
+        int maxLength = 4096;
+        if (agentOscBuffer.length() > maxLength) {
+            agentOscBuffer.delete(0, agentOscBuffer.length() - maxLength);
         }
     }
 
@@ -619,6 +700,56 @@ public class SshTtyConnector implements TtyConnector {
                 inputLineBuffer.delete(0, inputLineBuffer.length() - 2048);
             }
         }
+    }
+
+    private byte[] applyInputInterceptor(byte[] bytes) throws IOException {
+        InputInterceptor interceptor = inputInterceptor;
+        if (interceptor == null || bytes == null || bytes.length == 0) {
+            return bytes;
+        }
+        return interceptor.intercept(bytes);
+    }
+
+    private boolean hasShellStartupCommand() {
+        String command = shellStartupCommand;
+        return command != null && !command.isBlank();
+    }
+
+    private void writeShellStartupCommandIfConfigured() throws IOException {
+        String command = shellStartupCommand;
+        if (command == null || command.isBlank() || outputStream == null) {
+            return;
+        }
+        String commandWithNewline = command.endsWith("\n") ? command : command + "\n";
+        synchronized (outputWriteLock) {
+            outputStream.write(commandWithNewline.getBytes(charset));
+            outputStream.flush();
+        }
+        logger.debug("Wrote SSH shell startup command");
+    }
+
+    private void logOutboundLineBreakBeforeInterceptor(byte[] bytes) {
+        if (!logger.isDebugEnabled() || inputInterceptor == null || bytes == null || bytes.length == 0) {
+            return;
+        }
+        boolean hasLineBreak = false;
+        for (byte b : bytes) {
+            if (b == '\r' || b == '\n') {
+                hasLineBreak = true;
+                break;
+            }
+        }
+        if (!hasLineBreak) {
+            return;
+        }
+        int bufferedLength;
+        synchronized (inputLineBuffer) {
+            bufferedLength = inputLineBuffer.length();
+        }
+        logger.debug(
+            "SSH outbound line break before AI filter (bufferLength={}, hasLineBreak={})",
+            bufferedLength,
+            hasLineBreak);
     }
 
     private void processInputLine(String inputLine) {
@@ -777,6 +908,24 @@ public class SshTtyConnector implements TtyConnector {
             return absolute ? "/" : ".";
         }
         return result.toString();
+    }
+
+    static String extractWorkingDirectoryFromAgentOscPayload(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+        int firstSeparator = payload.indexOf(';');
+        int secondSeparator = firstSeparator >= 0 ? payload.indexOf(';', firstSeparator + 1) : -1;
+        if (firstSeparator <= 0 || secondSeparator <= firstSeparator + 1) {
+            return null;
+        }
+        String encodedCwd = payload.substring(firstSeparator + 1, secondSeparator);
+        try {
+            String cwd = new String(Base64.getDecoder().decode(encodedCwd), StandardCharsets.UTF_8).trim();
+            return cwd.startsWith("/") ? cwd : null;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private String unquote(String text) {
@@ -1124,5 +1273,13 @@ public class SshTtyConnector implements TtyConnector {
      */
     public interface DataListener {
         void onData(String data);
+    }
+
+    /**
+     * Intercepts outbound terminal input before it is written to the SSH channel.
+     */
+    @FunctionalInterface
+    public interface InputInterceptor {
+        byte[] intercept(byte[] bytes) throws IOException;
     }
 }

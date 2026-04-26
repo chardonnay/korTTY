@@ -1,18 +1,22 @@
 package de.kortty.core;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import de.kortty.model.AiProfile;
-import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.ui.TerminalTab;
 import de.kortty.ui.TerminalView;
 import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.channel.ClientChannelEvent;
-import org.apache.sshd.client.session.ClientSession;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -27,6 +31,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Shared runtime for AI Agent execution and planning flows.
@@ -40,9 +48,18 @@ public class TerminalAgentService {
     private static final Duration COMMAND_OPEN_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration COMMAND_WAIT_TIMEOUT = Duration.ofMinutes(15);
     private static final List<String> INTERACTIVE_COMMAND_TOKENS = List.of(
-        "vi", "vim", "nano", "less", "more", "man", "top", "htop");
+        "vi", "vim", "nano", "less", "more", "man", "top", "htop", "su");
+    private static final Pattern SUDO_INVOCATION_PATTERN = Pattern.compile("(?i)(^|[;&|()]\\s*)sudo\\s+");
+    private static final Pattern SUDO_NON_INTERACTIVE_INVOCATION_PATTERN = Pattern.compile("(?i)(^|[;&|()]\\s*)sudo\\s+-n\\s+");
+    private static final Pattern SUDO_STDIN_OPTION_AFTER_NON_INTERACTIVE_PATTERN =
+        Pattern.compile("(^|[;&|()]\\s*)sudo\\s+-n\\s+(?:(?:-S|--stdin)\\s+)+");
+    private static final Pattern FILE_TYPE_COUNT_PATH_PATTERN =
+        Pattern.compile("(?i)\\b(?:directory|dir|folder)\\s+(['\"]?)(/[^\\s?'\";:,]+)\\1");
+    private static final Pattern COUNT_OUTPUT_PATTERN = Pattern.compile("(?m)^(total|plain_text|binary_or_non_text)=(\\d+)\\s*$");
+    private static final Pattern HERE_DOCUMENT_OPERATOR_PATTERN =
+        Pattern.compile("(?<!<)<<-?(?!<)\\s*(?:'([^']+)'|\"([^\"]+)\"|([^\\s;|&<>]+))");
 
-    private final Map<String, String> cachedSudoPasswordBySessionId = new ConcurrentHashMap<>();
+    private final Map<String, CachedSudoPassword> cachedSudoPasswordBySessionId = new ConcurrentHashMap<>();
 
     public interface RunUi {
         void updateState(TerminalAgentModels.RunState state);
@@ -50,6 +67,12 @@ public class TerminalAgentService {
         ApprovalDecision requestApproval(TerminalAgentModels.Approval approval) throws Exception;
         String requestPassword(TerminalAgentModels.PasswordRequest request) throws Exception;
         boolean isCancelled();
+
+        default void publishActivity(TerminalAgentModels.AgentActivity activity) {
+        }
+
+        default void recordTokenUsage(AiTokenUsage usage) {
+        }
     }
 
     public interface PlanProgressUi {
@@ -60,6 +83,16 @@ public class TerminalAgentService {
         APPROVE_ONCE,
         APPROVE_ALWAYS,
         CANCEL
+    }
+
+    public static final class AgentCancelledException extends RuntimeException {
+        public AgentCancelledException(String message) {
+            super(message);
+        }
+    }
+
+    public static boolean isCancellation(Throwable error) {
+        return error instanceof AgentCancelledException;
     }
 
     public record PlanningQuestions(
@@ -75,7 +108,11 @@ public class TerminalAgentService {
     }
 
     public TerminalAgentModels.ProbeSnapshot probeTerminalSession(TerminalTab terminalTab) throws Exception {
-        ExecResult result = exec(terminalTab, buildProbeCommand(), null);
+        return probeTerminalSession(terminalTab, null);
+    }
+
+    private TerminalAgentModels.ProbeSnapshot probeTerminalSession(TerminalTab terminalTab, BooleanSupplier cancellationSupplier) throws Exception {
+        ExecResult result = exec(terminalTab, buildProbeCommand(), null, null, cancellationSupplier);
         if (result.exitCode() != 0) {
             throw new IllegalStateException("Terminal probe failed: " + trimToSingleLine(result.stderr()));
         }
@@ -109,7 +146,7 @@ public class TerminalAgentService {
         TerminalAgentModels.ProbeSnapshot probe) throws Exception {
         String systemPrompt = buildPlanQuestionSystemPrompt();
         String userPrompt = buildPlanQuestionUserPrompt(request, probe);
-        AiExecutionResult result = aiService.executePrompt(systemPrompt, userPrompt);
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         AgentPlanQuestionDecision decision = parsePlanQuestionDecision(result.content());
         List<TerminalAgentModels.PlanQuestion> questions = decision.questions().stream()
             .map(item -> new TerminalAgentModels.PlanQuestion(item.id(), item.question()))
@@ -127,7 +164,7 @@ public class TerminalAgentService {
         String customApproach) throws Exception {
         String systemPrompt = buildPlanOptionSystemPrompt();
         String userPrompt = buildPlanOptionUserPrompt(request, probe, questions, answers, customApproach);
-        AiExecutionResult result = aiService.executePrompt(systemPrompt, userPrompt);
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         AgentPlanOptionDecision decision = parsePlanOptionDecision(result.content());
         List<TerminalAgentModels.PlanOption> options = new ArrayList<>();
         for (AgentPlanOptionDecisionItem item : decision.options()) {
@@ -170,127 +207,486 @@ public class TerminalAgentService {
         Objects.requireNonNull(ui, "ui");
 
         String runId = UUID.randomUUID().toString();
-        TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab);
-        List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
-        boolean approvalBypass = request.autoApproveRootCommands();
-        String cachedPassword = cachedSudoPasswordBySessionId.get(request.sessionId());
+        String sessionId = request.sessionId();
+        try {
+            TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab);
+            List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
+            boolean approvalBypass = request.autoApproveRootCommands();
+            CachedSudoPassword cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
 
-        for (int turn = 1; turn <= MAX_AGENT_TURNS; turn++) {
-            ensureNotCancelled(ui);
+            if (tryRunFileTypeCountRequest(terminalTab, request, probe, ui, runId)) {
+                return;
+            }
+
+            for (int turn = 1; turn <= MAX_AGENT_TURNS; turn++) {
+                ensureNotCancelled(ui);
+                ui.updateState(new TerminalAgentModels.RunState(
+                    runId,
+                    request.sessionId(),
+                    request.executionTarget(),
+                    TerminalAgentModels.Phase.PLANNING,
+                    "Waiting for the AI planner response.",
+                    "The AI agent is deciding on the next safe step.",
+                    null,
+                    null,
+                    null,
+                    turn));
+
+                AgentDecision decision = requestAgentDecision(
+                    aiService,
+                    request,
+                    probe,
+                    history,
+                    turn,
+                    cachedPassword != null && !cachedPassword.isBlank(),
+                    ui,
+                    runId);
+                if (decision.status() == AgentDecisionStatus.done) {
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.DONE,
+                        decision.summary(), decision.userMessage(), null, null, null, turn));
+                    publishMessage(ui, runId, "done-" + turn, decision.userMessage(), decision.summary());
+                    return;
+                }
+                if (decision.status() == AgentDecisionStatus.blocked) {
+                    if (shouldPromptForSudoPasswordAfterBlockedDecision(
+                        decision.summary(),
+                        decision.userMessage(),
+                        probe,
+                        cachedPassword)) {
+                        cachedPassword = requestSudoPassword(
+                            ui,
+                            runId,
+                            request,
+                            turn,
+                            nonBlank(decision.summary(), "Sudo password required."),
+                            "Enter the sudo password to continue this SSH session.",
+                            null);
+                        if (cachedPassword == null || cachedPassword.isBlank()) {
+                            return;
+                        }
+                        continue;
+                    }
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.BLOCKED,
+                        decision.summary(), decision.userMessage(), null, null, null, turn));
+                    publishMessage(ui, runId, "blocked-" + turn, decision.userMessage(), decision.summary());
+                    return;
+                }
+
+                List<TerminalAgentModels.PlannedCommand> commands = validateCommands(decision.commands(), probe, request.queryOnly());
+                if (!approvalBypass && (decision.status() == AgentDecisionStatus.needs_confirmation || request.askConfirmationBeforeEveryCommand())) {
+                    TerminalAgentModels.Approval approval = new TerminalAgentModels.Approval(
+                        runId,
+                        request.sessionId(),
+                        request.executionTarget(),
+                        decision.summary(),
+                        decision.userMessage(),
+                        commands);
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.AWAITING_APPROVAL,
+                        decision.summary(), decision.userMessage(), approval, null, null, turn));
+                    publishQuestion(ui, runId, "approval-" + turn, decision.summary(), decision.userMessage());
+                    ApprovalDecision approvalDecision = ui.requestApproval(approval);
+                    if (approvalDecision == ApprovalDecision.CANCEL) {
+                        ui.updateState(new TerminalAgentModels.RunState(
+                            runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.CANCELLED,
+                            "The terminal agent run was cancelled.", "The run was cancelled before the command set started.", null, null, null, turn));
+                        publishCancelled(ui, runId, "cancelled-approval-" + turn, "The run was cancelled before the command set started.");
+                        return;
+                    }
+                    approvalBypass = approvalBypass || approvalDecision == ApprovalDecision.APPROVE_ALWAYS;
+                }
+
+                for (TerminalAgentModels.PlannedCommand planned : commands) {
+                    ensureNotCancelled(ui);
+                    String commandToRun = planned.command();
+                    byte[] stdin = null;
+                    try {
+                        if (requiresSudoPassword(probe, commandToRun)) {
+                            if (cachedPassword == null || cachedPassword.isBlank()) {
+                                cachedPassword = requestSudoPassword(
+                                    ui,
+                                    runId,
+                                    request,
+                                    turn,
+                                    planned.purpose(),
+                                    "Waiting for the sudo password to continue this SSH session.",
+                                    planned.command());
+                                if (cachedPassword == null || cachedPassword.isBlank()) {
+                                    return;
+                                }
+                            }
+                            commandToRun = rewriteSudoCommandForPassword(commandToRun);
+                            stdin = cachedPassword.toUtf8Line();
+                        }
+
+                        ui.updateState(new TerminalAgentModels.RunState(
+                            runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.RUNNING_COMMANDS,
+                            planned.purpose(), planned.command(), null, null, planned.command(), turn));
+                        String commandActivityId = runId + ":command:" + turn + ":" + history.size();
+                        long commandStartedAtNanos = System.nanoTime();
+                        publishCommandActivity(ui, commandActivityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
+                        ui.appendTranscript("\n$ " + planned.command() + "\n");
+
+                        ExecResult execResult = exec(terminalTab, commandToRun, stdin, chunk -> {
+                            if (chunk == null || chunk.isEmpty()) {
+                                return;
+                            }
+                            ui.appendTranscript(chunk);
+                        }, ui::isCancelled);
+                        TerminalAgentModels.CommandResult commandResult = toCommandResult(planned, execResult);
+                        history.add(commandResult);
+                        publishCommandActivity(
+                            ui,
+                            commandActivityId,
+                            planned,
+                            TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                            execResult,
+                            elapsedSecondsSince(commandStartedAtNanos));
+                        if (execResult.exitCode() != 0 && requiresSudoPassword(probe, planned.command())) {
+                            clearCachedSudoPassword(sessionId);
+                            cachedPassword = null;
+                        }
+                        if (decision.needsReprobe()) {
+                            String reprobeId = runId + ":reprobe:" + turn;
+                            publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Refreshing server state.", null, 0L);
+                            probe = probeTerminalSession(terminalTab, ui::isCancelled);
+                            publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.COMPLETED, "Inspect(SSH session)", "Server state refreshed.", summarizeProbe(probe), 0L);
+                        }
+                    } finally {
+                        if (stdin != null) {
+                            Arrays.fill(stdin, (byte) 0);
+                        }
+                    }
+                }
+            }
+
+            if (!history.isEmpty() && tryFinalizeAtTurnLimit(aiService, request, probe, history, ui, runId)) {
+                return;
+            }
+
             ui.updateState(new TerminalAgentModels.RunState(
                 runId,
                 request.sessionId(),
                 request.executionTarget(),
-                TerminalAgentModels.Phase.PLANNING,
-                "Waiting for the AI planner response.",
-                "The AI agent is deciding on the next safe step.",
+                TerminalAgentModels.Phase.BLOCKED,
+                "The AI agent reached its turn limit.",
+                "The task needs more manual guidance before the next step is safe.",
                 null,
                 null,
                 null,
-                turn));
+                MAX_AGENT_TURNS));
+            publishMessage(ui, runId, "turn-limit", "The task needs more manual guidance before the next step is safe.", "The AI agent reached its turn limit.");
+        } finally {
+            clearCachedSudoPassword(sessionId);
+        }
+    }
 
-            AgentDecision decision = requestAgentDecision(aiService, request, probe, history, turn, cachedPassword != null && !cachedPassword.isBlank());
-            if (decision.status() == AgentDecisionStatus.done) {
-                ui.updateState(new TerminalAgentModels.RunState(
-                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.DONE,
-                    decision.summary(), decision.userMessage(), null, null, null, turn));
-                return;
-            }
-            if (decision.status() == AgentDecisionStatus.blocked) {
-                ui.updateState(new TerminalAgentModels.RunState(
-                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.BLOCKED,
-                    decision.summary(), decision.userMessage(), null, null, null, turn));
-                return;
-            }
+    private boolean tryFinalizeAtTurnLimit(
+        OpenAiCompatibleAiService aiService,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.CommandResult> history,
+        RunUi ui,
+        String runId) {
+        try {
+            AgentDecision finalDecision = requestTurnLimitFinalDecision(aiService, request, probe, history, ui, runId);
+            TerminalAgentModels.Phase phase = finalDecision.status() == AgentDecisionStatus.done
+                ? TerminalAgentModels.Phase.DONE
+                : TerminalAgentModels.Phase.BLOCKED;
+            ui.updateState(new TerminalAgentModels.RunState(
+                runId,
+                request.sessionId(),
+                request.executionTarget(),
+                phase,
+                finalDecision.summary(),
+                finalDecision.userMessage(),
+                null,
+                null,
+                null,
+                MAX_AGENT_TURNS));
+            publishMessage(
+                ui,
+                runId,
+                finalDecision.status() == AgentDecisionStatus.done ? "turn-limit-final" : "turn-limit-blocked",
+                finalDecision.userMessage(),
+                finalDecision.summary());
+            return true;
+        } catch (Exception e) {
+            publishThinking(
+                ui,
+                runId + ":thinking-turn-limit-final",
+                TerminalAgentModels.AgentActivityStatus.FAILED,
+                "Thinking",
+                "Could not finalize the agent response before the turn limit.",
+                e.getMessage(),
+                TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+                0L,
+                true);
+            return false;
+        }
+    }
 
-            List<TerminalAgentModels.PlannedCommand> commands = validateCommands(decision.commands(), probe, request.queryOnly());
-            if (!approvalBypass && (decision.status() == AgentDecisionStatus.needs_confirmation || request.askConfirmationBeforeEveryCommand())) {
-                TerminalAgentModels.Approval approval = new TerminalAgentModels.Approval(
-                    runId,
-                    request.sessionId(),
-                    request.executionTarget(),
-                    decision.summary(),
-                    decision.userMessage(),
-                    commands);
-                ui.updateState(new TerminalAgentModels.RunState(
-                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.AWAITING_APPROVAL,
-                    decision.summary(), decision.userMessage(), approval, null, null, turn));
-                ApprovalDecision approvalDecision = ui.requestApproval(approval);
-                if (approvalDecision == ApprovalDecision.CANCEL) {
-                    ui.updateState(new TerminalAgentModels.RunState(
-                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.CANCELLED,
-                        "The terminal agent run was cancelled.", "The run was cancelled before the command set started.", null, null, null, turn));
-                    return;
-                }
-                approvalBypass = approvalBypass || approvalDecision == ApprovalDecision.APPROVE_ALWAYS;
-            }
-
-            for (TerminalAgentModels.PlannedCommand planned : commands) {
-                ensureNotCancelled(ui);
-                String commandToRun = planned.command();
-                byte[] stdin = null;
-                if (requiresSudoPassword(probe, commandToRun)) {
-                    if (cachedPassword == null || cachedPassword.isBlank()) {
-                        TerminalAgentModels.PasswordRequest passwordRequest = new TerminalAgentModels.PasswordRequest(
-                            runId,
-                            request.sessionId(),
-                            request.executionTarget(),
-                            planned.purpose(),
-                            "Waiting for the sudo password to continue this SSH session.",
-                            planned.command());
-                        ui.updateState(new TerminalAgentModels.RunState(
-                            runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.AWAITING_PASSWORD,
-                            planned.purpose(), passwordRequest.userMessage(), null, passwordRequest, planned.command(), turn));
-                        cachedPassword = ui.requestPassword(passwordRequest);
-                        if (cachedPassword == null || cachedPassword.isBlank()) {
-                            ui.updateState(new TerminalAgentModels.RunState(
-                                runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.CANCELLED,
-                                "The terminal agent run was cancelled.", "No sudo password was provided.", null, null, planned.command(), turn));
-                            return;
-                        }
-                        cachedSudoPasswordBySessionId.put(request.sessionId(), cachedPassword);
-                    }
-                    commandToRun = rewriteSudoCommandForPassword(commandToRun);
-                    stdin = (cachedPassword + "\n").getBytes(StandardCharsets.UTF_8);
-                }
-
-                ui.updateState(new TerminalAgentModels.RunState(
-                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.RUNNING_COMMANDS,
-                    planned.purpose(), planned.command(), null, null, planned.command(), turn));
-                ui.appendTranscript("\n$ " + planned.command() + "\n");
-
-                ExecResult execResult = exec(terminalTab, commandToRun, stdin, chunk -> {
-                    if (chunk == null || chunk.isEmpty()) {
-                        return;
-                    }
-                    ui.appendTranscript(chunk);
-                    if (request.executionTarget() == TerminalAgentExecutionTarget.TERMINAL_WINDOW && request.showRuntimeMessages()) {
-                        terminalTab.getTerminalView().showMessage(chunk.endsWith("\n") ? chunk.trim() : chunk);
-                    }
-                });
-                TerminalAgentModels.CommandResult commandResult = toCommandResult(planned, execResult);
-                history.add(commandResult);
-                if (execResult.exitCode() != 0 && requiresSudoPassword(probe, planned.command())) {
-                    cachedSudoPasswordBySessionId.remove(request.sessionId());
-                    cachedPassword = null;
-                }
-                if (decision.needsReprobe()) {
-                    probe = probeTerminalSession(terminalTab);
-                }
-            }
+    private boolean tryRunFileTypeCountRequest(
+        TerminalTab terminalTab,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        RunUi ui,
+        String runId) throws Exception {
+        if (request.queryOnly()) {
+            return false;
+        }
+        FileTypeCountRequest countRequest = detectFileTypeCountRequest(request.userPrompt());
+        if (countRequest == null) {
+            return false;
         }
 
+        ensureNotCancelled(ui);
+        boolean usePasswordlessSudo = probe != null && !probe.alreadyRoot() && probe.passwordlessSudo();
+        String command = buildFileTypeCountCommand(countRequest.directory(), usePasswordlessSudo);
+        TerminalAgentModels.PlannedCommand planned = new TerminalAgentModels.PlannedCommand(
+            command,
+            "Count files and MIME text/non-text distribution under " + countRequest.directory() + ".",
+            TerminalAgentModels.Risk.READ_ONLY);
         ui.updateState(new TerminalAgentModels.RunState(
             runId,
             request.sessionId(),
             request.executionTarget(),
-            TerminalAgentModels.Phase.BLOCKED,
-            "The AI agent reached its turn limit.",
-            "The task needs more manual guidance before the next step is safe.",
+            TerminalAgentModels.Phase.RUNNING_COMMANDS,
+            planned.purpose(),
+            planned.command(),
+            null,
+            null,
+            planned.command(),
+            1));
+        String activityId = runId + ":file-type-count";
+        long startedAtNanos = System.nanoTime();
+        publishCommandActivity(ui, activityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
+        ui.appendTranscript("\n$ " + planned.command() + "\n");
+
+        ExecResult execResult = exec(terminalTab, command, null, chunk -> {
+            if (chunk == null || chunk.isEmpty()) {
+                return;
+            }
+            ui.appendTranscript(chunk);
+        }, ui::isCancelled);
+        publishCommandActivity(
+            ui,
+            activityId,
+            planned,
+            TerminalAgentModels.AgentActivityStatus.COMPLETED,
+            execResult,
+            elapsedSecondsSince(startedAtNanos));
+        ensureNotCancelled(ui);
+
+        FileTypeCounts counts = parseFileTypeCountOutput(execResult.stdout());
+        if (execResult.exitCode() != 0 || counts == null) {
+            String summary = "Could not count file types under " + countRequest.directory() + ".";
+            String userMessage = buildFileTypeCountFailureMessage(countRequest.directory(), execResult);
+            ui.updateState(new TerminalAgentModels.RunState(
+                runId,
+                request.sessionId(),
+                request.executionTarget(),
+                TerminalAgentModels.Phase.BLOCKED,
+                summary,
+                userMessage,
+                null,
+                null,
+                null,
+                1));
+            publishMessage(ui, runId, "file-type-count-blocked", userMessage, summary);
+            return true;
+        }
+
+        String userMessage = formatFileTypeCountTable(countRequest.directory(), counts);
+        String summary = "Counted files and MIME text/non-text distribution under " + countRequest.directory() + ".";
+        ui.updateState(new TerminalAgentModels.RunState(
+            runId,
+            request.sessionId(),
+            request.executionTarget(),
+            TerminalAgentModels.Phase.DONE,
+            summary,
+            userMessage,
             null,
             null,
             null,
-            MAX_AGENT_TURNS));
+            1));
+        publishMessage(ui, runId, "file-type-count-done", userMessage, summary);
+        return true;
+    }
+
+    static FileTypeCountRequest detectFileTypeCountRequest(String userPrompt) {
+        String prompt = userPrompt != null ? userPrompt.trim() : "";
+        if (prompt.isEmpty()) {
+            return null;
+        }
+        String lower = prompt.toLowerCase(Locale.ROOT);
+        boolean asksForCount = lower.contains("how many") || lower.contains("count");
+        if (!asksForCount || !lower.contains("file") || !lower.contains("plain text") || !lower.contains("binar")) {
+            return null;
+        }
+        Matcher matcher = FILE_TYPE_COUNT_PATH_PATTERN.matcher(prompt);
+        if (!matcher.find()) {
+            return null;
+        }
+        String directory = stripTrailingPathPunctuation(matcher.group(2));
+        if (directory.isBlank() || !directory.startsWith("/")) {
+            return null;
+        }
+        return new FileTypeCountRequest(directory);
+    }
+
+    static String buildFileTypeCountCommand(String directory, boolean usePasswordlessSudo) {
+        String script = """
+            if [ ! -d "$1" ]; then
+              printf 'error=directory_not_found\\n'
+              exit 2
+            fi
+            if ! command -v file >/dev/null 2>&1; then
+              printf 'error=file_command_not_found\\n'
+              exit 127
+            fi
+            total=$(find "$1" -type f 2>/dev/null | wc -l | tr -d '[:space:]')
+            text=$(find "$1" -type f -exec file --mime-type -b -- {} + 2>/dev/null | awk 'BEGIN { count=0 } /^text\\// { count++ } END { print count }')
+            case "$total" in ''|*[!0-9]*) total=0 ;; esac
+            case "$text" in ''|*[!0-9]*) text=0 ;; esac
+            binary=$((total - text))
+            printf 'total=%s\\nplain_text=%s\\nbinary_or_non_text=%s\\n' "$total" "$text" "$binary"
+            """;
+        String prefix = usePasswordlessSudo ? "sudo -n " : "";
+        return prefix + "sh -lc " + shellSingleQuote(script) + " sh " + shellSingleQuote(directory);
+    }
+
+    static FileTypeCounts parseFileTypeCountOutput(String stdout) {
+        if (stdout == null || stdout.isBlank()) {
+            return null;
+        }
+        Long total = null;
+        Long plainText = null;
+        Long binaryOrNonText = null;
+        Matcher matcher = COUNT_OUTPUT_PATTERN.matcher(stdout);
+        while (matcher.find()) {
+            long value = Long.parseLong(matcher.group(2));
+            switch (matcher.group(1)) {
+                case "total" -> total = value;
+                case "plain_text" -> plainText = value;
+                case "binary_or_non_text" -> binaryOrNonText = value;
+                default -> {
+                }
+            }
+        }
+        if (total == null || plainText == null || binaryOrNonText == null) {
+            return null;
+        }
+        return new FileTypeCounts(total, plainText, binaryOrNonText);
+    }
+
+    static String formatFileTypeCountTable(String directory, FileTypeCounts counts) {
+        return "File type count for `" + directory + "`:\n\n"
+            + "| Category | Count |\n"
+            + "| --- | ---: |\n"
+            + "| Total files | " + counts.total() + " |\n"
+            + "| Plain text files (`text/*`) | " + counts.plainText() + " |\n"
+            + "| Binary/non-text files | " + counts.binaryOrNonText() + " |";
+    }
+
+    private String buildFileTypeCountFailureMessage(String directory, ExecResult execResult) {
+        StringBuilder message = new StringBuilder("Could not count file types under `")
+            .append(directory)
+            .append("`.");
+        String stdout = nonBlank(execResult != null ? execResult.stdout() : "", "");
+        String stderr = nonBlank(execResult != null ? execResult.stderr() : "", "");
+        if (!stdout.isBlank()) {
+            message.append("\n\nstdout:\n").append(trimTail(stdout).trim());
+        }
+        if (!stderr.isBlank()) {
+            message.append("\n\nstderr:\n").append(trimTail(stderr).trim());
+        }
+        return message.toString();
+    }
+
+    private static String shellSingleQuote(String value) {
+        return "'" + (value != null ? value : "").replace("'", "'\"'\"'") + "'";
+    }
+
+    private static String stripTrailingPathPunctuation(String path) {
+        String normalized = path != null ? path.trim() : "";
+        while (!normalized.isEmpty()) {
+            char last = normalized.charAt(normalized.length() - 1);
+            if (last != '?' && last != '.' && last != ',' && last != ':' && last != ';') {
+                break;
+            }
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private CachedSudoPassword requestSudoPassword(
+        RunUi ui,
+        String runId,
+        TerminalAgentModels.Request request,
+        int turn,
+        String summary,
+        String userMessage,
+        String command) throws Exception {
+        TerminalAgentModels.PasswordRequest passwordRequest = new TerminalAgentModels.PasswordRequest(
+            runId,
+            request.sessionId(),
+            request.executionTarget(),
+            nonBlank(summary, "Sudo password required."),
+            nonBlank(userMessage, "Enter the sudo password to continue this SSH session."),
+            command);
+        ui.updateState(new TerminalAgentModels.RunState(
+            runId,
+            request.sessionId(),
+            request.executionTarget(),
+            TerminalAgentModels.Phase.AWAITING_PASSWORD,
+            passwordRequest.summary(),
+            passwordRequest.userMessage(),
+            null,
+            passwordRequest,
+            command,
+            turn));
+        publishQuestion(ui, runId, "password-" + turn, passwordRequest.summary(), passwordRequest.userMessage());
+        String password = ui.requestPassword(passwordRequest);
+        if (password == null || password.isBlank()) {
+            ui.updateState(new TerminalAgentModels.RunState(
+                runId,
+                request.sessionId(),
+                request.executionTarget(),
+                TerminalAgentModels.Phase.CANCELLED,
+                "The terminal agent run was cancelled.",
+                "No sudo password was provided.",
+                null,
+                null,
+                command,
+                turn));
+            publishCancelled(ui, runId, "cancelled-password-" + turn, "No sudo password was provided.");
+            return null;
+        }
+        char[] passwordChars = password.toCharArray();
+        CachedSudoPassword cachedPassword;
+        try {
+            cachedPassword = new CachedSudoPassword(passwordChars);
+        } finally {
+            Arrays.fill(passwordChars, '\0');
+        }
+        CachedSudoPassword previous = cachedSudoPasswordBySessionId.put(request.sessionId(), cachedPassword);
+        if (previous != null) {
+            previous.clear();
+        }
+        return cachedPassword;
+    }
+
+    private void clearCachedSudoPassword(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return;
+        }
+        CachedSudoPassword cachedPassword = cachedSudoPasswordBySessionId.remove(sessionId);
+        if (cachedPassword != null) {
+            cachedPassword.clear();
+        }
     }
 
     private TerminalAgentModels.ProbeSnapshot updateAndProbe(
@@ -301,10 +697,15 @@ public class TerminalAgentService {
         ui.updateState(new TerminalAgentModels.RunState(
             runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.STARTING,
             "Starting terminal agent run.", request.userPrompt(), null, null, null, 0));
+        publishMessage(ui, runId, "start", request.userPrompt(), "Starting terminal agent run.");
         ui.updateState(new TerminalAgentModels.RunState(
             runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.PROBING,
             "Inspecting the connected server.", "Collecting the current server state.", null, null, null, 0));
-        return probeTerminalSession(terminalTab);
+        String probeId = runId + ":probe";
+        publishAction(ui, probeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Collecting the current server state.", null, 0L);
+        TerminalAgentModels.ProbeSnapshot probe = probeTerminalSession(terminalTab, ui::isCancelled);
+        publishAction(ui, probeId, TerminalAgentModels.AgentActivityStatus.COMPLETED, "Inspect(SSH session)", "Collected the current server state.", summarizeProbe(probe), 0L);
+        return probe;
     }
 
     private AgentDecision requestAgentDecision(
@@ -313,20 +714,174 @@ public class TerminalAgentService {
         TerminalAgentModels.ProbeSnapshot probe,
         List<TerminalAgentModels.CommandResult> history,
         int turn,
-        boolean sudoPasswordCached) throws Exception {
+        boolean sudoPasswordCached,
+        RunUi ui,
+        String runId) throws Exception {
         String systemPrompt = buildAgentSystemPrompt(request.queryOnly());
         String userPrompt = buildAgentUserPrompt(request, probe, history, turn, sudoPasswordCached);
-        AiExecutionResult result = aiService.executePrompt(systemPrompt, userPrompt);
+        String thinkingId = runId + ":thinking:" + turn;
+        long startedAtNanos = System.nanoTime();
+        publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.RUNNING,
+            "Thinking",
+            "The AI agent is deciding on the next safe step.",
+            "Turn " + turn + "/" + MAX_AGENT_TURNS + ". Using the probe snapshot and command history to choose a safe next step.",
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            false);
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        recordTokenUsage(ui, result);
         try {
-            return parseAgentDecision(result.content());
+            AgentDecision decision = parseAgentDecision(result.content());
+            publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                "Thinking",
+                decision.userMessage(),
+                decision.summary(),
+                tokenUsageOf(result),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            return decision;
         } catch (Exception firstFailure) {
-            AiExecutionResult repaired = aiService.executePrompt(systemPrompt, buildAgentRepairPrompt(result.content()));
-            return parseAgentDecision(repaired.content());
+            publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                "Thinking",
+                "The AI response needed schema repair.",
+                firstFailure.getMessage(),
+                tokenUsageOf(result),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            String repairThinkingId = runId + ":thinking-repair:" + turn;
+            long repairStartedAtNanos = System.nanoTime();
+            publishThinking(ui, repairThinkingId, TerminalAgentModels.AgentActivityStatus.RUNNING,
+                "Thinking",
+                "Repairing the AI response format.",
+                "The previous response did not match the required JSON schema.",
+                TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+                0L,
+                false);
+            AiExecutionResult repaired = executeAgentJsonPrompt(aiService, systemPrompt, buildAgentRepairPrompt(result.content()));
+            recordTokenUsage(ui, repaired);
+            try {
+                AgentDecision decision = parseAgentDecision(repaired.content());
+                publishThinking(ui, repairThinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                    "Thinking",
+                    decision.userMessage(),
+                    decision.summary(),
+                    tokenUsageOf(repaired),
+                    elapsedSecondsSince(repairStartedAtNanos),
+                    true);
+                return decision;
+            } catch (Exception repairFailure) {
+                String message = "The AI response did not match the required agent JSON schema.";
+                publishThinking(ui, repairThinkingId, TerminalAgentModels.AgentActivityStatus.FAILED,
+                    "Thinking",
+                    message,
+                    repairFailure.getMessage(),
+                    tokenUsageOf(repaired),
+                    elapsedSecondsSince(repairStartedAtNanos),
+                    true);
+                return AgentDecision.blocked(message, "Please retry or use an AI profile/model that follows JSON instructions.");
+            }
         }
     }
 
+    private AgentDecision requestTurnLimitFinalDecision(
+        OpenAiCompatibleAiService aiService,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.CommandResult> history,
+        RunUi ui,
+        String runId) throws Exception {
+        String systemPrompt = buildAgentTurnLimitFinalSystemPrompt();
+        String userPrompt = buildAgentTurnLimitFinalUserPrompt(request, probe, history);
+        String thinkingId = runId + ":thinking-turn-limit";
+        long startedAtNanos = System.nanoTime();
+        publishThinking(
+            ui,
+            thinkingId,
+            TerminalAgentModels.AgentActivityStatus.RUNNING,
+            "Thinking",
+            "The AI agent is preparing a final response from existing command results.",
+            "No more commands will be planned because the turn limit was reached.",
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            false);
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        recordTokenUsage(ui, result);
+        try {
+            AgentDecision decision = parseFinalAgentDecision(result.content());
+            publishThinking(
+                ui,
+                thinkingId,
+                TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                "Thinking",
+                decision.userMessage(),
+                decision.summary(),
+                tokenUsageOf(result),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            return decision;
+        } catch (Exception firstFailure) {
+            publishThinking(
+                ui,
+                thinkingId,
+                TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                "Thinking",
+                "The final AI response needed schema repair.",
+                firstFailure.getMessage(),
+                tokenUsageOf(result),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            String repairThinkingId = runId + ":thinking-turn-limit-repair";
+            long repairStartedAtNanos = System.nanoTime();
+            publishThinking(
+                ui,
+                repairThinkingId,
+                TerminalAgentModels.AgentActivityStatus.RUNNING,
+                "Thinking",
+                "Repairing the final AI response format.",
+                "The previous final response did not match the required JSON schema.",
+                TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+                0L,
+                false);
+            AiExecutionResult repaired = executeAgentJsonPrompt(aiService, systemPrompt, buildAgentRepairPrompt(result.content()));
+            recordTokenUsage(ui, repaired);
+            AgentDecision decision = parseFinalAgentDecision(repaired.content());
+            publishThinking(
+                ui,
+                repairThinkingId,
+                TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                "Thinking",
+                decision.userMessage(),
+                decision.summary(),
+                tokenUsageOf(repaired),
+                elapsedSecondsSince(repairStartedAtNanos),
+                true);
+            return decision;
+        }
+    }
+
+    private AiExecutionResult executeAgentJsonPrompt(
+        OpenAiCompatibleAiService aiService,
+        String systemPrompt,
+        String userPrompt) throws Exception {
+        try {
+            return aiService.executeJsonPrompt(systemPrompt, userPrompt);
+        } catch (IOException e) {
+            if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
+                throw e;
+            }
+            return aiService.executePrompt(systemPrompt, userPrompt);
+        }
+    }
+
+    private boolean looksLikeUnsupportedJsonResponseFormat(String message) {
+        String normalized = message != null ? message.toLowerCase(Locale.ROOT) : "";
+        return normalized.contains("response_format")
+            || normalized.contains("json_object")
+            || normalized.contains("json mode");
+    }
+
     private AgentDecision parseAgentDecision(String rawContent) {
-        AgentDecision decision = GSON.fromJson(rawContent != null ? rawContent.trim() : "", AgentDecision.class);
+        AgentDecision decision = GSON.fromJson(extractJsonObjectContent(rawContent), AgentDecision.class);
         if (decision == null || decision.status == null) {
             throw new JsonSyntaxException("Missing decision status");
         }
@@ -340,8 +895,16 @@ public class TerminalAgentService {
         return decision;
     }
 
+    private AgentDecision parseFinalAgentDecision(String rawContent) {
+        AgentDecision decision = parseAgentDecision(rawContent);
+        if (decision.status() != AgentDecisionStatus.done && decision.status() != AgentDecisionStatus.blocked) {
+            throw new JsonSyntaxException("Final decision must be done or blocked");
+        }
+        return decision;
+    }
+
     private AgentPlanQuestionDecision parsePlanQuestionDecision(String rawContent) {
-        AgentPlanQuestionDecision decision = GSON.fromJson(rawContent != null ? rawContent.trim() : "", AgentPlanQuestionDecision.class);
+        AgentPlanQuestionDecision decision = GSON.fromJson(extractJsonObjectContent(rawContent), AgentPlanQuestionDecision.class);
         if (decision == null || decision.questions == null || decision.questions.isEmpty()) {
             throw new JsonSyntaxException("Planning questions missing");
         }
@@ -349,11 +912,108 @@ public class TerminalAgentService {
     }
 
     private AgentPlanOptionDecision parsePlanOptionDecision(String rawContent) {
-        AgentPlanOptionDecision decision = GSON.fromJson(rawContent != null ? rawContent.trim() : "", AgentPlanOptionDecision.class);
+        AgentPlanOptionDecision decision = GSON.fromJson(extractJsonObjectContent(rawContent), AgentPlanOptionDecision.class);
         if (decision == null || decision.options == null || decision.options.isEmpty()) {
             throw new JsonSyntaxException("Planning options missing");
         }
         return decision;
+    }
+
+    static String extractJsonObjectContent(String rawContent) {
+        String candidate = rawContent != null ? rawContent.trim() : "";
+        if (candidate.isEmpty()) {
+            throw new JsonSyntaxException("AI response was empty.");
+        }
+        for (int attempt = 0; attempt < 3; attempt++) {
+            candidate = stripMarkdownFence(candidate).trim();
+            try {
+                JsonElement element = JsonParser.parseString(candidate);
+                if (element != null && element.isJsonObject()) {
+                    JsonObject object = element.getAsJsonObject();
+                    return object.toString();
+                }
+                if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+                    candidate = element.getAsString().trim();
+                    continue;
+                }
+            } catch (Exception ignored) {
+                // Fall through to balanced-object extraction below.
+            }
+
+            String embeddedObject = extractFirstBalancedJsonObject(candidate);
+            if (embeddedObject != null) {
+                candidate = embeddedObject;
+                continue;
+            }
+            break;
+        }
+        throw new JsonSyntaxException("AI response did not contain the required JSON object. Received: "
+            + trimForError(candidate));
+    }
+
+    private static String stripMarkdownFence(String value) {
+        String trimmed = value != null ? value.trim() : "";
+        if (!trimmed.startsWith("```")) {
+            return trimmed;
+        }
+        int firstLineEnd = trimmed.indexOf('\n');
+        int closingFence = trimmed.lastIndexOf("```");
+        if (firstLineEnd < 0 || closingFence <= firstLineEnd) {
+            return trimmed;
+        }
+        return trimmed.substring(firstLineEnd + 1, closingFence).trim();
+    }
+
+    private static String extractFirstBalancedJsonObject(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        int start = -1;
+        boolean inString = false;
+        boolean escaped = false;
+        int depth = 0;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (start < 0) {
+                if (c == '{') {
+                    start = i;
+                    depth = 1;
+                }
+                continue;
+            }
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\' && inString) {
+                escaped = true;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+            if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return value.substring(start, i + 1);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String trimForError(String text) {
+        String normalized = text != null ? text.replace('\n', ' ').replace('\r', ' ').trim() : "";
+        if (normalized.length() <= 180) {
+            return normalized;
+        }
+        return normalized.substring(0, 177) + "...";
     }
 
     private List<TerminalAgentModels.PlannedCommand> validateCommands(
@@ -379,6 +1039,7 @@ public class TerminalAgentService {
             if (isInteractiveCommand(trimmed)) {
                 throw new IllegalArgumentException("Interactive commands are not supported: " + trimmed);
             }
+            trimmed = normalizeSudoForAgentExecution(trimmed);
             if (containsSudoWithoutNonInteractiveFlag(trimmed)) {
                 throw new IllegalArgumentException("Use sudo -n ... only: " + trimmed);
             }
@@ -398,8 +1059,8 @@ public class TerminalAgentService {
         return validated;
     }
 
-    private boolean isInteractiveCommand(String command) {
-        String normalized = " " + command.toLowerCase(Locale.ROOT) + " ";
+    static boolean isInteractiveCommand(String command) {
+        String normalized = " " + stripHereDocumentBodiesForCommandCheck(command).toLowerCase(Locale.ROOT) + " ";
         for (String token : INTERACTIVE_COMMAND_TOKENS) {
             if (normalized.contains(" " + token + " ")) {
                 return true;
@@ -408,11 +1069,176 @@ public class TerminalAgentService {
         return false;
     }
 
-    private boolean containsSudoWithoutNonInteractiveFlag(String command) {
-        String normalized = command.toLowerCase(Locale.ROOT);
-        return normalized.contains("sudo ")
-            && !normalized.contains("sudo -n ")
-            && !normalized.startsWith("sudo -n ");
+    static String stripHereDocumentBodiesForCommandCheck(String command) {
+        if (command == null || command.isBlank() || !command.contains("<<")) {
+            return command != null ? command : "";
+        }
+
+        StringBuilder sanitized = new StringBuilder(command.length());
+        List<String> pendingDelimiters = new ArrayList<>();
+        String[] lines = command.split("\\R", -1);
+        for (String line : lines) {
+            if (!pendingDelimiters.isEmpty()) {
+                if (matchesHereDocumentDelimiter(line, pendingDelimiters.getFirst())) {
+                    pendingDelimiters.removeFirst();
+                }
+                continue;
+            }
+            sanitized.append(line).append('\n');
+            Matcher matcher = HERE_DOCUMENT_OPERATOR_PATTERN.matcher(line);
+            while (matcher.find()) {
+                String delimiter = firstNonNull(matcher.group(1), matcher.group(2), matcher.group(3));
+                if (delimiter != null && !delimiter.isBlank()) {
+                    pendingDelimiters.add(delimiter);
+                }
+            }
+        }
+        return sanitized.toString();
+    }
+
+    private static boolean matchesHereDocumentDelimiter(String line, String delimiter) {
+        if (line == null || delimiter == null) {
+            return false;
+        }
+        return line.equals(delimiter) || line.replaceFirst("^\\t+", "").equals(delimiter);
+    }
+
+    private static String firstNonNull(String first, String second, String third) {
+        if (first != null) {
+            return first;
+        }
+        if (second != null) {
+            return second;
+        }
+        return third;
+    }
+
+    static String normalizeSudoForAgentExecution(String command) {
+        if (command == null || command.isBlank()) {
+            return command;
+        }
+        if (containsForbiddenSudoMode(command)) {
+            throw new IllegalArgumentException("Unsupported sudo mode: " + command);
+        }
+
+        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(command);
+        StringBuffer normalized = new StringBuffer();
+        while (matcher.find()) {
+            String rest = command.substring(matcher.end());
+            if (startsWithNonInteractiveSudoFlag(rest)) {
+                matcher.appendReplacement(normalized, Matcher.quoteReplacement(matcher.group()));
+            } else {
+                matcher.appendReplacement(normalized, Matcher.quoteReplacement(matcher.group(1) + "sudo -n "));
+            }
+        }
+        matcher.appendTail(normalized);
+        return stripPlannerSudoStdinOptions(normalized.toString());
+    }
+
+    private static String stripPlannerSudoStdinOptions(String command) {
+        Matcher matcher = SUDO_STDIN_OPTION_AFTER_NON_INTERACTIVE_PATTERN.matcher(command);
+        return matcher.replaceAll("$1sudo -n ");
+    }
+
+    private static boolean containsSudoWithoutNonInteractiveFlag(String command) {
+        if (command == null || command.isBlank()) {
+            return false;
+        }
+        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(command);
+        while (matcher.find()) {
+            if (!startsWithNonInteractiveSudoFlag(command.substring(matcher.end()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsForbiddenSudoMode(String command) {
+        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(command);
+        while (matcher.find()) {
+            String rest = command.substring(matcher.end()).stripLeading();
+            if (rest.isBlank()) {
+                continue;
+            }
+            String[] tokens = rest.split("\\s+", 8);
+            for (String token : tokens) {
+                if (token.isBlank()) {
+                    continue;
+                }
+                if ("--".equals(token)) {
+                    break;
+                }
+                if (token.startsWith("-")) {
+                    if (isForbiddenSudoOption(token)) {
+                        return true;
+                    }
+                    continue;
+                }
+                return "su".equalsIgnoreCase(token);
+            }
+        }
+        return false;
+    }
+
+    private static boolean isForbiddenSudoOption(String token) {
+        String lowerToken = token.toLowerCase(Locale.ROOT);
+        if ("--shell".equals(lowerToken) || "--login".equals(lowerToken)) {
+            return true;
+        }
+        if (lowerToken.startsWith("--")) {
+            return false;
+        }
+        return token.indexOf('s') >= 0 || token.indexOf('i') >= 0;
+    }
+
+    private static boolean startsWithNonInteractiveSudoFlag(String rest) {
+        if (rest == null) {
+            return false;
+        }
+        String stripped = rest.stripLeading();
+        return stripped.startsWith("-n")
+            && (stripped.length() == 2 || Character.isWhitespace(stripped.charAt(2)));
+    }
+
+    static boolean shouldPromptForSudoPasswordAfterBlockedDecision(
+        String summary,
+        String userMessage,
+        TerminalAgentModels.ProbeSnapshot probe,
+        String cachedPassword) {
+        return shouldPromptForSudoPasswordAfterBlockedDecision(
+            summary,
+            userMessage,
+            probe,
+            cachedPassword != null && !cachedPassword.isBlank());
+    }
+
+    private static boolean shouldPromptForSudoPasswordAfterBlockedDecision(
+        String summary,
+        String userMessage,
+        TerminalAgentModels.ProbeSnapshot probe,
+        CachedSudoPassword cachedPassword) {
+        return shouldPromptForSudoPasswordAfterBlockedDecision(
+            summary,
+            userMessage,
+            probe,
+            cachedPassword != null && !cachedPassword.isBlank());
+    }
+
+    private static boolean shouldPromptForSudoPasswordAfterBlockedDecision(
+        String summary,
+        String userMessage,
+        TerminalAgentModels.ProbeSnapshot probe,
+        boolean cachedPasswordPresent) {
+        if (probe == null
+            || probe.alreadyRoot()
+            || !probe.sudoAvailable()
+            || probe.passwordlessSudo()
+            || cachedPasswordPresent) {
+            return false;
+        }
+        String text = ((summary != null ? summary : "") + " " + (userMessage != null ? userMessage : ""))
+            .toLowerCase(Locale.ROOT);
+        return text.contains("sudo") && (text.contains("password") || text.contains("passwort"));
     }
 
     private boolean usesUnknownPackageManager(String command, List<String> availablePackageManagers) {
@@ -428,11 +1254,16 @@ public class TerminalAgentService {
     }
 
     private String rewriteSudoCommandForPassword(String command) {
-        int index = command.indexOf("sudo -n ");
-        if (index < 0) {
+        if (command == null || command.isBlank()) {
             return command;
         }
-        return command.substring(0, index) + "sudo -S -p '' " + command.substring(index + "sudo -n ".length());
+        Matcher matcher = SUDO_NON_INTERACTIVE_INVOCATION_PATTERN.matcher(command);
+        StringBuffer rewritten = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(rewritten, Matcher.quoteReplacement(matcher.group(1) + "sudo -S -p '' "));
+        }
+        matcher.appendTail(rewritten);
+        return rewritten.toString();
     }
 
     private boolean requiresSudoPassword(TerminalAgentModels.ProbeSnapshot probe, String command) {
@@ -441,12 +1272,12 @@ public class TerminalAgentService {
             && probe.sudoAvailable()
             && !probe.passwordlessSudo()
             && command != null
-            && command.toLowerCase(Locale.ROOT).contains("sudo -n ");
+            && SUDO_NON_INTERACTIVE_INVOCATION_PATTERN.matcher(command).find();
     }
 
     private void ensureNotCancelled(RunUi ui) {
         if (ui.isCancelled() || Thread.currentThread().isInterrupted()) {
-            throw new IllegalStateException("Terminal agent run cancelled");
+            throw new AgentCancelledException("Terminal agent run cancelled");
         }
     }
 
@@ -461,31 +1292,38 @@ public class TerminalAgentService {
             trimTail(execResult.stderr()),
             execResult.stdout().length() > COMMAND_OUTPUT_TAIL_CHARS,
             execResult.stderr().length() > COMMAND_OUTPUT_TAIL_CHARS,
-            false,
-            false);
+            execResult.cancelled(),
+            execResult.timedOut());
     }
 
     private ExecResult exec(TerminalTab terminalTab, String command, byte[] stdin) throws Exception {
-        return exec(terminalTab, command, stdin, null);
+        return exec(terminalTab, command, stdin, null, null);
     }
 
     private ExecResult exec(TerminalTab terminalTab, String command, byte[] stdin, java.util.function.Consumer<String> outputConsumer) throws Exception {
-        ClientSession session = requireSession(terminalTab);
-        try (ChannelExec channel = session.createExecChannel(command)) {
+        return exec(terminalTab, command, stdin, outputConsumer, null);
+    }
+
+    private ExecResult exec(
+        TerminalTab terminalTab,
+        String command,
+        byte[] stdin,
+        java.util.function.Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier) throws Exception {
+        SshTtyConnector connector = requireConnector(terminalTab);
+        String commandToExecute = wrapCommandForWorkingDirectory(command, connector.getCurrentRemoteDirectory());
+        try (ChannelExec channel = connector.getSession().createExecChannel(commandToExecute)) {
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
             ByteArrayOutputStream stderr = new ByteArrayOutputStream();
             channel.setOut(stdout);
             channel.setErr(stderr);
             if (stdin != null && stdin.length > 0) {
-                OutputStream pipedIn = channel.getInvertedIn();
+                channel.setIn(new ByteArrayInputStream(stdin));
                 channel.open().verify(COMMAND_OPEN_TIMEOUT);
-                pipedIn.write(stdin);
-                pipedIn.flush();
-                pipedIn.close();
             } else {
                 channel.open().verify(COMMAND_OPEN_TIMEOUT);
             }
-            channel.waitFor(EnumSet.of(ClientChannelEvent.CLOSED), COMMAND_WAIT_TIMEOUT.toMillis());
+            boolean timedOut = waitForCommand(channel, cancellationSupplier);
             String stdoutText = stdout.toString(StandardCharsets.UTF_8);
             String stderrText = stderr.toString(StandardCharsets.UTF_8);
             if (outputConsumer != null) {
@@ -503,16 +1341,224 @@ public class TerminalAgentService {
                 }
             }
             Integer exitStatus = channel.getExitStatus();
-            return new ExecResult(stdoutText, stderrText, exitStatus != null ? exitStatus : -1);
+            return new ExecResult(stdoutText, stderrText, exitStatus != null ? exitStatus : -1, false, timedOut);
         }
     }
 
-    private ClientSession requireSession(TerminalTab terminalTab) {
+    private boolean waitForCommand(ChannelExec channel, BooleanSupplier cancellationSupplier) throws Exception {
+        long deadlineNanos = System.nanoTime() + COMMAND_WAIT_TIMEOUT.toNanos();
+        while (true) {
+            if ((cancellationSupplier != null && cancellationSupplier.getAsBoolean()) || Thread.currentThread().isInterrupted()) {
+                channel.close(false);
+                throw new AgentCancelledException("Terminal agent run cancelled");
+            }
+            long remainingNanos = deadlineNanos - System.nanoTime();
+            if (remainingNanos <= 0L) {
+                channel.close(false);
+                return true;
+            }
+            long waitMillis = Math.min(250L, Math.max(1L, TimeUnit.NANOSECONDS.toMillis(remainingNanos)));
+            Set<ClientChannelEvent> events = channel.waitFor(EnumSet.of(ClientChannelEvent.CLOSED), waitMillis);
+            if (events.contains(ClientChannelEvent.CLOSED)) {
+                return false;
+            }
+        }
+    }
+
+    private SshTtyConnector requireConnector(TerminalTab terminalTab) {
         TerminalView terminalView = terminalTab.getTerminalView();
-        if (terminalView == null || terminalView.getActiveSshConnector() == null || terminalView.getActiveSshConnector().getSession() == null) {
+        if (terminalView == null) {
             throw new IllegalStateException("The selected SSH session is not connected.");
         }
-        return terminalView.getActiveSshConnector().getSession();
+        SshTtyConnector connector = terminalView.getTerminalAgentRunSshConnector();
+        if (connector == null) {
+            connector = terminalView.getActiveSshConnector();
+        }
+        if (connector == null || connector.getSession() == null) {
+            throw new IllegalStateException("The selected SSH session is not connected.");
+        }
+        return connector;
+    }
+
+    static String wrapCommandForWorkingDirectory(String command, String workingDirectory) {
+        if (command == null || command.isBlank()) {
+            return command;
+        }
+        String normalizedDirectory = workingDirectory != null ? workingDirectory : "";
+        if (normalizedDirectory.isBlank() || "~".equals(normalizedDirectory) || !normalizedDirectory.startsWith("/")) {
+            return command;
+        }
+        return "cd " + shellSingleQuote(normalizedDirectory) + " && " + command;
+    }
+
+    private void publishMessage(RunUi ui, String runId, String suffix, String summary, String detail) {
+        ui.publishActivity(new TerminalAgentModels.AgentActivity(
+            runId + ":message:" + suffix,
+            TerminalAgentModels.AgentActivityType.MESSAGE,
+            TerminalAgentModels.AgentActivityStatus.COMPLETED,
+            nonBlank(summary, "AI agent update"),
+            nonBlank(summary, ""),
+            nonBlank(detail, ""),
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            !blank(detail),
+            true));
+    }
+
+    private void publishQuestion(RunUi ui, String runId, String suffix, String summary, String detail) {
+        ui.publishActivity(new TerminalAgentModels.AgentActivity(
+            runId + ":question:" + suffix,
+            TerminalAgentModels.AgentActivityType.QUESTION,
+            TerminalAgentModels.AgentActivityStatus.RUNNING,
+            nonBlank(summary, "Input required"),
+            nonBlank(summary, ""),
+            nonBlank(detail, ""),
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            !blank(detail),
+            false));
+    }
+
+    private void publishCancelled(RunUi ui, String runId, String suffix, String summary) {
+        ui.publishActivity(new TerminalAgentModels.AgentActivity(
+            runId + ":cancelled:" + suffix,
+            TerminalAgentModels.AgentActivityType.MESSAGE,
+            TerminalAgentModels.AgentActivityStatus.CANCELLED,
+            "Cancelled",
+            nonBlank(summary, "The terminal agent run was cancelled."),
+            "",
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            false,
+            true));
+    }
+
+    private void publishAction(
+        RunUi ui,
+        String id,
+        TerminalAgentModels.AgentActivityStatus status,
+        String title,
+        String summary,
+        String detail,
+        long elapsedSeconds) {
+        ui.publishActivity(new TerminalAgentModels.AgentActivity(
+            id,
+            TerminalAgentModels.AgentActivityType.ACTION,
+            status,
+            nonBlank(title, "Action"),
+            nonBlank(summary, ""),
+            nonBlank(detail, ""),
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            elapsedSeconds,
+            !blank(detail),
+            status != TerminalAgentModels.AgentActivityStatus.RUNNING));
+    }
+
+    private void publishCommandActivity(
+        RunUi ui,
+        String id,
+        TerminalAgentModels.PlannedCommand planned,
+        TerminalAgentModels.AgentActivityStatus status,
+        ExecResult execResult,
+        long elapsedSeconds) {
+        String verb = planned.risk() == TerminalAgentModels.Risk.READ_ONLY ? "Read" : "Run";
+        String title = verb + "(" + planned.command() + ")";
+        String summary = status == TerminalAgentModels.AgentActivityStatus.RUNNING
+            ? planned.purpose()
+            : buildCommandSummary(execResult);
+        String detail = status == TerminalAgentModels.AgentActivityStatus.RUNNING
+            ? planned.purpose()
+            : buildCommandDetail(planned, execResult);
+        publishAction(ui, id, status, title, summary, detail, elapsedSeconds);
+    }
+
+    private String buildCommandSummary(ExecResult execResult) {
+        if (execResult == null) {
+            return "Running command.";
+        }
+        if (execResult.timedOut()) {
+            return "Command timed out.";
+        }
+        int outputLines = countLines(execResult.stdout()) + countLines(execResult.stderr());
+        return "Exit " + execResult.exitCode() + " - " + outputLines + " output lines";
+    }
+
+    private String buildCommandDetail(TerminalAgentModels.PlannedCommand planned, ExecResult execResult) {
+        if (execResult == null) {
+            return planned.purpose();
+        }
+        StringBuilder detail = new StringBuilder();
+        detail.append(planned.purpose()).append("\n");
+        detail.append("Command: ").append(planned.command()).append("\n");
+        detail.append("Exit code: ").append(execResult.exitCode());
+        if (execResult.timedOut()) {
+            detail.append(" (timed out)");
+        }
+        String stdout = trimTail(execResult.stdout());
+        if (!stdout.isBlank()) {
+            detail.append("\nstdout:\n").append(stdout.trim());
+        }
+        String stderr = trimTail(execResult.stderr());
+        if (!stderr.isBlank()) {
+            detail.append("\nstderr:\n").append(stderr.trim());
+        }
+        return detail.toString();
+    }
+
+    private int countLines(String text) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+        return (int) text.lines().count();
+    }
+
+    private void publishThinking(
+        RunUi ui,
+        String id,
+        TerminalAgentModels.AgentActivityStatus status,
+        String title,
+        String summary,
+        String detail,
+        TerminalAgentModels.AgentActivityTokenUsage tokenUsage,
+        long elapsedSeconds,
+        boolean collapsed) {
+        ui.publishActivity(new TerminalAgentModels.AgentActivity(
+            id,
+            TerminalAgentModels.AgentActivityType.THINKING,
+            status,
+            nonBlank(title, "Thinking"),
+            nonBlank(summary, ""),
+            nonBlank(detail, ""),
+            tokenUsage != null ? tokenUsage : TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            elapsedSeconds,
+            !blank(detail),
+            collapsed));
+    }
+
+    private void recordTokenUsage(RunUi ui, AiExecutionResult result) {
+        if (result != null && result.usage() != null) {
+            ui.recordTokenUsage(result.usage());
+        }
+    }
+
+    private TerminalAgentModels.AgentActivityTokenUsage tokenUsageOf(AiExecutionResult result) {
+        AiTokenUsage usage = result != null ? result.usage() : null;
+        if (usage == null) {
+            return TerminalAgentModels.AgentActivityTokenUsage.unknown();
+        }
+        return new TerminalAgentModels.AgentActivityTokenUsage(
+            true,
+            usage.promptTokens(),
+            usage.completionTokens(),
+            usage.totalTokens());
+    }
+
+    private long elapsedSecondsSince(long startedAtNanos) {
+        if (startedAtNanos <= 0L) {
+            return 0L;
+        }
+        long elapsedNanos = System.nanoTime() - startedAtNanos;
+        return Math.max(0L, TimeUnit.NANOSECONDS.toSeconds(elapsedNanos));
     }
 
     private TerminalAgentModels.ProbeSnapshot parseProbeOutput(String stdout) {
@@ -644,10 +1690,14 @@ public class TerminalAgentService {
             "Never invent facts. Only use the provided probe snapshot and command results.",
             "You may suggest at most 3 commands.",
             "All commands must be non-interactive and safe to run over SSH without user input.",
+            "Each command runs in its own non-interactive SSH exec channel from the active terminal working directory in `probe.currentDir`; do not rely on `cd` persisting to later commands.",
+            "When the user asks to create or save a file and does not specify an absolute path, create it in `probe.currentDir`.",
             "If sudo is needed, use `sudo -n ...` only. Never use `su`, `sudo su`, `sudo -S`, or commands that wait for a password.",
             "If the probe says `sudoAvailable` is true but `passwordlessSudo` is false, you may still plan `sudo -n ...` commands.",
             "If the runtime state says `sudoPasswordCached` is true, do not ask for the sudo password again.",
             "If the task is complete, set `status` to `done`.",
+            "If previous command results already answer the user task, set `status` to `done` instead of planning more commands.",
+            "For read-only inventory, counting, or classification tasks, prefer one aggregate shell command and finish once its output contains the requested counts.",
             "If the task cannot be completed with the known facts or there is no root access and no sudo available for privileged work, set `status` to `blocked`.",
             "If commands would change the system or need privilege, use `needs_confirmation`.",
             "Allowed `status` values: `run_commands`, `needs_confirmation`, `done`, `blocked`.",
@@ -673,13 +1723,44 @@ public class TerminalAgentService {
 
         return "User task: " + request.userPrompt().trim() + "\n"
             + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
+            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
             + "Turn: " + turn + "/" + MAX_AGENT_TURNS + "\n\n"
+            + (turn >= MAX_AGENT_TURNS
+                ? "This is the final planning turn. If previous command results contain enough evidence to answer the task, return `done` now. If they do not, return `blocked` with the exact missing information.\n\n"
+                : "")
             + "Runtime state:\n```json\n" + runtimeStateJson + "\n```\n\n"
             + "Remote probe snapshot:\n```json\n" + probeJson + "\n```\n\n"
             + "Previous command results:\n```json\n" + historyJson + "\n```\n\n"
             + acceptedPlanInstruction
             + acceptedPlanContext
             + "Plan the next step now.";
+    }
+
+    String buildAgentTurnLimitFinalSystemPrompt() {
+        return String.join(" ",
+            "You are KorTTY's final response writer for a remote SSH terminal automation helper.",
+            "Reply with exactly one JSON object and nothing else.",
+            "No more commands may be run.",
+            "Never invent facts. Only use the provided probe snapshot and previous command results.",
+            "If the previous command results answer the user task, set `status` to `done` and put the final answer in `userMessage`.",
+            "If the previous command results do not contain enough evidence, set `status` to `blocked` and name the exact missing information.",
+            "For tables, use a compact Markdown table inside the JSON string value.",
+            "Allowed `status` values: `done`, `blocked`.",
+            "Always return `commands`: [] and `needsReprobe`: false.",
+            "JSON schema: {\"status\":\"done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"short text for the user\",\"commands\":[],\"needsReprobe\":false}");
+    }
+
+    String buildAgentTurnLimitFinalUserPrompt(
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.CommandResult> history) {
+        return "User task: " + request.userPrompt().trim() + "\n"
+            + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
+            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
+            + "Turn limit reached: " + MAX_AGENT_TURNS + "/" + MAX_AGENT_TURNS + "\n\n"
+            + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
+            + "Previous command results:\n```json\n" + GSON.toJson(history) + "\n```\n\n"
+            + "Write the final response now without planning more commands.";
     }
 
     private String buildAgentRepairPrompt(String invalidResponse) {
@@ -711,6 +1792,7 @@ public class TerminalAgentService {
     private String buildPlanQuestionUserPrompt(TerminalAgentModels.PlanRequest request, TerminalAgentModels.ProbeSnapshot probe) {
         return "User task: " + request.userPrompt().trim() + "\n"
             + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
+            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
             + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
             + "Ask the user clarifying questions now.";
     }
@@ -726,6 +1808,7 @@ public class TerminalAgentService {
             : "";
         return "User task: " + request.userPrompt().trim() + "\n"
             + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
+            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
             + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
             + "Clarifying questions:\n```json\n" + GSON.toJson(questions) + "\n```\n\n"
             + "User answers:\n" + nonBlank(answers, "No explicit answers were provided.") + "\n"
@@ -808,7 +1891,62 @@ public class TerminalAgentService {
         return values == null ? List.of() : values.stream().filter(Objects::nonNull).toList();
     }
 
-    private record ExecResult(String stdout, String stderr, int exitCode) {
+    record FileTypeCountRequest(String directory) {
+    }
+
+    record FileTypeCounts(long total, long plainText, long binaryOrNonText) {
+    }
+
+    private record ExecResult(String stdout, String stderr, int exitCode, boolean cancelled, boolean timedOut) {
+    }
+
+    private static final class CachedSudoPassword {
+        private char[] value;
+
+        private CachedSudoPassword(char[] value) {
+            this.value = value != null ? Arrays.copyOf(value, value.length) : new char[0];
+        }
+
+        private boolean isBlank() {
+            char[] current = value;
+            if (current == null || current.length == 0) {
+                return true;
+            }
+            for (char ch : current) {
+                if (!Character.isWhitespace(ch)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private byte[] toUtf8Line() {
+            char[] current = value;
+            if (current == null || current.length == 0) {
+                return new byte[0];
+            }
+            char[] charsWithNewline = Arrays.copyOf(current, current.length + 1);
+            charsWithNewline[charsWithNewline.length - 1] = '\n';
+            try {
+                ByteBuffer encoded = StandardCharsets.UTF_8.encode(CharBuffer.wrap(charsWithNewline));
+                byte[] bytes = new byte[encoded.remaining()];
+                encoded.get(bytes);
+                if (encoded.hasArray()) {
+                    Arrays.fill(encoded.array(), (byte) 0);
+                }
+                encoded.clear();
+                return bytes;
+            } finally {
+                Arrays.fill(charsWithNewline, '\0');
+            }
+        }
+
+        private void clear() {
+            if (value != null) {
+                Arrays.fill(value, '\0');
+                value = null;
+            }
+        }
     }
 
     private static class AgentDecision {
@@ -836,6 +1974,16 @@ public class TerminalAgentService {
 
         public boolean needsReprobe() {
             return needsReprobe;
+        }
+
+        static AgentDecision blocked(String summary, String userMessage) {
+            AgentDecision decision = new AgentDecision();
+            decision.status = AgentDecisionStatus.blocked;
+            decision.summary = summary;
+            decision.userMessage = userMessage;
+            decision.commands = List.of();
+            decision.needsReprobe = false;
+            return decision;
         }
     }
 

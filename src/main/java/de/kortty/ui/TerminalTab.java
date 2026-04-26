@@ -1,9 +1,12 @@
 package de.kortty.ui;
 
+import de.kortty.KorTTYApplication;
+import de.kortty.core.ThemeManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TemporarySSHKey;
+import de.kortty.model.Theme;
 import javafx.application.Platform;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert;
@@ -27,6 +30,7 @@ public class TerminalTab extends Tab {
 
     private final ServerConnection connection;
     private final TerminalView terminalView;
+    private final AiAgentActivityPanel aiAgentActivityPanel;
     private final ConnectionSettings settings;
     private final TemporarySSHKey temporarySSHKey;
     private final String aiSessionId;
@@ -55,6 +59,8 @@ public class TerminalTab extends Tab {
         this.aiSessionId = UUID.randomUUID().toString();
         this.connectionStartTime = Instant.now();
         this.terminalView = new TerminalView(connection, password, temporarySSHKey);
+        this.aiAgentActivityPanel = new AiAgentActivityPanel();
+        applyAiAgentActivityTheme(settings);
         this.terminalView.setOnReconnectRequested(this::triggerReconnect);
         
         // Create status bar (connection duration / key validity)
@@ -67,6 +73,7 @@ public class TerminalTab extends Tab {
         // Create container with terminal view and status bars
         javafx.scene.layout.VBox container = new javafx.scene.layout.VBox();
         container.getChildren().add(terminalView);
+        container.getChildren().add(aiAgentActivityPanel);
         if (statusBarLabel != null) {
             container.getChildren().add(statusBarLabel);
         }
@@ -528,6 +535,41 @@ public class TerminalTab extends Tab {
     
     public TerminalView getTerminalView() {
         return terminalView;
+    }
+
+    public void applyConnectionSettings(ConnectionSettings connectionSettings) {
+        terminalView.applyConnectionSettings(connectionSettings);
+        applyAiAgentActivityTheme(connectionSettings);
+    }
+
+    public AiAgentActivityPanel getAiAgentActivityPanel() {
+        return aiAgentActivityPanel;
+    }
+
+    private void applyAiAgentActivityTheme(ConnectionSettings connectionSettings) {
+        Theme theme = resolveAiAgentTheme(connectionSettings);
+        aiAgentActivityPanel.applyTheme(theme);
+        terminalView.applyTerminalAgentBusyTheme(theme);
+    }
+
+    private Theme resolveAiAgentTheme(ConnectionSettings connectionSettings) {
+        try {
+            ConnectionSettings sourceSettings = connectionSettings;
+            if (sourceSettings == null || sourceSettings.isUseGlobalSettings()) {
+                var globalSettings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+                if (globalSettings != null && globalSettings.getDefaultTerminalSettings() != null) {
+                    sourceSettings = globalSettings.getDefaultTerminalSettings();
+                }
+            }
+            String themeId = sourceSettings != null ? sourceSettings.getThemeId() : null;
+            if (themeId == null || themeId.isBlank()) {
+                return null;
+            }
+            ThemeManager themeManager = KorTTYApplication.getInstance().getThemeManager();
+            return themeManager != null ? themeManager.getTheme(themeId).orElse(null) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
     
     public boolean isConnected() {

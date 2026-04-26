@@ -52,8 +52,9 @@ public class ThemeManager {
             JAXBContext context = JAXBContext.newInstance(ThemeList.class, Theme.class);
             Unmarshaller unmarshaller = context.createUnmarshaller();
             themeList = (ThemeList) unmarshaller.unmarshal(themesFile.toFile());
-            boolean updatedBuiltIns = ensureBuiltInThemes();
-            if (updatedBuiltIns) {
+            boolean updatedThemes = ensureThemeDefaults();
+            updatedThemes |= ensureBuiltInThemes();
+            if (updatedThemes) {
                 save();
             }
             logger.info("Loaded {} themes from {}", themeList.getThemes().size(), themesFile);
@@ -102,12 +103,14 @@ public class ThemeManager {
         if (theme.getId() == null || theme.getId().isEmpty()) {
             theme.setId(UUID.randomUUID().toString());
         }
+        theme.initializeAgentPanelColorsIfMissing();
         themeList.getThemes().add(theme);
         save();
         return theme;
     }
 
     public void updateTheme(Theme theme) {
+        theme.initializeAgentPanelColorsIfMissing();
         for (int i = 0; i < themeList.getThemes().size(); i++) {
             if (theme.getId().equals(themeList.getThemes().get(i).getId())) {
                 themeList.getThemes().set(i, theme);
@@ -156,6 +159,7 @@ public class ThemeManager {
     private void createDefaultThemes() {
         themeList = new ThemeList();
         themeList.getThemes().addAll(createBuiltInThemes());
+        ensureThemeDefaults();
         save();
     }
 
@@ -166,12 +170,23 @@ public class ThemeManager {
             Optional<Theme> existing = getTheme(builtIn.getId());
             if (existing.isPresent()) {
                 existing.get().setBuiltIn(true);
+                changed |= existing.get().initializeAgentPanelColorsIfMissing();
                 insertPos = Math.max(insertPos, themeList.getThemes().indexOf(existing.get()) + 1);
                 continue;
             }
             themeList.getThemes().add(insertPos, builtIn);
             insertPos++;
             changed = true;
+        }
+        return changed;
+    }
+
+    private boolean ensureThemeDefaults() {
+        boolean changed = false;
+        for (Theme theme : themeList.getThemes()) {
+            if (theme != null) {
+                changed |= theme.initializeAgentPanelColorsIfMissing();
+            }
         }
         return changed;
     }
@@ -192,6 +207,7 @@ public class ThemeManager {
         themes.add(createGitHubDarkTheme());
         themes.add(createGitHubLightTheme());
         themes.add(createHighContrastDarkTheme());
+        themes.forEach(Theme::initializeAgentPanelColorsIfMissing);
         return themes;
     }
 
