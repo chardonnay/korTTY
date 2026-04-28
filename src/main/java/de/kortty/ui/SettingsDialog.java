@@ -1679,8 +1679,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 }
             }
 
-            saveAiToggleFlagsToSettings();
-
             if (!shouldSkipAiValidationOnSave()) {
                 String commandNameValidationMessage = TerminalAgentCommandSupport.validateCommandName(aiAgentCommandNameField.getText());
                 if (commandNameValidationMessage != null) {
@@ -1694,6 +1692,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     return false;
                 }
             }
+
+            saveAiToggleFlagsToSettings(globalSettings);
             
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
             
@@ -2568,49 +2568,41 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         globalSettings.setAiApiUrl(null);
         globalSettings.setAiModel(null);
         globalSettings.setEncryptedAiApiKey(null);
-        globalSettings.setAiFeaturesEnabled(aiFeaturesEnabledCheck.isSelected());
-        globalSettings.setAiConfirmBeforeSend(aiConfirmBeforeSendCheck.isSelected());
-        globalSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
-        globalSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());
-        globalSettings.setTerminalAgentShowRuntimeMessages(aiShowRuntimeMessagesCheck.isSelected());
-        globalSettings.setTerminalAgentShowRunDialog(aiTerminalAgentShowRunDialogCheck.isSelected());
         globalSettings.setTerminalAgentCommandName(TerminalAgentCommandSupport.normalizeCommandName(aiAgentCommandNameField.getText()));
-        globalSettings.setTerminalAgentCommandNameCaseInsensitive(aiAgentCommandNameCaseInsensitiveCheck.isSelected());
         globalSettings.setTerminalAgentExecutionTarget(aiExecutionTargetCombo.getValue());
         AiLanguageSupport.LanguageOption selectedLanguage = aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem();
         globalSettings.setAiCodeTextDefaultLanguage(selectedLanguage != null ? selectedLanguage.code() : null);
-        globalSettings.setAiSnippetEditorAdditionalInstructionsEnabled(aiSnippetEditorInstructionsCheck.isSelected());
         globalSettings.setAiSnippetAlternativeSolutionCount(aiSnippetAlternativeSolutionCountSpinner.getValue());
         return true;
     }
 
-    private void saveAiToggleFlagsToSettings() {
-        if (globalSettings == null) {
+    private void saveAiToggleFlagsToSettings(GlobalSettings targetSettings) {
+        if (targetSettings == null) {
             return;
         }
         if (aiFeaturesEnabledCheck != null) {
-            globalSettings.setAiFeaturesEnabled(aiFeaturesEnabledCheck.isSelected());
+            targetSettings.setAiFeaturesEnabled(aiFeaturesEnabledCheck.isSelected());
         }
         if (aiConfirmBeforeSendCheck != null) {
-            globalSettings.setAiConfirmBeforeSend(aiConfirmBeforeSendCheck.isSelected());
+            targetSettings.setAiConfirmBeforeSend(aiConfirmBeforeSendCheck.isSelected());
         }
         if (aiPromptHookEnabledCheck != null) {
-            globalSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
+            targetSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
         }
         if (aiShowDebugMessagesCheck != null) {
-            globalSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());
+            targetSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());
         }
         if (aiShowRuntimeMessagesCheck != null) {
-            globalSettings.setTerminalAgentShowRuntimeMessages(aiShowRuntimeMessagesCheck.isSelected());
+            targetSettings.setTerminalAgentShowRuntimeMessages(aiShowRuntimeMessagesCheck.isSelected());
         }
         if (aiTerminalAgentShowRunDialogCheck != null) {
-            globalSettings.setTerminalAgentShowRunDialog(aiTerminalAgentShowRunDialogCheck.isSelected());
+            targetSettings.setTerminalAgentShowRunDialog(aiTerminalAgentShowRunDialogCheck.isSelected());
         }
         if (aiAgentCommandNameCaseInsensitiveCheck != null) {
-            globalSettings.setTerminalAgentCommandNameCaseInsensitive(aiAgentCommandNameCaseInsensitiveCheck.isSelected());
+            targetSettings.setTerminalAgentCommandNameCaseInsensitive(aiAgentCommandNameCaseInsensitiveCheck.isSelected());
         }
         if (aiSnippetEditorInstructionsCheck != null) {
-            globalSettings.setAiSnippetEditorAdditionalInstructionsEnabled(aiSnippetEditorInstructionsCheck.isSelected());
+            targetSettings.setAiSnippetEditorAdditionalInstructionsEnabled(aiSnippetEditorInstructionsCheck.isSelected());
         }
     }
 

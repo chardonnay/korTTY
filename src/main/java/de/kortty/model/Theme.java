@@ -302,6 +302,13 @@ public class Theme {
         if (value.startsWith("#")) {
             value = value.substring(1);
         }
+        if (value.length() == 3) {
+            value = new StringBuilder(6)
+                .append(value.charAt(0)).append(value.charAt(0))
+                .append(value.charAt(1)).append(value.charAt(1))
+                .append(value.charAt(2)).append(value.charAt(2))
+                .toString();
+        }
         if (value.length() != 6) {
             return fallback;
         }

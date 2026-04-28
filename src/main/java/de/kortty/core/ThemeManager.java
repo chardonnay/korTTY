@@ -169,9 +169,13 @@ public class ThemeManager {
         for (Theme builtIn : createBuiltInThemes()) {
             Optional<Theme> existing = getTheme(builtIn.getId());
             if (existing.isPresent()) {
-                existing.get().setBuiltIn(true);
-                changed |= existing.get().initializeAgentPanelColorsIfMissing();
-                insertPos = Math.max(insertPos, themeList.getThemes().indexOf(existing.get()) + 1);
+                Theme existingTheme = existing.get();
+                if (!existingTheme.isBuiltIn()) {
+                    existingTheme.setBuiltIn(true);
+                    changed = true;
+                }
+                changed |= existingTheme.initializeAgentPanelColorsIfMissing();
+                insertPos = Math.max(insertPos, themeList.getThemes().indexOf(existingTheme) + 1);
                 continue;
             }
             themeList.getThemes().add(insertPos, builtIn);

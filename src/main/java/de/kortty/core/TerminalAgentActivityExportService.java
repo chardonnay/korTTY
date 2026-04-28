@@ -267,31 +267,34 @@ public class TerminalAgentActivityExportService {
             info.setSubject("Terminal AI agent export");
 
             PdfCursor cursor = openPdfPage(pdf);
-            cursor = drawPdfLine(pdf, cursor, bold, PDF_TITLE_SIZE, document.title());
-            cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, "Exported: " + formatTimestamp(document.exportedAt()));
-            cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, "Runs: " + document.runs().size());
-            cursor = cursor.withY(cursor.y() - 10f);
+            try {
+                cursor = drawPdfLine(pdf, cursor, bold, PDF_TITLE_SIZE, document.title());
+                cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, "Exported: " + formatTimestamp(document.exportedAt()));
+                cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, "Runs: " + document.runs().size());
+                cursor = cursor.withY(cursor.y() - 10f);
 
-            for (Run run : document.runs()) {
-                cursor = ensurePdfSpace(pdf, cursor, 80f);
-                cursor = drawPdfLine(pdf, cursor, bold, 13f, run.title());
-                for (String metaLine : runMetadataLines(run)) {
-                    cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, metaLine);
-                }
-                cursor = cursor.withY(cursor.y() - 4f);
-                for (Activity activity : run.activities()) {
-                    cursor = ensurePdfSpace(pdf, cursor, 45f);
-                    cursor = drawPdfLine(pdf, cursor, bold, PDF_FONT_SIZE,
-                        activity.type().name() + " / " + activity.status().name() + " - " + nonBlank(activity.summary(), activity.title()));
-                    if (!blank(activity.detail())) {
-                        for (String line : wrapPdfText("> " + activity.detail().replace("\n", " "), sans, PDF_FONT_SIZE)) {
-                            cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, line);
+                for (Run run : document.runs()) {
+                    cursor = ensurePdfSpace(pdf, cursor, 80f);
+                    cursor = drawPdfLine(pdf, cursor, bold, 13f, run.title());
+                    for (String metaLine : runMetadataLines(run)) {
+                        cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, metaLine);
+                    }
+                    cursor = cursor.withY(cursor.y() - 4f);
+                    for (Activity activity : run.activities()) {
+                        cursor = ensurePdfSpace(pdf, cursor, 45f);
+                        cursor = drawPdfLine(pdf, cursor, bold, PDF_FONT_SIZE,
+                            activity.type().name() + " / " + activity.status().name() + " - " + nonBlank(activity.summary(), activity.title()));
+                        if (!blank(activity.detail())) {
+                            for (String line : wrapPdfText("> " + activity.detail().replace("\n", " "), sans, PDF_FONT_SIZE)) {
+                                cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, line);
+                            }
                         }
                     }
+                    cursor = cursor.withY(cursor.y() - 12f);
                 }
-                cursor = cursor.withY(cursor.y() - 12f);
+            } finally {
+                cursor.stream().close();
             }
-            cursor.stream().close();
             pdf.save(targetFile.toFile());
         }
     }

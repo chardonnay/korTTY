@@ -5,7 +5,6 @@ import com.sithtermfx.core.Terminal;
 import com.sithtermfx.core.TerminalColor;
 import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.model.SithTerminal;
-import com.sithtermfx.core.util.TermSize;
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
@@ -469,7 +468,7 @@ public class TerminalView extends BorderPane {
         if (widget == null) {
             return null;
         }
-        TtyConnector connector = unwrapTerminalConnector(widget.getTtyConnector());
+        TtyConnector connector = widget.getTtyConnector();
         if (connector instanceof SshTtyConnector sshConnector && sshConnector.isConnected()) {
             return new TerminalAgentRunContext(widget, sshConnector);
         }
@@ -488,7 +487,7 @@ public class TerminalView extends BorderPane {
             return null;
         }
         for (SithTermFxWidget widget : splitPane.getAllWidgets()) {
-            if (widget != null && unwrapTerminalConnector(widget.getTtyConnector()) == connector) {
+            if (widget != null && widget.getTtyConnector() == connector) {
                 return widget;
             }
         }
@@ -599,7 +598,7 @@ public class TerminalView extends BorderPane {
             stopTerminalAgentShellKeepAlive();
             return;
         }
-        if (sshConnector == null || !sshConnector.isConnected()) {
+        if (!sshConnector.isConnected()) {
             return;
         }
         Thread keepAliveThread = new Thread(() -> {
@@ -797,7 +796,7 @@ public class TerminalView extends BorderPane {
 
     private TtyConnector getFocusedConnector() {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : null;
-        return focused != null ? unwrapTerminalConnector(focused.getTtyConnector()) : null;
+        return focused != null ? focused.getTtyConnector() : null;
     }
 
     public SshTtyConnector getActiveSshConnector() {
@@ -809,12 +808,11 @@ public class TerminalView extends BorderPane {
     }
 
     private TtyConnector decorateTerminalConnector(SithTermFxWidget widget, TtyConnector connector) {
-        TtyConnector unwrapped = unwrapTerminalConnector(connector);
-        if (unwrapped == null) {
+        if (connector == null) {
             return null;
         }
-        installAgentShortcutInputInterceptor(widget, unwrapped);
-        return unwrapped;
+        installAgentShortcutInputInterceptor(widget, connector);
+        return connector;
     }
 
     private void installAgentShortcutInputInterceptor(SithTermFxWidget widget, TtyConnector connector) {
@@ -835,21 +833,12 @@ public class TerminalView extends BorderPane {
             sourceConnector -> data -> recordAgentShortcutPromptSignal(sourceConnector, data));
     }
 
-    private TtyConnector unwrapTerminalConnector(TtyConnector connector) {
-        TtyConnector current = connector;
-        while (current instanceof AgentShortcutTtyConnector wrapper) {
-            current = wrapper.getDelegate();
-        }
-        return current;
-    }
-
     private boolean usesTerminalConnector(TtyConnector candidate, TtyConnector expected) {
-        return expected != null && unwrapTerminalConnector(candidate) == expected;
+        return expected != null && candidate == expected;
     }
 
     private boolean shouldPreferRemoteAgentShortcut(TtyConnector connector) {
-        TtyConnector unwrapped = unwrapTerminalConnector(connector);
-        return unwrapped instanceof SshTtyConnector sshConnector
+        return connector instanceof SshTtyConnector sshConnector
             && sshConnector.hasShellStartupCommandConfigured();
     }
 
@@ -2400,74 +2389,6 @@ public class TerminalView extends BorderPane {
             if (first == '\t' || first >= 32) {
                 inputLine.append(text);
             }
-        }
-    }
-
-    private final class AgentShortcutTtyConnector implements TtyConnector {
-        private final TtyConnector delegate;
-        private final AgentShortcutInputFilter inputFilter;
-
-        private AgentShortcutTtyConnector(SithTermFxWidget widget, TtyConnector delegate) {
-            this.delegate = delegate;
-            this.inputFilter = new AgentShortcutInputFilter(widget, shouldPreferRemoteAgentShortcut(delegate));
-        }
-
-        private TtyConnector getDelegate() {
-            return delegate;
-        }
-
-        @Override
-        public int read(char[] buf, int offset, int length) throws IOException {
-            return delegate.read(buf, offset, length);
-        }
-
-        @Override
-        public void write(byte[] bytes) throws IOException {
-            if (bytes == null || bytes.length == 0) {
-                return;
-            }
-            byte[] filtered = inputFilter.filter(bytes);
-            if (filtered.length > 0) {
-                delegate.write(filtered);
-            }
-        }
-
-        @Override
-        public void write(String string) throws IOException {
-            if (string == null || string.isEmpty()) {
-                return;
-            }
-            write(string.getBytes(StandardCharsets.UTF_8));
-        }
-
-        @Override
-        public boolean isConnected() {
-            return delegate.isConnected();
-        }
-
-        @Override
-        public int waitFor() throws InterruptedException {
-            return delegate.waitFor();
-        }
-
-        @Override
-        public boolean ready() throws IOException {
-            return delegate.ready();
-        }
-
-        @Override
-        public String getName() {
-            return delegate.getName();
-        }
-
-        @Override
-        public void close() {
-            delegate.close();
-        }
-
-        @Override
-        public void resize(@NotNull TermSize termSize) {
-            delegate.resize(termSize);
         }
     }
 

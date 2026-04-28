@@ -844,7 +844,24 @@ public class TerminalAgentService {
                 false);
             AiExecutionResult repaired = executeAgentJsonPrompt(aiService, systemPrompt, buildAgentRepairPrompt(result.content()));
             recordTokenUsage(ui, repaired);
-            AgentDecision decision = parseFinalAgentDecision(repaired.content());
+            AgentDecision decision;
+            try {
+                decision = parseFinalAgentDecision(repaired.content());
+            } catch (Exception repairFailure) {
+                publishThinking(
+                    ui,
+                    repairThinkingId,
+                    TerminalAgentModels.AgentActivityStatus.FAILED,
+                    "Thinking",
+                    "Repair failed",
+                    repairFailure.getMessage() != null
+                        ? repairFailure.getMessage()
+                        : repairFailure.getClass().getSimpleName(),
+                    tokenUsageOf(repaired),
+                    elapsedSecondsSince(repairStartedAtNanos),
+                    true);
+                throw repairFailure;
+            }
             publishThinking(
                 ui,
                 repairThinkingId,

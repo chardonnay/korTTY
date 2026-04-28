@@ -157,7 +157,7 @@ public class AiAgentActivityPanel extends VBox {
             event.consume();
         });
 
-        titleLabel = new Label("AI Agent");
+        titleLabel = new Label(I18n.get("ai.agent.title"));
         titleLabel.getStyleClass().add("ai-agent-activity-title");
         headerBusyDot = new Region();
         headerBusyDot.getStyleClass().add("ai-agent-header-busy-dot");
@@ -172,11 +172,11 @@ public class AiAgentActivityPanel extends VBox {
         headerBusyLabel.setManaged(false);
         tokenLabel = new Label(formatReportedTokens());
         tokenLabel.getStyleClass().add("ai-agent-activity-meta");
-        previousRunButton = buildControlButton("\u25C0", "Previous agent run");
+        previousRunButton = buildControlButton("\u25C0", I18n.get("ai.agent.control.previousRun"));
         previousRunButton.setOnAction(event -> showPreviousRun());
-        nextRunButton = buildControlButton("\u25B6", "Next agent run");
+        nextRunButton = buildControlButton("\u25B6", I18n.get("ai.agent.control.nextRun"));
         nextRunButton.setOnAction(event -> showNextRun());
-        reloadRunButton = buildControlButton("\u21BB", "Run this agent command again");
+        reloadRunButton = buildControlButton("\u21BB", I18n.get("ai.agent.control.reloadRun"));
         reloadRunButton.setOnAction(event -> rerunSelectedRun());
         exportFormatComboBox = new ComboBox<>();
         exportFormatComboBox.getItems().setAll(TerminalAgentActivityExportService.Format.values());
@@ -210,11 +210,11 @@ public class AiAgentActivityPanel extends VBox {
         increaseFontButton.getStyleClass().add("ai-agent-font-button");
         increaseFontButton.setFocusTraversable(false);
         increaseFontButton.setOnAction(event -> adjustActivityFontSize(ACTIVITY_FONT_STEP));
-        expandAllCheckBox = new CheckBox("Expand all");
+        expandAllCheckBox = new CheckBox(I18n.get("ai.agent.option.expandAll"));
         expandAllCheckBox.getStyleClass().add("ai-agent-option-check");
         expandAllCheckBox.setFocusTraversable(false);
         expandAllCheckBox.setOnAction(event -> refreshDetailVisibility());
-        rememberLayoutCheckBox = new CheckBox("Remember size");
+        rememberLayoutCheckBox = new CheckBox(I18n.get("ai.agent.option.rememberSize"));
         rememberLayoutCheckBox.getStyleClass().add("ai-agent-option-check");
         rememberLayoutCheckBox.setFocusTraversable(false);
         rememberLayoutCheckBox.setOnAction(event -> updateRememberLayoutPreference());
@@ -223,7 +223,7 @@ public class AiAgentActivityPanel extends VBox {
         cancelRunButton.setOnAction(event -> requestCancel());
         cancelRunButton.setVisible(false);
         cancelRunButton.setManaged(false);
-        collapseButton = buildControlButton("\u25BC", "Collapse agent panel");
+        collapseButton = buildControlButton("\u25BC", I18n.get("ai.agent.control.collapsePanel"));
         collapseButton.getStyleClass().add("ai-agent-collapse-button");
         collapseButton.setMinWidth(30);
         collapseButton.setPrefWidth(34);
@@ -309,7 +309,7 @@ public class AiAgentActivityPanel extends VBox {
         RunMetadata metadata) {
 
         Runnable task = () -> {
-            String title = userPrompt == null || userPrompt.isBlank() ? "AI Agent" : userPrompt.trim();
+            String title = userPrompt == null || userPrompt.isBlank() ? I18n.get("ai.agent.title") : userPrompt.trim();
             LocalDateTime startedAt = LocalDateTime.now();
             this.cancelCallback = cancelCallback;
             running = true;
@@ -417,7 +417,7 @@ public class AiAgentActivityPanel extends VBox {
             if (pendingPasswordField != null) {
                 pendingPasswordField.requestFocus();
             }
-            return true;
+            return false;
         }
         CompletableFuture<TerminalAgentService.ApprovalDecision> approval = pendingApproval;
         if (approval != null && !approval.isDone()) {
@@ -911,7 +911,10 @@ public class AiAgentActivityPanel extends VBox {
         scrollPane.setManaged(expanded);
         updatePromptVisibility();
         collapseButton.setText(panelCollapsed ? "\u25B2" : "\u25BC");
-        collapseButton.setTooltip(new Tooltip(panelCollapsed ? "Expand agent panel" : "Collapse agent panel"));
+        collapseButton.setTooltip(new Tooltip(
+            panelCollapsed
+                ? I18n.get("ai.agent.control.expandPanel")
+                : I18n.get("ai.agent.control.collapsePanel")));
         if (panelCollapsed) {
             setMinHeight(COLLAPSED_PANEL_HEIGHT);
             setPrefHeight(COLLAPSED_PANEL_HEIGHT);
@@ -1547,7 +1550,7 @@ public class AiAgentActivityPanel extends VBox {
             RunMetadata metadata,
             LocalDateTime startedAt) {
 
-            this.title = title == null || title.isBlank() ? "AI Agent" : title.trim();
+            this.title = title == null || title.isBlank() ? I18n.get("ai.agent.title") : title.trim();
             this.prompt = prompt == null || prompt.isBlank() ? this.title : prompt.trim();
             this.reloadCallback = reloadCallback;
             this.profileId = metadata != null && metadata.profileId() != null && !metadata.profileId().isBlank()

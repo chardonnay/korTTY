@@ -266,7 +266,7 @@ public class SshTtyConnector implements TtyConnector {
             
             // Configure PTY modes
             Map<PtyMode, Integer> ptyModes = new EnumMap<>(PtyMode.class);
-            ptyModes.put(PtyMode.ECHO, hasShellStartupCommand() ? 0 : 1);
+            ptyModes.put(PtyMode.ECHO, 1);
             ptyModes.put(PtyMode.ICRNL, 1);
             ptyModes.put(PtyMode.ONLCR, 1);
             ptyModes.put(PtyMode.ISIG, 1);
@@ -281,8 +281,8 @@ public class SshTtyConnector implements TtyConnector {
             outputStream = channel.getInvertedIn();
             reader = new InputStreamReader(inputStream, charset);
 
-            writeShellStartupCommandIfConfigured();
             initializeCurrentRemoteDirectory();
+            writeShellStartupCommandIfConfigured();
             
             connected.set(true);
             logger.info("Connected to {}", connection.getDisplayName());
@@ -450,13 +450,13 @@ public class SshTtyConnector implements TtyConnector {
     @Override
     public void write(byte[] bytes) throws IOException {
         if (connected.get() && outputStream != null) {
-            logOutboundLineBreakBeforeInterceptor(bytes);
-            byte[] bytesToWrite = applyInputInterceptor(bytes);
-            if (bytesToWrite == null || bytesToWrite.length == 0) {
-                return;
-            }
-            trackPotentialDirectoryChange(bytesToWrite);
             synchronized (outputWriteLock) {
+                logOutboundLineBreakBeforeInterceptor(bytes);
+                byte[] bytesToWrite = applyInputInterceptor(bytes);
+                if (bytesToWrite == null || bytesToWrite.length == 0) {
+                    return;
+                }
+                trackPotentialDirectoryChange(bytesToWrite);
                 outputStream.write(bytesToWrite);
                 outputStream.flush();
             }

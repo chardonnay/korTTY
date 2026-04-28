@@ -31,7 +31,7 @@ public class TerminalTab extends Tab {
     private final ServerConnection connection;
     private final TerminalView terminalView;
     private final AiAgentActivityPanel aiAgentActivityPanel;
-    private final ConnectionSettings settings;
+    private ConnectionSettings settings;
     private final TemporarySSHKey temporarySSHKey;
     private final String aiSessionId;
     private boolean isConnectionFailed = false;
@@ -538,6 +538,7 @@ public class TerminalTab extends Tab {
     }
 
     public void applyConnectionSettings(ConnectionSettings connectionSettings) {
+        this.settings = connectionSettings;
         terminalView.applyConnectionSettings(connectionSettings);
         applyAiAgentActivityTheme(connectionSettings);
     }
