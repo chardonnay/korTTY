@@ -861,16 +861,16 @@ These features can be configured in *Settings → Window*. The menu bar can also
 * Passwords are never stored in plain text
 * SSH keys can optionally be copied to user directory (included in backups)
 
-== Rendering Mermaid Diagrams
+== Rendering PlantUML Diagrams
 
-The documentation uses Mermaid diagrams (`.mmd` files in `docs/diagrams/`). To regenerate PNG images from them (e.g. after editing a diagram), use the provided script. Requires Node.js and npx.
+The documentation uses PlantUML diagrams (`.puml` files in `docs/diagrams/`). To regenerate PNG images from them (e.g. after editing a diagram), use the provided script. Requires Java and Graphviz.
 
-* Render all diagrams: `./scripts/render-mermaid.sh` or `./scripts/render-mermaid.sh all`
-* Render specific diagrams: `./scripts/render-mermaid.sh architecture connection-flow`
+* Render all diagrams: `./scripts/render-plantuml.sh` or `./scripts/render-plantuml.sh all`
+* Render specific diagrams: `./scripts/render-plantuml.sh architecture connection-flow`
 
 PNGs are written to `docs/diagrams/` and are embedded in the AsciiDoc documentation.
 
-*CI and releases:* The build-release workflow runs the render script in the `docs-render` job before other steps. The generated PNGs are uploaded as the `docs-diagrams` artifact and, on release, packaged into `KorTTY-docs-diagrams-<version>.zip` on the GitHub Release. The workflow now also uses current Node-24-ready GitHub Actions majors for checkout, Node setup, and artifact upload. Use the diagram zip for doc publication or to get the diagrams without running the render script locally.
+*CI and releases:* The build-release workflow installs Graphviz and runs the render script in the `docs-render` job before other steps. The generated PNGs are uploaded as the `docs-diagrams` artifact and, on release, packaged into `KorTTY-docs-diagrams-<version>.zip` on the GitHub Release. Use the diagram zip for doc publication or to get the diagrams without running the render script locally.
 
 == License
 

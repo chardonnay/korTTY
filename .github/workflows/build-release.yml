@@ -16,7 +16,7 @@ on:
 
 jobs:
   docs-render:
-    name: Render Mermaid diagrams
+    name: Render PlantUML diagrams
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,13 +25,11 @@ jobs:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
           submodules: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '20'
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
 
-      - name: Render Mermaid diagrams to PNG
-        run: ./scripts/render-mermaid.sh
+      - name: Render PlantUML diagrams to PNG
+        run: ./scripts/render-plantuml.sh
 
       - name: Upload diagram PNGs
         uses: actions/upload-artifact@v6

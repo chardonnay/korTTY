@@ -74,7 +74,7 @@
 === Documentation and Release Tooling
 
 * *v2.0.0 documentation refresh*: README, User Guide, and Release Notes were updated for the AI workflows, packaging examples, and current version numbers.
-* *New Mermaid diagram for AI integration*: The docs now include a dedicated AI API integration diagram, and the release pipeline continues to render Mermaid assets automatically.
+* *PlantUML documentation diagrams*: The docs now use PlantUML sources for rendered diagram PNGs, including the dedicated AI API integration diagram, and the release pipeline renders them automatically.
 * *Version alignment*: The application metadata, Gradle build, README, and documentation now consistently report *2.0.0*.
 * *Node-24-ready release workflow actions*: The GitHub release workflow now uses current action majors for checkout, Node setup, and artifact upload so it stays compatible with the GitHub Actions Node 24 transition.
 

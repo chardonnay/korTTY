@@ -1,9 +1,0 @@
-%% Jump server (bastion) connection flow
-flowchart LR
-    User([User PC]) -->|1. SSH| Jump[Jump Server\nBastion]
-    Jump -->|2. SSH through tunnel| Target[Target Server]
-    User -.->|All traffic via jump| Jump
-    Jump -.->|Forwarded| Target
-
-    style Jump fill:#e1f5ff
-    style Target fill:#e8f5e9

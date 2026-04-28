@@ -1,0 +1,48 @@
+@startuml
+title Connection Flow
+
+skinparam backgroundColor #FBFDFF
+skinparam shadowing false
+skinparam roundcorner 14
+skinparam sequence {
+  ArrowColor #273746
+  ArrowThickness 1.2
+  LifeLineBorderColor #9FB2C8
+  LifeLineBackgroundColor #F7FAFE
+  ParticipantBorderColor #34495E
+  ParticipantBackgroundColor #EAF4FF
+  ActorBorderColor #2E8B57
+  ActorBackgroundColor #EAF7EF
+  BoxBorderColor #9FB2C8
+  BoxBackgroundColor #F7FAFE
+}
+skinparam defaultFontName "Arial"
+
+actor User
+participant "KorTTY UI" as KorTTY
+participant "Connection Manager" as ConnMgr
+participant "SSH / Mosh Client" as Client
+participant "Remote Server" as Server
+
+User -> KorTTY : Open connection\nQuick Connect / tab
+KorTTY -> ConnMgr : Load connection settings
+ConnMgr --> KorTTY : Host, auth, protocol
+
+alt SSH over TCP
+  KorTTY -> Client : Establish SSH session
+  Client -> Server : SSH handshake
+else Mosh via mosh4j
+  KorTTY -> Client : SSH exec mosh-server
+  Client -> Server : Start mosh-server
+  Server --> KorTTY : MOSH CONNECT\nport + key
+  KorTTY -> Client : Start UDP session
+end
+
+Server --> KorTTY : Terminal stream
+KorTTY --> User : Display terminal\nSithTermFX
+
+note over KorTTY,Client
+  Protocol choice changes transport setup,
+  but the terminal view receives one stream.
+end note
+@enduml
