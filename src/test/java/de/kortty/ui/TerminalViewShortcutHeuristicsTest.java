@@ -93,9 +93,30 @@ class TerminalViewShortcutHeuristicsTest {
         assertTrue(startup.contains("__kortty_agent_clean_history"));
         assertTrue(startup.contains("history -d \"$__kortty_h\""));
         assertTrue(startup.contains("awk 'index($0,\"__kortty_agent_b64(){\")==0' \"$HISTFILE\""));
-        assertTrue(startup.contains("printf '\\033[1A\\r\\033[K'"));
+        assertTrue(startup.contains("printf '\\r\\033[K'"));
         assertTrue(startup.contains("stty echo"));
         assertFalse(startup.substring(0, startup.length() - 1).contains("\n"));
+    }
+
+    @Test
+    void wrapsGeneratedInputWithEchoSuppressionAndRestore() {
+        String wrapped = TerminalView.buildEchoSuppressedGeneratedInput(
+            "printf '%s\\n' 'KorTTY snippet: check_test_echo.sh' >&2 && echo 'abc' | base64 -d | bash");
+
+        assertTrue(wrapped.startsWith("printf '\\033[1A\\r\\033[K\\033[1B\\r\\033[K\\033[1A\\r'; "));
+        assertTrue(wrapped.contains("KorTTY snippet: check_test_echo.sh"));
+        assertTrue(wrapped.endsWith("; stty echo\n"));
+    }
+
+    @Test
+    void restoresEchoOnFirstLineBeforeHeredocPayload() {
+        String wrapped = TerminalView.buildEchoSuppressedGeneratedInput(
+            "printf '%s\\n' 'KorTTY snippet: big.sh' >&2 && base64 -d <<'KORTTY_B64_EOF' | bash\n"
+                + "YWJj\n"
+                + "KORTTY_B64_EOF");
+
+        assertTrue(wrapped.contains("base64 -d <<'KORTTY_B64_EOF' | bash; stty echo\nYWJj\n"));
+        assertTrue(wrapped.endsWith("KORTTY_B64_EOF\n"));
     }
 
     @Test

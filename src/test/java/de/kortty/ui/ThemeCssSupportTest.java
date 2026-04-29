@@ -35,11 +35,9 @@ class ThemeCssSupportTest {
         assertTrue(css.contains(".ai-agent-activity-panel { -fx-background-color: #112233; -fx-border-color: #445566; }"));
         assertTrue(css.contains(".ai-agent-activity-text { -fx-text-fill: #ddeeff; }"));
         assertTrue(css.contains(".ai-agent-detail { -fx-text-fill: #99aabb; }"));
-        assertTrue(css.contains(".ai-agent-dot-action { -fx-background-color: #00cc88; }"));
-        assertTrue(css.contains(".ai-agent-dot-error { -fx-background-color: #cc3300; }"));
-        assertTrue(css.contains(".terminal-agent-busy-overlay { -fx-background-color:"));
-        assertTrue(css.contains(".terminal-agent-busy-robot { -fx-text-fill: #00cc88;"));
-        assertTrue(css.contains(".terminal-agent-busy-text { -fx-text-fill: #ddeeff; }"));
+        assertTrue(css.contains(".ai-agent-marker-input { -fx-text-fill: #00cc88; }"));
+        assertTrue(css.contains(".ai-agent-marker-error { -fx-text-fill: #cc3300; }"));
+        assertTrue(css.contains(".ai-agent-marker-running { -fx-effect: dropshadow(gaussian, #00cc88"));
     }
 
     @Test

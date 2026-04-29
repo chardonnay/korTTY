@@ -73,6 +73,7 @@ public class TerminalSplitPane extends StackPane {
     private final SplitConnectorFactory connectorFactory;
     private final Consumer<SithTermFxWidget> widgetConfigurator;
     private final Function<SithTermFxWidget, Region> leftPanelFactory;
+    private final Function<SithTermFxWidget, Region> bottomPanelFactory;
     private final BiFunction<SithTermFxWidget, TtyConnector, TtyConnector> connectorDecorator;
 
     private SplitCell rootCell;
@@ -81,6 +82,7 @@ public class TerminalSplitPane extends StackPane {
 
     // Optional left-side panels (e.g. timestamp gutters) per widget
     private final Map<SithTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
+    private final Map<SithTermFxWidget, Region> widgetBottomPanels = new HashMap<>();
     private final Map<SithTermFxWidget, Button> widgetCloseButtons = new HashMap<>();
 
     // Track the currently showing context menu so we can hide it properly
@@ -115,10 +117,20 @@ public class TerminalSplitPane extends StackPane {
                              @NotNull Consumer<SithTermFxWidget> widgetConfigurator,
                              @Nullable Function<SithTermFxWidget, Region> leftPanelFactory,
                              @NotNull BiFunction<SithTermFxWidget, TtyConnector, TtyConnector> connectorDecorator) {
+        this(settingsProvider, connectorFactory, widgetConfigurator, leftPanelFactory, null, connectorDecorator);
+    }
+
+    public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
+                             @NotNull SplitConnectorFactory connectorFactory,
+                             @NotNull Consumer<SithTermFxWidget> widgetConfigurator,
+                             @Nullable Function<SithTermFxWidget, Region> leftPanelFactory,
+                             @Nullable Function<SithTermFxWidget, Region> bottomPanelFactory,
+                             @NotNull BiFunction<SithTermFxWidget, TtyConnector, TtyConnector> connectorDecorator) {
         this.settingsProvider = settingsProvider;
         this.connectorFactory = connectorFactory;
         this.widgetConfigurator = widgetConfigurator;
         this.leftPanelFactory = leftPanelFactory;
+        this.bottomPanelFactory = bottomPanelFactory;
         this.connectorDecorator = connectorDecorator;
         this.rootCell = createInitialCell();
         getChildren().add(rootCell.getNode());
@@ -190,6 +202,7 @@ public class TerminalSplitPane extends StackPane {
         SithTermFxWidget widget = createWidget(null);
         setupWidget(widget);
         applyLeftPanel(widget);
+        applyBottomPanel(widget);
         return new SplitCell(widget);
     }
 
@@ -447,6 +460,7 @@ public class TerminalSplitPane extends StackPane {
         }
         setupWidget(newWidget);
         applyLeftPanel(newWidget);
+        applyBottomPanel(newWidget);
         SplitCell newCell = new SplitCell(newWidget);
         SplitCell replacement = rootCell.replaceWidget(widget, newCell, orientation);
         if (replacement != null) {
@@ -466,6 +480,7 @@ public class TerminalSplitPane extends StackPane {
             logger.debug("Error closing widget: {}", e.getMessage());
         }
         widgetLeftPanels.remove(widget);
+        widgetBottomPanels.remove(widget);
         widgetCloseButtons.remove(widget);
         SplitCell replacement = rootCell.removeWidget(widget);
         if (replacement != rootCell) {
@@ -637,11 +652,29 @@ public class TerminalSplitPane extends StackPane {
         widgetLeftPanels.remove(widget);
     }
 
+    private void applyBottomPanel(@NotNull SithTermFxWidget widget) {
+        if (bottomPanelFactory != null) {
+            Region bottomPanel = bottomPanelFactory.apply(widget);
+            if (bottomPanel != null) {
+                widgetBottomPanels.put(widget, bottomPanel);
+            }
+        }
+    }
+
+    public void setWidgetBottomPanel(@NotNull SithTermFxWidget widget, @NotNull Region panel) {
+        widgetBottomPanels.put(widget, panel);
+    }
+
+    public void removeWidgetBottomPanel(@NotNull SithTermFxWidget widget) {
+        widgetBottomPanels.remove(widget);
+    }
+
     public void closeAll() {
         if (rootCell != null) {
             rootCell.closeAll();
         }
         widgetLeftPanels.clear();
+        widgetBottomPanels.clear();
         widgetCloseButtons.clear();
     }
 
@@ -684,15 +717,26 @@ public class TerminalSplitPane extends StackPane {
             this.leftCell = null;
             this.rightCell = null;
             Region leftPanel = widgetLeftPanels.get(widget);
+            Region bottomPanel = widgetBottomPanels.get(widget);
             Region wrapperContent;
+            Region terminalContent;
             if (leftPanel != null) {
                 HBox hbox = new HBox(leftPanel, widget.getPane());
                 HBox.setHgrow(widget.getPane(), Priority.ALWAYS);
                 hbox.setMinSize(0, 0);
                 hbox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-                wrapperContent = hbox;
+                terminalContent = hbox;
             } else {
-                wrapperContent = widget.getPane();
+                terminalContent = widget.getPane();
+            }
+            if (bottomPanel != null) {
+                VBox vbox = new VBox(terminalContent, bottomPanel);
+                VBox.setVgrow(terminalContent, Priority.ALWAYS);
+                vbox.setMinSize(0, 0);
+                vbox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+                wrapperContent = vbox;
+            } else {
+                wrapperContent = terminalContent;
             }
             StackPane wrapper = new StackPane(wrapperContent);
             wrapper.setMinSize(0, 0);

@@ -228,15 +228,13 @@ final class ThemeCssSupport {
 
         Color bgColor = Color.web(bg);
         Color textColor = Color.web(text);
-        Color errorColor = Color.web(error);
         double luminance = 0.299 * bgColor.getRed() + 0.587 * bgColor.getGreen() + 0.114 * bgColor.getBlue();
         Color blendTarget = luminance < 0.5 ? Color.WHITE : Color.BLACK;
         String surface = toHex(bgColor.interpolate(blendTarget, luminance < 0.5 ? 0.08 : 0.04));
         String hover = toHex(bgColor.interpolate(blendTarget, luminance < 0.5 ? 0.14 : 0.08));
         String commandBackground = toHex(bgColor.interpolate(Color.BLACK, luminance < 0.5 ? 0.18 : 0.04));
         String textStrong = toHex(textColor.interpolate(blendTarget, luminance < 0.5 ? 0.16 : 0.10));
-        String cancelHover = toHex(errorColor.interpolate(blendTarget, luminance < 0.5 ? 0.18 : 0.10));
-        String cancelDisabled = toHex(errorColor.interpolate(bgColor, 0.45));
+        String success = toHex(Color.web("#38a169").interpolate(bgColor, luminance < 0.5 ? 0.10 : 0.0));
 
         return String.join("\n",
             ".ai-agent-activity-panel { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; }",
@@ -250,16 +248,19 @@ final class ThemeCssSupport {
             ".ai-agent-activity-scroll .viewport { -fx-background-color: transparent; }",
             ".ai-agent-activity-text { -fx-text-fill: " + text + "; }",
             ".ai-agent-detail { -fx-text-fill: " + muted + "; }",
-            ".ai-agent-dot-message { -fx-background-color: " + textStrong + "; }",
-            ".ai-agent-dot-action { -fx-background-color: " + accent + "; }",
-            ".ai-agent-dot-error { -fx-background-color: " + error + "; }",
-            ".ai-agent-dot-running { -fx-effect: dropshadow(gaussian, " + accent + ", 8, 0.45, 0, 0); }",
-            ".ai-agent-spinner { -fx-text-fill: " + error + "; }",
+            ".ai-agent-activity-marker { -fx-text-fill: " + muted + "; -fx-font-weight: bold; }",
+            ".ai-agent-marker-input { -fx-text-fill: " + accent + "; }",
+            ".ai-agent-marker-output { -fx-text-fill: " + success + "; }",
+            ".ai-agent-marker-question { -fx-text-fill: " + accent + "; }",
+            ".ai-agent-marker-error { -fx-text-fill: " + error + "; }",
+            ".ai-agent-marker-cancelled { -fx-text-fill: " + muted + "; }",
+            ".ai-agent-marker-info { -fx-text-fill: " + textStrong + "; }",
+            ".ai-agent-marker-running { -fx-effect: dropshadow(gaussian, " + accent + ", 8, 0.45, 0, 0); }",
             ".ai-agent-activity-panel .ai-agent-toggle-button, .ai-agent-activity-panel .ai-agent-font-button { -fx-background-color: transparent; -fx-border-color: " + border + "; -fx-text-fill: " + muted + "; }",
             ".ai-agent-activity-panel .ai-agent-toggle-button:hover, .ai-agent-activity-panel .ai-agent-font-button:hover { -fx-background-color: " + hover + "; -fx-text-fill: " + text + "; }",
-            ".ai-agent-activity-panel .ai-agent-cancel-button { -fx-background-color: " + error + "; -fx-border-color: " + cancelHover + "; -fx-text-fill: " + textStrong + "; }",
-            ".ai-agent-activity-panel .ai-agent-cancel-button:hover { -fx-background-color: " + cancelHover + "; -fx-border-color: " + textStrong + "; -fx-text-fill: " + textStrong + "; }",
-            ".ai-agent-activity-panel .ai-agent-cancel-button:disabled { -fx-background-color: " + cancelDisabled + "; -fx-border-color: " + border + "; }",
+            ".ai-agent-activity-panel .ai-agent-cancel-button { -fx-background-color: transparent; -fx-border-color: " + border + "; -fx-text-fill: " + muted + "; }",
+            ".ai-agent-activity-panel .ai-agent-cancel-button:hover { -fx-background-color: " + hover + "; -fx-border-color: " + accent + "; -fx-text-fill: " + textStrong + "; }",
+            ".ai-agent-activity-panel .ai-agent-cancel-button:disabled { -fx-background-color: transparent; -fx-border-color: " + border + "; -fx-text-fill: " + muted + "; }",
             ".ai-agent-activity-panel .ai-agent-collapse-button { -fx-border-color: " + border + "; -fx-text-fill: " + text + "; }",
             ".ai-agent-activity-panel .ai-agent-collapse-button:hover { -fx-background-color: " + hover + "; -fx-text-fill: " + textStrong + "; }",
             ".ai-agent-option-check { -fx-text-fill: " + muted + "; }",

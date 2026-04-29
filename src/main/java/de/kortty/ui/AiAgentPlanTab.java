@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.TerminalAgentService;
+import de.kortty.core.SshTtyConnector;
 import de.kortty.model.TerminalAgentModels;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -36,6 +37,7 @@ public class AiAgentPlanTab extends Tab {
     private final de.kortty.model.AiProfile profile;
     private final de.kortty.core.OpenAiCompatibleAiService aiService;
     private final TerminalTab terminalTab;
+    private final SshTtyConnector runConnector;
     private final ExecutionStarter executionStarter;
 
     private final VBox contentBox;
@@ -61,6 +63,7 @@ public class AiAgentPlanTab extends Tab {
         de.kortty.model.AiProfile profile,
         de.kortty.core.OpenAiCompatibleAiService aiService,
         TerminalAgentModels.PlanRequest request,
+        SshTtyConnector runConnector,
         ExecutionStarter executionStarter) {
         this.ownerWindow = ownerWindow;
         this.service = service;
@@ -68,6 +71,7 @@ public class AiAgentPlanTab extends Tab {
         this.profile = profile;
         this.aiService = aiService;
         this.request = request;
+        this.runConnector = runConnector;
         this.executionStarter = executionStarter;
 
         setText(I18n.get("ai.plan.tab.title"));
@@ -137,7 +141,7 @@ public class AiAgentPlanTab extends Tab {
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                probeSnapshot = service.probeTerminalSession(terminalTab);
+                probeSnapshot = service.probeTerminalSession(terminalTab, runConnector);
                 TerminalAgentService.PlanningQuestions questions = service.requestPlanningQuestions(profile, aiService, request, probeSnapshot);
                 Platform.runLater(() -> applyQuestions(questions));
                 return null;

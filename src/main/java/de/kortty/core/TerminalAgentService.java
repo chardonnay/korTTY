@@ -108,11 +108,20 @@ public class TerminalAgentService {
     }
 
     public TerminalAgentModels.ProbeSnapshot probeTerminalSession(TerminalTab terminalTab) throws Exception {
-        return probeTerminalSession(terminalTab, null);
+        return probeTerminalSession(terminalTab, null, null);
     }
 
-    private TerminalAgentModels.ProbeSnapshot probeTerminalSession(TerminalTab terminalTab, BooleanSupplier cancellationSupplier) throws Exception {
-        ExecResult result = exec(terminalTab, buildProbeCommand(), null, null, cancellationSupplier);
+    public TerminalAgentModels.ProbeSnapshot probeTerminalSession(
+        TerminalTab terminalTab,
+        SshTtyConnector connector) throws Exception {
+        return probeTerminalSession(terminalTab, connector, null);
+    }
+
+    private TerminalAgentModels.ProbeSnapshot probeTerminalSession(
+        TerminalTab terminalTab,
+        SshTtyConnector connector,
+        BooleanSupplier cancellationSupplier) throws Exception {
+        ExecResult result = exec(terminalTab, connector, buildProbeCommand(), null, null, cancellationSupplier);
         if (result.exitCode() != 0) {
             throw new IllegalStateException("Terminal probe failed: " + trimToSingleLine(result.stderr()));
         }
@@ -200,6 +209,16 @@ public class TerminalAgentService {
         OpenAiCompatibleAiService aiService,
         TerminalAgentModels.Request request,
         RunUi ui) throws Exception {
+        runAgent(terminalTab, null, profile, aiService, request, ui);
+    }
+
+    public void runAgent(
+        TerminalTab terminalTab,
+        SshTtyConnector connector,
+        AiProfile profile,
+        OpenAiCompatibleAiService aiService,
+        TerminalAgentModels.Request request,
+        RunUi ui) throws Exception {
         Objects.requireNonNull(terminalTab, "terminalTab");
         Objects.requireNonNull(profile, "profile");
         Objects.requireNonNull(aiService, "aiService");
@@ -209,12 +228,12 @@ public class TerminalAgentService {
         String runId = UUID.randomUUID().toString();
         String sessionId = request.sessionId();
         try {
-            TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab);
+            TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, connector);
             List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
             boolean approvalBypass = request.autoApproveRootCommands();
             CachedSudoPassword cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
 
-            if (tryRunFileTypeCountRequest(terminalTab, request, probe, ui, runId)) {
+            if (tryRunFileTypeCountRequest(terminalTab, connector, request, probe, ui, runId)) {
                 return;
             }
 
@@ -329,7 +348,7 @@ public class TerminalAgentService {
                         publishCommandActivity(ui, commandActivityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
                         ui.appendTranscript("\n$ " + planned.command() + "\n");
 
-                        ExecResult execResult = exec(terminalTab, commandToRun, stdin, chunk -> {
+                        ExecResult execResult = exec(terminalTab, connector, commandToRun, stdin, chunk -> {
                             if (chunk == null || chunk.isEmpty()) {
                                 return;
                             }
@@ -351,7 +370,7 @@ public class TerminalAgentService {
                         if (decision.needsReprobe()) {
                             String reprobeId = runId + ":reprobe:" + turn;
                             publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Refreshing server state.", null, 0L);
-                            probe = probeTerminalSession(terminalTab, ui::isCancelled);
+                            probe = probeTerminalSession(terminalTab, connector, ui::isCancelled);
                             publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.COMPLETED, "Inspect(SSH session)", "Server state refreshed.", summarizeProbe(probe), 0L);
                         }
                     } finally {
@@ -430,6 +449,7 @@ public class TerminalAgentService {
 
     private boolean tryRunFileTypeCountRequest(
         TerminalTab terminalTab,
+        SshTtyConnector connector,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
         RunUi ui,
@@ -465,7 +485,7 @@ public class TerminalAgentService {
         publishCommandActivity(ui, activityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
         ui.appendTranscript("\n$ " + planned.command() + "\n");
 
-        ExecResult execResult = exec(terminalTab, command, null, chunk -> {
+        ExecResult execResult = exec(terminalTab, connector, command, null, chunk -> {
             if (chunk == null || chunk.isEmpty()) {
                 return;
             }
@@ -693,7 +713,8 @@ public class TerminalAgentService {
         RunUi ui,
         String runId,
         TerminalAgentModels.Request request,
-        TerminalTab terminalTab) throws Exception {
+        TerminalTab terminalTab,
+        SshTtyConnector connector) throws Exception {
         ui.updateState(new TerminalAgentModels.RunState(
             runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.STARTING,
             "Starting terminal agent run.", request.userPrompt(), null, null, null, 0));
@@ -703,7 +724,7 @@ public class TerminalAgentService {
             "Inspecting the connected server.", "Collecting the current server state.", null, null, null, 0));
         String probeId = runId + ":probe";
         publishAction(ui, probeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Collecting the current server state.", null, 0L);
-        TerminalAgentModels.ProbeSnapshot probe = probeTerminalSession(terminalTab, ui::isCancelled);
+        TerminalAgentModels.ProbeSnapshot probe = probeTerminalSession(terminalTab, connector, ui::isCancelled);
         publishAction(ui, probeId, TerminalAgentModels.AgentActivityStatus.COMPLETED, "Inspect(SSH session)", "Collected the current server state.", summarizeProbe(probe), 0L);
         return probe;
     }
@@ -1323,11 +1344,31 @@ public class TerminalAgentService {
 
     private ExecResult exec(
         TerminalTab terminalTab,
+        SshTtyConnector connector,
         String command,
         byte[] stdin,
         java.util.function.Consumer<String> outputConsumer,
         BooleanSupplier cancellationSupplier) throws Exception {
-        SshTtyConnector connector = requireConnector(terminalTab);
+        return execInternal(terminalTab, connector, command, stdin, outputConsumer, cancellationSupplier);
+    }
+
+    private ExecResult exec(
+        TerminalTab terminalTab,
+        String command,
+        byte[] stdin,
+        java.util.function.Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier) throws Exception {
+        return execInternal(terminalTab, null, command, stdin, outputConsumer, cancellationSupplier);
+    }
+
+    private ExecResult execInternal(
+        TerminalTab terminalTab,
+        SshTtyConnector connector,
+        String command,
+        byte[] stdin,
+        java.util.function.Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier) throws Exception {
+        connector = requireConnector(terminalTab, connector);
         String commandToExecute = wrapCommandForWorkingDirectory(command, connector.getCurrentRemoteDirectory());
         try (ChannelExec channel = connector.getSession().createExecChannel(commandToExecute)) {
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
@@ -1383,11 +1424,14 @@ public class TerminalAgentService {
     }
 
     private SshTtyConnector requireConnector(TerminalTab terminalTab) {
+        return requireConnector(terminalTab, null);
+    }
+
+    private SshTtyConnector requireConnector(TerminalTab terminalTab, SshTtyConnector connector) {
         TerminalView terminalView = terminalTab.getTerminalView();
         if (terminalView == null) {
             throw new IllegalStateException("The selected SSH session is not connected.");
         }
-        SshTtyConnector connector = terminalView.getTerminalAgentRunSshConnector();
         if (connector == null) {
             connector = terminalView.getActiveSshConnector();
         }

@@ -15,12 +15,12 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *Encrypted credential storage* using AES-256-GCM with a master password
 * *Project workspaces* that save and restore your complete session
 * *SFTP file manager* with a dual-panel view
-* *Code snippet manager* with syntax highlighting, line numbers, one-liner export, placeholder variables, and import/export
+* *Code snippet manager* with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, placeholder variables, and import/export
 * *ASCII Art Banner* generator with 11+ FIGlet font styles
 * *SSH tunnels* (local, remote, dynamic) and jump server support
 * *Backup and restore* with password-protected ZIP or GPG encryption
 * *8 built-in languages* plus *dynamic translation*: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
-* *AI assistant for terminal selections* with profile-based OpenAI-compatible endpoints, follow-up prompts, Terminal AI Agent / Planning workflows, inline activity feed, and token quota tracking
+* *AI assistant for terminal selections* with profile-based OpenAI-compatible endpoints, follow-up prompts, split-local Terminal AI Agent / Planning workflows, inline activity panels, and token quota tracking
 * *JMX monitoring* for active connections and memory usage
 
 === System Requirements
@@ -296,7 +296,7 @@ Selected terminal text is transmitted to the configured AI endpoint for analysis
 6. Click *Test AI Connection*.
 7. Optionally choose a *Default profile* for terminal AI actions and follow-up chats that do not explicitly select another profile.
 8. Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.
-9. Optionally configure the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, and debug/runtime visibility for *AI Agent* and *AI Planning*.
+9. Optionally configure the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, debug/runtime visibility, and activity-panel preferences for *AI Agent* and *AI Planning*.
 10. Optionally disable the confirmation dialog for *Summarize* and *Solve Problem* if you want a faster workflow. *Ask* always opens the prompt dialog.
 
 *Usage:*
@@ -342,8 +342,9 @@ KorTTY also supports agent-style workflows for an active terminal session.
 
 * *AI Agent* - Start from *Tools > AI Agent...*, from the terminal right-click menu, or with the terminal shortcut command. The agent can open in a dedicated chat tab or target the active terminal window, depending on *Settings > AI*.
 * *AI Planning* - Start from *Tools > AI Planning...*, from the terminal right-click menu, or with `agent-plan`. Planning mode asks clarifying questions, proposes one or more options, and lets you start the accepted plan.
-* *Inline activity panel* - Terminal-targeted runs appear at the bottom of the active terminal tab. The panel shows agent messages, read/run actions, task timing, reported token usage, collapsible details, previous/next run navigation, rerun, close, collapse/expand, resize, font-size controls, and export controls.
-* *Input lock and cancel* - While the agent is active, normal terminal input is blocked for that terminal tab. Press *Esc*, press *Ctrl+C*, or use the red cancel button in the panel to abort the run.
+* *Split-local activity panel* - Terminal-targeted runs appear at the bottom of the terminal split where the run was started. Each split has its own panel, so different splits can run their own agent tasks in parallel.
+* *Panel content* - The panel shows agent messages, read/run actions, task timing, reported token usage, semantic activity markers, collapsible details, previous/next run navigation, rerun, close, collapse/expand, resize, font-size controls, and export controls.
+* *Input lock and cancel* - While the agent is active, normal terminal input is blocked for that terminal split. Press *Esc*, press *Ctrl+C*, or use the panel cancel button to abort the run.
 * *Current directory* - Terminal shortcut runs capture the current remote directory with `pwd -P` and pass it to the agent. Commands and generated files are executed relative to that directory.
 * *Approvals and sudo* - The agent can request explicit approval before command execution and can ask for a sudo password in the activity panel. Password input is masked; if a password is cached, it is used only for the current agent/session context.
 * *Terminal output* - Final terminal-agent answers are written back to the terminal area so the shell transcript contains the answer, not only the activity panel state.
@@ -369,11 +370,27 @@ The terminal activity panel can be adjusted during use:
 * Use the arrow buttons to move through previous and next agent runs.
 * Use the reload button to run the selected agent command again.
 * Use the export format list and export menu to save the current run or all panel-history runs as Markdown, plain text, YAML, XML, JSON, PDF, or Asciidoctor. Exports include the AI profile, configured model/LLM, run timestamps, total runtime, per-activity runtimes, reported token usage when available, summaries, and expanded detail text.
-* Use *Expand all* to keep activity details open instead of compacting them.
+* Use *Expand all* to keep activity details open instead of compacting them. This option is saved globally and restored after restarting KorTTY.
+* Enable *Keep collapsed* if the panel should start collapsed and stay collapsed when new activity, approval prompts, or sudo password prompts arrive. You can still expand the panel manually.
 * Use *A-* and *A+* to change the activity font size.
 * Drag the resize handle to change the panel height.
 * Enable *Remember size* to persist panel height and activity font size across application restarts.
 * Use the collapse/expand button to hide or show the panel. If the panel is collapsed while the agent is waiting for sudo input, the status line still shows that input is required.
+
+Activity rows use semantic markers:
+
+[cols="1,3"]
+|===
+| Marker | Meaning
+| `↑` | Request or input sent to the agent/model
+| `↓` | Output, result, or completed action received
+| `?` | User input is required
+| `!` | Error or failed activity
+| `x` | Cancelled activity
+| `i` | Neutral information
+|===
+
+Red styling is reserved for error and failed states.
 
 === 4.7 Terminal Logging
 
@@ -393,7 +410,9 @@ Prevent connections from dropping due to inactivity:
 
 1. Enable *SSH Keep-Alive* in the connection's Terminal tab or in *Settings > Terminal*.
 2. Set the interval (5 to 600 seconds, default: 60).
-3. KorTTY sends `SSH_MSG_IGNORE` heartbeat messages at the configured interval.
+3. KorTTY sends `SSH_MSG_IGNORE` heartbeat messages at the configured interval and enables TCP socket keepalive while the option is active.
+
+If a server, firewall, VPN, or NAT gateway closes idle sessions sooner than the configured interval, the connection can still end. In that case, check the server-side SSH configuration and network idle-timeout settings as well as the KorTTY log.
 
 == 5. SSH Tunnels
 [[ssh-tunnels]]
@@ -593,7 +612,19 @@ Snippets can contain placeholder variables that are replaced when you insert the
 
 *Custom variables:* Any `${variableName}` not in the built-in list is treated as a custom variable. When you insert the snippet, KorTTY checks the Variable Manager for stored values; variables without stored values prompt for input.
 
-=== 8.4 Import / Export
+=== 8.4 Sending Snippets to the Terminal
+
+The Snippet Manager can send a selected snippet directly to the active terminal.
+
+* *Send to Terminal* keeps the existing behavior: supported script languages are embedded as a terminal one-liner where possible, and other snippets are sent using the existing fallback path.
+* *Send to Terminal with Parameters* opens a dialog for missing `${...}` placeholder variables and script arguments.
+* Script arguments are entered one per line. Empty lines are ignored.
+* If you confirm without script arguments, the result is functionally the same as *Send to Terminal*, but missing placeholder variables can still be filled in the dialog.
+* Script arguments are supported for Bash/shell, Python, Perl, and Ruby snippets. Arguments are passed individually and shell-quoted; they are not appended as raw shell text.
+* If script arguments are entered for an unsupported language, KorTTY shows an information message and sends nothing.
+* For embedded/base64 one-liners, the terminal shows the `KorTTY snippet: ...` label instead of echoing the full generated command.
+
+=== 8.5 Import / Export
 
 Snippets can be imported and exported in JSON, XML, or YAML format. Use *Export* to save selected or all snippets; use *Import* to merge from a file.
 
@@ -658,7 +689,7 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, snippet-AI behavior switches, saved-chat compatibility, and token quotas), and *Themes* (color profiles with live preview, including dedicated Terminal AI agent panel colors).
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, terminal-agent panel preferences, snippet-AI behavior switches, saved-chat compatibility, and token quotas), and *Themes* (color profiles with live preview, including dedicated Terminal AI agent panel colors).
 
 == 16. Keyboard Shortcuts
 

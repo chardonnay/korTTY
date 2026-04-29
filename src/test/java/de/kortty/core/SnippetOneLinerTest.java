@@ -105,6 +105,27 @@ class SnippetOneLinerTest {
     }
 
     @Test
+    void embeddedBashPassesArgumentsAsEscapedArgvValues() {
+        SnippetOneLiner.OneLinerResult r = SnippetOneLiner.toEmbedded(
+                "printf '<%s>\\n' \"$1\" \"$2\" \"$3\"\n",
+                "bash",
+                List.of("hello world", "a;b", "it's ok"));
+
+        assertTrue(r.isOk());
+        assertTrue(r.line().endsWith("| bash -s -- 'hello world' 'a;b' 'it'\\''s ok'"));
+    }
+
+    @Test
+    void embeddedInterpreterCommandsUseDashWhenArgumentsArePresent() {
+        assertTrue(SnippetOneLiner.toEmbedded("print('ok')\n", "python", List.of("one"))
+                .line().endsWith("| python3 - 'one'"));
+        assertTrue(SnippetOneLiner.toEmbedded("print qq(ok\\n);\n", "perl", List.of("one"))
+                .line().endsWith("| perl - 'one'"));
+        assertTrue(SnippetOneLiner.toEmbedded("puts 'ok'\n", "ruby", List.of("one"))
+                .line().endsWith("| ruby - 'one'"));
+    }
+
+    @Test
     void embeddedLargeScriptUsesHeredocToAvoidShellArgvLimit() {
         String big = "echo x\n".repeat(6_000);
         SnippetOneLiner.OneLinerResult r = SnippetOneLiner.toEmbedded(big, "bash");
@@ -112,6 +133,17 @@ class SnippetOneLinerTest {
         String out = r.line();
         assertTrue(out.contains("<<'"), "large payload should use heredoc, not echo …");
         assertTrue(out.contains(SnippetOneLiner.EMBEDDED_HEREDOC_DELIM));
+        assertTrue(out.endsWith(SnippetOneLiner.EMBEDDED_HEREDOC_DELIM + "\n"));
+    }
+
+    @Test
+    void embeddedLargeScriptHeredocKeepsArgumentsOnInterpreterCommand() {
+        String big = "echo \"$1\"\n".repeat(6_000);
+        SnippetOneLiner.OneLinerResult r = SnippetOneLiner.toEmbedded(big, "bash", List.of("hello world"));
+        assertTrue(r.isOk());
+        String out = r.line();
+        assertTrue(out.startsWith("base64 -d <<'" + SnippetOneLiner.EMBEDDED_HEREDOC_DELIM
+                + "' | bash -s -- 'hello world'\n"));
         assertTrue(out.endsWith(SnippetOneLiner.EMBEDDED_HEREDOC_DELIM + "\n"));
     }
 

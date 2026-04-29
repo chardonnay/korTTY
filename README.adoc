@@ -26,7 +26,7 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *Dashboard*: Overview of all open connections in the project
 * *SFTP Manager*: File transfer between local system and remote servers (User/Group columns, sortable by type with dot-prefix order)
 * *SFTP Archive Exclude*: Archive dialogs support exclude patterns (one pattern per line) for files/directories
-* *Snippet Manager*: Create, search, favorite, and organize reusable snippets with syntax highlighting, line numbers, one-liner export, and JSON/XML/YAML import/export
+* *Snippet Manager*: Create, search, favorite, and organize reusable snippets with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, and JSON/XML/YAML import/export
 * *AI-assisted Snippet Editing*: Generate snippet name/description/language from code, correct description text, transform selected comments and user-facing output text, create technical descriptions, and request alternative implementations
 * *ASCII Art Banner*: Generate FIGlet banners with multiple styles (Tools menu)
 * *Window Geometry Storage*: Automatic restoration of window position and size
@@ -38,7 +38,7 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *AI Result Tabs*: Continue with follow-up prompts, switch profile and response language per chat, retry or cancel requests, save named chats, save generated scripts as snippets, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables/columns/cells, and persist the AI tab font size across sessions
 * *AI Manager*: Reopen, rename, refresh, and delete saved AI chats, and manage AI profiles from *Tools → AI Manager* (shortcut: *Ctrl/Cmd+Shift+Y*)
 * *AI Agent & Planning*: Start AI Agent and AI Planning from *Tools* or the terminal context menu, choose terminal or chat execution targets, and use dedicated planning/run tabs with transcript export
-* *Terminal AI Activity Feed*: Terminal-targeted agent runs show an inline activity panel with status dots, task timing, collapsible details, history navigation, rerun, resize, font controls, cancel, sudo password prompts, and run export to Markdown/Text/YAML/XML/JSON/PDF/Asciidoctor
+* *Split-local Terminal AI Activity*: Terminal-targeted agent runs use the activity panel attached to the current terminal split, support parallel runs in different splits, and provide semantic activity markers, task timing, collapsible details, persistent *Expand all* / *Keep collapsed* options, history navigation, rerun, resize, font controls, cancel, sudo password prompts, and run export to Markdown/Text/YAML/XML/JSON/PDF/Asciidoctor
 * *Terminal AI Commands*: Intercept configurable local shortcut commands such as `agent`, `agent-ask`, and `agent-plan` directly at the shell prompt, including the active remote working directory for terminal-targeted tasks
 * *Quick Connect*: Fast connection dialog with frequently used connections and group support
 * *SSH Tunnels*: Local and remote port forwarding (SSH tunnels)
@@ -49,7 +49,7 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 
 == AI Integration Overview
 
-KorTTY keeps profile selection, quota tracking, and result handling local while sending only the reviewed terminal selection and optional prompt to the configured OpenAI-compatible endpoint for selection-based AI actions. Terminal-agent runs send the agent goal together with a compact SSH-session snapshot, including the active remote working directory captured from the shell.
+KorTTY keeps profile selection, quota tracking, and result handling local while sending only the reviewed terminal selection and optional prompt to the configured OpenAI-compatible endpoint for selection-based AI actions. Terminal-agent runs send the agent goal together with a compact SSH-session snapshot, including the active remote working directory captured from the shell. In split terminal layouts, terminal-targeted agent state and activity output stay scoped to the split where the run was started.
 
 image::docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
 
@@ -723,7 +723,7 @@ Prevents SSH connections from timing out due to inactivity:
 
 * *Enable/Disable*: Toggle SSH Keep-Alive on/off per connection
 * *Configurable Interval*: Set keep-alive interval (5-600 seconds, default: 60 seconds)
-* *Heartbeat Messages*: Sends SSH_MSG_IGNORE messages at regular intervals to keep connection alive
+* *Heartbeat Messages*: Sends `SSH_MSG_IGNORE` messages at regular intervals and enables TCP socket keepalive while the option is active
 
 *Usage:*
 * When creating/editing a connection, go to "Terminal" tab
@@ -817,7 +817,9 @@ agent-plan <task>
 
 The base command name is configurable. A separate setting can make the command name case-insensitive. KorTTY installs the shortcuts as shell aliases and emits a hidden terminal marker instead of sending the command to the remote shell as a normal executable.
 
-For terminal-targeted agent runs, the inline activity panel at the bottom of the terminal shows the current task, token usage when reported by the endpoint, command/read actions, collapsible details, previous/next run navigation, rerun, close, collapse, resize, font controls, export controls, and a red cancel button. While the agent is running, normal terminal input is locked; *Esc*, *Ctrl+C*, or the panel cancel button aborts the run.
+For terminal-targeted agent runs, the inline activity panel at the bottom of the current terminal split shows the current task, token usage when reported by the endpoint, command/read actions, collapsible details, previous/next run navigation, rerun, close, collapse, resize, font controls, export controls, and a cancel button. Different splits can run their own terminal-agent tasks in parallel. While an agent is running, normal terminal input is locked for that split; *Esc*, *Ctrl+C*, or the panel cancel button aborts that run.
+
+Activity rows use semantic markers: `↑` for request/input, `↓` for received output/result, `?` for required user input, `!` for errors, `x` for cancellation, and `i` for neutral information. Red styling is reserved for failed or error activities.
 
 Completed terminal-agent runs can be exported individually or as the full panel history. Export formats are Markdown, plain text, YAML, XML, JSON, PDF, and Asciidoctor. The export includes the AI profile, configured model/LLM, run timestamps, total runtime, per-activity runtimes, reported token usage when available, summaries, and expanded detail text.
 

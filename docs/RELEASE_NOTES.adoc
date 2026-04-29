@@ -4,13 +4,27 @@
 
 === Terminal AI Agent
 
-* *Inline activity feed*: Terminal-targeted AI Agent runs now show a Cloud-Code-style activity panel in the active terminal tab with message/action/status indicators, task timing, reported token usage, collapsible details, and auto-scrolling.
-* *Panel controls*: The terminal agent panel now supports previous/next run navigation, rerun, close, collapse/expand, resize, font-size controls, an *Expand all* option, remembered panel size/font settings, and a red cancel button.
+* *Split-local activity panels*: Terminal-targeted AI Agent runs now use the activity panel attached to the terminal split where the run was started. Different splits can run their own agent tasks in parallel.
+* *Inline activity feed*: Terminal-targeted AI Agent runs show message/action markers, task timing, reported token usage, collapsible details, and auto-scrolling.
+* *Panel controls*: The terminal agent panel supports previous/next run navigation, rerun, close, collapse/expand, resize, font-size controls, a cancel button, an *Expand all* option, a *Keep collapsed* option, and remembered panel size/font settings.
+* *Persistent panel options*: *Expand all* and *Keep collapsed* are saved globally across restarts. *Remember size* continues to control saved panel height and activity font size.
+* *Semantic activity markers*: Activity rows use `↑`, `↓`, `?`, `!`, `x`, and `i` markers. Red styling is reserved for error and failed states.
 * *Activity export*: Completed terminal-agent runs can be exported for the current run or the full panel history as Markdown, plain text, YAML, XML, JSON, PDF, or Asciidoctor, including AI profile, model/LLM, run timestamps, runtimes, token usage, summaries, and detail text.
-* *Terminal input lock*: While a terminal agent run is active, regular terminal input is blocked for that tab. *Esc*, *Ctrl+C*, and the panel cancel button abort the run.
+* *Terminal input lock*: While a terminal agent run is active, regular terminal input is blocked for that split. *Esc*, *Ctrl+C*, and the panel cancel button abort that run.
 * *Current-directory aware runs*: Terminal shortcut commands now capture the active remote directory with `pwd -P` and pass it to the agent, so relative commands and generated files run in the directory where the user started the task.
 * *Sudo prompt handling*: When sudo access is required, the agent panel can ask for a masked sudo password and reuse it for the current session. Unsupported interactive sudo modes are rejected instead of hanging the terminal.
 * *Terminal final output*: Final terminal-agent answers are written into the terminal transcript, while the activity panel remains available for detailed execution state.
+
+=== Snippet Manager
+
+* *One-liner script arguments*: *Send to Terminal with Parameters* prompts for missing `${...}` snippet variables and optional script arguments, with one argument per line.
+* *Safe argument passing*: Bash/shell, Python, Perl, and Ruby one-liners pass arguments individually with shell quoting instead of appending raw shell text.
+* *Unsupported language guard*: Snippets in languages without a safe one-liner argument path keep the existing no-argument behavior, but show an information message and send nothing when script arguments are entered.
+* *Cleaner terminal output*: Embedded/base64 one-liners show the `KorTTY snippet: ...` label without echoing the full generated command into the terminal transcript.
+
+=== SSH Connection Reliability
+
+* *Keep-alive implementation*: SSH Keep-Alive now sends `SSH_MSG_IGNORE` heartbeats at the configured interval and enables TCP socket keepalive while the option is active.
 
 === AI Settings and Theme Support
 
@@ -21,6 +35,7 @@
 === Terminal Agent Fixes
 
 * Fixed terminal shortcut handling so `agent`, `agent-ask`, and `agent-plan` are intercepted by KorTTY instead of reaching the remote shell as unknown commands.
+* Fixed terminal-agent bootstrap text appearing in the terminal after SSH login.
 * Fixed duplicate prompt artifacts and startup alias leakage in shell history after reconnecting to an SSH session.
 * Fixed incomplete or status-bar-only terminal-agent output by routing the final answer back into the terminal area.
 * Fixed activity-panel usability issues around auto-scroll, closing, resizing, collapsed-state status, and visible busy indication.

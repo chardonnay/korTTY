@@ -37,6 +37,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -93,8 +94,6 @@ public class TerminalView extends BorderPane {
     
     private static final Logger logger = LoggerFactory.getLogger(TerminalView.class);
     private static final String AGENT_SHORTCUT_DISPATCHER_INSTALLED_KEY = "kortty.agentShortcutDispatcherInstalled";
-    private static final String[] AGENT_BUSY_ROBOT_FRAMES = {"[o_o]", "[-_-]", "[^_^]", "[-_-]"};
-    private static final Duration AGENT_BUSY_FRAME_DURATION = Duration.millis(280);
     private static final Duration AGENT_SHELL_KEEPALIVE_INTERVAL = Duration.minutes(4);
     
     /**
@@ -134,7 +133,28 @@ public class TerminalView extends BorderPane {
         void handle(String rawCommand, @Nullable TerminalAgentRunContext runContext);
     }
 
+    @FunctionalInterface
+    public interface TerminalAgentContextHandler {
+        void handle(@Nullable TerminalAgentRunContext runContext);
+    }
+
     public record TerminalAgentRunContext(@Nullable SithTermFxWidget widget, SshTtyConnector connector) {
+    }
+
+    private static final class TerminalAgentRunState {
+        private final TerminalAgentRunContext runContext;
+        private final Runnable cancelHandler;
+        private final Runnable toggleDetailsHandler;
+        private Timeline shellKeepAliveTimeline;
+
+        private TerminalAgentRunState(
+            TerminalAgentRunContext runContext,
+            @Nullable Runnable cancelHandler,
+            @Nullable Runnable toggleDetailsHandler) {
+            this.runContext = runContext;
+            this.cancelHandler = cancelHandler;
+            this.toggleDetailsHandler = toggleDetailsHandler;
+        }
     }
     
     private final ServerConnection connection;
@@ -144,11 +164,6 @@ public class TerminalView extends BorderPane {
     
     private TerminalSplitPane splitPane;
     private StackPane terminalContainer;
-    private HBox terminalAgentBusyOverlay;
-    private Label terminalAgentBusyRobotLabel;
-    private Timeline terminalAgentBusyTimeline;
-    private Timeline terminalAgentShellKeepAliveTimeline;
-    private int terminalAgentBusyFrameIndex;
     private String terminalAgentBusyStylesheetUrl;
     private SithTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
     private TtyConnector ttyConnector;
@@ -181,14 +196,12 @@ public class TerminalView extends BorderPane {
     private Runnable timestampToggleListener;
     private Runnable onReconnectRequested;
     private AiSelectionHandler aiSelectionHandler;
-    private Runnable aiAgentHandler;
-    private Runnable aiAgentAskHandler;
-    private Runnable aiPlanningHandler;
+    private TerminalAgentContextHandler aiAgentHandler;
+    private TerminalAgentContextHandler aiAgentAskHandler;
+    private TerminalAgentContextHandler aiPlanningHandler;
     private TerminalAgentShortcutHandler terminalAgentShortcutHandler;
-    private volatile SithTermFxWidget terminalAgentLockedWidget;
-    private volatile SshTtyConnector terminalAgentRunConnector;
-    private Runnable terminalAgentCancelHandler;
-    private Runnable terminalAgentToggleDetailsHandler;
+    private final Map<SithTermFxWidget, AiAgentActivityPanel> terminalAgentActivityPanels = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, TerminalAgentRunState> terminalAgentRunStates = new ConcurrentHashMap<>();
     private SshTtyConnector.DataListener terminalLoggerDataListener;
     private final Map<SshTtyConnector, SshTtyConnector.DataListener> terminalAgentPromptDataListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
@@ -269,7 +282,7 @@ public class TerminalView extends BorderPane {
             setupWidgetEventHandlers(widget);
             applyCursorShape(widget);
             setupTimestampGutter(widget);
-        }, widget -> gutterMap.get(widget), this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
+        }, widget -> gutterMap.get(widget), this::createTerminalAgentActivityPanel, this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
         splitPane.setResetZoomCallback(this::resetZoom); // Reset zoom to connection or global default (not hardcoded 14)
         
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
@@ -283,17 +296,17 @@ public class TerminalView extends BorderPane {
                 javafx.scene.control.Menu aiMenu = new javafx.scene.control.Menu(I18n.get("terminal.contextMenu.ai"));
                 if (aiAgentHandler != null) {
                     javafx.scene.control.MenuItem agentItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.agent"));
-                    agentItem.setOnAction(e -> aiAgentHandler.run());
+                    agentItem.setOnAction(e -> aiAgentHandler.handle(createTerminalAgentRunContext(widget)));
                     aiMenu.getItems().add(agentItem);
                 }
                 if (aiAgentAskHandler != null) {
                     javafx.scene.control.MenuItem agentAskItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.agentAsk"));
-                    agentAskItem.setOnAction(e -> aiAgentAskHandler.run());
+                    agentAskItem.setOnAction(e -> aiAgentAskHandler.handle(createTerminalAgentRunContext(widget)));
                     aiMenu.getItems().add(agentAskItem);
                 }
                 if (aiPlanningHandler != null) {
                     javafx.scene.control.MenuItem planningItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.plan"));
-                    planningItem.setOnAction(e -> aiPlanningHandler.run());
+                    planningItem.setOnAction(e -> aiPlanningHandler.handle(createTerminalAgentRunContext(widget)));
                     aiMenu.getItems().add(planningItem);
                 }
                 if (!aiMenu.getItems().isEmpty() && hasSelectedText) {
@@ -390,10 +403,6 @@ public class TerminalView extends BorderPane {
         });
         
         terminalContainer = new StackPane(splitPane);
-        terminalAgentBusyOverlay = createTerminalAgentBusyOverlay();
-        terminalContainer.getChildren().add(terminalAgentBusyOverlay);
-        StackPane.setAlignment(terminalAgentBusyOverlay, Pos.TOP_RIGHT);
-        StackPane.setMargin(terminalAgentBusyOverlay, new Insets(8, 12, 0, 0));
         setCenter(terminalContainer);
 
         setupDragDrop();
@@ -411,15 +420,15 @@ public class TerminalView extends BorderPane {
         this.aiSelectionHandler = aiSelectionHandler;
     }
 
-    public void setAiAgentHandler(Runnable aiAgentHandler) {
+    public void setAiAgentHandler(TerminalAgentContextHandler aiAgentHandler) {
         this.aiAgentHandler = aiAgentHandler;
     }
 
-    public void setAiAgentAskHandler(Runnable aiAgentAskHandler) {
+    public void setAiAgentAskHandler(TerminalAgentContextHandler aiAgentAskHandler) {
         this.aiAgentAskHandler = aiAgentAskHandler;
     }
 
-    public void setAiPlanningHandler(Runnable aiPlanningHandler) {
+    public void setAiPlanningHandler(TerminalAgentContextHandler aiPlanningHandler) {
         this.aiPlanningHandler = aiPlanningHandler;
     }
 
@@ -440,22 +449,24 @@ public class TerminalView extends BorderPane {
         boolean locked,
         @Nullable Runnable cancelHandler,
         @Nullable Runnable toggleDetailsHandler) {
-        SithTermFxWidget previouslyLockedWidget = terminalAgentLockedWidget;
-        TerminalAgentRunContext resolvedContext = locked
-            ? (runContext != null ? runContext : captureTerminalAgentRunContext())
-            : null;
-        terminalAgentLockedWidget = resolvedContext != null ? resolvedContext.widget() : null;
-        terminalAgentRunConnector = resolvedContext != null ? resolvedContext.connector() : null;
-        terminalAgentCancelHandler = locked ? cancelHandler : null;
-        terminalAgentToggleDetailsHandler = locked ? toggleDetailsHandler : null;
+        TerminalAgentRunContext resolvedContext = runContext != null ? runContext : captureTerminalAgentRunContext();
+        SithTermFxWidget widget = resolvedContext != null ? resolvedContext.widget() : null;
+        TerminalAgentRunState previousState = widget != null ? terminalAgentRunStates.get(widget) : null;
+        if (locked && resolvedContext != null && widget != null) {
+            stopTerminalAgentShellKeepAlive(previousState);
+            TerminalAgentRunState state = new TerminalAgentRunState(resolvedContext, cancelHandler, toggleDetailsHandler);
+            terminalAgentRunStates.put(widget, state);
+            startTerminalAgentShellKeepAlive(state);
+        } else if (!locked && widget != null) {
+            previousState = terminalAgentRunStates.remove(widget);
+            stopTerminalAgentShellKeepAlive(previousState);
+        }
         Platform.runLater(() -> {
             if (locked) {
-                setCursorVisible(terminalAgentLockedWidget, false);
+                setCursorVisible(widget, false);
             } else {
-                setCursorVisible(previouslyLockedWidget, true);
+                setCursorVisible(widget, true);
             }
-            setTerminalAgentBusyOverlayVisible(locked);
-            setTerminalAgentShellKeepAliveActive(locked);
         });
     }
 
@@ -494,11 +505,27 @@ public class TerminalView extends BorderPane {
         return null;
     }
 
-    public @Nullable SshTtyConnector getTerminalAgentRunSshConnector() {
-        return terminalAgentRunConnector;
+    public @Nullable AiAgentActivityPanel getTerminalAgentActivityPanel(@Nullable TerminalAgentRunContext runContext) {
+        TerminalAgentRunContext resolvedContext = runContext != null ? runContext : captureTerminalAgentRunContext();
+        SithTermFxWidget widget = resolvedContext != null ? resolvedContext.widget() : null;
+        return widget != null ? terminalAgentActivityPanels.get(widget) : null;
     }
 
-    public void applyTerminalAgentBusyTheme(@Nullable Theme theme) {
+    public boolean isTerminalAgentRunActive(@Nullable TerminalAgentRunContext runContext) {
+        TerminalAgentRunContext resolvedContext = runContext != null ? runContext : captureTerminalAgentRunContext();
+        SithTermFxWidget widget = resolvedContext != null ? resolvedContext.widget() : null;
+        return widget != null && terminalAgentRunStates.containsKey(widget);
+    }
+
+    public String buildTerminalAgentScopedSessionId(String sessionId, @Nullable TerminalAgentRunContext runContext) {
+        String baseSessionId = sessionId != null && !sessionId.isBlank() ? sessionId : "terminal-agent";
+        SshTtyConnector connector = runContext != null ? runContext.connector() : null;
+        return connector != null
+            ? baseSessionId + ":" + Integer.toHexString(System.identityHashCode(connector))
+            : baseSessionId;
+    }
+
+    public void applyTerminalAgentActivityTheme(@Nullable Theme theme) {
         if (terminalContainer == null) {
             return;
         }
@@ -511,91 +538,50 @@ public class TerminalView extends BorderPane {
             terminalContainer.getStylesheets().add(stylesheetUrl);
             terminalAgentBusyStylesheetUrl = stylesheetUrl;
         }
+        for (AiAgentActivityPanel panel : terminalAgentActivityPanels.values()) {
+            if (panel != null) {
+                panel.applyTheme(theme);
+            }
+        }
     }
 
-    private HBox createTerminalAgentBusyOverlay() {
-        terminalAgentBusyRobotLabel = new Label(AGENT_BUSY_ROBOT_FRAMES[0]);
-        terminalAgentBusyRobotLabel.getStyleClass().add("terminal-agent-busy-robot");
-
-        Label terminalAgentBusyTextLabel = new Label(I18n.get("ai.agent.terminalBusy"));
-        terminalAgentBusyTextLabel.getStyleClass().add("terminal-agent-busy-text");
-
-        HBox overlay = new HBox(8, terminalAgentBusyRobotLabel, terminalAgentBusyTextLabel);
-        overlay.getStyleClass().add("terminal-agent-busy-overlay");
-        overlay.setAlignment(Pos.CENTER);
-        overlay.setMouseTransparent(true);
-        overlay.setMaxSize(javafx.scene.layout.Region.USE_PREF_SIZE, javafx.scene.layout.Region.USE_PREF_SIZE);
-        overlay.setVisible(false);
-        overlay.managedProperty().bind(overlay.visibleProperty());
-        return overlay;
+    private Region createTerminalAgentActivityPanel(SithTermFxWidget widget) {
+        AiAgentActivityPanel panel = new AiAgentActivityPanel();
+        terminalAgentActivityPanels.put(widget, panel);
+        return panel;
     }
 
-    private void setTerminalAgentBusyOverlayVisible(boolean visible) {
-        if (terminalAgentBusyOverlay == null) {
+    private void startTerminalAgentShellKeepAlive(TerminalAgentRunState state) {
+        if (state == null) {
             return;
         }
-        terminalAgentBusyOverlay.setVisible(visible);
-        if (visible) {
-            startTerminalAgentBusyAnimation();
-        } else {
-            stopTerminalAgentBusyAnimation();
-        }
-    }
-
-    private void startTerminalAgentBusyAnimation() {
-        if (terminalAgentBusyRobotLabel == null) {
-            return;
-        }
-        if (terminalAgentBusyTimeline == null) {
-            terminalAgentBusyTimeline = new Timeline(new KeyFrame(AGENT_BUSY_FRAME_DURATION, event -> {
-                terminalAgentBusyFrameIndex = (terminalAgentBusyFrameIndex + 1) % AGENT_BUSY_ROBOT_FRAMES.length;
-                terminalAgentBusyRobotLabel.setText(AGENT_BUSY_ROBOT_FRAMES[terminalAgentBusyFrameIndex]);
-            }));
-            terminalAgentBusyTimeline.setCycleCount(Timeline.INDEFINITE);
-        }
-        terminalAgentBusyFrameIndex = 0;
-        terminalAgentBusyRobotLabel.setText(AGENT_BUSY_ROBOT_FRAMES[terminalAgentBusyFrameIndex]);
-        terminalAgentBusyTimeline.playFromStart();
-    }
-
-    private void stopTerminalAgentBusyAnimation() {
-        if (terminalAgentBusyTimeline != null) {
-            terminalAgentBusyTimeline.stop();
-        }
-        terminalAgentBusyFrameIndex = 0;
-        if (terminalAgentBusyRobotLabel != null) {
-            terminalAgentBusyRobotLabel.setText(AGENT_BUSY_ROBOT_FRAMES[terminalAgentBusyFrameIndex]);
-        }
-    }
-
-    private void setTerminalAgentShellKeepAliveActive(boolean active) {
-        if (active) {
-            startTerminalAgentShellKeepAlive();
-        } else {
-            stopTerminalAgentShellKeepAlive();
-        }
-    }
-
-    private void startTerminalAgentShellKeepAlive() {
-        if (terminalAgentShellKeepAliveTimeline == null) {
-            terminalAgentShellKeepAliveTimeline = new Timeline(new KeyFrame(
+        if (state.shellKeepAliveTimeline == null) {
+            state.shellKeepAliveTimeline = new Timeline(new KeyFrame(
                 AGENT_SHELL_KEEPALIVE_INTERVAL,
-                event -> sendTerminalAgentShellKeepAlive()));
-            terminalAgentShellKeepAliveTimeline.setCycleCount(Timeline.INDEFINITE);
+                event -> sendTerminalAgentShellKeepAlive(state)));
+            state.shellKeepAliveTimeline.setCycleCount(Timeline.INDEFINITE);
         }
-        terminalAgentShellKeepAliveTimeline.playFromStart();
+        state.shellKeepAliveTimeline.playFromStart();
     }
 
-    private void stopTerminalAgentShellKeepAlive() {
-        if (terminalAgentShellKeepAliveTimeline != null) {
-            terminalAgentShellKeepAliveTimeline.stop();
+    private void stopTerminalAgentShellKeepAlive(@Nullable TerminalAgentRunState state) {
+        if (state != null && state.shellKeepAliveTimeline != null) {
+            state.shellKeepAliveTimeline.stop();
+            state.shellKeepAliveTimeline = null;
         }
     }
 
-    private void sendTerminalAgentShellKeepAlive() {
-        SshTtyConnector sshConnector = terminalAgentRunConnector;
+    private void stopAllTerminalAgentShellKeepAlives() {
+        for (TerminalAgentRunState state : terminalAgentRunStates.values()) {
+            stopTerminalAgentShellKeepAlive(state);
+        }
+        terminalAgentRunStates.clear();
+    }
+
+    private void sendTerminalAgentShellKeepAlive(TerminalAgentRunState state) {
+        SshTtyConnector sshConnector = state != null && state.runContext != null ? state.runContext.connector() : null;
         if (sshConnector == null) {
-            stopTerminalAgentShellKeepAlive();
+            stopTerminalAgentShellKeepAlive(state);
             return;
         }
         if (!sshConnector.isConnected()) {
@@ -1363,7 +1349,7 @@ public class TerminalView extends BorderPane {
                 setCursorVisible(w, true);
             }
         }
-        applyTerminalAgentBusyTheme(theme);
+        applyTerminalAgentActivityTheme(theme);
         updateAllTerminalFonts();
     }
 
@@ -1566,14 +1552,15 @@ public class TerminalView extends BorderPane {
         if (!isTerminalAgentInputLockedFor(widget)) {
             return false;
         }
+        TerminalAgentRunState state = widget != null ? terminalAgentRunStates.get(widget) : null;
         if (event.getEventType() == KeyEvent.KEY_PRESSED) {
             if (isAgentInputCancelShortcut(event.getCode(), event.isControlDown(), event.isAltDown(), event.isMetaDown())) {
-                Runnable handler = terminalAgentCancelHandler;
+                Runnable handler = state != null ? state.cancelHandler : null;
                 if (handler != null) {
                     Platform.runLater(handler);
                 }
             } else if (event.getCode() == KeyCode.R && event.isControlDown() && !event.isAltDown() && !event.isMetaDown()) {
-                Runnable handler = terminalAgentToggleDetailsHandler;
+                Runnable handler = state != null ? state.toggleDetailsHandler : null;
                 if (handler != null) {
                     Platform.runLater(handler);
                 }
@@ -1584,8 +1571,7 @@ public class TerminalView extends BorderPane {
     }
 
     private boolean isTerminalAgentInputLockedFor(@Nullable SithTermFxWidget widget) {
-        SithTermFxWidget lockedWidget = terminalAgentLockedWidget;
-        return lockedWidget != null && widget != null && widget == lockedWidget;
+        return widget != null && terminalAgentRunStates.containsKey(widget);
     }
 
     static boolean isAgentInputCancelShortcut(KeyCode code, boolean controlDown, boolean altDown, boolean metaDown) {
@@ -2075,7 +2061,7 @@ public class TerminalView extends BorderPane {
             + "&& cat \"$__kortty_hist_tmp\" > \"$HISTFILE\"; rm -f \"$__kortty_hist_tmp\"; fi; "
             + "fi; }; "
             + "__kortty_agent_clean_history; unset -f __kortty_agent_clean_history; "
-            + "printf '\\033[1A\\r\\033[K'; "
+            + "printf '\\r\\033[K'; "
             + "stty echo\n";
     }
 
@@ -2329,13 +2315,14 @@ public class TerminalView extends BorderPane {
         }
 
         private void handleLockedInput(char ch) {
+            TerminalAgentRunState state = terminalAgentRunStates.get(widget);
             if (ch == ESCAPE || ch == CTRL_C) {
-                Runnable handler = terminalAgentCancelHandler;
+                Runnable handler = state != null ? state.cancelHandler : null;
                 if (handler != null) {
                     Platform.runLater(handler);
                 }
             } else if (ch == CTRL_R) {
-                Runnable handler = terminalAgentToggleDetailsHandler;
+                Runnable handler = state != null ? state.toggleDetailsHandler : null;
                 if (handler != null) {
                     Platform.runLater(handler);
                 }
@@ -3112,9 +3099,13 @@ public class TerminalView extends BorderPane {
     }
 
     public void showAgentMessage(String message) {
+        showAgentMessage(null, message);
+    }
+
+    public void showAgentMessage(@Nullable TerminalAgentRunContext runContext, String message) {
         Platform.runLater(() -> {
-            SithTermFxWidget targetWidget = terminalAgentLockedWidget != null
-                ? terminalAgentLockedWidget
+            SithTermFxWidget targetWidget = runContext != null && runContext.widget() != null
+                ? runContext.widget()
                 : (splitPane != null ? splitPane.getFocusedWidget() : terminalWidget);
             if (targetWidget != null && targetWidget.getTerminal() != null) {
                 String prompt = resolvePromptForLocalRedisplay(targetWidget);
@@ -3234,7 +3225,7 @@ public class TerminalView extends BorderPane {
      * Disconnects without destroying the UI. Use for reconnect - keeps terminal widget and split pane.
      */
     public void disconnectOnly() {
-        stopTerminalAgentShellKeepAlive();
+        stopAllTerminalAgentShellKeepAlives();
         stopLogger();
         if (ttyConnector != null) {
             try {
@@ -3250,8 +3241,7 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
-        stopTerminalAgentBusyAnimation();
-        stopTerminalAgentShellKeepAlive();
+        stopAllTerminalAgentShellKeepAlives();
         stopLogger();
         if (ttyConnector != null) {
             try {
@@ -3270,13 +3260,8 @@ public class TerminalView extends BorderPane {
             splitPane = null;
         }
         terminalContainer = null;
-        terminalAgentBusyOverlay = null;
-        terminalAgentBusyRobotLabel = null;
-        terminalAgentBusyTimeline = null;
-        terminalAgentShellKeepAliveTimeline = null;
         terminalAgentBusyStylesheetUrl = null;
-        terminalAgentLockedWidget = null;
-        terminalAgentRunConnector = null;
+        terminalAgentActivityPanels.clear();
         terminalAgentPromptDataListeners.clear();
         terminalAgentOscBuffers.clear();
         terminalWidget = null;
@@ -3333,6 +3318,69 @@ public class TerminalView extends BorderPane {
             return;
         }
         sendInput(text + "\n");
+    }
+
+    /**
+     * Sends a generated command without letting the remote PTY echo the command text back to the terminal.
+     * Falls back to normal sending for non-SSH connectors.
+     */
+    public void sendGeneratedInputLineHidden(String text) {
+        if (text == null) {
+            return;
+        }
+        TtyConnector connector = ttyConnector;
+        if (!(connector instanceof SshTtyConnector) || !connector.isConnected()) {
+            sendInputLine(text);
+            return;
+        }
+        Thread sender = new Thread(() -> sendGeneratedInputLineHidden(connector, text), "terminal-hidden-input-sender");
+        sender.setDaemon(true);
+        sender.start();
+    }
+
+    private void sendGeneratedInputLineHidden(TtyConnector connector, String text) {
+        try {
+            connector.write("stty -echo\n");
+            TimeUnit.MILLISECONDS.sleep(80);
+            connector.write(buildEchoSuppressedGeneratedInput(text));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            restoreTerminalEcho(connector);
+        } catch (IOException e) {
+            logger.error("Failed to send generated input to terminal without echo", e);
+            restoreTerminalEcho(connector);
+        }
+    }
+
+    private void restoreTerminalEcho(TtyConnector connector) {
+        if (connector == null || !connector.isConnected()) {
+            return;
+        }
+        try {
+            connector.write("stty echo\n");
+        } catch (IOException e) {
+            logger.debug("Failed to restore terminal echo after hidden generated input: {}", e.getMessage());
+        }
+    }
+
+    static String buildEchoSuppressedGeneratedInput(String text) {
+        String command = text != null ? text.stripTrailing() : "";
+        if (command.isBlank()) {
+            return "stty echo\n";
+        }
+        return "printf '\\033[1A\\r\\033[K\\033[1B\\r\\033[K\\033[1A\\r'; "
+            + appendEchoRestore(command)
+            + "\n";
+    }
+
+    private static String appendEchoRestore(String command) {
+        int firstNewline = command.indexOf('\n');
+        if (firstNewline >= 0) {
+            return command.substring(0, firstNewline)
+                + "; stty echo"
+                + command.substring(firstNewline);
+        }
+        return command + "; stty echo";
     }
     
     /**

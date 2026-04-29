@@ -236,6 +236,10 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         Button insertTermBtn = new Button("\u2328 " + I18n.get("snippets.insertTerminal"));
         insertTermBtn.setOnAction(e -> insertIntoTerminal());
         insertTermBtn.setDisable(true);
+
+        Button insertTermWithParamsBtn = new Button("\u2328 " + I18n.get("snippets.insertTerminal.withParameters"));
+        insertTermWithParamsBtn.setOnAction(e -> insertIntoTerminalWithParameters());
+        insertTermWithParamsBtn.setDisable(true);
         
         // Import / Export
         Button importBtn = new Button("\uD83D\uDCE5 " + I18n.get("snippets.import"));
@@ -267,6 +271,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             copyBtn.setDisable(!hasSingle);
             insertEditorBtn.setDisable(!hasSingle);
             insertTermBtn.setDisable(!hasSingle);
+            insertTermWithParamsBtn.setDisable(!hasSingle);
             favBtn.setDisable(!hasSelection);
             exportBtn.setDisable(!hasSelection && snippetList.isEmpty());
         });
@@ -276,7 +281,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         crudButtons.setAlignment(Pos.CENTER_LEFT);
         
         // Row 2: Copy / Insert + Import/Export + Variables
-        HBox actionButtons = new HBox(8, copyBtn, insertEditorBtn, insertTermBtn,
+        HBox actionButtons = new HBox(8, copyBtn, insertEditorBtn, insertTermBtn, insertTermWithParamsBtn,
                 new Separator(), importBtn, exportBtn, new Separator(), variablesBtn);
         actionButtons.setAlignment(Pos.CENTER_LEFT);
         
@@ -547,6 +552,9 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         
         MenuItem insertTerminalItem = new MenuItem(I18n.get("snippets.insertTerminal"));
         insertTerminalItem.setOnAction(e -> insertIntoTerminal());
+
+        MenuItem insertTerminalWithParamsItem = new MenuItem(I18n.get("snippets.insertTerminal.withParameters"));
+        insertTerminalWithParamsItem.setOnAction(e -> insertIntoTerminalWithParameters());
         
         menu.getItems().addAll(
                 copyItem,
@@ -556,7 +564,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 lineNumbersItem,
                 new SeparatorMenuItem(),
                 insertEditorItem,
-                insertTerminalItem
+                insertTerminalItem,
+                insertTerminalWithParamsItem
         );
         
         menu.setOnShowing(e -> {
@@ -569,6 +578,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             boolean singleSelected = single != null && snippetTable.getSelectionModel().getSelectedItems().size() == 1;
             insertEditorItem.setDisable(!singleSelected);
             insertTerminalItem.setDisable(!singleSelected);
+            insertTerminalWithParamsItem.setDisable(!singleSelected);
         });
         
         return menu;
@@ -588,6 +598,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         insertEditorItem.setOnAction(e -> insertIntoEditor());
         MenuItem insertTerminalItem = new MenuItem("\u2328 " + I18n.get("snippets.insertTerminal"));
         insertTerminalItem.setOnAction(e -> insertIntoTerminal());
+        MenuItem insertTerminalWithParamsItem = new MenuItem("\u2328 " + I18n.get("snippets.insertTerminal.withParameters"));
+        insertTerminalWithParamsItem.setOnAction(e -> insertIntoTerminalWithParameters());
         MenuItem favItem = new MenuItem("\u2605 " + I18n.get("snippets.toggleFavorite"));
         favItem.setOnAction(e -> toggleFavorite());
         MenuItem exportItem = new MenuItem("\uD83D\uDCE4 " + I18n.get("snippets.export"));
@@ -595,7 +607,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         menu.getItems().addAll(
                 deleteItem,
                 new SeparatorMenuItem(),
-                copyItem, insertEditorItem, insertTerminalItem,
+                copyItem, insertEditorItem, insertTerminalItem, insertTerminalWithParamsItem,
                 new SeparatorMenuItem(),
                 favItem, exportItem
         );
@@ -607,6 +619,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             copyItem.setDisable(!hasSingle);
             insertEditorItem.setDisable(!hasSingle);
             insertTerminalItem.setDisable(!hasSingle);
+            insertTerminalWithParamsItem.setDisable(!hasSingle);
             favItem.setDisable(!hasSelection);
             exportItem.setDisable(!hasSelection && snippetList.isEmpty());
         });
@@ -860,6 +873,12 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
     
     // ---- Insert / Copy ----
+
+    private record TerminalParameterInput(String resolvedText, List<String> arguments) {
+    }
+
+    private record TerminalParameterDialogResult(Map<String, String> variableValues, List<String> arguments) {
+    }
     
     /**
      * Resolves built-in and custom variables without opening a dialog: stored custom values are used,
@@ -933,6 +952,50 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         
         return text;
     }
+
+    private TerminalParameterInput resolveAndPromptForTerminalParameters(Snippet snippet) {
+        SnippetManager.ResolvedSnippet resolved = snippetManager.resolveBuiltInVariables(snippet.getContent());
+        String text = resolved.text();
+
+        List<String> customVars = snippetManager.findCustomVariables(text);
+        SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
+        Map<String, String> variableValues = new LinkedHashMap<>();
+        List<String> missingVars = new ArrayList<>();
+
+        for (String varName : customVars) {
+            String storedValue = varManager != null ? varManager.getValue(varName) : null;
+            if (storedValue != null) {
+                variableValues.put(varName, storedValue);
+            } else {
+                missingVars.add(varName);
+            }
+        }
+
+        TerminalParameterDialogResult dialogResult = promptForTerminalParameters(missingVars);
+        if (dialogResult == null) {
+            return null;
+        }
+
+        variableValues.putAll(dialogResult.variableValues());
+        if (!customVars.isEmpty()) {
+            text = snippetManager.replaceCustomVariables(text, variableValues);
+        }
+
+        if (varManager != null && !dialogResult.variableValues().isEmpty()) {
+            for (Map.Entry<String, String> entry : dialogResult.variableValues().entrySet()) {
+                if (entry.getValue() != null && !entry.getValue().isBlank()) {
+                    varManager.addOrUpdate(entry.getKey(), entry.getValue());
+                }
+            }
+            try {
+                varManager.save();
+            } catch (Exception e) {
+                logger.warn("Failed to save variables", e);
+            }
+        }
+
+        return new TerminalParameterInput(text, dialogResult.arguments());
+    }
     
     private Map<String, String> promptForVariables(List<String> varNames) {
         Dialog<Map<String, String>> dialog = new Dialog<>();
@@ -972,6 +1035,71 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         });
         
         return dialog.showAndWait().orElse(null);
+    }
+
+    private TerminalParameterDialogResult promptForTerminalParameters(List<String> varNames) {
+        Dialog<TerminalParameterDialogResult> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("snippets.insertTerminal.parameters.title"));
+        dialog.initOwner(getDialogPane().getScene().getWindow());
+
+        VBox layout = new VBox(10);
+        layout.setPadding(new Insets(10));
+
+        Map<String, TextField> fields = new LinkedHashMap<>();
+        if (varNames != null && !varNames.isEmpty()) {
+            javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+            grid.setHgap(10);
+            grid.setVgap(8);
+
+            int row = 0;
+            for (String varName : varNames) {
+                Label label = new Label("${" + varName + "}:");
+                TextField field = new TextField();
+                field.setPromptText(varName);
+                field.setPrefWidth(300);
+                grid.add(label, 0, row);
+                grid.add(field, 1, row);
+                fields.put(varName, field);
+                row++;
+            }
+            layout.getChildren().add(grid);
+        }
+
+        Label argumentsLabel = new Label(I18n.get("snippets.insertTerminal.parameters.arguments"));
+        TextArea argumentsArea = new TextArea();
+        argumentsArea.setPromptText(I18n.get("snippets.insertTerminal.parameters.argumentsPrompt"));
+        argumentsArea.setPrefRowCount(5);
+        argumentsArea.setPrefColumnCount(42);
+        layout.getChildren().addAll(argumentsLabel, argumentsArea);
+
+        dialog.getDialogPane().setContent(layout);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        dialog.setResultConverter(bt -> {
+            if (bt != ButtonType.OK) {
+                return null;
+            }
+            Map<String, String> values = new LinkedHashMap<>();
+            for (Map.Entry<String, TextField> entry : fields.entrySet()) {
+                values.put(entry.getKey(), entry.getValue().getText());
+            }
+            return new TerminalParameterDialogResult(values, parseArgumentLines(argumentsArea.getText()));
+        });
+
+        return dialog.showAndWait().orElse(null);
+    }
+
+    private List<String> parseArgumentLines(String text) {
+        if (text == null || text.isEmpty()) {
+            return List.of();
+        }
+        List<String> arguments = new ArrayList<>();
+        for (String line : text.split("\\R", -1)) {
+            if (!line.isBlank()) {
+                arguments.add(line);
+            }
+        }
+        return List.copyOf(arguments);
     }
     
     private void copyToClipboard() {
@@ -1037,7 +1165,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             
             Tab activeTab = mainWindow.getActiveTab();
             if (activeTab instanceof TerminalTab terminalTab) {
-                terminalTab.getTerminalView().sendInputLine(toSend);
+                sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
                 logger.info("Snippet '{}' sent to terminal (one-liner where supported)", selected.getName());
             } else {
                 showInfo(I18n.get("snippets.noTerminalOpen"));
@@ -1047,22 +1175,87 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         }
     }
 
+    private void insertIntoTerminalWithParameters() {
+        Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
+        if (selected == null) return;
+
+        TerminalParameterInput input = resolveAndPromptForTerminalParameters(selected);
+        if (input == null || input.resolvedText().isBlank()) {
+            return;
+        }
+
+        String rawName = selected.getName();
+        String displayName = (rawName != null && !rawName.isBlank()) ? rawName.trim() : I18n.get("snippets.insertTerminal.unnamed");
+        String bannerText = I18n.get("snippets.insertTerminal.banner", displayName);
+        String toSend = buildOneLinerPayloadForTerminal(
+                input.resolvedText(),
+                selected.getLanguage(),
+                bannerText,
+                input.arguments());
+        if (toSend == null) {
+            if (!input.arguments().isEmpty() && !SnippetOneLiner.isEmbeddedSupported(selected.getLanguage())) {
+                showInfo(I18n.get("snippets.insertTerminal.parameters.unsupported"));
+            } else {
+                showInfo(I18n.get("snippets.insertTerminal.onelinerFailed"));
+            }
+            return;
+        }
+
+        try {
+            MainWindow mainWindow = getMainWindow();
+            if (mainWindow == null) return;
+
+            Tab activeTab = mainWindow.getActiveTab();
+            if (activeTab instanceof TerminalTab terminalTab) {
+                sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
+                snippetManager.incrementUsage(selected);
+                saveQuietly();
+                refreshTable();
+                logger.info("Snippet '{}' sent to terminal with {} argument(s)", selected.getName(), input.arguments().size());
+            } else {
+                showInfo(I18n.get("snippets.noTerminalOpen"));
+            }
+        } catch (Exception e) {
+            logger.error("Failed to insert snippet into terminal with parameters", e);
+        }
+    }
+
+    private void sendSnippetPayloadToTerminal(TerminalTab terminalTab, String payload, boolean generatedOneLiner) {
+        if (generatedOneLiner) {
+            terminalTab.getTerminalView().sendGeneratedInputLineHidden(payload);
+        } else {
+            terminalTab.getTerminalView().sendInputLine(payload);
+        }
+    }
+
     /**
      * For bash/shell/python/perl/ruby, sends a one-liner (stderr banner, then embedded base64 pipe or compact fallback).
      * Other languages: full resolved text (no shell banner — content may not be shell).
      */
     private String buildOneLinerPayloadForTerminal(String resolved, String language, String bannerText) {
+        return buildOneLinerPayloadForTerminal(resolved, language, bannerText, List.of());
+    }
+
+    private String buildOneLinerPayloadForTerminal(
+            String resolved,
+            String language,
+            String bannerText,
+            List<String> arguments) {
+        List<String> safeArguments = arguments != null ? arguments : List.of();
         if (!SnippetOneLiner.isEmbeddedSupported(language)) {
-            return resolved;
+            return safeArguments.isEmpty() ? resolved : null;
         }
         String prefix = SnippetOneLiner.terminalStderrBannerShellPrefix(bannerText);
-        SnippetOneLiner.OneLinerResult embedded = SnippetOneLiner.toEmbedded(resolved, language);
+        SnippetOneLiner.OneLinerResult embedded = SnippetOneLiner.toEmbedded(resolved, language, safeArguments);
         if (embedded.isOk()) {
             String line = embedded.line();
             if (line.indexOf('\n') >= 0) {
-                return prefix + " && \n" + line;
+                return prefix + " && " + line;
             }
             return prefix + " && " + line;
+        }
+        if (!safeArguments.isEmpty()) {
+            return null;
         }
         SnippetOneLiner.OneLinerResult compact = SnippetOneLiner.toCompact(resolved, language);
         if (compact.isOk()) {

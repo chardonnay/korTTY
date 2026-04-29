@@ -56,6 +56,8 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setTerminalAgentRememberPanelLayout(true);
             manager.getSettings().setTerminalAgentPanelHeight(312.5);
             manager.getSettings().setTerminalAgentPanelFontSize(16.0);
+            manager.getSettings().setTerminalAgentPanelKeepCollapsed(true);
+            manager.getSettings().setTerminalAgentPanelExpandAll(true);
             manager.getSettings().setAiCodeTextDefaultLanguage("de");
             manager.getSettings().setAiSnippetEditorAdditionalInstructionsEnabled(true);
             manager.getSettings().setAiSnippetAlternativeSolutionCount(5);
@@ -98,6 +100,8 @@ class GlobalSettingsManagerTest {
             assertTrue(reloaded.getSettings().isTerminalAgentRememberPanelLayout());
             assertEquals(312.5, reloaded.getSettings().getTerminalAgentPanelHeight());
             assertEquals(16.0, reloaded.getSettings().getTerminalAgentPanelFontSize());
+            assertTrue(reloaded.getSettings().isTerminalAgentPanelKeepCollapsed());
+            assertTrue(reloaded.getSettings().isTerminalAgentPanelExpandAll());
             assertEquals("de", reloaded.getSettings().getAiCodeTextDefaultLanguage());
             assertTrue(reloaded.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled());
             assertEquals(5, reloaded.getSettings().getAiSnippetAlternativeSolutionCount());

@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.core.util.TermSize;
+import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
 import de.kortty.ui.I18n;
@@ -11,9 +12,12 @@ import org.apache.sshd.client.auth.password.UserAuthPasswordFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.CommonModuleProperties;
 import org.apache.sshd.common.channel.PtyMode;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.common.session.SessionHeartbeatController;
 import org.apache.sshd.common.signature.BuiltinSignatures;
+import org.apache.sshd.core.CoreModuleProperties;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,6 +96,7 @@ public class SshTtyConnector implements TtyConnector {
             
             // Create and start SSH client
             client = SshClient.setUpDefaultClient();
+            configureKeepAlive(client, connection.getSettings());
             
             // Configure supported auth methods explicitly.
             // For password logins we must include UserAuthPasswordFactory, otherwise
@@ -266,7 +271,7 @@ public class SshTtyConnector implements TtyConnector {
             
             // Configure PTY modes
             Map<PtyMode, Integer> ptyModes = new EnumMap<>(PtyMode.class);
-            ptyModes.put(PtyMode.ECHO, 1);
+            ptyModes.put(PtyMode.ECHO, initialPtyEchoMode(shellStartupCommand));
             ptyModes.put(PtyMode.ICRNL, 1);
             ptyModes.put(PtyMode.ONLCR, 1);
             ptyModes.put(PtyMode.ISIG, 1);
@@ -713,6 +718,35 @@ public class SshTtyConnector implements TtyConnector {
     private boolean hasShellStartupCommand() {
         String command = shellStartupCommand;
         return command != null && !command.isBlank();
+    }
+
+    static int initialPtyEchoMode(String shellStartupCommand) {
+        return shellStartupCommand != null && !shellStartupCommand.isBlank() ? 0 : 1;
+    }
+
+    static void configureKeepAlive(SshClient sshClient, ConnectionSettings settings) {
+        if (sshClient == null) {
+            return;
+        }
+        boolean enabled = settings == null || settings.isSshKeepAliveEnabled();
+        if (!enabled) {
+            CommonModuleProperties.SESSION_HEARTBEAT_TYPE.set(
+                sshClient,
+                SessionHeartbeatController.HeartbeatType.NONE);
+            CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.set(sshClient, Duration.ZERO);
+            CoreModuleProperties.SOCKET_KEEPALIVE.set(sshClient, false);
+            logger.debug("SSH keep-alive disabled by connection settings");
+            return;
+        }
+
+        int configuredInterval = settings != null ? settings.getSshKeepAliveInterval() : 60;
+        int intervalSeconds = Math.max(5, Math.min(configuredInterval, 600));
+        CommonModuleProperties.SESSION_HEARTBEAT_TYPE.set(
+            sshClient,
+            SessionHeartbeatController.HeartbeatType.IGNORE);
+        CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.set(sshClient, Duration.ofSeconds(intervalSeconds));
+        CoreModuleProperties.SOCKET_KEEPALIVE.set(sshClient, true);
+        logger.debug("SSH keep-alive enabled: SSH_MSG_IGNORE every {} seconds", intervalSeconds);
     }
 
     private void writeShellStartupCommandIfConfigured() throws IOException {

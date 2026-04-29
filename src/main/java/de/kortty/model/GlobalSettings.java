@@ -170,6 +170,14 @@ public class GlobalSettings {
     @XmlElement
     private Double terminalAgentPanelFontSize;
 
+    /** When true, inline terminal-agent panels start collapsed and stay collapsed unless manually expanded. */
+    @XmlElement
+    private boolean terminalAgentPanelKeepCollapsed = false;
+
+    /** Persisted state of the inline terminal-agent "Expand all" activity detail option. */
+    @XmlElement
+    private boolean terminalAgentPanelExpandAll = false;
+
     /** Show optional additional instruction text area for snippet-editor AI actions. */
     @XmlElement
     private boolean aiSnippetEditorAdditionalInstructionsEnabled = false;
@@ -678,6 +686,22 @@ public class GlobalSettings {
         this.terminalAgentPanelFontSize = isPositiveFinite(terminalAgentPanelFontSize)
             ? terminalAgentPanelFontSize
             : null;
+    }
+
+    public boolean isTerminalAgentPanelKeepCollapsed() {
+        return terminalAgentPanelKeepCollapsed;
+    }
+
+    public void setTerminalAgentPanelKeepCollapsed(boolean terminalAgentPanelKeepCollapsed) {
+        this.terminalAgentPanelKeepCollapsed = terminalAgentPanelKeepCollapsed;
+    }
+
+    public boolean isTerminalAgentPanelExpandAll() {
+        return terminalAgentPanelExpandAll;
+    }
+
+    public void setTerminalAgentPanelExpandAll(boolean terminalAgentPanelExpandAll) {
+        this.terminalAgentPanelExpandAll = terminalAgentPanelExpandAll;
     }
 
     public boolean isAiSnippetEditorAdditionalInstructionsEnabled() {

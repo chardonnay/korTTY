@@ -2975,9 +2975,12 @@ public class MainWindow {
     private void installAiSelectionHandler(TerminalTab terminalTab) {
         terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText) ->
             handleAiSelectionAction(terminalTab, action, profile, selectedText));
-        terminalTab.getTerminalView().setAiAgentHandler(() -> requestAiAgentForTab(terminalTab, false, null, null, false, false));
-        terminalTab.getTerminalView().setAiAgentAskHandler(() -> requestAiAgentForTab(terminalTab, true, null, null, false, false));
-        terminalTab.getTerminalView().setAiPlanningHandler(() -> requestAiPlanningForTab(terminalTab, null, null));
+        terminalTab.getTerminalView().setAiAgentHandler(runContext ->
+            requestAiAgentForTab(terminalTab, false, null, null, false, false, runContext));
+        terminalTab.getTerminalView().setAiAgentAskHandler(runContext ->
+            requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext));
+        terminalTab.getTerminalView().setAiPlanningHandler(runContext ->
+            requestAiPlanningForTab(terminalTab, null, null, runContext));
         terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
             handleTerminalAgentShortcut(terminalTab, rawCommand, runContext));
     }
@@ -3158,6 +3161,14 @@ public class MainWindow {
     }
 
     private void requestAiPlanningForTab(TerminalTab terminalTab, String initialPrompt, String requestedProfileName) {
+        requestAiPlanningForTab(terminalTab, initialPrompt, requestedProfileName, null);
+    }
+
+    private void requestAiPlanningForTab(
+        TerminalTab terminalTab,
+        String initialPrompt,
+        String requestedProfileName,
+        TerminalView.TerminalAgentRunContext runContext) {
         if (!isAiFeaturesEnabled()) {
             return;
         }
@@ -3179,7 +3190,7 @@ public class MainWindow {
                 request.profileId(),
                 request.userPrompt(),
                 request.connectionDisplayName());
-            launchTerminalAgentPlan(terminalTab, enrichedRequest);
+            launchTerminalAgentPlan(terminalTab, enrichedRequest, runContext);
         });
     }
 
@@ -3306,10 +3317,25 @@ public class MainWindow {
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
-        AiAgentActivityPanel activityPanel = terminalTab.getAiAgentActivityPanel();
         TerminalView.TerminalAgentRunContext resolvedRunContext = runContext != null
             ? runContext
             : terminalTab.getTerminalView().captureTerminalAgentRunContext();
+        if (resolvedRunContext == null || resolvedRunContext.connector() == null) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
+            return;
+        }
+        AiAgentActivityPanel activityPanel = terminalTab.getTerminalView().getTerminalAgentActivityPanel(resolvedRunContext);
+        if (activityPanel == null) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
+            return;
+        }
+        if (terminalTab.getTerminalView().isTerminalAgentRunActive(resolvedRunContext) || activityPanel.isRunning()) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.terminalBusy"));
+            return;
+        }
+        TerminalAgentModels.Request scopedRequest = withTerminalAgentSessionId(
+            request,
+            terminalTab.getTerminalView().buildTerminalAgentScopedSessionId(request.sessionId(), resolvedRunContext));
         Runnable cancelRun = () -> cancelled.set(true);
         Runnable reloadRun = () -> launchTerminalAgent(terminalTab, request, resolvedRunContext);
         terminalTab.getTerminalView().setTerminalAgentInputLocked(
@@ -3322,24 +3348,24 @@ public class MainWindow {
             profile.getName(),
             profile.getModel());
         Platform.runLater(() -> {
-            activityPanel.beginRun(request.userPrompt(), cancelRun, reloadRun, runMetadata);
+            activityPanel.beginRun(scopedRequest.userPrompt(), cancelRun, reloadRun, runMetadata);
         });
         Thread worker = new Thread(() -> {
             try {
-                terminalAgentService.runAgent(terminalTab, profile, aiService, request, new TerminalAgentService.RunUi() {
+                terminalAgentService.runAgent(terminalTab, resolvedRunContext.connector(), profile, aiService, scopedRequest, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
                         if (state != null && isTerminalAgentFinalPhase(state.phase())) {
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
-                                terminalTab.getTerminalView().showAgentMessage(message);
+                                terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
                             }
                         }
                     }
 
                     @Override
                     public void appendTranscript(String text) {
-                        if (request.showDebugMessages()) {
+                        if (scopedRequest.showDebugMessages()) {
                             activityPanel.publishActivity(new TerminalAgentModels.AgentActivity(
                                 "debug-" + System.nanoTime(),
                                 TerminalAgentModels.AgentActivityType.MESSAGE,
@@ -3395,7 +3421,7 @@ public class MainWindow {
                         0L,
                         false,
                         true));
-                    terminalTab.getTerminalView().showAgentMessage(I18n.get("ai.agent.activity.cancelled"));
+                    terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, I18n.get("ai.agent.activity.cancelled"));
                 } else {
                     activityPanel.publishActivity(new TerminalAgentModels.AgentActivity(
                         "failed-" + System.nanoTime(),
@@ -3420,6 +3446,23 @@ public class MainWindow {
         }, "ai-agent-terminal");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    private TerminalAgentModels.Request withTerminalAgentSessionId(
+        TerminalAgentModels.Request request,
+        String sessionId) {
+        return new TerminalAgentModels.Request(
+            sessionId,
+            request.profileId(),
+            request.userPrompt(),
+            request.connectionDisplayName(),
+            request.acceptedPlanContext(),
+            request.executionTarget(),
+            request.showDebugMessages(),
+            request.showRuntimeMessages(),
+            request.askConfirmationBeforeEveryCommand(),
+            request.autoApproveRootCommands(),
+            request.queryOnly());
     }
 
     private boolean isTerminalAgentFinalPhase(TerminalAgentModels.Phase phase) {
@@ -3448,6 +3491,13 @@ public class MainWindow {
     }
 
     private void launchTerminalAgentPlan(TerminalTab terminalTab, TerminalAgentModels.PlanRequest request) {
+        launchTerminalAgentPlan(terminalTab, request, null);
+    }
+
+    private void launchTerminalAgentPlan(
+        TerminalTab terminalTab,
+        TerminalAgentModels.PlanRequest request,
+        TerminalView.TerminalAgentRunContext runContext) {
         AiProfile profile = findAiProfileById(request.profileId());
         if (profile == null) {
             showError(I18n.get("ai.plan.title"), I18n.get("ai.agent.error.profileMissing"));
@@ -3466,7 +3516,8 @@ public class MainWindow {
             profile,
             aiService,
             request,
-            (planRequest, option) -> startAcceptedPlanExecution(terminalTab, profile, planRequest, option));
+            runContext != null ? runContext.connector() : null,
+            (planRequest, option) -> startAcceptedPlanExecution(terminalTab, profile, planRequest, option, runContext));
         insertTemporaryTab(planTab);
         planTab.start();
     }
@@ -3475,7 +3526,8 @@ public class MainWindow {
         TerminalTab terminalTab,
         AiProfile profile,
         TerminalAgentModels.PlanRequest planRequest,
-        TerminalAgentModels.PlanOption option) {
+        TerminalAgentModels.PlanOption option,
+        TerminalView.TerminalAgentRunContext runContext) {
         TerminalAgentModels.Request request = new TerminalAgentModels.Request(
             terminalTab.getAiSessionId(),
             profile.getId(),
@@ -3488,7 +3540,7 @@ public class MainWindow {
             false,
             false,
             false);
-        launchTerminalAgent(terminalTab, request);
+        launchTerminalAgent(terminalTab, request, runContext);
     }
 
     private void handleTerminalAgentShortcut(
@@ -3507,7 +3559,7 @@ public class MainWindow {
         }
         switch (invocation.kind()) {
             case ASK -> requestAiAgentForTab(terminalTab, true, invocation.userPrompt(), invocation.profileName(), false, false, runContext);
-            case PLAN -> requestAiPlanningForTab(terminalTab, invocation.userPrompt(), invocation.profileName());
+            case PLAN -> requestAiPlanningForTab(terminalTab, invocation.userPrompt(), invocation.profileName(), runContext);
             case EXECUTE -> requestAiAgentForTab(
                 terminalTab,
                 false,

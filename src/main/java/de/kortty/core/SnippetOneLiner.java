@@ -87,6 +87,14 @@ public final class SnippetOneLiner {
      * Single-line wrapper: {@code echo '<base64>' | base64 -d | <interpreter>}.
      */
     public static OneLinerResult toEmbedded(String text, String language) {
+        return toEmbedded(text, language, List.of());
+    }
+
+    /**
+     * Single-line wrapper with optional script arguments.
+     * Arguments are shell-escaped as individual argv values and are not interpreted as shell syntax.
+     */
+    public static OneLinerResult toEmbedded(String text, String language, List<String> arguments) {
         String lang = normalizeLang(language);
         if (lang == null) {
             return OneLinerResult.error("snippets.oneliner.notSupported", language != null ? language : "plain");
@@ -100,16 +108,11 @@ public final class SnippetOneLiner {
         }
         byte[] utf8 = cleaned.getBytes(StandardCharsets.UTF_8);
         String b64 = Base64.getEncoder().encodeToString(utf8);
-        String interpreter = switch (lang) {
-            case "bash", "shell" -> "bash";
-            case "python" -> "python3";
-            case "perl" -> "perl";
-            case "ruby" -> "ruby";
-            default -> "bash";
-        };
-        String line = "echo '" + b64 + "' | base64 -d | " + interpreter;
+        boolean hasArguments = arguments != null && !arguments.isEmpty();
+        String interpreterCommand = interpreterCommand(lang, hasArguments) + shellArguments(arguments);
+        String line = "echo '" + b64 + "' | base64 -d | " + interpreterCommand;
         if (line.length() > MAX_EMBEDDED_ECHO_LINE_CHARS) {
-            return OneLinerResult.ok(buildEmbeddedHeredocPayload(b64, interpreter));
+            return OneLinerResult.ok(buildEmbeddedHeredocPayload(b64, interpreterCommand));
         }
         return OneLinerResult.ok(line);
     }
@@ -122,6 +125,28 @@ public final class SnippetOneLiner {
         return "base64 -d <<'" + EMBEDDED_HEREDOC_DELIM + "' | " + interpreter + "\n"
                 + base64Payload + "\n"
                 + EMBEDDED_HEREDOC_DELIM + "\n";
+    }
+
+    private static String interpreterCommand(String normalizedLang, boolean hasArguments) {
+        return switch (normalizedLang) {
+            case "bash", "shell" -> hasArguments ? "bash -s --" : "bash";
+            case "python" -> hasArguments ? "python3 -" : "python3";
+            case "perl" -> hasArguments ? "perl -" : "perl";
+            case "ruby" -> hasArguments ? "ruby -" : "ruby";
+            default -> "bash";
+        };
+    }
+
+    private static String shellArguments(List<String> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String argument : arguments) {
+            String value = argument != null ? argument : "";
+            sb.append(" '").append(shellEscapeSingleQuoted(value)).append('\'');
+        }
+        return sb.toString();
     }
 
     private static String normalizeLang(String language) {

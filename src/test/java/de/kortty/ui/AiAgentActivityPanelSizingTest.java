@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.TerminalAgentActivityExportService;
+import de.kortty.model.TerminalAgentModels;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -55,6 +56,89 @@ class AiAgentActivityPanelSizingTest {
         assertEquals(false, AiAgentActivityPanel.canExportAllRuns(true, 1));
         assertEquals(false, AiAgentActivityPanel.canExportAllRuns(false, 0));
         assertEquals(true, AiAgentActivityPanel.canExportAllRuns(false, 2));
+    }
+
+    @Test
+    void activityVisualMarksInputOutputQuestionsCancellationAndErrors() {
+        TerminalAgentModels.AgentActivityTokenUsage tokens = TerminalAgentModels.AgentActivityTokenUsage.unknown();
+
+        assertEquals("\u2191", AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
+            "thinking-running",
+            TerminalAgentModels.AgentActivityType.THINKING,
+            TerminalAgentModels.AgentActivityStatus.RUNNING,
+            "Thinking",
+            "",
+            "",
+            tokens,
+            0L,
+            false,
+            true)).symbol());
+        assertEquals("ai-agent-marker-input", AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
+            "action-running",
+            TerminalAgentModels.AgentActivityType.ACTION,
+            TerminalAgentModels.AgentActivityStatus.RUNNING,
+            "Run",
+            "",
+            "",
+            tokens,
+            0L,
+            false,
+            true)).styleClass());
+        assertEquals("\u2193", AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
+            "action-completed",
+            TerminalAgentModels.AgentActivityType.ACTION,
+            TerminalAgentModels.AgentActivityStatus.COMPLETED,
+            "Run",
+            "",
+            "",
+            tokens,
+            0L,
+            false,
+            true)).symbol());
+        assertEquals("?", AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
+            "question",
+            TerminalAgentModels.AgentActivityType.QUESTION,
+            TerminalAgentModels.AgentActivityStatus.RUNNING,
+            "Approval",
+            "",
+            "",
+            tokens,
+            0L,
+            false,
+            true)).symbol());
+        assertEquals("x", AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
+            "cancelled",
+            TerminalAgentModels.AgentActivityType.MESSAGE,
+            TerminalAgentModels.AgentActivityStatus.CANCELLED,
+            "Cancelled",
+            "",
+            "",
+            tokens,
+            0L,
+            false,
+            true)).symbol());
+        assertEquals("!", AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
+            "failed",
+            TerminalAgentModels.AgentActivityType.ACTION,
+            TerminalAgentModels.AgentActivityStatus.FAILED,
+            "Failed",
+            "",
+            "",
+            tokens,
+            0L,
+            false,
+            true)).symbol());
+        assertEquals("ai-agent-marker-error", AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
+            "error",
+            TerminalAgentModels.AgentActivityType.ERROR,
+            TerminalAgentModels.AgentActivityStatus.COMPLETED,
+            "Error",
+            "",
+            "",
+            tokens,
+            0L,
+            false,
+            true)).styleClass());
     }
 
     @Test

@@ -30,7 +30,6 @@ public class TerminalTab extends Tab {
 
     private final ServerConnection connection;
     private final TerminalView terminalView;
-    private final AiAgentActivityPanel aiAgentActivityPanel;
     private ConnectionSettings settings;
     private final TemporarySSHKey temporarySSHKey;
     private final String aiSessionId;
@@ -59,7 +58,6 @@ public class TerminalTab extends Tab {
         this.aiSessionId = UUID.randomUUID().toString();
         this.connectionStartTime = Instant.now();
         this.terminalView = new TerminalView(connection, password, temporarySSHKey);
-        this.aiAgentActivityPanel = new AiAgentActivityPanel();
         applyAiAgentActivityTheme(settings);
         this.terminalView.setOnReconnectRequested(this::triggerReconnect);
         
@@ -73,7 +71,6 @@ public class TerminalTab extends Tab {
         // Create container with terminal view and status bars
         javafx.scene.layout.VBox container = new javafx.scene.layout.VBox();
         container.getChildren().add(terminalView);
-        container.getChildren().add(aiAgentActivityPanel);
         if (statusBarLabel != null) {
             container.getChildren().add(statusBarLabel);
         }
@@ -543,14 +540,9 @@ public class TerminalTab extends Tab {
         applyAiAgentActivityTheme(connectionSettings);
     }
 
-    public AiAgentActivityPanel getAiAgentActivityPanel() {
-        return aiAgentActivityPanel;
-    }
-
     private void applyAiAgentActivityTheme(ConnectionSettings connectionSettings) {
         Theme theme = resolveAiAgentTheme(connectionSettings);
-        aiAgentActivityPanel.applyTheme(theme);
-        terminalView.applyTerminalAgentBusyTheme(theme);
+        terminalView.applyTerminalAgentActivityTheme(theme);
     }
 
     private Theme resolveAiAgentTheme(ConnectionSettings connectionSettings) {

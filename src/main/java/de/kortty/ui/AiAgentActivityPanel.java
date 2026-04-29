@@ -11,7 +11,6 @@ import de.kortty.model.Theme;
 import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
-import javafx.animation.RotateTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -87,6 +86,7 @@ public class AiAgentActivityPanel extends VBox {
     private final Button decreaseFontButton;
     private final Button increaseFontButton;
     private final CheckBox expandAllCheckBox;
+    private final CheckBox keepCollapsedCheckBox;
     private final CheckBox rememberLayoutCheckBox;
     private final Button cancelRunButton;
     private final Button collapseButton;
@@ -123,6 +123,9 @@ public class AiAgentActivityPanel extends VBox {
     private String activeThemeStylesheetUrl;
 
     public record RunMetadata(String profileId, String profileName, String modelName) {
+    }
+
+    record ActivityVisual(String symbol, String styleClass) {
     }
 
     public AiAgentActivityPanel() {
@@ -213,7 +216,11 @@ public class AiAgentActivityPanel extends VBox {
         expandAllCheckBox = new CheckBox(I18n.get("ai.agent.option.expandAll"));
         expandAllCheckBox.getStyleClass().add("ai-agent-option-check");
         expandAllCheckBox.setFocusTraversable(false);
-        expandAllCheckBox.setOnAction(event -> refreshDetailVisibility());
+        expandAllCheckBox.setOnAction(event -> updateExpandAllPreference());
+        keepCollapsedCheckBox = new CheckBox(I18n.get("ai.agent.option.keepCollapsed"));
+        keepCollapsedCheckBox.getStyleClass().add("ai-agent-option-check");
+        keepCollapsedCheckBox.setFocusTraversable(false);
+        keepCollapsedCheckBox.setOnAction(event -> updateKeepCollapsedPreference());
         rememberLayoutCheckBox = new CheckBox(I18n.get("ai.agent.option.rememberSize"));
         rememberLayoutCheckBox.getStyleClass().add("ai-agent-option-check");
         rememberLayoutCheckBox.setFocusTraversable(false);
@@ -262,6 +269,7 @@ public class AiAgentActivityPanel extends VBox {
             decreaseFontButton,
             increaseFontButton,
             expandAllCheckBox,
+            keepCollapsedCheckBox,
             rememberLayoutCheckBox);
         controls.getStyleClass().add("ai-agent-control-row");
         controls.setAlignment(Pos.CENTER_LEFT);
@@ -334,6 +342,9 @@ public class AiAgentActivityPanel extends VBox {
             tokenLabel.setText(formatReportedTokens());
             setVisible(true);
             setManaged(true);
+            if (keepCollapsedCheckBox.isSelected()) {
+                panelCollapsed = true;
+            }
             startRunningActivityTimer();
             updateHeaderBusyState();
             applyCollapsedState();
@@ -549,6 +560,7 @@ public class AiAgentActivityPanel extends VBox {
         applyFontSize(decreaseFontButton, activityFontSize - 2.0);
         applyFontSize(increaseFontButton, activityFontSize - 2.0);
         applyFontSize(expandAllCheckBox, activityFontSize - 2.0);
+        applyFontSize(keepCollapsedCheckBox, activityFontSize - 2.0);
         applyFontSize(rememberLayoutCheckBox, activityFontSize - 2.0);
         applyFontSize(cancelRunButton, activityFontSize - 2.0);
         applyFontSize(collapseButton, activityFontSize + 3.0);
@@ -942,7 +954,13 @@ public class AiAgentActivityPanel extends VBox {
 
     private void loadPersistedLayoutSettings() {
         GlobalSettings settings = globalSettings();
-        if (settings == null || !settings.isTerminalAgentRememberPanelLayout()) {
+        if (settings == null) {
+            return;
+        }
+        expandAllCheckBox.setSelected(settings.isTerminalAgentPanelExpandAll());
+        keepCollapsedCheckBox.setSelected(settings.isTerminalAgentPanelKeepCollapsed());
+        panelCollapsed = settings.isTerminalAgentPanelKeepCollapsed();
+        if (!settings.isTerminalAgentRememberPanelLayout()) {
             return;
         }
         rememberLayoutCheckBox.setSelected(true);
@@ -954,6 +972,26 @@ public class AiAgentActivityPanel extends VBox {
         Double fontSize = settings.getTerminalAgentPanelFontSize();
         if (fontSize != null) {
             activityFontSize = clampActivityFontSize(fontSize);
+        }
+    }
+
+    private void updateExpandAllPreference() {
+        GlobalSettingsManager manager = globalSettingsManager();
+        if (manager != null && manager.getSettings() != null) {
+            manager.getSettings().setTerminalAgentPanelExpandAll(expandAllCheckBox.isSelected());
+            saveGlobalSettings(manager);
+        }
+        refreshDetailVisibility();
+    }
+
+    private void updateKeepCollapsedPreference() {
+        GlobalSettingsManager manager = globalSettingsManager();
+        if (manager != null && manager.getSettings() != null) {
+            manager.getSettings().setTerminalAgentPanelKeepCollapsed(keepCollapsedCheckBox.isSelected());
+            saveGlobalSettings(manager);
+        }
+        if (keepCollapsedCheckBox.isSelected()) {
+            setPanelCollapsed(true);
         }
     }
 
@@ -1279,14 +1317,37 @@ public class AiAgentActivityPanel extends VBox {
         }
     }
 
+    static ActivityVisual activityVisual(TerminalAgentModels.AgentActivity activity) {
+        if (activity == null) {
+            return new ActivityVisual("i", "ai-agent-marker-info");
+        }
+        if (activity.type() == TerminalAgentModels.AgentActivityType.ERROR
+            || activity.status() == TerminalAgentModels.AgentActivityStatus.FAILED) {
+            return new ActivityVisual("!", "ai-agent-marker-error");
+        }
+        if (activity.status() == TerminalAgentModels.AgentActivityStatus.CANCELLED) {
+            return new ActivityVisual("x", "ai-agent-marker-cancelled");
+        }
+        if (activity.type() == TerminalAgentModels.AgentActivityType.QUESTION) {
+            return new ActivityVisual("?", "ai-agent-marker-question");
+        }
+        if (activity.type() == TerminalAgentModels.AgentActivityType.THINKING
+            || activity.type() == TerminalAgentModels.AgentActivityType.ACTION) {
+            String symbol = activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING ? "\u2191" : "\u2193";
+            String styleClass = activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING
+                ? "ai-agent-marker-input"
+                : "ai-agent-marker-output";
+            return new ActivityVisual(symbol, styleClass);
+        }
+        return new ActivityVisual("i", "ai-agent-marker-info");
+    }
+
     private final class ActivityRow extends VBox {
         private final HBox header;
         private final Label indicator;
-        private final Region dot;
         private final Label textLabel;
         private final Button toggleButton;
         private final Label detailLabel;
-        private RotateTransition rotateTransition;
         private FadeTransition pulseTransition;
         private TerminalAgentModels.AgentActivity currentActivity;
         private boolean detailsVisible;
@@ -1297,17 +1358,10 @@ public class AiAgentActivityPanel extends VBox {
             setSpacing(3);
             currentActivity = activity;
 
-            indicator = new Label("*");
-            indicator.getStyleClass().add("ai-agent-spinner");
-            indicator.setMinWidth(14);
-            indicator.setVisible(false);
-            indicator.setManaged(false);
-
-            dot = new Region();
-            dot.getStyleClass().add("ai-agent-dot");
-            dot.setMinSize(10, 10);
-            dot.setPrefSize(10, 10);
-            dot.setMaxSize(10, 10);
+            indicator = new Label("i");
+            indicator.getStyleClass().add("ai-agent-activity-marker");
+            indicator.setMinWidth(18);
+            indicator.setAlignment(Pos.CENTER);
 
             textLabel = new Label();
             textLabel.getStyleClass().add("ai-agent-activity-text");
@@ -1319,13 +1373,13 @@ public class AiAgentActivityPanel extends VBox {
             toggleButton.setFocusTraversable(false);
             toggleButton.setOnAction(event -> toggleDetails());
 
-            header = new HBox(8, indicator, dot, textLabel, toggleButton);
+            header = new HBox(8, indicator, textLabel, toggleButton);
             header.setAlignment(Pos.CENTER_LEFT);
 
             detailLabel = new Label();
             detailLabel.getStyleClass().add("ai-agent-detail");
             detailLabel.setWrapText(true);
-            detailLabel.setPadding(new Insets(0, 0, 0, 34));
+            detailLabel.setPadding(new Insets(0, 0, 0, 26));
 
             getChildren().addAll(header, detailLabel);
             update(activity);
@@ -1357,39 +1411,21 @@ public class AiAgentActivityPanel extends VBox {
         }
 
         private void updateIndicator(TerminalAgentModels.AgentActivity activity) {
-            dot.getStyleClass().removeAll(
-                "ai-agent-dot-message",
-                "ai-agent-dot-action",
-                "ai-agent-dot-error",
-                "ai-agent-dot-running");
-            indicator.setVisible(false);
-            indicator.setManaged(false);
-            dot.setVisible(true);
-            dot.setManaged(true);
-            stopRotateTransition();
+            indicator.getStyleClass().removeAll(
+                "ai-agent-marker-input",
+                "ai-agent-marker-output",
+                "ai-agent-marker-question",
+                "ai-agent-marker-error",
+                "ai-agent-marker-cancelled",
+                "ai-agent-marker-info",
+                "ai-agent-marker-running");
             stopPulseTransition();
-            if (activity.type() == TerminalAgentModels.AgentActivityType.THINKING) {
-                dot.setVisible(false);
-                dot.setManaged(false);
-                indicator.setVisible(true);
-                indicator.setManaged(true);
-                if (activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING) {
-                    startRotateTransition();
-                }
-                return;
-            }
+            ActivityVisual visual = activityVisual(activity);
+            indicator.setText(visual.symbol());
+            indicator.getStyleClass().add(visual.styleClass());
             if (activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING) {
-                dot.getStyleClass().add("ai-agent-dot-running");
+                indicator.getStyleClass().add("ai-agent-marker-running");
                 startPulseTransition();
-            }
-            if (activity.type() == TerminalAgentModels.AgentActivityType.ACTION) {
-                dot.getStyleClass().add("ai-agent-dot-action");
-            } else if (activity.type() == TerminalAgentModels.AgentActivityType.ERROR
-                || activity.status() == TerminalAgentModels.AgentActivityStatus.FAILED
-                || activity.status() == TerminalAgentModels.AgentActivityStatus.CANCELLED) {
-                dot.getStyleClass().add("ai-agent-dot-error");
-            } else {
-                dot.getStyleClass().add("ai-agent-dot-message");
             }
         }
 
@@ -1492,15 +1528,8 @@ public class AiAgentActivityPanel extends VBox {
             toggleButton.setText(detailsVisible ? "-" : "+");
         }
 
-        private void startRotateTransition() {
-            rotateTransition = new RotateTransition(Duration.seconds(0.8), indicator);
-            rotateTransition.setByAngle(360.0);
-            rotateTransition.setCycleCount(Animation.INDEFINITE);
-            rotateTransition.play();
-        }
-
         private void startPulseTransition() {
-            pulseTransition = new FadeTransition(Duration.seconds(0.7), dot);
+            pulseTransition = new FadeTransition(Duration.seconds(0.7), indicator);
             pulseTransition.setFromValue(1.0);
             pulseTransition.setToValue(0.35);
             pulseTransition.setAutoReverse(true);
@@ -1509,16 +1538,7 @@ public class AiAgentActivityPanel extends VBox {
         }
 
         private void stopIndicator() {
-            stopRotateTransition();
             stopPulseTransition();
-        }
-
-        private void stopRotateTransition() {
-            if (rotateTransition != null) {
-                rotateTransition.stop();
-                indicator.setRotate(0.0);
-                rotateTransition = null;
-            }
         }
 
         private void stopPulseTransition() {
@@ -1526,7 +1546,7 @@ public class AiAgentActivityPanel extends VBox {
                 pulseTransition.stop();
                 pulseTransition = null;
             }
-            dot.setOpacity(1.0);
+            indicator.setOpacity(1.0);
         }
     }
 
