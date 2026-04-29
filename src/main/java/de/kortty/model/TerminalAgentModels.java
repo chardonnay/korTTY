@@ -132,6 +132,11 @@ public final class TerminalAgentModels {
         String command) {
     }
 
+    public record PasswordResponse(
+        String password,
+        boolean cacheForSession) {
+    }
+
     public record ProbeSnapshot(
         String osRelease,
         String kernel,

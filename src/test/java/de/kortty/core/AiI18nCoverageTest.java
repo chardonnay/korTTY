@@ -143,6 +143,7 @@ class AiI18nCoverageTest {
         "ai.agent.approval.once",
         "ai.agent.approval.always",
         "ai.agent.password.title",
+        "ai.agent.password.cacheForSession",
         "ai.agent.run.tabTitle",
         "ai.agent.run.phase.starting",
         "ai.agent.run.phase.failed",

@@ -7,7 +7,7 @@ plugins {
 import org.gradle.jvm.toolchain.JvmVendorSpec
 
 group = "de.kortty"
-version = "2.0.0"
+version = "2.1.0"
 
 java {
     // Allows CI to pin a compatible toolchain per runner when needed.

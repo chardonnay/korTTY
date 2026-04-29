@@ -8,11 +8,11 @@ on:
       ref:
         description: 'Ref to build (branch or tag)'
         required: false
-        default: 'main'
+        default: 'v2.1.0'
       version:
-        description: 'Numeric app version for jpackage (release tag: v1.9.0, jpackage value: 1.9.0)'
+        description: 'Numeric app version for jpackage (release tag: v2.1.0, jpackage value: 2.1.0)'
         required: false
-        default: '1.9.0'
+        default: '2.1.0'
 
 jobs:
   docs-render:
@@ -270,7 +270,7 @@ jobs:
           else
             VERSION="${{ github.event.inputs.version }}"
             if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
-              echo "workflow_dispatch input 'version' must be numeric (e.g. 1.7.0) for jpackage."
+              echo "workflow_dispatch input 'version' must be numeric (e.g. 2.1.0) for jpackage."
               exit 1
             fi
           fi
@@ -751,7 +751,7 @@ jobs:
             TAG="${{ github.event.inputs.ref }}"
           fi
           if [[ ! "$TAG" =~ ^v[0-9]+(\.[0-9]+){0,2}$ ]]; then
-            echo "Release upload requires a tag ref like v1.9.0."
+            echo "Release upload requires a tag ref like v2.1.0."
             exit 1
           fi
           VERSION="$TAG"

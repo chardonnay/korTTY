@@ -185,7 +185,7 @@ public class DynamicLanguageGenerator {
 
     /**
      * Reads the KorTTY version from a generated messages_XX.properties file (first lines).
-     * @return the version string (e.g. "2.0.0"), or null if not found (e.g. file from before this was added)
+     * @return the version string (e.g. "2.1.0"), or null if not found (e.g. file from before this was added)
      */
     public static String readGeneratedVersion(Path propertiesFile) {
         if (propertiesFile == null || !Files.isRegularFile(propertiesFile)) return null;

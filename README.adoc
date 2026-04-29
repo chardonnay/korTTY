@@ -1,6 +1,6 @@
 = KorTTY - SSH Client
 
-*v2.0.0* — A modern SSH client with JavaFX interface, tabbed terminals, SFTP tooling, and OpenAI-compatible AI assistance.
+*v2.1.0* — A modern SSH client with JavaFX interface, tabbed terminals, SFTP tooling, and OpenAI-compatible AI assistance.
 
 == Architecture Overview
 
@@ -93,7 +93,7 @@ Pre-built packages for *x86_64 (amd64)* and *arm64 (aarch64)* are available on t
 
 Each release provides separate packages per platform and architecture; there are no universal binaries. Use the file that matches your OS and CPU.
 
-To *manually trigger* a release build (e.g. after moving the tag without creating a new release), go to *Actions → Build Release Binaries → Run workflow*, choose branch `main`, set *Ref* to the tag (e.g. `v2.0.0`) and *Version* to the numeric version (e.g. `2.0.0`).
+To *manually trigger* a release build (e.g. after moving the tag without creating a new release), go to *Actions → Build Release Binaries → Run workflow*, choose branch `main`, set *Ref* to the tag (e.g. `v2.1.0`) and *Version* to the numeric version (e.g. `2.1.0`).
 
 == SithTermFX Integration
 
@@ -178,7 +178,7 @@ The DMG file is located at:
 
 [source,text]
 ----
-build/jpackage/korTTY-2.0.0.dmg
+build/jpackage/korTTY-2.1.0.dmg
 ----
 
 *Icon:* `src/main/resources/icon/kortty_icon.icns`
@@ -223,7 +223,7 @@ The MSI file is located at:
 
 [source,text]
 ----
-build\jpackage\korTTY-2.0.0.msi
+build\jpackage\korTTY-2.1.0.msi
 ----
 
 *Icon:* `src/main/resources/icon/kortty_icon.ico` (if available, otherwise PNG)
@@ -265,13 +265,13 @@ The DEB package is located at:
 
 [source,text]
 ----
-build/jpackage/korTTY-2.0.0.deb
+build/jpackage/korTTY-2.1.0.deb
 ----
 
 *Installation:*
 [source,bash]
 ----
-sudo dpkg -i build/jpackage/korTTY-2.0.0.deb
+sudo dpkg -i build/jpackage/korTTY-2.1.0.deb
 ----
 
 ==== Create RPM Package
@@ -287,13 +287,13 @@ The RPM package is located at:
 
 [source,text]
 ----
-build/jpackage/korTTY-2.0.0.rpm
+build/jpackage/korTTY-2.1.0.rpm
 ----
 
 *Installation:*
 [source,bash]
 ----
-sudo rpm -i build/jpackage/korTTY-2.0.0.rpm
+sudo rpm -i build/jpackage/korTTY-2.1.0.rpm
 ----
 
 *Icon:* `src/main/resources/icon/kortty_icon.png`
@@ -331,7 +331,7 @@ sudo rpm -i build/jpackage/korTTY-2.0.0.rpm
 
 *Translation target language list is short in release binary:*
 * Current release builds include `jdk.localedata` in the packaged runtime.
-* If you use an older binary, rebuild or update to `v2.0.0+` to get the full target language list in *Settings → Translation*.
+* If you use an older binary, rebuild or update to `v2.1.0+` to get the full target language list in *Settings → Translation*.
 
 == JMX Monitoring
 

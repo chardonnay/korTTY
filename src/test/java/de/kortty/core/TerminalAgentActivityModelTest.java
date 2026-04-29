@@ -51,4 +51,29 @@ class TerminalAgentActivityModelTest {
         assertTrue(activity.collapsed());
         assertEquals("Used the probe snapshot and command history.", activity.detail());
     }
+
+    @Test
+    void commandActivityTitleUsesSingleLinePreviewForScripts() {
+        String command = """
+            cat > biggest_files.py <<'EOF'
+            #!/usr/bin/env python3
+            import os
+            EOF
+            chmod +x biggest_files.py
+            """;
+
+        String title = TerminalAgentService.buildCommandActivityTitle("Read", command);
+
+        assertEquals("Read(cat > biggest_files.py <<'EOF' ...)", title);
+    }
+
+    @Test
+    void commandActivityTitleTruncatesLongSingleLineCommand() {
+        String command = "python3 -c '" + "x".repeat(140) + "'";
+
+        String title = TerminalAgentService.buildCommandActivityTitle("Run", command);
+
+        assertTrue(title.length() <= 101);
+        assertTrue(title.startsWith("Run(python3 -c '"));
+    }
 }

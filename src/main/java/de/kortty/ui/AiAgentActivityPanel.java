@@ -101,12 +101,13 @@ public class AiAgentActivityPanel extends VBox {
     private final List<RunSnapshot> runHistory = new ArrayList<>();
 
     private volatile CompletableFuture<TerminalAgentService.ApprovalDecision> pendingApproval;
-    private volatile CompletableFuture<String> pendingPassword;
+    private volatile CompletableFuture<TerminalAgentModels.PasswordResponse> pendingPassword;
     private volatile boolean running;
     private Runnable cancelCallback;
     private RunSnapshot activeRunSnapshot;
     private ActivityRow lastThinkingRow;
     private PasswordField pendingPasswordField;
+    private CheckBox pendingPasswordCacheCheckBox;
     private String pendingInputStatusText;
     private long reportedTokens;
     private boolean hasReportedTokens;
@@ -325,6 +326,7 @@ public class AiAgentActivityPanel extends VBox {
             pendingApproval = null;
             pendingPassword = null;
             pendingPasswordField = null;
+            pendingPasswordCacheCheckBox = null;
             pendingInputStatusText = null;
             reportedTokens = 0L;
             hasReportedTokens = false;
@@ -416,7 +418,7 @@ public class AiAgentActivityPanel extends VBox {
             requestCancel();
             return true;
         }
-        CompletableFuture<String> password = pendingPassword;
+        CompletableFuture<TerminalAgentModels.PasswordResponse> password = pendingPassword;
         if (password != null && !password.isDone()) {
             if (event.getCode() == KeyCode.ENTER) {
                 submitPassword();
@@ -462,8 +464,8 @@ public class AiAgentActivityPanel extends VBox {
         }
     }
 
-    public String requestPassword(TerminalAgentModels.PasswordRequest request) {
-        CompletableFuture<String> future = new CompletableFuture<>();
+    public TerminalAgentModels.PasswordResponse requestPassword(TerminalAgentModels.PasswordRequest request) {
+        CompletableFuture<TerminalAgentModels.PasswordResponse> future = new CompletableFuture<>();
         runOnFx(() -> showPasswordPrompt(request, future));
         try {
             return future.get();
@@ -881,7 +883,7 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private String currentHeaderStatusText() {
-        CompletableFuture<String> password = pendingPassword;
+        CompletableFuture<TerminalAgentModels.PasswordResponse> password = pendingPassword;
         if (password != null && !password.isDone()) {
             return nonBlank(pendingInputStatusText, I18n.get("ai.agent.activity.passwordRequired"));
         }
@@ -1088,7 +1090,9 @@ public class AiAgentActivityPanel extends VBox {
         scrollToBottom();
     }
 
-    private void showPasswordPrompt(TerminalAgentModels.PasswordRequest request, CompletableFuture<String> future) {
+    private void showPasswordPrompt(
+        TerminalAgentModels.PasswordRequest request,
+        CompletableFuture<TerminalAgentModels.PasswordResponse> future) {
         pendingPassword = future;
         pendingInputStatusText = request != null && request.summary() != null && !request.summary().isBlank()
             ? request.summary().trim()
@@ -1116,8 +1120,20 @@ public class AiAgentActivityPanel extends VBox {
         passwordField.getStyleClass().add("ai-agent-password-field");
         passwordField.setPromptText(I18n.get("common.password"));
         passwordField.setOnAction(event -> submitPassword());
+        passwordField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                submitPassword();
+                event.consume();
+            }
+        });
         pendingPasswordField = passwordField;
         promptBox.getChildren().add(passwordField);
+
+        CheckBox cacheForSessionCheckBox = new CheckBox(I18n.get("ai.agent.password.cacheForSession"));
+        cacheForSessionCheckBox.getStyleClass().add("ai-agent-option-check");
+        cacheForSessionCheckBox.setSelected(true);
+        pendingPasswordCacheCheckBox = cacheForSessionCheckBox;
+        promptBox.getChildren().add(cacheForSessionCheckBox);
 
         Button submitButton = new Button(I18n.get("dialog.ok"));
         submitButton.setDefaultButton(true);
@@ -1164,18 +1180,20 @@ public class AiAgentActivityPanel extends VBox {
 
     private void submitPassword() {
         String password = pendingPasswordField != null ? pendingPasswordField.getText() : null;
-        completePassword(password);
+        boolean cacheForSession = pendingPasswordCacheCheckBox == null || pendingPasswordCacheCheckBox.isSelected();
+        completePassword(new TerminalAgentModels.PasswordResponse(password, cacheForSession));
     }
 
-    private void completePassword(String password) {
-        CompletableFuture<String> future = pendingPassword;
+    private void completePassword(TerminalAgentModels.PasswordResponse passwordResponse) {
+        CompletableFuture<TerminalAgentModels.PasswordResponse> future = pendingPassword;
         pendingPassword = null;
         pendingPasswordField = null;
+        pendingPasswordCacheCheckBox = null;
         pendingInputStatusText = null;
         clearPendingPrompt();
         updateHeaderBusyState();
         if (future != null && !future.isDone()) {
-            future.complete(password);
+            future.complete(passwordResponse);
         }
     }
 

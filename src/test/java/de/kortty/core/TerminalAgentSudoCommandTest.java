@@ -133,6 +133,17 @@ class TerminalAgentSudoCommandTest {
             null));
     }
 
+    @Test
+    void clearsCachedSudoPasswordOnlyForAuthenticationFailures() {
+        assertTrue(TerminalAgentService.shouldClearCachedSudoPassword(
+            "",
+            "[sudo] password for daniel: Sorry, try again."));
+
+        assertFalse(TerminalAgentService.shouldClearCachedSudoPassword(
+            "",
+            "dnf: no package matches not-a-real-package"));
+    }
+
     private TerminalAgentModels.ProbeSnapshot sudoPasswordProbe() {
         return new TerminalAgentModels.ProbeSnapshot(
             "Fedora Linux 43",

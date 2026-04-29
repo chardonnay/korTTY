@@ -7,11 +7,14 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -224,7 +227,7 @@ public class AiAgentRunTab extends Tab {
         }
 
         @Override
-        public String requestPassword(TerminalAgentModels.PasswordRequest request) {
+        public TerminalAgentModels.PasswordResponse requestPassword(TerminalAgentModels.PasswordRequest request) {
             Dialog<String> dialog = new Dialog<>();
             DialogThemeHelper.applyTheme(dialog);
             dialog.initOwner(ownerWindow.getStage());
@@ -233,9 +236,21 @@ public class AiAgentRunTab extends Tab {
             dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
             PasswordField passwordField = new PasswordField();
             passwordField.setPromptText(I18n.get("common.password"));
-            dialog.getDialogPane().setContent(new VBox(8, new Label(request.userMessage()), passwordField));
+            CheckBox cacheForSessionCheckBox = new CheckBox(I18n.get("ai.agent.password.cacheForSession"));
+            cacheForSessionCheckBox.setSelected(true);
+            dialog.getDialogPane().setContent(new VBox(8, new Label(request.userMessage()), passwordField, cacheForSessionCheckBox));
+            Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+            passwordField.setOnAction(event -> okButton.fire());
+            passwordField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                if (event.getCode() == KeyCode.ENTER) {
+                    okButton.fire();
+                    event.consume();
+                }
+            });
             dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK ? passwordField.getText() : null);
-            return dialog.showAndWait().orElse(null);
+            return dialog.showAndWait()
+                .map(password -> new TerminalAgentModels.PasswordResponse(password, cacheForSessionCheckBox.isSelected()))
+                .orElse(null);
         }
 
         @Override

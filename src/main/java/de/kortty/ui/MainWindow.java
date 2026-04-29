@@ -237,6 +237,11 @@ public class MainWindow {
                 if (change.wasRemoved()) {
                     // Suppress QuickConnect if the + tab gets selected as a result of tab removal
                     suppressQuickConnect = true;
+                    for (Tab removedTab : change.getRemoved()) {
+                        if (removedTab instanceof TerminalTab terminalTab) {
+                            terminalAgentService.clearCachedSudoPassword(terminalTab.getAiSessionId());
+                        }
+                    }
                     Platform.runLater(() -> {
                         updateDashboard();
                     });
@@ -3399,7 +3404,7 @@ public class MainWindow {
                     }
 
                     @Override
-                    public String requestPassword(TerminalAgentModels.PasswordRequest passwordRequest) {
+                    public TerminalAgentModels.PasswordResponse requestPassword(TerminalAgentModels.PasswordRequest passwordRequest) {
                         return activityPanel.requestPassword(passwordRequest);
                     }
 

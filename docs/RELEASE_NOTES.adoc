@@ -1,6 +1,6 @@
 = Release Notes
 
-== Unreleased
+== v2.1.0
 
 === Terminal AI Agent
 
