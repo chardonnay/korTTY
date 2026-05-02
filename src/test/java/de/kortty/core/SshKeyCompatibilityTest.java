@@ -6,7 +6,7 @@ import org.bouncycastle.openssl.PKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,16 +14,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SshKeyCompatibilityTest {
 
     @Test
     void fileKeyPairProviderLoadsEncryptedPkcs8PemKeys() throws Exception {
-        assertTrue(SecurityUtils.isBouncyCastleRegistered(), "BouncyCastle must be available for encrypted PKCS#8 PEM keys");
+        assertWithMessage("BouncyCastle must be available for encrypted PKCS#8 PEM keys").that(SecurityUtils.isBouncyCastleRegistered()).isTrue();
 
         Path pemFile = createEncryptedPkcs8Pem("test-passphrase");
         try {
@@ -32,13 +31,13 @@ class SshKeyCompatibilityTest {
 
             int count = 0;
             for (java.security.KeyPair keyPair : keyPairProvider.loadKeys(null)) {
-                assertNotNull(keyPair);
-                assertNotNull(keyPair.getPrivate());
-                assertNotNull(keyPair.getPublic());
+                assertThat(keyPair).isNotNull();
+                assertThat(keyPair.getPrivate()).isNotNull();
+                assertThat(keyPair.getPublic()).isNotNull();
                 count++;
             }
 
-            assertEquals(1, count, "Exactly one encrypted PEM key pair should be loaded");
+            assertWithMessage("Exactly one encrypted PEM key pair should be loaded").that(count).isEqualTo(1);
         } finally {
             Files.deleteIfExists(pemFile);
         }

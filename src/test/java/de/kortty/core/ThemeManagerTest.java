@@ -1,14 +1,12 @@
 package de.kortty.core;
 
 import de.kortty.model.Theme;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ThemeManagerTest {
 
@@ -30,10 +28,10 @@ class ThemeManagerTest {
             ThemeManager reloaded = new ThemeManager(dir);
             reloaded.load();
             Theme reloadedDefault = reloaded.getTheme("default").orElseThrow();
-            assertEquals("Default Custom", reloadedDefault.getName());
-            assertEquals("#112233", reloadedDefault.getForegroundColor());
-            assertEquals("#445566", reloadedDefault.getBackgroundColor());
-            assertTrue(reloadedDefault.isBuiltIn());
+            assertThat(reloadedDefault.getName()).isEqualTo("Default Custom");
+            assertThat(reloadedDefault.getForegroundColor()).isEqualTo("#112233");
+            assertThat(reloadedDefault.getBackgroundColor()).isEqualTo("#445566");
+            assertThat(reloadedDefault.isBuiltIn()).isTrue();
         } finally {
             Files.deleteIfExists(dir.resolve("themes.xml"));
             Files.deleteIfExists(dir);
@@ -56,10 +54,10 @@ class ThemeManagerTest {
             ThemeManager reloaded = new ThemeManager(dir);
             reloaded.load();
             Theme reloadedCustom = reloaded.getTheme(saved.getId()).orElseThrow();
-            assertEquals("Ops Custom", reloadedCustom.getName());
-            assertEquals("#ABCDEF", reloadedCustom.getForegroundColor());
-            assertEquals("#101820", reloadedCustom.getBackgroundColor());
-            assertFalse(reloadedCustom.isBuiltIn());
+            assertThat(reloadedCustom.getName()).isEqualTo("Ops Custom");
+            assertThat(reloadedCustom.getForegroundColor()).isEqualTo("#ABCDEF");
+            assertThat(reloadedCustom.getBackgroundColor()).isEqualTo("#101820");
+            assertThat(reloadedCustom.isBuiltIn()).isFalse();
         } finally {
             Files.deleteIfExists(dir.resolve("themes.xml"));
             Files.deleteIfExists(dir);
@@ -75,8 +73,8 @@ class ThemeManagerTest {
 
             manager.removeTheme("default");
 
-            assertTrue(manager.getTheme("default").isPresent());
-            assertTrue(manager.getTheme("default").orElseThrow().isBuiltIn());
+            assertThat(manager.getTheme("default").isPresent()).isTrue();
+            assertThat(manager.getTheme("default").orElseThrow().isBuiltIn()).isTrue();
         } finally {
             Files.deleteIfExists(dir.resolve("themes.xml"));
             Files.deleteIfExists(dir);

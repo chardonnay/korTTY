@@ -2,11 +2,11 @@ package de.kortty.core;
 
 import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.TerminalAgentModels;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalAgentTurnLimitPromptTest {
 
@@ -16,9 +16,9 @@ class TerminalAgentTurnLimitPromptTest {
 
         String prompt = service.buildAgentTurnLimitFinalSystemPrompt();
 
-        assertTrue(prompt.contains("No more commands may be run."));
-        assertTrue(prompt.contains("Allowed `status` values: `done`, `blocked`."));
-        assertTrue(prompt.contains("Always return `commands`: []"));
+        assertThat(prompt.contains("No more commands may be run.")).isTrue();
+        assertThat(prompt.contains("Allowed `status` values: `done`, `blocked`.")).isTrue();
+        assertThat(prompt.contains("Always return `commands`: []")).isTrue();
     }
 
     @Test
@@ -54,11 +54,11 @@ class TerminalAgentTurnLimitPromptTest {
             probe(),
             List.of(commandResult));
 
-        assertTrue(prompt.contains("Turn limit reached"));
-        assertTrue(prompt.contains("Active terminal working directory: /home/daniel"));
-        assertTrue(prompt.contains("find /etc -type f"));
-        assertTrue(prompt.contains("1284"));
-        assertTrue(prompt.contains("Write the final response now without planning more commands."));
+        assertThat(prompt.contains("Turn limit reached")).isTrue();
+        assertThat(prompt.contains("Active terminal working directory: /home/daniel")).isTrue();
+        assertThat(prompt.contains("find /etc -type f")).isTrue();
+        assertThat(prompt.contains("1284")).isTrue();
+        assertThat(prompt.contains("Write the final response now without planning more commands.")).isTrue();
     }
 
     private TerminalAgentModels.ProbeSnapshot probe() {

@@ -2,21 +2,43 @@ package de.kortty.core;
 
 import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedAiChatMessage;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AiChatManagerTest {
 
-    @TempDir
     Path tempDir;
+
+    @BeforeMethod
+    void createTempDir() throws IOException {
+        tempDir = Files.createTempDirectory("kortty-ai-chat-manager-test");
+    }
+
+    @AfterMethod
+    void deleteTempDir() throws IOException {
+        if (tempDir == null || !Files.exists(tempDir)) {
+            return;
+        }
+        try (var paths = Files.walk(tempDir)) {
+            paths.sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Failed to delete temp path " + path, e);
+                    }
+                });
+        }
+    }
 
     @Test
     void saveLoadUpdateAndDeleteChatRoundTrips() throws Exception {
@@ -35,24 +57,24 @@ class AiChatManagerTest {
             message(SavedAiChatMessage.ROLE_ASSISTANT, "Pruefe DNS und Proxy.", "GPT Support")));
 
         SavedAiChat saved = manager.saveChat(chat);
-        assertNotNull(saved.getId());
-        assertEquals(1, manager.getAllChats().size());
+        assertThat(saved.getId()).isNotNull();
+        assertThat(manager.getAllChats().size()).isEqualTo(1);
 
         AiChatManager reloaded = new AiChatManager(tempDir);
         reloaded.load();
         SavedAiChat persisted = reloaded.findById(saved.getId()).orElseThrow();
-        assertEquals("SSH-Ausgabe debuggen", persisted.getTitle());
-        assertEquals("prod-shell", persisted.getConnectionDisplayName());
-        assertEquals(2, persisted.getMessages().size());
-        assertEquals("GPT Support", persisted.getMessages().get(1).getAiProfileName());
+        assertThat(persisted.getTitle()).isEqualTo("SSH-Ausgabe debuggen");
+        assertThat(persisted.getConnectionDisplayName()).isEqualTo("prod-shell");
+        assertThat(persisted.getMessages().size()).isEqualTo(2);
+        assertThat(persisted.getMessages().get(1).getAiProfileName()).isEqualTo("GPT Support");
 
         persisted.setTitle("SSH-Fehler mit Proxy");
         SavedAiChat updated = reloaded.saveChat(persisted);
-        assertEquals("SSH-Fehler mit Proxy", updated.getTitle());
-        assertTrue(updated.getUpdatedAt() >= updated.getCreatedAt());
+        assertThat(updated.getTitle()).isEqualTo("SSH-Fehler mit Proxy");
+        assertThat(updated.getUpdatedAt() >= updated.getCreatedAt()).isTrue();
 
-        assertTrue(reloaded.deleteChat(updated.getId()));
-        assertTrue(reloaded.getAllChats().isEmpty());
+        assertThat(reloaded.deleteChat(updated.getId())).isTrue();
+        assertThat(reloaded.getAllChats().isEmpty()).isTrue();
     }
 
     @Test
@@ -63,9 +85,9 @@ class AiChatManagerTest {
         SavedAiChat second = manager.saveChat(chat("Zweiter Chat"));
 
         List<SavedAiChat> chats = manager.getAllChats();
-        assertEquals(2, chats.size());
-        assertEquals(second.getId(), chats.get(0).getId());
-        assertEquals(first.getId(), chats.get(1).getId());
+        assertThat(chats.size()).isEqualTo(2);
+        assertThat(chats.get(0).getId()).isEqualTo(second.getId());
+        assertThat(chats.get(1).getId()).isEqualTo(first.getId());
     }
 
     private SavedAiChat chat(String title) {

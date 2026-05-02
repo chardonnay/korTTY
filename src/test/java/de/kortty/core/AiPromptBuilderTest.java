@@ -1,8 +1,8 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AiPromptBuilderTest {
 
@@ -13,11 +13,11 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(systemPrompt.contains("language code de"));
-        assertTrue(userPrompt.contains("overview"));
-        assertTrue(userPrompt.contains("key findings"));
-        assertTrue(userPrompt.contains("prod-server"));
-        assertTrue(userPrompt.contains("error: sample"));
+        assertThat(systemPrompt.contains("language code de")).isTrue();
+        assertThat(userPrompt.contains("overview")).isTrue();
+        assertThat(userPrompt.contains("key findings")).isTrue();
+        assertThat(userPrompt.contains("prod-server")).isTrue();
+        assertThat(userPrompt.contains("error: sample")).isTrue();
     }
 
     @Test
@@ -26,10 +26,10 @@ class AiPromptBuilderTest {
 
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(userPrompt.contains("likely cause"));
-        assertTrue(userPrompt.contains("concrete fix steps"));
-        assertTrue(userPrompt.contains("safe verification commands"));
-        assertTrue(userPrompt.contains("Exception in thread"));
+        assertThat(userPrompt.contains("likely cause")).isTrue();
+        assertThat(userPrompt.contains("concrete fix steps")).isTrue();
+        assertThat(userPrompt.contains("safe verification commands")).isTrue();
+        assertThat(userPrompt.contains("Exception in thread")).isTrue();
     }
 
     @Test
@@ -38,9 +38,9 @@ class AiPromptBuilderTest {
 
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(userPrompt.contains("User request"));
-        assertTrue(userPrompt.contains("write a short perl one-liner"));
-        assertTrue(userPrompt.contains("ls -la output"));
+        assertThat(userPrompt.contains("User request")).isTrue();
+        assertThat(userPrompt.contains("write a short perl one-liner")).isTrue();
+        assertThat(userPrompt.contains("ls -la output")).isTrue();
     }
 
     @Test
@@ -56,14 +56,14 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(systemPrompt.contains("continuing an existing AI chat"));
-        assertTrue(systemPrompt.contains("language code de"));
-        assertTrue(userPrompt.contains("Continue the existing AI chat"));
-        assertTrue(userPrompt.contains("Latest user message"));
-        assertTrue(userPrompt.contains("What should I check next?"));
-        assertTrue(userPrompt.contains("background context only"));
-        assertTrue(!userPrompt.contains("Treat the selected text as the primary source of truth"));
-        assertTrue(!userPrompt.contains("Answer the user's question or instruction about the selected terminal text"));
+        assertThat(systemPrompt.contains("continuing an existing AI chat")).isTrue();
+        assertThat(systemPrompt.contains("language code de")).isTrue();
+        assertThat(userPrompt.contains("Continue the existing AI chat")).isTrue();
+        assertThat(userPrompt.contains("Latest user message")).isTrue();
+        assertThat(userPrompt.contains("What should I check next?")).isTrue();
+        assertThat(userPrompt.contains("background context only")).isTrue();
+        assertThat(!userPrompt.contains("Treat the selected text as the primary source of truth")).isTrue();
+        assertThat(!userPrompt.contains("Answer the user's question or instruction about the selected terminal text")).isTrue();
     }
 
     @Test
@@ -78,9 +78,9 @@ class AiPromptBuilderTest {
 
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(userPrompt.contains("exactly one plain-text line"));
-        assertTrue(userPrompt.contains("Conversation so far"));
-        assertTrue(userPrompt.contains("fatal: unable to access repository"));
+        assertThat(userPrompt.contains("exactly one plain-text line")).isTrue();
+        assertThat(userPrompt.contains("Conversation so far")).isTrue();
+        assertThat(userPrompt.contains("fatal: unable to access repository")).isTrue();
     }
 
     @Test
@@ -96,13 +96,13 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(systemPrompt.contains("exactly one JSON object"));
-        assertTrue(systemPrompt.contains("language code de"));
-        assertTrue(userPrompt.contains("fileName"));
-        assertTrue(userPrompt.contains("description"));
-        assertTrue(userPrompt.contains("language"));
-        assertTrue(userPrompt.contains("Detected script language: python"));
-        assertTrue(userPrompt.contains("Conversation so far"));
+        assertThat(systemPrompt.contains("exactly one JSON object")).isTrue();
+        assertThat(systemPrompt.contains("language code de")).isTrue();
+        assertThat(userPrompt.contains("fileName")).isTrue();
+        assertThat(userPrompt.contains("description")).isTrue();
+        assertThat(userPrompt.contains("language")).isTrue();
+        assertThat(userPrompt.contains("Detected script language: python")).isTrue();
+        assertThat(userPrompt.contains("Conversation so far")).isTrue();
     }
 
     @Test
@@ -118,11 +118,11 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(systemPrompt.contains("correct spelling and grammar"));
-        assertTrue(systemPrompt.contains("plain text"));
-        assertTrue(userPrompt.contains("Description to correct"));
-        assertTrue(userPrompt.contains("Script content for context only"));
-        assertTrue(userPrompt.contains("Detected script language: bash"));
+        assertThat(systemPrompt.contains("correct spelling and grammar")).isTrue();
+        assertThat(systemPrompt.contains("plain text")).isTrue();
+        assertThat(userPrompt.contains("Description to correct")).isTrue();
+        assertThat(userPrompt.contains("Script content for context only")).isTrue();
+        assertThat(userPrompt.contains("Detected script language: bash")).isTrue();
     }
 
     @Test
@@ -138,11 +138,11 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(systemPrompt.contains("Never modify code"));
-        assertTrue(systemPrompt.contains("segments"));
-        assertTrue(userPrompt.contains("JSON object"));
-        assertTrue(userPrompt.contains("Additional user instructions"));
-        assertTrue(userPrompt.contains("Snippet context"));
+        assertThat(systemPrompt.contains("Never modify code")).isTrue();
+        assertThat(systemPrompt.contains("segments")).isTrue();
+        assertThat(userPrompt.contains("JSON object")).isTrue();
+        assertThat(userPrompt.contains("Additional user instructions")).isTrue();
+        assertThat(userPrompt.contains("Snippet context")).isTrue();
     }
 
     @Test
@@ -158,9 +158,9 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(systemPrompt.contains("Translate into language code fr"));
-        assertTrue(systemPrompt.contains("Never modify code"));
-        assertTrue(userPrompt.contains("Translate only the provided editable text segments"));
+        assertThat(systemPrompt.contains("Translate into language code fr")).isTrue();
+        assertThat(systemPrompt.contains("Never modify code")).isTrue();
+        assertThat(userPrompt.contains("Translate only the provided editable text segments")).isTrue();
     }
 
     @Test
@@ -176,9 +176,9 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertTrue(systemPrompt.contains("solutions array"));
-        assertTrue(systemPrompt.contains("same programming language"));
-        assertTrue(userPrompt.contains("\"solutions\""));
-        assertTrue(userPrompt.contains("Additional user instructions"));
+        assertThat(systemPrompt.contains("solutions array")).isTrue();
+        assertThat(systemPrompt.contains("same programming language")).isTrue();
+        assertThat(userPrompt.contains("\"solutions\"")).isTrue();
+        assertThat(userPrompt.contains("Additional user instructions")).isTrue();
     }
 }

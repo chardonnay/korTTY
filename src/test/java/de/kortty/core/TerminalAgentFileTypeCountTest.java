@@ -1,11 +1,8 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalAgentFileTypeCountTest {
 
@@ -14,23 +11,23 @@ class TerminalAgentFileTypeCountTest {
         TerminalAgentService.FileTypeCountRequest request = TerminalAgentService.detectFileTypeCountRequest(
             "how many files are under directory /etc ? create a tabel and show how many files are binaries and how many are plain text.");
 
-        assertNotNull(request);
-        assertEquals("/etc", request.directory());
+        assertThat(request).isNotNull();
+        assertThat(request.directory()).isEqualTo("/etc");
     }
 
     @Test
     void ignoresUnrelatedCountRequests() {
-        assertNull(TerminalAgentService.detectFileTypeCountRequest("count files under directory /etc"));
+        assertThat(TerminalAgentService.detectFileTypeCountRequest("count files under directory /etc")).isNull();
     }
 
     @Test
     void buildsQuotedReadOnlyCommand() {
         String command = TerminalAgentService.buildFileTypeCountCommand("/tmp/has ' quote", true);
 
-        assertTrue(command.startsWith("sudo -n sh -lc "));
-        assertTrue(command.contains("'\"'\"'"));
-        assertTrue(command.contains("file --mime-type -b"));
-        assertTrue(command.contains("binary_or_non_text"));
+        assertThat(command.startsWith("sudo -n sh -lc ")).isTrue();
+        assertThat(command.contains("'\"'\"'")).isTrue();
+        assertThat(command.contains("file --mime-type -b")).isTrue();
+        assertThat(command.contains("binary_or_non_text")).isTrue();
     }
 
     @Test
@@ -41,10 +38,10 @@ class TerminalAgentFileTypeCountTest {
             binary_or_non_text=6
             """);
 
-        assertNotNull(counts);
-        assertEquals(10, counts.total());
-        assertEquals(4, counts.plainText());
-        assertEquals(6, counts.binaryOrNonText());
+        assertThat(counts).isNotNull();
+        assertThat(counts.total()).isEqualTo(10);
+        assertThat(counts.plainText()).isEqualTo(4);
+        assertThat(counts.binaryOrNonText()).isEqualTo(6);
     }
 
     @Test
@@ -53,8 +50,8 @@ class TerminalAgentFileTypeCountTest {
             "/etc",
             new TerminalAgentService.FileTypeCounts(10, 4, 6));
 
-        assertTrue(table.contains("| Total files | 10 |"));
-        assertTrue(table.contains("| Plain text files (`text/*`) | 4 |"));
-        assertTrue(table.contains("| Binary/non-text files | 6 |"));
+        assertThat(table.contains("| Total files | 10 |")).isTrue();
+        assertThat(table.contains("| Plain text files (`text/*`) | 4 |")).isTrue();
+        assertThat(table.contains("| Binary/non-text files | 6 |")).isTrue();
     }
 }

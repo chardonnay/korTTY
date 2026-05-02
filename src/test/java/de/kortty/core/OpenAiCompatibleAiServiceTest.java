@@ -1,15 +1,14 @@
 package de.kortty.core;
 
 import de.kortty.model.AiReasoningEffort;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpRequest;
 import java.time.Duration;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OpenAiCompatibleAiServiceTest {
 
@@ -24,13 +23,13 @@ class OpenAiCompatibleAiServiceTest {
         HttpRequest httpRequest = service.buildHttpRequest(request);
         String body = service.buildRequestBody(request);
 
-        assertEquals("https://example.test/v1/chat/completions", httpRequest.uri().toString());
-        assertEquals("Bearer secret-token", httpRequest.headers().firstValue("Authorization").orElseThrow());
-        assertEquals("application/json", httpRequest.headers().firstValue("Content-Type").orElseThrow());
-        assertTrue(body.contains("\"model\":\"gpt-test\""));
-        assertTrue(body.contains("fatal: sample"));
-        assertTrue(body.contains("\"role\":\"system\""));
-        assertTrue(body.contains("\"role\":\"user\""));
+        assertThat(httpRequest.uri().toString()).isEqualTo("https://example.test/v1/chat/completions");
+        assertThat(httpRequest.headers().firstValue("Authorization").orElseThrow()).isEqualTo("Bearer secret-token");
+        assertThat(httpRequest.headers().firstValue("Content-Type").orElseThrow()).isEqualTo("application/json");
+        assertThat(body.contains("\"model\":\"gpt-test\"")).isTrue();
+        assertThat(body.contains("fatal: sample")).isTrue();
+        assertThat(body.contains("\"role\":\"system\"")).isTrue();
+        assertThat(body.contains("\"role\":\"user\"")).isTrue();
     }
 
     @Test
@@ -45,8 +44,8 @@ class OpenAiCompatibleAiServiceTest {
         String body = service.buildRequestBody(request);
         String promptBody = service.buildPromptRequestBody("system", "user", true);
 
-        assertTrue(body.contains("\"reasoning_effort\":\"high\""));
-        assertTrue(promptBody.contains("\"reasoning_effort\":\"high\""));
+        assertThat(body.contains("\"reasoning_effort\":\"high\"")).isTrue();
+        assertThat(promptBody.contains("\"reasoning_effort\":\"high\"")).isTrue();
     }
 
     @Test
@@ -60,10 +59,10 @@ class OpenAiCompatibleAiServiceTest {
         HttpRequest httpRequest = service.buildHttpRequest(request);
         String body = service.buildRequestBody(request);
 
-        assertTrue(httpRequest.headers().firstValue("Authorization").isEmpty());
-        assertTrue(!body.contains("\"model\""));
-        assertTrue(!body.contains("\"reasoning_effort\""));
-        assertTrue(httpRequest.timeout().isEmpty());
+        assertThat(httpRequest.headers().firstValue("Authorization").isEmpty()).isTrue();
+        assertThat(!body.contains("\"model\"")).isTrue();
+        assertThat(!body.contains("\"reasoning_effort\"")).isTrue();
+        assertThat(httpRequest.timeout().isEmpty()).isTrue();
     }
 
     @Test
@@ -77,7 +76,7 @@ class OpenAiCompatibleAiServiceTest {
             new AiRequest(AiAction.SUMMARIZE, "ping", "local-llm", "en"),
             Duration.ofSeconds(5));
 
-        assertEquals(Duration.ofSeconds(5), httpRequest.timeout().orElseThrow());
+        assertThat(httpRequest.timeout().orElseThrow()).isEqualTo(Duration.ofSeconds(5));
     }
 
     @Test
@@ -89,11 +88,11 @@ class OpenAiCompatibleAiServiceTest {
 
         String body = service.buildConnectionTestRequestBody();
 
-        assertTrue(body.contains("\"model\":\"qwen-test\""));
-        assertTrue(body.contains("Reply with exactly OK."));
-        assertTrue(body.contains("Connection test."));
-        assertTrue(!body.contains("Summarize the selected terminal text"));
-        assertTrue(!body.contains("Selected terminal text"));
+        assertThat(body.contains("\"model\":\"qwen-test\"")).isTrue();
+        assertThat(body.contains("Reply with exactly OK.")).isTrue();
+        assertThat(body.contains("Connection test.")).isTrue();
+        assertThat(!body.contains("Summarize the selected terminal text")).isTrue();
+        assertThat(!body.contains("Selected terminal text")).isTrue();
     }
 
     @Test
@@ -105,8 +104,8 @@ class OpenAiCompatibleAiServiceTest {
 
         String body = service.buildPromptRequestBody("Reply with JSON.", "Return JSON.", true);
 
-        assertTrue(body.contains("\"response_format\""));
-        assertTrue(body.contains("\"type\":\"json_object\""));
+        assertThat(body.contains("\"response_format\"")).isTrue();
+        assertThat(body.contains("\"type\":\"json_object\"")).isTrue();
     }
 
     @Test
@@ -144,8 +143,8 @@ class OpenAiCompatibleAiServiceTest {
             }
         });
 
-        assertEquals("{\"choices\":[{\"message\":{\"content\":\"partial ok\"}}]}", body);
-        assertEquals("partial ok", service.parseResponseBody(body).content());
+        assertThat(body).isEqualTo("{\"choices\":[{\"message\":{\"content\":\"partial ok\"}}]}");
+        assertThat(service.parseResponseBody(body).content()).isEqualTo("partial ok");
     }
 
     @Test
@@ -172,8 +171,8 @@ class OpenAiCompatibleAiServiceTest {
             }
             """);
 
-        assertEquals("Analysis result", parsed.content());
-        assertEquals(18, parsed.usage().totalTokens());
+        assertThat(parsed.content()).isEqualTo("Analysis result");
+        assertThat(parsed.usage().totalTokens()).isEqualTo(18);
     }
 
     @Test
@@ -198,7 +197,7 @@ class OpenAiCompatibleAiServiceTest {
             }
             """);
 
-        assertEquals("Line 1\nLine 2", parsed.content());
+        assertThat(parsed.content()).isEqualTo("Line 1\nLine 2");
     }
 
     @Test
@@ -228,8 +227,8 @@ class OpenAiCompatibleAiServiceTest {
             }
             """);
 
-        assertEquals("Gerettete Antwort", parsed.content());
-        assertEquals(168, parsed.usage().totalTokens());
+        assertThat(parsed.content()).isEqualTo("Gerettete Antwort");
+        assertThat(parsed.usage().totalTokens()).isEqualTo(168);
     }
 
     @Test
@@ -242,6 +241,6 @@ class OpenAiCompatibleAiServiceTest {
         AiExecutionResult parsed = service.parseResponseBody(
             "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"Teil 1\\nTeil 2 ohne Abschluss");
 
-        assertEquals("Teil 1\nTeil 2 ohne Abschluss", parsed.content());
+        assertThat(parsed.content()).isEqualTo("Teil 1\nTeil 2 ohne Abschluss");
     }
 }

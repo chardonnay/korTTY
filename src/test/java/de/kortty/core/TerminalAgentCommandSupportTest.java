@@ -1,12 +1,8 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalAgentCommandSupportTest {
 
@@ -17,12 +13,12 @@ class TerminalAgentCommandSupportTest {
                 "agent(profile=ops,root=true,ask=yes) install updates",
                 "agent");
 
-        assertNotNull(invocation);
-        assertEquals(TerminalAgentCommandSupport.InvocationKind.EXECUTE, invocation.kind());
-        assertEquals("ops", invocation.profileName());
-        assertTrue(invocation.autoApproveRootCommands());
-        assertTrue(invocation.askConfirmationBeforeEveryCommand());
-        assertEquals("install updates", invocation.userPrompt());
+        assertThat(invocation).isNotNull();
+        assertThat(invocation.kind()).isEqualTo(TerminalAgentCommandSupport.InvocationKind.EXECUTE);
+        assertThat(invocation.profileName()).isEqualTo("ops");
+        assertThat(invocation.autoApproveRootCommands()).isTrue();
+        assertThat(invocation.askConfirmationBeforeEveryCommand()).isTrue();
+        assertThat(invocation.userPrompt()).isEqualTo("install updates");
     }
 
     @Test
@@ -32,14 +28,14 @@ class TerminalAgentCommandSupportTest {
         TerminalAgentCommandSupport.Invocation planInvocation =
             TerminalAgentCommandSupport.parseShortcut("susi-plan(profile=db) install postgres", "susi");
 
-        assertNotNull(askInvocation);
-        assertEquals(TerminalAgentCommandSupport.InvocationKind.ASK, askInvocation.kind());
-        assertEquals("what failed?", askInvocation.userPrompt());
+        assertThat(askInvocation).isNotNull();
+        assertThat(askInvocation.kind()).isEqualTo(TerminalAgentCommandSupport.InvocationKind.ASK);
+        assertThat(askInvocation.userPrompt()).isEqualTo("what failed?");
 
-        assertNotNull(planInvocation);
-        assertEquals(TerminalAgentCommandSupport.InvocationKind.PLAN, planInvocation.kind());
-        assertEquals("db", planInvocation.profileName());
-        assertEquals("install postgres", planInvocation.userPrompt());
+        assertThat(planInvocation).isNotNull();
+        assertThat(planInvocation.kind()).isEqualTo(TerminalAgentCommandSupport.InvocationKind.PLAN);
+        assertThat(planInvocation.profileName()).isEqualTo("db");
+        assertThat(planInvocation.userPrompt()).isEqualTo("install postgres");
     }
 
     @Test
@@ -47,10 +43,10 @@ class TerminalAgentCommandSupportTest {
         TerminalAgentCommandSupport.Invocation invocation =
             TerminalAgentCommandSupport.parseShortcut("agent -plan(profile=db) install postgres", "agent");
 
-        assertNotNull(invocation);
-        assertEquals(TerminalAgentCommandSupport.InvocationKind.PLAN, invocation.kind());
-        assertEquals("db", invocation.profileName());
-        assertEquals("install postgres", invocation.userPrompt());
+        assertThat(invocation).isNotNull();
+        assertThat(invocation.kind()).isEqualTo(TerminalAgentCommandSupport.InvocationKind.PLAN);
+        assertThat(invocation.profileName()).isEqualTo("db");
+        assertThat(invocation.userPrompt()).isEqualTo("install postgres");
     }
 
     @Test
@@ -58,23 +54,23 @@ class TerminalAgentCommandSupportTest {
         TerminalAgentCommandSupport.Invocation invocation =
             TerminalAgentCommandSupport.parseShortcut("agent(root=true) -plan(profile=ops) install nginx", "agent");
 
-        assertNotNull(invocation);
-        assertEquals(TerminalAgentCommandSupport.InvocationKind.PLAN, invocation.kind());
-        assertEquals("ops", invocation.profileName());
-        assertTrue(invocation.autoApproveRootCommands());
-        assertEquals("install nginx", invocation.userPrompt());
+        assertThat(invocation).isNotNull();
+        assertThat(invocation.kind()).isEqualTo(TerminalAgentCommandSupport.InvocationKind.PLAN);
+        assertThat(invocation.profileName()).isEqualTo("ops");
+        assertThat(invocation.autoApproveRootCommands()).isTrue();
+        assertThat(invocation.userPrompt()).isEqualTo("install nginx");
     }
 
     @Test
     void parseShortcutCanUseCaseInsensitiveCommandNamesWhenEnabled() {
-        assertNull(TerminalAgentCommandSupport.parseShortcut("Agent install tmux", "agent"));
+        assertThat(TerminalAgentCommandSupport.parseShortcut("Agent install tmux", "agent")).isNull();
 
         TerminalAgentCommandSupport.Invocation invocation =
             TerminalAgentCommandSupport.parseShortcut("Agent install tmux", "agent", true);
 
-        assertNotNull(invocation);
-        assertEquals(TerminalAgentCommandSupport.InvocationKind.EXECUTE, invocation.kind());
-        assertEquals("install tmux", invocation.userPrompt());
+        assertThat(invocation).isNotNull();
+        assertThat(invocation.kind()).isEqualTo(TerminalAgentCommandSupport.InvocationKind.EXECUTE);
+        assertThat(invocation.userPrompt()).isEqualTo("install tmux");
     }
 
     @Test
@@ -82,21 +78,21 @@ class TerminalAgentCommandSupportTest {
         TerminalAgentCommandSupport.Invocation invocation =
             TerminalAgentCommandSupport.parseShortcut("Agent -PLAN install tmux", "agent", true);
 
-        assertNotNull(invocation);
-        assertEquals(TerminalAgentCommandSupport.InvocationKind.PLAN, invocation.kind());
-        assertEquals("install tmux", invocation.userPrompt());
+        assertThat(invocation).isNotNull();
+        assertThat(invocation.kind()).isEqualTo(TerminalAgentCommandSupport.InvocationKind.PLAN);
+        assertThat(invocation.userPrompt()).isEqualTo("install tmux");
     }
 
     @Test
     void invalidOrBlankCommandNamesFallBackOrValidate() {
-        assertEquals("agent", TerminalAgentCommandSupport.normalizeCommandName(" "));
-        assertNull(TerminalAgentCommandSupport.validateCommandName("agent_2"));
-        assertNotNull(TerminalAgentCommandSupport.validateCommandName("2bad name"));
+        assertThat(TerminalAgentCommandSupport.normalizeCommandName(" ")).isEqualTo("agent");
+        assertThat(TerminalAgentCommandSupport.validateCommandName("agent_2")).isNull();
+        assertThat(TerminalAgentCommandSupport.validateCommandName("2bad name")).isNotNull();
     }
 
     @Test
     void unrelatedCommandDoesNotParse() {
-        assertNull(TerminalAgentCommandSupport.parseShortcut("ls -la", "agent"));
-        assertFalse(TerminalAgentCommandSupport.buildUsageText("agent").isBlank());
+        assertThat(TerminalAgentCommandSupport.parseShortcut("ls -la", "agent")).isNull();
+        assertThat(TerminalAgentCommandSupport.buildUsageText("agent").isBlank()).isFalse();
     }
 }

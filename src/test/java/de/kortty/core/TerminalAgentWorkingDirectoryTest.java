@@ -1,8 +1,8 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class TerminalAgentWorkingDirectoryTest {
 
@@ -12,7 +12,7 @@ class TerminalAgentWorkingDirectoryTest {
             "printf test > script.sh",
             "/home/daniel/project");
 
-        assertEquals("cd '/home/daniel/project' && printf test > script.sh", command);
+        assertThat(command).isEqualTo("cd '/home/daniel/project' && printf test > script.sh");
     }
 
     @Test
@@ -21,14 +21,14 @@ class TerminalAgentWorkingDirectoryTest {
             "pwd",
             "/home/daniel/project's files");
 
-        assertEquals("cd '/home/daniel/project'\"'\"'s files' && pwd", command);
+        assertThat(command).isEqualTo("cd '/home/daniel/project'\"'\"'s files' && pwd");
     }
 
     @Test
     void leavesCommandUnwrappedWhenWorkingDirectoryIsUnknown() {
-        assertEquals("pwd", TerminalAgentService.wrapCommandForWorkingDirectory("pwd", null));
-        assertEquals("pwd", TerminalAgentService.wrapCommandForWorkingDirectory("pwd", ""));
-        assertEquals("pwd", TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "~"));
-        assertEquals("pwd", TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "relative/path"));
+        assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", null)).isEqualTo("pwd");
+        assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "")).isEqualTo("pwd");
+        assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "~")).isEqualTo("pwd");
+        assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "relative/path")).isEqualTo("pwd");
     }
 }

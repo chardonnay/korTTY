@@ -1,64 +1,68 @@
 package de.kortty.teamwork;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledOnOs;
-import org.junit.jupiter.api.condition.OS;
+import org.testng.SkipException;
+import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for SharedFileTeamworkAdapter.toPath() to prevent regressions
  * on UNC, legacy file:////host/Share, and file:///C|/path handling.
  */
-class SharedFileTeamworkAdapterTest {
+public class SharedFileTeamworkAdapterTest {
 
     @Test
-    @EnabledOnOs(OS.WINDOWS)
     void toPath_fileHostShare_preservesUnc() {
+        skipUnlessWindows();
+
         Path p = SharedFileTeamworkAdapter.toPath("file://host/Share");
-        assertNotNull(p);
-        assertTrue(p.toString().replace('\\', '/').startsWith("//"), "UNC should start with //");
-        assertTrue(p.toString().contains("host"), "UNC should contain host");
-        assertTrue(p.toString().contains("Share"), "UNC should contain Share");
+        assertThat(p).isNotNull();
+        assertWithMessage("UNC should start with //").that(p.toString().replace('\\', '/').startsWith("//")).isTrue();
+        assertWithMessage("UNC should contain host").that(p.toString().contains("host")).isTrue();
+        assertWithMessage("UNC should contain Share").that(p.toString().contains("Share")).isTrue();
     }
 
     @Test
-    @EnabledOnOs(OS.WINDOWS)
     void toPath_fileFourSlashHostShare_preservesUnc() {
+        skipUnlessWindows();
+
         Path p = SharedFileTeamworkAdapter.toPath("file:////host/Share");
-        assertNotNull(p);
+        assertThat(p).isNotNull();
         String s = p.toString().replace('\\', '/');
-        assertTrue(s.startsWith("//"), "Legacy file://// should yield path starting with //");
-        assertTrue(s.contains("host"), "Path should contain host");
-        assertTrue(s.contains("Share"), "Path should contain Share");
+        assertWithMessage("Legacy file://// should yield path starting with //").that(s.startsWith("//")).isTrue();
+        assertWithMessage("Path should contain host").that(s.contains("host")).isTrue();
+        assertWithMessage("Path should contain Share").that(s.contains("Share")).isTrue();
     }
 
     @Test
     void toPath_filePipeDrive_normalizesToColon() {
         Path p = SharedFileTeamworkAdapter.toPath("file:///C|/path/to/file");
-        assertNotNull(p);
+        assertThat(p).isNotNull();
         String s = p.toString().replace('\\', '/');
-        assertTrue(s.contains("C:"), "C| should be normalized to C:");
-        assertFalse(s.contains("|"), "Pipe should not appear in path");
-        assertTrue(s.contains("path"), "Path segment should be preserved");
+        assertWithMessage("C| should be normalized to C:").that(s.contains("C:")).isTrue();
+        assertWithMessage("Pipe should not appear in path").that(s.contains("|")).isFalse();
+        assertWithMessage("Path segment should be preserved").that(s.contains("path")).isTrue();
     }
 
     @Test
     void toPath_nullOrBlank_returnsNull() {
-        assertNull(SharedFileTeamworkAdapter.toPath(null));
-        assertNull(SharedFileTeamworkAdapter.toPath(""));
-        assertNull(SharedFileTeamworkAdapter.toPath("   "));
+        assertThat(SharedFileTeamworkAdapter.toPath(null)).isNull();
+        assertThat(SharedFileTeamworkAdapter.toPath("")).isNull();
+        assertThat(SharedFileTeamworkAdapter.toPath("   ")).isNull();
     }
 
     @Test
     void toPath_plainPath_unchanged() {
         Path p = SharedFileTeamworkAdapter.toPath("/home/user/file");
-        assertNotNull(p);
-        assertEquals(Paths.get("/home/user/file"), p);
+        assertThat(p).isNotNull();
+        assertThat(p).isEqualTo(Paths.get("/home/user/file"));
     }
 
     @Test
@@ -67,9 +71,31 @@ class SharedFileTeamworkAdapterTest {
         try {
             TeamworkRecycleBinService service = new TeamworkRecycleBinService(dir);
             service.load();
-            assertTrue(service.getDeleted().isEmpty());
+            assertThat(service.getDeleted().isEmpty()).isTrue();
         } finally {
-            Files.deleteIfExists(dir);
+            deleteRecursively(dir);
+        }
+    }
+
+    private static void deleteRecursively(Path dir) throws IOException {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (var paths = Files.walk(dir)) {
+            paths.sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Failed to delete temp path " + path, e);
+                    }
+                });
+        }
+    }
+
+    private static void skipUnlessWindows() {
+        if (!System.getProperty("os.name").toLowerCase().contains("win")) {
+            throw new SkipException("Windows-only UNC path test");
         }
     }
 }

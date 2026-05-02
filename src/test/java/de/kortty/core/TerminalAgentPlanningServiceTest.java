@@ -2,13 +2,12 @@ package de.kortty.core;
 
 import com.google.gson.JsonSyntaxException;
 import de.kortty.model.TerminalAgentModels;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalAgentPlanningServiceTest {
 
@@ -33,9 +32,9 @@ class TerminalAgentPlanningServiceTest {
             """);
 
         TerminalAgentService.AgentPlanQuestionDecisionItem question = decision.questions().getFirst();
-        assertEquals("q1", question.id());
-        assertEquals(List.of("Local", "Remote"), question.options());
-        assertTrue(question.allowCustomAnswer());
+        assertThat(question.id()).isEqualTo("q1");
+        assertThat(question.options()).isEqualTo(List.of("Local", "Remote"));
+        assertThat(question.allowCustomAnswer()).isTrue();
     }
 
     @Test
@@ -59,8 +58,8 @@ class TerminalAgentPlanningServiceTest {
             }
             """);
 
-        assertEquals("options", options.status());
-        assertEquals("Incremental", options.options().getFirst().title());
+        assertThat(options.status()).isEqualTo("options");
+        assertThat(options.options().getFirst().title()).isEqualTo("Incremental");
 
         TerminalAgentService.AgentPlanOptionDecision blocked = service.parsePlanOptionDecision("""
             {
@@ -71,7 +70,7 @@ class TerminalAgentPlanningServiceTest {
             }
             """);
 
-        assertEquals("blocked", blocked.status());
+        assertThat(blocked.status()).isEqualTo("blocked");
     }
 
     @Test
@@ -89,10 +88,10 @@ class TerminalAgentPlanningServiceTest {
             }
             """);
 
-        assertEquals("Install package", report.title());
-        assertEquals(List.of("Install package", "Verify service"), report.steps());
+        assertThat(report.title()).isEqualTo("Install package");
+        assertThat(report.steps()).isEqualTo(List.of("Install package", "Verify service"));
 
-        assertThrows(JsonSyntaxException.class, () -> service.parsePlanReportDecision("""
+        expectThrows(JsonSyntaxException.class, () -> service.parsePlanReportDecision("""
             {
               "status": "options",
               "title": "Wrong state",
@@ -112,12 +111,12 @@ class TerminalAgentPlanningServiceTest {
             List.of("Package unavailable"),
             List.of("Service is active")));
 
-        assertTrue(context.contains("Accepted final plan: Install package"));
-        assertTrue(context.contains("Summary: Install and validate the package."));
-        assertTrue(context.contains("Prerequisites: Sudo access"));
-        assertTrue(context.contains("Risks: Package unavailable"));
-        assertTrue(context.contains("Success criteria: Service is active"));
-        assertTrue(context.contains("- Install package"));
-        assertTrue(context.contains("- Verify service"));
+        assertThat(context.contains("Accepted final plan: Install package")).isTrue();
+        assertThat(context.contains("Summary: Install and validate the package.")).isTrue();
+        assertThat(context.contains("Prerequisites: Sudo access")).isTrue();
+        assertThat(context.contains("Risks: Package unavailable")).isTrue();
+        assertThat(context.contains("Success criteria: Service is active")).isTrue();
+        assertThat(context.contains("- Install package")).isTrue();
+        assertThat(context.contains("- Verify service")).isTrue();
     }
 }
