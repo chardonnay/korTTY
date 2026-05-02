@@ -160,7 +160,11 @@ public final class TerminalAgentModels {
         String rootEscalationMode) {
     }
 
-    public record PlanQuestion(String id, String question) {
+    public record PlanQuestion(
+        String id,
+        String question,
+        List<String> options,
+        boolean allowCustomAnswer) {
     }
 
     public record PlanOption(
@@ -172,6 +176,15 @@ public final class TerminalAgentModels {
         List<String> prerequisites,
         List<String> steps,
         List<String> alternatives) {
+    }
+
+    public record PlanReport(
+        String title,
+        String summary,
+        List<String> prerequisites,
+        List<String> steps,
+        List<String> risks,
+        List<String> successCriteria) {
     }
 
     public record CommandResult(
@@ -210,6 +223,7 @@ public final class TerminalAgentModels {
         String probeSummary,
         List<PlanQuestion> questions,
         List<PlanOption> options,
+        PlanReport finalPlan,
         String acceptedOptionId,
         String executionStartedRunId) {
     }

@@ -3,9 +3,12 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.TerminalAgentActivityExportService;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.Snippet;
+import de.kortty.model.SnippetCategory;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.Theme;
 import javafx.animation.Animation;
@@ -13,6 +16,7 @@ import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
@@ -26,11 +30,13 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.Alert;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -51,8 +57,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 /**
  * Inline terminal-style activity feed for terminal-agent runs.
@@ -60,7 +68,7 @@ import java.util.concurrent.ExecutionException;
 public class AiAgentActivityPanel extends VBox {
 
     private static final Logger logger = LoggerFactory.getLogger(AiAgentActivityPanel.class);
-    private static final double COLLAPSED_PANEL_HEIGHT = 44.0;
+    private static final double COLLAPSED_PANEL_HEIGHT = 70.0;
     private static final double MIN_PANEL_HEIGHT = 130.0;
     private static final double DEFAULT_PANEL_HEIGHT = 230.0;
     private static final double MIN_TERMINAL_HEIGHT = 100.0;
@@ -69,10 +77,14 @@ public class AiAgentActivityPanel extends VBox {
     private static final double DEFAULT_ACTIVITY_FONT_SIZE = 13.0;
     private static final double MAX_ACTIVITY_FONT_SIZE = 20.0;
     private static final double ACTIVITY_FONT_STEP = 1.0;
+    private static final double PROMPT_VIEWER_MIN_HEIGHT = 42.0;
+    private static final double PROMPT_VIEWER_PREF_HEIGHT = 46.0;
+    private static final double PROMPT_VIEWER_MAX_HEIGHT = 54.0;
+    private static final Duration EXPORT_STATUS_VISIBLE_DURATION = Duration.seconds(4);
     private static final DateTimeFormatter EXPORT_FILE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     private final TerminalAgentActivityExportService exportService = new TerminalAgentActivityExportService();
-    private final Label titleLabel;
+    private final TextArea promptTextArea;
     private final Region headerBusyDot;
     private final Label headerBusyLabel;
     private final Label tokenLabel;
@@ -117,13 +129,16 @@ public class AiAgentActivityPanel extends VBox {
     private double panelResizeStartHeight;
     private double activityFontSize = DEFAULT_ACTIVITY_FONT_SIZE;
     private Timeline runningActivityTimer;
+    private Timeline exportStatusClearTimer;
     private FadeTransition headerBusyPulseTransition;
     private long runStartedAtMillis = -1L;
     private boolean panelCollapsed;
+    private boolean exportInProgress;
     private double expandedPanelHeight = DEFAULT_PANEL_HEIGHT;
+    private String exportStatusText;
     private String activeThemeStylesheetUrl;
 
-    public record RunMetadata(String profileId, String profileName, String modelName) {
+    public record RunMetadata(String profileId, String profileName, String modelName, String reasoningStatus) {
     }
 
     record ActivityVisual(String symbol, String styleClass) {
@@ -161,8 +176,17 @@ public class AiAgentActivityPanel extends VBox {
             event.consume();
         });
 
-        titleLabel = new Label(I18n.get("ai.agent.title"));
-        titleLabel.getStyleClass().add("ai-agent-activity-title");
+        promptTextArea = new TextArea(I18n.get("ai.agent.title"));
+        promptTextArea.getStyleClass().addAll("ai-agent-activity-title", "ai-agent-prompt-viewer");
+        promptTextArea.setEditable(false);
+        promptTextArea.setWrapText(true);
+        promptTextArea.setPrefRowCount(2);
+        promptTextArea.setFocusTraversable(false);
+        promptTextArea.setMinWidth(0);
+        promptTextArea.setMaxWidth(Double.MAX_VALUE);
+        promptTextArea.setMinHeight(PROMPT_VIEWER_MIN_HEIGHT);
+        promptTextArea.setPrefHeight(PROMPT_VIEWER_PREF_HEIGHT);
+        promptTextArea.setMaxHeight(PROMPT_VIEWER_MAX_HEIGHT);
         headerBusyDot = new Region();
         headerBusyDot.getStyleClass().add("ai-agent-header-busy-dot");
         headerBusyDot.setMinSize(10, 10);
@@ -246,19 +270,17 @@ public class AiAgentActivityPanel extends VBox {
         HBox centerStatus = new HBox(8, headerBusyDot, headerBusyLabel, cancelRunButton);
         centerStatus.getStyleClass().add("ai-agent-header-status");
         centerStatus.setAlignment(Pos.CENTER);
+        centerStatus.setMinWidth(Region.USE_PREF_SIZE);
 
         HBox rightControls = new HBox(8, tokenLabel, collapseButton, closeButton);
         rightControls.getStyleClass().add("ai-agent-header-actions");
         rightControls.setAlignment(Pos.CENTER_RIGHT);
+        rightControls.setMinWidth(Region.USE_PREF_SIZE);
 
-        BorderPane header = new BorderPane();
+        HBox header = new HBox(8, promptTextArea, centerStatus, rightControls);
         header.getStyleClass().add("ai-agent-header");
-        header.setLeft(titleLabel);
-        header.setCenter(centerStatus);
-        header.setRight(rightControls);
-        BorderPane.setAlignment(titleLabel, Pos.CENTER_LEFT);
-        BorderPane.setAlignment(centerStatus, Pos.CENTER);
-        BorderPane.setAlignment(rightControls, Pos.CENTER_RIGHT);
+        header.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(promptTextArea, Priority.ALWAYS);
 
         controls = new HBox(
             8,
@@ -330,6 +352,7 @@ public class AiAgentActivityPanel extends VBox {
             pendingInputStatusText = null;
             reportedTokens = 0L;
             hasReportedTokens = false;
+            clearExportStatus();
             rowsById.clear();
             accountedTokenActivityIds.clear();
             lastThinkingRow = null;
@@ -340,7 +363,7 @@ public class AiAgentActivityPanel extends VBox {
             promptBox.getChildren().clear();
             promptBox.setVisible(false);
             promptBox.setManaged(false);
-            titleLabel.setText(title);
+            promptTextArea.setText(title);
             tokenLabel.setText(formatReportedTokens());
             setVisible(true);
             setManaged(true);
@@ -377,7 +400,7 @@ public class AiAgentActivityPanel extends VBox {
 
     public void hideIfIdle() {
         Runnable task = () -> {
-            if (running) {
+            if (running || exportInProgress) {
                 return;
             }
             setVisible(false);
@@ -551,7 +574,7 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private void applyActivityFontSize() {
-        applyFontSize(titleLabel, activityFontSize);
+        applyFontSize(promptTextArea, activityFontSize);
         applyFontSize(headerBusyLabel, activityFontSize - 1.0);
         applyFontSize(tokenLabel, activityFontSize - 1.0);
         applyFontSize(previousRunButton, activityFontSize - 2.0);
@@ -617,6 +640,94 @@ public class AiAgentActivityPanel extends VBox {
         return button;
     }
 
+    private void copyToClipboard(String value) {
+        ClipboardContent content = new ClipboardContent();
+        content.putString(value != null ? value : "");
+        Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    private void openSnippetEditor(String text, TerminalAgentModels.AgentActivity activity) {
+        String snippetContent = stripActivityQuotePrefixes(text);
+        if (snippetContent.isBlank()) {
+            return;
+        }
+        KorTTYApplication application = KorTTYApplication.getInstance();
+        var snippetManager = application != null ? application.getSnippetManager() : null;
+        if (snippetManager == null) {
+            showPanelMessage(
+                Alert.AlertType.ERROR,
+                I18n.get("ai.result.saveSnippet.failed"),
+                "Snippet Manager not initialized");
+            return;
+        }
+
+        Snippet snippet = new Snippet();
+        snippet.setName(buildSnippetName(activity, snippetContent));
+        snippet.setContent(snippetContent);
+        snippet.setLanguage(SnippetLanguageSupport.detectSnippetLanguage("", snippetContent));
+        snippet.setDescription(nonBlank(activity != null ? activity.summary() : null, ""));
+
+        List<String> categoryNames = snippetManager.getAllCategories().stream()
+            .map(SnippetCategory::getName)
+            .filter(Objects::nonNull)
+            .sorted(String::compareToIgnoreCase)
+            .toList();
+
+        SnippetEditDialog dialog = new SnippetEditDialog(snippet, categoryNames);
+        Window owner = getScene() != null ? getScene().getWindow() : null;
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
+        dialog.showAndWait().ifPresent(savedSnippet -> {
+            try {
+                ensureSnippetCategoryExists(savedSnippet.getCategory());
+                snippetManager.addSnippet(savedSnippet);
+                snippetManager.save();
+            } catch (Exception e) {
+                logger.warn("Could not save terminal agent activity as snippet", e);
+                showPanelMessage(
+                    Alert.AlertType.ERROR,
+                    I18n.get("ai.result.saveSnippet.failed"),
+                    I18n.get("ai.agent.activity.openSnippetEditor.failed",
+                        e.getMessage() != null ? e.getMessage() : e.toString()));
+            }
+        });
+    }
+
+    private void ensureSnippetCategoryExists(String categoryName) {
+        String normalized = categoryName != null ? categoryName.trim() : "";
+        if (normalized.isBlank()) {
+            return;
+        }
+        KorTTYApplication application = KorTTYApplication.getInstance();
+        var snippetManager = application != null ? application.getSnippetManager() : null;
+        if (snippetManager != null && snippetManager.findCategoryByName(normalized).isEmpty()) {
+            snippetManager.addCategory(new SnippetCategory(normalized));
+        }
+    }
+
+    private String buildSnippetName(TerminalAgentModels.AgentActivity activity, String snippetContent) {
+        String seed = nonBlank(
+            activity != null ? nonBlank(activity.title(), activity.summary()) : "",
+            firstNonBlankLine(snippetContent));
+        String normalized = seed.replaceAll("\\s+", " ").trim();
+        if (normalized.isBlank()) {
+            normalized = I18n.get("ai.agent.title");
+        }
+        return normalized.length() > 80 ? normalized.substring(0, 80).trim() : normalized;
+    }
+
+    private String firstNonBlankLine(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return text.lines()
+            .map(String::trim)
+            .filter(line -> !line.isBlank())
+            .findFirst()
+            .orElse("");
+    }
+
     private void showPreviousRun() {
         if (running || historyIndex <= 0) {
             return;
@@ -666,13 +777,74 @@ public class AiAgentActivityPanel extends VBox {
         }
         try {
             TerminalAgentActivityExportService.ExportDocument document = buildExportDocument(snapshots);
-            exportService.export(targetFile.toPath(), format, document);
-            showExportMessage(Alert.AlertType.INFORMATION, I18n.get("ai.agent.export.success", targetFile.getName()));
+            startExportTask(targetFile, format, document);
         } catch (Exception e) {
             logger.warn("Failed to export terminal AI agent activity", e);
             showExportMessage(
                 Alert.AlertType.ERROR,
                 e.getMessage() != null ? e.getMessage() : I18n.get("ai.agent.export.failed"));
+        }
+    }
+
+    private void startExportTask(
+        File targetFile,
+        TerminalAgentActivityExportService.Format format,
+        TerminalAgentActivityExportService.ExportDocument document) {
+
+        setExportStatus(I18n.get("ai.agent.export.running", targetFile.getName()), true);
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                exportService.export(targetFile.toPath(), format, document);
+                return null;
+            }
+        };
+        task.setOnSucceeded(event ->
+            setExportStatus(I18n.get("ai.agent.export.success", targetFile.getName()), false));
+        task.setOnFailed(event -> {
+            Throwable failure = task.getException();
+            logger.warn("Failed to export terminal AI agent activity", failure);
+            setExportStatus("", false);
+            showExportMessage(
+                Alert.AlertType.ERROR,
+                failure != null && failure.getMessage() != null
+                    ? failure.getMessage()
+                    : I18n.get("ai.agent.export.failed"));
+        });
+        Thread thread = new Thread(task, "ai-agent-export");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void setExportStatus(String message, boolean inProgress) {
+        stopExportStatusClearTimer();
+        exportInProgress = inProgress;
+        exportStatusText = nonBlank(message, "");
+        updateHeaderBusyState();
+        updateHistoryButtons();
+        if (!inProgress && !blank(exportStatusText)) {
+            scheduleExportStatusClear();
+        }
+    }
+
+    private void clearExportStatus() {
+        stopExportStatusClearTimer();
+        exportInProgress = false;
+        exportStatusText = "";
+    }
+
+    private void scheduleExportStatusClear() {
+        exportStatusClearTimer = new Timeline(new KeyFrame(EXPORT_STATUS_VISIBLE_DURATION, event -> {
+            exportStatusText = "";
+            updateHeaderBusyState();
+        }));
+        exportStatusClearTimer.play();
+    }
+
+    private void stopExportStatusClearTimer() {
+        if (exportStatusClearTimer != null) {
+            exportStatusClearTimer.stop();
+            exportStatusClearTimer = null;
         }
     }
 
@@ -748,6 +920,7 @@ public class AiAgentActivityPanel extends VBox {
             snapshot.profileId,
             snapshot.profileName,
             snapshot.modelName,
+            snapshot.reasoningStatus,
             snapshot.startedAt,
             snapshot.finishedAt,
             snapshot.elapsedSeconds(),
@@ -769,8 +942,15 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private void showExportMessage(Alert.AlertType type, String message) {
+        showPanelMessage(
+            type,
+            type == Alert.AlertType.ERROR ? I18n.get("ai.agent.export.failed") : I18n.get("ai.agent.export"),
+            message);
+    }
+
+    private void showPanelMessage(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
-        alert.setTitle(type == Alert.AlertType.ERROR ? I18n.get("ai.agent.export.failed") : I18n.get("ai.agent.export"));
+        alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
         Window owner = getScene() != null ? getScene().getWindow() : null;
@@ -797,7 +977,7 @@ public class AiAgentActivityPanel extends VBox {
         lastThinkingRow = null;
         reportedTokens = snapshot.reportedTokens;
         hasReportedTokens = snapshot.hasReportedTokens;
-        titleLabel.setText(snapshot.title);
+        promptTextArea.setText(snapshot.title);
         tokenLabel.setText(formatReportedTokens());
         for (TerminalAgentModels.AgentActivity activity : snapshot.activities) {
             ActivityRow row = new ActivityRow(activity);
@@ -832,7 +1012,7 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private void updateHistoryButtons() {
-        boolean idle = !running;
+        boolean idle = !running && !exportInProgress;
         previousRunButton.setDisable(!idle || historyIndex <= 0);
         nextRunButton.setDisable(!idle || historyIndex < 0 || historyIndex >= runHistory.size() - 1);
         boolean canReload = idle
@@ -843,12 +1023,12 @@ public class AiAgentActivityPanel extends VBox {
         cancelRunButton.setDisable(!running);
         cancelRunButton.setVisible(running);
         cancelRunButton.setManaged(running);
-        closeButton.setDisable(running);
+        closeButton.setDisable(running || exportInProgress);
         boolean hasHistory = !runHistory.isEmpty();
-        exportFormatComboBox.setDisable(running || !hasHistory);
-        exportButton.setDisable(running || !hasHistory);
-        exportCurrentRunItem.setDisable(!canExportCurrentRun(running, runHistory.size(), historyIndex));
-        exportAllRunsItem.setDisable(!canExportAllRuns(running, runHistory.size()));
+        exportFormatComboBox.setDisable(!idle || !hasHistory);
+        exportButton.setDisable(!idle || !hasHistory);
+        exportCurrentRunItem.setDisable(!canExportCurrentRun(!idle, runHistory.size(), historyIndex));
+        exportAllRunsItem.setDisable(!canExportAllRuns(!idle, runHistory.size()));
     }
 
     static boolean canExportCurrentRun(boolean running, int historySize, int selectedIndex) {
@@ -860,14 +1040,21 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private void updateHeaderBusyState() {
-        boolean active = running;
-        headerBusyDot.setVisible(active);
-        headerBusyDot.setManaged(active);
-        headerBusyLabel.setVisible(active);
-        headerBusyLabel.setManaged(active);
-        if (active) {
+        boolean busy = running || exportInProgress;
+        boolean showStatus = busy || !blank(exportStatusText);
+        headerBusyDot.setVisible(busy);
+        headerBusyDot.setManaged(busy);
+        headerBusyLabel.setVisible(showStatus);
+        headerBusyLabel.setManaged(showStatus);
+        if (running) {
             updateHeaderBusyText();
             startHeaderBusyAnimation();
+        } else if (exportInProgress) {
+            headerBusyLabel.setText(nonBlank(exportStatusText, I18n.get("ai.agent.export")));
+            startHeaderBusyAnimation();
+        } else if (showStatus) {
+            stopHeaderBusyAnimation();
+            headerBusyLabel.setText(exportStatusText);
         } else {
             stopHeaderBusyAnimation();
             headerBusyLabel.setText("");
@@ -1360,10 +1547,44 @@ public class AiAgentActivityPanel extends VBox {
         return new ActivityVisual("i", "ai-agent-marker-info");
     }
 
+    static String copyTextForActivity(TerminalAgentModels.AgentActivity activity) {
+        if (activity == null) {
+            return "";
+        }
+        String detail = stripActivityQuotePrefixes(activity.detail());
+        if (!detail.isBlank()) {
+            return detail;
+        }
+        String summary = stripActivityQuotePrefixes(activity.summary());
+        if (!summary.isBlank()) {
+            return summary;
+        }
+        return stripActivityQuotePrefixes(activity.title());
+    }
+
+    static String stripActivityQuotePrefixes(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return text.lines()
+            .map(AiAgentActivityPanel::stripActivityQuotePrefix)
+            .collect(Collectors.joining("\n"))
+            .stripTrailing();
+    }
+
+    private static String stripActivityQuotePrefix(String line) {
+        if (line == null || line.isBlank()) {
+            return line != null ? line : "";
+        }
+        return line.replaceFirst("^\\s*>\\s?", "");
+    }
+
     private final class ActivityRow extends VBox {
         private final HBox header;
         private final Label indicator;
         private final Label textLabel;
+        private final Button copyButton;
+        private final Button snippetButton;
         private final Button toggleButton;
         private final Label detailLabel;
         private FadeTransition pulseTransition;
@@ -1386,12 +1607,18 @@ public class AiAgentActivityPanel extends VBox {
             textLabel.setWrapText(true);
             HBox.setHgrow(textLabel, Priority.ALWAYS);
 
+            copyButton = buildRowActionButton("\u29c9", I18n.get("ai.agent.activity.copyEntry"));
+            copyButton.setOnAction(event -> copyCurrentActivityText());
+
+            snippetButton = buildRowActionButton("{ }", I18n.get("ai.agent.activity.openSnippetEditor"));
+            snippetButton.setOnAction(event -> openCurrentActivityInSnippetEditor());
+
             toggleButton = new Button("+");
             toggleButton.getStyleClass().add("ai-agent-toggle-button");
             toggleButton.setFocusTraversable(false);
             toggleButton.setOnAction(event -> toggleDetails());
 
-            header = new HBox(8, indicator, textLabel, toggleButton);
+            header = new HBox(8, indicator, textLabel, copyButton, snippetButton, toggleButton);
             header.setAlignment(Pos.CENTER_LEFT);
 
             detailLabel = new Label();
@@ -1412,6 +1639,9 @@ public class AiAgentActivityPanel extends VBox {
             updateIndicator(activity);
             textLabel.setText(formatActivityText(activity));
             detailLabel.setText(formatDetail(activity.detail()));
+            boolean hasCopyableText = !copyTextForActivity(activity).isBlank();
+            copyButton.setDisable(!hasCopyableText);
+            snippetButton.setDisable(!hasCopyableText);
             boolean hasDetail = activity.collapsible() && activity.detail() != null && !activity.detail().isBlank();
             toggleButton.setVisible(hasDetail);
             toggleButton.setManaged(hasDetail);
@@ -1424,8 +1654,31 @@ public class AiAgentActivityPanel extends VBox {
         private void applyFontSize() {
             AiAgentActivityPanel.this.applyFontSize(indicator, activityFontSize + 4.0);
             AiAgentActivityPanel.this.applyFontSize(textLabel, activityFontSize);
+            AiAgentActivityPanel.this.applyFontSize(copyButton, activityFontSize - 2.0);
+            AiAgentActivityPanel.this.applyFontSize(snippetButton, activityFontSize - 2.0);
             AiAgentActivityPanel.this.applyFontSize(toggleButton, activityFontSize - 2.0);
             AiAgentActivityPanel.this.applyFontSize(detailLabel, activityFontSize - 1.0);
+        }
+
+        private Button buildRowActionButton(String text, String tooltip) {
+            Button button = new Button(text);
+            button.getStyleClass().add("ai-agent-toggle-button");
+            button.setFocusTraversable(false);
+            button.setMinWidth(28);
+            button.setPrefWidth(34);
+            button.setTooltip(new Tooltip(tooltip));
+            return button;
+        }
+
+        private void copyCurrentActivityText() {
+            String text = copyTextForActivity(currentActivity);
+            if (!text.isBlank()) {
+                copyToClipboard(text);
+            }
+        }
+
+        private void openCurrentActivityInSnippetEditor() {
+            openSnippetEditor(copyTextForActivity(currentActivity), currentActivity);
         }
 
         private void updateIndicator(TerminalAgentModels.AgentActivity activity) {
@@ -1575,6 +1828,7 @@ public class AiAgentActivityPanel extends VBox {
         private final String profileId;
         private final String profileName;
         private final String modelName;
+        private final String reasoningStatus;
         private final LocalDateTime startedAt;
         private final List<TerminalAgentModels.AgentActivity> activities = new ArrayList<>();
         private LocalDateTime finishedAt;
@@ -1599,6 +1853,9 @@ public class AiAgentActivityPanel extends VBox {
                 : null;
             this.modelName = metadata != null && metadata.modelName() != null && !metadata.modelName().isBlank()
                 ? metadata.modelName().trim()
+                : null;
+            this.reasoningStatus = metadata != null && metadata.reasoningStatus() != null && !metadata.reasoningStatus().isBlank()
+                ? metadata.reasoningStatus().trim()
                 : null;
             this.startedAt = startedAt != null ? startedAt : LocalDateTime.now();
         }

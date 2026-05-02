@@ -170,6 +170,10 @@ public class GlobalSettings {
     @XmlElement
     private Double terminalAgentPanelFontSize;
 
+    /** Last saved AI planning tab font size. */
+    @XmlElement
+    private Double terminalAgentPlanFontSize;
+
     /** When true, inline terminal-agent panels start collapsed and stay collapsed unless manually expanded. */
     @XmlElement
     private boolean terminalAgentPanelKeepCollapsed = false;
@@ -688,6 +692,16 @@ public class GlobalSettings {
             : null;
     }
 
+    public Double getTerminalAgentPlanFontSize() {
+        return terminalAgentPlanFontSize;
+    }
+
+    public void setTerminalAgentPlanFontSize(Double terminalAgentPlanFontSize) {
+        this.terminalAgentPlanFontSize = isPositiveFinite(terminalAgentPlanFontSize)
+            ? terminalAgentPlanFontSize
+            : null;
+    }
+
     public boolean isTerminalAgentPanelKeepCollapsed() {
         return terminalAgentPanelKeepCollapsed;
     }
@@ -743,6 +757,9 @@ public class GlobalSettings {
         }
         if (!isPositiveFinite(terminalAgentPanelFontSize)) {
             terminalAgentPanelFontSize = null;
+        }
+        if (!isPositiveFinite(terminalAgentPlanFontSize)) {
+            terminalAgentPlanFontSize = null;
         }
         if (aiSnippetAlternativeSolutionCount == null || aiSnippetAlternativeSolutionCount <= 0) {
             aiSnippetAlternativeSolutionCount = 3;

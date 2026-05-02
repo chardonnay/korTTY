@@ -6,7 +6,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
-import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.util.Arrays;
 import java.util.List;
@@ -33,20 +33,26 @@ public class ThemeEditDialog extends ThemeAwareDialog<Theme> {
     private final ColorPicker agentPanelAccentColorPicker;
     private final ColorPicker agentPanelErrorColorPicker;
 
+    private static final double PREF_WIDTH = 460;
+    private static final double PREF_HEIGHT = 620;
+
     private static final List<String> CURSOR_STYLES = Arrays.asList(
             "BLINK_BLOCK", "STEADY_BLOCK",
             "BLINK_UNDERLINE", "STEADY_UNDERLINE",
             "BLINK_VERTICAL_BAR", "STEADY_VERTICAL_BAR"
     );
 
-    public ThemeEditDialog(Stage owner, Theme existing) {
+    public ThemeEditDialog(Window owner, Theme existing) {
         this.theme = existing != null ? existing : new Theme();
         this.isNew = existing == null;
 
         setTitle(isNew ? I18n.get("theme.edit.newTitle") : I18n.get("theme.edit.editTitle"));
         setHeaderText(null);
-        initOwner(owner);
+        if (owner != null) {
+            initOwner(owner);
+        }
         initModality(Modality.WINDOW_MODAL);
+        setResizable(true);
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -125,7 +131,12 @@ public class ThemeEditDialog extends ThemeAwareDialog<Theme> {
         grid.add(new Label(I18n.get("theme.edit.agentPanelError")), 0, row);
         grid.add(agentPanelErrorColorPicker, 1, row++);
 
-        getDialogPane().setContent(grid);
+        ScrollPane scrollPane = new ScrollPane(grid);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefViewportWidth(PREF_WIDTH);
+        scrollPane.setPrefViewportHeight(PREF_HEIGHT);
+        getDialogPane().setContent(scrollPane);
+        getDialogPane().setPrefSize(PREF_WIDTH + 60, PREF_HEIGHT + 120);
 
         ButtonType saveType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(saveType, ButtonType.CANCEL);
@@ -139,9 +150,9 @@ public class ThemeEditDialog extends ThemeAwareDialog<Theme> {
         });
 
         Button saveBtn = (Button) getDialogPane().lookupButton(saveType);
-        saveBtn.setDisable(isNew && (nameField.getText() == null || nameField.getText().trim().isEmpty()));
+        saveBtn.setDisable(isBlankName(nameField.getText()));
         nameField.textProperty().addListener((o, a, b) ->
-                saveBtn.setDisable(isNew && (b == null || b.trim().isEmpty())));
+                saveBtn.setDisable(isBlankName(b)));
     }
 
     private void applyToTheme() {
@@ -166,5 +177,9 @@ public class ThemeEditDialog extends ThemeAwareDialog<Theme> {
                 (int) (c.getRed() * 255),
                 (int) (c.getGreen() * 255),
                 (int) (c.getBlue() * 255));
+    }
+
+    private static boolean isBlankName(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

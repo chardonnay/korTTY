@@ -1,8 +1,8 @@
 package de.kortty.ui;
 
+import de.kortty.KorTTYApplication;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.security.PasswordStrengthChecker;
-import de.kortty.ui.I18n;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -10,6 +10,8 @@ import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -22,6 +24,12 @@ import org.slf4j.LoggerFactory;
 public class MasterPasswordDialog {
     
     private static final Logger logger = LoggerFactory.getLogger(MasterPasswordDialog.class);
+    private static final double LOGIN_DIALOG_WIDTH = 680;
+    private static final double LOGIN_DIALOG_HEIGHT = 300;
+    private static final double SETUP_DIALOG_WIDTH = 780;
+    private static final double SETUP_DIALOG_HEIGHT = 520;
+    private static final double BRAND_PANEL_WIDTH = 190;
+    private static final double LOGO_WIDTH = 128;
     
     private final Stage dialog;
     private final MasterPasswordManager passwordManager;
@@ -53,7 +61,7 @@ public class MasterPasswordDialog {
         dialog.setTitle(I18n.get("masterPassword.title"));
         
         VBox root = new VBox(15);
-        root.setPadding(new Insets(20));
+        root.setPadding(new Insets(34, 38, 30, 38));
         root.setAlignment(Pos.CENTER);
         
         Label titleLabel = new Label(I18n.get("masterPassword.enter"));
@@ -109,16 +117,17 @@ public class MasterPasswordDialog {
             dialog.close();
         });
         
-        Scene scene = new Scene(root);
+        Scene scene = createBrandedScene(root, LOGIN_DIALOG_WIDTH, LOGIN_DIALOG_HEIGHT);
         dialog.setScene(scene);
-        dialog.sizeToScene();
+        dialog.setMinWidth(LOGIN_DIALOG_WIDTH);
+        dialog.setMinHeight(LOGIN_DIALOG_HEIGHT);
     }
     
     private void setupSetupDialog() {
         dialog.setTitle(I18n.get("masterPassword.setup"));
         
         VBox root = new VBox(15);
-        root.setPadding(new Insets(20));
+        root.setPadding(new Insets(34, 38, 30, 38));
         root.setAlignment(Pos.CENTER);
         
         Label titleLabel = new Label(I18n.get("masterPassword.setup"));
@@ -237,9 +246,58 @@ public class MasterPasswordDialog {
             dialog.close();
         });
         
-        Scene scene = new Scene(root);
+        Scene scene = createBrandedScene(root, SETUP_DIALOG_WIDTH, SETUP_DIALOG_HEIGHT);
         dialog.setScene(scene);
-        dialog.sizeToScene();
+        dialog.setMinWidth(SETUP_DIALOG_WIDTH);
+        dialog.setMinHeight(SETUP_DIALOG_HEIGHT);
+    }
+
+    private Scene createBrandedScene(VBox content, double width, double height) {
+        HBox brandedRoot = new HBox(24);
+        brandedRoot.setPrefSize(width, height);
+        brandedRoot.setMinSize(width, height);
+        brandedRoot.setAlignment(Pos.CENTER);
+        brandedRoot.setPadding(new Insets(0, 34, 0, 16));
+        brandedRoot.getStyleClass().add("master-password-root");
+        brandedRoot.setStyle("-fx-background-color: #ECEFF3;");
+        content.setMaxWidth(width - BRAND_PANEL_WIDTH - 72);
+        VBox brandBox = createBrandBox();
+        brandedRoot.getChildren().addAll(content, brandBox);
+        return new Scene(brandedRoot, width, height);
+    }
+
+    private VBox createBrandBox() {
+        VBox brandBox = new VBox(12);
+        brandBox.setAlignment(Pos.CENTER);
+        brandBox.setMinWidth(BRAND_PANEL_WIDTH);
+        brandBox.setPrefWidth(BRAND_PANEL_WIDTH);
+        brandBox.setMaxWidth(BRAND_PANEL_WIDTH);
+
+        ImageView logoView = createLogoView();
+        Label versionLabel = createVersionLabel();
+        if (logoView != null) {
+            brandBox.getChildren().add(logoView);
+        }
+        brandBox.getChildren().add(versionLabel);
+        return brandBox;
+    }
+
+    private ImageView createLogoView() {
+        var logoUrl = getClass().getResource("/icon/kortty_icon.png");
+        if (logoUrl == null) {
+            return null;
+        }
+        ImageView logoView = new ImageView(new Image(logoUrl.toExternalForm()));
+        logoView.setFitWidth(LOGO_WIDTH);
+        logoView.setPreserveRatio(true);
+        logoView.setMouseTransparent(true);
+        return logoView;
+    }
+
+    private Label createVersionLabel() {
+        Label versionLabel = new Label(I18n.get("app.version") + " " + KorTTYApplication.getAppVersion());
+        versionLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #777;");
+        return versionLabel;
     }
     
     /**

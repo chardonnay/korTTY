@@ -44,7 +44,7 @@ public class TerminalAgentService {
     private static final Gson GSON = new Gson();
     private static final int MAX_AGENT_TURNS = 8;
     private static final int MAX_COMMANDS_PER_TURN = 3;
-    private static final int MAX_SUDO_PASSWORD_RETRIES = 3;
+    public static final int MAX_SUDO_PASSWORD_RETRIES = 3;
     private static final int COMMAND_TITLE_PREVIEW_CHARS = 96;
     private static final int COMMAND_OUTPUT_TAIL_CHARS = 4_000;
     private static final Duration COMMAND_OPEN_TIMEOUT = Duration.ofSeconds(30);
@@ -109,6 +109,12 @@ public class TerminalAgentService {
         String userMessage) {
     }
 
+    public record PlanningReport(
+        TerminalAgentModels.PlanReport report,
+        String summary,
+        String userMessage) {
+    }
+
     public TerminalAgentModels.ProbeSnapshot probeTerminalSession(TerminalTab terminalTab) throws Exception {
         return probeTerminalSession(terminalTab, null, null);
     }
@@ -160,7 +166,11 @@ public class TerminalAgentService {
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         AgentPlanQuestionDecision decision = parsePlanQuestionDecision(result.content());
         List<TerminalAgentModels.PlanQuestion> questions = decision.questions().stream()
-            .map(item -> new TerminalAgentModels.PlanQuestion(item.id(), item.question()))
+            .map(item -> new TerminalAgentModels.PlanQuestion(
+                item.id(),
+                item.question(),
+                safeList(item.options()),
+                item.allowCustomAnswer()))
             .toList();
         return new PlanningQuestions(questions, decision.summary(), decision.userMessage());
     }
@@ -178,7 +188,7 @@ public class TerminalAgentService {
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         AgentPlanOptionDecision decision = parsePlanOptionDecision(result.content());
         List<TerminalAgentModels.PlanOption> options = new ArrayList<>();
-        for (AgentPlanOptionDecisionItem item : decision.options()) {
+        for (AgentPlanOptionDecisionItem item : safeList(decision.options())) {
             options.add(new TerminalAgentModels.PlanOption(
                 UUID.randomUUID().toString(),
                 item.title(),
@@ -192,6 +202,29 @@ public class TerminalAgentService {
         return new PlanningOptions(options, decision.summary(), decision.userMessage());
     }
 
+    public PlanningReport requestPlanningReport(
+        AiProfile profile,
+        OpenAiCompatibleAiService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.PlanQuestion> questions,
+        String answers,
+        TerminalAgentModels.PlanOption selectedOption,
+        String customApproach) throws Exception {
+        String systemPrompt = buildPlanReportSystemPrompt();
+        String userPrompt = buildPlanReportUserPrompt(request, probe, questions, answers, selectedOption, customApproach);
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        AgentPlanReportDecision decision = parsePlanReportDecision(result.content());
+        TerminalAgentModels.PlanReport report = new TerminalAgentModels.PlanReport(
+            decision.title(),
+            decision.summary(),
+            safeList(decision.prerequisites()),
+            safeList(decision.steps()),
+            safeList(decision.risks()),
+            safeList(decision.successCriteria()));
+        return new PlanningReport(report, decision.summary(), decision.userMessage());
+    }
+
     public String buildAcceptedPlanContext(TerminalAgentModels.PlanOption option) {
         if (option == null) {
             return "";
@@ -203,6 +236,18 @@ public class TerminalAgentService {
             + "Risks: " + joinPlanItems(option.risks()) + "\n"
             + "Steps:\n" + joinSteps(option.steps()) + "\n"
             + "Alternatives: " + joinPlanItems(option.alternatives());
+    }
+
+    public String buildAcceptedPlanContext(TerminalAgentModels.PlanReport report) {
+        if (report == null) {
+            return "";
+        }
+        return "Accepted final plan: " + nonBlank(report.title(), "Untitled plan") + "\n"
+            + "Summary: " + nonBlank(report.summary(), "") + "\n"
+            + "Prerequisites: " + joinPlanItems(report.prerequisites()) + "\n"
+            + "Risks: " + joinPlanItems(report.risks()) + "\n"
+            + "Success criteria: " + joinPlanItems(report.successCriteria()) + "\n"
+            + "Steps:\n" + joinSteps(report.steps());
     }
 
     public void runAgent(
@@ -759,6 +804,54 @@ public class TerminalAgentService {
         }
     }
 
+    public static boolean needsSudoPasswordPreflight(TerminalAgentModels.ProbeSnapshot probe) {
+        return probe != null
+            && !probe.alreadyRoot()
+            && probe.sudoAvailable()
+            && !probe.passwordlessSudo();
+    }
+
+    public boolean verifyAndCacheSudoPassword(
+        TerminalTab terminalTab,
+        SshTtyConnector connector,
+        String sessionId,
+        TerminalAgentModels.PasswordResponse passwordResponse,
+        BooleanSupplier cancellationSupplier) throws Exception {
+        if (sessionId == null || sessionId.isBlank()
+            || passwordResponse == null
+            || passwordResponse.password() == null
+            || passwordResponse.password().isBlank()) {
+            return false;
+        }
+        char[] passwordChars = passwordResponse.password().toCharArray();
+        CachedSudoPassword cachedPassword;
+        try {
+            cachedPassword = new CachedSudoPassword(passwordChars, true);
+        } finally {
+            Arrays.fill(passwordChars, '\0');
+        }
+        byte[] stdin = cachedPassword.toUtf8Line();
+        boolean stored = false;
+        try {
+            ExecResult result = exec(terminalTab, connector, "sudo -S -p '' -v", stdin, null, cancellationSupplier);
+            if (result.exitCode() == 0) {
+                CachedSudoPassword previous = cachedSudoPasswordBySessionId.put(sessionId, cachedPassword);
+                stored = true;
+                if (previous != null) {
+                    previous.clear();
+                }
+                return true;
+            }
+            clearCachedSudoPassword(sessionId);
+            return false;
+        } finally {
+            Arrays.fill(stdin, (byte) 0);
+            if (!stored) {
+                cachedPassword.clear();
+            }
+        }
+    }
+
     static boolean shouldClearCachedSudoPassword(String stdout, String stderr) {
         String combined = ((stdout != null ? stdout : "") + "\n" + (stderr != null ? stderr : ""))
             .toLowerCase(Locale.ROOT);
@@ -795,7 +888,7 @@ public class TerminalAgentService {
         return probe;
     }
 
-    private AgentDecision requestAgentDecision(
+    AgentDecision requestAgentDecision(
         OpenAiCompatibleAiService aiService,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
@@ -818,7 +911,7 @@ public class TerminalAgentService {
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         recordTokenUsage(ui, result);
         try {
-            AgentDecision decision = parseAgentDecision(result.content());
+            AgentDecision decision = parseAndValidateAgentDecision(result.content(), probe, request.queryOnly());
             publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
                 decision.userMessage(),
@@ -830,7 +923,7 @@ public class TerminalAgentService {
         } catch (Exception firstFailure) {
             publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
-                "The AI response needed schema repair.",
+                "The AI response needed repair.",
                 firstFailure.getMessage(),
                 tokenUsageOf(result),
                 elapsedSecondsSince(startedAtNanos),
@@ -840,14 +933,17 @@ public class TerminalAgentService {
             publishThinking(ui, repairThinkingId, TerminalAgentModels.AgentActivityStatus.RUNNING,
                 "Thinking",
                 "Repairing the AI response format.",
-                "The previous response did not match the required JSON schema.",
+                "The previous response did not match the required JSON schema or command constraints.",
                 TerminalAgentModels.AgentActivityTokenUsage.unknown(),
                 0L,
                 false);
-            AiExecutionResult repaired = executeAgentJsonPrompt(aiService, systemPrompt, buildAgentRepairPrompt(result.content()));
+            AiExecutionResult repaired = executeAgentJsonPrompt(
+                aiService,
+                systemPrompt,
+                buildAgentDecisionRepairPrompt(result.content(), firstFailure.getMessage()));
             recordTokenUsage(ui, repaired);
             try {
-                AgentDecision decision = parseAgentDecision(repaired.content());
+                AgentDecision decision = parseAndValidateAgentDecision(repaired.content(), probe, request.queryOnly());
                 publishThinking(ui, repairThinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
                     "Thinking",
                     decision.userMessage(),
@@ -857,7 +953,7 @@ public class TerminalAgentService {
                     true);
                 return decision;
             } catch (Exception repairFailure) {
-                String message = "The AI response did not match the required agent JSON schema.";
+                String message = "The AI response did not match the required agent JSON schema or command constraints.";
                 publishThinking(ui, repairThinkingId, TerminalAgentModels.AgentActivityStatus.FAILED,
                     "Thinking",
                     message,
@@ -999,6 +1095,17 @@ public class TerminalAgentService {
         return decision;
     }
 
+    private AgentDecision parseAndValidateAgentDecision(
+        String rawContent,
+        TerminalAgentModels.ProbeSnapshot probe,
+        boolean queryOnly) {
+        AgentDecision decision = parseAgentDecision(rawContent);
+        if (decision.status() == AgentDecisionStatus.run_commands || decision.status() == AgentDecisionStatus.needs_confirmation) {
+            validateCommands(decision.commands(), probe, queryOnly);
+        }
+        return decision;
+    }
+
     private AgentDecision parseFinalAgentDecision(String rawContent) {
         AgentDecision decision = parseAgentDecision(rawContent);
         if (decision.status() != AgentDecisionStatus.done && decision.status() != AgentDecisionStatus.blocked) {
@@ -1007,18 +1114,51 @@ public class TerminalAgentService {
         return decision;
     }
 
-    private AgentPlanQuestionDecision parsePlanQuestionDecision(String rawContent) {
+    AgentPlanQuestionDecision parsePlanQuestionDecision(String rawContent) {
         AgentPlanQuestionDecision decision = GSON.fromJson(extractJsonObjectContent(rawContent), AgentPlanQuestionDecision.class);
-        if (decision == null || decision.questions == null || decision.questions.isEmpty()) {
+        if (decision == null || !"questions".equals(decision.status())) {
+            throw new JsonSyntaxException("Planning question status missing");
+        }
+        if (decision.questions == null || decision.questions.isEmpty()) {
             throw new JsonSyntaxException("Planning questions missing");
+        }
+        for (AgentPlanQuestionDecisionItem item : decision.questions()) {
+            if (item == null || blank(item.id()) || blank(item.question())) {
+                throw new JsonSyntaxException("Planning question entry incomplete");
+            }
         }
         return decision;
     }
 
-    private AgentPlanOptionDecision parsePlanOptionDecision(String rawContent) {
+    AgentPlanOptionDecision parsePlanOptionDecision(String rawContent) {
         AgentPlanOptionDecision decision = GSON.fromJson(extractJsonObjectContent(rawContent), AgentPlanOptionDecision.class);
-        if (decision == null || decision.options == null || decision.options.isEmpty()) {
+        if (decision == null || blank(decision.status())) {
+            throw new JsonSyntaxException("Planning option status missing");
+        }
+        if (!"options".equals(decision.status()) && !"blocked".equals(decision.status())) {
+            throw new JsonSyntaxException("Unsupported planning option status");
+        }
+        if ("options".equals(decision.status()) && (decision.options == null || decision.options.isEmpty())) {
             throw new JsonSyntaxException("Planning options missing");
+        }
+        for (AgentPlanOptionDecisionItem item : safeList(decision.options())) {
+            if (item == null || blank(item.title()) || blank(item.summary())) {
+                throw new JsonSyntaxException("Planning option entry incomplete");
+            }
+        }
+        return decision;
+    }
+
+    AgentPlanReportDecision parsePlanReportDecision(String rawContent) {
+        AgentPlanReportDecision decision = GSON.fromJson(extractJsonObjectContent(rawContent), AgentPlanReportDecision.class);
+        if (decision == null || !"final_plan".equals(decision.status())) {
+            throw new JsonSyntaxException("Planning report status missing");
+        }
+        if (blank(decision.title()) || blank(decision.summary())) {
+            throw new JsonSyntaxException("Planning report missing title or summary");
+        }
+        if (decision.steps() == null || decision.steps().isEmpty()) {
+            throw new JsonSyntaxException("Planning report missing steps");
         }
         return decision;
     }
@@ -1128,7 +1268,7 @@ public class TerminalAgentService {
             return List.of();
         }
         if (commands.size() > MAX_COMMANDS_PER_TURN) {
-            throw new IllegalArgumentException("The AI planner returned too many commands.");
+            throw new IllegalArgumentException("The AI agent returned too many commands.");
         }
         List<TerminalAgentModels.PlannedCommand> validated = new ArrayList<>();
         for (AgentCommandDecision command : commands) {
@@ -1919,6 +2059,14 @@ public class TerminalAgentService {
             + "Do not add Markdown. Previous reply:\n```text\n" + nonBlank(invalidResponse, "") + "\n```";
     }
 
+    private String buildAgentDecisionRepairPrompt(String invalidResponse, String validationError) {
+        return "Your previous reply was invalid. Reply again with exactly one JSON object that matches the required schema and constraints. "
+            + "Validation error: " + nonBlank(validationError, "unknown validation error") + "\n"
+            + "Return at most " + MAX_COMMANDS_PER_TURN + " commands. If the task needs more commands, return only the next safe batch; later turns can continue. "
+            + "If no safe command can be returned, use status `blocked`. Do not add Markdown. Previous reply:\n```text\n"
+            + nonBlank(invalidResponse, "") + "\n```";
+    }
+
     private String buildPlanQuestionSystemPrompt() {
         return String.join(" ",
             "You are KorTTY's planning agent.",
@@ -1926,8 +2074,9 @@ public class TerminalAgentService {
             "Ask clarifying questions first, even if the task seems clear.",
             "Return exactly one JSON object and no Markdown.",
             "Allowed status value: `questions`.",
-            "JSON schema: {\"status\":\"questions\",\"summary\":\"short summary\",\"userMessage\":\"short text for the user\",\"questions\":[{\"id\":\"q1\",\"question\":\"question text\"}]}",
-            "For `questions`, return between 1 and 3 concrete questions.");
+            "JSON schema: {\"status\":\"questions\",\"summary\":\"short summary\",\"userMessage\":\"short text for the user\",\"questions\":[{\"id\":\"q1\",\"question\":\"question text\",\"options\":[\"short option\"],\"allowCustomAnswer\":true}]}",
+            "For `questions`, return between 1 and 3 concrete questions.",
+            "For every question, include 2 to 4 short answer options and set `allowCustomAnswer` true unless a custom answer would be unsafe.");
     }
 
     private String buildPlanOptionSystemPrompt() {
@@ -1935,9 +2084,19 @@ public class TerminalAgentService {
             "You are KorTTY's planning agent.",
             "You are still in planning mode and must never output shell commands.",
             "Return exactly one JSON object and no Markdown.",
-            "Allowed status values: `options`, `blocked`, `done`.",
-            "JSON schema: {\"status\":\"options|blocked|done\",\"summary\":\"short summary\",\"userMessage\":\"short text for the user\",\"options\":[{\"title\":\"option title\",\"summary\":\"short summary\",\"feasibility\":\"feasibility note\",\"risks\":[\"risk\"],\"prerequisites\":[\"prerequisite\"],\"steps\":[\"step\"],\"alternatives\":[\"alternative\"]}]}",
+            "Allowed status values: `options`, `blocked`.",
+            "JSON schema: {\"status\":\"options|blocked\",\"summary\":\"short summary\",\"userMessage\":\"short text for the user\",\"options\":[{\"title\":\"option title\",\"summary\":\"short summary\",\"feasibility\":\"feasibility note\",\"risks\":[\"risk\"],\"prerequisites\":[\"prerequisite\"],\"steps\":[\"step\"],\"alternatives\":[\"alternative\"]}]}",
             "For `options`, return between 1 and 3 concrete implementation options.");
+    }
+
+    private String buildPlanReportSystemPrompt() {
+        return String.join(" ",
+            "You are KorTTY's planning agent preparing the final implementation plan.",
+            "You are still in planning mode and must never output shell commands.",
+            "Return exactly one JSON object and no Markdown.",
+            "Allowed status value: `final_plan`.",
+            "JSON schema: {\"status\":\"final_plan\",\"title\":\"plan title\",\"summary\":\"short report\",\"userMessage\":\"short text for the user\",\"prerequisites\":[\"item\"],\"steps\":[\"step\"],\"risks\":[\"risk\"],\"successCriteria\":[\"criterion\"]}",
+            "Make the plan concise, executable, and specific enough for the agent to implement without further product decisions.");
     }
 
     private String buildPlanQuestionUserPrompt(TerminalAgentModels.PlanRequest request, TerminalAgentModels.ProbeSnapshot probe) {
@@ -1967,6 +2126,27 @@ public class TerminalAgentService {
                 ? "Incorporate the user's own approach into the new options."
                 : "Use the answers to refine the options.")
             + customBlock + "\nCreate implementation options now.";
+    }
+
+    private String buildPlanReportUserPrompt(
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.PlanQuestion> questions,
+        String answers,
+        TerminalAgentModels.PlanOption selectedOption,
+        String customApproach) {
+        String customBlock = customApproach != null && !customApproach.isBlank()
+            ? "\nLatest user refinement:\n" + customApproach.trim() + "\n"
+            : "";
+        return "User task: " + request.userPrompt().trim() + "\n"
+            + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
+            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
+            + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
+            + "Clarifying questions:\n```json\n" + GSON.toJson(questions) + "\n```\n\n"
+            + "User answers:\n" + nonBlank(answers, "No explicit answers were provided.") + "\n\n"
+            + "Selected implementation option:\n```json\n" + GSON.toJson(selectedOption) + "\n```\n"
+            + customBlock
+            + "\nCreate the final plan report now.";
     }
 
     private String joinPlanItems(List<String> items) {
@@ -2106,7 +2286,7 @@ public class TerminalAgentService {
         }
     }
 
-    private static class AgentDecision {
+    static class AgentDecision {
         private AgentDecisionStatus status;
         private String summary;
         private String userMessage;
@@ -2144,7 +2324,7 @@ public class TerminalAgentService {
         }
     }
 
-    private enum AgentDecisionStatus {
+    enum AgentDecisionStatus {
         run_commands,
         needs_confirmation,
         done,
@@ -2155,22 +2335,22 @@ public class TerminalAgentService {
         }
     }
 
-    private static class AgentCommandDecision {
+    static class AgentCommandDecision {
         private String command;
         private String purpose;
         private String risk;
     }
 
-    private record AgentPlanQuestionDecision(String status, String summary, String userMessage, List<AgentPlanQuestionDecisionItem> questions) {
+    record AgentPlanQuestionDecision(String status, String summary, String userMessage, List<AgentPlanQuestionDecisionItem> questions) {
     }
 
-    private record AgentPlanQuestionDecisionItem(String id, String question) {
+    record AgentPlanQuestionDecisionItem(String id, String question, List<String> options, boolean allowCustomAnswer) {
     }
 
-    private record AgentPlanOptionDecision(String status, String summary, String userMessage, List<AgentPlanOptionDecisionItem> options) {
+    record AgentPlanOptionDecision(String status, String summary, String userMessage, List<AgentPlanOptionDecisionItem> options) {
     }
 
-    private record AgentPlanOptionDecisionItem(
+    record AgentPlanOptionDecisionItem(
         String title,
         String summary,
         String feasibility,
@@ -2178,5 +2358,16 @@ public class TerminalAgentService {
         List<String> prerequisites,
         List<String> steps,
         List<String> alternatives) {
+    }
+
+    record AgentPlanReportDecision(
+        String status,
+        String title,
+        String summary,
+        String userMessage,
+        List<String> prerequisites,
+        List<String> steps,
+        List<String> risks,
+        List<String> successCriteria) {
     }
 }

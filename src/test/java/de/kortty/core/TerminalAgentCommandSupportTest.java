@@ -43,6 +43,29 @@ class TerminalAgentCommandSupportTest {
     }
 
     @Test
+    void parsePlanFlagShortcutSupportsProfileOptions() {
+        TerminalAgentCommandSupport.Invocation invocation =
+            TerminalAgentCommandSupport.parseShortcut("agent -plan(profile=db) install postgres", "agent");
+
+        assertNotNull(invocation);
+        assertEquals(TerminalAgentCommandSupport.InvocationKind.PLAN, invocation.kind());
+        assertEquals("db", invocation.profileName());
+        assertEquals("install postgres", invocation.userPrompt());
+    }
+
+    @Test
+    void parsePlanFlagShortcutCombinesCommandAndPlanOptions() {
+        TerminalAgentCommandSupport.Invocation invocation =
+            TerminalAgentCommandSupport.parseShortcut("agent(root=true) -plan(profile=ops) install nginx", "agent");
+
+        assertNotNull(invocation);
+        assertEquals(TerminalAgentCommandSupport.InvocationKind.PLAN, invocation.kind());
+        assertEquals("ops", invocation.profileName());
+        assertTrue(invocation.autoApproveRootCommands());
+        assertEquals("install nginx", invocation.userPrompt());
+    }
+
+    @Test
     void parseShortcutCanUseCaseInsensitiveCommandNamesWhenEnabled() {
         assertNull(TerminalAgentCommandSupport.parseShortcut("Agent install tmux", "agent"));
 
@@ -51,6 +74,16 @@ class TerminalAgentCommandSupportTest {
 
         assertNotNull(invocation);
         assertEquals(TerminalAgentCommandSupport.InvocationKind.EXECUTE, invocation.kind());
+        assertEquals("install tmux", invocation.userPrompt());
+    }
+
+    @Test
+    void parsePlanFlagShortcutCanUseCaseInsensitiveCommandNamesWhenEnabled() {
+        TerminalAgentCommandSupport.Invocation invocation =
+            TerminalAgentCommandSupport.parseShortcut("Agent -PLAN install tmux", "agent", true);
+
+        assertNotNull(invocation);
+        assertEquals(TerminalAgentCommandSupport.InvocationKind.PLAN, invocation.kind());
         assertEquals("install tmux", invocation.userPrompt());
     }
 

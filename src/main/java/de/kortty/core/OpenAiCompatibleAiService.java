@@ -5,6 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.kortty.model.AiReasoningEffort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,16 +43,32 @@ public class OpenAiCompatibleAiService implements AiService {
     private final String apiUrl;
     private final String model;
     private final String apiKey;
+    private final AiReasoningEffort reasoningEffort;
     private final HttpClient httpClient;
 
     public OpenAiCompatibleAiService(String apiUrl, String model, String apiKey) {
-        this(apiUrl, model, apiKey, HttpClient.newBuilder().connectTimeout(DEFAULT_CONNECT_TIMEOUT).build());
+        this(apiUrl, model, apiKey, AiReasoningEffort.DISABLED);
+    }
+
+    public OpenAiCompatibleAiService(String apiUrl, String model, String apiKey, AiReasoningEffort reasoningEffort) {
+        this(apiUrl, model, apiKey, reasoningEffort, HttpClient.newBuilder().connectTimeout(DEFAULT_CONNECT_TIMEOUT).build());
     }
 
     OpenAiCompatibleAiService(String apiUrl, String model, String apiKey, HttpClient httpClient) {
+        this(apiUrl, model, apiKey, AiReasoningEffort.DISABLED, httpClient);
+    }
+
+    OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        HttpClient httpClient) {
+
         this.apiUrl = apiUrl != null ? apiUrl.trim() : "";
         this.model = model != null ? model.trim() : "";
         this.apiKey = apiKey != null ? apiKey.trim() : "";
+        this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
         this.httpClient = httpClient;
     }
 
@@ -176,6 +193,7 @@ public class OpenAiCompatibleAiService implements AiService {
 
         root.add("messages", messages);
         root.addProperty("temperature", 0.2);
+        appendReasoningEffort(root);
         return GSON.toJson(root);
     }
 
@@ -218,12 +236,19 @@ public class OpenAiCompatibleAiService implements AiService {
 
         root.add("messages", messages);
         root.addProperty("temperature", temperature);
+        appendReasoningEffort(root);
         if (jsonResponseFormat) {
             JsonObject responseFormat = new JsonObject();
             responseFormat.addProperty("type", "json_object");
             root.add("response_format", responseFormat);
         }
         return GSON.toJson(root);
+    }
+
+    private void appendReasoningEffort(JsonObject root) {
+        if (reasoningEffort.isApiEnabled()) {
+            root.addProperty("reasoning_effort", reasoningEffort.apiValue());
+        }
     }
 
     String readResponseBody(InputStream responseStream) throws IOException {

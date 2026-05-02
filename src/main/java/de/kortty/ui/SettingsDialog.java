@@ -9,6 +9,7 @@ import de.kortty.core.GPGKeyManager;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
+import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiService;
 import de.kortty.core.GoogleTranslationService;
@@ -23,6 +24,7 @@ import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.TranslationService;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.ConnectionSettings;
@@ -49,6 +51,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -147,6 +150,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final TextField aiProfileNameField;
     private final TextField aiApiUrlField;
     private final TextField aiModelField;
+    private final ComboBox<AiReasoningEffort> aiReasoningCombo;
     private final PasswordField aiApiKeyField;
     private final CheckBox aiClearApiKeyCheck;
     private final CheckBox aiFeaturesEnabledCheck;
@@ -279,10 +283,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             @Override public Theme fromString(String s) { return null; }
         });
         if (colorThemeManager != null) {
-            colorProfileCombo.getItems().addAll(colorThemeManager.getThemes());
-            if (selectedGlobalThemeId != null && !selectedGlobalThemeId.isEmpty()) {
-                colorThemeManager.getTheme(selectedGlobalThemeId).ifPresent(colorProfileCombo::setValue);
-            }
+            refreshColorProfileCombo(colorThemeManager, selectedGlobalThemeId);
         }
         cursorBlinkCheck = new CheckBox(I18n.get("settings.colors.cursorBlink"));
         cursorBlinkCheck.setSelected(isCursorBlink(settings.getCursorStyle()));
@@ -1165,6 +1166,22 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiModelField.setPrefWidth(220);
         aiEditorGrid.add(aiModelField, 1, aiRow++);
 
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.reasoning")), 0, aiRow);
+        aiReasoningCombo = new ComboBox<>();
+        aiReasoningCombo.setPrefWidth(220);
+        aiReasoningCombo.setConverter(createAiReasoningConverter());
+        aiReasoningCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setReasoningEffort(newValue);
+            }
+        });
+        aiEditorGrid.add(aiReasoningCombo, 1, aiRow++);
+
+        aiApiUrlField.textProperty().addListener((obs, oldValue, newValue) ->
+            refreshAiReasoningOptions(aiReasoningCombo.getValue()));
+        aiModelField.textProperty().addListener((obs, oldValue, newValue) ->
+            refreshAiReasoningOptions(aiReasoningCombo.getValue()));
+
         aiEditorGrid.add(new Label(I18n.get("settings.ai.apiKey")), 0, aiRow);
         aiApiKeyField = new PasswordField();
         aiApiKeyField.setPrefWidth(280);
@@ -1849,67 +1866,41 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         deleteBtn.setDisable(true);
         
         addBtn.setOnAction(e -> {
-            ThemeEditDialog dlg = new ThemeEditDialog(owner, null);
+            ThemeEditDialog dlg = new ThemeEditDialog(getSettingsDialogOwner(owner), null);
             dlg.showAndWait().ifPresent(t -> {
                 themeManager.addTheme(t);
-                themeList.getItems().clear();
-                themeList.getItems().addAll(themeManager.getThemes());
-                themeList.getSelectionModel().select(t);
+                selectedGlobalThemeId = t.getId();
+                refreshThemeList(themeList, themeManager, selectedGlobalThemeId);
+                refreshColorProfileCombo(themeManager, selectedGlobalThemeId);
             });
         });
         
         editBtn.setOnAction(e -> {
             Theme sel = themeList.getSelectionModel().getSelectedItem();
             if (sel == null) return;
-            Theme copy = new Theme();
-            copy.setId(sel.getId());
-            copy.setName(sel.getName());
-            copy.setFontFamily(sel.getFontFamily());
-            copy.setFontSize(sel.getFontSize());
-            copy.setForegroundColor(sel.getForegroundColor());
-            copy.setBackgroundColor(sel.getBackgroundColor());
-            copy.setCursorColor(sel.getCursorColor());
-            copy.setCursorStyle(sel.getCursorStyle());
-            copy.setAgentPanelBackgroundColor(sel.getAgentPanelBackgroundColor());
-            copy.setAgentPanelBorderColor(sel.getAgentPanelBorderColor());
-            copy.setAgentPanelTextColor(sel.getAgentPanelTextColor());
-            copy.setAgentPanelMutedTextColor(sel.getAgentPanelMutedTextColor());
-            copy.setAgentPanelAccentColor(sel.getAgentPanelAccentColor());
-            copy.setAgentPanelErrorColor(sel.getAgentPanelErrorColor());
-            copy.setBuiltIn(sel.isBuiltIn());
-            ThemeEditDialog dlg = new ThemeEditDialog(owner, copy);
+            Theme copy = copyTheme(sel);
+            ThemeEditDialog dlg = new ThemeEditDialog(getSettingsDialogOwner(owner), copy);
             dlg.showAndWait().ifPresent(edited -> {
                 themeManager.updateTheme(edited);
-                themeList.getItems().clear();
-                themeList.getItems().addAll(themeManager.getThemes());
-                themeList.getSelectionModel().select(edited);
+                selectedGlobalThemeId = edited.getId();
+                refreshThemeList(themeList, themeManager, selectedGlobalThemeId);
+                refreshColorProfileCombo(themeManager, selectedGlobalThemeId);
             });
         });
         
         duplicateBtn.setOnAction(e -> {
             Theme sel = themeList.getSelectionModel().getSelectedItem();
             if (sel == null) return;
-            Theme dup = new Theme();
+            Theme dup = copyTheme(sel);
+            dup.setId(null);
             dup.setName(sel.getName() + " " + I18n.get("theme.copy"));
-            dup.setFontFamily(sel.getFontFamily());
-            dup.setFontSize(sel.getFontSize());
-            dup.setForegroundColor(sel.getForegroundColor());
-            dup.setBackgroundColor(sel.getBackgroundColor());
-            dup.setCursorColor(sel.getCursorColor());
-            dup.setCursorStyle(sel.getCursorStyle());
-            dup.setAgentPanelBackgroundColor(sel.getAgentPanelBackgroundColor());
-            dup.setAgentPanelBorderColor(sel.getAgentPanelBorderColor());
-            dup.setAgentPanelTextColor(sel.getAgentPanelTextColor());
-            dup.setAgentPanelMutedTextColor(sel.getAgentPanelMutedTextColor());
-            dup.setAgentPanelAccentColor(sel.getAgentPanelAccentColor());
-            dup.setAgentPanelErrorColor(sel.getAgentPanelErrorColor());
             dup.setBuiltIn(false);
-            ThemeEditDialog dlg = new ThemeEditDialog(owner, dup);
+            ThemeEditDialog dlg = new ThemeEditDialog(getSettingsDialogOwner(owner), dup);
             dlg.showAndWait().ifPresent(t -> {
                 themeManager.addTheme(t);
-                themeList.getItems().clear();
-                themeList.getItems().addAll(themeManager.getThemes());
-                themeList.getSelectionModel().select(t);
+                selectedGlobalThemeId = t.getId();
+                refreshThemeList(themeList, themeManager, selectedGlobalThemeId);
+                refreshColorProfileCombo(themeManager, selectedGlobalThemeId);
             });
         });
         
@@ -1919,18 +1910,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle(I18n.get("theme.deleteTitle"));
             confirm.setHeaderText(I18n.get("theme.deleteConfirm", sel.getName()));
-            confirm.initOwner(owner);
+            Window dialogOwner = getSettingsDialogOwner(owner);
+            if (dialogOwner != null) {
+                confirm.initOwner(dialogOwner);
+            }
             if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
                 String deletedId = sel.getId();
                 themeManager.removeTheme(sel.getId());
-                themeList.getItems().clear();
-                themeList.getItems().addAll(themeManager.getThemes());
                 if (deletedId != null && deletedId.equals(selectedGlobalThemeId)) {
-                    selectedGlobalThemeId = null;
-                    if (!themeList.getItems().isEmpty()) {
-                        themeList.getSelectionModel().selectFirst();
-                    }
+                    selectedGlobalThemeId = themeManager.getThemes().isEmpty()
+                        ? null
+                        : themeManager.getThemes().get(0).getId();
                 }
+                refreshThemeList(themeList, themeManager, selectedGlobalThemeId);
+                refreshColorProfileCombo(themeManager, selectedGlobalThemeId);
             }
         });
         
@@ -1939,6 +1932,74 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         tab.setContent(vbox);
         return tab;
+    }
+
+    private Window getSettingsDialogOwner(Stage fallbackOwner) {
+        if (getDialogPane() != null && getDialogPane().getScene() != null) {
+            Window window = getDialogPane().getScene().getWindow();
+            if (window != null) {
+                return window;
+            }
+        }
+        return fallbackOwner;
+    }
+
+    private void refreshThemeList(ListView<Theme> themeList, ThemeManager themeManager, String selectedThemeId) {
+        if (themeList == null || themeManager == null) {
+            return;
+        }
+        themeList.getItems().setAll(themeManager.getThemes());
+        if (selectedThemeId != null && !selectedThemeId.isBlank()) {
+            for (Theme theme : themeList.getItems()) {
+                if (selectedThemeId.equals(theme.getId())) {
+                    themeList.getSelectionModel().select(theme);
+                    return;
+                }
+            }
+        }
+        if (!themeList.getItems().isEmpty()) {
+            themeList.getSelectionModel().selectFirst();
+        }
+    }
+
+    private void refreshColorProfileCombo(ThemeManager themeManager, String selectedThemeId) {
+        if (colorProfileCombo == null || themeManager == null) {
+            return;
+        }
+        colorProfileCombo.getItems().setAll(themeManager.getThemes());
+        if (selectedThemeId != null && !selectedThemeId.isBlank()) {
+            Theme selected = themeManager.getTheme(selectedThemeId).orElse(null);
+            if (selected != null) {
+                colorProfileCombo.setValue(selected);
+            } else {
+                colorProfileCombo.getSelectionModel().clearSelection();
+            }
+        } else {
+            colorProfileCombo.getSelectionModel().clearSelection();
+        }
+    }
+
+    private static Theme copyTheme(Theme source) {
+        Theme copy = new Theme();
+        if (source == null) {
+            return copy;
+        }
+        copy.setId(source.getId());
+        copy.setName(source.getName());
+        copy.setFontFamily(source.getFontFamily());
+        copy.setFontSize(source.getFontSize());
+        copy.setForegroundColor(source.getForegroundColor());
+        copy.setBackgroundColor(source.getBackgroundColor());
+        copy.setCursorColor(source.getCursorColor());
+        copy.setCursorStyle(source.getCursorStyle());
+        copy.setAgentPanelBackgroundColor(source.getAgentPanelBackgroundColor());
+        copy.setAgentPanelBorderColor(source.getAgentPanelBorderColor());
+        copy.setAgentPanelTextColor(source.getAgentPanelTextColor());
+        copy.setAgentPanelMutedTextColor(source.getAgentPanelMutedTextColor());
+        copy.setAgentPanelAccentColor(source.getAgentPanelAccentColor());
+        copy.setAgentPanelErrorColor(source.getAgentPanelErrorColor());
+        copy.setBuiltIn(source.isBuiltIn());
+        return copy;
     }
     
     /**
@@ -2413,6 +2474,34 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiProfileListView.refresh();
     }
 
+    private javafx.util.StringConverter<AiReasoningEffort> createAiReasoningConverter() {
+        return new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiReasoningEffort object) {
+                return object == null
+                    ? ""
+                    : I18n.get("settings.ai.reasoning." + object.messageKeySuffix());
+            }
+
+            @Override
+            public AiReasoningEffort fromString(String string) {
+                return null;
+            }
+        };
+    }
+
+    private void refreshAiReasoningOptions(AiReasoningEffort requestedEffort) {
+        List<AiReasoningEffort> options = AiReasoningSupport.availableEfforts(
+            aiApiUrlField != null ? aiApiUrlField.getText() : null,
+            aiModelField != null ? aiModelField.getText() : null);
+        AiReasoningEffort selected = AiReasoningSupport.normalize(requestedEffort, options);
+        aiReasoningCombo.getItems().setAll(options);
+        aiReasoningCombo.getSelectionModel().select(selected);
+        if (selectedAiProfile != null) {
+            selectedAiProfile.setReasoningEffort(selected);
+        }
+    }
+
     private void snapshotSelectedAiProfileEditorState() {
         if (selectedAiProfile == null) {
             return;
@@ -2424,6 +2513,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         selectedAiProfile.setName(trimToNull(aiProfileNameField.getText()));
         selectedAiProfile.setApiUrl(trimToNull(aiApiUrlField.getText()));
         selectedAiProfile.setModel(trimToNull(aiModelField.getText()));
+        selectedAiProfile.setReasoningEffort(AiReasoningSupport.normalizeForProfile(
+            selectedAiProfile.getApiUrl(),
+            selectedAiProfile.getModel(),
+            aiReasoningCombo.getValue()));
         selectedAiProfile.setMaxSelectionChars(aiMaxSelectionCharsSpinner.getValue() != null ? aiMaxSelectionCharsSpinner.getValue() : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
         selectedAiProfile.setTokenizerType(aiTokenizerCombo.getValue());
         selectedAiProfile.setTokenLimitAmount(aiTokenLimitAmountSpinner.getValue() != null ? aiTokenLimitAmountSpinner.getValue().longValue() : 0L);
@@ -2455,6 +2548,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiProfileNameField.clear();
             aiApiUrlField.clear();
             aiModelField.clear();
+            refreshAiReasoningOptions(AiReasoningEffort.DISABLED);
             aiApiKeyField.clear();
             aiClearApiKeyCheck.setDisable(false);
             aiClearApiKeyCheck.setSelected(false);
@@ -2474,6 +2568,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiProfileNameField.setText(profile.getName() != null ? profile.getName() : "");
         aiApiUrlField.setText(profile.getApiUrl() != null ? profile.getApiUrl() : "");
         aiModelField.setText(profile.getModel() != null ? profile.getModel() : "");
+        refreshAiReasoningOptions(profile.getReasoningEffort());
         aiMaxSelectionCharsSpinner.getValueFactory().setValue(
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
                 ? profile.getMaxSelectionChars()
@@ -2525,6 +2620,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             copy.setName(profileName);
             copy.setApiUrl(trimToNull(copy.getApiUrl()));
             copy.setModel(trimToNull(copy.getModel()));
+            copy.setReasoningEffort(AiReasoningSupport.normalizeForProfile(
+                copy.getApiUrl(),
+                copy.getModel(),
+                copy.getReasoningEffort()));
 
             String plainApiKey = aiPlainApiKeysByProfileId.get(copy.getId());
             if (plainApiKey != null && !plainApiKey.isBlank()) {
@@ -2655,7 +2754,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         return new OpenAiCompatibleAiService(
             apiUrl,
             model != null ? model : "",
-            apiKey != null ? apiKey : "");
+            apiKey != null ? apiKey : "",
+            AiReasoningSupport.normalizeForProfile(profile));
     }
 
     private String getAiApiKeyPlain(AiProfile profile) {

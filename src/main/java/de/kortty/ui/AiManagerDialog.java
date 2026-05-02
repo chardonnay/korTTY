@@ -2,11 +2,13 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiService;
+import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
@@ -75,6 +77,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final TextField profileNameField;
     private final TextField apiUrlField;
     private final TextField modelField;
+    private final ComboBox<AiReasoningEffort> reasoningCombo;
     private final PasswordField apiKeyField;
     private final CheckBox clearApiKeyCheck;
     private final Spinner<Integer> maxSelectionCharsSpinner;
@@ -109,6 +112,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profileNameField = new TextField();
         apiUrlField = new TextField();
         modelField = new TextField();
+        reasoningCombo = new ComboBox<>();
         apiKeyField = new PasswordField();
         clearApiKeyCheck = new CheckBox(I18n.get("settings.ai.clearApiKey"));
         maxSelectionCharsSpinner = new Spinner<>(1, 50_000_000, AiProfile.DEFAULT_MAX_SELECTION_CHARS);
@@ -236,6 +240,14 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
         });
 
+        reasoningCombo.setConverter(createReasoningConverter());
+        reasoningCombo.setPrefWidth(220);
+        reasoningCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedProfile != null) {
+                selectedProfile.setReasoningEffort(newValue);
+            }
+        });
+
         apiKeyField.textProperty().addListener((obs, oldValue, newValue) -> {
             boolean hasReplacementKey = newValue != null && !newValue.isBlank();
             clearApiKeyCheck.setDisable(hasReplacementKey);
@@ -258,6 +270,14 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         editorGrid.add(new Label(I18n.get("settings.ai.model")), 0, row);
         editorGrid.add(modelField, 1, row++);
+
+        editorGrid.add(new Label(I18n.get("settings.ai.reasoning")), 0, row);
+        editorGrid.add(reasoningCombo, 1, row++);
+
+        apiUrlField.textProperty().addListener((obs, oldValue, newValue) ->
+            refreshReasoningOptions(reasoningCombo.getValue()));
+        modelField.textProperty().addListener((obs, oldValue, newValue) ->
+            refreshReasoningOptions(reasoningCombo.getValue()));
 
         editorGrid.add(new Label(I18n.get("settings.ai.apiKey")), 0, row);
         editorGrid.add(apiKeyField, 1, row++);
@@ -524,6 +544,34 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
     }
 
+    private javafx.util.StringConverter<AiReasoningEffort> createReasoningConverter() {
+        return new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiReasoningEffort object) {
+                return object == null
+                    ? ""
+                    : I18n.get("settings.ai.reasoning." + object.messageKeySuffix());
+            }
+
+            @Override
+            public AiReasoningEffort fromString(String string) {
+                return null;
+            }
+        };
+    }
+
+    private void refreshReasoningOptions(AiReasoningEffort requestedEffort) {
+        List<AiReasoningEffort> options = AiReasoningSupport.availableEfforts(
+            apiUrlField != null ? apiUrlField.getText() : null,
+            modelField != null ? modelField.getText() : null);
+        AiReasoningEffort selected = AiReasoningSupport.normalize(requestedEffort, options);
+        reasoningCombo.getItems().setAll(options);
+        reasoningCombo.getSelectionModel().select(selected);
+        if (selectedProfile != null) {
+            selectedProfile.setReasoningEffort(selected);
+        }
+    }
+
     private void snapshotSelectedProfileState() {
         if (selectedProfile == null) {
             return;
@@ -534,6 +582,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         selectedProfile.setName(trimToNull(profileNameField.getText()));
         selectedProfile.setApiUrl(trimToNull(apiUrlField.getText()));
         selectedProfile.setModel(trimToNull(modelField.getText()));
+        selectedProfile.setReasoningEffort(AiReasoningSupport.normalizeForProfile(
+            selectedProfile.getApiUrl(),
+            selectedProfile.getModel(),
+            reasoningCombo.getValue()));
         selectedProfile.setMaxSelectionChars(maxSelectionCharsSpinner.getValue());
         selectedProfile.setTokenizerType(tokenizerCombo.getValue());
         selectedProfile.setTokenLimitAmount(tokenLimitAmountSpinner.getValue() != null ? tokenLimitAmountSpinner.getValue().longValue() : 0L);
@@ -565,6 +617,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             profileNameField.clear();
             apiUrlField.clear();
             modelField.clear();
+            refreshReasoningOptions(AiReasoningEffort.DISABLED);
             apiKeyField.clear();
             clearApiKeyCheck.setDisable(false);
             clearApiKeyCheck.setSelected(false);
@@ -584,6 +637,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profileNameField.setText(profile.getName() != null ? profile.getName() : "");
         apiUrlField.setText(profile.getApiUrl() != null ? profile.getApiUrl() : "");
         modelField.setText(profile.getModel() != null ? profile.getModel() : "");
+        refreshReasoningOptions(profile.getReasoningEffort());
         maxSelectionCharsSpinner.getValueFactory().setValue(
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
                 ? profile.getMaxSelectionChars()
@@ -632,6 +686,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             copy.setName(name);
             copy.setApiUrl(trimToNull(copy.getApiUrl()));
             copy.setModel(trimToNull(copy.getModel()));
+            copy.setReasoningEffort(AiReasoningSupport.normalizeForProfile(
+                copy.getApiUrl(),
+                copy.getModel(),
+                copy.getReasoningEffort()));
 
             String plainApiKey = plainApiKeysByProfileId.get(copy.getId());
             if (plainApiKey != null && !plainApiKey.isBlank()) {
@@ -705,7 +763,11 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
         String model = trimToNull(profile.getModel());
         String apiKey = getPlainApiKey(profile);
-        return new OpenAiCompatibleAiService(apiUrl, model != null ? model : "", apiKey != null ? apiKey : "");
+        return new OpenAiCompatibleAiService(
+            apiUrl,
+            model != null ? model : "",
+            apiKey != null ? apiKey : "",
+            AiReasoningSupport.normalizeForProfile(profile));
     }
 
     private String getPlainApiKey(AiProfile profile) {

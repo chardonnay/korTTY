@@ -18,7 +18,7 @@ class AiAgentActivityPanelSizingTest {
 
     @Test
     void collapsedPanelUsesCompactHeaderHeight() {
-        assertEquals(44.0, AiAgentActivityPanel.collapsedPanelHeight());
+        assertEquals(70.0, AiAgentActivityPanel.collapsedPanelHeight());
     }
 
     @Test

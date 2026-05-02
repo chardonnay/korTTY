@@ -93,6 +93,7 @@ final class ThemeCssSupport {
         String fgBright = toHex(luminance < 0.5
             ? fgColor.interpolate(Color.WHITE, 0.3)
             : fgColor.interpolate(Color.BLACK, 0.3));
+        String promptText = toHex(fgColor.interpolate(bgColor, 0.45));
         String border = toHex(bgColor.interpolate(blendTarget, 0.20));
         String accent = "#0066cc";
         String accentHover = "#0077dd";
@@ -128,9 +129,10 @@ final class ThemeCssSupport {
             ".button:pressed { -fx-background-color: " + bgAlt + "; }",
             ".button:default { -fx-background-color: " + accent + "; -fx-text-fill: #ffffff; }",
             ".button:default:hover { -fx-background-color: " + accentHover + "; }",
-            ".text-field, .password-field { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; -fx-border-color: " + border + "; }",
+            ".text-input { -fx-prompt-text-fill: " + promptText + "; }",
+            ".text-field, .password-field { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; -fx-prompt-text-fill: " + promptText + "; -fx-border-color: " + border + "; }",
             ".text-field:focused, .password-field:focused { -fx-border-color: " + accent + "; }",
-            ".text-area { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; }",
+            ".text-area { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; -fx-prompt-text-fill: " + promptText + "; }",
             ".text-area .content { -fx-background-color: " + bg + "; }",
             ".tree-view { -fx-background-color: " + bg + "; }",
             ".tree-cell { -fx-background-color: transparent; -fx-text-fill: " + fg + "; }",
@@ -239,6 +241,9 @@ final class ThemeCssSupport {
         return String.join("\n",
             ".ai-agent-activity-panel { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; }",
             ".ai-agent-activity-title { -fx-text-fill: " + text + "; }",
+            ".ai-agent-prompt-viewer { -fx-background-color: " + surface + "; -fx-border-color: " + border + "; -fx-text-fill: " + text + "; -fx-prompt-text-fill: " + muted + "; }",
+            ".ai-agent-prompt-viewer .content { -fx-background-color: transparent; }",
+            ".ai-agent-prompt-viewer .scroll-pane, .ai-agent-prompt-viewer .scroll-pane .viewport { -fx-background-color: transparent; }",
             ".ai-agent-header-busy-dot { -fx-background-color: " + accent + "; -fx-effect: dropshadow(gaussian, " + accent + ", 10, 0.55, 0, 0); }",
             ".ai-agent-header-busy-label { -fx-text-fill: " + text + "; }",
             ".ai-agent-activity-meta { -fx-text-fill: " + muted + "; }",

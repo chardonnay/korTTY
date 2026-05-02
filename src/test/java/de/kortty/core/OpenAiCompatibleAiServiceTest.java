@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import de.kortty.model.AiReasoningEffort;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -33,6 +34,22 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void buildHttpRequestIncludesReasoningEffortWhenEnabled() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-5.1",
+            "secret-token",
+            AiReasoningEffort.HIGH);
+        AiRequest request = new AiRequest(AiAction.SUMMARIZE, "fatal: sample", "qa-box", "en");
+
+        String body = service.buildRequestBody(request);
+        String promptBody = service.buildPromptRequestBody("system", "user", true);
+
+        assertTrue(body.contains("\"reasoning_effort\":\"high\""));
+        assertTrue(promptBody.contains("\"reasoning_effort\":\"high\""));
+    }
+
+    @Test
     void buildHttpRequestOmitsOptionalAuthorizationAndModelWhenBlank() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",
@@ -45,6 +62,7 @@ class OpenAiCompatibleAiServiceTest {
 
         assertTrue(httpRequest.headers().firstValue("Authorization").isEmpty());
         assertTrue(!body.contains("\"model\""));
+        assertTrue(!body.contains("\"reasoning_effort\""));
         assertTrue(httpRequest.timeout().isEmpty());
     }
 

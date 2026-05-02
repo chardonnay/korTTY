@@ -80,6 +80,17 @@ public final class TerminalAgentCommandSupport {
                 planMatcher.group(2).trim());
         }
 
+        Matcher planFlagMatcher = buildPlanFlagPattern(commandName, patternFlags).matcher(rawCommand.trim());
+        if (planFlagMatcher.matches()) {
+            InlineOptions options = parseInlineOptions(combineInlineOptions(planFlagMatcher.group(1), planFlagMatcher.group(2)));
+            return new Invocation(
+                InvocationKind.PLAN,
+                options.profileName(),
+                options.askConfirmationBeforeEveryCommand(),
+                options.autoApproveRootCommands(),
+                planFlagMatcher.group(3).trim());
+        }
+
         Matcher executeMatcher = buildExecutePattern(commandName, patternFlags).matcher(rawCommand.trim());
         if (executeMatcher.matches()) {
             InlineOptions options = parseInlineOptions(executeMatcher.group(1));
@@ -109,7 +120,11 @@ public final class TerminalAgentCommandSupport {
             + getPlanCommandName(commandName)
             + " <prompt>` or `"
             + getPlanCommandName(commandName)
-            + "(profile=name) <prompt>`.";
+            + "(profile=name) <prompt>`, `"
+            + normalizedName
+            + " -plan <prompt>` or `"
+            + normalizedName
+            + " -plan(profile=name) <prompt>`.";
     }
 
     private static Pattern buildExecutePattern(String commandName, int patternFlags) {
@@ -125,6 +140,23 @@ public final class TerminalAgentCommandSupport {
     private static Pattern buildPlanPattern(String commandName, int patternFlags) {
         return Pattern.compile("^" + Pattern.quote(getPlanCommandName(commandName))
             + "(?:\\s*\\(([^)]*)\\))?(?:(?:\\s*:\\s*)|\\s+)(.+)$", patternFlags);
+    }
+
+    private static Pattern buildPlanFlagPattern(String commandName, int patternFlags) {
+        return Pattern.compile("^" + Pattern.quote(normalizeCommandName(commandName))
+            + "(?:\\s*\\(([^)]*)\\))?\\s+-plan(?:\\s*\\(([^)]*)\\))?(?:(?:\\s*:\\s*)|\\s+)(.+)$", patternFlags);
+    }
+
+    private static String combineInlineOptions(String first, String second) {
+        String left = first != null ? first.trim() : "";
+        String right = second != null ? second.trim() : "";
+        if (left.isEmpty()) {
+            return right;
+        }
+        if (right.isEmpty()) {
+            return left;
+        }
+        return left + "," + right;
     }
 
     private static InlineOptions parseInlineOptions(String rawOptions) {
