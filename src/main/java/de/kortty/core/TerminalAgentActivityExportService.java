@@ -80,6 +80,7 @@ public class TerminalAgentActivityExportService {
         String profileId,
         String profileName,
         String modelName,
+        String reasoningStatus,
         LocalDateTime startedAt,
         LocalDateTime finishedAt,
         long elapsedSeconds,
@@ -93,6 +94,7 @@ public class TerminalAgentActivityExportService {
             profileId = normalize(profileId);
             profileName = nonBlank(profileName, UNKNOWN);
             modelName = nonBlank(modelName, UNKNOWN);
+            reasoningStatus = nonBlank(reasoningStatus, UNKNOWN);
             elapsedSeconds = Math.max(0L, elapsedSeconds);
             reportedTokens = Math.max(0L, reportedTokens);
             activities = activities != null ? List.copyOf(activities) : List.of();
@@ -184,6 +186,7 @@ public class TerminalAgentActivityExportService {
             builder.append("    profileId: ").append(yamlScalar(run.profileId())).append("\n");
             builder.append("    profileName: ").append(yamlScalar(run.profileName())).append("\n");
             builder.append("    modelName: ").append(yamlScalar(run.modelName())).append("\n");
+            builder.append("    reasoningStatus: ").append(yamlScalar(run.reasoningStatus())).append("\n");
             builder.append("    startedAt: ").append(yamlScalar(formatTimestamp(run.startedAt()))).append("\n");
             builder.append("    finishedAt: ").append(yamlScalar(formatTimestamp(run.finishedAt()))).append("\n");
             builder.append("    elapsedSeconds: ").append(run.elapsedSeconds()).append("\n");
@@ -217,6 +220,7 @@ public class TerminalAgentActivityExportService {
             appendXmlElement(builder, 3, "profileId", run.profileId());
             appendXmlElement(builder, 3, "profileName", run.profileName());
             appendXmlElement(builder, 3, "modelName", run.modelName());
+            appendXmlElement(builder, 3, "reasoningStatus", run.reasoningStatus());
             appendXmlElement(builder, 3, "startedAt", formatTimestamp(run.startedAt()));
             appendXmlElement(builder, 3, "finishedAt", formatTimestamp(run.finishedAt()));
             appendXmlElement(builder, 3, "elapsedSeconds", String.valueOf(run.elapsedSeconds()));
@@ -285,7 +289,8 @@ public class TerminalAgentActivityExportService {
                         cursor = drawPdfLine(pdf, cursor, bold, PDF_FONT_SIZE,
                             activity.type().name() + " / " + activity.status().name() + " - " + nonBlank(activity.summary(), activity.title()));
                         if (!blank(activity.detail())) {
-                            for (String line : wrapPdfText("> " + activity.detail().replace("\n", " "), sans, PDF_FONT_SIZE)) {
+                            String detail = activity.detail().replace("\n", " ");
+                            for (String line : wrapPdfText(detail, sans, PDF_FONT_SIZE)) {
                                 cursor = drawPdfLine(pdf, cursor, sans, PDF_FONT_SIZE, line);
                             }
                         }
@@ -312,12 +317,16 @@ public class TerminalAgentActivityExportService {
                 .append(activity.elapsedSeconds()).append("s | ")
                 .append(formatTokenUsage(activity.tokenUsage())).append(" |\n");
             if (!blank(activity.detail())) {
-                builder.append("\n").append("> ")
-                    .append(activity.detail().replace("\n", "\n> "))
-                    .append("\n\n");
+                appendMarkdownDetail(builder, activity.detail());
             }
         }
         builder.append("\n");
+    }
+
+    private void appendMarkdownDetail(StringBuilder builder, String detail) {
+        builder.append("\n")
+            .append(detail.strip())
+            .append("\n\n");
     }
 
     private void appendMarkdownMetadata(StringBuilder builder, Run run) {
@@ -325,6 +334,7 @@ public class TerminalAgentActivityExportService {
         builder.append("- AI profile: ").append(escapeMarkdown(run.profileName())).append("\n");
         builder.append("- Profile ID: ").append(escapeMarkdown(nullToUnknown(run.profileId()))).append("\n");
         builder.append("- LLM/model: ").append(escapeMarkdown(run.modelName())).append("\n");
+        builder.append("- Reasoning: ").append(escapeMarkdown(run.reasoningStatus())).append("\n");
         builder.append("- Started: ").append(formatTimestamp(run.startedAt())).append("\n");
         builder.append("- Finished: ").append(formatTimestamp(run.finishedAt())).append("\n");
         builder.append("- Runtime: ").append(run.elapsedSeconds()).append("s\n");
@@ -344,7 +354,7 @@ public class TerminalAgentActivityExportService {
                 .append(" [").append(activity.elapsedSeconds()).append("s, ")
                 .append(formatTokenUsage(activity.tokenUsage())).append("]\n");
             if (!blank(activity.detail())) {
-                builder.append(indent(activity.detail().trim(), "  > ")).append("\n");
+                builder.append(indent(activity.detail().trim(), "    ")).append("\n");
             }
         }
     }
@@ -355,6 +365,7 @@ public class TerminalAgentActivityExportService {
             "AI profile: " + run.profileName(),
             "Profile ID: " + nullToUnknown(run.profileId()),
             "LLM/model: " + run.modelName(),
+            "Reasoning: " + run.reasoningStatus(),
             "Started: " + formatTimestamp(run.startedAt()),
             "Finished: " + formatTimestamp(run.finishedAt()),
             "Runtime: " + run.elapsedSeconds() + "s",
@@ -368,6 +379,7 @@ public class TerminalAgentActivityExportService {
         builder.append("|AI profile |").append(run.profileName()).append("\n");
         builder.append("|Profile ID |").append(nullToUnknown(run.profileId())).append("\n");
         builder.append("|LLM/model |").append(run.modelName()).append("\n");
+        builder.append("|Reasoning |").append(run.reasoningStatus()).append("\n");
         builder.append("|Started |").append(formatTimestamp(run.startedAt())).append("\n");
         builder.append("|Finished |").append(formatTimestamp(run.finishedAt())).append("\n");
         builder.append("|Runtime |").append(run.elapsedSeconds()).append("s\n");
@@ -398,6 +410,7 @@ public class TerminalAgentActivityExportService {
             runMap.put("profileId", run.profileId());
             runMap.put("profileName", run.profileName());
             runMap.put("modelName", run.modelName());
+            runMap.put("reasoningStatus", run.reasoningStatus());
             runMap.put("startedAt", formatTimestamp(run.startedAt()));
             runMap.put("finishedAt", formatTimestamp(run.finishedAt()));
             runMap.put("elapsedSeconds", run.elapsedSeconds());

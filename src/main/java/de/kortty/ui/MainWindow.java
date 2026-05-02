@@ -13,6 +13,7 @@ import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.OpenAiCompatibleAiService;
+import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.SSHSession;
 import de.kortty.core.SessionManager;
@@ -2581,7 +2582,8 @@ public class MainWindow {
         return new OpenAiCompatibleAiService(
             trimmedApiUrl,
             model != null ? model.trim() : "",
-            normalizedApiKey);
+            normalizedApiKey,
+            AiReasoningSupport.normalizeForProfile(profile));
     }
 
     private String getAiApiKeyPlain(AiProfile profile) {
@@ -3351,7 +3353,8 @@ public class MainWindow {
         AiAgentActivityPanel.RunMetadata runMetadata = new AiAgentActivityPanel.RunMetadata(
             profile.getId(),
             profile.getName(),
-            profile.getModel());
+            profile.getModel(),
+            AiReasoningSupport.exportStatus(profile));
         Platform.runLater(() -> {
             activityPanel.beginRun(scopedRequest.userPrompt(), cancelRun, reloadRun, runMetadata);
         });
@@ -3514,6 +3517,14 @@ public class MainWindow {
             return;
         }
 
+        TerminalAgentExecutionTarget executionTarget = getTerminalAgentExecutionTarget();
+        TerminalView.TerminalAgentRunContext resolvedRunContext = runContext;
+        if (executionTarget == TerminalAgentExecutionTarget.TERMINAL_WINDOW
+            && resolvedRunContext == null
+            && terminalTab.getTerminalView() != null) {
+            resolvedRunContext = terminalTab.getTerminalView().captureTerminalAgentRunContext();
+        }
+        TerminalView.TerminalAgentRunContext planRunContext = resolvedRunContext;
         AiAgentPlanTab planTab = new AiAgentPlanTab(
             this,
             terminalAgentService,
@@ -3521,24 +3532,37 @@ public class MainWindow {
             profile,
             aiService,
             request,
-            runContext != null ? runContext.connector() : null,
-            (planRequest, option) -> startAcceptedPlanExecution(terminalTab, profile, planRequest, option, runContext));
+            planRunContext != null ? planRunContext.connector() : null,
+            () -> resolveTerminalAgentPreflightSessionId(terminalTab, request.sessionId(), planRunContext),
+            (planRequest, report) -> startAcceptedPlanExecution(terminalTab, profile, planRequest, report, planRunContext));
         insertTemporaryTab(planTab);
         planTab.start();
+    }
+
+    private String resolveTerminalAgentPreflightSessionId(
+        TerminalTab terminalTab,
+        String sessionId,
+        TerminalView.TerminalAgentRunContext runContext) {
+        if (getTerminalAgentExecutionTarget() == TerminalAgentExecutionTarget.TERMINAL_WINDOW
+            && runContext != null
+            && terminalTab.getTerminalView() != null) {
+            return terminalTab.getTerminalView().buildTerminalAgentScopedSessionId(sessionId, runContext);
+        }
+        return sessionId;
     }
 
     private void startAcceptedPlanExecution(
         TerminalTab terminalTab,
         AiProfile profile,
         TerminalAgentModels.PlanRequest planRequest,
-        TerminalAgentModels.PlanOption option,
+        TerminalAgentModels.PlanReport report,
         TerminalView.TerminalAgentRunContext runContext) {
         TerminalAgentModels.Request request = new TerminalAgentModels.Request(
-            terminalTab.getAiSessionId(),
+            planRequest.sessionId(),
             profile.getId(),
             planRequest.userPrompt(),
             planRequest.connectionDisplayName(),
-            terminalAgentService.buildAcceptedPlanContext(option),
+            terminalAgentService.buildAcceptedPlanContext(report),
             getTerminalAgentExecutionTarget(),
             app.getGlobalSettingsManager().getSettings() != null && app.getGlobalSettingsManager().getSettings().isTerminalAgentShowDebugMessages(),
             app.getGlobalSettingsManager().getSettings() != null && app.getGlobalSettingsManager().getSettings().isTerminalAgentShowRuntimeMessages(),

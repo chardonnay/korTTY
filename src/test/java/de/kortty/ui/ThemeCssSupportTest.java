@@ -18,6 +18,7 @@ class ThemeCssSupportTest {
         assertTrue(css.contains(".button:default { -fx-background-color: #0066cc; -fx-text-fill: #ffffff; }"));
         assertTrue(css.contains(".root { -fx-background-color: #101820; }"));
         assertTrue(css.contains(".label { -fx-text-fill: #f3f4f6; }"));
+        assertTrue(css.contains("-fx-prompt-text-fill:"));
     }
 
     @Test
@@ -33,6 +34,8 @@ class ThemeCssSupportTest {
         String css = ThemeCssSupport.buildAgentActivityCss(theme);
 
         assertTrue(css.contains(".ai-agent-activity-panel { -fx-background-color: #112233; -fx-border-color: #445566; }"));
+        assertTrue(css.contains(".ai-agent-prompt-viewer { -fx-background-color:"));
+        assertTrue(css.contains(".ai-agent-prompt-viewer .scroll-pane"));
         assertTrue(css.contains(".ai-agent-activity-text { -fx-text-fill: #ddeeff; }"));
         assertTrue(css.contains(".ai-agent-detail { -fx-text-fill: #99aabb; }"));
         assertTrue(css.contains(".ai-agent-marker-input { -fx-text-fill: #00cc88; }"));

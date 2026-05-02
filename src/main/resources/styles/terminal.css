@@ -192,7 +192,26 @@
 }
 
 .ai-agent-header {
-    -fx-min-height: 26px;
+    -fx-min-height: 48px;
+}
+
+.ai-agent-prompt-viewer {
+    -fx-background-color: rgba(255, 255, 255, 0.04);
+    -fx-background-radius: 4;
+    -fx-border-color: #19525a;
+    -fx-border-radius: 4;
+    -fx-text-fill: #e8f3f2;
+    -fx-prompt-text-fill: #8fb0b4;
+    -fx-padding: 2 4 2 4;
+}
+
+.ai-agent-prompt-viewer .content {
+    -fx-background-color: transparent;
+}
+
+.ai-agent-prompt-viewer .scroll-pane,
+.ai-agent-prompt-viewer .scroll-pane .viewport {
+    -fx-background-color: transparent;
 }
 
 .ai-agent-header-status {
@@ -624,9 +643,14 @@
 }
 
 /* Text Area */
+.text-input {
+    -fx-prompt-text-fill: #888888;
+}
+
 .text-area {
     -fx-background-color: #1e1e1e;
     -fx-text-fill: #cccccc;
+    -fx-prompt-text-fill: #888888;
 }
 
 .text-area .content {

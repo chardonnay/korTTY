@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,11 +34,26 @@ class TerminalAgentActivityExportServiceTest {
         for (String exported : List.of(markdown, text, yaml, asciidoctor)) {
             assertTrue(exported.contains("local"));
             assertTrue(exported.contains("gpt-test"));
+            assertTrue(exported.contains("High"));
             assertTrue(exported.contains("42"));
             assertTrue(exported.contains("Collected the current server state."));
             assertTrue(exported.contains("Read 10 lines"));
             assertTrue(exported.contains("150"));
         }
+    }
+
+    @Test
+    void markdownAndTextExportsRemoveCommentMarkersByDefault() {
+        TerminalAgentActivityExportService service = new TerminalAgentActivityExportService();
+        TerminalAgentActivityExportService.ExportDocument document = sampleDocument();
+
+        String markdown = service.buildMarkdownExport(document);
+        String text = service.buildTextExport(document);
+
+        assertTrue(markdown.contains("\nFedora Linux 43\n"));
+        assertTrue(text.contains("    Fedora Linux 43"));
+        assertFalse(markdown.contains("> Fedora Linux 43"));
+        assertFalse(text.contains("  > Fedora Linux 43"));
     }
 
     @Test
@@ -51,6 +67,7 @@ class TerminalAgentActivityExportServiceTest {
                 "agent check",
                 "profile-2",
                 "Local profile",
+                "",
                 "",
                 LocalDateTime.of(2026, 4, 26, 14, 59),
                 LocalDateTime.of(2026, 4, 26, 15, 0),
@@ -75,6 +92,13 @@ class TerminalAgentActivityExportServiceTest {
             .getAsJsonObject()
             .get("modelName")
             .getAsString());
+        assertEquals("unknown", JsonParser.parseString(json)
+            .getAsJsonObject()
+            .getAsJsonArray("runs")
+            .get(0)
+            .getAsJsonObject()
+            .get("reasoningStatus")
+            .getAsString());
 
         String xml = service.buildXmlExport(document);
         Document parsedXml = DocumentBuilderFactory.newInstance()
@@ -82,6 +106,7 @@ class TerminalAgentActivityExportServiceTest {
             .parse(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         assertEquals("terminalAgentExport", parsedXml.getDocumentElement().getNodeName());
         assertEquals("unknown", parsedXml.getElementsByTagName("modelName").item(0).getTextContent());
+        assertEquals("unknown", parsedXml.getElementsByTagName("reasoningStatus").item(0).getTextContent());
         assertEquals("unknown", parsedXml.getElementsByTagName("reportedTokens").item(0).getTextContent());
     }
 
@@ -101,6 +126,7 @@ class TerminalAgentActivityExportServiceTest {
                         String extracted = new PDFTextStripper().getText(pdf);
                         assertTrue(extracted.contains("local"));
                         assertTrue(extracted.contains("gpt-test"));
+                        assertTrue(extracted.contains("High"));
                         assertTrue(extracted.contains("Collected the current server state."));
                     }
                 }
@@ -124,6 +150,7 @@ class TerminalAgentActivityExportServiceTest {
             "local",
             "local",
             "gpt-test",
+            "High",
             LocalDateTime.of(2026, 4, 26, 15, 28, 10),
             LocalDateTime.of(2026, 4, 26, 15, 28, 52),
             42,

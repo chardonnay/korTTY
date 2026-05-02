@@ -144,7 +144,23 @@ class TerminalAgentSudoCommandTest {
             "dnf: no package matches not-a-real-package"));
     }
 
+    @Test
+    void sudoPreflightIsNeededOnlyForPasswordProtectedSudo() {
+        assertTrue(TerminalAgentService.needsSudoPasswordPreflight(sudoPasswordProbe()));
+        assertFalse(TerminalAgentService.needsSudoPasswordPreflight(probe(true, true, false, "already_root")));
+        assertFalse(TerminalAgentService.needsSudoPasswordPreflight(probe(false, false, false, "none")));
+        assertFalse(TerminalAgentService.needsSudoPasswordPreflight(probe(false, true, true, "passwordless_sudo")));
+    }
+
     private TerminalAgentModels.ProbeSnapshot sudoPasswordProbe() {
+        return probe(false, true, false, "sudo_password");
+    }
+
+    private TerminalAgentModels.ProbeSnapshot probe(
+        boolean alreadyRoot,
+        boolean sudoAvailable,
+        boolean passwordlessSudo,
+        String rootEscalationMode) {
         return new TerminalAgentModels.ProbeSnapshot(
             "Fedora Linux 43",
             "kernel",
@@ -160,11 +176,11 @@ class TerminalAgentSudoCommandTest {
             "",
             List.of("dnf"),
             List.of("systemctl"),
-            false,
-            true,
-            false,
+            alreadyRoot,
+            sudoAvailable,
+            passwordlessSudo,
             false,
             "",
-            "sudo_password");
+            rootEscalationMode);
     }
 }

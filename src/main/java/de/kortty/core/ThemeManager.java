@@ -110,9 +110,16 @@ public class ThemeManager {
     }
 
     public void updateTheme(Theme theme) {
+        if (theme == null) {
+            return;
+        }
         theme.initializeAgentPanelColorsIfMissing();
         for (int i = 0; i < themeList.getThemes().size(); i++) {
-            if (theme.getId().equals(themeList.getThemes().get(i).getId())) {
+            Theme existing = themeList.getThemes().get(i);
+            if (theme.getId() != null && theme.getId().equals(existing.getId())) {
+                if (existing.isBuiltIn()) {
+                    theme.setBuiltIn(true);
+                }
                 themeList.getThemes().set(i, theme);
                 save();
                 return;

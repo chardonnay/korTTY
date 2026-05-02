@@ -27,6 +27,9 @@ public class AiProfile {
     private String model;
 
     @XmlElement
+    private AiReasoningEffort reasoningEffort = AiReasoningEffort.DISABLED;
+
+    @XmlElement
     private String encryptedApiKey;
 
     @XmlElement
@@ -76,6 +79,7 @@ public class AiProfile {
         this.name = source.name;
         this.apiUrl = source.apiUrl;
         this.model = source.model;
+        this.reasoningEffort = source.getReasoningEffort();
         this.encryptedApiKey = source.encryptedApiKey;
         this.maxSelectionChars = source.maxSelectionChars;
         this.tokenizerType = source.tokenizerType;
@@ -121,6 +125,14 @@ public class AiProfile {
 
     public void setModel(String model) {
         this.model = model;
+    }
+
+    public AiReasoningEffort getReasoningEffort() {
+        return reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
+    }
+
+    public void setReasoningEffort(AiReasoningEffort reasoningEffort) {
+        this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
     }
 
     public String getEncryptedApiKey() {

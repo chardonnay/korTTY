@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.TerminalAgentExecutionTarget;
@@ -26,6 +27,7 @@ class GlobalSettingsManagerTest {
             profile.setName("LM Studio");
             profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
             profile.setModel("local-model");
+            profile.setReasoningEffort(AiReasoningEffort.HIGH);
             profile.setEncryptedApiKey("encrypted-key");
             profile.setMaxSelectionChars(1_500_000);
             profile.setTokenizerType(AiTokenizerType.CL100K_BASE);
@@ -56,6 +58,7 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setTerminalAgentRememberPanelLayout(true);
             manager.getSettings().setTerminalAgentPanelHeight(312.5);
             manager.getSettings().setTerminalAgentPanelFontSize(16.0);
+            manager.getSettings().setTerminalAgentPlanFontSize(17.0);
             manager.getSettings().setTerminalAgentPanelKeepCollapsed(true);
             manager.getSettings().setTerminalAgentPanelExpandAll(true);
             manager.getSettings().setAiCodeTextDefaultLanguage("de");
@@ -74,6 +77,7 @@ class GlobalSettingsManagerTest {
             assertEquals("LM Studio", reloadedProfile.getName());
             assertEquals("http://127.0.0.1:1234/v1/chat/completions", reloadedProfile.getApiUrl());
             assertEquals("local-model", reloadedProfile.getModel());
+            assertEquals(AiReasoningEffort.HIGH, reloadedProfile.getReasoningEffort());
             assertEquals("encrypted-key", reloadedProfile.getEncryptedApiKey());
             assertEquals(1_500_000, reloadedProfile.getMaxSelectionChars());
             assertEquals(AiTokenizerType.CL100K_BASE, reloadedProfile.getTokenizerType());
@@ -100,6 +104,7 @@ class GlobalSettingsManagerTest {
             assertTrue(reloaded.getSettings().isTerminalAgentRememberPanelLayout());
             assertEquals(312.5, reloaded.getSettings().getTerminalAgentPanelHeight());
             assertEquals(16.0, reloaded.getSettings().getTerminalAgentPanelFontSize());
+            assertEquals(17.0, reloaded.getSettings().getTerminalAgentPlanFontSize());
             assertTrue(reloaded.getSettings().isTerminalAgentPanelKeepCollapsed());
             assertTrue(reloaded.getSettings().isTerminalAgentPanelExpandAll());
             assertEquals("de", reloaded.getSettings().getAiCodeTextDefaultLanguage());
