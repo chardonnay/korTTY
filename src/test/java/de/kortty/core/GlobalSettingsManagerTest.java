@@ -5,15 +5,13 @@ import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.TerminalAgentExecutionTarget;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GlobalSettingsManagerTest {
 
@@ -71,48 +69,48 @@ class GlobalSettingsManagerTest {
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
 
-            assertEquals(1, reloaded.getSettings().getAiProfiles().size());
+            assertThat(reloaded.getSettings().getAiProfiles().size()).isEqualTo(1);
             AiProfile reloadedProfile = reloaded.getSettings().getAiProfiles().get(0);
-            assertEquals("profile-1", reloadedProfile.getId());
-            assertEquals("LM Studio", reloadedProfile.getName());
-            assertEquals("http://127.0.0.1:1234/v1/chat/completions", reloadedProfile.getApiUrl());
-            assertEquals("local-model", reloadedProfile.getModel());
-            assertEquals(AiReasoningEffort.HIGH, reloadedProfile.getReasoningEffort());
-            assertEquals("encrypted-key", reloadedProfile.getEncryptedApiKey());
-            assertEquals(1_500_000, reloadedProfile.getMaxSelectionChars());
-            assertEquals(AiTokenizerType.CL100K_BASE, reloadedProfile.getTokenizerType());
-            assertEquals(5L, reloadedProfile.getTokenLimitAmount());
-            assertEquals(AiTokenLimitUnit.MILLIONS, reloadedProfile.getTokenLimitUnit());
-            assertEquals(70, reloadedProfile.getTokenWarningYellowPercent());
-            assertEquals(85, reloadedProfile.getTokenWarningRedPercent());
-            assertEquals(14, reloadedProfile.getTokenResetPeriodDays());
-            assertEquals("2026-03-01", reloadedProfile.getTokenResetAnchorDate());
-            assertEquals("2026-03-15", reloadedProfile.getTokenUsageCycleStartDate());
-            assertEquals(123L, reloadedProfile.getUsedPromptTokens());
-            assertEquals(456L, reloadedProfile.getUsedCompletionTokens());
-            assertEquals(579L, reloadedProfile.getUsedTotalTokens());
-            assertEquals(18, reloaded.getSettings().getAiResultFontSize());
-            assertEquals(false, reloaded.getSettings().isAiConfirmBeforeSend());
-            assertEquals("profile-1", reloaded.getSettings().getDefaultAiProfileId());
-            assertFalse(reloaded.getSettings().isDefaultPromptHookEnabled());
-            assertTrue(reloaded.getSettings().isTerminalAgentShowDebugMessages());
-            assertTrue(reloaded.getSettings().isTerminalAgentShowRuntimeMessages());
-            assertFalse(reloaded.getSettings().isTerminalAgentShowRunDialog());
-            assertEquals("susi", reloaded.getSettings().getTerminalAgentCommandName());
-            assertTrue(reloaded.getSettings().isTerminalAgentCommandNameCaseInsensitive());
-            assertEquals(TerminalAgentExecutionTarget.CHAT_WINDOW, reloaded.getSettings().getTerminalAgentExecutionTarget());
-            assertTrue(reloaded.getSettings().isTerminalAgentRememberPanelLayout());
-            assertEquals(312.5, reloaded.getSettings().getTerminalAgentPanelHeight());
-            assertEquals(16.0, reloaded.getSettings().getTerminalAgentPanelFontSize());
-            assertEquals(17.0, reloaded.getSettings().getTerminalAgentPlanFontSize());
-            assertTrue(reloaded.getSettings().isTerminalAgentPanelKeepCollapsed());
-            assertTrue(reloaded.getSettings().isTerminalAgentPanelExpandAll());
-            assertEquals("de", reloaded.getSettings().getAiCodeTextDefaultLanguage());
-            assertTrue(reloaded.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled());
-            assertEquals(5, reloaded.getSettings().getAiSnippetAlternativeSolutionCount());
-            assertEquals(2, reloaded.getSettings().getAiPromptHistory().size());
-            assertEquals("second prompt", reloaded.getSettings().getAiPromptHistory().get(0));
-            assertEquals("first prompt", reloaded.getSettings().getAiPromptHistory().get(1));
+            assertThat(reloadedProfile.getId()).isEqualTo("profile-1");
+            assertThat(reloadedProfile.getName()).isEqualTo("LM Studio");
+            assertThat(reloadedProfile.getApiUrl()).isEqualTo("http://127.0.0.1:1234/v1/chat/completions");
+            assertThat(reloadedProfile.getModel()).isEqualTo("local-model");
+            assertThat(reloadedProfile.getReasoningEffort()).isEqualTo(AiReasoningEffort.HIGH);
+            assertThat(reloadedProfile.getEncryptedApiKey()).isEqualTo("encrypted-key");
+            assertThat(reloadedProfile.getMaxSelectionChars()).isEqualTo(1_500_000);
+            assertThat(reloadedProfile.getTokenizerType()).isEqualTo(AiTokenizerType.CL100K_BASE);
+            assertThat(reloadedProfile.getTokenLimitAmount()).isEqualTo(5L);
+            assertThat(reloadedProfile.getTokenLimitUnit()).isEqualTo(AiTokenLimitUnit.MILLIONS);
+            assertThat(reloadedProfile.getTokenWarningYellowPercent()).isEqualTo(70);
+            assertThat(reloadedProfile.getTokenWarningRedPercent()).isEqualTo(85);
+            assertThat(reloadedProfile.getTokenResetPeriodDays()).isEqualTo(14);
+            assertThat(reloadedProfile.getTokenResetAnchorDate()).isEqualTo("2026-03-01");
+            assertThat(reloadedProfile.getTokenUsageCycleStartDate()).isEqualTo("2026-03-15");
+            assertThat(reloadedProfile.getUsedPromptTokens()).isEqualTo(123L);
+            assertThat(reloadedProfile.getUsedCompletionTokens()).isEqualTo(456L);
+            assertThat(reloadedProfile.getUsedTotalTokens()).isEqualTo(579L);
+            assertThat(reloaded.getSettings().getAiResultFontSize()).isEqualTo(18);
+            assertThat(reloaded.getSettings().isAiConfirmBeforeSend()).isEqualTo(false);
+            assertThat(reloaded.getSettings().getDefaultAiProfileId()).isEqualTo("profile-1");
+            assertThat(reloaded.getSettings().isDefaultPromptHookEnabled()).isFalse();
+            assertThat(reloaded.getSettings().isTerminalAgentShowDebugMessages()).isTrue();
+            assertThat(reloaded.getSettings().isTerminalAgentShowRuntimeMessages()).isTrue();
+            assertThat(reloaded.getSettings().isTerminalAgentShowRunDialog()).isFalse();
+            assertThat(reloaded.getSettings().getTerminalAgentCommandName()).isEqualTo("susi");
+            assertThat(reloaded.getSettings().isTerminalAgentCommandNameCaseInsensitive()).isTrue();
+            assertThat(reloaded.getSettings().getTerminalAgentExecutionTarget()).isEqualTo(TerminalAgentExecutionTarget.CHAT_WINDOW);
+            assertThat(reloaded.getSettings().isTerminalAgentRememberPanelLayout()).isTrue();
+            assertThat(reloaded.getSettings().getTerminalAgentPanelHeight()).isEqualTo(312.5);
+            assertThat(reloaded.getSettings().getTerminalAgentPanelFontSize()).isEqualTo(16.0);
+            assertThat(reloaded.getSettings().getTerminalAgentPlanFontSize()).isEqualTo(17.0);
+            assertThat(reloaded.getSettings().isTerminalAgentPanelKeepCollapsed()).isTrue();
+            assertThat(reloaded.getSettings().isTerminalAgentPanelExpandAll()).isTrue();
+            assertThat(reloaded.getSettings().getAiCodeTextDefaultLanguage()).isEqualTo("de");
+            assertThat(reloaded.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled()).isTrue();
+            assertThat(reloaded.getSettings().getAiSnippetAlternativeSolutionCount()).isEqualTo(5);
+            assertThat(reloaded.getSettings().getAiPromptHistory().size()).isEqualTo(2);
+            assertThat(reloaded.getSettings().getAiPromptHistory().get(0)).isEqualTo("second prompt");
+            assertThat(reloaded.getSettings().getAiPromptHistory().get(1)).isEqualTo("first prompt");
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
@@ -132,14 +130,14 @@ class GlobalSettingsManagerTest {
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
 
-            assertEquals(1, reloaded.getSettings().getAiProfiles().size());
+            assertThat(reloaded.getSettings().getAiProfiles().size()).isEqualTo(1);
             AiProfile profile = reloaded.getSettings().getAiProfiles().get(0);
-            assertEquals("legacy-default", profile.getId());
-            assertEquals("Default", profile.getName());
-            assertEquals("http://127.0.0.1:1234/v1/chat/completions", profile.getApiUrl());
-            assertEquals("legacy-model", profile.getModel());
-            assertEquals("legacy-key", profile.getEncryptedApiKey());
-            assertEquals(AiProfile.DEFAULT_MAX_SELECTION_CHARS, profile.getMaxSelectionChars());
+            assertThat(profile.getId()).isEqualTo("legacy-default");
+            assertThat(profile.getName()).isEqualTo("Default");
+            assertThat(profile.getApiUrl()).isEqualTo("http://127.0.0.1:1234/v1/chat/completions");
+            assertThat(profile.getModel()).isEqualTo("legacy-model");
+            assertThat(profile.getEncryptedApiKey()).isEqualTo("legacy-key");
+            assertThat(profile.getMaxSelectionChars()).isEqualTo(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
@@ -156,7 +154,7 @@ class GlobalSettingsManagerTest {
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
 
-            assertEquals(0, reloaded.getSettings().getAiProfiles().size());
+            assertThat(reloaded.getSettings().getAiProfiles().size()).isEqualTo(0);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
@@ -178,8 +176,8 @@ class GlobalSettingsManagerTest {
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
 
-            assertEquals(1, reloaded.getSettings().getAiProfiles().size());
-            assertEquals(null, reloaded.getSettings().getDefaultAiProfileId());
+            assertThat(reloaded.getSettings().getAiProfiles().size()).isEqualTo(1);
+            assertThat(reloaded.getSettings().getDefaultAiProfileId()).isEqualTo(null);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
@@ -191,7 +189,7 @@ class GlobalSettingsManagerTest {
         Path dir = Files.createTempDirectory("kortty-global-settings-close-confirm");
         try {
             GlobalSettingsManager manager = new GlobalSettingsManager(dir);
-            assertFalse(manager.getSettings().isCloseActiveTerminalWindowsWithoutConfirmation());
+            assertThat(manager.getSettings().isCloseActiveTerminalWindowsWithoutConfirmation()).isFalse();
 
             manager.getSettings().setCloseActiveTerminalWindowsWithoutConfirmation(true);
             manager.save();
@@ -199,7 +197,7 @@ class GlobalSettingsManagerTest {
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
 
-            assertEquals(true, reloaded.getSettings().isCloseActiveTerminalWindowsWithoutConfirmation());
+            assertThat(reloaded.getSettings().isCloseActiveTerminalWindowsWithoutConfirmation()).isEqualTo(true);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
@@ -211,7 +209,7 @@ class GlobalSettingsManagerTest {
         Path dir = Files.createTempDirectory("kortty-global-settings-menu-bar");
         try {
             GlobalSettingsManager manager = new GlobalSettingsManager(dir);
-            assertTrue(manager.getSettings().isShowMenuBar());
+            assertThat(manager.getSettings().isShowMenuBar()).isTrue();
 
             manager.getSettings().setShowMenuBar(false);
             manager.save();
@@ -219,7 +217,7 @@ class GlobalSettingsManagerTest {
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
 
-            assertFalse(reloaded.getSettings().isShowMenuBar());
+            assertThat(reloaded.getSettings().isShowMenuBar()).isFalse();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
@@ -231,8 +229,8 @@ class GlobalSettingsManagerTest {
         Path dir = Files.createTempDirectory("kortty-global-settings-snippet-ai");
         try {
             GlobalSettingsManager manager = new GlobalSettingsManager(dir);
-            assertFalse(manager.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled());
-            assertEquals(3, manager.getSettings().getAiSnippetAlternativeSolutionCount());
+            assertThat(manager.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled()).isFalse();
+            assertThat(manager.getSettings().getAiSnippetAlternativeSolutionCount()).isEqualTo(3);
 
             manager.getSettings().setAiSnippetAlternativeSolutionCount(99);
             manager.save();
@@ -240,7 +238,7 @@ class GlobalSettingsManagerTest {
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
 
-            assertEquals(10, reloaded.getSettings().getAiSnippetAlternativeSolutionCount());
+            assertThat(reloaded.getSettings().getAiSnippetAlternativeSolutionCount()).isEqualTo(10);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

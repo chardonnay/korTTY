@@ -1,11 +1,10 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SnippetAiTextSupportTest {
 
@@ -19,9 +18,9 @@ class SnippetAiTextSupportTest {
             """,
             "bash");
 
-        assertEquals(2, segments.size());
-        assertEquals("backup log filez", segments.get(0).coreText());
-        assertEquals("Backup completd", segments.get(1).coreText());
+        assertThat(segments.size()).isEqualTo(2);
+        assertThat(segments.get(0).coreText()).isEqualTo("backup log filez");
+        assertThat(segments.get(1).coreText()).isEqualTo("Backup completd");
     }
 
     @Test
@@ -31,7 +30,7 @@ class SnippetAiTextSupportTest {
             List.of(new SnippetAiTextSupport.EditableTextSegment(1, 21, "  backup log filez  ", SnippetAiTextSupport.SegmentType.COMMENT)),
             List.of("backup log files"));
 
-        assertEquals("#  backup log files  ", updated);
+        assertThat(updated).isEqualTo("#  backup log files  ");
     }
 
     @Test
@@ -41,7 +40,7 @@ class SnippetAiTextSupportTest {
             "python",
             "    ");
 
-        assertTrue(formatted.startsWith("    # "));
-        assertTrue(formatted.contains("Compresses all log files."));
+        assertThat(formatted.startsWith("    # ")).isTrue();
+        assertThat(formatted.contains("Compresses all log files.")).isTrue();
     }
 }

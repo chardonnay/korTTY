@@ -2,12 +2,11 @@ package de.kortty.core;
 
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AiReasoningSupportTest {
 
@@ -17,7 +16,7 @@ class AiReasoningSupportTest {
             "http://127.0.0.1:1234/v1/chat/completions",
             "local-model");
 
-        assertEquals(List.of(AiReasoningEffort.DISABLED), options);
+        assertThat(options).isEqualTo(List.of(AiReasoningEffort.DISABLED));
     }
 
     @Test
@@ -26,10 +25,10 @@ class AiReasoningSupportTest {
             "https://api.openai.com/v1/chat/completions",
             "gpt-5.1");
 
-        assertTrue(options.contains(AiReasoningEffort.DISABLED));
-        assertTrue(options.contains(AiReasoningEffort.NONE));
-        assertTrue(options.contains(AiReasoningEffort.HIGH));
-        assertTrue(!options.contains(AiReasoningEffort.XHIGH));
+        assertThat(options.contains(AiReasoningEffort.DISABLED)).isTrue();
+        assertThat(options.contains(AiReasoningEffort.NONE)).isTrue();
+        assertThat(options.contains(AiReasoningEffort.HIGH)).isTrue();
+        assertThat(!options.contains(AiReasoningEffort.XHIGH)).isTrue();
     }
 
     @Test
@@ -38,7 +37,7 @@ class AiReasoningSupportTest {
             "https://api.openai.com/v1/chat/completions",
             "gpt-5.5");
 
-        assertTrue(options.contains(AiReasoningEffort.XHIGH));
+        assertThat(options.contains(AiReasoningEffort.XHIGH)).isTrue();
     }
 
     @Test
@@ -47,8 +46,8 @@ class AiReasoningSupportTest {
             "https://api.openai.com/v1/chat/completions",
             "gpt-5");
 
-        assertTrue(options.contains(AiReasoningEffort.MINIMAL));
-        assertTrue(!options.contains(AiReasoningEffort.NONE));
+        assertThat(options.contains(AiReasoningEffort.MINIMAL)).isTrue();
+        assertThat(!options.contains(AiReasoningEffort.NONE)).isTrue();
     }
 
     @Test
@@ -58,7 +57,7 @@ class AiReasoningSupportTest {
         profile.setModel("local-model");
         profile.setReasoningEffort(AiReasoningEffort.HIGH);
 
-        assertEquals(AiReasoningEffort.DISABLED, AiReasoningSupport.normalizeForProfile(profile));
-        assertEquals("Disabled", AiReasoningSupport.exportStatus(profile));
+        assertThat(AiReasoningSupport.normalizeForProfile(profile)).isEqualTo(AiReasoningEffort.DISABLED);
+        assertThat(AiReasoningSupport.exportStatus(profile)).isEqualTo("Disabled");
     }
 }

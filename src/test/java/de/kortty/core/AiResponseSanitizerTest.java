@@ -1,8 +1,8 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AiResponseSanitizerTest {
 
@@ -17,13 +17,13 @@ class AiResponseSanitizerTest {
             Visible result
             """);
 
-        assertEquals("Visible intro\n\nVisible result", sanitized);
+        assertThat(sanitized).isEqualTo("Visible intro\n\nVisible result");
     }
 
     @Test
     void sanitizeForDisplayKeepsNormalTextUntouched() {
         String sanitized = AiResponseSanitizer.sanitizeForDisplay("Normal answer");
 
-        assertEquals("Normal answer", sanitized);
+        assertThat(sanitized).isEqualTo("Normal answer");
     }
 }

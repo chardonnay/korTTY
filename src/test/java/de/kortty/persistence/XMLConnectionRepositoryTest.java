@@ -3,17 +3,15 @@ package de.kortty.persistence;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import javax.crypto.SecretKey;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class XMLConnectionRepositoryTest {
 
@@ -42,17 +40,17 @@ class XMLConnectionRepositoryTest {
             repository.saveConnections(List.of(connection), key);
 
             String persistedXml = Files.readString(dir.resolve("connections.xml"));
-            assertFalse(persistedXml.contains(tempKeyContent));
-            assertFalse(persistedXml.contains("TEMPORARY:" + tempKeyContent));
-            assertTrue(persistedXml.contains("enc:"));
+            assertThat(persistedXml.contains(tempKeyContent)).isFalse();
+            assertThat(persistedXml.contains("TEMPORARY:" + tempKeyContent)).isFalse();
+            assertThat(persistedXml.contains("enc:")).isTrue();
 
             List<ServerConnection> reloaded = repository.loadConnections(key);
-            assertEquals(1, reloaded.size());
+            assertThat(reloaded.size()).isEqualTo(1);
             ServerConnection reloadedConnection = reloaded.get(0);
-            assertEquals(tempKeyContent, reloadedConnection.getTemporaryKeyContent());
-            assertEquals("TEMPORARY:" + tempKeyContent, reloadedConnection.getPrivateKeyPath());
-            assertEquals(60L, reloadedConnection.getTemporaryKeyExpirationMinutes());
-            assertTrue(reloadedConnection.isTemporaryKeyPermanent());
+            assertThat(reloadedConnection.getTemporaryKeyContent()).isEqualTo(tempKeyContent);
+            assertThat(reloadedConnection.getPrivateKeyPath()).isEqualTo("TEMPORARY:" + tempKeyContent);
+            assertThat(reloadedConnection.getTemporaryKeyExpirationMinutes()).isEqualTo(60L);
+            assertThat(reloadedConnection.isTemporaryKeyPermanent()).isTrue();
         } finally {
             Files.deleteIfExists(dir.resolve("connections.xml"));
             Files.deleteIfExists(dir);
@@ -71,7 +69,7 @@ class XMLConnectionRepositoryTest {
             connection.setTemporaryKeyContent("temporary-key");
             connection.setPrivateKeyPath("TEMPORARY:temporary-key");
 
-            assertThrows(IllegalStateException.class, () -> repository.saveConnections(List.of(connection), null));
+            expectThrows(IllegalStateException.class, () -> repository.saveConnections(List.of(connection), null));
         } finally {
             Files.deleteIfExists(dir.resolve("connections.xml"));
             Files.deleteIfExists(dir);

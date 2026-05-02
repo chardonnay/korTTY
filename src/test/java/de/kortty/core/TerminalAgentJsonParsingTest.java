@@ -1,10 +1,10 @@
 package de.kortty.core;
 
 import com.google.gson.JsonSyntaxException;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TerminalAgentJsonParsingTest {
 
@@ -16,9 +16,7 @@ class TerminalAgentJsonParsingTest {
             ```
             """);
 
-        assertEquals(
-            "{\"status\":\"done\",\"summary\":\"ok\",\"userMessage\":\"ready\",\"commands\":[],\"needsReprobe\":false}",
-            parsed);
+        assertThat(parsed).isEqualTo("{\"status\":\"done\",\"summary\":\"ok\",\"userMessage\":\"ready\",\"commands\":[],\"needsReprobe\":false}");
     }
 
     @Test
@@ -26,9 +24,7 @@ class TerminalAgentJsonParsingTest {
         String parsed = TerminalAgentService.extractJsonObjectContent(
             "\"{\\\"status\\\":\\\"blocked\\\",\\\"summary\\\":\\\"no repo\\\",\\\"userMessage\\\":\\\"Need repo details\\\",\\\"commands\\\":[],\\\"needsReprobe\\\":false}\"");
 
-        assertEquals(
-            "{\"status\":\"blocked\",\"summary\":\"no repo\",\"userMessage\":\"Need repo details\",\"commands\":[],\"needsReprobe\":false}",
-            parsed);
+        assertThat(parsed).isEqualTo("{\"status\":\"blocked\",\"summary\":\"no repo\",\"userMessage\":\"Need repo details\",\"commands\":[],\"needsReprobe\":false}");
     }
 
     @Test
@@ -36,14 +32,12 @@ class TerminalAgentJsonParsingTest {
         String parsed = TerminalAgentService.extractJsonObjectContent(
             "Sure. {\"status\":\"done\",\"summary\":\"ok\",\"userMessage\":\"ready\",\"commands\":[],\"needsReprobe\":false}");
 
-        assertEquals(
-            "{\"status\":\"done\",\"summary\":\"ok\",\"userMessage\":\"ready\",\"commands\":[],\"needsReprobe\":false}",
-            parsed);
+        assertThat(parsed).isEqualTo("{\"status\":\"done\",\"summary\":\"ok\",\"userMessage\":\"ready\",\"commands\":[],\"needsReprobe\":false}");
     }
 
     @Test
     void rejectsPlainTextWithoutJsonObject() {
-        assertThrows(JsonSyntaxException.class, () ->
+        expectThrows(JsonSyntaxException.class, () ->
             TerminalAgentService.extractJsonObjectContent("I would install tomcat with dnf."));
     }
 }

@@ -84,8 +84,8 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.4.14")
     
     // Testing
-    testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
+    testImplementation("com.google.truth:truth:1.4.5")
+    testImplementation("org.testng:testng:7.12.0")
 }
 
 application {
@@ -614,7 +614,7 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useTestNG()
 }
 
 tasks.jar {

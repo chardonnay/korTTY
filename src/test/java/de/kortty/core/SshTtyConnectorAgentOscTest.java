@@ -5,28 +5,25 @@ import org.apache.sshd.client.SshClient;
 import org.apache.sshd.common.CommonModuleProperties;
 import org.apache.sshd.common.session.SessionHeartbeatController;
 import org.apache.sshd.core.CoreModuleProperties;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SshTtyConnectorAgentOscTest {
 
     @Test
     void disablesInitialPtyEchoWhenShellStartupCommandIsConfigured() {
-        assertEquals(0, SshTtyConnector.initialPtyEchoMode("alias agent=true\n"));
+        assertThat(SshTtyConnector.initialPtyEchoMode("alias agent=true\n")).isEqualTo(0);
     }
 
     @Test
     void keepsInitialPtyEchoEnabledWithoutShellStartupCommand() {
-        assertEquals(1, SshTtyConnector.initialPtyEchoMode(null));
-        assertEquals(1, SshTtyConnector.initialPtyEchoMode("   "));
+        assertThat(SshTtyConnector.initialPtyEchoMode(null)).isEqualTo(1);
+        assertThat(SshTtyConnector.initialPtyEchoMode("   ")).isEqualTo(1);
     }
 
     @Test
@@ -38,11 +35,9 @@ class SshTtyConnectorAgentOscTest {
 
         SshTtyConnector.configureKeepAlive(client, settings);
 
-        assertEquals(
-            SessionHeartbeatController.HeartbeatType.IGNORE,
-            CommonModuleProperties.SESSION_HEARTBEAT_TYPE.getRequired(client));
-        assertEquals(Duration.ofSeconds(30), CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.getRequired(client));
-        assertTrue(CoreModuleProperties.SOCKET_KEEPALIVE.getRequired(client));
+        assertThat(CommonModuleProperties.SESSION_HEARTBEAT_TYPE.getRequired(client)).isEqualTo(SessionHeartbeatController.HeartbeatType.IGNORE);
+        assertThat(CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.getRequired(client)).isEqualTo(Duration.ofSeconds(30));
+        assertThat(CoreModuleProperties.SOCKET_KEEPALIVE.getRequired(client)).isTrue();
     }
 
     @Test
@@ -53,11 +48,9 @@ class SshTtyConnectorAgentOscTest {
 
         SshTtyConnector.configureKeepAlive(client, settings);
 
-        assertEquals(
-            SessionHeartbeatController.HeartbeatType.NONE,
-            CommonModuleProperties.SESSION_HEARTBEAT_TYPE.getRequired(client));
-        assertEquals(Duration.ZERO, CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.getRequired(client));
-        assertFalse(CoreModuleProperties.SOCKET_KEEPALIVE.getRequired(client));
+        assertThat(CommonModuleProperties.SESSION_HEARTBEAT_TYPE.getRequired(client)).isEqualTo(SessionHeartbeatController.HeartbeatType.NONE);
+        assertThat(CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.getRequired(client)).isEqualTo(Duration.ZERO);
+        assertThat(CoreModuleProperties.SOCKET_KEEPALIVE.getRequired(client)).isFalse();
     }
 
     @Test
@@ -68,11 +61,11 @@ class SshTtyConnectorAgentOscTest {
         settings.setSshKeepAliveInterval(1);
 
         SshTtyConnector.configureKeepAlive(client, settings);
-        assertEquals(Duration.ofSeconds(5), CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.getRequired(client));
+        assertThat(CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.getRequired(client)).isEqualTo(Duration.ofSeconds(5));
 
         settings.setSshKeepAliveInterval(1000);
         SshTtyConnector.configureKeepAlive(client, settings);
-        assertEquals(Duration.ofSeconds(600), CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.getRequired(client));
+        assertThat(CommonModuleProperties.SESSION_HEARTBEAT_INTERVAL.getRequired(client)).isEqualTo(Duration.ofSeconds(600));
     }
 
     @Test
@@ -80,16 +73,14 @@ class SshTtyConnectorAgentOscTest {
         String cwd = Base64.getEncoder().encodeToString("/home/daniel/Dokumente".getBytes(StandardCharsets.UTF_8));
         String prompt = Base64.getEncoder().encodeToString("create file".getBytes(StandardCharsets.UTF_8));
 
-        assertEquals(
-            "/home/daniel/Dokumente",
-            SshTtyConnector.extractWorkingDirectoryFromAgentOscPayload("execute;" + cwd + ";" + prompt));
+        assertThat(SshTtyConnector.extractWorkingDirectoryFromAgentOscPayload("execute;" + cwd + ";" + prompt)).isEqualTo("/home/daniel/Dokumente");
     }
 
     @Test
     void ignoresOldAgentOscPayloadWithoutWorkingDirectory() {
         String prompt = Base64.getEncoder().encodeToString("create file".getBytes(StandardCharsets.UTF_8));
 
-        assertNull(SshTtyConnector.extractWorkingDirectoryFromAgentOscPayload("execute;" + prompt));
+        assertThat(SshTtyConnector.extractWorkingDirectoryFromAgentOscPayload("execute;" + prompt)).isNull();
     }
 
     @Test
@@ -97,6 +88,6 @@ class SshTtyConnectorAgentOscTest {
         String cwd = Base64.getEncoder().encodeToString("Dokumente".getBytes(StandardCharsets.UTF_8));
         String prompt = Base64.getEncoder().encodeToString("create file".getBytes(StandardCharsets.UTF_8));
 
-        assertNull(SshTtyConnector.extractWorkingDirectoryFromAgentOscPayload("execute;" + cwd + ";" + prompt));
+        assertThat(SshTtyConnector.extractWorkingDirectoryFromAgentOscPayload("execute;" + cwd + ";" + prompt)).isNull();
     }
 }

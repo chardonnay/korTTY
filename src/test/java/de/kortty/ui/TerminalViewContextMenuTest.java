@@ -1,32 +1,31 @@
 package de.kortty.ui;
 
 import de.kortty.model.AiProfile;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalViewContextMenuTest {
 
     @Test
     void hidesAiContextMenuWhenNoProfilesExistEvenIfAgentActionsAreAvailable() {
-        assertFalse(TerminalView.shouldShowAiContextMenu(List.of(), false, true));
+        assertThat(TerminalView.shouldShowAiContextMenu(List.of(), false, true)).isFalse();
     }
 
     @Test
     void hidesAiContextMenuWhenNoProfilesExistEvenIfTextIsSelected() {
-        assertFalse(TerminalView.shouldShowAiContextMenu(List.of(), true, false));
+        assertThat(TerminalView.shouldShowAiContextMenu(List.of(), true, false)).isFalse();
     }
 
     @Test
     void showsAiContextMenuWhenProfilesExistAndAgentActionsAreAvailable() {
-        assertTrue(TerminalView.shouldShowAiContextMenu(List.of(new AiProfile()), false, true));
+        assertThat(TerminalView.shouldShowAiContextMenu(List.of(new AiProfile()), false, true)).isTrue();
     }
 
     @Test
     void showsAiContextMenuWhenProfilesExistAndTextIsSelected() {
-        assertTrue(TerminalView.shouldShowAiContextMenu(List.of(new AiProfile()), true, false));
+        assertThat(TerminalView.shouldShowAiContextMenu(List.of(new AiProfile()), true, false)).isTrue();
     }
 }

@@ -1,11 +1,9 @@
 package de.kortty.core;
 
 import de.kortty.model.TerminalAgentModels;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalAgentActivityModelTest {
 
@@ -14,10 +12,10 @@ class TerminalAgentActivityModelTest {
         TerminalAgentModels.AgentActivityTokenUsage usage =
             TerminalAgentModels.AgentActivityTokenUsage.unknown();
 
-        assertFalse(usage.known());
-        assertEquals(0L, usage.promptTokens());
-        assertEquals(0L, usage.completionTokens());
-        assertEquals(0L, usage.totalTokens());
+        assertThat(usage.known()).isFalse();
+        assertThat(usage.promptTokens()).isEqualTo(0L);
+        assertThat(usage.completionTokens()).isEqualTo(0L);
+        assertThat(usage.totalTokens()).isEqualTo(0L);
     }
 
     @Test
@@ -25,10 +23,10 @@ class TerminalAgentActivityModelTest {
         TerminalAgentModels.AgentActivityTokenUsage usage =
             new TerminalAgentModels.AgentActivityTokenUsage(true, 12L, 8L, 5L);
 
-        assertTrue(usage.known());
-        assertEquals(12L, usage.promptTokens());
-        assertEquals(8L, usage.completionTokens());
-        assertEquals(20L, usage.totalTokens());
+        assertThat(usage.known()).isTrue();
+        assertThat(usage.promptTokens()).isEqualTo(12L);
+        assertThat(usage.completionTokens()).isEqualTo(8L);
+        assertThat(usage.totalTokens()).isEqualTo(20L);
     }
 
     @Test
@@ -45,11 +43,11 @@ class TerminalAgentActivityModelTest {
             true,
             true);
 
-        assertEquals(TerminalAgentModels.AgentActivityType.THINKING, activity.type());
-        assertEquals(TerminalAgentModels.AgentActivityStatus.COMPLETED, activity.status());
-        assertTrue(activity.collapsible());
-        assertTrue(activity.collapsed());
-        assertEquals("Used the probe snapshot and command history.", activity.detail());
+        assertThat(activity.type()).isEqualTo(TerminalAgentModels.AgentActivityType.THINKING);
+        assertThat(activity.status()).isEqualTo(TerminalAgentModels.AgentActivityStatus.COMPLETED);
+        assertThat(activity.collapsible()).isTrue();
+        assertThat(activity.collapsed()).isTrue();
+        assertThat(activity.detail()).isEqualTo("Used the probe snapshot and command history.");
     }
 
     @Test
@@ -64,7 +62,7 @@ class TerminalAgentActivityModelTest {
 
         String title = TerminalAgentService.buildCommandActivityTitle("Read", command);
 
-        assertEquals("Read(cat > biggest_files.py <<'EOF' ...)", title);
+        assertThat(title).isEqualTo("Read(cat > biggest_files.py <<'EOF' ...)");
     }
 
     @Test
@@ -73,7 +71,7 @@ class TerminalAgentActivityModelTest {
 
         String title = TerminalAgentService.buildCommandActivityTitle("Run", command);
 
-        assertTrue(title.length() <= 101);
-        assertTrue(title.startsWith("Run(python3 -c '"));
+        assertThat(title.length() <= 101).isTrue();
+        assertThat(title.startsWith("Run(python3 -c '")).isTrue();
     }
 }

@@ -1,10 +1,10 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AiMarkdownTableSupportTest {
 
@@ -15,9 +15,9 @@ class AiMarkdownTableSupportTest {
             List.of("`api`", "ok"),
             List.of("worker", "**warn**")));
 
-        assertEquals(List.of("Name", "Status"), table.header());
-        assertEquals("Name\tStatus\napi\tok\nworker\twarn", AiMarkdownTableSupport.toTsv(table));
-        assertEquals("Status\nok\nwarn", AiMarkdownTableSupport.toColumnText(table, 1));
-        assertEquals("warn", AiMarkdownTableSupport.toCellText(table, 1, 1));
+        assertThat(table.header()).isEqualTo(List.of("Name", "Status"));
+        assertThat(AiMarkdownTableSupport.toTsv(table)).isEqualTo("Name\tStatus\napi\tok\nworker\twarn");
+        assertThat(AiMarkdownTableSupport.toColumnText(table, 1)).isEqualTo("Status\nok\nwarn");
+        assertThat(AiMarkdownTableSupport.toCellText(table, 1, 1)).isEqualTo("warn");
     }
 }

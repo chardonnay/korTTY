@@ -1,9 +1,9 @@
 package de.kortty.ui;
 
 import de.kortty.model.TerminalAgentModels;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AiAgentActivityPanelCopyTextTest {
 
@@ -21,9 +21,7 @@ class AiAgentActivityPanelCopyTextTest {
             true,
             false);
 
-        assertEquals(
-            "#!/usr/bin/env bash\necho ok\nplain line",
-            AiAgentActivityPanel.copyTextForActivity(activity));
+        assertThat(AiAgentActivityPanel.copyTextForActivity(activity)).isEqualTo("#!/usr/bin/env bash\necho ok\nplain line");
     }
 
     @Test
@@ -40,6 +38,6 @@ class AiAgentActivityPanelCopyTextTest {
             false,
             false);
 
-        assertEquals("Done", AiAgentActivityPanel.copyTextForActivity(activity));
+        assertThat(AiAgentActivityPanel.copyTextForActivity(activity)).isEqualTo("Done");
     }
 }

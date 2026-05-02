@@ -1,101 +1,98 @@
 package de.kortty.ui;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 import javafx.scene.input.KeyCode;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalViewShortcutHeuristicsTest {
 
     @Test
     void doesNotResetPromptReadyForEchoedShortcutWhileTyping() {
-        assertFalse(TerminalView.shouldResetPromptReady(
+        assertThat(TerminalView.shouldResetPromptReady(
             "daniel@fedora:~$ agent-ask how much storage do i have?",
-            true));
+            true)).isFalse();
     }
 
     @Test
     void doesNotResetPromptReadyForRecognizedShellPrompt() {
-        assertFalse(TerminalView.shouldResetPromptReady("daniel@fedora:~$", false));
+        assertThat(TerminalView.shouldResetPromptReady("daniel@fedora:~$", false)).isFalse();
     }
 
     @Test
     void resetsPromptReadyForRegularOutputWhenNoLocalTypingIsInProgress() {
-        assertTrue(TerminalView.shouldResetPromptReady("Filesystem      Size  Used Avail Mounted on", false));
+        assertThat(TerminalView.shouldResetPromptReady("Filesystem      Size  Used Avail Mounted on", false)).isTrue();
     }
 
     @Test
     void interceptsAgentShortcutWhenPromptWasReadyAtEnter() {
-        assertTrue(TerminalView.canInterceptAgentShortcut("agent install tmux", true, "agent"));
+        assertThat(TerminalView.canInterceptAgentShortcut("agent install tmux", true, "agent")).isTrue();
     }
 
     @Test
     void doesNotInterceptAgentShortcutWhenPromptWasNotReadyAtEnter() {
-        assertFalse(TerminalView.canInterceptAgentShortcut("agent install tmux", false, "agent"));
+        assertThat(TerminalView.canInterceptAgentShortcut("agent install tmux", false, "agent")).isFalse();
     }
 
     @Test
     void connectorInterceptionRecognizesBufferedAgentShortcutWithoutPromptSignal() {
-        assertTrue(TerminalView.canInterceptBufferedAgentShortcut("agent install tomcat", "agent"));
+        assertThat(TerminalView.canInterceptBufferedAgentShortcut("agent install tomcat", "agent")).isTrue();
     }
 
     @Test
     void connectorInterceptionCanMatchAgentShortcutCaseInsensitively() {
-        assertFalse(TerminalView.canInterceptBufferedAgentShortcut("Agent install tomcat", "agent"));
-        assertTrue(TerminalView.canInterceptBufferedAgentShortcut("Agent install tomcat", "agent", true));
+        assertThat(TerminalView.canInterceptBufferedAgentShortcut("Agent install tomcat", "agent")).isFalse();
+        assertThat(TerminalView.canInterceptBufferedAgentShortcut("Agent install tomcat", "agent", true)).isTrue();
     }
 
     @Test
     void connectorInterceptionIgnoresRegularShellCommands() {
-        assertFalse(TerminalView.canInterceptBufferedAgentShortcut("ls -la", "agent"));
+        assertThat(TerminalView.canInterceptBufferedAgentShortcut("ls -la", "agent")).isFalse();
     }
 
     @Test
     void letsRemoteShellHandleAgentShortcutWhenRemoteHookIsConfigured() {
-        assertTrue(TerminalView.shouldLetRemoteShellHandleAgentShortcut(
+        assertThat(TerminalView.shouldLetRemoteShellHandleAgentShortcut(
             true,
             "agent install tomcat",
-            "agent"));
+            "agent")).isTrue();
     }
 
     @Test
     void keepsLocalFallbackForCaseInsensitiveShortcutWhenRemoteAliasWouldNotMatch() {
-        assertFalse(TerminalView.shouldLetRemoteShellHandleAgentShortcut(
+        assertThat(TerminalView.shouldLetRemoteShellHandleAgentShortcut(
             true,
             "Agent install tomcat",
             "agent",
-            true));
+            true)).isFalse();
     }
 
     @Test
     void keepsLocalFallbackForAgentShortcutWhenRemoteHookIsMissing() {
-        assertFalse(TerminalView.shouldLetRemoteShellHandleAgentShortcut(
+        assertThat(TerminalView.shouldLetRemoteShellHandleAgentShortcut(
             false,
             "agent install tomcat",
-            "agent"));
+            "agent")).isFalse();
     }
 
     @Test
     void buildsRemoteShellAliasesForAgentShortcut() {
         String startup = TerminalView.buildTerminalAgentShellStartupCommand("agent");
 
-        assertTrue(startup.contains("alias agent='__kortty_agent_emit execute'"));
-        assertTrue(startup.contains("alias agent-ask='__kortty_agent_emit ask'"));
-        assertTrue(startup.contains("alias agent-plan='__kortty_agent_emit plan'"));
-        assertTrue(startup.contains("pwd -P"));
-        assertTrue(startup.contains("korTTY-agent;%s;%s;%s"));
-        assertTrue(startup.contains("__kortty_agent_clean_history"));
-        assertTrue(startup.contains("history -d \"$__kortty_h\""));
-        assertTrue(startup.contains("awk 'index($0,\"__kortty_agent_b64(){\")==0' \"$HISTFILE\""));
-        assertTrue(startup.contains("printf '\\r\\033[K'"));
-        assertTrue(startup.contains("stty echo"));
-        assertFalse(startup.substring(0, startup.length() - 1).contains("\n"));
+        assertThat(startup.contains("alias agent='__kortty_agent_emit execute'")).isTrue();
+        assertThat(startup.contains("alias agent-ask='__kortty_agent_emit ask'")).isTrue();
+        assertThat(startup.contains("alias agent-plan='__kortty_agent_emit plan'")).isTrue();
+        assertThat(startup.contains("pwd -P")).isTrue();
+        assertThat(startup.contains("korTTY-agent;%s;%s;%s")).isTrue();
+        assertThat(startup.contains("__kortty_agent_clean_history")).isTrue();
+        assertThat(startup.contains("history -d \"$__kortty_h\"")).isTrue();
+        assertThat(startup.contains("awk 'index($0,\"__kortty_agent_b64(){\")==0' \"$HISTFILE\"")).isTrue();
+        assertThat(startup.contains("printf '\\r\\033[K'")).isTrue();
+        assertThat(startup.contains("stty echo")).isTrue();
+        assertThat(startup.substring(0, startup.length() - 1).contains("\n")).isFalse();
     }
 
     @Test
@@ -103,9 +100,9 @@ class TerminalViewShortcutHeuristicsTest {
         String wrapped = TerminalView.buildEchoSuppressedGeneratedInput(
             "printf '%s\\n' 'KorTTY snippet: check_test_echo.sh' >&2 && echo 'abc' | base64 -d | bash");
 
-        assertTrue(wrapped.startsWith("printf '\\033[1A\\r\\033[K\\033[1B\\r\\033[K\\033[1A\\r'; "));
-        assertTrue(wrapped.contains("KorTTY snippet: check_test_echo.sh"));
-        assertTrue(wrapped.endsWith("; stty echo\n"));
+        assertThat(wrapped.startsWith("printf '\\033[1A\\r\\033[K\\033[1B\\r\\033[K\\033[1A\\r'; ")).isTrue();
+        assertThat(wrapped.contains("KorTTY snippet: check_test_echo.sh")).isTrue();
+        assertThat(wrapped.endsWith("; stty echo\n")).isTrue();
     }
 
     @Test
@@ -115,8 +112,8 @@ class TerminalViewShortcutHeuristicsTest {
                 + "YWJj\n"
                 + "KORTTY_B64_EOF");
 
-        assertTrue(wrapped.contains("base64 -d <<'KORTTY_B64_EOF' | bash; stty echo\nYWJj\n"));
-        assertTrue(wrapped.endsWith("KORTTY_B64_EOF\n"));
+        assertThat(wrapped.contains("base64 -d <<'KORTTY_B64_EOF' | bash; stty echo\nYWJj\n")).isTrue();
+        assertThat(wrapped.endsWith("KORTTY_B64_EOF\n")).isTrue();
     }
 
     @Test
@@ -125,75 +122,73 @@ class TerminalViewShortcutHeuristicsTest {
 
         String rawCommand = TerminalView.buildTerminalAgentRawCommandFromOscPayload("execute", encoded, "agent");
 
-        assertEquals("agent install tomcat", rawCommand);
+        assertThat(rawCommand).isEqualTo("agent install tomcat");
     }
 
     @Test
     void rejectsMalformedRemoteShellOscPayload() {
-        assertNull(TerminalView.buildTerminalAgentRawCommandFromOscPayload("execute", "not base64", "agent"));
-        assertNull(TerminalView.buildTerminalAgentRawCommandFromOscPayload("unknown", "aWdub3Jl", "agent"));
+        assertThat(TerminalView.buildTerminalAgentRawCommandFromOscPayload("execute", "not base64", "agent")).isNull();
+        assertThat(TerminalView.buildTerminalAgentRawCommandFromOscPayload("unknown", "aWdub3Jl", "agent")).isNull();
     }
 
     @Test
     void detectsVisiblePromptWhenCurrentLineContainsTypedShortcut() {
-        assertTrue(TerminalView.hasVisiblePromptForCommand(
+        assertThat(TerminalView.hasVisiblePromptForCommand(
             "daniel@fedora:~$ agent install tmux",
-            "agent install tmux"));
+            "agent install tmux")).isTrue();
     }
 
     @Test
     void doesNotTreatNonPromptOutputAsVisiblePromptForShortcut() {
-        assertFalse(TerminalView.hasVisiblePromptForCommand(
+        assertThat(TerminalView.hasVisiblePromptForCommand(
             "bash: agent: command not found",
-            "agent install tmux"));
+            "agent install tmux")).isFalse();
     }
 
     @Test
     void extractsAgentShortcutFromVisiblePromptLine() {
-        assertEquals("agent install tmux", TerminalView.extractAgentShortcutFromVisibleLine(
+        assertThat(TerminalView.extractAgentShortcutFromVisibleLine(
             "daniel@fedora ~ $ agent install tmux",
-            "agent"));
+            "agent")).isEqualTo("agent install tmux");
     }
 
     @Test
     void extractsAgentShortcutFromVisiblePromptLineCaseInsensitivelyWhenEnabled() {
-        assertNull(TerminalView.extractAgentShortcutFromVisibleLine(
+        assertThat(TerminalView.extractAgentShortcutFromVisibleLine(
             "daniel@fedora ~ $ Agent install tmux",
-            "agent"));
-        assertEquals("Agent install tmux", TerminalView.extractAgentShortcutFromVisibleLine(
+            "agent")).isNull();
+        assertThat(TerminalView.extractAgentShortcutFromVisibleLine(
             "daniel@fedora ~ $ Agent install tmux",
             "agent",
-            true));
+            true)).isEqualTo("Agent install tmux");
     }
 
     @Test
     void extractsAgentAskShortcutFromVisiblePromptLine() {
-        assertEquals("agent-ask what failed?", TerminalView.extractAgentShortcutFromVisibleLine(
+        assertThat(TerminalView.extractAgentShortcutFromVisibleLine(
             "daniel@fedora:~$ agent-ask what failed?",
-            "agent"));
+            "agent")).isEqualTo("agent-ask what failed?");
     }
 
     @Test
     void doesNotExtractAgentShortcutFromCommandNotFoundOutput() {
-        assertFalse("agent install tmux".equals(TerminalView.extractAgentShortcutFromVisibleLine(
+        assertThat("agent install tmux".equals(TerminalView.extractAgentShortcutFromVisibleLine(
             "bash: agent: Befehl nicht gefunden...",
-            "agent")));
+            "agent"))).isFalse();
     }
 
     @Test
     void recognizesAgentInputCancellationShortcuts() {
-        assertTrue(TerminalView.isAgentInputCancelShortcut(KeyCode.ESCAPE, false, false, false));
-        assertTrue(TerminalView.isAgentInputCancelShortcut(KeyCode.C, true, false, false));
-        assertFalse(TerminalView.isAgentInputCancelShortcut(KeyCode.C, false, false, false));
-        assertFalse(TerminalView.isAgentInputCancelShortcut(KeyCode.C, true, true, false));
-        assertFalse(TerminalView.isAgentInputCancelShortcut(KeyCode.R, true, false, false));
+        assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.ESCAPE, false, false, false)).isTrue();
+        assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.C, true, false, false)).isTrue();
+        assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.C, false, false, false)).isFalse();
+        assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.C, true, true, false)).isFalse();
+        assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.R, true, false, false)).isFalse();
     }
 
     @Test
     void normalizesLocalTerminalMessageLines() {
-        assertEquals(
-            java.util.List.of("Installed Tomcat RPMs:", "- tomcat", "- tomcat-lib"),
-            TerminalView.normalizeTerminalMessageLines("Installed Tomcat RPMs:\r\n- tomcat  \n- tomcat-lib"));
+        assertThat(TerminalView.normalizeTerminalMessageLines("Installed Tomcat RPMs:\r\n- tomcat  \n- tomcat-lib")).isEqualTo(java.util.List.of("Installed Tomcat RPMs:", "- tomcat", "- tomcat-lib"));
     }
 
     @Test
@@ -203,7 +198,7 @@ class TerminalViewShortcutHeuristicsTest {
             + "                  \n"
             + "                  \n";
 
-        assertEquals("daniel@fedora:~$ ", TerminalView.extractPromptForLocalRedisplay(screen, "agent"));
+        assertThat(TerminalView.extractPromptForLocalRedisplay(screen, "agent")).isEqualTo("daniel@fedora:~$ ");
     }
 
     @Test
@@ -212,6 +207,6 @@ class TerminalViewShortcutHeuristicsTest {
             + "daniel@fedora:~$ agent install tomcat\n"
             + "                  \n";
 
-        assertEquals("daniel@fedora:~$ ", TerminalView.extractPromptForLocalRedisplay(screen, "agent"));
+        assertThat(TerminalView.extractPromptForLocalRedisplay(screen, "agent")).isEqualTo("daniel@fedora:~$ ");
     }
 }

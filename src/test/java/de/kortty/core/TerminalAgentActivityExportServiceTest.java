@@ -5,7 +5,7 @@ import de.kortty.model.TerminalAgentModels;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 import org.w3c.dom.Document;
 
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -13,11 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalAgentActivityExportServiceTest {
 
@@ -32,13 +29,13 @@ class TerminalAgentActivityExportServiceTest {
         String asciidoctor = service.buildAsciidoctorExport(document);
 
         for (String exported : List.of(markdown, text, yaml, asciidoctor)) {
-            assertTrue(exported.contains("local"));
-            assertTrue(exported.contains("gpt-test"));
-            assertTrue(exported.contains("High"));
-            assertTrue(exported.contains("42"));
-            assertTrue(exported.contains("Collected the current server state."));
-            assertTrue(exported.contains("Read 10 lines"));
-            assertTrue(exported.contains("150"));
+            assertThat(exported.contains("local")).isTrue();
+            assertThat(exported.contains("gpt-test")).isTrue();
+            assertThat(exported.contains("High")).isTrue();
+            assertThat(exported.contains("42")).isTrue();
+            assertThat(exported.contains("Collected the current server state.")).isTrue();
+            assertThat(exported.contains("Read 10 lines")).isTrue();
+            assertThat(exported.contains("150")).isTrue();
         }
     }
 
@@ -50,10 +47,10 @@ class TerminalAgentActivityExportServiceTest {
         String markdown = service.buildMarkdownExport(document);
         String text = service.buildTextExport(document);
 
-        assertTrue(markdown.contains("\nFedora Linux 43\n"));
-        assertTrue(text.contains("    Fedora Linux 43"));
-        assertFalse(markdown.contains("> Fedora Linux 43"));
-        assertFalse(text.contains("  > Fedora Linux 43"));
+        assertThat(markdown.contains("\nFedora Linux 43\n")).isTrue();
+        assertThat(text.contains("    Fedora Linux 43")).isTrue();
+        assertThat(markdown.contains("> Fedora Linux 43")).isFalse();
+        assertThat(text.contains("  > Fedora Linux 43")).isFalse();
     }
 
     @Test
@@ -85,29 +82,29 @@ class TerminalAgentActivityExportServiceTest {
                     3)))));
 
         String json = service.buildJsonExport(document);
-        assertEquals("unknown", JsonParser.parseString(json)
+        assertThat(JsonParser.parseString(json)
             .getAsJsonObject()
             .getAsJsonArray("runs")
             .get(0)
             .getAsJsonObject()
             .get("modelName")
-            .getAsString());
-        assertEquals("unknown", JsonParser.parseString(json)
+            .getAsString()).isEqualTo("unknown");
+        assertThat(JsonParser.parseString(json)
             .getAsJsonObject()
             .getAsJsonArray("runs")
             .get(0)
             .getAsJsonObject()
             .get("reasoningStatus")
-            .getAsString());
+            .getAsString()).isEqualTo("unknown");
 
         String xml = service.buildXmlExport(document);
         Document parsedXml = DocumentBuilderFactory.newInstance()
             .newDocumentBuilder()
             .parse(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        assertEquals("terminalAgentExport", parsedXml.getDocumentElement().getNodeName());
-        assertEquals("unknown", parsedXml.getElementsByTagName("modelName").item(0).getTextContent());
-        assertEquals("unknown", parsedXml.getElementsByTagName("reasoningStatus").item(0).getTextContent());
-        assertEquals("unknown", parsedXml.getElementsByTagName("reportedTokens").item(0).getTextContent());
+        assertThat(parsedXml.getDocumentElement().getNodeName()).isEqualTo("terminalAgentExport");
+        assertThat(parsedXml.getElementsByTagName("modelName").item(0).getTextContent()).isEqualTo("unknown");
+        assertThat(parsedXml.getElementsByTagName("reasoningStatus").item(0).getTextContent()).isEqualTo("unknown");
+        assertThat(parsedXml.getElementsByTagName("reportedTokens").item(0).getTextContent()).isEqualTo("unknown");
     }
 
     @Test
@@ -119,15 +116,15 @@ class TerminalAgentActivityExportServiceTest {
             Path exportFile = Files.createTempFile("terminal-agent-export-", format.extension());
             try {
                 service.export(exportFile, format, document);
-                assertTrue(Files.size(exportFile) > 0);
+                assertThat(Files.size(exportFile) > 0).isTrue();
                 if (format == TerminalAgentActivityExportService.Format.PDF) {
                     try (PDDocument pdf = Loader.loadPDF(exportFile.toFile())) {
-                        assertNotNull(pdf.getDocumentInformation());
+                        assertThat(pdf.getDocumentInformation()).isNotNull();
                         String extracted = new PDFTextStripper().getText(pdf);
-                        assertTrue(extracted.contains("local"));
-                        assertTrue(extracted.contains("gpt-test"));
-                        assertTrue(extracted.contains("High"));
-                        assertTrue(extracted.contains("Collected the current server state."));
+                        assertThat(extracted.contains("local")).isTrue();
+                        assertThat(extracted.contains("gpt-test")).isTrue();
+                        assertThat(extracted.contains("High")).isTrue();
+                        assertThat(extracted.contains("Collected the current server state.")).isTrue();
                     }
                 }
             } finally {

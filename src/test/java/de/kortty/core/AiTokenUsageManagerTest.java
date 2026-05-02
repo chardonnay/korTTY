@@ -2,11 +2,11 @@ package de.kortty.core;
 
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiTokenLimitUnit;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.time.LocalDate;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AiTokenUsageManagerTest {
 
@@ -24,13 +24,13 @@ class AiTokenUsageManagerTest {
 
         AiTokenUsageSnapshot resetSnapshot = AiTokenUsageManager.refreshUsage(profile, LocalDate.of(2026, 2, 5));
 
-        assertEquals(0L, resetSnapshot.usedTotalTokens());
-        assertEquals(AiTokenWarningLevel.NONE, resetSnapshot.warningLevel());
+        assertThat(resetSnapshot.usedTotalTokens()).isEqualTo(0L);
+        assertThat(resetSnapshot.warningLevel()).isEqualTo(AiTokenWarningLevel.NONE);
 
         profile.setUsedTotalTokens(82_000L);
         AiTokenUsageSnapshot warningSnapshot = AiTokenUsageManager.refreshUsage(profile, LocalDate.of(2026, 2, 10));
 
-        assertEquals(AiTokenWarningLevel.RED, warningSnapshot.warningLevel());
-        assertEquals(18_000L, warningSnapshot.remainingTokens());
+        assertThat(warningSnapshot.warningLevel()).isEqualTo(AiTokenWarningLevel.RED);
+        assertThat(warningSnapshot.remainingTokens()).isEqualTo(18_000L);
     }
 }

@@ -2,23 +2,44 @@ package de.kortty.core;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.ui.sftp.SftpFileItem;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SftpFileTransferServiceTest {
 
-    @TempDir
     Path tempDir;
+
+    @BeforeMethod
+    void createTempDir() throws IOException {
+        tempDir = Files.createTempDirectory("kortty-sftp-transfer-test");
+    }
+
+    @AfterMethod
+    void deleteTempDir() throws IOException {
+        if (tempDir == null || !Files.exists(tempDir)) {
+            return;
+        }
+        try (var paths = Files.walk(tempDir)) {
+            paths.sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Failed to delete temp path " + path, e);
+                    }
+                });
+        }
+    }
 
     @Test
     void listLocalIncludesParentEntryAndFileMetadata() throws Exception {
@@ -30,9 +51,9 @@ class SftpFileTransferServiceTest {
 
         List<SftpFileItem> items = service.listLocal(root);
 
-        assertEquals("..", items.get(0).getName());
-        assertTrue(items.stream().anyMatch(item -> item.getPath().equals(childDirectory.toAbsolutePath().toString()) && !item.isFile()));
-        assertTrue(items.stream().anyMatch(item -> item.getPath().equals(childFile.toAbsolutePath().toString()) && item.isFile()));
+        assertThat(items.get(0).getName()).isEqualTo("..");
+        assertThat(items.stream().anyMatch(item -> item.getPath().equals(childDirectory.toAbsolutePath().toString()) && !item.isFile())).isTrue();
+        assertThat(items.stream().anyMatch(item -> item.getPath().equals(childFile.toAbsolutePath().toString()) && item.isFile())).isTrue();
     }
 
     @Test
@@ -42,12 +63,12 @@ class SftpFileTransferServiceTest {
 
         Path renamedFile = service.renameLocal(sourceFile, "after.txt");
 
-        assertFalse(Files.exists(sourceFile));
-        assertTrue(Files.exists(renamedFile));
+        assertThat(Files.exists(sourceFile)).isFalse();
+        assertThat(Files.exists(renamedFile)).isTrue();
 
         service.deleteLocal(renamedFile);
 
-        assertFalse(Files.exists(renamedFile));
+        assertThat(Files.exists(renamedFile)).isFalse();
     }
 
     @Test
@@ -62,8 +83,8 @@ class SftpFileTransferServiceTest {
 
         service.copyLocal(List.of(sourceDirectory), destinationDirectory);
 
-        assertTrue(Files.exists(destinationDirectory.resolve("source").resolve("root.txt")));
-        assertTrue(Files.exists(destinationDirectory.resolve("source").resolve("nested").resolve("nested.txt")));
+        assertThat(Files.exists(destinationDirectory.resolve("source").resolve("root.txt"))).isTrue();
+        assertThat(Files.exists(destinationDirectory.resolve("source").resolve("nested").resolve("nested.txt"))).isTrue();
     }
 
     @Test
@@ -74,9 +95,9 @@ class SftpFileTransferServiceTest {
 
         String newPath = service.renameRemote("report.txt", "renamed.txt");
 
-        assertEquals("renamed.txt", newPath);
-        assertEquals("report.txt", session.lastOldPath);
-        assertEquals("renamed.txt", session.lastNewPath);
+        assertThat(newPath).isEqualTo("renamed.txt");
+        assertThat(session.lastOldPath).isEqualTo("report.txt");
+        assertThat(session.lastNewPath).isEqualTo("renamed.txt");
     }
 
     @Test
@@ -85,9 +106,9 @@ class SftpFileTransferServiceTest {
         SftpFileTransferService service = new SftpFileTransferService();
         service.connect(session);
 
-        IOException exception = assertThrows(IOException.class, () -> service.renameRemote("/", "renamed.txt"));
+        IOException exception = expectThrows(IOException.class, () -> service.renameRemote("/", "renamed.txt"));
 
-        assertEquals("Cannot rename remote root path '/'", exception.getMessage());
+        assertThat(exception.getMessage()).isEqualTo("Cannot rename remote root path '/'");
     }
 
     @Test
@@ -97,9 +118,9 @@ class SftpFileTransferServiceTest {
         service.connect(session);
 
         IllegalArgumentException exception =
-            assertThrows(IllegalArgumentException.class, () -> service.renameRemote("   ", "renamed.txt"));
+            expectThrows(IllegalArgumentException.class, () -> service.renameRemote("   ", "renamed.txt"));
 
-        assertEquals("Remote path must not be empty", exception.getMessage());
+        assertThat(exception.getMessage()).isEqualTo("Remote path must not be empty");
     }
 
     private static final class RecordingSftpSession extends SFTPSession {

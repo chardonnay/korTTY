@@ -1,10 +1,10 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SnippetAiResponseSupportTest {
 
@@ -21,7 +21,7 @@ class SnippetAiResponseSupportTest {
             """,
             2);
 
-        assertEquals(List.of("Backup logs", "Completed successfully"), replacements);
+        assertThat(replacements).isEqualTo(List.of("Backup logs", "Completed successfully"));
     }
 
     @Test
@@ -39,8 +39,8 @@ class SnippetAiResponseSupportTest {
             """,
             2);
 
-        assertEquals(2, solutions.size());
-        assertEquals("A", solutions.get(0).title());
-        assertEquals("echo two", solutions.get(1).code());
+        assertThat(solutions.size()).isEqualTo(2);
+        assertThat(solutions.get(0).title()).isEqualTo("A");
+        assertThat(solutions.get(1).code()).isEqualTo("echo two");
     }
 }

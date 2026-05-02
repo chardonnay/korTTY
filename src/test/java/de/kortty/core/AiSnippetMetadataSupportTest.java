@@ -1,8 +1,8 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AiSnippetMetadataSupportTest {
 
@@ -21,9 +21,9 @@ class AiSnippetMetadataSupportTest {
             "bash",
             "#!/usr/bin/env bash\nfind /var/log -type f");
 
-        assertEquals("cleanup-logs.py", metadata.fileName());
-        assertEquals("Bereinigt alte Logdateien und komprimiert verbleibende Archive.", metadata.description());
-        assertEquals("python", metadata.language());
+        assertThat(metadata.fileName()).isEqualTo("cleanup-logs.py");
+        assertThat(metadata.description()).isEqualTo("Bereinigt alte Logdateien und komprimiert verbleibende Archive.");
+        assertThat(metadata.language()).isEqualTo("python");
     }
 
     @Test
@@ -33,9 +33,9 @@ class AiSnippetMetadataSupportTest {
             "plain",
             "#!/usr/bin/env python3\nprint('ok')");
 
-        assertEquals("snippet.py", metadata.fileName());
-        assertEquals("Kurze Beschreibung ohne JSON", metadata.description());
-        assertEquals("python", metadata.language());
+        assertThat(metadata.fileName()).isEqualTo("snippet.py");
+        assertThat(metadata.description()).isEqualTo("Kurze Beschreibung ohne JSON");
+        assertThat(metadata.language()).isEqualTo("python");
     }
 
     @Test
@@ -50,8 +50,8 @@ class AiSnippetMetadataSupportTest {
             "plain",
             "#!/bin/sh\necho ok\n");
 
-        assertEquals("backup-job.sh", metadata.fileName());
-        assertEquals("Keeps {daily} backups.", metadata.description());
-        assertEquals("bash", metadata.language());
+        assertThat(metadata.fileName()).isEqualTo("backup-job.sh");
+        assertThat(metadata.description()).isEqualTo("Keeps {daily} backups.");
+        assertThat(metadata.language()).isEqualTo("bash");
     }
 }

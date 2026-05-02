@@ -1,16 +1,14 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import static com.google.common.truth.Truth.assertWithMessage;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AiI18nCoverageTest {
 
@@ -327,18 +325,17 @@ class AiI18nCoverageTest {
             for (String key : REQUIRED_KEYS) {
                 String baseValue = base.getProperty(key);
                 String localizedValue = localized.getProperty(key);
-                assertNotNull(baseValue, "Base bundle is missing key " + key);
-                assertNotNull(localizedValue, bundle + " is missing key " + key);
-                assertEquals(countPlaceholders(baseValue), countPlaceholders(localizedValue),
-                    bundle + " has different placeholder count for key " + key);
-                assertTrue(!localizedValue.isBlank(), bundle + " has blank value for key " + key);
+                assertWithMessage("Base bundle is missing key " + key).that(baseValue).isNotNull();
+                assertWithMessage(bundle + " is missing key " + key).that(localizedValue).isNotNull();
+                assertWithMessage(bundle + " has different placeholder count for key " + key).that(countPlaceholders(localizedValue)).isEqualTo(countPlaceholders(baseValue));
+                assertWithMessage(bundle + " has blank value for key " + key).that(!localizedValue.isBlank()).isTrue();
             }
         }
     }
 
     private Properties loadBundle(String fileName) throws Exception {
         try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("i18n/" + fileName)) {
-            assertNotNull(inputStream, "Missing i18n bundle " + fileName);
+            assertWithMessage("Missing i18n bundle " + fileName).that(inputStream).isNotNull();
             Properties properties = new Properties();
             properties.load(new java.io.InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8));
             return properties;

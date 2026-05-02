@@ -1,61 +1,49 @@
 package de.kortty.core;
 
 import de.kortty.model.TerminalAgentModels;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalAgentSudoCommandTest {
 
     @Test
     void normalizesPlainSudoToNonInteractiveSudo() {
-        assertEquals(
-            "sudo -n dnf install -y tomcat",
-            TerminalAgentService.normalizeSudoForAgentExecution("sudo dnf install -y tomcat"));
+        assertThat(TerminalAgentService.normalizeSudoForAgentExecution("sudo dnf install -y tomcat")).isEqualTo("sudo -n dnf install -y tomcat");
     }
 
     @Test
     void keepsAlreadyNonInteractiveSudoUnchanged() {
-        assertEquals(
-            "sudo -n dnf install -y tomcat",
-            TerminalAgentService.normalizeSudoForAgentExecution("sudo -n dnf install -y tomcat"));
+        assertThat(TerminalAgentService.normalizeSudoForAgentExecution("sudo -n dnf install -y tomcat")).isEqualTo("sudo -n dnf install -y tomcat");
     }
 
     @Test
     void normalizesSudoAfterShellConnector() {
-        assertEquals(
-            "rpm -q tomcat || sudo -n dnf install -y tomcat",
-            TerminalAgentService.normalizeSudoForAgentExecution("rpm -q tomcat || sudo dnf install -y tomcat"));
+        assertThat(TerminalAgentService.normalizeSudoForAgentExecution("rpm -q tomcat || sudo dnf install -y tomcat")).isEqualTo("rpm -q tomcat || sudo -n dnf install -y tomcat");
     }
 
     @Test
     void normalizesPlannerSudoStdinModeToRuntimeControlledNonInteractiveSudo() {
-        assertEquals(
-            "sudo -n dnf install -y tomcat",
-            TerminalAgentService.normalizeSudoForAgentExecution("sudo -S dnf install -y tomcat"));
+        assertThat(TerminalAgentService.normalizeSudoForAgentExecution("sudo -S dnf install -y tomcat")).isEqualTo("sudo -n dnf install -y tomcat");
     }
 
     @Test
     void normalizesPlannerLongSudoStdinModeToRuntimeControlledNonInteractiveSudo() {
-        assertEquals(
-            "sudo -n find /etc -type f | wc -l",
-            TerminalAgentService.normalizeSudoForAgentExecution("sudo --stdin find /etc -type f | wc -l"));
+        assertThat(TerminalAgentService.normalizeSudoForAgentExecution("sudo --stdin find /etc -type f | wc -l")).isEqualTo("sudo -n find /etc -type f | wc -l");
     }
 
     @Test
     void rejectsSudoShellModeFromPlanner() {
-        assertThrows(IllegalArgumentException.class, () ->
+        expectThrows(IllegalArgumentException.class, () ->
             TerminalAgentService.normalizeSudoForAgentExecution("sudo -i"));
     }
 
     @Test
     void rejectsLowercaseSudoShellModeFromPlanner() {
-        assertThrows(IllegalArgumentException.class, () ->
+        expectThrows(IllegalArgumentException.class, () ->
             TerminalAgentService.normalizeSudoForAgentExecution("sudo -s"));
     }
 
@@ -70,7 +58,7 @@ class TerminalAgentSudoCommandTest {
             EOF
             """;
 
-        assertFalse(TerminalAgentService.isInteractiveCommand(command));
+        assertThat(TerminalAgentService.isInteractiveCommand(command)).isFalse();
     }
 
     @Test
@@ -81,25 +69,25 @@ class TerminalAgentSudoCommandTest {
             EOF
             """;
 
-        assertTrue(TerminalAgentService.isInteractiveCommand(command));
+        assertThat(TerminalAgentService.isInteractiveCommand(command)).isTrue();
     }
 
     @Test
     void promptsForPasswordWhenPlannerBlocksOnSudoPassword() {
-        assertTrue(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
+        assertThat(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
             "Need sudo password to proceed with installation",
             "Cannot install Tomcat without sudo password",
             sudoPasswordProbe(),
-            null));
+            null)).isTrue();
     }
 
     @Test
     void doesNotPromptForPasswordWhenPasswordAlreadyCached() {
-        assertFalse(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
+        assertThat(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
             "Need sudo password",
             "Cannot continue without sudo password",
             sudoPasswordProbe(),
-            "secret"));
+            "secret")).isFalse();
     }
 
     @Test
@@ -126,30 +114,30 @@ class TerminalAgentSudoCommandTest {
             "",
             "none");
 
-        assertFalse(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
+        assertThat(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
             "Need sudo password",
             "Cannot continue without sudo password",
             probe,
-            null));
+            null)).isFalse();
     }
 
     @Test
     void clearsCachedSudoPasswordOnlyForAuthenticationFailures() {
-        assertTrue(TerminalAgentService.shouldClearCachedSudoPassword(
+        assertThat(TerminalAgentService.shouldClearCachedSudoPassword(
             "",
-            "[sudo] password for daniel: Sorry, try again."));
+            "[sudo] password for daniel: Sorry, try again.")).isTrue();
 
-        assertFalse(TerminalAgentService.shouldClearCachedSudoPassword(
+        assertThat(TerminalAgentService.shouldClearCachedSudoPassword(
             "",
-            "dnf: no package matches not-a-real-package"));
+            "dnf: no package matches not-a-real-package")).isFalse();
     }
 
     @Test
     void sudoPreflightIsNeededOnlyForPasswordProtectedSudo() {
-        assertTrue(TerminalAgentService.needsSudoPasswordPreflight(sudoPasswordProbe()));
-        assertFalse(TerminalAgentService.needsSudoPasswordPreflight(probe(true, true, false, "already_root")));
-        assertFalse(TerminalAgentService.needsSudoPasswordPreflight(probe(false, false, false, "none")));
-        assertFalse(TerminalAgentService.needsSudoPasswordPreflight(probe(false, true, true, "passwordless_sudo")));
+        assertThat(TerminalAgentService.needsSudoPasswordPreflight(sudoPasswordProbe())).isTrue();
+        assertThat(TerminalAgentService.needsSudoPasswordPreflight(probe(true, true, false, "already_root"))).isFalse();
+        assertThat(TerminalAgentService.needsSudoPasswordPreflight(probe(false, false, false, "none"))).isFalse();
+        assertThat(TerminalAgentService.needsSudoPasswordPreflight(probe(false, true, true, "passwordless_sudo"))).isFalse();
     }
 
     private TerminalAgentModels.ProbeSnapshot sudoPasswordProbe() {

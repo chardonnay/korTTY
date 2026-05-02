@@ -1,12 +1,11 @@
 package de.kortty.core;
 
 import de.kortty.model.ServerConnection;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class Mosh4jTtyConnectorTest {
 
@@ -21,7 +20,7 @@ class Mosh4jTtyConnectorTest {
         setField(connector, "frontend", new TestFrontend(false));
         setField(connector, "frontendIsRunning", TestFrontend.class.getDeclaredMethod("isRunning"));
 
-        assertTrue(connector.isConnected());
+        assertThat(connector.isConnected()).isTrue();
     }
 
     @Test
@@ -30,7 +29,7 @@ class Mosh4jTtyConnectorTest {
                 new ServerConnection("Test", "example.com", 22, "daniel"),
                 "secret");
 
-        assertFalse(connector.isConnected());
+        assertThat(connector.isConnected()).isFalse();
     }
 
     private static void setField(Object target, String fieldName, Object value) throws Exception {

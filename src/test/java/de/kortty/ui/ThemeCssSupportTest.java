@@ -1,11 +1,9 @@
 package de.kortty.ui;
 
 import de.kortty.model.Theme;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ThemeCssSupportTest {
 
@@ -13,12 +11,12 @@ class ThemeCssSupportTest {
     void buildCssContainsDialogAndMenuBarThemeRules() {
         String css = ThemeCssSupport.buildCss("#101820", "#f3f4f6");
 
-        assertTrue(css.contains(".menu-bar { -fx-background-color:"));
-        assertTrue(css.contains(".dialog-pane { -fx-background-color:"));
-        assertTrue(css.contains(".button:default { -fx-background-color: #0066cc; -fx-text-fill: #ffffff; }"));
-        assertTrue(css.contains(".root { -fx-background-color: #101820; }"));
-        assertTrue(css.contains(".label { -fx-text-fill: #f3f4f6; }"));
-        assertTrue(css.contains("-fx-prompt-text-fill:"));
+        assertThat(css.contains(".menu-bar { -fx-background-color:")).isTrue();
+        assertThat(css.contains(".dialog-pane { -fx-background-color:")).isTrue();
+        assertThat(css.contains(".button:default { -fx-background-color: #0066cc; -fx-text-fill: #ffffff; }")).isTrue();
+        assertThat(css.contains(".root { -fx-background-color: #101820; }")).isTrue();
+        assertThat(css.contains(".label { -fx-text-fill: #f3f4f6; }")).isTrue();
+        assertThat(css.contains("-fx-prompt-text-fill:")).isTrue();
     }
 
     @Test
@@ -33,19 +31,19 @@ class ThemeCssSupportTest {
 
         String css = ThemeCssSupport.buildAgentActivityCss(theme);
 
-        assertTrue(css.contains(".ai-agent-activity-panel { -fx-background-color: #112233; -fx-border-color: #445566; }"));
-        assertTrue(css.contains(".ai-agent-prompt-viewer { -fx-background-color:"));
-        assertTrue(css.contains(".ai-agent-prompt-viewer .scroll-pane"));
-        assertTrue(css.contains(".ai-agent-activity-text { -fx-text-fill: #ddeeff; }"));
-        assertTrue(css.contains(".ai-agent-detail { -fx-text-fill: #99aabb; }"));
-        assertTrue(css.contains(".ai-agent-marker-input { -fx-text-fill: #00cc88; }"));
-        assertTrue(css.contains(".ai-agent-marker-error { -fx-text-fill: #cc3300; }"));
-        assertTrue(css.contains(".ai-agent-marker-running { -fx-effect: dropshadow(gaussian, #00cc88"));
+        assertThat(css.contains(".ai-agent-activity-panel { -fx-background-color: #112233; -fx-border-color: #445566; }")).isTrue();
+        assertThat(css.contains(".ai-agent-prompt-viewer { -fx-background-color:")).isTrue();
+        assertThat(css.contains(".ai-agent-prompt-viewer .scroll-pane")).isTrue();
+        assertThat(css.contains(".ai-agent-activity-text { -fx-text-fill: #ddeeff; }")).isTrue();
+        assertThat(css.contains(".ai-agent-detail { -fx-text-fill: #99aabb; }")).isTrue();
+        assertThat(css.contains(".ai-agent-marker-input { -fx-text-fill: #00cc88; }")).isTrue();
+        assertThat(css.contains(".ai-agent-marker-error { -fx-text-fill: #cc3300; }")).isTrue();
+        assertThat(css.contains(".ai-agent-marker-running { -fx-effect: dropshadow(gaussian, #00cc88")).isTrue();
     }
 
     @Test
     void agentActivityStylesheetUrlUsesFallbackColorsWhenThemeIsNull() {
-        assertNotNull(ThemeCssSupport.getAgentActivityStylesheetUrl(null));
+        assertThat(ThemeCssSupport.getAgentActivityStylesheetUrl(null)).isNotNull();
     }
 
     @Test
@@ -55,12 +53,12 @@ class ThemeCssSupportTest {
         theme.setForegroundColor("#f3f4f6");
         theme.setCursorColor("#2dd4bf");
 
-        assertNotNull(theme.getAgentPanelBackgroundColor());
-        assertNotNull(theme.getAgentPanelBorderColor());
-        assertNotNull(theme.getAgentPanelTextColor());
-        assertNotNull(theme.getAgentPanelMutedTextColor());
-        assertNotNull(theme.getAgentPanelAccentColor());
-        assertNotNull(theme.getAgentPanelErrorColor());
-        assertNotEquals(theme.getBackgroundColor(), theme.getAgentPanelBackgroundColor());
+        assertThat(theme.getAgentPanelBackgroundColor()).isNotNull();
+        assertThat(theme.getAgentPanelBorderColor()).isNotNull();
+        assertThat(theme.getAgentPanelTextColor()).isNotNull();
+        assertThat(theme.getAgentPanelMutedTextColor()).isNotNull();
+        assertThat(theme.getAgentPanelAccentColor()).isNotNull();
+        assertThat(theme.getAgentPanelErrorColor()).isNotNull();
+        assertThat(theme.getAgentPanelBackgroundColor()).isNotEqualTo(theme.getBackgroundColor());
     }
 }

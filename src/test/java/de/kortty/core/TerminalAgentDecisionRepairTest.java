@@ -2,15 +2,14 @@ package de.kortty.core;
 
 import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.TerminalAgentModels;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerminalAgentDecisionRepairTest {
 
@@ -54,11 +53,11 @@ class TerminalAgentDecisionRepairTest {
             new RunUiTestDouble(),
             "run-1");
 
-        assertEquals(TerminalAgentService.AgentDecisionStatus.run_commands, decision.status());
-        assertEquals(1, decision.commands().size());
-        assertEquals(2, aiService.userPrompts().size());
-        assertTrue(aiService.userPrompts().get(1).contains("The AI agent returned too many commands."));
-        assertTrue(aiService.userPrompts().get(1).contains("Return at most 3 commands."));
+        assertThat(decision.status()).isEqualTo(TerminalAgentService.AgentDecisionStatus.run_commands);
+        assertThat(decision.commands().size()).isEqualTo(1);
+        assertThat(aiService.userPrompts().size()).isEqualTo(2);
+        assertThat(aiService.userPrompts().get(1).contains("The AI agent returned too many commands.")).isTrue();
+        assertThat(aiService.userPrompts().get(1).contains("Return at most 3 commands.")).isTrue();
     }
 
     private TerminalAgentModels.Request request() {

@@ -1,13 +1,13 @@
 package de.kortty.core;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class BackupManagerTest {
+public class BackupManagerTest {
 
     @Test
-    void managedBackupFilesIncludeSavedAiChats() {
-        assertTrue(BackupManager.managedBackupFiles().contains("ai-chats.xml"));
+    public void managedBackupFilesIncludeSavedAiChats() {
+        assertThat(BackupManager.managedBackupFiles()).contains("ai-chats.xml");
     }
 }

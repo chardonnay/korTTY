@@ -7,19 +7,14 @@ import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDDocumentOutline;
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AiChatExportServiceTest {
 
@@ -31,9 +26,9 @@ class AiChatExportServiceTest {
             message(SavedAiChatMessage.ROLE_USER, "Zeig mir die letzte Fehlermeldung", null),
             message(SavedAiChatMessage.ROLE_ASSISTANT, "Proxy ist nicht erreichbar.", "GPT Ops")));
 
-        assertTrue(exported.contains("You:"));
-        assertTrue(exported.contains("AI (GPT Ops):"));
-        assertTrue(exported.contains("Proxy ist nicht erreichbar."));
+        assertThat(exported.contains("You:")).isTrue();
+        assertThat(exported.contains("AI (GPT Ops):")).isTrue();
+        assertThat(exported.contains("Proxy ist nicht erreichbar.")).isTrue();
     }
 
     @Test
@@ -43,10 +38,10 @@ class AiChatExportServiceTest {
         String exported = service.buildMarkdownExport(List.of(
             message(SavedAiChatMessage.ROLE_ASSISTANT, "Analyse\n```bash\ncurl -I https://example.test\n```", "GPT Ops")));
 
-        assertTrue(exported.contains("## AI (GPT Ops):"));
-        assertTrue(exported.contains("### Text"));
-        assertTrue(exported.contains("### Code (bash)"));
-        assertTrue(exported.contains("curl -I https://example.test"));
+        assertThat(exported.contains("## AI (GPT Ops):")).isTrue();
+        assertThat(exported.contains("### Text")).isTrue();
+        assertThat(exported.contains("### Code (bash)")).isTrue();
+        assertThat(exported.contains("curl -I https://example.test")).isTrue();
     }
 
     @Test
@@ -79,21 +74,21 @@ class AiChatExportServiceTest {
                 PDOutlineItem root = outline != null ? (PDOutlineItem) outline.getFirstChild() : null;
                 String extractedText = new PDFTextStripper().getText(document);
 
-                assertTrue(document.getNumberOfPages() > 1);
-                assertEquals("Server Analyse Export", info.getTitle());
-                assertEquals("KorTTY by Daniel Mengel", info.getProducer());
-                assertEquals("AI chat export", info.getSubject());
-                assertNotNull(outline);
-                assertNotNull(root);
-                assertEquals("Server Analyse Export", root.getTitle());
-                assertTrue(countChildren(root) >= messages.size());
-                assertTrue(extractedText.contains("Created with KorTTY by Daniel Mengel"));
-                assertTrue(extractedText.contains("AI-Chat export from korTTY by Daniel Mengel"));
-                assertTrue(extractedText.contains("Übertragung"));
-                assertTrue(extractedText.contains("Änderungen übernommen"));
-                assertTrue(extractedText.contains("curl -I https://example.test"));
-                assertTrue(extractedText.contains("Service"));
-                assertTrue(extractedText.contains("worker"));
+                assertThat(document.getNumberOfPages() > 1).isTrue();
+                assertThat(info.getTitle()).isEqualTo("Server Analyse Export");
+                assertThat(info.getProducer()).isEqualTo("KorTTY by Daniel Mengel");
+                assertThat(info.getSubject()).isEqualTo("AI chat export");
+                assertThat(outline).isNotNull();
+                assertThat(root).isNotNull();
+                assertThat(root.getTitle()).isEqualTo("Server Analyse Export");
+                assertThat(countChildren(root) >= messages.size()).isTrue();
+                assertThat(extractedText.contains("Created with KorTTY by Daniel Mengel")).isTrue();
+                assertThat(extractedText.contains("AI-Chat export from korTTY by Daniel Mengel")).isTrue();
+                assertThat(extractedText.contains("Übertragung")).isTrue();
+                assertThat(extractedText.contains("Änderungen übernommen")).isTrue();
+                assertThat(extractedText.contains("curl -I https://example.test")).isTrue();
+                assertThat(extractedText.contains("Service")).isTrue();
+                assertThat(extractedText.contains("worker")).isTrue();
             }
         } finally {
             Files.deleteIfExists(exportFile);
@@ -128,13 +123,13 @@ class AiChatExportServiceTest {
                 PDDocumentInformation info = document.getDocumentInformation();
                 String extractedText = new PDFTextStripper().getText(document);
 
-                assertNull(document.getDocumentCatalog().getDocumentOutline());
-                assertNotEquals("Should Not Appear", info.getTitle());
-                assertNotEquals("Hidden Producer", info.getProducer());
-                assertNotEquals("Hidden Subject", info.getSubject());
-                assertTrue(extractedText.contains("Created with KorTTY by Daniel Mengel"));
-                assertTrue(extractedText.contains("AI-Chat export from korTTY by Daniel Mengel"));
-                assertFalse(extractedText.contains("Should Not Appear"));
+                assertThat(document.getDocumentCatalog().getDocumentOutline()).isNull();
+                assertThat(info.getTitle()).isNotEqualTo("Should Not Appear");
+                assertThat(info.getProducer()).isNotEqualTo("Hidden Producer");
+                assertThat(info.getSubject()).isNotEqualTo("Hidden Subject");
+                assertThat(extractedText.contains("Created with KorTTY by Daniel Mengel")).isTrue();
+                assertThat(extractedText.contains("AI-Chat export from korTTY by Daniel Mengel")).isTrue();
+                assertThat(extractedText.contains("Should Not Appear")).isFalse();
             }
         } finally {
             Files.deleteIfExists(exportFile);

@@ -5,12 +5,11 @@ import de.kortty.model.ServerConnection;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
 import org.apache.sshd.client.auth.password.UserAuthPasswordFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import java.util.List;
+import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SFTPSessionTest {
 
@@ -23,9 +22,9 @@ class SFTPSessionTest {
             .map(factory -> factory.getClass().getSimpleName())
             .toList();
 
-        assertEquals(UserAuthPasswordFactory.class.getSimpleName(), factoryNames.getFirst());
-        assertTrue(factoryNames.contains(UserAuthKeyboardInteractiveFactory.class.getSimpleName()));
-        assertTrue(factoryNames.contains(UserAuthPublicKeyFactory.class.getSimpleName()));
+        assertThat(factoryNames.getFirst()).isEqualTo(UserAuthPasswordFactory.class.getSimpleName());
+        assertThat(factoryNames.contains(UserAuthKeyboardInteractiveFactory.class.getSimpleName())).isTrue();
+        assertThat(factoryNames.contains(UserAuthPublicKeyFactory.class.getSimpleName())).isTrue();
     }
 
     @Test
@@ -37,8 +36,8 @@ class SFTPSessionTest {
             .map(factory -> factory.getClass().getSimpleName())
             .toList();
 
-        assertEquals(UserAuthPublicKeyFactory.class.getSimpleName(), factoryNames.getFirst());
-        assertTrue(factoryNames.contains(UserAuthKeyboardInteractiveFactory.class.getSimpleName()));
-        assertTrue(factoryNames.contains(UserAuthPasswordFactory.class.getSimpleName()));
+        assertThat(factoryNames.getFirst()).isEqualTo(UserAuthPublicKeyFactory.class.getSimpleName());
+        assertThat(factoryNames.contains(UserAuthKeyboardInteractiveFactory.class.getSimpleName())).isTrue();
+        assertThat(factoryNames.contains(UserAuthPasswordFactory.class.getSimpleName())).isTrue();
     }
 }
