@@ -1,5 +1,36 @@
 = Release Notes
 
+== Unreleased
+
+=== AI Internet Access
+
+* *Per-profile internet mode*: AI profiles can now keep internet access disabled or opt into one of the supported modes: `KorTTY Tavily Tool`, `LM Studio Tavily MCP`, `Bright Data Web MCP`, `Brave Search MCP`, `SearXNG MCP`, or `LM Studio Toolpack`.
+* *Direct Tavily tool support*: The KorTTY Tavily mode uses OpenAI-compatible chat-completions tool calls and executes `web_search` through Tavily with hard connect/request timeouts.
+* *LM Studio MCP modes*: LM Studio MCP integrations use the native `/api/v1/chat` payload with integrations instead of assuming MCP tools on `/v1/chat/completions`.
+* *Structured web failures*: Web timeouts, HTTP errors, authentication failures, empty results, and tool-round limits are returned as structured tool errors. Models are instructed to report those failures and not invent web facts.
+* *Agent web gating*: Terminal-agent JSON planning exposes web tools only for tasks that clearly need current or external information. Local file/script review tasks continue through SSH command inspection.
+
+=== AI Skills
+
+* *AI Skills settings tab*: *Global Settings > AI Skills* can create, edit, enable/disable, delete, import, export, and sort local skills.
+* *Skill targets*: Each skill can target AI Chat/functions, AI Agent, or both.
+* *Automatic skill matching*: Active skills can be filtered automatically by request, description, tags, and headings. Users can disable automatic matching to send all active target-compatible skills.
+* *Markdown import/export*: Skills export as Markdown with KorTTY frontmatter. Plain Markdown and Claude/Codex-style `SKILL.md` files can be imported disabled by default for review.
+* *Agent visibility*: Terminal-agent activity logs show which AI Skills were used for a run.
+
+=== Terminal AI Agent Fixes
+
+* *Current directory reliability*: Agent runs now carry the active terminal directory through prompt parsing, shell-hook `$PWD`, probe fallback, repair prompts, and command execution.
+* *Shortcut and paste handling*: Pasted or shortcut-inserted text in `agent ...` commands is read from the visible terminal line when it is more complete than the key-event buffer.
+* *Prompt wrapping*: Wrapped terminal prompt lines are searched from the visible screen so the agent can recover both the task text and current directory.
+* *Web/local separation*: Local file review prompts no longer get derailed into web-search tool rounds when an internet-enabled profile is active.
+
+=== Documentation
+
+* README, User Guide, and Release Notes now describe AI internet modes, AI Skills, Terminal AI Agent usage, safety behavior, failure handling, and manual validation paths in more detail.
+
+---
+
 == v2.1.0
 
 === Terminal AI Agent

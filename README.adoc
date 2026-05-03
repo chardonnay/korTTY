@@ -28,19 +28,21 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *SFTP Archive Exclude*: Archive dialogs support exclude patterns (one pattern per line) for files/directories
 * *Snippet Manager*: Create, search, favorite, and organize reusable snippets with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, and JSON/XML/YAML import/export
 * *AI-assisted Snippet Editing*: Generate snippet name/description/language from code, correct description text, transform selected comments and user-facing output text, create technical descriptions, and request alternative implementations
+* *AI Skills*: Define reusable local instruction blocks for AI Chat/functions and/or AI Agent, enable or disable them globally or per skill, import/export Markdown skills, and optionally send only skills that match the current request
 * *ASCII Art Banner*: Generate FIGlet banners with multiple styles (Tools menu)
 * *Window Geometry Storage*: Automatic restoration of window position and size
 * *Dashboard State Storage*: Automatic restoration of dashboard state
 * *Backup & Restore*: Create encrypted backups (password or GPG) and import them
 * *Multilanguage Support*: Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) plus *dynamic translation*: generate language files for any language via translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex) in Settings → Translation
 * *AI Terminal Actions*: Right-click selected terminal text and choose *Summarize*, *Solve Problem*, or *Ask* via OpenAI-compatible chat-completions APIs, including local tools such as *LM Studio*
-* *AI Profiles, Defaults, Reasoning, and Quotas*: Manage multiple named AI profiles with per-profile endpoint/model/API key, optional reasoning effort where supported by the configured API/model, choose a default AI profile, configure tokenizer strategy, token budgets, warning thresholds, reset cycles, and code-text language defaults
+* *AI Profiles, Defaults, Reasoning, Internet Access, and Quotas*: Manage multiple named AI profiles with per-profile endpoint/model/API key, optional reasoning effort where supported by the configured API/model, optional internet mode, default profile selection, tokenizer strategy, token budgets, warning thresholds, reset cycles, and code-text language defaults
 * *AI Result Tabs*: Continue with follow-up prompts, switch profile and response language per chat, retry or cancel requests, save named chats, save generated scripts as snippets, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables/columns/cells, and persist the AI tab font size across sessions
 * *AI Manager*: Reopen, rename, refresh, and delete saved AI chats, and manage AI profiles from *Tools → AI Manager* (shortcut: *Ctrl/Cmd+Shift+Y*)
-* *AI Agent & Planning*: Start AI Agent and AI Planning from *Tools* or the terminal context menu, choose terminal or chat execution targets, and use dedicated planning/run tabs with transcript export
+* *AI Agent & Planning*: Start AI Agent and AI Planning from *Tools*, the terminal context menu, or shell-style shortcut commands. The agent inspects the active SSH session, plans safe non-interactive commands, runs them with approvals when needed, writes final answers back into the terminal, and can use configured AI Skills and internet access when the task requires it
 * *Interactive AI Planning*: Start planning with `agent-plan <task>` or `agent -plan <task>`, answer clarifying questions, select or describe an approach, generate a final plan, and start implementation only after accepting it
 * *Split-local Terminal AI Activity*: Terminal-targeted agent runs use the activity panel attached to the current terminal split, support parallel runs in different splits, and provide semantic activity markers, task timing, collapsible details, row copy/snippet actions, persistent *Expand all* / *Keep collapsed* options, history navigation, rerun, resize, font controls, cancel, sudo password prompts, and run export to Markdown/Text/YAML/XML/JSON/PDF/Asciidoctor
 * *Terminal AI Commands*: Intercept configurable local shortcut commands such as `agent`, `agent-ask`, `agent-plan`, and `agent -plan` directly at the shell prompt, including the active remote working directory for terminal-targeted tasks
+* *AI Internet Modes*: Per AI profile, choose `Disabled`, direct `KorTTY Tavily Tool`, `LM Studio Tavily MCP`, `Bright Data Web MCP`, `Brave Search MCP`, `SearXNG MCP`, or `LM Studio Toolpack`. Direct web tools use hard timeouts and return structured errors instead of silently inventing web facts
 * *Quick Connect*: Fast connection dialog with frequently used connections and group support
 * *SSH Tunnels*: Local and remote port forwarding (SSH tunnels)
 * *Jump Server*: Support for bastion hosts (SSH hopping)
@@ -50,7 +52,11 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 
 == AI Integration Overview
 
-KorTTY keeps profile selection, quota tracking, and result handling local while sending only the reviewed terminal selection and optional prompt to the configured OpenAI-compatible endpoint for selection-based AI actions. Terminal-agent runs send the agent goal together with a compact SSH-session snapshot, including the active remote working directory captured from the shell. In split terminal layouts, terminal-targeted agent state and activity output stay scoped to the split where the run was started.
+KorTTY keeps profile selection, quota tracking, AI Skills, internet-tool configuration, and result handling local while sending only the reviewed terminal selection, prompt, or agent context to the configured AI endpoint. Selection-based AI actions use OpenAI-compatible chat-completions endpoints. Terminal-agent runs send the agent goal together with a compact SSH-session snapshot, including the active remote working directory captured from the shell. In split terminal layouts, terminal-targeted agent state and activity output stay scoped to the split where the run was started.
+
+Internet access is optional per AI profile and is disabled by default. The direct KorTTY Tavily mode uses chat-completions tool calls and Tavily search. LM Studio MCP modes use LM Studio's native `/api/v1/chat` integration payload. Snippet AI and text-correction functions do not use internet access. If a web tool times out, fails authentication, returns no results, or reaches KorTTY's tool-round limit, KorTTY returns that tool failure to the model and the model is instructed to state the failure instead of making up web facts.
+
+AI Skills are local reusable instructions that can be attached to AI Chat/functions, AI Agent, or both. They are managed under *Settings → AI Skills*, can be imported/exported as Markdown, and can be automatically filtered so only skills relevant to the current request are sent.
 
 image::docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
 
@@ -819,6 +825,16 @@ agent -plan <task>
 
 The base command name is configurable. A separate setting can make the command name case-insensitive. KorTTY intercepts these shortcuts locally before they are sent to the remote shell as normal executables.
 
+Use `agent <goal>` for tasks that may inspect the SSH session and run safe commands, for example:
+
+[source,text]
+----
+agent show the 10 largest log files in this directory
+agent update groesste_xml.pl so -r searches subdirectories recursively
+----
+
+Use `agent-ask <question>` for a non-executing answer about the current session context. Use `agent-plan <task>` or `agent -plan <task>` when you want a reviewed plan first. Planning asks clarifying questions, proposes approaches, creates a final report, and starts implementation only after *Implement* is clicked.
+
 For terminal-targeted agent runs, the inline activity panel at the bottom of the current terminal split shows the current task in a two-line scrollable field, token usage when reported by the endpoint, command/read actions, collapsible details, previous/next run navigation, rerun, close, collapse, resize, font controls, export controls, and a cancel button. Different splits can run their own terminal-agent tasks in parallel. While an agent is running, normal terminal input is locked for that split; *Esc*, *Ctrl+C*, or the panel cancel button aborts that run.
 
 Activity rows use semantic markers: `↑` for request/input, `↓` for received output/result, `?` for required user input, `!` for errors, `x` for cancellation, and `i` for neutral information. Red styling is reserved for failed or error activities.
@@ -830,6 +846,8 @@ Each activity row also has actions to copy that row's text to the clipboard or o
 Planning mode is advisory until implementation starts. It asks clarifying questions, can evaluate selected answers or a custom approach, generates a final plan report, and only switches to execution after *Implement*. If the accepted plan needs sudo and the current SSH session requires a sudo password, KorTTY performs the password preflight immediately after acceptance so execution is not interrupted later by the password prompt.
 
 KorTTY tracks the current remote directory for the active SSH session. Agent commands then run relative to that directory, so generated files are created where the user is currently working on the server. If sudo is required, KorTTY asks for the password in the activity panel with a masked input field instead of echoing it in the terminal. The password prompt can be submitted with *Enter* or the button, can be cached for the current session, and allows up to three wrong-password retries.
+
+The agent is designed for non-interactive SSH automation. It may inspect files, list directories, run read-only checks, create or modify files after planning, and request confirmation for commands that change the system or require elevated privileges. It rejects interactive commands that would hang in a non-interactive SSH exec channel. Local file or script review tasks should be answered from SSH command output; web search is only offered when the user task clearly needs current or external information.
 
 == SFTP Manager
 
