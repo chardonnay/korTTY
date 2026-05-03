@@ -110,9 +110,58 @@ public class GlobalSettings {
     @XmlElement(name = "profile")
     private java.util.List<AiProfile> aiProfiles = new java.util.ArrayList<>();
 
+    /** Global switch for sending user-defined AI skills with prompts. */
+    @XmlElement
+    private boolean aiSkillsEnabled = true;
+
+    /** When enabled, KorTTY sends only active AI skills that match the current request. */
+    @XmlElement
+    private boolean aiSkillAutoDetectionEnabled = true;
+
+    /** User-defined AI skills appended to AI prompts. */
+    @XmlElementWrapper(name = "aiSkills")
+    @XmlElement(name = "skill")
+    private java.util.List<AiSkill> aiSkills = new java.util.ArrayList<>();
+
     /** Preferred AI profile used when no explicit profile is selected by the user. */
     @XmlElement
     private String defaultAiProfileId;
+
+    /** Encrypted Tavily API key used by KorTTY's direct web-search tool and Tavily MCP. */
+    @XmlElement
+    private String encryptedAiTavilyApiKey;
+
+    /** Encrypted Bright Data API token used by Bright Data Web MCP. */
+    @XmlElement
+    private String encryptedAiBrightDataApiToken;
+
+    /** Encrypted Brave Search API key used by Brave Search MCP. */
+    @XmlElement
+    private String encryptedAiBraveSearchApiKey;
+
+    /** Optional SearXNG instance URL used by SearXNG MCP setups. */
+    @XmlElement
+    private String aiSearxngUrl;
+
+    /** LM Studio server label for the ephemeral Tavily MCP integration. */
+    @XmlElement
+    private String aiTavilyMcpServerLabel = "tavily";
+
+    /** LM Studio server label for the ephemeral Bright Data MCP integration. */
+    @XmlElement
+    private String aiBrightDataMcpServerLabel = "bright-data";
+
+    /** LM Studio plugin id for Brave Search MCP. */
+    @XmlElement
+    private String aiBraveSearchMcpPluginId;
+
+    /** LM Studio plugin id for SearXNG MCP. */
+    @XmlElement
+    private String aiSearxngMcpPluginId;
+
+    /** LM Studio plugin id for the community LM Studio Toolpack web-search server. */
+    @XmlElement
+    private String aiLmStudioToolpackMcpPluginId;
 
     /** Preferred natural language for AI-generated text inside program code comments and descriptions. */
     @XmlElement
@@ -555,6 +604,35 @@ public class GlobalSettings {
         normalizeAiProfiles();
     }
 
+    public boolean isAiSkillsEnabled() {
+        return aiSkillsEnabled;
+    }
+
+    public void setAiSkillsEnabled(boolean aiSkillsEnabled) {
+        this.aiSkillsEnabled = aiSkillsEnabled;
+    }
+
+    public boolean isAiSkillAutoDetectionEnabled() {
+        return aiSkillAutoDetectionEnabled;
+    }
+
+    public void setAiSkillAutoDetectionEnabled(boolean aiSkillAutoDetectionEnabled) {
+        this.aiSkillAutoDetectionEnabled = aiSkillAutoDetectionEnabled;
+    }
+
+    public java.util.List<AiSkill> getAiSkills() {
+        if (aiSkills == null) {
+            aiSkills = new java.util.ArrayList<>();
+        }
+        normalizeAiSkills();
+        return aiSkills;
+    }
+
+    public void setAiSkills(java.util.List<AiSkill> aiSkills) {
+        this.aiSkills = aiSkills != null ? aiSkills : new java.util.ArrayList<>();
+        normalizeAiSkills();
+    }
+
     public String getDefaultAiProfileId() {
         return defaultAiProfileId;
     }
@@ -564,6 +642,78 @@ public class GlobalSettings {
             ? defaultAiProfileId.trim()
             : null;
         normalizeAiProfiles();
+    }
+
+    public String getEncryptedAiTavilyApiKey() {
+        return encryptedAiTavilyApiKey;
+    }
+
+    public void setEncryptedAiTavilyApiKey(String encryptedAiTavilyApiKey) {
+        this.encryptedAiTavilyApiKey = normalizeOptionalString(encryptedAiTavilyApiKey);
+    }
+
+    public String getEncryptedAiBrightDataApiToken() {
+        return encryptedAiBrightDataApiToken;
+    }
+
+    public void setEncryptedAiBrightDataApiToken(String encryptedAiBrightDataApiToken) {
+        this.encryptedAiBrightDataApiToken = normalizeOptionalString(encryptedAiBrightDataApiToken);
+    }
+
+    public String getEncryptedAiBraveSearchApiKey() {
+        return encryptedAiBraveSearchApiKey;
+    }
+
+    public void setEncryptedAiBraveSearchApiKey(String encryptedAiBraveSearchApiKey) {
+        this.encryptedAiBraveSearchApiKey = normalizeOptionalString(encryptedAiBraveSearchApiKey);
+    }
+
+    public String getAiSearxngUrl() {
+        return aiSearxngUrl;
+    }
+
+    public void setAiSearxngUrl(String aiSearxngUrl) {
+        this.aiSearxngUrl = normalizeOptionalString(aiSearxngUrl);
+    }
+
+    public String getAiTavilyMcpServerLabel() {
+        return nonBlank(aiTavilyMcpServerLabel, "tavily");
+    }
+
+    public void setAiTavilyMcpServerLabel(String aiTavilyMcpServerLabel) {
+        this.aiTavilyMcpServerLabel = nonBlank(aiTavilyMcpServerLabel, "tavily");
+    }
+
+    public String getAiBrightDataMcpServerLabel() {
+        return nonBlank(aiBrightDataMcpServerLabel, "bright-data");
+    }
+
+    public void setAiBrightDataMcpServerLabel(String aiBrightDataMcpServerLabel) {
+        this.aiBrightDataMcpServerLabel = nonBlank(aiBrightDataMcpServerLabel, "bright-data");
+    }
+
+    public String getAiBraveSearchMcpPluginId() {
+        return aiBraveSearchMcpPluginId;
+    }
+
+    public void setAiBraveSearchMcpPluginId(String aiBraveSearchMcpPluginId) {
+        this.aiBraveSearchMcpPluginId = normalizeOptionalString(aiBraveSearchMcpPluginId);
+    }
+
+    public String getAiSearxngMcpPluginId() {
+        return aiSearxngMcpPluginId;
+    }
+
+    public void setAiSearxngMcpPluginId(String aiSearxngMcpPluginId) {
+        this.aiSearxngMcpPluginId = normalizeOptionalString(aiSearxngMcpPluginId);
+    }
+
+    public String getAiLmStudioToolpackMcpPluginId() {
+        return aiLmStudioToolpackMcpPluginId;
+    }
+
+    public void setAiLmStudioToolpackMcpPluginId(String aiLmStudioToolpackMcpPluginId) {
+        this.aiLmStudioToolpackMcpPluginId = normalizeOptionalString(aiLmStudioToolpackMcpPluginId);
     }
 
     public Integer getAiResultFontSize() {
@@ -744,8 +894,13 @@ public class GlobalSettings {
         if (aiProfiles == null) {
             aiProfiles = new java.util.ArrayList<>();
         }
+        if (aiSkills == null) {
+            aiSkills = new java.util.ArrayList<>();
+        }
         migrateFromLegacyAiConfiguration();
         normalizeAiProfiles();
+        normalizeAiSkills();
+        normalizeAiInternetConfiguration();
         if (terminalAgentCommandName == null || terminalAgentCommandName.isBlank()) {
             terminalAgentCommandName = "agent";
         }
@@ -794,12 +949,43 @@ public class GlobalSettings {
             if (profile != null && (profile.getMaxSelectionChars() == null || profile.getMaxSelectionChars() <= 0)) {
                 profile.setMaxSelectionChars(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
             }
+            if (profile != null && profile.getInternetAccessMode() == null) {
+                profile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+            }
         }
         if (defaultAiProfileId != null && aiProfiles.stream()
             .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())
             .noneMatch(profile -> defaultAiProfileId.equals(profile.getId()))) {
             defaultAiProfileId = null;
         }
+    }
+
+    private void normalizeAiSkills() {
+        if (aiSkills == null) {
+            aiSkills = new java.util.ArrayList<>();
+            return;
+        }
+        java.util.List<AiSkill> normalized = new java.util.ArrayList<>();
+        for (AiSkill skill : aiSkills) {
+            if (skill == null) {
+                continue;
+            }
+            skill.ensureId();
+            AiSkillTarget target = skill.getTarget();
+            skill.setTarget(target != null ? target : AiSkillTarget.BOTH);
+            skill.setTags(skill.getTags());
+            normalized.add(skill);
+        }
+        aiSkills = normalized;
+    }
+
+    private void normalizeAiInternetConfiguration() {
+        aiSearxngUrl = normalizeOptionalString(aiSearxngUrl);
+        aiTavilyMcpServerLabel = nonBlank(aiTavilyMcpServerLabel, "tavily");
+        aiBrightDataMcpServerLabel = nonBlank(aiBrightDataMcpServerLabel, "bright-data");
+        aiBraveSearchMcpPluginId = normalizeOptionalString(aiBraveSearchMcpPluginId);
+        aiSearxngMcpPluginId = normalizeOptionalString(aiSearxngMcpPluginId);
+        aiLmStudioToolpackMcpPluginId = normalizeOptionalString(aiLmStudioToolpackMcpPluginId);
     }
 
     private boolean hasLegacyAiConfiguration() {
@@ -810,6 +996,14 @@ public class GlobalSettings {
 
     private boolean isPositiveFinite(Double value) {
         return value != null && Double.isFinite(value) && value > 0.0;
+    }
+
+    private String normalizeOptionalString(String value) {
+        return value != null && !value.isBlank() ? value.trim() : null;
+    }
+
+    private String nonBlank(String value, String fallback) {
+        return value != null && !value.isBlank() ? value.trim() : fallback;
     }
     
     public ConnectionSettings getDefaultTerminalSettings() {

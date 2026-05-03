@@ -11,6 +11,8 @@ import de.kortty.ui.TerminalTab;
 import de.kortty.ui.TerminalView;
 import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.channel.ClientChannelEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,6 +43,7 @@ import java.util.regex.Pattern;
  */
 public class TerminalAgentService {
 
+    private static final Logger logger = LoggerFactory.getLogger(TerminalAgentService.class);
     private static final Gson GSON = new Gson();
     private static final int MAX_AGENT_TURNS = 8;
     private static final int MAX_COMMANDS_PER_TURN = 3;
@@ -60,6 +63,8 @@ public class TerminalAgentService {
     private static final Pattern COUNT_OUTPUT_PATTERN = Pattern.compile("(?m)^(total|plain_text|binary_or_non_text)=(\\d+)\\s*$");
     private static final Pattern HERE_DOCUMENT_OPERATOR_PATTERN =
         Pattern.compile("(?<!<)<<-?(?!<)\\s*(?:'([^']+)'|\"([^\"]+)\"|([^\\s;|&<>]+))");
+    private static final Pattern MUTATING_COMMAND_PATTERN =
+        Pattern.compile("(?i)(^|[;&|()]\\s*)(?:chmod|chown|chgrp|rm|rmdir|mv|cp|mkdir|touch|ln|tee|dd|truncate|install)\\b");
 
     private final Map<String, CachedSudoPassword> cachedSudoPasswordBySessionId = new ConcurrentHashMap<>();
 
@@ -129,11 +134,20 @@ public class TerminalAgentService {
         TerminalTab terminalTab,
         SshTtyConnector connector,
         BooleanSupplier cancellationSupplier) throws Exception {
-        ExecResult result = exec(terminalTab, connector, buildProbeCommand(), null, null, cancellationSupplier);
+        SshTtyConnector resolvedConnector = requireConnector(terminalTab, connector);
+        ExecResult result = execInternal(terminalTab, resolvedConnector, buildProbeCommand(), null, null, cancellationSupplier, true);
+        if (result.exitCode() != 0 && isMissingTrackedWorkingDirectory(result.stderr(), resolvedConnector.getCurrentRemoteDirectory())) {
+            logger.warn(
+                "Tracked terminal working directory '{}' is not available for the probe; retrying from the SSH default directory.",
+                resolvedConnector.getCurrentRemoteDirectory());
+            result = execInternal(terminalTab, resolvedConnector, buildProbeCommand(), null, null, cancellationSupplier, false);
+        }
         if (result.exitCode() != 0) {
             throw new IllegalStateException("Terminal probe failed: " + trimToSingleLine(result.stderr()));
         }
-        return parseProbeOutput(result.stdout());
+        TerminalAgentModels.ProbeSnapshot probe = parseProbeOutput(result.stdout());
+        resolvedConnector.updateCurrentRemoteDirectoryHint(probe.currentDir());
+        return probe;
     }
 
     public String summarizeProbe(TerminalAgentModels.ProbeSnapshot probe) {
@@ -158,7 +172,7 @@ public class TerminalAgentService {
 
     public PlanningQuestions requestPlanningQuestions(
         AiProfile profile,
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.PlanRequest request,
         TerminalAgentModels.ProbeSnapshot probe) throws Exception {
         String systemPrompt = buildPlanQuestionSystemPrompt();
@@ -177,7 +191,7 @@ public class TerminalAgentService {
 
     public PlanningOptions requestPlanningOptions(
         AiProfile profile,
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.PlanRequest request,
         TerminalAgentModels.ProbeSnapshot probe,
         List<TerminalAgentModels.PlanQuestion> questions,
@@ -204,7 +218,7 @@ public class TerminalAgentService {
 
     public PlanningReport requestPlanningReport(
         AiProfile profile,
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.PlanRequest request,
         TerminalAgentModels.ProbeSnapshot probe,
         List<TerminalAgentModels.PlanQuestion> questions,
@@ -253,7 +267,7 @@ public class TerminalAgentService {
     public void runAgent(
         TerminalTab terminalTab,
         AiProfile profile,
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.Request request,
         RunUi ui) throws Exception {
         runAgent(terminalTab, null, profile, aiService, request, ui);
@@ -263,7 +277,7 @@ public class TerminalAgentService {
         TerminalTab terminalTab,
         SshTtyConnector connector,
         AiProfile profile,
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.Request request,
         RunUi ui) throws Exception {
         Objects.requireNonNull(terminalTab, "terminalTab");
@@ -342,7 +356,10 @@ public class TerminalAgentService {
                 }
 
                 List<TerminalAgentModels.PlannedCommand> commands = validateCommands(decision.commands(), probe, request.queryOnly());
-                if (!approvalBypass && (decision.status() == AgentDecisionStatus.needs_confirmation || request.askConfirmationBeforeEveryCommand())) {
+                if (!approvalBypass && shouldRequestApproval(
+                    decision.status(),
+                    commands,
+                    request.askConfirmationBeforeEveryCommand())) {
                     TerminalAgentModels.Approval approval = new TerminalAgentModels.Approval(
                         runId,
                         request.sessionId(),
@@ -487,7 +504,7 @@ public class TerminalAgentService {
     }
 
     private boolean tryFinalizeAtTurnLimit(
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
         List<TerminalAgentModels.CommandResult> history,
@@ -889,7 +906,7 @@ public class TerminalAgentService {
     }
 
     AgentDecision requestAgentDecision(
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
         List<TerminalAgentModels.CommandResult> history,
@@ -909,6 +926,7 @@ public class TerminalAgentService {
             0L,
             false);
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        publishUsedSkillActivity(ui, runId, aiService);
         recordTokenUsage(ui, result);
         try {
             AgentDecision decision = parseAndValidateAgentDecision(result.content(), probe, request.queryOnly());
@@ -940,7 +958,8 @@ public class TerminalAgentService {
             AiExecutionResult repaired = executeAgentJsonPrompt(
                 aiService,
                 systemPrompt,
-                buildAgentDecisionRepairPrompt(result.content(), firstFailure.getMessage()));
+                buildAgentDecisionRepairPrompt(userPrompt, result.content(), firstFailure.getMessage()));
+            publishUsedSkillActivity(ui, runId, aiService);
             recordTokenUsage(ui, repaired);
             try {
                 AgentDecision decision = parseAndValidateAgentDecision(repaired.content(), probe, request.queryOnly());
@@ -967,7 +986,7 @@ public class TerminalAgentService {
     }
 
     private AgentDecision requestTurnLimitFinalDecision(
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
         List<TerminalAgentModels.CommandResult> history,
@@ -988,6 +1007,7 @@ public class TerminalAgentService {
             0L,
             false);
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        publishUsedSkillActivity(ui, runId, aiService);
         recordTokenUsage(ui, result);
         try {
             AgentDecision decision = parseFinalAgentDecision(result.content());
@@ -1025,7 +1045,8 @@ public class TerminalAgentService {
                 TerminalAgentModels.AgentActivityTokenUsage.unknown(),
                 0L,
                 false);
-            AiExecutionResult repaired = executeAgentJsonPrompt(aiService, systemPrompt, buildAgentRepairPrompt(result.content()));
+            AiExecutionResult repaired = executeAgentJsonPrompt(aiService, systemPrompt, buildAgentRepairPrompt(userPrompt, result.content()));
+            publishUsedSkillActivity(ui, runId, aiService);
             recordTokenUsage(ui, repaired);
             AgentDecision decision;
             try {
@@ -1060,7 +1081,7 @@ public class TerminalAgentService {
     }
 
     private AiExecutionResult executeAgentJsonPrompt(
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         String systemPrompt,
         String userPrompt) throws Exception {
         try {
@@ -1069,8 +1090,68 @@ public class TerminalAgentService {
             if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
                 throw e;
             }
-            return aiService.executePrompt(systemPrompt, userPrompt);
+            return aiService.executeJsonPromptWithoutResponseFormat(systemPrompt, userPrompt);
         }
+    }
+
+    private void publishUsedSkillActivity(RunUi ui, String runId, AiPromptService aiService) {
+        if (!(aiService instanceof AiSkillUsageTracker tracker)) {
+            return;
+        }
+        List<AiSkillPromptSupport.SkillUsage> usages = uniqueSkillUsages(tracker.drainSkillUsages());
+        if (usages.isEmpty()) {
+            return;
+        }
+        String names = usages.stream()
+            .map(AiSkillPromptSupport.SkillUsage::name)
+            .filter(name -> name != null && !name.isBlank())
+            .reduce((left, right) -> left + ", " + right)
+            .orElse("AI Skill");
+        String summary = usages.size() == 1
+            ? "Using AI skill: " + names
+            : "Using AI skills: " + names;
+        StringBuilder detail = new StringBuilder();
+        for (AiSkillPromptSupport.SkillUsage usage : usages) {
+            if (detail.length() > 0) {
+                detail.append('\n');
+            }
+            detail.append("- ")
+                .append(nonBlank(usage.name(), "AI Skill"));
+            if (usage.target() != null) {
+                detail.append(" (").append(usage.target().name()).append(")");
+            }
+        }
+        ui.publishActivity(new TerminalAgentModels.AgentActivity(
+            runId + ":skills",
+            TerminalAgentModels.AgentActivityType.MESSAGE,
+            TerminalAgentModels.AgentActivityStatus.COMPLETED,
+            "AI Skills",
+            summary,
+            detail.toString(),
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            true,
+            true));
+    }
+
+    private List<AiSkillPromptSupport.SkillUsage> uniqueSkillUsages(List<AiSkillPromptSupport.SkillUsage> usages) {
+        if (usages == null || usages.isEmpty()) {
+            return List.of();
+        }
+        List<AiSkillPromptSupport.SkillUsage> unique = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (AiSkillPromptSupport.SkillUsage usage : usages) {
+            if (usage == null) {
+                continue;
+            }
+            String key = !blank(usage.id())
+                ? usage.id()
+                : nonBlank(usage.name(), "AI Skill") + ":" + (usage.target() != null ? usage.target().name() : "");
+            if (seen.add(key)) {
+                unique.add(usage);
+            }
+        }
+        return unique;
     }
 
     private boolean looksLikeUnsupportedJsonResponseFormat(String message) {
@@ -1170,18 +1251,14 @@ public class TerminalAgentService {
         }
         for (int attempt = 0; attempt < 3; attempt++) {
             candidate = stripMarkdownFence(candidate).trim();
-            try {
-                JsonElement element = JsonParser.parseString(candidate);
-                if (element != null && element.isJsonObject()) {
-                    JsonObject object = element.getAsJsonObject();
-                    return object.toString();
-                }
-                if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
-                    candidate = element.getAsString().trim();
-                    continue;
-                }
-            } catch (Exception ignored) {
-                // Fall through to balanced-object extraction below.
+            JsonElement element = parseJsonElementWithStringRepairs(candidate);
+            if (element != null && element.isJsonObject()) {
+                JsonObject object = element.getAsJsonObject();
+                return object.toString();
+            }
+            if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+                candidate = element.getAsString().trim();
+                continue;
             }
 
             String embeddedObject = extractFirstBalancedJsonObject(candidate);
@@ -1193,6 +1270,102 @@ public class TerminalAgentService {
         }
         throw new JsonSyntaxException("AI response did not contain the required JSON object. Received: "
             + trimForError(candidate));
+    }
+
+    private static JsonElement parseJsonElementWithStringRepairs(String candidate) {
+        try {
+            return JsonParser.parseString(candidate);
+        } catch (Exception ignored) {
+            // Fall through to a narrow repair for model-generated JSON strings.
+        }
+        String repaired = repairJsonStringCharacters(candidate);
+        if (repaired.equals(candidate)) {
+            return null;
+        }
+        try {
+            return JsonParser.parseString(repaired);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String repairJsonStringCharacters(String value) {
+        if (value == null || value.isEmpty()) {
+            return value != null ? value : "";
+        }
+        StringBuilder repaired = new StringBuilder(value.length());
+        boolean inString = false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (!inString) {
+                repaired.append(c);
+                if (c == '"') {
+                    inString = true;
+                }
+                continue;
+            }
+            if (c == '"') {
+                repaired.append(c);
+                inString = false;
+                continue;
+            }
+            if (c == '\\') {
+                if (i + 1 >= value.length()) {
+                    repaired.append("\\\\");
+                    continue;
+                }
+                char next = value.charAt(i + 1);
+                if (isValidJsonEscape(value, i + 1)) {
+                    repaired.append('\\').append(next);
+                    i++;
+                    if (next == 'u') {
+                        repaired.append(value, i + 1, i + 5);
+                        i += 4;
+                    }
+                } else {
+                    repaired.append("\\\\");
+                }
+                continue;
+            }
+            if (c == '\n') {
+                repaired.append("\\n");
+            } else if (c == '\r') {
+                if (i + 1 < value.length() && value.charAt(i + 1) == '\n') {
+                    i++;
+                }
+                repaired.append("\\n");
+            } else if (c == '\t') {
+                repaired.append("\\t");
+            } else if (c < 0x20) {
+                repaired.append(String.format("\\u%04x", (int) c));
+            } else {
+                repaired.append(c);
+            }
+        }
+        return repaired.toString();
+    }
+
+    private static boolean isValidJsonEscape(String value, int escapeCharIndex) {
+        char escaped = value.charAt(escapeCharIndex);
+        if (escaped == '"' || escaped == '\\' || escaped == '/' || escaped == 'b'
+            || escaped == 'f' || escaped == 'n' || escaped == 'r' || escaped == 't') {
+            return true;
+        }
+        if (escaped != 'u' || escapeCharIndex + 4 >= value.length()) {
+            return false;
+        }
+        for (int i = escapeCharIndex + 1; i <= escapeCharIndex + 4; i++) {
+            if (!isHexDigit(value.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isHexDigit(char c) {
+        return (c >= '0' && c <= '9')
+            || (c >= 'a' && c <= 'f')
+            || (c >= 'A' && c <= 'F');
     }
 
     private static String stripMarkdownFence(String value) {
@@ -1293,14 +1466,72 @@ public class TerminalAgentService {
             if (usesUnknownServiceManager(trimmed, probe.serviceManagers())) {
                 throw new IllegalArgumentException("Command uses a service manager that is not present on the server: " + trimmed);
             }
+            TerminalAgentModels.Risk risk = "read_only".equalsIgnoreCase(nonBlank(command.risk, "requires_confirmation"))
+                ? TerminalAgentModels.Risk.READ_ONLY
+                : TerminalAgentModels.Risk.REQUIRES_CONFIRMATION;
+            if (risk == TerminalAgentModels.Risk.READ_ONLY && requiresConfirmationByCommandShape(trimmed)) {
+                risk = TerminalAgentModels.Risk.REQUIRES_CONFIRMATION;
+            }
             validated.add(new TerminalAgentModels.PlannedCommand(
                 trimmed,
                 purpose,
-                "read_only".equalsIgnoreCase(nonBlank(command.risk, "requires_confirmation"))
-                    ? TerminalAgentModels.Risk.READ_ONLY
-                    : TerminalAgentModels.Risk.REQUIRES_CONFIRMATION));
+                risk));
         }
         return validated;
+    }
+
+    static boolean shouldRequestApproval(
+        AgentDecisionStatus status,
+        List<TerminalAgentModels.PlannedCommand> commands,
+        boolean askConfirmationBeforeEveryCommand) {
+
+        return status == AgentDecisionStatus.needs_confirmation
+            || askConfirmationBeforeEveryCommand
+            || safeList(commands).stream()
+                .anyMatch(command -> command.risk() == TerminalAgentModels.Risk.REQUIRES_CONFIRMATION);
+    }
+
+    static boolean requiresConfirmationByCommandShape(String command) {
+        String checked = stripHereDocumentBodiesForCommandCheck(command);
+        return MUTATING_COMMAND_PATTERN.matcher(checked).find() || containsWriteRedirection(checked);
+    }
+
+    private static boolean containsWriteRedirection(String command) {
+        if (command == null || command.isBlank()) {
+            return false;
+        }
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaped = false;
+        for (int i = 0; i < command.length(); i++) {
+            char c = command.charAt(i);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\' && !inSingleQuote) {
+                escaped = true;
+                continue;
+            }
+            if (c == '\'' && !inDoubleQuote) {
+                inSingleQuote = !inSingleQuote;
+                continue;
+            }
+            if (c == '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+                continue;
+            }
+            if (c != '>' || inSingleQuote || inDoubleQuote) {
+                continue;
+            }
+            char previous = i > 0 ? command.charAt(i - 1) : '\0';
+            char next = i + 1 < command.length() ? command.charAt(i + 1) : '\0';
+            if (previous == '<' || previous == '=' || previous == '-' || next == '=' || next == '&') {
+                continue;
+            }
+            return true;
+        }
+        return false;
     }
 
     static boolean isInteractiveCommand(String command) {
@@ -1574,8 +1805,21 @@ public class TerminalAgentService {
         byte[] stdin,
         java.util.function.Consumer<String> outputConsumer,
         BooleanSupplier cancellationSupplier) throws Exception {
+        return execInternal(terminalTab, connector, command, stdin, outputConsumer, cancellationSupplier, true);
+    }
+
+    private ExecResult execInternal(
+        TerminalTab terminalTab,
+        SshTtyConnector connector,
+        String command,
+        byte[] stdin,
+        java.util.function.Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
         connector = requireConnector(terminalTab, connector);
-        String commandToExecute = wrapCommandForWorkingDirectory(command, connector.getCurrentRemoteDirectory());
+        String commandToExecute = useTrackedWorkingDirectory
+            ? wrapCommandForWorkingDirectory(command, connector.getCurrentRemoteDirectory())
+            : command;
         try (ChannelExec channel = connector.getSession().createExecChannel(commandToExecute)) {
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
             ByteArrayOutputStream stderr = new ByteArrayOutputStream();
@@ -1656,6 +1900,18 @@ public class TerminalAgentService {
             return command;
         }
         return "cd " + shellSingleQuote(normalizedDirectory) + " && " + command;
+    }
+
+    static boolean isMissingTrackedWorkingDirectory(String stderr, String workingDirectory) {
+        if (stderr == null || stderr.isBlank() || workingDirectory == null || workingDirectory.isBlank()) {
+            return false;
+        }
+        String normalizedError = stderr.toLowerCase(Locale.ROOT);
+        return normalizedError.contains("cd:")
+            && normalizedError.contains(workingDirectory.toLowerCase(Locale.ROOT))
+            && (normalizedError.contains("no such file or directory")
+                || normalizedError.contains("datei oder verzeichnis nicht gefunden")
+                || normalizedError.contains("not a directory"));
     }
 
     private void publishMessage(RunUi ui, String runId, String suffix, String summary, String detail) {
@@ -2014,7 +2270,7 @@ public class TerminalAgentService {
 
         return "User task: " + request.userPrompt().trim() + "\n"
             + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
-            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
+            + buildPromptSessionContext(probe)
             + "Turn: " + turn + "/" + MAX_AGENT_TURNS + "\n\n"
             + (turn >= MAX_AGENT_TURNS
                 ? "This is the final planning turn. If previous command results contain enough evidence to answer the task, return `done` now. If they do not, return `blocked` with the exact missing information.\n\n"
@@ -2047,21 +2303,25 @@ public class TerminalAgentService {
         List<TerminalAgentModels.CommandResult> history) {
         return "User task: " + request.userPrompt().trim() + "\n"
             + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
-            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
+            + buildPromptSessionContext(probe)
             + "Turn limit reached: " + MAX_AGENT_TURNS + "/" + MAX_AGENT_TURNS + "\n\n"
             + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
             + "Previous command results:\n```json\n" + GSON.toJson(history) + "\n```\n\n"
             + "Write the final response now without planning more commands.";
     }
 
-    private String buildAgentRepairPrompt(String invalidResponse) {
+    private String buildAgentRepairPrompt(String originalUserPrompt, String invalidResponse) {
         return "Your previous reply was invalid. Reply again with exactly one JSON object that matches the required schema. "
+            + "Keep using this original request context, including `probe.currentDir` and the active terminal working directory:\n"
+            + "<original_request_context>\n" + nonBlank(originalUserPrompt, "") + "\n</original_request_context>\n\n"
             + "Do not add Markdown. Previous reply:\n```text\n" + nonBlank(invalidResponse, "") + "\n```";
     }
 
-    private String buildAgentDecisionRepairPrompt(String invalidResponse, String validationError) {
+    private String buildAgentDecisionRepairPrompt(String originalUserPrompt, String invalidResponse, String validationError) {
         return "Your previous reply was invalid. Reply again with exactly one JSON object that matches the required schema and constraints. "
             + "Validation error: " + nonBlank(validationError, "unknown validation error") + "\n"
+            + "Keep using this original request context, including `probe.currentDir` and the active terminal working directory:\n"
+            + "<original_request_context>\n" + nonBlank(originalUserPrompt, "") + "\n</original_request_context>\n\n"
             + "Return at most " + MAX_COMMANDS_PER_TURN + " commands. If the task needs more commands, return only the next safe batch; later turns can continue. "
             + "If no safe command can be returned, use status `blocked`. Do not add Markdown. Previous reply:\n```text\n"
             + nonBlank(invalidResponse, "") + "\n```";
@@ -2102,7 +2362,7 @@ public class TerminalAgentService {
     private String buildPlanQuestionUserPrompt(TerminalAgentModels.PlanRequest request, TerminalAgentModels.ProbeSnapshot probe) {
         return "User task: " + request.userPrompt().trim() + "\n"
             + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
-            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
+            + buildPromptSessionContext(probe)
             + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
             + "Ask the user clarifying questions now.";
     }
@@ -2118,7 +2378,7 @@ public class TerminalAgentService {
             : "";
         return "User task: " + request.userPrompt().trim() + "\n"
             + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
-            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
+            + buildPromptSessionContext(probe)
             + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
             + "Clarifying questions:\n```json\n" + GSON.toJson(questions) + "\n```\n\n"
             + "User answers:\n" + nonBlank(answers, "No explicit answers were provided.") + "\n"
@@ -2140,13 +2400,19 @@ public class TerminalAgentService {
             : "";
         return "User task: " + request.userPrompt().trim() + "\n"
             + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
-            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n"
+            + buildPromptSessionContext(probe)
             + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
             + "Clarifying questions:\n```json\n" + GSON.toJson(questions) + "\n```\n\n"
             + "User answers:\n" + nonBlank(answers, "No explicit answers were provided.") + "\n\n"
             + "Selected implementation option:\n```json\n" + GSON.toJson(selectedOption) + "\n```\n"
             + customBlock
             + "\nCreate the final plan report now.";
+    }
+
+    private String buildPromptSessionContext(TerminalAgentModels.ProbeSnapshot probe) {
+        return "Remote user: " + nonBlank(probe != null ? probe.currentUser() : "", "unknown") + "\n"
+            + "Remote home directory: " + nonBlank(probe != null ? probe.homeDir() : "", "unknown") + "\n"
+            + "Active terminal working directory: " + nonBlank(probe != null ? probe.currentDir() : "", "unknown") + "\n";
     }
 
     private String joinPlanItems(List<String> items) {
@@ -2218,7 +2484,7 @@ public class TerminalAgentService {
         return blank(value) ? fallback : value.trim();
     }
 
-    private <T> List<T> safeList(List<T> values) {
+    private static <T> List<T> safeList(List<T> values) {
         return values == null ? List.of() : values.stream().filter(Objects::nonNull).toList();
     }
 

@@ -4,15 +4,19 @@ import de.kortty.KorTTYApplication;
 import de.kortty.ui.I18n;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiInternetAccessConfiguration;
+import de.kortty.core.AiPromptService;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiService;
+import de.kortty.core.AiServiceFactory;
+import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.AiTokenCounter;
 import de.kortty.core.AiTokenUsage;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
+import de.kortty.core.FailingAiService;
 import de.kortty.core.LanguageManager;
-import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.SSHSession;
@@ -1714,6 +1718,9 @@ public class MainWindow {
         if (hostWindow == null) {
             return;
         }
+        if (!hostWindow.isFocused()) {
+            return;
+        }
         Node focusOwner = mainScene.getFocusOwner();
         Node terminalRoot = terminalTab.getContent();
         if (terminalRoot != null && focusOwner != null
@@ -2569,21 +2576,19 @@ public class MainWindow {
             return null;
         }
         String apiUrl = profile.getApiUrl();
-        String model = profile.getModel();
         String apiKey = getAiApiKeyPlain(profile);
         if (apiUrl == null || apiUrl.isBlank()) {
             return null;
         }
-        String trimmedApiUrl = apiUrl.trim();
-        if (trimmedApiUrl.matches("^https?://[^/]+/?$")) {
-            return null;
+        try {
+            return AiServiceFactory.create(
+                profile,
+                apiKey,
+                buildInternetAccessConfiguration(profile),
+                AiSkillPromptSupport.fromSettings(app.getGlobalSettingsManager().getSettings()));
+        } catch (IllegalStateException e) {
+            return new FailingAiService(e.getMessage());
         }
-        String normalizedApiKey = apiKey != null ? apiKey.trim() : "";
-        return new OpenAiCompatibleAiService(
-            trimmedApiUrl,
-            model != null ? model.trim() : "",
-            normalizedApiKey,
-            AiReasoningSupport.normalizeForProfile(profile));
     }
 
     private String getAiApiKeyPlain(AiProfile profile) {
@@ -2601,6 +2606,81 @@ public class MainWindow {
         } catch (Exception e) {
             logger.warn("Could not decrypt AI API key", e);
             return null;
+        }
+    }
+
+    private AiInternetAccessConfiguration buildInternetAccessConfiguration(AiProfile profile) {
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        AiInternetAccessMode mode = profile != null ? profile.getInternetAccessMode() : null;
+        if (settings == null || mode == null || !mode.isEnabled()) {
+            return AiInternetAccessConfiguration.disabled();
+        }
+        String tavilyApiKey = null;
+        String brightDataApiToken = null;
+        String braveSearchApiKey = null;
+        String searxngUrl = null;
+        String tavilyMcpServerLabel = null;
+        String brightDataMcpServerLabel = null;
+        String braveSearchMcpPluginId = null;
+        String searxngMcpPluginId = null;
+        String lmStudioToolpackMcpPluginId = null;
+        switch (mode) {
+            case KORTTY_TAVILY_TOOL -> tavilyApiKey =
+                decryptGlobalSecret(settings.getEncryptedAiTavilyApiKey(), "Tavily API key");
+            case LM_STUDIO_TAVILY_MCP -> {
+                tavilyApiKey = decryptGlobalSecret(settings.getEncryptedAiTavilyApiKey(), "Tavily API key");
+                tavilyMcpServerLabel = settings.getAiTavilyMcpServerLabel();
+            }
+            case BRIGHT_DATA_WEB_MCP -> {
+                brightDataApiToken =
+                    decryptGlobalSecret(settings.getEncryptedAiBrightDataApiToken(), "Bright Data API token");
+                brightDataMcpServerLabel = settings.getAiBrightDataMcpServerLabel();
+            }
+            case BRAVE_SEARCH_MCP -> {
+                braveSearchApiKey =
+                    decryptGlobalSecret(settings.getEncryptedAiBraveSearchApiKey(), "Brave Search API key");
+                braveSearchMcpPluginId = settings.getAiBraveSearchMcpPluginId();
+            }
+            case SEARXNG_MCP -> {
+                searxngUrl = settings.getAiSearxngUrl();
+                searxngMcpPluginId = settings.getAiSearxngMcpPluginId();
+            }
+            case LM_STUDIO_TOOLPACK -> lmStudioToolpackMcpPluginId = settings.getAiLmStudioToolpackMcpPluginId();
+            case DISABLED -> {
+            }
+        }
+        return new AiInternetAccessConfiguration(
+            mode,
+            tavilyApiKey,
+            brightDataApiToken,
+            braveSearchApiKey,
+            searxngUrl,
+            tavilyMcpServerLabel,
+            brightDataMcpServerLabel,
+            braveSearchMcpPluginId,
+            searxngMcpPluginId,
+            lmStudioToolpackMcpPluginId);
+    }
+
+    private String decryptGlobalSecret(String encryptedValue, String label) {
+        if (encryptedValue == null || encryptedValue.isBlank()) {
+            return null;
+        }
+        try {
+            char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+            if (masterPassword == null) {
+                throw new IllegalStateException(label + " cannot be decrypted because the password vault is locked.");
+            }
+            de.kortty.security.EncryptionService encryptionService = new de.kortty.security.EncryptionService();
+            String decrypted = encryptionService.decryptPassword(encryptedValue, masterPassword);
+            return decrypted != null && !decrypted.isBlank() ? decrypted : null;
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.warn("Could not decrypt {}", label, e);
+            throw new IllegalStateException(label + " could not be decrypted.");
         }
     }
 
@@ -2824,7 +2904,10 @@ public class MainWindow {
         AiTokenizerType tokenizerType = profile != null && profile.getTokenizerType() != null
             ? profile.getTokenizerType()
             : AiTokenizerType.ESTIMATE;
-        return AiTokenCounter.countRequestTokens(request, tokenizerType);
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        return AiTokenCounter.countRequestTokens(request, tokenizerType, AiSkillPromptSupport.fromSettings(settings));
     }
 
     private String formatRemainingTokens(long remainingTokens) {
@@ -3253,8 +3336,8 @@ public class MainWindow {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.profileMissing"));
             return;
         }
-        OpenAiCompatibleAiService aiService = (OpenAiCompatibleAiService) createAiServiceForProfile(profile);
-        if (aiService == null) {
+        AiService service = createAiServiceForProfile(profile);
+        if (!(service instanceof AiPromptService aiService)) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.error.notConfigured"));
             return;
         }
@@ -3264,14 +3347,23 @@ public class MainWindow {
             return;
         }
 
+        TerminalView.TerminalAgentRunContext resolvedRunContext = resolveTerminalAgentRunContext(terminalTab, runContext);
+        applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
+
         if (request.executionTarget() == TerminalAgentExecutionTarget.CHAT_WINDOW) {
             AiAgentRunTab runTab = new AiAgentRunTab(this, I18n.get("ai.agent.run.tabTitle"));
             insertTemporaryTab(runTab);
-            runTab.startRun(terminalAgentService, terminalTab, profile, aiService, request);
+            runTab.startRun(
+                terminalAgentService,
+                terminalTab,
+                profile,
+                aiService,
+                resolvedRunContext != null ? resolvedRunContext.connector() : null,
+                request);
             return;
         }
 
-        runTerminalAgentInTerminalWindow(terminalTab, profile, aiService, request, runContext);
+        runTerminalAgentInTerminalWindow(terminalTab, profile, aiService, request, resolvedRunContext);
     }
 
     private void openDirectAiAskTab(AiProfile profile, String prompt, String connectionDisplayName) {
@@ -3320,13 +3412,13 @@ public class MainWindow {
     private void runTerminalAgentInTerminalWindow(
         TerminalTab terminalTab,
         AiProfile profile,
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
-        TerminalView.TerminalAgentRunContext resolvedRunContext = runContext != null
-            ? runContext
-            : terminalTab.getTerminalView().captureTerminalAgentRunContext();
+        java.util.concurrent.atomic.AtomicReference<Thread> workerRef = new java.util.concurrent.atomic.AtomicReference<>();
+        TerminalView.TerminalAgentRunContext resolvedRunContext = resolveTerminalAgentRunContext(terminalTab, runContext);
+        applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
         if (resolvedRunContext == null || resolvedRunContext.connector() == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
             return;
@@ -3343,7 +3435,13 @@ public class MainWindow {
         TerminalAgentModels.Request scopedRequest = withTerminalAgentSessionId(
             request,
             terminalTab.getTerminalView().buildTerminalAgentScopedSessionId(request.sessionId(), resolvedRunContext));
-        Runnable cancelRun = () -> cancelled.set(true);
+        Runnable cancelRun = () -> {
+            cancelled.set(true);
+            Thread workerThread = workerRef.get();
+            if (workerThread != null) {
+                workerThread.interrupt();
+            }
+        };
         Runnable reloadRun = () -> launchTerminalAgent(terminalTab, request, resolvedRunContext);
         terminalTab.getTerminalView().setTerminalAgentInputLocked(
             resolvedRunContext,
@@ -3452,8 +3550,28 @@ public class MainWindow {
                 });
             }
         }, "ai-agent-terminal");
+        workerRef.set(worker);
         worker.setDaemon(true);
         worker.start();
+    }
+
+    private TerminalView.TerminalAgentRunContext resolveTerminalAgentRunContext(
+        TerminalTab terminalTab,
+        TerminalView.TerminalAgentRunContext runContext) {
+
+        if (runContext != null) {
+            return runContext;
+        }
+        return terminalTab.getTerminalView() != null
+            ? terminalTab.getTerminalView().captureTerminalAgentRunContext()
+            : null;
+    }
+
+    private void applyTerminalAgentWorkingDirectoryHint(TerminalView.TerminalAgentRunContext runContext) {
+        if (runContext == null || runContext.connector() == null) {
+            return;
+        }
+        runContext.connector().updateCurrentRemoteDirectoryHint(runContext.workingDirectory());
     }
 
     private TerminalAgentModels.Request withTerminalAgentSessionId(
@@ -3511,8 +3629,8 @@ public class MainWindow {
             showError(I18n.get("ai.plan.title"), I18n.get("ai.agent.error.profileMissing"));
             return;
         }
-        OpenAiCompatibleAiService aiService = (OpenAiCompatibleAiService) createAiServiceForProfile(profile);
-        if (aiService == null) {
+        AiService service = createAiServiceForProfile(profile);
+        if (!(service instanceof AiPromptService aiService)) {
             showError(I18n.get("ai.plan.title"), I18n.get("ai.error.notConfigured"));
             return;
         }
@@ -3524,6 +3642,7 @@ public class MainWindow {
             && terminalTab.getTerminalView() != null) {
             resolvedRunContext = terminalTab.getTerminalView().captureTerminalAgentRunContext();
         }
+        applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
         TerminalView.TerminalAgentRunContext planRunContext = resolvedRunContext;
         AiAgentPlanTab planTab = new AiAgentPlanTab(
             this,

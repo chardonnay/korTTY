@@ -9,13 +9,17 @@ import de.kortty.core.GPGKeyManager;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
+import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiReasoningSupport;
+import de.kortty.core.AiServiceFactory;
+import de.kortty.core.AiSkillPromptSupport;
+import de.kortty.core.AiSkillMarkdownCodec;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiService;
+import de.kortty.core.FailingAiService;
 import de.kortty.core.GoogleTranslationService;
 import de.kortty.core.DeepLTranslationService;
 import de.kortty.core.LibreTranslateTranslationService;
-import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.core.MicrosoftTranslationService;
 import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.core.YandexTranslationService;
@@ -24,6 +28,9 @@ import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.TranslationService;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiSkill;
+import de.kortty.model.AiSkillTarget;
+import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
@@ -43,17 +50,32 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.Clipboard;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import org.fxmisc.richtext.InlineCssTextArea;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -151,8 +173,21 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final TextField aiApiUrlField;
     private final TextField aiModelField;
     private final ComboBox<AiReasoningEffort> aiReasoningCombo;
+    private final ComboBox<AiInternetAccessMode> aiInternetAccessModeCombo;
     private final PasswordField aiApiKeyField;
     private final CheckBox aiClearApiKeyCheck;
+    private final PasswordField aiTavilyApiKeyField;
+    private final CheckBox aiClearTavilyApiKeyCheck;
+    private final PasswordField aiBrightDataApiTokenField;
+    private final CheckBox aiClearBrightDataApiTokenCheck;
+    private final PasswordField aiBraveSearchApiKeyField;
+    private final CheckBox aiClearBraveSearchApiKeyCheck;
+    private final TextField aiSearxngUrlField;
+    private final TextField aiTavilyMcpServerLabelField;
+    private final TextField aiBrightDataMcpServerLabelField;
+    private final TextField aiBraveSearchMcpPluginIdField;
+    private final TextField aiSearxngMcpPluginIdField;
+    private final TextField aiLmStudioToolpackMcpPluginIdField;
     private final CheckBox aiFeaturesEnabledCheck;
     private final CheckBox aiConfirmBeforeSendCheck;
     private final CheckBox aiPromptHookEnabledCheck;
@@ -180,6 +215,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox aiSnippetEditorInstructionsCheck;
     private final Spinner<Integer> aiSnippetAlternativeSolutionCountSpinner;
     private AiProfile selectedAiProfile;
+
+    private final CheckBox aiSkillsEnabledCheck;
+    private final CheckBox aiSkillAutoDetectionCheck;
+    private final ListView<AiSkill> aiSkillListView;
+    private final TextField aiSkillNameField;
+    private final TextField aiSkillDescriptionField;
+    private final TextField aiSkillTagsField;
+    private final CheckBox aiSkillEnabledCheck;
+    private final ComboBox<AiSkillTarget> aiSkillTargetCombo;
+    private final InlineCssTextArea aiSkillContentArea;
+    private final List<AiSkill> aiSkills = new ArrayList<>();
+    private String aiSkillContentTextStyle = "-fx-fill: #d4d4d4;";
+    private AiSkill selectedAiSkill;
+    private boolean loadingAiSkillEditor;
     
     // SFTP settings
     private final CheckBox sftpAutoCloseEnabledCheck;
@@ -1035,6 +1084,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiRoot.getChildren().add(aiExecutionTargetBox);
 
         aiProfiles.addAll(globalSettings.getAiProfiles().stream().map(AiProfile::new).collect(Collectors.toList()));
+        aiSkills.addAll((globalSettings != null ? globalSettings.getAiSkills() : List.<AiSkill>of())
+            .stream()
+            .map(AiSkill::new)
+            .collect(Collectors.toList()));
 
         aiDefaultProfileCombo = new ComboBox<>();
         aiDefaultProfileCombo.setPrefWidth(260);
@@ -1099,6 +1152,74 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Label(I18n.get("settings.ai.alternativeSolutionCount")),
             aiSnippetAlternativeSolutionCountSpinner);
         aiRoot.getChildren().add(aiSnippetAlternativeCountBox);
+
+        GridPane aiInternetGrid = new GridPane();
+        aiInternetGrid.setHgap(10);
+        aiInternetGrid.setVgap(8);
+        int internetRow = 0;
+
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.tavilyKey")), 0, internetRow);
+        aiTavilyApiKeyField = new PasswordField();
+        aiTavilyApiKeyField.setPrefWidth(280);
+        aiTavilyApiKeyField.setPromptText(I18n.get("settings.ai.internet.secretUnchanged"));
+        aiClearTavilyApiKeyCheck = new CheckBox(I18n.get("settings.ai.internet.clearSecret"));
+        wireSecretClearToggle(aiTavilyApiKeyField, aiClearTavilyApiKeyCheck);
+        aiInternetGrid.add(new HBox(8, aiTavilyApiKeyField, aiClearTavilyApiKeyCheck), 1, internetRow++);
+
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.brightDataToken")), 0, internetRow);
+        aiBrightDataApiTokenField = new PasswordField();
+        aiBrightDataApiTokenField.setPrefWidth(280);
+        aiBrightDataApiTokenField.setPromptText(I18n.get("settings.ai.internet.secretUnchanged"));
+        aiClearBrightDataApiTokenCheck = new CheckBox(I18n.get("settings.ai.internet.clearSecret"));
+        wireSecretClearToggle(aiBrightDataApiTokenField, aiClearBrightDataApiTokenCheck);
+        aiInternetGrid.add(new HBox(8, aiBrightDataApiTokenField, aiClearBrightDataApiTokenCheck), 1, internetRow++);
+
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.braveKey")), 0, internetRow);
+        aiBraveSearchApiKeyField = new PasswordField();
+        aiBraveSearchApiKeyField.setPrefWidth(280);
+        aiBraveSearchApiKeyField.setPromptText(I18n.get("settings.ai.internet.secretUnchanged"));
+        aiClearBraveSearchApiKeyCheck = new CheckBox(I18n.get("settings.ai.internet.clearSecret"));
+        wireSecretClearToggle(aiBraveSearchApiKeyField, aiClearBraveSearchApiKeyCheck);
+        aiInternetGrid.add(new HBox(8, aiBraveSearchApiKeyField, aiClearBraveSearchApiKeyCheck), 1, internetRow++);
+
+        aiSearxngUrlField = new TextField(globalSettings != null && globalSettings.getAiSearxngUrl() != null ? globalSettings.getAiSearxngUrl() : "");
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.searxngUrl")), 0, internetRow);
+        aiInternetGrid.add(aiSearxngUrlField, 1, internetRow++);
+
+        aiTavilyMcpServerLabelField = new TextField(globalSettings != null ? globalSettings.getAiTavilyMcpServerLabel() : "tavily");
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.tavilyLabel")), 0, internetRow);
+        aiInternetGrid.add(aiTavilyMcpServerLabelField, 1, internetRow++);
+
+        aiBrightDataMcpServerLabelField = new TextField(globalSettings != null ? globalSettings.getAiBrightDataMcpServerLabel() : "bright-data");
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.brightDataLabel")), 0, internetRow);
+        aiInternetGrid.add(aiBrightDataMcpServerLabelField, 1, internetRow++);
+
+        aiBraveSearchMcpPluginIdField = new TextField(globalSettings != null && globalSettings.getAiBraveSearchMcpPluginId() != null
+            ? globalSettings.getAiBraveSearchMcpPluginId()
+            : "");
+        aiBraveSearchMcpPluginIdField.setPromptText("mcp/<server_label>");
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.bravePluginId")), 0, internetRow);
+        aiInternetGrid.add(aiBraveSearchMcpPluginIdField, 1, internetRow++);
+
+        aiSearxngMcpPluginIdField = new TextField(globalSettings != null && globalSettings.getAiSearxngMcpPluginId() != null
+            ? globalSettings.getAiSearxngMcpPluginId()
+            : "");
+        aiSearxngMcpPluginIdField.setPromptText("mcp/<server_label>");
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.searxngPluginId")), 0, internetRow);
+        aiInternetGrid.add(aiSearxngMcpPluginIdField, 1, internetRow++);
+
+        aiLmStudioToolpackMcpPluginIdField = new TextField(globalSettings != null && globalSettings.getAiLmStudioToolpackMcpPluginId() != null
+            ? globalSettings.getAiLmStudioToolpackMcpPluginId()
+            : "");
+        aiLmStudioToolpackMcpPluginIdField.setPromptText("mcp/<server_label>");
+        aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.toolpackPluginId")), 0, internetRow);
+        aiInternetGrid.add(aiLmStudioToolpackMcpPluginIdField, 1, internetRow++);
+
+        VBox aiInternetBox = new VBox(
+            8,
+            new Label(I18n.get("settings.ai.internet.configuration")),
+            aiInternetGrid);
+        aiRoot.getChildren().add(aiInternetBox);
 
         aiProfileListView = new ListView<>();
         aiProfileListView.getItems().addAll(aiProfiles);
@@ -1181,6 +1302,19 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             refreshAiReasoningOptions(aiReasoningCombo.getValue()));
         aiModelField.textProperty().addListener((obs, oldValue, newValue) ->
             refreshAiReasoningOptions(aiReasoningCombo.getValue()));
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.internet.mode")), 0, aiRow);
+        aiInternetAccessModeCombo = new ComboBox<>();
+        aiInternetAccessModeCombo.getItems().addAll(AiInternetAccessMode.values());
+        aiInternetAccessModeCombo.setPrefWidth(260);
+        aiInternetAccessModeCombo.setConverter(createAiInternetModeConverter());
+        aiInternetAccessModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null) {
+                selectedAiProfile.setInternetAccessMode(newValue);
+                aiProfileListView.refresh();
+            }
+        });
+        aiEditorGrid.add(aiInternetAccessModeCombo, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.apiKey")), 0, aiRow);
         aiApiKeyField = new PasswordField();
@@ -1320,7 +1454,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         HBox aiContent = new HBox(16, aiProfilesBox, aiEditorGrid);
         aiRoot.getChildren().add(aiContent);
-        aiTab.setContent(aiRoot);
+        ScrollPane aiScrollPane = new ScrollPane(aiRoot);
+        aiScrollPane.setFitToWidth(true);
+        aiScrollPane.setFitToHeight(false);
+        aiScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        aiScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        aiTab.setContent(aiScrollPane);
 
         aiProfileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             snapshotSelectedAiProfileEditorState();
@@ -1529,34 +1668,185 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         snippetEditorGrid.add(snippetCursorColorPicker, 1, snippetRow++);
         
         snippetEditorTab.setContent(snippetEditorGrid);
+
+        // AI Skills tab
+        Tab aiSkillsTab = new Tab(I18n.get("settings.tab.aiSkills"));
+        VBox aiSkillsRoot = new VBox(12);
+        aiSkillsRoot.setPadding(new Insets(20));
+
+        aiSkillsEnabledCheck = new CheckBox(I18n.get("settings.aiSkills.enabled"));
+        aiSkillsEnabledCheck.setStyle("-fx-font-weight: bold;");
+        aiSkillsEnabledCheck.setSelected(globalSettings == null || globalSettings.isAiSkillsEnabled());
+
+        aiSkillAutoDetectionCheck = new CheckBox(I18n.get("settings.aiSkills.autoDetection"));
+        aiSkillAutoDetectionCheck.setSelected(globalSettings == null || globalSettings.isAiSkillAutoDetectionEnabled());
+
+        aiSkillListView = new ListView<>();
+        aiSkillListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        aiSkillListView.setPrefWidth(300);
+        aiSkillListView.setMinWidth(260);
+        aiSkillListView.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiSkill item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : formatAiSkillListText(item));
+            }
+        });
+        aiSkillListView.getItems().setAll(aiSkills);
+
+        Button addAiSkillButton = new Button(I18n.get("settings.aiSkills.add"));
+        addAiSkillButton.setOnAction(event -> addAiSkill());
+        Button deleteAiSkillButton = new Button(I18n.get("settings.aiSkills.delete"));
+        deleteAiSkillButton.disableProperty().bind(aiSkillListView.getSelectionModel().selectedItemProperty().isNull());
+        deleteAiSkillButton.setOnAction(event -> deleteSelectedAiSkills());
+        Button importAiSkillButton = new Button(I18n.get("settings.aiSkills.import"));
+        importAiSkillButton.setOnAction(event -> importAiSkills());
+        Button exportAiSkillButton = new Button(I18n.get("settings.aiSkills.export"));
+        exportAiSkillButton.setOnAction(event -> exportAiSkills());
+
+        MenuItem sortAiSkillByNameItem = new MenuItem(I18n.get("settings.aiSkills.sort.alphabetical"));
+        sortAiSkillByNameItem.setOnAction(event -> sortAiSkillsAlphabetically());
+        MenuItem sortAiSkillByStatusItem = new MenuItem(I18n.get("settings.aiSkills.sort.status"));
+        sortAiSkillByStatusItem.setOnAction(event -> sortAiSkillsByStatus());
+        MenuButton sortAiSkillButton = new MenuButton(I18n.get("settings.aiSkills.sort"), null,
+            sortAiSkillByNameItem,
+            sortAiSkillByStatusItem);
+
+        HBox aiSkillSortButtons = new HBox(8, sortAiSkillButton);
+        HBox aiSkillButtons = new HBox(8, addAiSkillButton, deleteAiSkillButton, importAiSkillButton, exportAiSkillButton);
+        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillSortButtons, aiSkillListView, aiSkillButtons);
+        VBox.setVgrow(aiSkillListView, Priority.ALWAYS);
+
+        aiSkillNameField = new TextField();
+        aiSkillNameField.setPrefWidth(360);
+        aiSkillNameField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (!loadingAiSkillEditor && selectedAiSkill != null) {
+                selectedAiSkill.setName(newValue);
+                aiSkillListView.refresh();
+            }
+        });
+
+        aiSkillDescriptionField = new TextField();
+        aiSkillDescriptionField.setPrefWidth(360);
+        aiSkillDescriptionField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (!loadingAiSkillEditor && selectedAiSkill != null) {
+                selectedAiSkill.setDescription(newValue);
+            }
+        });
+
+        aiSkillTagsField = new TextField();
+        aiSkillTagsField.setPrefWidth(360);
+        aiSkillTagsField.setPromptText(I18n.get("settings.aiSkills.tags.prompt"));
+        aiSkillTagsField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (!loadingAiSkillEditor && selectedAiSkill != null) {
+                selectedAiSkill.setTagsFromString(newValue);
+                aiSkillListView.refresh();
+            }
+        });
+
+        aiSkillEnabledCheck = new CheckBox(I18n.get("settings.aiSkills.active"));
+        aiSkillEnabledCheck.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            if (!loadingAiSkillEditor && selectedAiSkill != null) {
+                selectedAiSkill.setEnabled(newValue);
+                aiSkillListView.refresh();
+            }
+        });
+
+        aiSkillTargetCombo = new ComboBox<>();
+        aiSkillTargetCombo.getItems().addAll(AiSkillTarget.CHAT, AiSkillTarget.AGENT, AiSkillTarget.BOTH);
+        aiSkillTargetCombo.setPrefWidth(220);
+        aiSkillTargetCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiSkillTarget object) {
+                return object == null ? "" : aiSkillTargetLabel(object);
+            }
+
+            @Override
+            public AiSkillTarget fromString(String string) {
+                return null;
+            }
+        });
+        aiSkillTargetCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (!loadingAiSkillEditor && selectedAiSkill != null) {
+                selectedAiSkill.setTarget(newValue);
+                aiSkillListView.refresh();
+            }
+        });
+
+        aiSkillContentArea = new InlineCssTextArea();
+        aiSkillContentArea.setPrefHeight(420);
+        aiSkillContentArea.setWrapText(true);
+        EditorSettingsHelper.Settings skillEditorSettings = EditorSettingsHelper.loadSnippetSettings();
+        aiSkillContentTextStyle = buildReadableAiSkillTextStyle(skillEditorSettings);
+        EditorSettingsHelper.applyStyle(aiSkillContentArea, skillEditorSettings);
+        EditorSettingsHelper.installPersistentCaretStyling(aiSkillContentArea, skillEditorSettings);
+        installAiSkillEditorInputGuards();
+        aiSkillContentArea.setContextMenu(createAiSkillEditorContextMenu());
+        aiSkillContentArea.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (!loadingAiSkillEditor && selectedAiSkill != null) {
+                selectedAiSkill.setContent(newValue);
+            }
+            Platform.runLater(this::applyAiSkillContentTextStyle);
+        });
+        var aiSkillContentScrollPane = EditorSettingsHelper.createScrollPane(aiSkillContentArea);
+        VBox.setVgrow(aiSkillContentScrollPane, Priority.ALWAYS);
+
+        GridPane aiSkillEditorGrid = new GridPane();
+        aiSkillEditorGrid.setHgap(10);
+        aiSkillEditorGrid.setVgap(10);
+        aiSkillEditorGrid.add(new Label(I18n.get("settings.aiSkills.name")), 0, 0);
+        aiSkillEditorGrid.add(aiSkillNameField, 1, 0);
+        aiSkillEditorGrid.add(new Label(I18n.get("settings.aiSkills.description")), 0, 1);
+        aiSkillEditorGrid.add(aiSkillDescriptionField, 1, 1);
+        aiSkillEditorGrid.add(new Label(I18n.get("settings.aiSkills.tags")), 0, 2);
+        aiSkillEditorGrid.add(aiSkillTagsField, 1, 2);
+        aiSkillEditorGrid.add(new Label(I18n.get("settings.aiSkills.target")), 0, 3);
+        aiSkillEditorGrid.add(new HBox(12, aiSkillTargetCombo, aiSkillEnabledCheck), 1, 3);
+        GridPane.setHgrow(aiSkillNameField, Priority.ALWAYS);
+        GridPane.setHgrow(aiSkillDescriptionField, Priority.ALWAYS);
+        GridPane.setHgrow(aiSkillTagsField, Priority.ALWAYS);
+
+        VBox aiSkillEditorBox = new VBox(8,
+            aiSkillEditorGrid,
+            new Label(I18n.get("settings.aiSkills.content")),
+            aiSkillContentScrollPane);
+        VBox.setVgrow(aiSkillContentScrollPane, Priority.ALWAYS);
+
+        BorderPane aiSkillEditorPane = new BorderPane(aiSkillEditorBox);
+        aiSkillEditorPane.setMinWidth(520);
+        HBox.setHgrow(aiSkillEditorPane, Priority.ALWAYS);
+
+        HBox aiSkillsContent = new HBox(16, aiSkillListBox, aiSkillEditorPane);
+        VBox.setVgrow(aiSkillsContent, Priority.ALWAYS);
+        aiSkillsRoot.getChildren().add(aiSkillsContent);
+        aiSkillsTab.setContent(aiSkillsRoot);
+
+        aiSkillListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            snapshotSelectedAiSkillEditorState();
+            selectedAiSkill = newValue;
+            loadAiSkillIntoEditor(newValue);
+        });
+        if (!aiSkills.isEmpty()) {
+            aiSkillListView.getSelectionModel().selectFirst();
+        } else {
+            loadAiSkillIntoEditor(null);
+        }
         
         // Themes tab
         Tab themesTab = createThemesTab(owner);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
         
-        final double defaultContentHeight = 1140;
-        final double defaultViewportHeight = 920;
-        final double minimumViewportHeight = 720;
+        final double defaultContentWidth = 1000;
+        final double minimumContentWidth = 860;
+        final double defaultContentHeight = 920;
+        final double minimumContentHeight = 720;
         final double defaultDialogHeight = 1080;
         final double minimumDialogHeight = 960;
 
-        VBox content = new VBox(tabPane);
-        content.setFillWidth(true);
-        // TabPane does not report preferred height well to ScrollPane (JavaFX quirk), so set a min height
-        // so the scrollable area is large enough and the vertical scrollbar appears
-        content.setMinHeight(defaultContentHeight);
-        content.setPrefHeight(defaultContentHeight);
-        ScrollPane scrollPane = new ScrollPane(content);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(false);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setPrefViewportWidth(1000);
-        scrollPane.setPrefViewportHeight(defaultViewportHeight);
-        scrollPane.setMinViewportWidth(860);
-        scrollPane.setMinViewportHeight(minimumViewportHeight);
-        getDialogPane().setContent(scrollPane);
+        tabPane.setPrefSize(defaultContentWidth, defaultContentHeight);
+        tabPane.setMinSize(minimumContentWidth, minimumContentHeight);
+        getDialogPane().setContent(tabPane);
         getDialogPane().setPrefWidth(1120);
         getDialogPane().setMinWidth(1000);
         getDialogPane().setPrefHeight(defaultDialogHeight);
@@ -1710,6 +2000,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 }
             }
 
+            saveAiSkillsToSettings(globalSettings);
             saveAiToggleFlagsToSettings(globalSettings);
             
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
@@ -2474,6 +2765,423 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiProfileListView.refresh();
     }
 
+    private void addAiSkill() {
+        snapshotSelectedAiSkillEditorState();
+        AiSkill skill = new AiSkill();
+        skill.setName(createDefaultAiSkillName());
+        skill.setEnabled(true);
+        skill.setTarget(AiSkillTarget.BOTH);
+        skill.setContent("");
+        aiSkills.add(skill);
+        aiSkillListView.getItems().setAll(aiSkills);
+        aiSkillListView.getSelectionModel().clearSelection();
+        aiSkillListView.getSelectionModel().select(skill);
+        aiSkillListView.refresh();
+    }
+
+    private String createDefaultAiSkillName() {
+        String baseName = I18n.get("settings.aiSkills.defaultName");
+        int suffix = 1;
+        String candidate = baseName;
+        while (containsAiSkillName(candidate)) {
+            suffix++;
+            candidate = baseName + " " + suffix;
+        }
+        return candidate;
+    }
+
+    private boolean containsAiSkillName(String candidate) {
+        for (AiSkill skill : aiSkills) {
+            String name = skill != null ? skill.getName() : null;
+            if (candidate.equalsIgnoreCase(name != null ? name.trim() : "")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void deleteSelectedAiSkills() {
+        List<AiSkill> selected = new ArrayList<>(aiSkillListView.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty()) {
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("settings.aiSkills.delete.title"));
+        confirm.setHeaderText(I18n.get("settings.aiSkills.delete.header"));
+        confirm.setContentText(I18n.get("settings.aiSkills.delete.content", selected.size()));
+        DialogThemeHelper.applyTheme(confirm);
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        aiSkills.removeAll(selected);
+        aiSkillListView.getItems().setAll(aiSkills);
+        if (aiSkills.isEmpty()) {
+            selectedAiSkill = null;
+            loadAiSkillIntoEditor(null);
+        } else {
+            aiSkillListView.getSelectionModel().selectFirst();
+        }
+        aiSkillListView.refresh();
+    }
+
+    private void sortAiSkillsAlphabetically() {
+        snapshotSelectedAiSkillEditorState();
+        aiSkills.sort(aiSkillNameComparator());
+        refreshAiSkillListAfterSort();
+    }
+
+    private void sortAiSkillsByStatus() {
+        snapshotSelectedAiSkillEditorState();
+        aiSkills.sort(Comparator
+            .comparing(AiSkill::isEnabled).reversed()
+            .thenComparing(aiSkillNameComparator()));
+        refreshAiSkillListAfterSort();
+    }
+
+    private Comparator<AiSkill> aiSkillNameComparator() {
+        return Comparator.comparing(
+            skill -> {
+                String name = skill != null ? trimToNull(skill.getName()) : null;
+                return name != null ? name : I18n.get("settings.aiSkills.defaultName");
+            },
+            String.CASE_INSENSITIVE_ORDER);
+    }
+
+    private void refreshAiSkillListAfterSort() {
+        List<AiSkill> selectedSkills = new ArrayList<>(aiSkillListView.getSelectionModel().getSelectedItems());
+        AiSkill currentSkill = selectedAiSkill;
+        aiSkillListView.getItems().setAll(aiSkills);
+        aiSkillListView.getSelectionModel().clearSelection();
+        for (AiSkill skill : selectedSkills) {
+            if (aiSkills.contains(skill)) {
+                aiSkillListView.getSelectionModel().select(skill);
+            }
+        }
+        if (currentSkill != null && aiSkills.contains(currentSkill)) {
+            aiSkillListView.getSelectionModel().select(currentSkill);
+            selectedAiSkill = currentSkill;
+            loadAiSkillIntoEditor(currentSkill);
+        } else if (!aiSkills.isEmpty()) {
+            aiSkillListView.getSelectionModel().selectFirst();
+        } else {
+            selectedAiSkill = null;
+            loadAiSkillIntoEditor(null);
+        }
+        aiSkillListView.refresh();
+    }
+
+    private void importAiSkills() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.get("settings.aiSkills.import"));
+        chooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter(I18n.get("settings.aiSkills.markdownFiles"), "*.md", "*.markdown"),
+            new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*"));
+        List<File> files = chooser.showOpenMultipleDialog(getDialogPane().getScene().getWindow());
+        if (files == null || files.isEmpty()) {
+            return;
+        }
+        snapshotSelectedAiSkillEditorState();
+        try {
+            List<AiSkill> importedSkills = new ArrayList<>();
+            for (File file : files) {
+                AiSkill imported = AiSkillMarkdownCodec.importFromMarkdown(file.toPath());
+                imported.ensureId();
+                importedSkills.add(imported);
+            }
+            aiSkills.addAll(importedSkills);
+            aiSkillListView.getItems().setAll(aiSkills);
+            if (!importedSkills.isEmpty()) {
+                aiSkillListView.getSelectionModel().clearSelection();
+                aiSkillListView.getSelectionModel().select(aiSkills.get(aiSkills.size() - 1));
+            }
+            showAiSkillInfo(I18n.get("settings.aiSkills.import.success", importedSkills.size()));
+        } catch (Exception e) {
+            showAiSkillError(I18n.get("settings.aiSkills.import.failed", errorMessage(e)));
+        }
+    }
+
+    private void exportAiSkills() {
+        snapshotSelectedAiSkillEditorState();
+        List<AiSkill> selected = new ArrayList<>(aiSkillListView.getSelectionModel().getSelectedItems());
+        List<AiSkill> skillsToExport = selected.isEmpty() ? new ArrayList<>(aiSkills) : selected;
+        if (skillsToExport.isEmpty()) {
+            showAiSkillInfo(I18n.get("settings.aiSkills.export.empty"));
+            return;
+        }
+        try {
+            if (skillsToExport.size() == 1) {
+                exportSingleAiSkill(skillsToExport.get(0));
+            } else {
+                exportMultipleAiSkills(skillsToExport);
+            }
+        } catch (Exception e) {
+            showAiSkillError(I18n.get("settings.aiSkills.export.failed", errorMessage(e)));
+        }
+    }
+
+    private void exportSingleAiSkill(AiSkill skill) throws Exception {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.get("settings.aiSkills.export"));
+        chooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter(I18n.get("settings.aiSkills.markdownFiles"), "*.md"),
+            new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*"));
+        chooser.setInitialFileName(toAiSkillFileName(skill, List.of()));
+        File file = chooser.showSaveDialog(getDialogPane().getScene().getWindow());
+        if (file == null) {
+            return;
+        }
+        AiSkillMarkdownCodec.exportToMarkdown(ensureMarkdownExtension(file.toPath()), skill);
+        showAiSkillInfo(I18n.get("settings.aiSkills.export.success", 1));
+    }
+
+    private void exportMultipleAiSkills(List<AiSkill> skillsToExport) throws Exception {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle(I18n.get("settings.aiSkills.export.directory"));
+        File directory = chooser.showDialog(getDialogPane().getScene().getWindow());
+        if (directory == null) {
+            return;
+        }
+        List<String> usedNames = new ArrayList<>();
+        int exportedCount = 0;
+        for (AiSkill skill : skillsToExport) {
+            String fileName = toAiSkillFileName(skill, usedNames);
+            usedNames.add(fileName);
+            AiSkillMarkdownCodec.exportToMarkdown(directory.toPath().resolve(fileName), skill);
+            exportedCount++;
+        }
+        showAiSkillInfo(I18n.get("settings.aiSkills.export.success", exportedCount));
+    }
+
+    private void snapshotSelectedAiSkillEditorState() {
+        if (selectedAiSkill == null) {
+            return;
+        }
+        selectedAiSkill.ensureId();
+        selectedAiSkill.setName(aiSkillNameField.getText());
+        selectedAiSkill.setDescription(aiSkillDescriptionField.getText());
+        selectedAiSkill.setTagsFromString(aiSkillTagsField.getText());
+        selectedAiSkill.setEnabled(aiSkillEnabledCheck.isSelected());
+        selectedAiSkill.setTarget(aiSkillTargetCombo.getValue());
+        selectedAiSkill.setContent(aiSkillContentArea.getText());
+        aiSkillListView.refresh();
+    }
+
+    private void loadAiSkillIntoEditor(AiSkill skill) {
+        loadingAiSkillEditor = true;
+        try {
+            boolean disabled = skill == null;
+            setAiSkillEditorDisabled(disabled);
+            aiSkillNameField.setText(skill != null && skill.getName() != null ? skill.getName() : "");
+            aiSkillDescriptionField.setText(skill != null && skill.getDescription() != null ? skill.getDescription() : "");
+            aiSkillTagsField.setText(skill != null ? skill.getTagsAsString() : "");
+            aiSkillEnabledCheck.setSelected(skill == null || skill.isEnabled());
+            aiSkillTargetCombo.setValue(skill != null ? skill.getTarget() : AiSkillTarget.BOTH);
+            aiSkillContentArea.replaceText(skill != null && skill.getContent() != null ? skill.getContent() : "");
+            applyAiSkillContentTextStyle();
+            aiSkillContentArea.getUndoManager().forgetHistory();
+        } finally {
+            loadingAiSkillEditor = false;
+        }
+    }
+
+    private void installAiSkillEditorInputGuards() {
+        KeyCombination pasteShortcut = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
+        KeyCombination cutShortcut = new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN);
+        KeyCombination copyShortcut = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
+        KeyCombination undoShortcut = new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN);
+        aiSkillContentArea.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (pasteShortcut.match(event)) {
+                runAiSkillEditorEditAction(aiSkillContentArea::paste);
+                event.consume();
+            } else if (cutShortcut.match(event)) {
+                runAiSkillEditorEditAction(aiSkillContentArea::cut);
+                event.consume();
+            } else if (copyShortcut.match(event)) {
+                aiSkillContentArea.copy();
+                event.consume();
+            } else if (undoShortcut.match(event)) {
+                if (aiSkillContentArea.isUndoAvailable()) {
+                    runAiSkillEditorEditAction(aiSkillContentArea::undo);
+                }
+                event.consume();
+            }
+        });
+        aiSkillContentArea.addEventHandler(KeyEvent.KEY_TYPED, event -> {
+            applyAiSkillContentTextStyleSoon();
+            event.consume();
+        });
+        aiSkillContentArea.addEventHandler(KeyEvent.KEY_RELEASED, event -> {
+            applyAiSkillContentTextStyleSoon();
+            event.consume();
+        });
+    }
+
+    private ContextMenu createAiSkillEditorContextMenu() {
+        KeyCombination undoShortcut = new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN);
+        KeyCombination cutShortcut = new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN);
+        KeyCombination copyShortcut = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
+        KeyCombination pasteShortcut = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
+
+        MenuItem undoItem = new MenuItem(I18n.get("editor.context.undo"));
+        undoItem.setAccelerator(undoShortcut);
+        undoItem.setOnAction(event -> runAiSkillEditorEditAction(aiSkillContentArea::undo));
+
+        MenuItem cutItem = new MenuItem(I18n.get("editor.context.cut"));
+        cutItem.setAccelerator(cutShortcut);
+        cutItem.setOnAction(event -> runAiSkillEditorEditAction(aiSkillContentArea::cut));
+
+        MenuItem copyItem = new MenuItem(I18n.get("editor.context.copy"));
+        copyItem.setAccelerator(copyShortcut);
+        copyItem.setOnAction(event -> aiSkillContentArea.copy());
+
+        MenuItem pasteItem = new MenuItem(I18n.get("editor.context.paste"));
+        pasteItem.setAccelerator(pasteShortcut);
+        pasteItem.setOnAction(event -> runAiSkillEditorEditAction(aiSkillContentArea::paste));
+
+        ContextMenu menu = new ContextMenu(undoItem, new SeparatorMenuItem(), cutItem, copyItem, pasteItem);
+        menu.setOnShowing(event -> {
+            boolean editable = !aiSkillContentArea.isDisabled() && aiSkillContentArea.isEditable();
+            boolean hasSelection = aiSkillContentArea.getSelection().getLength() > 0;
+            undoItem.setDisable(!editable || !aiSkillContentArea.isUndoAvailable());
+            cutItem.setDisable(!editable || !hasSelection);
+            copyItem.setDisable(!hasSelection);
+            pasteItem.setDisable(!editable || !Clipboard.getSystemClipboard().hasString());
+        });
+        return menu;
+    }
+
+    private void runAiSkillEditorEditAction(Runnable action) {
+        if (aiSkillContentArea.isDisabled() || !aiSkillContentArea.isEditable()) {
+            return;
+        }
+        action.run();
+        applyAiSkillContentTextStyleSoon();
+    }
+
+    private void applyAiSkillContentTextStyleSoon() {
+        Platform.runLater(this::applyAiSkillContentTextStyle);
+    }
+
+    private void applyAiSkillContentTextStyle() {
+        if (aiSkillContentArea == null || aiSkillContentArea.getLength() <= 0) {
+            return;
+        }
+        aiSkillContentArea.setStyle(0, aiSkillContentArea.getLength(), aiSkillContentTextStyle);
+    }
+
+    private String buildReadableAiSkillTextStyle(EditorSettingsHelper.Settings settings) {
+        String foreground = settings != null ? settings.foregroundColor() : "#d4d4d4";
+        String background = settings != null ? settings.backgroundColor() : "#1e1e1e";
+        try {
+            Color foregroundColor = Color.web(foreground);
+            Color backgroundColor = Color.web(background);
+            if (contrastRatio(foregroundColor, backgroundColor) >= 4.5) {
+                return "-fx-fill: " + foreground + ";";
+            }
+            Color white = Color.web("#f2f5f8");
+            Color black = Color.web("#111111");
+            return contrastRatio(white, backgroundColor) >= contrastRatio(black, backgroundColor)
+                ? "-fx-fill: #f2f5f8;"
+                : "-fx-fill: #111111;";
+        } catch (IllegalArgumentException e) {
+            return "-fx-fill: #d4d4d4;";
+        }
+    }
+
+    private double contrastRatio(Color first, Color second) {
+        double firstLuminance = relativeLuminance(first);
+        double secondLuminance = relativeLuminance(second);
+        double lighter = Math.max(firstLuminance, secondLuminance);
+        double darker = Math.min(firstLuminance, secondLuminance);
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    private double relativeLuminance(Color color) {
+        return 0.2126 * linearColorChannel(color.getRed())
+            + 0.7152 * linearColorChannel(color.getGreen())
+            + 0.0722 * linearColorChannel(color.getBlue());
+    }
+
+    private double linearColorChannel(double value) {
+        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    }
+
+    private void setAiSkillEditorDisabled(boolean disabled) {
+        aiSkillNameField.setDisable(disabled);
+        aiSkillDescriptionField.setDisable(disabled);
+        aiSkillTagsField.setDisable(disabled);
+        aiSkillEnabledCheck.setDisable(disabled);
+        aiSkillTargetCombo.setDisable(disabled);
+        aiSkillContentArea.setDisable(disabled);
+    }
+
+    private String formatAiSkillListText(AiSkill skill) {
+        String name = trimToNull(skill.getName());
+        String status = skill.isEnabled()
+            ? I18n.get("settings.aiSkills.status.enabled")
+            : I18n.get("settings.aiSkills.status.disabled");
+        return (name != null ? name : I18n.get("settings.aiSkills.defaultName"))
+            + "\n"
+            + aiSkillTargetLabel(skill.getTarget())
+            + " - "
+            + status;
+    }
+
+    private String aiSkillTargetLabel(AiSkillTarget target) {
+        AiSkillTarget safeTarget = target != null ? target : AiSkillTarget.BOTH;
+        return I18n.get("settings.aiSkills.target." + safeTarget.name().toLowerCase(Locale.ROOT));
+    }
+
+    private Path ensureMarkdownExtension(Path path) {
+        String fileName = path.getFileName() != null ? path.getFileName().toString() : "";
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
+            return path;
+        }
+        return path.resolveSibling(fileName + ".md");
+    }
+
+    private String toAiSkillFileName(AiSkill skill, List<String> usedNames) {
+        String base = trimToNull(skill != null ? skill.getName() : null);
+        if (base == null) {
+            base = I18n.get("settings.aiSkills.defaultName");
+        }
+        base = base.toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9._-]+", "-")
+            .replaceAll("(^-+|-+$)", "");
+        if (base.isBlank()) {
+            base = "ai-skill";
+        }
+        String candidate = base + ".md";
+        int suffix = 2;
+        while (usedNames.contains(candidate)) {
+            candidate = base + "-" + suffix + ".md";
+            suffix++;
+        }
+        return candidate;
+    }
+
+    private void showAiSkillInfo(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION, message);
+        alert.setHeaderText(null);
+        DialogThemeHelper.applyTheme(alert);
+        alert.showAndWait();
+    }
+
+    private void showAiSkillError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR, message);
+        alert.setHeaderText(null);
+        DialogThemeHelper.applyTheme(alert);
+        alert.showAndWait();
+    }
+
+    private String errorMessage(Exception e) {
+        if (e == null) {
+            return "";
+        }
+        return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+    }
+
     private javafx.util.StringConverter<AiReasoningEffort> createAiReasoningConverter() {
         return new javafx.util.StringConverter<>() {
             @Override
@@ -2488,6 +3196,32 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 return null;
             }
         };
+    }
+
+    private javafx.util.StringConverter<AiInternetAccessMode> createAiInternetModeConverter() {
+        return new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiInternetAccessMode object) {
+                return object == null
+                    ? ""
+                    : I18n.get("settings.ai.internet.mode." + object.messageKeySuffix());
+            }
+
+            @Override
+            public AiInternetAccessMode fromString(String string) {
+                return null;
+            }
+        };
+    }
+
+    private void wireSecretClearToggle(PasswordField passwordField, CheckBox clearCheck) {
+        passwordField.textProperty().addListener((obs, oldValue, newValue) -> {
+            boolean hasReplacement = newValue != null && !newValue.isBlank();
+            clearCheck.setDisable(hasReplacement);
+            if (hasReplacement) {
+                clearCheck.setSelected(false);
+            }
+        });
     }
 
     private void refreshAiReasoningOptions(AiReasoningEffort requestedEffort) {
@@ -2517,6 +3251,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             selectedAiProfile.getApiUrl(),
             selectedAiProfile.getModel(),
             aiReasoningCombo.getValue()));
+        selectedAiProfile.setInternetAccessMode(aiInternetAccessModeCombo.getValue());
         selectedAiProfile.setMaxSelectionChars(aiMaxSelectionCharsSpinner.getValue() != null ? aiMaxSelectionCharsSpinner.getValue() : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
         selectedAiProfile.setTokenizerType(aiTokenizerCombo.getValue());
         selectedAiProfile.setTokenLimitAmount(aiTokenLimitAmountSpinner.getValue() != null ? aiTokenLimitAmountSpinner.getValue().longValue() : 0L);
@@ -2549,6 +3284,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiApiUrlField.clear();
             aiModelField.clear();
             refreshAiReasoningOptions(AiReasoningEffort.DISABLED);
+            aiInternetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             aiApiKeyField.clear();
             aiClearApiKeyCheck.setDisable(false);
             aiClearApiKeyCheck.setSelected(false);
@@ -2569,6 +3305,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiApiUrlField.setText(profile.getApiUrl() != null ? profile.getApiUrl() : "");
         aiModelField.setText(profile.getModel() != null ? profile.getModel() : "");
         refreshAiReasoningOptions(profile.getReasoningEffort());
+        aiInternetAccessModeCombo.setValue(profile.getInternetAccessMode());
         aiMaxSelectionCharsSpinner.getValueFactory().setValue(
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
                 ? profile.getMaxSelectionChars()
@@ -2672,7 +3409,83 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         AiLanguageSupport.LanguageOption selectedLanguage = aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem();
         globalSettings.setAiCodeTextDefaultLanguage(selectedLanguage != null ? selectedLanguage.code() : null);
         globalSettings.setAiSnippetAlternativeSolutionCount(aiSnippetAlternativeSolutionCountSpinner.getValue());
+        if (!saveAiInternetToolSettings(encryptionService)) {
+            return false;
+        }
         return true;
+    }
+
+    private boolean saveAiInternetToolSettings(de.kortty.security.EncryptionService encryptionService) {
+        try {
+            globalSettings.setEncryptedAiTavilyApiKey(resolveEncryptedGlobalSecret(
+                encryptionService,
+                globalSettings.getEncryptedAiTavilyApiKey(),
+                aiTavilyApiKeyField.getText(),
+                aiClearTavilyApiKeyCheck.isSelected()));
+            globalSettings.setEncryptedAiBrightDataApiToken(resolveEncryptedGlobalSecret(
+                encryptionService,
+                globalSettings.getEncryptedAiBrightDataApiToken(),
+                aiBrightDataApiTokenField.getText(),
+                aiClearBrightDataApiTokenCheck.isSelected()));
+            globalSettings.setEncryptedAiBraveSearchApiKey(resolveEncryptedGlobalSecret(
+                encryptionService,
+                globalSettings.getEncryptedAiBraveSearchApiKey(),
+                aiBraveSearchApiKeyField.getText(),
+                aiClearBraveSearchApiKeyCheck.isSelected()));
+        } catch (Exception ex) {
+            Alert alert = new Alert(Alert.AlertType.WARNING,
+                I18n.get("settings.ai.error.testFailed") + ": "
+                    + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()));
+            alert.setHeaderText(null);
+            alert.showAndWait();
+            return false;
+        }
+        globalSettings.setAiSearxngUrl(trimToNull(aiSearxngUrlField.getText()));
+        globalSettings.setAiTavilyMcpServerLabel(aiTavilyMcpServerLabelField.getText());
+        globalSettings.setAiBrightDataMcpServerLabel(aiBrightDataMcpServerLabelField.getText());
+        globalSettings.setAiBraveSearchMcpPluginId(aiBraveSearchMcpPluginIdField.getText());
+        globalSettings.setAiSearxngMcpPluginId(aiSearxngMcpPluginIdField.getText());
+        globalSettings.setAiLmStudioToolpackMcpPluginId(aiLmStudioToolpackMcpPluginIdField.getText());
+        return true;
+    }
+
+    private String resolveEncryptedGlobalSecret(
+        de.kortty.security.EncryptionService encryptionService,
+        String existingEncryptedValue,
+        String plainReplacement,
+        boolean clearExisting) throws Exception {
+
+        if (plainReplacement != null && !plainReplacement.isBlank()) {
+            char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+            if (masterPassword == null) {
+                throw new IllegalStateException(I18n.get("settings.ai.error.vaultLocked"));
+            }
+            return encryptionService.encryptPassword(plainReplacement, masterPassword);
+        }
+        return clearExisting ? null : existingEncryptedValue;
+    }
+
+    private void saveAiSkillsToSettings(GlobalSettings targetSettings) {
+        if (targetSettings == null) {
+            return;
+        }
+        snapshotSelectedAiSkillEditorState();
+        List<AiSkill> skillsToSave = new ArrayList<>();
+        for (AiSkill skill : aiSkills) {
+            if (skill == null) {
+                continue;
+            }
+            AiSkill copy = new AiSkill(skill);
+            copy.ensureId();
+            String name = trimToNull(copy.getName());
+            copy.setName(name != null ? name : I18n.get("settings.aiSkills.defaultName"));
+            AiSkillTarget target = copy.getTarget();
+            copy.setTarget(target != null ? target : AiSkill.DEFAULT_TARGET);
+            skillsToSave.add(copy);
+        }
+        targetSettings.setAiSkillsEnabled(aiSkillsEnabledCheck == null || aiSkillsEnabledCheck.isSelected());
+        targetSettings.setAiSkillAutoDetectionEnabled(aiSkillAutoDetectionCheck == null || aiSkillAutoDetectionCheck.isSelected());
+        targetSettings.setAiSkills(skillsToSave);
     }
 
     private void saveAiToggleFlagsToSettings(GlobalSettings targetSettings) {
@@ -2746,16 +3559,19 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             return null;
         }
         String apiUrl = trimToNull(profile.getApiUrl());
-        String model = trimToNull(profile.getModel());
         String apiKey = getAiApiKeyPlain(profile);
         if (apiUrl == null) {
             return null;
         }
-        return new OpenAiCompatibleAiService(
-            apiUrl,
-            model != null ? model : "",
-            apiKey != null ? apiKey : "",
-            AiReasoningSupport.normalizeForProfile(profile));
+        try {
+            return AiServiceFactory.create(
+                profile,
+                apiKey,
+                buildInternetAccessConfiguration(profile),
+                AiSkillPromptSupport.fromSettings(globalSettings));
+        } catch (IllegalStateException e) {
+            return new FailingAiService(e.getMessage());
+        }
     }
 
     private String getAiApiKeyPlain(AiProfile profile) {
@@ -2785,6 +3601,47 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
+    private AiInternetAccessConfiguration buildInternetAccessConfiguration(AiProfile profile) {
+        if (globalSettings == null || profile == null || !profile.getInternetAccessMode().isEnabled()) {
+            return AiInternetAccessConfiguration.disabled();
+        }
+        return new AiInternetAccessConfiguration(
+            profile.getInternetAccessMode(),
+            readPlainInternetSecret(aiTavilyApiKeyField, aiClearTavilyApiKeyCheck, globalSettings.getEncryptedAiTavilyApiKey()),
+            readPlainInternetSecret(aiBrightDataApiTokenField, aiClearBrightDataApiTokenCheck, globalSettings.getEncryptedAiBrightDataApiToken()),
+            readPlainInternetSecret(aiBraveSearchApiKeyField, aiClearBraveSearchApiKeyCheck, globalSettings.getEncryptedAiBraveSearchApiKey()),
+            trimToNull(aiSearxngUrlField.getText()),
+            aiTavilyMcpServerLabelField.getText(),
+            aiBrightDataMcpServerLabelField.getText(),
+            aiBraveSearchMcpPluginIdField.getText(),
+            aiSearxngMcpPluginIdField.getText(),
+            aiLmStudioToolpackMcpPluginIdField.getText());
+    }
+
+    private String readPlainInternetSecret(PasswordField field, CheckBox clearCheck, String encryptedValue) {
+        String replacement = field != null ? field.getText() : null;
+        if (replacement != null && !replacement.isBlank()) {
+            return replacement;
+        }
+        if (clearCheck != null && clearCheck.isSelected()) {
+            return null;
+        }
+        if (encryptedValue == null || encryptedValue.isBlank()) {
+            return null;
+        }
+        try {
+            char[] master = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+            if (master == null) {
+                return null;
+            }
+            de.kortty.security.EncryptionService enc = new de.kortty.security.EncryptionService();
+            String decrypted = enc.decryptPassword(encryptedValue, master);
+            return decrypted != null && !decrypted.isBlank() ? decrypted : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private void testAiConnection(Button aiTestConnectionButton) {
         snapshotSelectedAiProfileEditorState();
         if (selectedAiProfile == null) {
@@ -2795,9 +3652,19 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl")).showAndWait();
             return;
         }
+        if (!validateAiInternetConfigurationForTest(selectedAiProfile)) {
+            return;
+        }
         AiService svc = createAiService(selectedAiProfile);
         if (svc == null) {
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed")).showAndWait();
+            return;
+        }
+        if (svc instanceof FailingAiService failingService) {
+            Alert alert = new Alert(Alert.AlertType.ERROR,
+                I18n.get("settings.ai.error.testFailed") + ": " + failingService.message());
+            alert.setHeaderText(null);
+            alert.showAndWait();
             return;
         }
         aiTestConnectionButton.setDisable(true);
@@ -2826,6 +3693,23 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 alert.setHeaderText(null);
                 alert.showAndWait();
             }));
+    }
+
+    private boolean validateAiInternetConfigurationForTest(AiProfile profile) {
+        if (profile == null || !profile.getInternetAccessMode().isEnabled()) {
+            return true;
+        }
+        try {
+            buildInternetAccessConfiguration(profile).validate();
+            return true;
+        } catch (IllegalStateException ex) {
+            Alert alert = new Alert(Alert.AlertType.ERROR,
+                I18n.get("settings.ai.error.testFailed") + ": "
+                    + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()));
+            alert.setHeaderText(null);
+            alert.showAndWait();
+            return false;
+        }
     }
 
     private String trimToNull(String value) {

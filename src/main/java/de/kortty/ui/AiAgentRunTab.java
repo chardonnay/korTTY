@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import de.kortty.core.AiPromptService;
+import de.kortty.core.SshTtyConnector;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.TerminalAgentModels;
 import javafx.animation.KeyFrame;
@@ -98,7 +100,8 @@ public class AiAgentRunTab extends Tab {
         TerminalAgentService service,
         TerminalTab terminalTab,
         de.kortty.model.AiProfile profile,
-        de.kortty.core.OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
+        SshTtyConnector connector,
         TerminalAgentModels.Request request) {
         startedAt = Instant.now();
         elapsedTimeline.playFromStart();
@@ -107,9 +110,16 @@ public class AiAgentRunTab extends Tab {
 
         workerThread = new Thread(() -> {
             try {
-                service.runAgent(terminalTab, profile, aiService, request, new TabRunUi());
+                service.runAgent(terminalTab, connector, profile, aiService, request, new TabRunUi());
             } catch (Exception e) {
                 Platform.runLater(() -> {
+                    if (cancelled.get() || TerminalAgentService.isCancellation(e)) {
+                        statusLabel.setText(I18n.get("ai.agent.activity.cancelled"));
+                        phaseLabel.setText(I18n.get("ai.agent.run.phase.failed"));
+                        stopButton.setDisable(true);
+                        elapsedTimeline.stop();
+                        return;
+                    }
                     statusLabel.setText(I18n.get("ai.agent.run.failed", e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
                     phaseLabel.setText(I18n.get("ai.agent.run.phase.failed"));
                     stopButton.setDisable(true);
@@ -194,6 +204,26 @@ public class AiAgentRunTab extends Tab {
         @Override
         public void appendTranscript(String text) {
             AiAgentRunTab.this.appendTranscript(text);
+        }
+
+        @Override
+        public void publishActivity(TerminalAgentModels.AgentActivity activity) {
+            if (activity == null) {
+                return;
+            }
+            if (!"AI Skills".equals(activity.title())) {
+                return;
+            }
+            String summary = activity.summary() != null && !activity.summary().isBlank()
+                ? activity.summary()
+                : activity.title();
+            if (summary != null && !summary.isBlank()) {
+                appendTranscript("[KorTTY Agent] " + summary + "\n");
+            }
+            if (activity.detail() != null && !activity.detail().isBlank()
+                && !activity.detail().equals(summary)) {
+                appendTranscript(activity.detail() + "\n");
+            }
         }
 
         @Override

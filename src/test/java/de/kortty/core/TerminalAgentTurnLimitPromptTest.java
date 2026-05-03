@@ -55,6 +55,8 @@ class TerminalAgentTurnLimitPromptTest {
             List.of(commandResult));
 
         assertThat(prompt.contains("Turn limit reached")).isTrue();
+        assertThat(prompt.contains("Remote user: daniel")).isTrue();
+        assertThat(prompt.contains("Remote home directory: /home/daniel")).isTrue();
         assertThat(prompt.contains("Active terminal working directory: /home/daniel")).isTrue();
         assertThat(prompt.contains("find /etc -type f")).isTrue();
         assertThat(prompt.contains("1284")).isTrue();

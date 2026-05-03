@@ -1,9 +1,11 @@
 package de.kortty.core;
 
+import de.kortty.model.AiSkillTarget;
 import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.TerminalAgentModels;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +48,7 @@ class TerminalAgentDecisionRepairTest {
         TerminalAgentService.AgentDecision decision = service.requestAgentDecision(
             aiService,
             request(),
-            probe(),
+            probe("/home/daniel/Dokumente"),
             List.of(),
             1,
             false,
@@ -58,6 +60,67 @@ class TerminalAgentDecisionRepairTest {
         assertThat(aiService.userPrompts().size()).isEqualTo(2);
         assertThat(aiService.userPrompts().get(1).contains("The AI agent returned too many commands.")).isTrue();
         assertThat(aiService.userPrompts().get(1).contains("Return at most 3 commands.")).isTrue();
+        assertThat(aiService.userPrompts().get(1)).contains("Active terminal working directory: /home/daniel/Dokumente");
+        assertThat(aiService.userPrompts().get(1)).contains("\"currentDir\":\"/home/daniel/Dokumente\"");
+    }
+
+    @Test
+    void responseFormatFallbackUsesJsonFallbackPath() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        UnsupportedResponseFormatAiService aiService = new UnsupportedResponseFormatAiService("""
+            {
+              "status": "done",
+              "summary": "Created script guidance",
+              "userMessage": "Use find and sort to list the largest XML files.",
+              "commands": [],
+              "needsReprobe": false
+            }
+            """);
+
+        TerminalAgentService.AgentDecision decision = service.requestAgentDecision(
+            aiService,
+            request(),
+            probe(),
+            List.of(),
+            1,
+            false,
+            new RunUiTestDouble(),
+            "run-1");
+
+        assertThat(decision.status()).isEqualTo(TerminalAgentService.AgentDecisionStatus.done);
+        assertThat(aiService.jsonFallbackCalls()).isEqualTo(1);
+        assertThat(aiService.plainPromptCalls()).isEqualTo(0);
+    }
+
+    @Test
+    void publishesUsedAiSkillsInAgentActivityLog() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        SkillUsageAiService aiService = new SkillUsageAiService("""
+            {
+              "status": "done",
+              "summary": "No commands needed",
+              "userMessage": "Done.",
+              "commands": [],
+              "needsReprobe": false
+            }
+            """);
+        RunUiTestDouble ui = new RunUiTestDouble();
+
+        service.requestAgentDecision(
+            aiService,
+            request(),
+            probe(),
+            List.of(),
+            1,
+            false,
+            ui,
+            "run-1");
+
+        List<String> skillSummaries = ui.activities().stream()
+            .filter(activity -> "AI Skills".equals(activity.title()))
+            .map(TerminalAgentModels.AgentActivity::summary)
+            .toList();
+        assertThat(skillSummaries).containsExactly("Using AI skill: bash-quality");
     }
 
     private TerminalAgentModels.Request request() {
@@ -76,6 +139,10 @@ class TerminalAgentDecisionRepairTest {
     }
 
     private TerminalAgentModels.ProbeSnapshot probe() {
+        return probe("/home/daniel");
+    }
+
+    private TerminalAgentModels.ProbeSnapshot probe(String currentDirectory) {
         return new TerminalAgentModels.ProbeSnapshot(
             "Fedora Linux 44",
             "kernel",
@@ -86,7 +153,7 @@ class TerminalAgentDecisionRepairTest {
             "1000",
             List.of("wheel"),
             "/home/daniel",
-            "/home/daniel",
+            currentDirectory,
             null,
             "",
             List.of("dnf"),
@@ -120,8 +187,86 @@ class TerminalAgentDecisionRepairTest {
         }
     }
 
+    /** Test double for AI providers that reject the OpenAI response_format option. */
+    private static final class UnsupportedResponseFormatAiService extends OpenAiCompatibleAiService {
+        private final String fallbackResponse;
+        private int jsonFallbackCalls;
+        private int plainPromptCalls;
+
+        private UnsupportedResponseFormatAiService(String fallbackResponse) {
+            super("http://localhost", "test-model", "");
+            this.fallbackResponse = fallbackResponse;
+        }
+
+        @Override
+        public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) throws IOException {
+            throw new IOException("response_format is not supported");
+        }
+
+        @Override
+        public AiExecutionResult executeJsonPromptWithoutResponseFormat(String systemPrompt, String userPrompt) {
+            jsonFallbackCalls++;
+            return new AiExecutionResult(fallbackResponse, null);
+        }
+
+        @Override
+        public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) {
+            plainPromptCalls++;
+            return new AiExecutionResult(fallbackResponse, null);
+        }
+
+        private int jsonFallbackCalls() {
+            return jsonFallbackCalls;
+        }
+
+        private int plainPromptCalls() {
+            return plainPromptCalls;
+        }
+    }
+
+    /** Test double that simulates an AI service reporting one used skill. */
+    private static final class SkillUsageAiService implements AiPromptService, AiSkillUsageTracker {
+        private final String response;
+        private boolean usagesDrained;
+
+        private SkillUsageAiService(String response) {
+            this.response = response;
+        }
+
+        @Override
+        public AiExecutionResult execute(AiRequest request) {
+            return new AiExecutionResult(response, null);
+        }
+
+        @Override
+        public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) {
+            return new AiExecutionResult(response, null);
+        }
+
+        @Override
+        public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) {
+            return new AiExecutionResult(response, null);
+        }
+
+        @Override
+        public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
+            if (usagesDrained) {
+                return List.of();
+            }
+            usagesDrained = true;
+            return List.of(new AiSkillPromptSupport.SkillUsage("skill-1", "bash-quality", AiSkillTarget.AGENT));
+        }
+
+        @Override
+        public boolean testConnection() {
+            return true;
+        }
+    }
+
     /** Test double for the terminal-agent UI callbacks. */
     private static final class RunUiTestDouble implements TerminalAgentService.RunUi {
+        private final List<TerminalAgentModels.AgentActivity> activities = new ArrayList<>();
+
         @Override
         public void updateState(TerminalAgentModels.RunState state) {
         }
@@ -143,6 +288,15 @@ class TerminalAgentDecisionRepairTest {
         @Override
         public boolean isCancelled() {
             return false;
+        }
+
+        @Override
+        public void publishActivity(TerminalAgentModels.AgentActivity activity) {
+            activities.add(activity);
+        }
+
+        private List<TerminalAgentModels.AgentActivity> activities() {
+            return activities;
         }
     }
 }

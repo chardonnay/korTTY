@@ -40,12 +40,32 @@ public final class AiTokenCounter {
     }
 
     public static int countRequestTokens(AiRequest request, AiTokenizerType tokenizerType) {
+        return countRequestTokens(request, tokenizerType, AiSkillPromptSupport.disabled());
+    }
+
+    public static int countRequestTokens(
+        AiRequest request,
+        AiTokenizerType tokenizerType,
+        AiSkillPromptSupport skillPromptSupport) {
         if (request == null) {
             return 0;
         }
-        int systemTokens = countTextTokens(AiPromptBuilder.buildSystemPrompt(request), tokenizerType);
+        AiSkillPromptSupport effectiveSkillSupport = skillPromptSupport != null
+            ? skillPromptSupport
+            : AiSkillPromptSupport.disabled();
+        int systemTokens = countTextTokens(buildPreviewSystemPrompt(request, effectiveSkillSupport), tokenizerType);
         int userTokens = countTextTokens(AiPromptBuilder.buildUserPrompt(request), tokenizerType);
         return systemTokens + userTokens + CHAT_MESSAGE_OVERHEAD_TOKENS;
+    }
+
+    private static String buildPreviewSystemPrompt(AiRequest request, AiSkillPromptSupport skillPromptSupport) {
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String skillBlock = skillPromptSupport.buildChatSkillBlock(request);
+        if (skillBlock.isBlank()) {
+            return systemPrompt;
+        }
+        String base = systemPrompt != null ? systemPrompt.trim() : "";
+        return base.isBlank() ? skillBlock : skillBlock + "\n\n" + base;
     }
 
     public static int estimateTokens(String text) {

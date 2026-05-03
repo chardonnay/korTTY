@@ -31,4 +31,18 @@ class TerminalAgentWorkingDirectoryTest {
         assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "~")).isEqualTo("pwd");
         assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "relative/path")).isEqualTo("pwd");
     }
+
+    @Test
+    void detectsMissingTrackedWorkingDirectoryInLocalizedCdError() {
+        assertThat(TerminalAgentService.isMissingTrackedWorkingDirectory(
+            "bash: Zeile 1: cd: /home/daniel/Doku: Datei oder Verzeichnis nicht gefunden",
+            "/home/daniel/Doku")).isTrue();
+    }
+
+    @Test
+    void ignoresUnrelatedCdErrorsForTrackedWorkingDirectoryFallback() {
+        assertThat(TerminalAgentService.isMissingTrackedWorkingDirectory(
+            "bash: Zeile 1: cd: /tmp/other: Datei oder Verzeichnis nicht gefunden",
+            "/home/daniel/Doku")).isFalse();
+    }
 }

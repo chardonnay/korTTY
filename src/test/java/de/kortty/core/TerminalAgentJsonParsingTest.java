@@ -1,5 +1,7 @@
 package de.kortty.core;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import org.testng.annotations.Test;
 import static com.google.common.truth.Truth.assertThat;
@@ -33,6 +35,37 @@ class TerminalAgentJsonParsingTest {
             "Sure. {\"status\":\"done\",\"summary\":\"ok\",\"userMessage\":\"ready\",\"commands\":[],\"needsReprobe\":false}");
 
         assertThat(parsed).isEqualTo("{\"status\":\"done\",\"summary\":\"ok\",\"userMessage\":\"ready\",\"commands\":[],\"needsReprobe\":false}");
+    }
+
+    @Test
+    void repairsMultilineCommandStringsWithUnderEscapedBackslashes() {
+        String parsed = TerminalAgentService.extractJsonObjectContent("{\n"
+            + "  \"status\": \"needs_confirmation\",\n"
+            + "  \"summary\": \"Create Perl script\",\n"
+            + "  \"userMessage\": \"Creating the script.\",\n"
+            + "  \"commands\": [\n"
+            + "    {\n"
+            + "      \"command\": \"cat > /home/daniel/find_xml.pl << 'EOF'\n"
+            + "#!/usr/bin/perl\n"
+            + "print if /\\.xml$/i;\n"
+            + "EOF\n"
+            + "\",\n"
+            + "      \"purpose\": \"Create the Perl script\",\n"
+            + "      \"risk\": \"requires_confirmation\"\n"
+            + "    }\n"
+            + "  ],\n"
+            + "  \"needsReprobe\": false\n"
+            + "}");
+
+        JsonObject object = JsonParser.parseString(parsed).getAsJsonObject();
+        String command = object.getAsJsonArray("commands")
+            .get(0)
+            .getAsJsonObject()
+            .get("command")
+            .getAsString();
+
+        assertThat(command).contains("#!/usr/bin/perl");
+        assertThat(command).contains("/\\.xml$/i");
     }
 
     @Test

@@ -317,7 +317,6 @@ public class SSHSession {
         if (channel != null && connected.get()) {
             try {
                 channel.sendWindowChange(columns, rows);
-                logger.debug("Resized terminal to {}x{}", columns, rows);
             } catch (IOException e) {
                 logger.error("Failed to resize terminal", e);
             }

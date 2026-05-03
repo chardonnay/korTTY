@@ -54,6 +54,19 @@ class TerminalViewShortcutHeuristicsTest {
     }
 
     @Test
+    void doesNotBufferShortcutModifiedTypedCharacters() {
+        assertThat(TerminalView.shouldBufferAgentShortcutKeyTyped("v", false, true, false)).isFalse();
+        assertThat(TerminalView.shouldBufferAgentShortcutKeyTyped("v", true, false, false)).isFalse();
+        assertThat(TerminalView.shouldBufferAgentShortcutKeyTyped("v", false, false, true)).isFalse();
+    }
+
+    @Test
+    void buffersPlainTypedCharactersForLocalShortcutFallback() {
+        assertThat(TerminalView.shouldBufferAgentShortcutKeyTyped("a", false, false, false)).isTrue();
+        assertThat(TerminalView.shouldBufferAgentShortcutKeyTyped("\n", false, false, false)).isFalse();
+    }
+
+    @Test
     void letsRemoteShellHandleAgentShortcutWhenRemoteHookIsConfigured() {
         assertThat(TerminalView.shouldLetRemoteShellHandleAgentShortcut(
             true,
@@ -85,6 +98,7 @@ class TerminalViewShortcutHeuristicsTest {
         assertThat(startup.contains("alias agent='__kortty_agent_emit execute'")).isTrue();
         assertThat(startup.contains("alias agent-ask='__kortty_agent_emit ask'")).isTrue();
         assertThat(startup.contains("alias agent-plan='__kortty_agent_emit plan'")).isTrue();
+        assertThat(startup.contains("case ${PWD-} in /*) __kortty_cwd=$PWD")).isTrue();
         assertThat(startup.contains("pwd -P")).isTrue();
         assertThat(startup.contains("korTTY-agent;%s;%s;%s")).isTrue();
         assertThat(startup.contains("__kortty_agent_clean_history")).isTrue();
@@ -93,6 +107,45 @@ class TerminalViewShortcutHeuristicsTest {
         assertThat(startup.contains("printf '" + de.kortty.core.SshTtyConnector.SHELL_STARTUP_CLEANUP_MARKER_SHELL_LITERAL + "\\r\\033[K'")).isTrue();
         assertThat(startup.contains("stty echo")).isTrue();
         assertThat(startup.substring(0, startup.length() - 1).contains("\n")).isFalse();
+    }
+
+    @Test
+    void extractsHomeRelativeWorkingDirectoryFromVisiblePrompt() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "daniel@fedora:~/Dokumente$",
+            "/home/daniel")).isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
+    void extractsHomeRelativeWorkingDirectoryFromPromptLineWithTypedAgentCommand() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "daniel@fedora:~/Dokumente$ agent schreibe ein perl script",
+            "/home/daniel")).isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
+    void extractsWorkingDirectoryFromPreviousVisiblePromptLine() {
+        assertThat(TerminalView.extractWorkingDirectoryFromVisibleScreen(
+            """
+            Last login: Sun May 3 22:39:00 2026 from 10.211.55.2
+            daniel@fedora:~/Dokumente$ agent schreibe ein perl script
+            um die 10 groessten xml files anzuzeigen
+            """,
+            "/home/daniel")).isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
+    void extractsAbsoluteWorkingDirectoryFromVisiblePrompt() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "root@server:/etc/nginx#",
+            "/root")).isEqualTo("/etc/nginx");
+    }
+
+    @Test
+    void ignoresPromptWithoutDirectoryShape() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "daniel@fedora$",
+            "/home/daniel")).isNull();
     }
 
     @Test
@@ -168,6 +221,29 @@ class TerminalViewShortcutHeuristicsTest {
         assertThat(TerminalView.extractAgentShortcutFromVisibleLine(
             "daniel@fedora:~$ agent-ask what failed?",
             "agent")).isEqualTo("agent-ask what failed?");
+    }
+
+    @Test
+    void extractsAgentShortcutWithPastedFilenameFromVisibleScreen() {
+        assertThat(TerminalView.extractAgentShortcutFromVisibleScreen(
+            """
+            daniel@fedora:~/Dokumente$ ll
+            -rwxr-xr-x. 1 daniel daniel 1383 3. Mai 23:35 groesste_xml.pl
+            daniel@fedora:~/Dokumente$ agent das perl script groesste_xml.pl um den schalter -r erweitern
+            """,
+            "agent",
+            false)).isEqualTo("agent das perl script groesste_xml.pl um den schalter -r erweitern");
+    }
+
+    @Test
+    void extractsWrappedAgentShortcutFromVisibleScreen() {
+        assertThat(TerminalView.extractAgentShortcutFromVisibleScreen(
+            """
+            daniel@fedora:~/Dokumente$ agent das perl script groesste_xml.pl um den schalter -r erweitern
+            um auch die verzeichnisse rekursiv zu durchsuchen
+            """,
+            "agent",
+            false)).isEqualTo("agent das perl script groesste_xml.pl um den schalter -r erweitern um auch die verzeichnisse rekursiv zu durchsuchen");
     }
 
     @Test

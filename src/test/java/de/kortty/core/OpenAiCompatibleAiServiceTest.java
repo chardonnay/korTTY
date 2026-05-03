@@ -1,12 +1,40 @@
 package de.kortty.core;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import de.kortty.model.AiSkill;
+import de.kortty.model.AiSkillTarget;
 import de.kortty.model.AiReasoningEffort;
 import org.testng.annotations.Test;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.Authenticator;
+import java.net.CookieHandler;
+import java.net.ProxySelector;
+import java.net.URI;
 import java.net.http.HttpRequest;
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
 import static com.google.common.truth.Truth.assertThat;
 
 
@@ -96,6 +124,29 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void buildRequestBodyIncludesActiveChatSkillsButConnectionTestDoesNot() {
+        AiSkill skill = new AiSkill();
+        skill.setName("Chat Skill");
+        skill.setEnabled(true);
+        skill.setTarget(AiSkillTarget.CHAT);
+        skill.setContent("Prefer concise answers.");
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.DISABLED,
+            null,
+            new AiSkillPromptSupport(true, List.of(skill)));
+
+        String requestBody = service.buildRequestBody(new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"));
+        String connectionTestBody = service.buildConnectionTestRequestBody();
+
+        assertThat(requestBody).contains("Prefer concise answers.");
+        assertThat(requestBody).contains("Summarize the selected terminal text");
+        assertThat(connectionTestBody).doesNotContain("Prefer concise answers.");
+    }
+
+    @Test
     void buildPromptRequestBodyCanRequestJsonObjectResponseFormat() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",
@@ -106,6 +157,416 @@ class OpenAiCompatibleAiServiceTest {
 
         assertThat(body.contains("\"response_format\"")).isTrue();
         assertThat(body.contains("\"type\":\"json_object\"")).isTrue();
+    }
+
+    @Test
+    void executePromptIncludesActiveAgentSkills() throws Exception {
+        AiSkill skill = new AiSkill();
+        skill.setName("Agent Skill");
+        skill.setEnabled(true);
+        skill.setTarget(AiSkillTarget.AGENT);
+        skill.setContent("Prefer safe commands.");
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {
+              "choices": [
+                {"message": {"role": "assistant", "content": "ok"}}
+              ]
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.DISABLED,
+            client,
+            null,
+            new AiSkillPromptSupport(true, List.of(skill)));
+
+        service.executePromptWithClient("Agent system.", "Agent task.", client, Duration.ofSeconds(10));
+
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).contains("Prefer safe commands.");
+        assertThat(client.requestBodies().get(0)).contains("Agent system.");
+    }
+
+    @Test
+    void executeJsonPromptIncludesAgentSkillsAndReportsUsage() throws Exception {
+        AiSkill skill = new AiSkill();
+        skill.setName("Agent Skill");
+        skill.setEnabled(true);
+        skill.setTarget(AiSkillTarget.AGENT);
+        skill.setContent("Always answer in prose.");
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {
+              "choices": [
+                {"message": {"role": "assistant", "content": "{\\"status\\":\\"done\\"}"}}
+              ]
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.DISABLED,
+            client,
+            null,
+            new AiSkillPromptSupport(true, List.of(skill)));
+
+        service.executeJsonPrompt("Agent JSON system.", "Agent JSON task.");
+
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).contains("Agent JSON system.");
+        assertThat(client.requestBodies().get(0)).contains("\"response_format\"");
+        assertThat(client.requestBodies().get(0)).contains("Always answer in prose.");
+        List<AiSkillPromptSupport.SkillUsage> usages = service.drainSkillUsages();
+        assertThat(usages).hasSize(1);
+        assertThat(usages.get(0).name()).isEqualTo("Agent Skill");
+        assertThat(usages.get(0).target()).isEqualTo(AiSkillTarget.AGENT);
+    }
+
+    @Test
+    void executeJsonPromptWithoutResponseFormatIncludesAgentSkillsAndReportsUsage() throws Exception {
+        AiSkill skill = new AiSkill();
+        skill.setName("Agent Skill");
+        skill.setEnabled(true);
+        skill.setTarget(AiSkillTarget.AGENT);
+        skill.setContent("Always answer in prose.");
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {
+              "choices": [
+                {"message": {"role": "assistant", "content": "{\\"status\\":\\"done\\"}"}}
+              ]
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.DISABLED,
+            client,
+            null,
+            new AiSkillPromptSupport(true, List.of(skill)));
+
+        service.executeJsonPromptWithoutResponseFormat("Agent JSON system.", "Agent JSON task.");
+
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).contains("Agent JSON system.");
+        assertThat(client.requestBodies().get(0)).doesNotContain("\"response_format\"");
+        assertThat(client.requestBodies().get(0)).contains("Always answer in prose.");
+        List<AiSkillPromptSupport.SkillUsage> usages = service.drainSkillUsages();
+        assertThat(usages).hasSize(1);
+        assertThat(usages.get(0).name()).isEqualTo("Agent Skill");
+        assertThat(usages.get(0).target()).isEqualTo(AiSkillTarget.AGENT);
+    }
+
+    @Test
+    void hybridSkillClassificationSendsMetadataOnlyBeforeMainRequest() throws Exception {
+        AiSkill skill = new AiSkill();
+        skill.setId("skill-linux");
+        skill.setName("linux-sysadmin");
+        skill.setDescription("Linux guidance.");
+        skill.setTags(List.of("linux"));
+        skill.setEnabled(true);
+        skill.setTarget(AiSkillTarget.CHAT);
+        skill.setContent("SECRET SKILL CONTENT");
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            """
+            {
+              "choices": [
+                {"message": {"role": "assistant", "content": "{\\"skillIds\\":[\\"skill-linux\\"]}"}}
+              ]
+            }
+            """,
+            """
+            {
+              "choices": [
+                {"message": {"role": "assistant", "content": "ok"}}
+              ]
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.DISABLED,
+            client,
+            null,
+            new AiSkillPromptSupport(true, true, List.of(skill)));
+
+        service.executeWithClient(
+            new AiRequest(AiAction.ASK, "", "qa-box", "en", "which repository should I use?"),
+            client,
+            Duration.ofSeconds(10));
+
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(0)).contains("Linux guidance.");
+        assertThat(client.requestBodies().get(0)).contains("linux");
+        assertThat(client.requestBodies().get(0)).doesNotContain("SECRET SKILL CONTENT");
+        assertThat(client.requestBodies().get(1)).contains("SECRET SKILL CONTENT");
+    }
+
+    @Test
+    void buildRequestBodyIncludesWebSearchToolOnlyForEligibleAiActions() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            new TavilyWebSearchTool("tavily-key"));
+
+        JsonObject askBody = JsonParser.parseString(service.buildRequestBody(
+            new AiRequest(AiAction.ASK, "What changed today?", "qa-box", "en", "search"))).getAsJsonObject();
+        JsonObject snippetBody = JsonParser.parseString(service.buildRequestBody(
+            new AiRequest(AiAction.GENERATE_SNIPPET_METADATA, "echo hi", "qa-box", "en"))).getAsJsonObject();
+
+        JsonArray tools = askBody.getAsJsonArray("tools");
+        assertThat(tools).isNotNull();
+        assertThat(tools.size()).isEqualTo(1);
+        JsonObject function = tools.get(0).getAsJsonObject().getAsJsonObject("function");
+        assertThat(function.get("name").getAsString()).isEqualTo("web_search");
+        assertThat(askBody.get("tool_choice").getAsString()).isEqualTo("auto");
+        assertThat(askBody.getAsJsonArray("messages").get(0).getAsJsonObject().get("content").getAsString())
+            .contains("do not invent web facts");
+        assertThat(snippetBody.has("tools")).isFalse();
+        assertThat(snippetBody.has("tool_choice")).isFalse();
+    }
+
+    @Test
+    void executeWithWebToolReturnsStructuredToolErrorToModelAndContinues() throws Exception {
+        TavilyToolTestDouble tavilyTool = new TavilyToolTestDouble("""
+            {"status":"error","provider":"tavily","errorType":"timeout","message":"Timeout","query":"KorTTY"}
+            """);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            loggedPrediction("""
+                {
+                  "choices": [
+                    {
+                      "message": {
+                        "role": "assistant",
+                        "content": null,
+                        "tool_calls": [
+                          {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {
+                              "name": "web_search",
+                              "arguments": "{\\"query\\":\\"KorTTY\\"}"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "usage": {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}
+                }
+                """),
+            """
+                {
+                  "choices": [
+                    {
+                      "message": {
+                        "role": "assistant",
+                        "content": "Tavily timed out, so I cannot verify current web facts."
+                      }
+                    }
+                  ],
+                  "usage": {"prompt_tokens": 7, "completion_tokens": 5, "total_tokens": 12}
+                }
+                """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            client,
+            tavilyTool);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ASK, "What is current?", "qa-box", "en", "KorTTY"),
+            client,
+            Duration.ofSeconds(30));
+
+        assertThat(result.content()).isEqualTo("Tavily timed out, so I cannot verify current web facts.");
+        assertThat(result.usage().totalTokens()).isEqualTo(18);
+        assertThat(tavilyTool.queries()).containsExactly("KorTTY");
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(1)).contains("\"role\":\"tool\"");
+        assertThat(client.requestBodies().get(1)).contains("\\\"errorType\\\":\\\"timeout\\\"");
+    }
+
+    @Test
+    void executeWithWebToolStopsAfterRoundLimitAndRequestsFinalAnswerWithoutTools() throws Exception {
+        TavilyToolTestDouble tavilyTool = new TavilyToolTestDouble("""
+            {"status":"ok","provider":"tavily","results":[{"title":"Example","url":"https://example.test","content":"Example"}]}
+            """);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            toolCallResponse("call_1", "jenkins repository"),
+            toolCallResponse("call_2", "fedora jenkins repository"),
+            toolCallResponse("call_3", "jenkins repo alternatives"),
+            loggedPrediction("""
+                {
+                  "choices": [
+                    {
+                      "message": {
+                        "role": "assistant",
+                        "content": "I used the available search results and stopped web lookup after the configured limit."
+                      }
+                    }
+                  ],
+                  "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+                }
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            client,
+            tavilyTool);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ASK, "Which repository can I use?", "qa-box", "en"),
+            client,
+            Duration.ofSeconds(30));
+
+        assertThat(result.content()).isEqualTo("I used the available search results and stopped web lookup after the configured limit.");
+        assertThat(tavilyTool.queries()).containsExactly("jenkins repository", "fedora jenkins repository");
+        assertThat(client.requestBodies()).hasSize(4);
+        assertThat(client.requestBodies().get(3)).contains("\\\"errorType\\\":\\\"tool_round_limit\\\"");
+        assertThat(client.requestBodies().get(3)).contains("Do not call any more tools.");
+        assertThat(client.requestBodies().get(3)).doesNotContain("\"tools\"");
+        assertThat(client.requestBodies().get(3)).doesNotContain("\"tool_choice\"");
+    }
+
+    @Test
+    void executeWithWebToolLimitsToolCallsPerAssistantTurn() throws Exception {
+        TavilyToolTestDouble tavilyTool = new TavilyToolTestDouble("""
+            {"status":"ok","provider":"tavily","results":[]}
+            """);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            multipleToolCallsResponse(),
+            """
+                {
+                  "choices": [
+                    {
+                      "message": {
+                        "role": "assistant",
+                        "content": "Used the capped tool results."
+                      }
+                    }
+                  ],
+                  "usage": {"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 10}
+                }
+                """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            client,
+            tavilyTool);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ASK, "Search several things.", "qa-box", "en"),
+            client,
+            Duration.ofSeconds(30));
+
+        assertThat(result.content()).isEqualTo("Used the capped tool results.");
+        assertThat(tavilyTool.queries()).containsExactly("query 1", "query 2", "query 3").inOrder();
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(1)).contains("\"call_1\"");
+        assertThat(client.requestBodies().get(1)).contains("\"call_2\"");
+        assertThat(client.requestBodies().get(1)).contains("\"call_3\"");
+        assertThat(client.requestBodies().get(1)).doesNotContain("\"call_4\"");
+    }
+
+    @Test
+    void executeJsonPromptDoesNotExposeWebToolForLocalFileAgentTask() throws Exception {
+        TavilyToolTestDouble tavilyTool = new TavilyToolTestDouble("""
+            {"status":"ok","provider":"tavily","results":[{"title":"Unexpected","url":"https://example.test","content":"Unexpected"}]}
+            """);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {
+              "choices": [
+                {
+                  "message": {
+                    "role": "assistant",
+                    "content": "{\\"status\\":\\"run_commands\\",\\"summary\\":\\"Inspect local script\\",\\"userMessage\\":\\"I will inspect the local script.\\",\\"commands\\":[{\\"command\\":\\"sed -n '1,220p' groesste_xml.pl\\",\\"purpose\\":\\"Read the script content\\",\\"risk\\":\\"read_only\\"}],\\"needsReprobe\\":false}"
+                  }
+                }
+              ],
+              "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            client,
+            tavilyTool);
+
+        service.executePromptWithClient(
+            "You are the planner for a remote SSH terminal automation helper.",
+            """
+            User task: wurde das script groesste_xml.pl nach wissenschaftlichen gesichtspunkten entwickelt?
+            Connection: Fedora44
+            Active terminal working directory: /home/daniel/Dokumente
+            Previous command results:
+            []
+            """,
+            client,
+            Duration.ofSeconds(30),
+            true);
+
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).doesNotContain("\"tools\"");
+        assertThat(client.requestBodies().get(0)).doesNotContain("\"tool_choice\"");
+        assertThat(tavilyTool.queries()).isEmpty();
+    }
+
+    @Test
+    void executeJsonPromptExposesWebToolForClearlyWebRelatedAgentTask() throws Exception {
+        TavilyToolTestDouble tavilyTool = new TavilyToolTestDouble("""
+            {"status":"ok","provider":"tavily","results":[{"title":"Jenkins","url":"https://example.test/jenkins","content":"Repo info"}]}
+            """);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {
+              "choices": [
+                {
+                  "message": {
+                    "role": "assistant",
+                    "content": "{\\"status\\":\\"done\\",\\"summary\\":\\"Use web info\\",\\"userMessage\\":\\"I can use current repository information.\\",\\"commands\\":[],\\"needsReprobe\\":false}"
+                  }
+                }
+              ],
+              "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            client,
+            tavilyTool);
+
+        service.executePromptWithClient(
+            "You are the planner for a remote SSH terminal automation helper.",
+            """
+            User task: welche aktuellen repositories kann ich verwenden um Jenkins zu installieren?
+            Connection: Fedora44
+            Active terminal working directory: /home/daniel
+            Previous command results:
+            []
+            """,
+            client,
+            Duration.ofSeconds(30),
+            true);
+
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).contains("\"tools\"");
+        assertThat(client.requestBodies().get(0)).contains("\"tool_choice\":\"auto\"");
     }
 
     @Test
@@ -242,5 +703,261 @@ class OpenAiCompatibleAiServiceTest {
             "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"Teil 1\\nTeil 2 ohne Abschluss");
 
         assertThat(parsed.content()).isEqualTo("Teil 1\nTeil 2 ohne Abschluss");
+    }
+
+    private static String toolCallResponse(String id, String query) {
+        return """
+            {
+              "choices": [
+                {
+                  "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [
+                      {
+                        "id": "%s",
+                        "type": "function",
+                        "function": {
+                          "name": "web_search",
+                          "arguments": "{\\"query\\":\\"%s\\"}"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+            }
+            """.formatted(id, query);
+    }
+
+    private static String multipleToolCallsResponse() {
+        return """
+            {
+              "choices": [
+                {
+                  "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [
+                      {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                          "name": "web_search",
+                          "arguments": "{\\"query\\":\\"query 1\\"}"
+                        }
+                      },
+                      {
+                        "id": "call_2",
+                        "type": "function",
+                        "function": {
+                          "name": "web_search",
+                          "arguments": "{\\"query\\":\\"query 2\\"}"
+                        }
+                      },
+                      {
+                        "id": "call_3",
+                        "type": "function",
+                        "function": {
+                          "name": "web_search",
+                          "arguments": "{\\"query\\":\\"query 3\\"}"
+                        }
+                      },
+                      {
+                        "id": "call_4",
+                        "type": "function",
+                        "function": {
+                          "name": "web_search",
+                          "arguments": "{\\"query\\":\\"query 4\\"}"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+            }
+            """;
+    }
+
+    private static String loggedPrediction(String body) {
+        return "2026-03-16 14:38:15 [INFO] Generated prediction: " + body;
+    }
+
+    /** Test double for deterministic Tavily tool-call results. */
+    private static final class TavilyToolTestDouble extends TavilyWebSearchTool {
+        private final String result;
+        private final List<String> queries = new ArrayList<>();
+
+        private TavilyToolTestDouble(String result) {
+            super("test-key");
+            this.result = result;
+        }
+
+        @Override
+        public String searchAsToolResult(String query) {
+            queries.add(query);
+            return result;
+        }
+
+        private List<String> queries() {
+            return queries;
+        }
+    }
+
+    /** Test double for deterministic OpenAI-compatible HTTP responses. */
+    private static final class SequencedInputStreamHttpClient extends HttpClient {
+        private final Queue<String> responseBodies;
+        private final List<String> requestBodies = new ArrayList<>();
+
+        private SequencedInputStreamHttpClient(String... responseBodies) {
+            this.responseBodies = new ArrayDeque<>(List.of(responseBodies));
+        }
+
+        @Override
+        public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) throws IOException {
+            requestBodies.add(readBody(request));
+            String body = responseBodies.remove();
+            @SuppressWarnings("unchecked")
+            T typedBody = (T) new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+            return new SimpleHttpResponse<>(request, typedBody);
+        }
+
+        @Override
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
+            return CompletableFuture.failedFuture(new UnsupportedOperationException("sendAsync is not used by this test double."));
+        }
+
+        @Override
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+            HttpRequest request,
+            HttpResponse.BodyHandler<T> responseBodyHandler,
+            HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
+
+            return CompletableFuture.failedFuture(new UnsupportedOperationException("sendAsync is not used by this test double."));
+        }
+
+        @Override
+        public Optional<CookieHandler> cookieHandler() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Duration> connectTimeout() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Redirect followRedirects() {
+            return Redirect.NEVER;
+        }
+
+        @Override
+        public Optional<ProxySelector> proxy() {
+            return Optional.empty();
+        }
+
+        @Override
+        public SSLContext sslContext() {
+            return null;
+        }
+
+        @Override
+        public SSLParameters sslParameters() {
+            return new SSLParameters();
+        }
+
+        @Override
+        public Optional<Authenticator> authenticator() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Version version() {
+            return Version.HTTP_1_1;
+        }
+
+        @Override
+        public Optional<Executor> executor() {
+            return Optional.empty();
+        }
+
+        private List<String> requestBodies() {
+            return requestBodies;
+        }
+    }
+
+    private record SimpleHttpResponse<T>(HttpRequest request, T body) implements HttpResponse<T> {
+        @Override
+        public int statusCode() {
+            return 200;
+        }
+
+        @Override
+        public Optional<HttpResponse<T>> previousResponse() {
+            return Optional.empty();
+        }
+
+        @Override
+        public HttpHeaders headers() {
+            return HttpHeaders.of(java.util.Map.of(), (name, value) -> true);
+        }
+
+        @Override
+        public Optional<javax.net.ssl.SSLSession> sslSession() {
+            return Optional.empty();
+        }
+
+        @Override
+        public URI uri() {
+            return request.uri();
+        }
+
+        @Override
+        public HttpClient.Version version() {
+            return HttpClient.Version.HTTP_1_1;
+        }
+    }
+
+    private static String readBody(HttpRequest request) throws IOException {
+        HttpRequest.BodyPublisher publisher = request.bodyPublisher().orElseThrow();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        CountDownLatch completed = new CountDownLatch(1);
+        publisher.subscribe(new Flow.Subscriber<>() {
+            private Flow.Subscription subscription;
+
+            @Override
+            public void onSubscribe(Flow.Subscription subscription) {
+                this.subscription = subscription;
+                subscription.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(ByteBuffer item) {
+                byte[] bytes = new byte[item.remaining()];
+                item.get(bytes);
+                output.write(bytes, 0, bytes.length);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                completed.countDown();
+            }
+
+            @Override
+            public void onComplete() {
+                completed.countDown();
+            }
+        });
+        try {
+            if (!completed.await(5, TimeUnit.SECONDS)) {
+                throw new IOException("Timed out while reading request body.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while reading request body.", e);
+        }
+        return output.toString(StandardCharsets.UTF_8);
     }
 }

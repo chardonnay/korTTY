@@ -1,8 +1,8 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiPromptService;
 import de.kortty.core.GlobalSettingsManager;
-import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.AiProfile;
@@ -61,7 +61,7 @@ public class AiAgentPlanTab extends Tab {
     private final TerminalAgentService service;
     private final TerminalAgentModels.PlanRequest request;
     private final AiProfile profile;
-    private final OpenAiCompatibleAiService aiService;
+    private final AiPromptService aiService;
     private final TerminalTab terminalTab;
     private final SshTtyConnector runConnector;
     private final Supplier<String> sudoCacheSessionIdSupplier;
@@ -101,7 +101,7 @@ public class AiAgentPlanTab extends Tab {
         TerminalAgentService service,
         TerminalTab terminalTab,
         AiProfile profile,
-        OpenAiCompatibleAiService aiService,
+        AiPromptService aiService,
         TerminalAgentModels.PlanRequest request,
         SshTtyConnector runConnector,
         Supplier<String> sudoCacheSessionIdSupplier,

@@ -30,6 +30,9 @@ public class AiProfile {
     private AiReasoningEffort reasoningEffort = AiReasoningEffort.DISABLED;
 
     @XmlElement
+    private AiInternetAccessMode internetAccessMode = AiInternetAccessMode.DISABLED;
+
+    @XmlElement
     private String encryptedApiKey;
 
     @XmlElement
@@ -80,6 +83,7 @@ public class AiProfile {
         this.apiUrl = source.apiUrl;
         this.model = source.model;
         this.reasoningEffort = source.getReasoningEffort();
+        this.internetAccessMode = source.getInternetAccessMode();
         this.encryptedApiKey = source.encryptedApiKey;
         this.maxSelectionChars = source.maxSelectionChars;
         this.tokenizerType = source.tokenizerType;
@@ -133,6 +137,14 @@ public class AiProfile {
 
     public void setReasoningEffort(AiReasoningEffort reasoningEffort) {
         this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
+    }
+
+    public AiInternetAccessMode getInternetAccessMode() {
+        return internetAccessMode != null ? internetAccessMode : AiInternetAccessMode.DISABLED;
+    }
+
+    public void setInternetAccessMode(AiInternetAccessMode internetAccessMode) {
+        this.internetAccessMode = internetAccessMode != null ? internetAccessMode : AiInternetAccessMode.DISABLED;
     }
 
     public String getEncryptedApiKey() {

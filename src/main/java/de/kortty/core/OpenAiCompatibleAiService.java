@@ -18,11 +18,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * AI service for OpenAI-compatible chat completion endpoints.
  */
-public class OpenAiCompatibleAiService implements AiService {
+public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageTracker {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenAiCompatibleAiService.class);
     private static final Gson GSON = new Gson();
@@ -39,12 +41,18 @@ public class OpenAiCompatibleAiService implements AiService {
         java.util.regex.Pattern.compile("\"completion_tokens\"\\s*:\\s*(\\d+)");
     private static final java.util.regex.Pattern TOTAL_TOKENS_PATTERN =
         java.util.regex.Pattern.compile("\"total_tokens\"\\s*:\\s*(\\d+)");
+    private static final int MAX_WEB_TOOL_ROUNDS = 2;
+    private static final int MAX_TOOL_CALLS_PER_REQUEST = 3;
+    private static final String WEB_SEARCH_TOOL_NAME = "web_search";
+    private static final Duration SKILL_CLASSIFICATION_TIMEOUT = Duration.ofSeconds(8);
 
     private final String apiUrl;
     private final String model;
     private final String apiKey;
     private final AiReasoningEffort reasoningEffort;
     private final HttpClient httpClient;
+    private final TavilyWebSearchTool webSearchTool;
+    private final AiSkillPromptSupport skillPromptSupport;
 
     public OpenAiCompatibleAiService(String apiUrl, String model, String apiKey) {
         this(apiUrl, model, apiKey, AiReasoningEffort.DISABLED);
@@ -58,6 +66,34 @@ public class OpenAiCompatibleAiService implements AiService {
         this(apiUrl, model, apiKey, AiReasoningEffort.DISABLED, httpClient);
     }
 
+    public OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        TavilyWebSearchTool webSearchTool) {
+
+        this(apiUrl, model, apiKey, reasoningEffort, webSearchTool, AiSkillPromptSupport.disabled());
+    }
+
+    public OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        TavilyWebSearchTool webSearchTool,
+        AiSkillPromptSupport skillPromptSupport) {
+
+        this(
+            apiUrl,
+            model,
+            apiKey,
+            reasoningEffort,
+            HttpClient.newBuilder().connectTimeout(DEFAULT_CONNECT_TIMEOUT).build(),
+            webSearchTool,
+            skillPromptSupport);
+    }
+
     OpenAiCompatibleAiService(
         String apiUrl,
         String model,
@@ -65,11 +101,36 @@ public class OpenAiCompatibleAiService implements AiService {
         AiReasoningEffort reasoningEffort,
         HttpClient httpClient) {
 
+        this(apiUrl, model, apiKey, reasoningEffort, httpClient, null);
+    }
+
+    OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        HttpClient httpClient,
+        TavilyWebSearchTool webSearchTool) {
+
+        this(apiUrl, model, apiKey, reasoningEffort, httpClient, webSearchTool, AiSkillPromptSupport.disabled());
+    }
+
+    OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        HttpClient httpClient,
+        TavilyWebSearchTool webSearchTool,
+        AiSkillPromptSupport skillPromptSupport) {
+
         this.apiUrl = apiUrl != null ? apiUrl.trim() : "";
         this.model = model != null ? model.trim() : "";
         this.apiKey = apiKey != null ? apiKey.trim() : "";
         this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
         this.httpClient = httpClient;
+        this.webSearchTool = webSearchTool;
+        this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
     }
 
     @Override
@@ -85,8 +146,25 @@ public class OpenAiCompatibleAiService implements AiService {
         return executePromptWithClient(systemPrompt, userPrompt, httpClient, null, true);
     }
 
+    @Override
+    public AiExecutionResult executeJsonPromptWithoutResponseFormat(String systemPrompt, String userPrompt) throws Exception {
+        return executePromptWithClient(systemPrompt, userPrompt, httpClient, null, false);
+    }
+
+    @Override
+    public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
+        return skillPromptSupport.drainSkillUsages();
+    }
+
     AiExecutionResult executeWithClient(AiRequest request, HttpClient client, Duration timeout) throws Exception {
-        HttpRequest httpRequest = buildHttpRequest(request, timeout);
+        if (webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request)) {
+            return executeToolAwareMessages(
+                buildRequestMessages(request, true, createSkillClassifier(client)),
+                client,
+                timeout,
+                false);
+        }
+        HttpRequest httpRequest = buildHttpRequest(request, timeout, createSkillClassifier(client));
         return executeRequestWithClient(httpRequest, client);
     }
 
@@ -100,8 +178,39 @@ public class OpenAiCompatibleAiService implements AiService {
         HttpClient client,
         Duration timeout,
         boolean jsonResponseFormat) throws Exception {
-        HttpRequest httpRequest = buildPromptHttpRequest(systemPrompt, userPrompt, timeout, jsonResponseFormat);
+        return executePromptWithClient(
+            systemPrompt,
+            userPrompt,
+            client,
+            timeout,
+            jsonResponseFormat,
+            true);
+    }
+
+    private AiExecutionResult executePromptWithClient(
+        String systemPrompt,
+        String userPrompt,
+        HttpClient client,
+        Duration timeout,
+        boolean jsonResponseFormat,
+        boolean includeAgentSkills) throws Exception {
+
+        String effectiveSystemPrompt = includeAgentSkills
+            ? skillPromptSupport.appendAgentSkills(systemPrompt, userPrompt, createSkillClassifier(client))
+            : normalizePrompt(systemPrompt);
+        if (webSearchTool != null && AiInternetPromptSupport.isPromptInternetEligible(userPrompt)) {
+            return executeToolAwareMessages(
+                buildPromptMessages(AiInternetPromptSupport.appendRules(effectiveSystemPrompt), userPrompt),
+                client,
+                timeout,
+                jsonResponseFormat);
+        }
+        HttpRequest httpRequest = buildPromptHttpRequest(effectiveSystemPrompt, userPrompt, timeout, jsonResponseFormat);
         return executeRequestWithClient(httpRequest, client);
+    }
+
+    private static String normalizePrompt(String prompt) {
+        return prompt != null ? prompt.trim() : "";
     }
 
     private AiExecutionResult executeRequestWithClient(HttpRequest httpRequest, HttpClient client) throws Exception {
@@ -116,6 +225,237 @@ public class OpenAiCompatibleAiService implements AiService {
             throw new IOException("AI API returned an empty response.");
         }
         return new AiExecutionResult(content.trim(), result != null ? result.usage() : null);
+    }
+
+    private AiExecutionResult executeToolAwareMessages(
+        JsonArray messages,
+        HttpClient client,
+        Duration timeout,
+        boolean jsonResponseFormat) throws Exception {
+
+        List<AiTokenUsage> usageEntries = new ArrayList<>();
+        for (int round = 0; round <= MAX_WEB_TOOL_ROUNDS; round++) {
+            String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, true);
+            HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
+            String responseBody = readResponseBody(response.body());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IOException("AI API error " + response.statusCode() + ": " + extractErrorMessage(responseBody));
+            }
+            JsonObject root = parseResponseRoot(responseBody);
+            if (root == null) {
+                AiExecutionResult parsed = parseResponseBody(responseBody);
+                String content = parsed != null ? parsed.content() : null;
+                if (content == null || content.isBlank()) {
+                    throw new IOException("AI API returned an empty response.");
+                }
+                if (parsed != null && parsed.usage() != null) {
+                    usageEntries.add(parsed.usage());
+                }
+                return new AiExecutionResult(content.trim(), mergeUsage(usageEntries));
+            }
+            AiTokenUsage usage = parseUsage(root);
+            if (usage != null) {
+                usageEntries.add(usage);
+            }
+            JsonObject message = firstAssistantMessage(root);
+            JsonArray toolCalls = message != null ? message.getAsJsonArray("tool_calls") : null;
+            if (toolCalls != null && !toolCalls.isEmpty()) {
+                JsonArray limitedToolCalls = limitToolCallsForRequest(toolCalls);
+                if (round >= MAX_WEB_TOOL_ROUNDS) {
+                    messages.add(copyAssistantToolCallMessage(message, limitedToolCalls));
+                    for (JsonElement toolCallElement : limitedToolCalls) {
+                        messages.add(buildToolRoundLimitMessage(toolCallElement));
+                    }
+                    messages.add(buildToolRoundLimitInstructionMessage());
+                    return executeFinalMessagesWithoutTools(messages, client, timeout, jsonResponseFormat, usageEntries);
+                }
+                messages.add(copyAssistantToolCallMessage(message, limitedToolCalls));
+                for (JsonElement toolCallElement : limitedToolCalls) {
+                    messages.add(buildToolResultMessage(toolCallElement));
+                }
+                continue;
+            }
+
+            AiExecutionResult parsed = parseJsonResponseBody(root);
+            String content = parsed != null ? parsed.content() : null;
+            if (content == null || content.isBlank()) {
+                throw new IOException("AI API returned an empty response.");
+            }
+            return new AiExecutionResult(content.trim(), mergeUsage(usageEntries));
+        }
+        throw new IOException("Web search did not finish within " + MAX_WEB_TOOL_ROUNDS + " tool rounds.");
+    }
+
+    private AiExecutionResult executeFinalMessagesWithoutTools(
+        JsonArray messages,
+        HttpClient client,
+        Duration timeout,
+        boolean jsonResponseFormat,
+        List<AiTokenUsage> usageEntries) throws Exception {
+
+        String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, false);
+        HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
+        String responseBody = readResponseBody(response.body());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IOException("AI API error " + response.statusCode() + ": " + extractErrorMessage(responseBody));
+        }
+        JsonObject root = parseResponseRoot(responseBody);
+        AiExecutionResult parsed;
+        if (root != null) {
+            AiTokenUsage usage = parseUsage(root);
+            if (usage != null) {
+                usageEntries.add(usage);
+            }
+            parsed = parseJsonResponseBody(root);
+        } else {
+            parsed = parseResponseBody(responseBody);
+            if (parsed != null && parsed.usage() != null) {
+                usageEntries.add(parsed.usage());
+            }
+        }
+        String content = parsed != null ? parsed.content() : null;
+        if (content == null || content.isBlank()) {
+            throw new IOException("AI API returned an empty response after the web search limit was reached.");
+        }
+        return new AiExecutionResult(content.trim(), mergeUsage(usageEntries));
+    }
+
+    private JsonObject firstAssistantMessage(JsonObject root) {
+        if (root == null) {
+            return null;
+        }
+        JsonArray choices = root.getAsJsonArray("choices");
+        if (choices == null || choices.isEmpty() || !choices.get(0).isJsonObject()) {
+            return null;
+        }
+        JsonObject firstChoice = choices.get(0).getAsJsonObject();
+        return firstChoice.getAsJsonObject("message");
+    }
+
+    private JsonObject copyAssistantToolCallMessage(JsonObject message, JsonArray toolCalls) {
+        JsonObject assistant = new JsonObject();
+        assistant.addProperty("role", "assistant");
+        JsonElement content = message != null ? message.get("content") : null;
+        if (content == null || content.isJsonNull()) {
+            assistant.add("content", com.google.gson.JsonNull.INSTANCE);
+        } else {
+            assistant.add("content", content.deepCopy());
+        }
+        assistant.add("tool_calls", toolCalls.deepCopy());
+        return assistant;
+    }
+
+    private JsonArray limitToolCallsForRequest(JsonArray toolCalls) {
+        if (toolCalls == null || toolCalls.size() <= MAX_TOOL_CALLS_PER_REQUEST) {
+            return toolCalls;
+        }
+        logger.warn(
+            "AI API returned {} tool calls; processing only the first {}.",
+            toolCalls.size(),
+            MAX_TOOL_CALLS_PER_REQUEST);
+        JsonArray limitedToolCalls = new JsonArray();
+        for (int i = 0; i < MAX_TOOL_CALLS_PER_REQUEST; i++) {
+            limitedToolCalls.add(toolCalls.get(i).deepCopy());
+        }
+        return limitedToolCalls;
+    }
+
+    private JsonObject buildToolResultMessage(JsonElement toolCallElement) {
+        JsonObject toolMessage = new JsonObject();
+        toolMessage.addProperty("role", "tool");
+        JsonObject toolCall = toolCallElement != null && toolCallElement.isJsonObject()
+            ? toolCallElement.getAsJsonObject()
+            : new JsonObject();
+        String toolCallId = stringField(toolCall, "id", "web-search");
+        toolMessage.addProperty("tool_call_id", toolCallId);
+        toolMessage.addProperty("content", executeToolCall(toolCall));
+        return toolMessage;
+    }
+
+    private JsonObject buildToolRoundLimitMessage(JsonElement toolCallElement) {
+        JsonObject toolMessage = new JsonObject();
+        toolMessage.addProperty("role", "tool");
+        JsonObject toolCall = toolCallElement != null && toolCallElement.isJsonObject()
+            ? toolCallElement.getAsJsonObject()
+            : new JsonObject();
+        toolMessage.addProperty("tool_call_id", stringField(toolCall, "id", "web-search"));
+        JsonObject error = new JsonObject();
+        error.addProperty("status", "error");
+        error.addProperty("provider", "kortty");
+        error.addProperty("errorType", "tool_round_limit");
+        error.addProperty("message", "Web search was stopped after " + MAX_WEB_TOOL_ROUNDS + " tool rounds. Use the available tool results; if they are insufficient, say that the web lookup did not complete.");
+        error.addProperty("maxToolRounds", MAX_WEB_TOOL_ROUNDS);
+        JsonObject function = toolCall.getAsJsonObject("function");
+        String query = extractToolQuery(function);
+        if (!query.isBlank()) {
+            error.addProperty("query", query);
+        }
+        toolMessage.addProperty("content", GSON.toJson(error));
+        return toolMessage;
+    }
+
+    private JsonObject buildToolRoundLimitInstructionMessage() {
+        JsonObject user = new JsonObject();
+        user.addProperty("role", "user");
+        user.addProperty(
+            "content",
+            "Web search has reached KorTTY's tool-round limit. Do not call any more tools. Produce the final answer now, follow the original requested response format, use only available tool results and local context, and explicitly state if the web lookup did not complete.");
+        return user;
+    }
+
+    private String executeToolCall(JsonObject toolCall) {
+        JsonObject function = toolCall != null ? toolCall.getAsJsonObject("function") : null;
+        String name = stringField(function, "name", "");
+        if (!WEB_SEARCH_TOOL_NAME.equals(name)) {
+            JsonObject error = new JsonObject();
+            error.addProperty("status", "error");
+            error.addProperty("provider", "kortty");
+            error.addProperty("errorType", "unsupported_tool");
+            error.addProperty("message", "Unsupported tool call: " + name);
+            return GSON.toJson(error);
+        }
+        String query = extractToolQuery(function);
+        return webSearchTool.searchAsToolResult(query);
+    }
+
+    private String extractToolQuery(JsonObject function) {
+        if (function == null || !function.has("arguments")) {
+            return "";
+        }
+        JsonElement arguments = function.get("arguments");
+        try {
+            JsonObject args = arguments.isJsonObject()
+                ? arguments.getAsJsonObject()
+                : JsonParser.parseString(arguments.getAsString()).getAsJsonObject();
+            return stringField(args, "query", "");
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private String stringField(JsonObject object, String name, String fallback) {
+        if (object != null && object.has(name) && object.get(name).isJsonPrimitive()) {
+            return object.get(name).getAsString();
+        }
+        return fallback;
+    }
+
+    private AiTokenUsage mergeUsage(List<AiTokenUsage> usageEntries) {
+        if (usageEntries == null || usageEntries.isEmpty()) {
+            return null;
+        }
+        long promptTokens = 0L;
+        long completionTokens = 0L;
+        long totalTokens = 0L;
+        for (AiTokenUsage usage : usageEntries) {
+            if (usage == null) {
+                continue;
+            }
+            promptTokens += usage.promptTokens();
+            completionTokens += usage.completionTokens();
+            totalTokens += usage.totalTokens();
+        }
+        return new AiTokenUsage(promptTokens, completionTokens, totalTokens);
     }
 
     @Override
@@ -135,10 +475,18 @@ public class OpenAiCompatibleAiService implements AiService {
     }
 
     HttpRequest buildHttpRequest(AiRequest request, Duration timeout) {
+        return buildHttpRequest(request, timeout, null);
+    }
+
+    private HttpRequest buildHttpRequest(
+        AiRequest request,
+        Duration timeout,
+        AiSkillRelevanceClassifier skillClassifier) {
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
         }
-        String body = buildRequestBody(request);
+        boolean includeTools = webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request);
+        String body = buildMessagesRequestBody(buildRequestMessages(request, includeTools, skillClassifier), 0.2, false, includeTools);
         return buildJsonPostRequest(body, timeout);
     }
 
@@ -175,26 +523,63 @@ public class OpenAiCompatibleAiService implements AiService {
     }
 
     String buildRequestBody(AiRequest request) {
-        JsonObject root = new JsonObject();
-        if (!model.isBlank()) {
-            root.addProperty("model", model);
-        }
+        boolean includeTools = webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request);
+        return buildMessagesRequestBody(buildRequestMessages(request, includeTools), 0.2, false, includeTools);
+    }
 
+    private JsonArray buildRequestMessages(AiRequest request, boolean includeInternetRules) {
+        return buildRequestMessages(request, includeInternetRules, null);
+    }
+
+    private JsonArray buildRequestMessages(
+        AiRequest request,
+        boolean includeInternetRules,
+        AiSkillRelevanceClassifier skillClassifier) {
         JsonArray messages = new JsonArray();
         JsonObject system = new JsonObject();
         system.addProperty("role", "system");
-        system.addProperty("content", AiPromptBuilder.buildSystemPrompt(request));
+        String systemPrompt = skillPromptSupport.appendChatSkills(
+            AiPromptBuilder.buildSystemPrompt(request),
+            request,
+            skillClassifier);
+        system.addProperty("content", includeInternetRules ? AiInternetPromptSupport.appendRules(systemPrompt) : systemPrompt);
         messages.add(system);
 
         JsonObject user = new JsonObject();
         user.addProperty("role", "user");
         user.addProperty("content", AiPromptBuilder.buildUserPrompt(request));
         messages.add(user);
+        return messages;
+    }
 
-        root.add("messages", messages);
-        root.addProperty("temperature", 0.2);
-        appendReasoningEffort(root);
-        return GSON.toJson(root);
+    private AiSkillRelevanceClassifier createSkillClassifier(HttpClient client) {
+        return (context, skills) -> classifyRelevantSkills(context, skills, client);
+    }
+
+    private List<String> classifyRelevantSkills(
+        AiSkillRelevanceSelector.SelectionContext context,
+        List<AiSkillRelevanceSelector.SkillMetadata> skills,
+        HttpClient client) throws Exception {
+
+        if (skills == null || skills.isEmpty()) {
+            return List.of();
+        }
+        String body = buildMessagesRequestBody(
+            buildPromptMessages(
+                AiSkillRelevanceSelector.classificationSystemPrompt(),
+                AiSkillRelevanceSelector.buildClassificationUserPrompt(context, skills)),
+            0.0,
+            true,
+            false);
+        HttpResponse<InputStream> response = client.send(
+            buildJsonPostRequest(body, SKILL_CLASSIFICATION_TIMEOUT),
+            HttpResponse.BodyHandlers.ofInputStream());
+        String responseBody = readResponseBody(response.body());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IOException("AI skill classification failed with status " + response.statusCode());
+        }
+        AiExecutionResult result = parseResponseBody(responseBody);
+        return AiSkillRelevanceSelector.parseClassifierResponse(result != null ? result.content() : null);
     }
 
     String buildConnectionTestRequestBody() {
@@ -218,11 +603,10 @@ public class OpenAiCompatibleAiService implements AiService {
         String userPrompt,
         double temperature,
         boolean jsonResponseFormat) {
-        JsonObject root = new JsonObject();
-        if (!model.isBlank()) {
-            root.addProperty("model", model);
-        }
+        return buildMessagesRequestBody(buildPromptMessages(systemPrompt, userPrompt), temperature, jsonResponseFormat, false);
+    }
 
+    private JsonArray buildPromptMessages(String systemPrompt, String userPrompt) {
         JsonArray messages = new JsonArray();
         JsonObject system = new JsonObject();
         system.addProperty("role", "system");
@@ -233,6 +617,18 @@ public class OpenAiCompatibleAiService implements AiService {
         user.addProperty("role", "user");
         user.addProperty("content", userPrompt != null ? userPrompt : "");
         messages.add(user);
+        return messages;
+    }
+
+    private String buildMessagesRequestBody(
+        JsonArray messages,
+        double temperature,
+        boolean jsonResponseFormat,
+        boolean includeTools) {
+        JsonObject root = new JsonObject();
+        if (!model.isBlank()) {
+            root.addProperty("model", model);
+        }
 
         root.add("messages", messages);
         root.addProperty("temperature", temperature);
@@ -242,7 +638,36 @@ public class OpenAiCompatibleAiService implements AiService {
             responseFormat.addProperty("type", "json_object");
             root.add("response_format", responseFormat);
         }
+        if (includeTools) {
+            root.add("tools", buildWebSearchTools());
+            root.addProperty("tool_choice", "auto");
+        }
         return GSON.toJson(root);
+    }
+
+    private JsonArray buildWebSearchTools() {
+        JsonArray tools = new JsonArray();
+        JsonObject tool = new JsonObject();
+        tool.addProperty("type", "function");
+        JsonObject function = new JsonObject();
+        function.addProperty("name", WEB_SEARCH_TOOL_NAME);
+        function.addProperty("description", "Search the public web for current or external information. Return source URLs in the final answer.");
+        JsonObject parameters = new JsonObject();
+        parameters.addProperty("type", "object");
+        JsonObject properties = new JsonObject();
+        JsonObject query = new JsonObject();
+        query.addProperty("type", "string");
+        query.addProperty("description", "Search query.");
+        properties.add("query", query);
+        parameters.add("properties", properties);
+        JsonArray required = new JsonArray();
+        required.add("query");
+        parameters.add("required", required);
+        parameters.addProperty("additionalProperties", false);
+        function.add("parameters", parameters);
+        tool.add("function", function);
+        tools.add(tool);
+        return tools;
     }
 
     private void appendReasoningEffort(JsonObject root) {
@@ -295,20 +720,30 @@ public class OpenAiCompatibleAiService implements AiService {
         if (responseBody == null || responseBody.isBlank()) {
             return null;
         }
-        try {
-            JsonObject root = JsonParser.parseString(responseBody).getAsJsonObject();
+        JsonObject root = parseResponseRoot(responseBody);
+        if (root != null) {
             return parseJsonResponseBody(root);
+        }
+        String candidateJson = extractCandidateJson(responseBody);
+        return parseLenientContentFallback(candidateJson != null ? candidateJson : responseBody);
+    }
+
+    private JsonObject parseResponseRoot(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return null;
+        }
+        try {
+            return JsonParser.parseString(responseBody).getAsJsonObject();
         } catch (Exception ignored) {
         }
         String candidateJson = extractCandidateJson(responseBody);
         if (candidateJson != null) {
             try {
-                JsonObject root = JsonParser.parseString(candidateJson).getAsJsonObject();
-                return parseJsonResponseBody(root);
+                return JsonParser.parseString(candidateJson).getAsJsonObject();
             } catch (Exception ignored) {
             }
         }
-        return parseLenientContentFallback(candidateJson != null ? candidateJson : responseBody);
+        return null;
     }
 
     private AiExecutionResult parseJsonResponseBody(JsonObject root) {

@@ -1,12 +1,16 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiService;
+import de.kortty.core.AiServiceFactory;
+import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
-import de.kortty.core.OpenAiCompatibleAiService;
+import de.kortty.core.FailingAiService;
+import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
@@ -78,6 +82,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final TextField apiUrlField;
     private final TextField modelField;
     private final ComboBox<AiReasoningEffort> reasoningCombo;
+    private final ComboBox<AiInternetAccessMode> internetAccessModeCombo;
     private final PasswordField apiKeyField;
     private final CheckBox clearApiKeyCheck;
     private final Spinner<Integer> maxSelectionCharsSpinner;
@@ -113,6 +118,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         apiUrlField = new TextField();
         modelField = new TextField();
         reasoningCombo = new ComboBox<>();
+        internetAccessModeCombo = new ComboBox<>();
         apiKeyField = new PasswordField();
         clearApiKeyCheck = new CheckBox(I18n.get("settings.ai.clearApiKey"));
         maxSelectionCharsSpinner = new Spinner<>(1, 50_000_000, AiProfile.DEFAULT_MAX_SELECTION_CHARS);
@@ -273,6 +279,18 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         editorGrid.add(new Label(I18n.get("settings.ai.reasoning")), 0, row);
         editorGrid.add(reasoningCombo, 1, row++);
+
+        internetAccessModeCombo.getItems().addAll(AiInternetAccessMode.values());
+        internetAccessModeCombo.setPrefWidth(260);
+        internetAccessModeCombo.setConverter(createInternetModeConverter());
+        internetAccessModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedProfile != null) {
+                selectedProfile.setInternetAccessMode(newValue);
+                profileListView.refresh();
+            }
+        });
+        editorGrid.add(new Label(I18n.get("settings.ai.internet.mode")), 0, row);
+        editorGrid.add(internetAccessModeCombo, 1, row++);
 
         apiUrlField.textProperty().addListener((obs, oldValue, newValue) ->
             refreshReasoningOptions(reasoningCombo.getValue()));
@@ -560,6 +578,22 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         };
     }
 
+    private javafx.util.StringConverter<AiInternetAccessMode> createInternetModeConverter() {
+        return new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiInternetAccessMode object) {
+                return object == null
+                    ? ""
+                    : I18n.get("settings.ai.internet.mode." + object.messageKeySuffix());
+            }
+
+            @Override
+            public AiInternetAccessMode fromString(String string) {
+                return null;
+            }
+        };
+    }
+
     private void refreshReasoningOptions(AiReasoningEffort requestedEffort) {
         List<AiReasoningEffort> options = AiReasoningSupport.availableEfforts(
             apiUrlField != null ? apiUrlField.getText() : null,
@@ -586,6 +620,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             selectedProfile.getApiUrl(),
             selectedProfile.getModel(),
             reasoningCombo.getValue()));
+        selectedProfile.setInternetAccessMode(internetAccessModeCombo.getValue());
         selectedProfile.setMaxSelectionChars(maxSelectionCharsSpinner.getValue());
         selectedProfile.setTokenizerType(tokenizerCombo.getValue());
         selectedProfile.setTokenLimitAmount(tokenLimitAmountSpinner.getValue() != null ? tokenLimitAmountSpinner.getValue().longValue() : 0L);
@@ -618,6 +653,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             apiUrlField.clear();
             modelField.clear();
             refreshReasoningOptions(AiReasoningEffort.DISABLED);
+            internetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             apiKeyField.clear();
             clearApiKeyCheck.setDisable(false);
             clearApiKeyCheck.setSelected(false);
@@ -638,6 +674,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         apiUrlField.setText(profile.getApiUrl() != null ? profile.getApiUrl() : "");
         modelField.setText(profile.getModel() != null ? profile.getModel() : "");
         refreshReasoningOptions(profile.getReasoningEffort());
+        internetAccessModeCombo.setValue(profile.getInternetAccessMode());
         maxSelectionCharsSpinner.getValueFactory().setValue(
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
                 ? profile.getMaxSelectionChars()
@@ -732,9 +769,17 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl"));
             return;
         }
-        AiService service = createAiService(selectedProfile);
-        if (!(service instanceof OpenAiCompatibleAiService aiService)) {
+        if (!validateInternetConfigurationForTest(selectedProfile)) {
+            return;
+        }
+        AiService aiService = createAiService(selectedProfile);
+        if (aiService == null) {
             showSimpleAlert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed"));
+            return;
+        }
+        if (aiService instanceof FailingAiService failingService) {
+            statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
+            showSimpleAlert(Alert.AlertType.ERROR, failingService.message());
             return;
         }
 
@@ -756,18 +801,38 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }));
     }
 
+    private boolean validateInternetConfigurationForTest(AiProfile profile) {
+        if (profile == null || !profile.getInternetAccessMode().isEnabled()) {
+            return true;
+        }
+        try {
+            buildInternetAccessConfiguration(profile).validate();
+            return true;
+        } catch (IllegalStateException ex) {
+            statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
+            showSimpleAlert(Alert.AlertType.ERROR, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
+            return false;
+        }
+    }
+
     private AiService createAiService(AiProfile profile) {
         String apiUrl = trimToNull(profile.getApiUrl());
         if (apiUrl == null || apiUrl.matches("^https?://[^/]+/?$")) {
             return null;
         }
-        String model = trimToNull(profile.getModel());
         String apiKey = getPlainApiKey(profile);
-        return new OpenAiCompatibleAiService(
-            apiUrl,
-            model != null ? model : "",
-            apiKey != null ? apiKey : "",
-            AiReasoningSupport.normalizeForProfile(profile));
+        try {
+            GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+                ? app.getGlobalSettingsManager().getSettings()
+                : null;
+            return AiServiceFactory.create(
+                profile,
+                apiKey,
+                buildInternetAccessConfiguration(profile),
+                AiSkillPromptSupport.fromSettings(settings));
+        } catch (IllegalStateException e) {
+            return new FailingAiService(e.getMessage());
+        }
     }
 
     private String getPlainApiKey(AiProfile profile) {
@@ -794,6 +859,43 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
             EncryptionService encryptionService = new EncryptionService();
             return encryptionService.decryptPassword(encrypted, masterPassword);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private AiInternetAccessConfiguration buildInternetAccessConfiguration(AiProfile profile) {
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        if (settings == null || profile == null || !profile.getInternetAccessMode().isEnabled()) {
+            return AiInternetAccessConfiguration.disabled();
+        }
+        return new AiInternetAccessConfiguration(
+            profile.getInternetAccessMode(),
+            decryptGlobalSecret(settings.getEncryptedAiTavilyApiKey()),
+            decryptGlobalSecret(settings.getEncryptedAiBrightDataApiToken()),
+            decryptGlobalSecret(settings.getEncryptedAiBraveSearchApiKey()),
+            settings.getAiSearxngUrl(),
+            settings.getAiTavilyMcpServerLabel(),
+            settings.getAiBrightDataMcpServerLabel(),
+            settings.getAiBraveSearchMcpPluginId(),
+            settings.getAiSearxngMcpPluginId(),
+            settings.getAiLmStudioToolpackMcpPluginId());
+    }
+
+    private String decryptGlobalSecret(String encryptedValue) {
+        if (encryptedValue == null || encryptedValue.isBlank()) {
+            return null;
+        }
+        try {
+            char[] master = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+            if (master == null) {
+                return null;
+            }
+            EncryptionService encryptionService = new EncryptionService();
+            String decrypted = encryptionService.decryptPassword(encryptedValue, master);
+            return decrypted != null && !decrypted.isBlank() ? decrypted : null;
         } catch (Exception e) {
             return null;
         }

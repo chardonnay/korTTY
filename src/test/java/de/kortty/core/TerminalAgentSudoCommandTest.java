@@ -73,6 +73,42 @@ class TerminalAgentSudoCommandTest {
     }
 
     @Test
+    void requiresConfirmationForFileCreatingHereDocument() {
+        String command = """
+            cat > /home/daniel/find_xml.pl << 'EOF'
+            #!/usr/bin/perl
+            print if /\\.xml$/i;
+            EOF
+            """;
+
+        assertThat(TerminalAgentService.requiresConfirmationByCommandShape(command)).isTrue();
+    }
+
+    @Test
+    void requiresConfirmationForChmodCommand() {
+        assertThat(TerminalAgentService.requiresConfirmationByCommandShape("chmod +x /home/daniel/find_xml.pl")).isTrue();
+    }
+
+    @Test
+    void doesNotRequireConfirmationForReadOnlyFindCommand() {
+        assertThat(TerminalAgentService.requiresConfirmationByCommandShape("find . -name '*.xml' -type f -printf '%s %p\\n' | sort -nr | head")).isFalse();
+    }
+
+    @Test
+    void requestsApprovalWhenAnyCommandRequiresConfirmation() {
+        List<TerminalAgentModels.PlannedCommand> commands = List.of(
+            new TerminalAgentModels.PlannedCommand(
+                "cat > /home/daniel/find_xml.pl",
+                "Create script",
+                TerminalAgentModels.Risk.REQUIRES_CONFIRMATION));
+
+        assertThat(TerminalAgentService.shouldRequestApproval(
+            TerminalAgentService.AgentDecisionStatus.run_commands,
+            commands,
+            false)).isTrue();
+    }
+
+    @Test
     void promptsForPasswordWhenPlannerBlocksOnSudoPassword() {
         assertThat(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
             "Need sudo password to proceed with installation",

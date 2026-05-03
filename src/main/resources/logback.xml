@@ -17,7 +17,7 @@
         </encoder>
     </appender>
     
-    <logger name="de.kortty" level="DEBUG"/>
+    <logger name="de.kortty" level="INFO"/>
     <logger name="org.apache.sshd" level="WARN"/>
     <logger name="com.sithtermfx" level="WARN"/>
     <!-- Suppress known-harmless SithTermFX warnings: InsertMode not implemented, unhandled ESC[?1001s -->

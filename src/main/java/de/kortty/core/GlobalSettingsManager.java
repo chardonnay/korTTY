@@ -43,6 +43,8 @@ public class GlobalSettingsManager {
             JAXBContext context = JAXBContext.newInstance(
                 GlobalSettings.class,
                 de.kortty.model.AiProfile.class,
+                de.kortty.model.AiSkill.class,
+                de.kortty.model.AiSkillTarget.class,
                 de.kortty.model.ConnectionSettings.class,
                 de.kortty.model.WindowGeometry.class,
                 de.kortty.model.TeamworkSourceConfig.class,
@@ -68,6 +70,8 @@ public class GlobalSettingsManager {
         JAXBContext context = JAXBContext.newInstance(
             GlobalSettings.class,
             de.kortty.model.AiProfile.class,
+            de.kortty.model.AiSkill.class,
+            de.kortty.model.AiSkillTarget.class,
             de.kortty.model.ConnectionSettings.class,
             de.kortty.model.WindowGeometry.class,
             de.kortty.model.TeamworkSourceConfig.class,

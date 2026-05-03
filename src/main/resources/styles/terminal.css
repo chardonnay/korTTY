@@ -95,15 +95,17 @@
 /* Menu Bar */
 .menu-bar {
     -fx-background-color: #2d2d2d;
-    -fx-padding: 0;
+    -fx-padding: 2 8 2 8;
 }
 
 .menu-bar .menu {
     -fx-background-color: transparent;
+    -fx-padding: 5 9 5 9;
 }
 
 .menu-bar .menu .label {
     -fx-text-fill: #cccccc;
+    -fx-font-size: 13px;
 }
 
 .menu-bar .menu:hover,
@@ -156,6 +158,30 @@
 
 .button:default:hover {
     -fx-background-color: #0077dd;
+}
+
+/* Menu buttons */
+.menu-button {
+    -fx-background-color: #3d3d3d;
+    -fx-background-radius: 3;
+    -fx-padding: 0;
+}
+
+.menu-button:hover,
+.menu-button:showing {
+    -fx-background-color: #4d4d4d;
+}
+
+.menu-button:pressed {
+    -fx-background-color: #2d2d2d;
+}
+
+.menu-button .label {
+    -fx-text-fill: #cccccc;
+}
+
+.menu-button .arrow-button .arrow {
+    -fx-background-color: #cccccc;
 }
 
 /* Text Fields */

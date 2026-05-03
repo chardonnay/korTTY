@@ -71,6 +71,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
@@ -138,7 +139,14 @@ public class TerminalView extends BorderPane {
         void handle(@Nullable TerminalAgentRunContext runContext);
     }
 
-    public record TerminalAgentRunContext(@Nullable SithTermFxWidget widget, SshTtyConnector connector) {
+    public record TerminalAgentRunContext(
+        @Nullable SithTermFxWidget widget,
+        SshTtyConnector connector,
+        @Nullable String workingDirectory) {
+
+        public TerminalAgentRunContext(@Nullable SithTermFxWidget widget, SshTtyConnector connector) {
+            this(widget, connector, null);
+        }
     }
 
     private static final class TerminalAgentRunState {
@@ -481,16 +489,59 @@ public class TerminalView extends BorderPane {
         }
         TtyConnector connector = widget.getTtyConnector();
         if (connector instanceof SshTtyConnector sshConnector && sshConnector.isConnected()) {
-            return new TerminalAgentRunContext(widget, sshConnector);
+            return createTerminalAgentRunContext(widget, sshConnector, null);
         }
         return null;
     }
 
     private @Nullable TerminalAgentRunContext createTerminalAgentRunContext(SshTtyConnector connector) {
+        return createTerminalAgentRunContext(connector, null);
+    }
+
+    private @Nullable TerminalAgentRunContext createTerminalAgentRunContext(SshTtyConnector connector, @Nullable String workingDirectory) {
         if (connector == null || !connector.isConnected()) {
             return null;
         }
-        return new TerminalAgentRunContext(findWidgetForConnector(connector), connector);
+        return createTerminalAgentRunContext(findWidgetForConnector(connector), connector, workingDirectory);
+    }
+
+    private TerminalAgentRunContext createTerminalAgentRunContext(
+        @Nullable SithTermFxWidget widget,
+        SshTtyConnector connector,
+        @Nullable String workingDirectory) {
+
+        String promptDirectory = resolveWorkingDirectoryFromPrompt(widget, connector);
+        String directory = firstAbsolutePath(
+            workingDirectory,
+            promptDirectory,
+            connector.getCurrentRemoteDirectory());
+        return new TerminalAgentRunContext(widget, connector, directory);
+    }
+
+    private @Nullable String resolveWorkingDirectoryFromPrompt(@Nullable SithTermFxWidget widget, SshTtyConnector connector) {
+        try {
+            String screenLines = widget != null && widget.getTerminalTextBuffer() != null
+                ? widget.getTerminalTextBuffer().getScreenLines()
+                : "";
+            return extractWorkingDirectoryFromVisibleScreen(
+                screenLines,
+                connector != null ? connector.getHomeRemoteDirectory() : null);
+        } catch (Exception e) {
+            logger.debug("Failed to resolve working directory from terminal prompt: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private static String firstAbsolutePath(String... candidates) {
+        if (candidates == null) {
+            return null;
+        }
+        for (String candidate : candidates) {
+            if (candidate != null && candidate.startsWith("/")) {
+                return candidate;
+            }
+        }
+        return candidates.length > 0 ? candidates[candidates.length - 1] : null;
     }
 
     private @Nullable SithTermFxWidget findWidgetForConnector(SshTtyConnector connector) {
@@ -1642,19 +1693,22 @@ public class TerminalView extends BorderPane {
         String trimmed = bufferedCommand != null ? bufferedCommand.trim() : "";
         String commandName = getTerminalAgentCommandName();
         boolean caseInsensitiveCommandName = isTerminalAgentCommandNameCaseInsensitive();
-        if (TerminalAgentCommandSupport.parseShortcut(trimmed, commandName, caseInsensitiveCommandName) != null) {
-            return trimmed;
-        }
+        TerminalAgentCommandSupport.Invocation bufferedInvocation =
+            TerminalAgentCommandSupport.parseShortcut(trimmed, commandName, caseInsensitiveCommandName);
         try {
             String screenLines = widget != null && widget.getTerminalTextBuffer() != null
                 ? widget.getTerminalTextBuffer().getScreenLines()
                 : "";
-            String lastVisibleLine = extractLastVisibleLine(screenLines);
-            String visibleCommand = extractAgentShortcutFromVisibleLine(
-                lastVisibleLine,
+            String visibleCommand = extractAgentShortcutFromVisibleScreen(
+                screenLines,
                 commandName,
                 caseInsensitiveCommandName);
-            if (visibleCommand != null) {
+            if (visibleCommand != null && shouldUseVisibleAgentShortcut(
+                visibleCommand,
+                trimmed,
+                bufferedInvocation,
+                commandName,
+                caseInsensitiveCommandName)) {
                 return visibleCommand;
             }
         } catch (Exception e) {
@@ -1670,18 +1724,31 @@ public class TerminalView extends BorderPane {
         if (!isTerminalAgentShortcutEnabled() || terminalAgentShortcutHandler == null) {
             return;
         }
-        String character = event.getCharacter();
-        if (character == null || character.isEmpty()) {
+        if (!shouldBufferAgentShortcutKeyTyped(
+            event.getCharacter(),
+            event.isControlDown(),
+            event.isAltDown(),
+            event.isMetaDown())) {
             return;
+        }
+        agentShortcutBuffers.computeIfAbsent(widget, ignored -> new StringBuilder()).append(event.getCharacter());
+    }
+
+    static boolean shouldBufferAgentShortcutKeyTyped(
+        String character,
+        boolean controlDown,
+        boolean altDown,
+        boolean metaDown) {
+
+        if (controlDown || altDown || metaDown || character == null || character.isEmpty()) {
+            return false;
         }
         char first = character.charAt(0);
-        if (first == '\r' || first == '\n' || first == '\b' || first == 127) {
-            return;
-        }
-        if (first < 32) {
-            return;
-        }
-        agentShortcutBuffers.computeIfAbsent(widget, ignored -> new StringBuilder()).append(character);
+        return first != '\r'
+            && first != '\n'
+            && first != '\b'
+            && first != 127
+            && first >= 32;
     }
 
     private boolean canInterceptAgentShortcut(String rawCommand) {
@@ -1878,8 +1945,10 @@ public class TerminalView extends BorderPane {
             logger.debug("Ignoring unsupported terminal AI OSC payload kind='{}'", kind);
             return;
         }
+        String workingDirectory = SshTtyConnector.extractWorkingDirectoryFromAgentOscPayload(payload);
+        sourceConnector.updateCurrentRemoteDirectoryHint(workingDirectory);
         logger.debug("Received terminal AI OSC shortcut kind='{}'", kind);
-        TerminalAgentRunContext runContext = createTerminalAgentRunContext(sourceConnector);
+        TerminalAgentRunContext runContext = createTerminalAgentRunContext(sourceConnector, workingDirectory);
         Platform.runLater(() -> {
             TerminalAgentShortcutHandler handler = terminalAgentShortcutHandler;
             if (handler != null) {
@@ -1970,6 +2039,62 @@ public class TerminalView extends BorderPane {
         return null;
     }
 
+    static String extractAgentShortcutFromVisibleScreen(
+        String screenLines,
+        String commandName,
+        boolean caseInsensitiveCommandName) {
+
+        String normalized = screenLines != null
+            ? stripTerminalControlSequences(screenLines).replace("\r\n", "\n").replace('\r', '\n')
+            : "";
+        String[] lines = normalized.split("\n", -1);
+        for (int start = lines.length - 1; start >= 0; start--) {
+            StringBuilder candidate = new StringBuilder();
+            for (int index = start; index < lines.length; index++) {
+                String line = lines[index] != null ? lines[index].strip() : "";
+                if (line.isBlank()) {
+                    continue;
+                }
+                if (!candidate.isEmpty()) {
+                    candidate.append(' ');
+                }
+                candidate.append(line);
+            }
+            String command = extractAgentShortcutFromVisibleLine(
+                candidate.toString(),
+                commandName,
+                caseInsensitiveCommandName);
+            if (command != null) {
+                return command;
+            }
+        }
+        return null;
+    }
+
+    private static boolean shouldUseVisibleAgentShortcut(
+        String visibleCommand,
+        String bufferedCommand,
+        TerminalAgentCommandSupport.Invocation bufferedInvocation,
+        String commandName,
+        boolean caseInsensitiveCommandName) {
+
+        TerminalAgentCommandSupport.Invocation visibleInvocation =
+            TerminalAgentCommandSupport.parseShortcut(visibleCommand, commandName, caseInsensitiveCommandName);
+        if (visibleInvocation == null) {
+            return false;
+        }
+        if (bufferedInvocation == null) {
+            return true;
+        }
+        if (visibleCommand.trim().length() <= (bufferedCommand != null ? bufferedCommand.trim().length() : 0)) {
+            return false;
+        }
+        return visibleInvocation.kind() == bufferedInvocation.kind()
+            && Objects.equals(visibleInvocation.profileName(), bufferedInvocation.profileName())
+            && visibleInvocation.askConfirmationBeforeEveryCommand() == bufferedInvocation.askConfirmationBeforeEveryCommand()
+            && visibleInvocation.autoApproveRootCommands() == bufferedInvocation.autoApproveRootCommands();
+    }
+
     private static boolean startsWithAgentShortcut(
         String candidate,
         String commandName,
@@ -1996,13 +2121,79 @@ public class TerminalView extends BorderPane {
     }
 
     static String extractLastVisibleLine(String value) {
-        String normalized = value
+        String normalized = stripTerminalControlSequences(value)
             .replace("\r\n", "\n")
-            .replace('\r', '\n')
-            .replaceAll("\\u001B\\[[;?0-9]*[ -/]*[@-~]", "")
-            .replaceAll("\\u001B\\].*?(\\u0007|\\u001B\\\\)", "");
+            .replace('\r', '\n');
         int index = normalized.lastIndexOf('\n');
         return index >= 0 ? normalized.substring(index + 1).trim() : normalized.trim();
+    }
+
+    private static String stripTerminalControlSequences(String value) {
+        return (value != null ? value : "")
+            .replaceAll("\\u001B\\[[;?0-9]*[ -/]*[@-~]", "")
+            .replaceAll("\\u001B\\].*?(\\u0007|\\u001B\\\\)", "");
+    }
+
+    static @Nullable String extractWorkingDirectoryFromPromptLine(String line, String homeDirectory) {
+        String normalized = line != null ? line.stripTrailing() : "";
+        String prompt = extractPromptPrefixFromVisibleLine(normalized);
+        if (prompt.isBlank()) {
+            return null;
+        }
+        String beforePrompt = prompt.substring(0, prompt.length() - 1).stripTrailing();
+        int separator = beforePrompt.lastIndexOf(':');
+        if (separator < 0 || separator + 1 >= beforePrompt.length()) {
+            return null;
+        }
+        String candidate = beforePrompt.substring(separator + 1).strip();
+        if (candidate.isBlank()) {
+            return null;
+        }
+        if (candidate.startsWith("/")) {
+            return candidate;
+        }
+        if ("~".equals(candidate)) {
+            return homeDirectory != null && homeDirectory.startsWith("/") ? homeDirectory : null;
+        }
+        if (candidate.startsWith("~/")) {
+            return homeDirectory != null && homeDirectory.startsWith("/")
+                ? homeDirectory + candidate.substring(1)
+                : null;
+        }
+        return null;
+    }
+
+    static @Nullable String extractWorkingDirectoryFromVisibleScreen(String screenLines, String homeDirectory) {
+        String normalized = screenLines != null
+            ? screenLines.replace("\r\n", "\n").replace('\r', '\n')
+            : "";
+        String[] lines = normalized.split("\n", -1);
+        for (int i = lines.length - 1; i >= 0; i--) {
+            String directory = extractWorkingDirectoryFromPromptLine(lines[i], homeDirectory);
+            if (directory != null) {
+                return directory;
+            }
+        }
+        return null;
+    }
+
+    private static String extractPromptPrefixFromVisibleLine(String normalizedLine) {
+        if (normalizedLine == null || normalizedLine.isBlank()) {
+            return "";
+        }
+        if (looksLikeShellPrompt(normalizedLine)) {
+            return normalizedLine;
+        }
+        for (int i = normalizedLine.length() - 2; i >= 0; i--) {
+            char ch = normalizedLine.charAt(i);
+            if ((ch == '$' || ch == '#' || ch == '%' || ch == '>') && Character.isWhitespace(normalizedLine.charAt(i + 1))) {
+                String candidate = normalizedLine.substring(0, i + 1).stripTrailing();
+                if (looksLikeShellPrompt(candidate)) {
+                    return candidate;
+                }
+            }
+        }
+        return "";
     }
 
     private static boolean looksLikeShellPrompt(String line) {
@@ -2040,7 +2231,7 @@ public class TerminalView extends BorderPane {
             + "python3 -c 'import base64,sys;print(base64.b64encode(\" \".join(sys.argv[1:]).encode()).decode(), end=\"\")' \"$@\"; "
             + "else printf ''; fi; }; "
             + "__kortty_agent_emit(){ __kortty_kind=$1; shift; "
-            + "__kortty_cwd=$(pwd -P 2>/dev/null || pwd 2>/dev/null || printf ''); "
+            + "case ${PWD-} in /*) __kortty_cwd=$PWD;; *) __kortty_cwd=$(pwd -P 2>/dev/null || pwd 2>/dev/null || printf '');; esac; "
             + "__kortty_cwd_payload=$(__kortty_agent_b64 \"$__kortty_cwd\"); "
             + "__kortty_payload=$(__kortty_agent_b64 \"$@\"); "
             + "printf '\\033]777;korTTY-agent;%s;%s;%s\\007' \"$__kortty_kind\" \"$__kortty_cwd_payload\" \"$__kortty_payload\"; }; "
@@ -2205,10 +2396,6 @@ public class TerminalView extends BorderPane {
                 rawCommand,
                 commandName,
                 caseInsensitiveCommandName);
-            logger.debug(
-                "Terminal AI input filter saw line break (bufferLength={}, recognized={})",
-                inputLine.length(),
-                recognized);
             inputLine.setLength(0);
             escapePending = false;
             escapeSequence = false;

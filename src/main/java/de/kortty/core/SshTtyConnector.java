@@ -617,7 +617,6 @@ public class SshTtyConnector implements TtyConnector {
     public void write(byte[] bytes) throws IOException {
         if (connected.get() && outputStream != null) {
             synchronized (outputWriteLock) {
-                logOutboundLineBreakBeforeInterceptor(bytes);
                 byte[] bytesToWrite = applyInputInterceptor(bytes);
                 if (bytesToWrite == null || bytesToWrite.length == 0) {
                     return;
@@ -660,7 +659,6 @@ public class SshTtyConnector implements TtyConnector {
         if (channel != null && channel.isOpen()) {
             try {
                 channel.sendWindowChange(termSize.getColumns(), termSize.getRows());
-                logger.debug("Resized terminal to {}x{}", termSize.getColumns(), termSize.getRows());
             } catch (Exception e) {
                 logger.warn("Failed to resize terminal: {}", e.getMessage());
             }
@@ -723,6 +721,18 @@ public class SshTtyConnector implements TtyConnector {
     public String getCurrentRemoteDirectory() {
         synchronized (directoryLock) {
             return currentRemoteDirectory;
+        }
+    }
+
+    public String getHomeRemoteDirectory() {
+        synchronized (directoryLock) {
+            return homeRemoteDirectory;
+        }
+    }
+
+    public void updateCurrentRemoteDirectoryHint(String directory) {
+        if (directory != null && directory.startsWith("/")) {
+            setCurrentRemoteDirectory(directory);
         }
     }
 
@@ -925,30 +935,6 @@ public class SshTtyConnector implements TtyConnector {
         logger.debug("Wrote SSH shell startup command");
     }
 
-    private void logOutboundLineBreakBeforeInterceptor(byte[] bytes) {
-        if (!logger.isDebugEnabled() || inputInterceptor == null || bytes == null || bytes.length == 0) {
-            return;
-        }
-        boolean hasLineBreak = false;
-        for (byte b : bytes) {
-            if (b == '\r' || b == '\n') {
-                hasLineBreak = true;
-                break;
-            }
-        }
-        if (!hasLineBreak) {
-            return;
-        }
-        int bufferedLength;
-        synchronized (inputLineBuffer) {
-            bufferedLength = inputLineBuffer.length();
-        }
-        logger.debug(
-            "SSH outbound line break before AI filter (bufferLength={}, hasLineBreak={})",
-            bufferedLength,
-            hasLineBreak);
-    }
-
     private void processInputLine(String inputLine) {
         String segment = firstCommandSegment(inputLine);
         if (segment.isEmpty()) {
@@ -1107,7 +1093,7 @@ public class SshTtyConnector implements TtyConnector {
         return result.toString();
     }
 
-    static String extractWorkingDirectoryFromAgentOscPayload(String payload) {
+    public static String extractWorkingDirectoryFromAgentOscPayload(String payload) {
         if (payload == null || payload.isBlank()) {
             return null;
         }
