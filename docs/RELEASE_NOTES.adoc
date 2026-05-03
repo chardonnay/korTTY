@@ -13,7 +13,7 @@
 * *Activity row actions*: Each activity row can be copied to the clipboard or opened in the Snippet Editor. Snippet handoff removes leading activity quote markers (`>`) from copied row text.
 * *Activity export*: Completed terminal-agent runs can be exported for the current run or the full panel history as Markdown, plain text, YAML, XML, JSON, PDF, or Asciidoctor, including AI profile, model/LLM, reasoning status, run timestamps, runtimes, token usage, summaries, and detail text. Leading activity quote markers (`>`) are removed automatically, and export progress is reported in the panel status instead of a success dialog.
 * *Terminal input lock*: While a terminal agent run is active, regular terminal input is blocked for that split. *Esc*, *Ctrl+C*, and the panel cancel button abort that run.
-* *Current-directory aware runs*: Terminal shortcut commands now capture the active remote directory with `pwd -P` and pass it to the agent, so relative commands and generated files run in the directory where the user started the task.
+* *Current-directory aware runs*: Terminal shortcut commands now use KorTTY's tracked active remote directory, so relative commands and generated files run in the directory where the user started the task.
 * *Sudo prompt handling*: When sudo access is required, the agent panel can ask for a masked sudo password, submit it with *Enter* or the button, allow up to three wrong-password retries, and reuse it for the current session. Unsupported interactive sudo modes are rejected instead of hanging the terminal.
 * *Terminal final output*: Final terminal-agent answers are written into the terminal transcript, while the activity panel remains available for detailed execution state.
 
@@ -52,7 +52,7 @@
 
 * Fixed terminal shortcut handling so `agent`, `agent-ask`, `agent-plan`, and `agent -plan` are intercepted by KorTTY instead of reaching the remote shell as unknown commands.
 * Fixed terminal-agent bootstrap text appearing in the terminal after SSH login.
-* Fixed duplicate prompt artifacts and startup alias leakage in shell history after reconnecting to an SSH session.
+* Fixed duplicate prompt artifacts after connecting or reconnecting to an SSH session.
 * Fixed incomplete or status-bar-only terminal-agent output by routing the final answer back into the terminal area.
 * Fixed activity-panel usability issues around auto-scroll, closing, resizing, collapsed-state status, and visible busy indication.
 * Fixed planning-tab contrast, font scaling, button placement, final-plan enablement, and rejected too-many-commands errors when starting an accepted plan.

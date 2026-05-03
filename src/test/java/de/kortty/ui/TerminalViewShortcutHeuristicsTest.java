@@ -90,7 +90,7 @@ class TerminalViewShortcutHeuristicsTest {
         assertThat(startup.contains("__kortty_agent_clean_history")).isTrue();
         assertThat(startup.contains("history -d \"$__kortty_h\"")).isTrue();
         assertThat(startup.contains("awk 'index($0,\"__kortty_agent_b64(){\")==0' \"$HISTFILE\"")).isTrue();
-        assertThat(startup.contains("printf '\\r\\033[K'")).isTrue();
+        assertThat(startup.contains("printf '" + de.kortty.core.SshTtyConnector.SHELL_STARTUP_CLEANUP_MARKER_SHELL_LITERAL + "\\r\\033[K'")).isTrue();
         assertThat(startup.contains("stty echo")).isTrue();
         assertThat(startup.substring(0, startup.length() - 1).contains("\n")).isFalse();
     }

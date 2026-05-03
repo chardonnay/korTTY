@@ -817,7 +817,7 @@ agent-plan <task>
 agent -plan <task>
 ----
 
-The base command name is configurable. A separate setting can make the command name case-insensitive. KorTTY installs the shortcuts as shell aliases and emits a hidden terminal marker instead of sending the command to the remote shell as a normal executable.
+The base command name is configurable. A separate setting can make the command name case-insensitive. KorTTY intercepts these shortcuts locally before they are sent to the remote shell as normal executables.
 
 For terminal-targeted agent runs, the inline activity panel at the bottom of the current terminal split shows the current task in a two-line scrollable field, token usage when reported by the endpoint, command/read actions, collapsible details, previous/next run navigation, rerun, close, collapse, resize, font controls, export controls, and a cancel button. Different splits can run their own terminal-agent tasks in parallel. While an agent is running, normal terminal input is locked for that split; *Esc*, *Ctrl+C*, or the panel cancel button aborts that run.
 
@@ -829,7 +829,7 @@ Each activity row also has actions to copy that row's text to the clipboard or o
 
 Planning mode is advisory until implementation starts. It asks clarifying questions, can evaluate selected answers or a custom approach, generates a final plan report, and only switches to execution after *Implement*. If the accepted plan needs sudo and the current SSH session requires a sudo password, KorTTY performs the password preflight immediately after acceptance so execution is not interrupted later by the password prompt.
 
-The shell shortcut captures the current remote directory with `pwd -P` and sends it to KorTTY. Agent commands then run relative to that directory, so generated files are created where the user is currently working on the server. If sudo is required, KorTTY asks for the password in the activity panel with a masked input field instead of echoing it in the terminal. The password prompt can be submitted with *Enter* or the button, can be cached for the current session, and allows up to three wrong-password retries.
+KorTTY tracks the current remote directory for the active SSH session. Agent commands then run relative to that directory, so generated files are created where the user is currently working on the server. If sudo is required, KorTTY asks for the password in the activity panel with a masked input field instead of echoing it in the terminal. The password prompt can be submitted with *Enter* or the button, can be cached for the current session, and allows up to three wrong-password retries.
 
 == SFTP Manager
 

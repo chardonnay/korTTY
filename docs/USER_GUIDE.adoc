@@ -347,7 +347,7 @@ KorTTY also supports agent-style workflows for an active terminal session.
 * *Split-local activity panel* - Terminal-targeted runs appear at the bottom of the terminal split where the run was started. Each split has its own panel, so different splits can run their own agent tasks in parallel.
 * *Panel content* - The panel shows the user prompt in a two-line scrollable field, agent messages, read/run actions, task timing, reported token usage, semantic activity markers, collapsible details, per-row copy/snippet actions, previous/next run navigation, rerun, close, collapse/expand, resize, font-size controls, and export controls.
 * *Input lock and cancel* - While the agent is active, normal terminal input is blocked for that terminal split. Press *Esc*, press *Ctrl+C*, or use the panel cancel button to abort the run.
-* *Current directory* - Terminal shortcut runs capture the current remote directory with `pwd -P` and pass it to the agent. Commands and generated files are executed relative to that directory.
+* *Current directory* - Terminal shortcut runs use KorTTY's tracked current remote directory. Commands and generated files are executed relative to that directory.
 * *Approvals and sudo* - The agent can request explicit approval before command execution and can ask for a sudo password in the activity panel. Password input is masked, can be submitted with *Enter*, and allows up to three wrong-password retries. If a password is cached, it is used only for the current agent/session context. After accepting a planning report, KorTTY checks sudo before starting implementation when the current SSH session requires a sudo password.
 * *Terminal output* - Final terminal-agent answers are written back to the terminal area so the shell transcript contains the answer, not only the activity panel state.
 * *Transcripts* - Dedicated agent and planning tabs can copy and save their transcript.
@@ -367,7 +367,7 @@ agent -plan <task>
 
 The base command name is configurable in *Settings > AI*. If you rename `agent`, KorTTY derives the matching `-ask` and `-plan` commands automatically. The same settings page can make the command name case-insensitive and can disable the per-run setup dialog; when the dialog is disabled, KorTTY uses the configured default profile.
 
-KorTTY installs these shortcuts as shell aliases that emit a hidden `OSC 777` marker back to the application. The marker includes the requested agent mode, the user text, and the current remote directory from `pwd -P`. The startup alias itself is removed from Bash history after installation, while user-entered agent commands remain available in shell history.
+KorTTY intercepts these shortcuts locally before they are sent to the remote shell as normal executables. User-entered agent commands remain available in shell history.
 
 The terminal activity panel can be adjusted during use:
 

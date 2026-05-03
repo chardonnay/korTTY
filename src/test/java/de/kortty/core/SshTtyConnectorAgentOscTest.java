@@ -90,4 +90,30 @@ class SshTtyConnectorAgentOscTest {
 
         assertThat(SshTtyConnector.extractWorkingDirectoryFromAgentOscPayload("execute;" + cwd + ";" + prompt)).isNull();
     }
+
+    @Test
+    void removesStartupPromptLineBeforeCleanupMarker() {
+        String output = "Activate the web console\r\n"
+            + "Last login: Thu Apr 30 16:29:21 2026 from 10.211.55.2\r\n"
+            + "daniel@fedora:~$ \r\n";
+
+        assertThat(SshTtyConnector.removeShellStartupPromptBeforeCleanup(output))
+            .isEqualTo("Activate the web console\r\n"
+                + "Last login: Thu Apr 30 16:29:21 2026 from 10.211.55.2\r\n");
+    }
+
+    @Test
+    void keepsLeadingTerminalControlSequenceWhenRemovingStartupPrompt() {
+        String output = "Last login\r\n\u001B[?1034hdaniel@fedora:~$ ";
+
+        assertThat(SshTtyConnector.removeShellStartupPromptBeforeCleanup(output))
+            .isEqualTo("Last login\r\n\u001B[?1034h");
+    }
+
+    @Test
+    void keepsStartupOutputWhenLastLineIsNotPrompt() {
+        String output = "Activate the web console\r\nLast login: Thu Apr 30 16:29:21 2026";
+
+        assertThat(SshTtyConnector.removeShellStartupPromptBeforeCleanup(output)).isEqualTo(output);
+    }
 }

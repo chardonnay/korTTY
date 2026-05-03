@@ -1046,9 +1046,6 @@ public class TerminalView extends BorderPane {
                     );
                 }
             }
-            if (isTerminalAgentShortcutEnabled()) {
-                sshConnector.setShellStartupCommand(buildTerminalAgentShellStartupCommand(getTerminalAgentCommandName()));
-            }
             installAgentShortcutInputInterceptor(null, sshConnector);
             connector = sshConnector;
         }
@@ -2061,7 +2058,7 @@ public class TerminalView extends BorderPane {
             + "&& cat \"$__kortty_hist_tmp\" > \"$HISTFILE\"; rm -f \"$__kortty_hist_tmp\"; fi; "
             + "fi; }; "
             + "__kortty_agent_clean_history; unset -f __kortty_agent_clean_history; "
-            + "printf '\\r\\033[K'; "
+            + "printf '" + SshTtyConnector.SHELL_STARTUP_CLEANUP_MARKER_SHELL_LITERAL + "\\r\\033[K'; "
             + "stty echo\n";
     }
 

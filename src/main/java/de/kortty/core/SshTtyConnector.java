@@ -34,6 +34,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 /**
  * TtyConnector implementation for SSH connections using Apache MINA SSHD.
@@ -42,6 +43,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SshTtyConnector implements TtyConnector {
     
     private static final Logger logger = LoggerFactory.getLogger(SshTtyConnector.class);
+    public static final String SHELL_STARTUP_CLEANUP_MARKER = "\u001B]777;korTTY-startup-cleanup\u0007";
+    public static final String SHELL_STARTUP_CLEANUP_MARKER_SHELL_LITERAL =
+        "\\033]777;korTTY-startup-cleanup\\007";
+    private static final int MAX_SHELL_STARTUP_BUFFER_LENGTH = 65536;
+    private static final Pattern TERMINAL_CONTROL_SEQUENCE_PATTERN = Pattern.compile(
+        "\u001B\\[[;?0-9]*[ -/]*[@-~]|\u001B\\].*?(\u0007|\u001B\\\\)");
     
     private final ServerConnection connection;
     private final String password;
@@ -58,12 +65,15 @@ public class SshTtyConnector implements TtyConnector {
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final Charset charset = StandardCharsets.UTF_8;
     private final Object outputWriteLock = new Object();
+    private final StringBuilder pendingReadBuffer = new StringBuilder();
+    private final StringBuilder shellStartupOutputBuffer = new StringBuilder();
     
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
     private final CopyOnWriteArrayList<DataListener> dataListeners = new CopyOnWriteArrayList<>();
     private volatile InputInterceptor inputInterceptor;
     private volatile String shellStartupCommand;
+    private volatile boolean shellStartupCleanupPending;
     private volatile String currentRemoteDirectory = "~";
     private volatile String homeRemoteDirectory = "~";
     private volatile String previousRemoteDirectory = "~";
@@ -433,23 +443,174 @@ public class SshTtyConnector implements TtyConnector {
         if (!connected.get() || reader == null) {
             return -1;
         }
-        int count = reader.read(buf, offset, length);
-        
-        // Notify listener of received data
-        if (count > 0) {
-            String data = new String(buf, offset, count);
-            updateCurrentDirectoryFromOutput(data);
-            for (DataListener dataListener : dataListeners) {
-                try {
-                    dataListener.onData(data);
-                } catch (Exception e) {
-                    // Don't let listener errors break the connection
-                    logger.warn("Data listener error: {}", e.getMessage());
-                }
+        while (true) {
+            int pendingCount = drainPendingReadBuffer(buf, offset, length);
+            if (pendingCount > 0) {
+                notifyDataRead(new String(buf, offset, pendingCount));
+                return pendingCount;
+            }
+
+            int count = reader.read(buf, offset, length);
+            if (count <= 0) {
+                return count;
+            }
+
+            String data = filterShellStartupOutput(new String(buf, offset, count));
+            if (data.isEmpty()) {
+                continue;
+            }
+
+            int copied = copyReadData(data, buf, offset, length);
+            if (copied > 0) {
+                notifyDataRead(new String(buf, offset, copied));
+                return copied;
             }
         }
-        
-        return count;
+    }
+
+    private int drainPendingReadBuffer(char[] buf, int offset, int length) {
+        synchronized (pendingReadBuffer) {
+            if (pendingReadBuffer.isEmpty()) {
+                return 0;
+            }
+            int count = Math.min(length, pendingReadBuffer.length());
+            pendingReadBuffer.getChars(0, count, buf, offset);
+            pendingReadBuffer.delete(0, count);
+            return count;
+        }
+    }
+
+    private int copyReadData(String data, char[] buf, int offset, int length) {
+        int copied = Math.min(length, data.length());
+        data.getChars(0, copied, buf, offset);
+        if (copied < data.length()) {
+            synchronized (pendingReadBuffer) {
+                pendingReadBuffer.append(data, copied, data.length());
+            }
+        }
+        return copied;
+    }
+
+    private void notifyDataRead(String data) {
+        updateCurrentDirectoryFromOutput(data);
+        for (DataListener dataListener : dataListeners) {
+            try {
+                dataListener.onData(data);
+            } catch (Exception e) {
+                // Don't let listener errors break the connection
+                logger.warn("Data listener error: {}", e.getMessage());
+            }
+        }
+    }
+
+    private String filterShellStartupOutput(String data) {
+        if (!shellStartupCleanupPending || data == null || data.isEmpty()) {
+            return data != null ? data : "";
+        }
+
+        synchronized (shellStartupOutputBuffer) {
+            shellStartupOutputBuffer.append(data);
+            int markerStart = shellStartupOutputBuffer.indexOf(SHELL_STARTUP_CLEANUP_MARKER);
+            if (markerStart < 0) {
+                if (shellStartupOutputBuffer.length() <= MAX_SHELL_STARTUP_BUFFER_LENGTH) {
+                    return "";
+                }
+                String buffered = shellStartupOutputBuffer.toString();
+                shellStartupOutputBuffer.setLength(0);
+                shellStartupCleanupPending = false;
+                logger.warn("SSH shell startup cleanup marker was not received before buffer limit");
+                return buffered;
+            }
+
+            String beforeMarker = shellStartupOutputBuffer.substring(0, markerStart);
+            String afterMarker = shellStartupOutputBuffer.substring(markerStart + SHELL_STARTUP_CLEANUP_MARKER.length());
+            shellStartupOutputBuffer.setLength(0);
+            shellStartupCleanupPending = false;
+            return removeShellStartupPromptBeforeCleanup(beforeMarker) + afterMarker;
+        }
+    }
+
+    static String removeShellStartupPromptBeforeCleanup(String outputBeforeCleanup) {
+        if (outputBeforeCleanup == null || outputBeforeCleanup.isEmpty()) {
+            return "";
+        }
+
+        int promptEnd = outputBeforeCleanup.length();
+        while (promptEnd > 0) {
+            char ch = outputBeforeCleanup.charAt(promptEnd - 1);
+            if (ch != '\r' && ch != '\n') {
+                break;
+            }
+            promptEnd--;
+        }
+
+        int promptStart = lastLineStart(outputBeforeCleanup, promptEnd);
+        String promptLine = outputBeforeCleanup.substring(promptStart, promptEnd);
+        if (!looksLikeShellPrompt(promptLine)) {
+            return outputBeforeCleanup;
+        }
+
+        int visibleStart = leadingTerminalControlSequenceLength(promptLine);
+        return outputBeforeCleanup.substring(0, promptStart)
+            + promptLine.substring(0, visibleStart);
+    }
+
+    private static int lastLineStart(String text, int endExclusive) {
+        int lastCarriageReturn = text.lastIndexOf('\r', Math.max(0, endExclusive - 1));
+        int lastLineFeed = text.lastIndexOf('\n', Math.max(0, endExclusive - 1));
+        return Math.max(lastCarriageReturn, lastLineFeed) + 1;
+    }
+
+    private static boolean looksLikeShellPrompt(String line) {
+        String visible = TERMINAL_CONTROL_SEQUENCE_PATTERN.matcher(line).replaceAll("").stripTrailing();
+        return visible.endsWith("$")
+            || visible.endsWith("#")
+            || visible.endsWith("%")
+            || visible.endsWith(">")
+            || visible.matches(".*\\[[^\\]]+\\]\\$");
+    }
+
+    private static int leadingTerminalControlSequenceLength(String line) {
+        int index = 0;
+        while (index < line.length()) {
+            if (line.charAt(index) != '\u001B') {
+                break;
+            }
+            int end = terminalControlSequenceEnd(line, index);
+            if (end <= index) {
+                break;
+            }
+            index = end;
+        }
+        return index;
+    }
+
+    private static int terminalControlSequenceEnd(String text, int start) {
+        if (start + 1 >= text.length()) {
+            return -1;
+        }
+        char type = text.charAt(start + 1);
+        if (type == '[') {
+            for (int i = start + 2; i < text.length(); i++) {
+                char ch = text.charAt(i);
+                if (ch >= '@' && ch <= '~') {
+                    return i + 1;
+                }
+            }
+            return -1;
+        }
+        if (type == ']') {
+            int bellEnd = text.indexOf('\u0007', start + 2);
+            int stEnd = text.indexOf("\u001B\\", start + 2);
+            if (bellEnd < 0) {
+                return stEnd >= 0 ? stEnd + 2 : -1;
+            }
+            if (stEnd < 0 || bellEnd < stEnd) {
+                return bellEnd + 1;
+            }
+            return stEnd + 2;
+        }
+        return start + 2;
     }
     
     @Override
@@ -756,6 +917,8 @@ public class SshTtyConnector implements TtyConnector {
         }
         String commandWithNewline = command.endsWith("\n") ? command : command + "\n";
         synchronized (outputWriteLock) {
+            shellStartupCleanupPending = command.contains(SHELL_STARTUP_CLEANUP_MARKER)
+                || command.contains(SHELL_STARTUP_CLEANUP_MARKER_SHELL_LITERAL);
             outputStream.write(commandWithNewline.getBytes(charset));
             outputStream.flush();
         }
