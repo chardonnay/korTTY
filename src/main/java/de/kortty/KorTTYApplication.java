@@ -14,6 +14,7 @@ import de.kortty.core.BackupManager;
 import de.kortty.core.AiChatManager;
 import de.kortty.teamwork.TeamworkSyncService;
 import de.kortty.teamwork.TeamworkRecycleBinService;
+import de.kortty.jobscheduler.JobSchedulerService;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.jmx.SSHClientMonitor;
@@ -63,6 +64,7 @@ public class KorTTYApplication extends Application {
     private AiChatManager aiChatManager;
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
+    private JobSchedulerService jobSchedulerService;
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
     
@@ -201,6 +203,9 @@ public class KorTTYApplication extends Application {
                 
                 // Initialize BackupManager after settings are loaded
                 backupManager = new BackupManager(getConfigDirectory(), globalSettingsManager.getSettings());
+                jobSchedulerService = new JobSchedulerService(this, getConfigDirectory());
+                jobSchedulerService.load();
+                jobSchedulerService.start();
             } catch (Exception e) {
                 logger.warn("Failed to load GPG keys or credentials", e);
             }
@@ -285,6 +290,9 @@ public class KorTTYApplication extends Application {
             }
             if (teamworkSyncService != null) {
                 teamworkSyncService.stop();
+            }
+            if (jobSchedulerService != null) {
+                jobSchedulerService.shutdownSchedulerThreads();
             }
         } catch (Exception e) {
             logger.error("Failed to save GPG keys or credentials", e);
@@ -491,5 +499,9 @@ public class KorTTYApplication extends Application {
     
     public SnippetVariableManager getSnippetVariableManager() {
         return snippetVariableManager;
+    }
+
+    public JobSchedulerService getJobSchedulerService() {
+        return jobSchedulerService;
     }
 }

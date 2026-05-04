@@ -23,6 +23,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private final Deque<MoveOperation> moveHistory = new ArrayDeque<>();
     private TreeItem<ConnectionTreeItem.ItemData> originalRoot;
     private Predicate<ServerConnection> currentSearchPredicate = null;
+    private boolean selectionOnly;
     
     // Callbacks
     private Consumer<GroupPath> onCreateGroup;
@@ -45,6 +46,12 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         setupDragAndDrop();
         setCellFactory();
         setContextMenu(createEmptyAreaContextMenu());
+    }
+
+    public void setSelectionOnly(boolean selectionOnly) {
+        this.selectionOnly = selectionOnly;
+        setContextMenu(selectionOnly ? null : createEmptyAreaContextMenu());
+        setCellFactory();
     }
     
     /**
@@ -345,7 +352,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                     
                     if (item.isGroup()) {
                         setText("📁 " + item.getDisplayName());
-                        setContextMenu(createGroupContextMenu(item.getGroupPath()));
+                        if (!selectionOnly) {
+                            setContextMenu(createGroupContextMenu(item.getGroupPath()));
+                        }
                     } else if (item.getConnection() != null) {
                         if (item.getConnection().isPlaceholder()) {
                             setText("└─ " + item.getDisplayName());
@@ -353,7 +362,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                             setFont(Font.font(getFont().getFamily(), 10));
                         } else {
                             setText("🔌 " + item.getDisplayName());
-                            setContextMenu(createConnectionContextMenu());
+                            if (!selectionOnly) {
+                                setContextMenu(createConnectionContextMenu());
+                            }
                         }
                     }
                 }
@@ -377,6 +388,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             
             // Drag detected (only for non-placeholder connections)
             cell.setOnDragDetected(event -> {
+                if (selectionOnly) {
+                    return;
+                }
                 if (!cell.isEmpty() && cell.getItem() != null && 
                     !cell.getItem().isGroup() && 
                     cell.getItem().getConnection() != null &&
@@ -392,6 +406,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             
             // Drag over (only on groups)
             cell.setOnDragOver(event -> {
+                if (selectionOnly) {
+                    return;
+                }
                 if (event.getGestureSource() != cell && 
                     event.getDragboard().hasString() &&
                     cell.getItem() != null && 
@@ -403,6 +420,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             
             // Drag dropped
             cell.setOnDragDropped(event -> {
+                if (selectionOnly) {
+                    return;
+                }
                 Dragboard db = event.getDragboard();
                 boolean success = false;
                 

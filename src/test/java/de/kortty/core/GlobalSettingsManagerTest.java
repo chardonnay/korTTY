@@ -371,6 +371,46 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void jobSchedulerMenuStatusDefaultsToTrueAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-job-scheduler-menu-status");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().isJobSchedulerMenuStatusEnabled()).isTrue();
+
+            manager.getSettings().setJobSchedulerMenuStatusEnabled(false);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().isJobSchedulerMenuStatusEnabled()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void jobSchedulerRsyncBinaryPathDefaultsToPathLookupAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-job-scheduler-rsync");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getJobSchedulerRsyncBinaryPath()).isNull();
+
+            manager.getSettings().setJobSchedulerRsyncBinaryPath(" /opt/homebrew/bin/rsync ");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getJobSchedulerRsyncBinaryPath()).isEqualTo("/opt/homebrew/bin/rsync");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void snippetAiSettingsDefaultAndClampToExpectedRange() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-snippet-ai");
         try {

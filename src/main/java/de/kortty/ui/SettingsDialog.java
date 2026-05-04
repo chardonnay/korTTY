@@ -235,6 +235,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Spinner<Integer> sftpAutoCloseMinutesSpinner;
     private final TextField sftpDefaultZipPathField;
     private final Spinner<Integer> sftpDefaultZipCompressionSpinner;
+    private final TextField jobSchedulerRsyncBinaryPathField;
     
     // Editor settings
     private final ComboBox<String> editorCursorStyleCombo;
@@ -1547,6 +1548,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         zipInfo.setWrapText(true);
         zipInfo.setMaxWidth(400);
         sftpGrid.add(zipInfo, 0, sftpRow++, 2, 1);
+
+        sftpGrid.add(new Separator(), 0, sftpRow++, 2, 1);
+
+        Label rsyncTitle = new Label(I18n.get("settings.sftp.rsyncTitle"));
+        rsyncTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        sftpGrid.add(rsyncTitle, 0, sftpRow++, 2, 1);
+
+        Label rsyncBinaryLabel = new Label(I18n.get("settings.sftp.rsyncBinaryPath"));
+        jobSchedulerRsyncBinaryPathField = new TextField(globalSettings.getJobSchedulerRsyncBinaryPath());
+        jobSchedulerRsyncBinaryPathField.setPromptText("rsync");
+        jobSchedulerRsyncBinaryPathField.setPrefWidth(320);
+        Button rsyncBinaryBrowseButton = new Button(I18n.get("connEdit.browse"));
+        rsyncBinaryBrowseButton.setOnAction(event -> selectRsyncBinaryPath());
+        HBox rsyncBinaryBox = new HBox(10, rsyncBinaryLabel, jobSchedulerRsyncBinaryPathField, rsyncBinaryBrowseButton);
+        HBox.setHgrow(jobSchedulerRsyncBinaryPathField, Priority.ALWAYS);
+        sftpGrid.add(rsyncBinaryBox, 0, sftpRow++, 2, 1);
+
+        Label rsyncInfo = new Label(I18n.get("settings.sftp.rsyncInfo"));
+        rsyncInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        rsyncInfo.setWrapText(true);
+        rsyncInfo.setMaxWidth(400);
+        sftpGrid.add(rsyncInfo, 0, sftpRow++, 2, 1);
         
         sftpTab.setContent(sftpGrid);
         
@@ -2051,6 +2074,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             String zipPath = sftpDefaultZipPathField.getText().trim();
             globalSettings.setSftpDefaultZipPath(zipPath.isEmpty() ? "/tmp" : zipPath);
             globalSettings.setSftpDefaultZipCompression(sftpDefaultZipCompressionSpinner.getValue());
+            globalSettings.setJobSchedulerRsyncBinaryPath(jobSchedulerRsyncBinaryPathField.getText());
             
             // Save Editor settings
             globalSettings.setEditorCursorStyle(editorCursorStyleCombo.getValue());
@@ -2868,6 +2892,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             loadAiSkillIntoEditor(null);
         }
         aiSkillListView.refresh();
+    }
+
+    private void selectRsyncBinaryPath() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.get("settings.sftp.rsyncBinaryChoose"));
+        File selected = chooser.showOpenDialog(getDialogPane().getScene().getWindow());
+        if (selected != null) {
+            jobSchedulerRsyncBinaryPathField.setText(selected.getAbsolutePath());
+        }
     }
 
     private void importAiSkills() {

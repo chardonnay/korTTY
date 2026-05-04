@@ -49,6 +49,12 @@ public class GlobalSettings {
 
     @XmlElement
     private boolean showMenuBar = true; // Show the main menu bar inside the window
+
+    @XmlElement
+    private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
+
+    @XmlElement
+    private String jobSchedulerRsyncBinaryPath; // Optional rsync binary path; blank means PATH lookup
     
     @XmlElement
     private double dashboardDividerPosition = 0.2; // Last dashboard divider position (0.0-1.0)
@@ -329,6 +335,10 @@ public class GlobalSettings {
     /** Last window geometry of the alternative snippet solutions dialog. */
     @XmlElement
     private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
+
+    /** Last window geometry of the JobScheduler dialog. */
+    @XmlElement
+    private WindowGeometry jobSchedulerDialogGeometry;
     
     // Teamwork: shared connection sources (Git or shared file)
     @XmlElementWrapper(name = "teamworkSources")
@@ -465,6 +475,23 @@ public class GlobalSettings {
 
     public void setShowMenuBar(boolean showMenuBar) {
         this.showMenuBar = showMenuBar;
+    }
+
+    public boolean isJobSchedulerMenuStatusEnabled() {
+        return jobSchedulerMenuStatusEnabled;
+    }
+
+    public void setJobSchedulerMenuStatusEnabled(boolean jobSchedulerMenuStatusEnabled) {
+        this.jobSchedulerMenuStatusEnabled = jobSchedulerMenuStatusEnabled;
+    }
+
+    public String getJobSchedulerRsyncBinaryPath() {
+        return jobSchedulerRsyncBinaryPath;
+    }
+
+    public void setJobSchedulerRsyncBinaryPath(String jobSchedulerRsyncBinaryPath) {
+        String trimmed = jobSchedulerRsyncBinaryPath != null ? jobSchedulerRsyncBinaryPath.trim() : "";
+        this.jobSchedulerRsyncBinaryPath = trimmed.isEmpty() ? null : trimmed;
     }
     
     public double getDashboardDividerPosition() {
@@ -1264,6 +1291,11 @@ public class GlobalSettings {
     public WindowGeometry getAlternativeSnippetSolutionsDialogGeometry() { return alternativeSnippetSolutionsDialogGeometry; }
     public void setAlternativeSnippetSolutionsDialogGeometry(WindowGeometry alternativeSnippetSolutionsDialogGeometry) {
         this.alternativeSnippetSolutionsDialogGeometry = alternativeSnippetSolutionsDialogGeometry;
+    }
+
+    public WindowGeometry getJobSchedulerDialogGeometry() { return jobSchedulerDialogGeometry; }
+    public void setJobSchedulerDialogGeometry(WindowGeometry jobSchedulerDialogGeometry) {
+        this.jobSchedulerDialogGeometry = jobSchedulerDialogGeometry;
     }
     
     // ---- Teamwork ----

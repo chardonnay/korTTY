@@ -1491,7 +1491,7 @@ public class TerminalAgentService {
                 .anyMatch(command -> command.risk() == TerminalAgentModels.Risk.REQUIRES_CONFIRMATION);
     }
 
-    static boolean requiresConfirmationByCommandShape(String command) {
+    public static boolean requiresConfirmationByCommandShape(String command) {
         String checked = stripHereDocumentBodiesForCommandCheck(command);
         return MUTATING_COMMAND_PATTERN.matcher(checked).find() || containsWriteRedirection(checked);
     }
@@ -1534,7 +1534,7 @@ public class TerminalAgentService {
         return false;
     }
 
-    static boolean isInteractiveCommand(String command) {
+    public static boolean isInteractiveCommand(String command) {
         String normalized = " " + stripHereDocumentBodiesForCommandCheck(command).toLowerCase(Locale.ROOT) + " ";
         for (String token : INTERACTIVE_COMMAND_TOKENS) {
             if (normalized.contains(" " + token + " ")) {
@@ -1588,7 +1588,7 @@ public class TerminalAgentService {
         return third;
     }
 
-    static String normalizeSudoForAgentExecution(String command) {
+    public static String normalizeSudoForAgentExecution(String command) {
         if (command == null || command.isBlank()) {
             return command;
         }

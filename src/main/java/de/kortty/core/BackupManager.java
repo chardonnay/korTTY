@@ -34,6 +34,7 @@ public class BackupManager {
         "credentials.xml",
         "gpg-keys.xml",
         "global-settings.xml",
+        "job-scheduler.xml",
         "master-password-hash",
         "snippets.xml",
         "snippet-variables.xml",

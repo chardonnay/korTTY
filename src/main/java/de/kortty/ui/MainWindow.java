@@ -23,6 +23,9 @@ import de.kortty.core.SSHSession;
 import de.kortty.core.SessionManager;
 import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.jobscheduler.ActiveJobSummary;
+import de.kortty.jobscheduler.JobSchedulerService;
+import de.kortty.jobscheduler.ScheduledJob;
 import de.kortty.model.*;
 import de.kortty.persistence.importer.ConnectionImporter;
 import de.kortty.persistence.importer.MTPuTTYImporter;
@@ -33,6 +36,8 @@ import de.kortty.persistence.exporter.KorTTYExporter;
 import de.kortty.persistence.exporter.MTPuTTYExporter;
 import de.kortty.persistence.exporter.MobaXTermExporter;
 import de.kortty.security.PasswordVault;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -47,6 +52,7 @@ import javafx.scene.input.DataFormat;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -60,6 +66,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.event.Event;
+import javafx.geometry.Side;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -83,6 +90,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Main application window with TabPane for SSH terminals.
@@ -101,6 +110,13 @@ public class MainWindow {
     private static final KeyCombination MENU_BAR_TOGGLE_ACCELERATOR =
         new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
+    private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
+    private static final int JOB_SCHEDULER_STATUS_LEFT_PADDING = 14;
+    private static final String JOB_SCHEDULER_STATUS_SPACED_TEXT_PROPERTY = "kortty.jobscheduler.status.spacedText";
+    private static final String JOB_SCHEDULER_QUEUE_JOB_NAME_PROPERTY = "kortty.jobscheduler.queue.jobName";
+    private static final String JOB_SCHEDULER_QUEUE_NEXT_RUN_PROPERTY = "kortty.jobscheduler.queue.nextRun";
+    private static final DateTimeFormatter JOB_SCHEDULER_MENU_TIME_FORMAT =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
     
     private final Stage stage;
     private final BorderPane root;
@@ -122,6 +138,10 @@ public class MainWindow {
     private CheckMenuItem systemShowMenuBarMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
     private CheckMenuItem systemShowTimestampsMenuItem;
+    private Menu jobSchedulerStatusMenu;
+    private Menu systemJobSchedulerStatusMenu;
+    private Timeline jobSchedulerStatusTimeline;
+    private Runnable jobSchedulerStatusListener;
     private long lastTerminalPasteShortcutAtNanos = -1L;
 
     /** Window + system menu bar: AI Manager / Agent / Planning items (disable when AI is turned off). */
@@ -137,6 +157,8 @@ public class MainWindow {
     private static final Set<MainWindow> applicationQuitApprovedWindows =
         Collections.newSetFromMap(new IdentityHashMap<>());
     private static volatile boolean applicationQuitRequested = false;
+    private static volatile boolean schedulerDrainApproved = false;
+    private static volatile boolean schedulerDrainInProgress = false;
 
     /** DataFormat for drag-and-drop of tabs between KorTTY windows (value: transfer ID). */
     private static final DataFormat KORTTY_TAB_TRANSFER_FORMAT = new DataFormat("application/x-kortty-tab-transfer");
@@ -554,6 +576,7 @@ public class MainWindow {
                 clearApplicationQuitState();
                 e.consume();
             } else {
+                stopJobSchedulerStatusUpdates();
                 closeAllTabs();
                 openWindows.remove(this);
 
@@ -599,6 +622,7 @@ public class MainWindow {
         syncTimestampMenuItems(false);
         applyMainWindowThemeFromGlobalSettings();
         syncAiFeaturesMenuItemsEnabled();
+        startJobSchedulerStatusUpdates();
     }
 
     private void syncAiFeaturesMenuItemsEnabled() {
@@ -625,6 +649,269 @@ public class MainWindow {
         }
     }
 
+    private void startJobSchedulerStatusUpdates() {
+        if (jobSchedulerStatusTimeline != null) {
+            return;
+        }
+        JobSchedulerService schedulerService = app.getJobSchedulerService();
+        if (schedulerService != null) {
+            jobSchedulerStatusListener = () -> Platform.runLater(this::updateJobSchedulerStatusMenus);
+            schedulerService.addListener(jobSchedulerStatusListener);
+        }
+        jobSchedulerStatusTimeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> updateJobSchedulerStatusMenus()));
+        jobSchedulerStatusTimeline.setCycleCount(Timeline.INDEFINITE);
+        jobSchedulerStatusTimeline.play();
+        updateJobSchedulerStatusMenus();
+    }
+
+    private void stopJobSchedulerStatusUpdates() {
+        if (jobSchedulerStatusTimeline != null) {
+            jobSchedulerStatusTimeline.stop();
+            jobSchedulerStatusTimeline = null;
+        }
+        JobSchedulerService schedulerService = app.getJobSchedulerService();
+        if (schedulerService != null && jobSchedulerStatusListener != null) {
+            schedulerService.removeListener(jobSchedulerStatusListener);
+        }
+        jobSchedulerStatusListener = null;
+    }
+
+    private void updateJobSchedulerStatusMenus() {
+        JobSchedulerService schedulerService = app.getJobSchedulerService();
+        String text = buildJobSchedulerMenuTitle();
+        updateJobSchedulerStatusMenu(jobSchedulerStatusMenu, schedulerService, text);
+        updateJobSchedulerStatusMenu(systemJobSchedulerStatusMenu, schedulerService, text);
+    }
+
+    private void updateJobSchedulerStatusMenu(Menu menu, JobSchedulerService schedulerService, String text) {
+        if (menu == null) {
+            return;
+        }
+        boolean visible = shouldShowJobSchedulerStatusMenu(schedulerService);
+        menu.setVisible(visible);
+        if (!visible) {
+            menu.getItems().clear();
+            return;
+        }
+        if (menu.getGraphic() instanceof Label label) {
+            label.setText(text);
+        }
+        if (menu.getGraphic() == null) {
+            boolean spacedText = Boolean.TRUE.equals(menu.getProperties().get(JOB_SCHEDULER_STATUS_SPACED_TEXT_PROPERTY));
+            menu.setText(spacedText ? "  " + text : text);
+        } else {
+            menu.setText("");
+        }
+        updateVisibleJobSchedulerQueueItemTimers(menu);
+    }
+
+    private boolean shouldShowJobSchedulerStatusMenu(JobSchedulerService schedulerService) {
+        if (!isJobSchedulerMenuStatusEnabled() || schedulerService == null) {
+            return false;
+        }
+        if (!schedulerService.getActiveJobSummaries().isEmpty()) {
+            return true;
+        }
+        return schedulerService.getJobs().stream().anyMatch(this::isActiveSchedulerEntry);
+    }
+
+    private boolean isJobSchedulerMenuStatusEnabled() {
+        try {
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            return settings == null || settings.isJobSchedulerMenuStatusEnabled();
+        } catch (Exception e) {
+            logger.debug("Could not read JobScheduler menu status setting", e);
+            return true;
+        }
+    }
+
+    private boolean isActiveSchedulerEntry(ScheduledJob job) {
+        return job != null && job.isEnabled() && job.getSchedule().isEnabled();
+    }
+
+    private String buildJobSchedulerMenuTitle() {
+        JobSchedulerService schedulerService = app.getJobSchedulerService();
+        if (schedulerService == null) {
+            return I18n.get("jobscheduler.menu.noJobs");
+        }
+        List<ActiveJobSummary> activeJobs = schedulerService.getActiveJobSummaries();
+        if (!activeJobs.isEmpty()) {
+            long cancelling = activeJobs.stream().filter(ActiveJobSummary::cancellationRequested).count();
+            if (activeJobs.size() == 1) {
+                ActiveJobSummary active = activeJobs.get(0);
+                return I18n.get(
+                    active.cancellationRequested() ? "jobscheduler.menu.cancellingOne" : "jobscheduler.menu.runningOne",
+                    nonBlank(active.jobName(), active.jobId()));
+            }
+            return cancelling > 0
+                ? I18n.get("jobscheduler.menu.cancellingMany", cancelling, activeJobs.size())
+                : I18n.get("jobscheduler.menu.runningMany", activeJobs.size());
+        }
+
+        List<NextScheduledJob> queuedJobs = nextScheduledJobs(schedulerService);
+        if (!queuedJobs.isEmpty()) {
+            NextScheduledJob scheduled = queuedJobs.get(0);
+            return I18n.get(
+                "jobscheduler.menu.next",
+                displayJobName(scheduled.job()),
+                formatRemainingTime(scheduled.nextRun()));
+        }
+
+        return schedulerService.getJobs().isEmpty()
+            ? I18n.get("jobscheduler.menu.noJobs")
+            : I18n.get("jobscheduler.menu.noNext");
+    }
+
+    private void rebuildJobSchedulerStatusMenuItems(Menu menu) {
+        if (menu == null) {
+            return;
+        }
+        JobSchedulerService schedulerService = app.getJobSchedulerService();
+        menu.getItems().clear();
+
+        if (!shouldShowJobSchedulerStatusMenu(schedulerService)) {
+            return;
+        }
+
+        MenuItem openScheduler = new MenuItem(I18n.get("jobscheduler.menu.open"));
+        openScheduler.setOnAction(event -> showJobScheduler());
+        menu.getItems().add(openScheduler);
+
+        if (schedulerService == null) {
+            return;
+        }
+
+        List<ActiveJobSummary> activeJobs = schedulerService.getActiveJobSummaries();
+        if (!activeJobs.isEmpty()) {
+            menu.getItems().add(new SeparatorMenuItem());
+            MenuItem runningHeader = new MenuItem(I18n.get("jobscheduler.menu.runningHeader"));
+            runningHeader.setDisable(true);
+            menu.getItems().add(runningHeader);
+            for (ActiveJobSummary active : activeJobs) {
+                String jobName = nonBlank(active.jobName(), active.jobId());
+                MenuItem status = new MenuItem(active.cancellationRequested()
+                    ? I18n.get("jobscheduler.menu.cancellingItem", jobName)
+                    : I18n.get("jobscheduler.menu.runningItem", jobName));
+                status.setDisable(true);
+                menu.getItems().add(status);
+                MenuItem cancel = new MenuItem(I18n.get("jobscheduler.menu.cancel", jobName));
+                cancel.setDisable(active.cancellationRequested());
+                cancel.setOnAction(event -> schedulerService.cancelJob(active.jobId()));
+                menu.getItems().add(cancel);
+            }
+        }
+
+        List<NextScheduledJob> queuedJobs = nextScheduledJobs(schedulerService);
+        if (!queuedJobs.isEmpty()) {
+            menu.getItems().add(new SeparatorMenuItem());
+            MenuItem queueHeader = new MenuItem(I18n.get("jobscheduler.menu.queueHeader"));
+            queueHeader.setDisable(true);
+            menu.getItems().add(queueHeader);
+            for (NextScheduledJob scheduled : queuedJobs) {
+                menu.getItems().add(createQueuedJobMenuItem(scheduled));
+            }
+        }
+    }
+
+    private MenuItem createQueuedJobMenuItem(NextScheduledJob scheduled) {
+        MenuItem item = new MenuItem();
+        item.setDisable(true);
+        item.getProperties().put(JOB_SCHEDULER_QUEUE_JOB_NAME_PROPERTY, displayJobName(scheduled.job()));
+        item.getProperties().put(JOB_SCHEDULER_QUEUE_NEXT_RUN_PROPERTY, scheduled.nextRun());
+        updateQueuedJobMenuItem(item);
+        return item;
+    }
+
+    private void updateVisibleJobSchedulerQueueItemTimers(Menu menu) {
+        if (menu == null || !menu.isShowing()) {
+            return;
+        }
+        for (MenuItem item : menu.getItems()) {
+            updateQueuedJobMenuItem(item);
+        }
+    }
+
+    private void updateQueuedJobMenuItem(MenuItem item) {
+        Object jobName = item.getProperties().get(JOB_SCHEDULER_QUEUE_JOB_NAME_PROPERTY);
+        Object nextRun = item.getProperties().get(JOB_SCHEDULER_QUEUE_NEXT_RUN_PROPERTY);
+        if (jobName instanceof String name && nextRun instanceof ZonedDateTime runAt) {
+            item.setText(I18n.get(
+                "jobscheduler.menu.queueItem",
+                name,
+                formatMenuStartTime(runAt),
+                formatRemainingTime(runAt)));
+        }
+    }
+
+    private void showJobSchedulerStatusContextMenu(Label label) {
+        ContextMenu contextMenu = new ContextMenu();
+        JobSchedulerService schedulerService = app.getJobSchedulerService();
+        if (schedulerService != null) {
+            for (ActiveJobSummary active : schedulerService.getActiveJobSummaries()) {
+                String jobName = nonBlank(active.jobName(), active.jobId());
+                MenuItem cancel = new MenuItem(I18n.get("jobscheduler.menu.cancel", jobName));
+                cancel.setDisable(active.cancellationRequested());
+                cancel.setOnAction(event -> schedulerService.cancelJob(active.jobId()));
+                contextMenu.getItems().add(cancel);
+            }
+        }
+        if (!contextMenu.getItems().isEmpty()) {
+            contextMenu.getItems().add(new SeparatorMenuItem());
+        }
+        MenuItem openScheduler = new MenuItem(I18n.get("jobscheduler.menu.open"));
+        openScheduler.setOnAction(event -> showJobScheduler());
+        contextMenu.getItems().add(openScheduler);
+        contextMenu.show(label, Side.BOTTOM, 0, 0);
+    }
+
+    private List<NextScheduledJob> nextScheduledJobs(JobSchedulerService schedulerService) {
+        ZonedDateTime now = ZonedDateTime.now();
+        return schedulerService.getJobs().stream()
+            .filter(job -> job.isEnabled() && job.getNextRunAt() != null && !job.getNextRunAt().isBlank())
+            .map(job -> parseJobNextRun(job)
+                .filter(nextRun -> nextRun.isAfter(now))
+                .map(nextRun -> new NextScheduledJob(job, nextRun)))
+            .flatMap(Optional::stream)
+            .sorted((left, right) -> left.nextRun().compareTo(right.nextRun()))
+            .limit(JOB_SCHEDULER_QUEUE_LIMIT)
+            .toList();
+    }
+
+    private Optional<ZonedDateTime> parseJobNextRun(ScheduledJob job) {
+        try {
+            return Optional.of(ZonedDateTime.parse(job.getNextRunAt()));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private String formatRemainingTime(ZonedDateTime nextRun) {
+        long seconds = Math.max(0, java.time.Duration.between(ZonedDateTime.now(), nextRun).getSeconds());
+        long days = seconds / 86_400;
+        long hours = (seconds % 86_400) / 3_600;
+        long minutes = (seconds % 3_600) / 60;
+        long secs = seconds % 60;
+        if (days > 0) {
+            return String.format(Locale.ROOT, "%dd %02d:%02d:%02d", days, hours, minutes, secs);
+        }
+        return String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, secs);
+    }
+
+    private String formatMenuStartTime(ZonedDateTime nextRun) {
+        return nextRun.format(JOB_SCHEDULER_MENU_TIME_FORMAT);
+    }
+
+    private String nonBlank(String value, String fallback) {
+        return value != null && !value.isBlank() ? value : fallback;
+    }
+
+    private String displayJobName(ScheduledJob job) {
+        return job != null ? nonBlank(job.getName(), job.getId()) : "";
+    }
+
+    private record NextScheduledJob(ScheduledJob job, ZonedDateTime nextRun) {
+    }
+
     private MenuBar createApplicationMenuBar(MenuBarTarget target) {
         MenuBar createdMenuBar = new MenuBar();
         createdMenuBar.getMenus().addAll(
@@ -634,7 +921,8 @@ public class MainWindow {
             createManagementMenu(),
             createToolsMenu(),
             createViewMenu(target),
-            createHelpMenu()
+            createHelpMenu(),
+            createJobSchedulerStatusMenu(target)
         );
         return createdMenuBar;
     }
@@ -780,6 +1068,9 @@ public class MainWindow {
         snippetManager.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         snippetManager.setOnAction(e -> showSnippetManager());
 
+        MenuItem jobScheduler = new MenuItem(I18n.get("menu.tools.jobScheduler"));
+        jobScheduler.setOnAction(e -> showJobScheduler());
+
         MenuItem aiManager = new MenuItem(I18n.get("menu.tools.aiManager"));
         aiManager.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         aiManager.setOnAction(e -> showAiManager());
@@ -799,11 +1090,41 @@ public class MainWindow {
             asciiArtBanner,
             new SeparatorMenuItem(),
             snippetManager,
+            jobScheduler,
             new SeparatorMenuItem(),
             aiManager,
             aiAgent,
             aiPlanning);
         return toolsMenu;
+    }
+
+    private Menu createJobSchedulerStatusMenu(MenuBarTarget target) {
+        Menu jobsMenu = new Menu(I18n.get("jobscheduler.menu.noJobs"));
+        if (target == MenuBarTarget.WINDOW) {
+            jobSchedulerStatusMenu = jobsMenu;
+            Label label = new Label(I18n.get("jobscheduler.menu.noJobs"));
+            label.setPadding(new Insets(0, 0, 0, JOB_SCHEDULER_STATUS_LEFT_PADDING));
+            label.setOnContextMenuRequested(event -> {
+                showJobSchedulerStatusContextMenu(label);
+                event.consume();
+            });
+            label.setOnMouseClicked(event -> {
+                if (event.getButton() == MouseButton.SECONDARY) {
+                    showJobSchedulerStatusContextMenu(label);
+                    event.consume();
+                }
+            });
+            jobsMenu.setGraphic(label);
+            jobsMenu.setText("");
+        } else {
+            systemJobSchedulerStatusMenu = jobsMenu;
+            jobsMenu.getProperties().put(JOB_SCHEDULER_STATUS_SPACED_TEXT_PROPERTY, Boolean.TRUE);
+        }
+        jobsMenu.setOnShowing(event -> {
+            updateJobSchedulerStatusMenus();
+            rebuildJobSchedulerStatusMenuItems(jobsMenu);
+        });
+        return jobsMenu;
     }
 
     private Menu createViewMenu(MenuBarTarget target) {
@@ -1506,6 +1827,11 @@ public class MainWindow {
     }
 
     public static void requestApplicationQuit() {
+        MainWindow promptWindow = getFocusedOrLastOpenWindow();
+        if (maybeHandleSchedulerDrainBeforeExit(promptWindow, MainWindow::requestApplicationQuit)) {
+            return;
+        }
+
         List<MainWindow> windowsToClose = new ArrayList<>(openWindows);
         if (windowsToClose.isEmpty()) {
             applicationQuitRequested = true;
@@ -1554,6 +1880,9 @@ public class MainWindow {
     private static void clearApplicationQuitState() {
         applicationQuitRequested = false;
         applicationQuitApprovedWindows.clear();
+        if (!schedulerDrainInProgress) {
+            schedulerDrainApproved = false;
+        }
     }
 
     private void closeCurrentTab() {
@@ -1598,6 +1927,10 @@ public class MainWindow {
     }
     
     private boolean confirmClose() {
+        if (willCloseApplication() && maybeHandleSchedulerDrainBeforeExit(this, this::fireCloseRequest)) {
+            return false;
+        }
+
         GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
         if (globalSettings != null && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation()) {
             return true;
@@ -1623,6 +1956,97 @@ public class MainWindow {
         alert.setContentText(I18n.get("dialog.activeConnectionsMessage", activeConnections));
         
         return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+    }
+
+    private boolean willCloseApplication() {
+        return applicationQuitRequested || (openWindows.size() <= 1 && !app.shouldKeepRunningAfterLastWindowClosed());
+    }
+
+    private static boolean maybeHandleSchedulerDrainBeforeExit(MainWindow promptWindow, Runnable afterDrain) {
+        if (schedulerDrainApproved || schedulerDrainInProgress) {
+            return schedulerDrainInProgress;
+        }
+        KorTTYApplication application = promptWindow != null ? promptWindow.app : KorTTYApplication.getInstance();
+        if (application == null || application.getJobSchedulerService() == null) {
+            return false;
+        }
+        List<ActiveJobSummary> activeJobs = application.getJobSchedulerService().getActiveJobSummaries();
+        if (activeJobs.isEmpty()) {
+            return false;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        if (promptWindow != null) {
+            alert.initOwner(promptWindow.stage);
+        }
+        alert.setTitle(I18n.get("jobscheduler.quit.title"));
+        alert.setHeaderText(I18n.get("jobscheduler.quit.header", activeJobs.size()));
+        alert.setContentText(I18n.get("jobscheduler.quit.content", formatActiveJobNames(activeJobs)));
+        ButtonType waitAndQuit = new ButtonType(I18n.get("jobscheduler.quit.wait"), ButtonBar.ButtonData.OK_DONE);
+        alert.getButtonTypes().setAll(waitAndQuit, ButtonType.CANCEL);
+        if (alert.showAndWait().orElse(ButtonType.CANCEL) != waitAndQuit) {
+            schedulerDrainApproved = false;
+            schedulerDrainInProgress = false;
+            return true;
+        }
+
+        schedulerDrainInProgress = true;
+        application.getJobSchedulerService().beginDrainForShutdown();
+        showSchedulerDrainDialog(promptWindow, application, afterDrain);
+        return true;
+    }
+
+    private static void showSchedulerDrainDialog(
+        MainWindow promptWindow,
+        KorTTYApplication application,
+        Runnable afterDrain) {
+
+        Dialog<Void> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        if (promptWindow != null) {
+            dialog.initOwner(promptWindow.stage);
+        }
+        dialog.setTitle(I18n.get("jobscheduler.quit.waiting.title"));
+        dialog.setHeaderText(I18n.get("jobscheduler.quit.waiting.header"));
+        VBox content = new VBox(10,
+            new ProgressIndicator(),
+            new Label(I18n.get("jobscheduler.quit.waiting.content")));
+        content.setPadding(new Insets(20));
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().setAll();
+        dialog.show();
+
+        Thread waiter = new Thread(() -> {
+            boolean drainCompleted = false;
+            try {
+                application.getJobSchedulerService().awaitDrain();
+                drainCompleted = true;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            boolean completed = drainCompleted;
+            Platform.runLater(() -> {
+                schedulerDrainApproved = completed;
+                schedulerDrainInProgress = false;
+                dialog.close();
+                if (completed) {
+                    afterDrain.run();
+                }
+            });
+        }, "JobScheduler-Shutdown-Drain-Waiter");
+        waiter.setDaemon(true);
+        waiter.start();
+    }
+
+    private static String formatActiveJobNames(List<ActiveJobSummary> activeJobs) {
+        return activeJobs.stream()
+            .map(ActiveJobSummary::jobName)
+            .filter(name -> name != null && !name.isBlank())
+            .limit(8)
+            .reduce((left, right) -> left + "\n- " + right)
+            .map(text -> "- " + text)
+            .orElse("");
     }
     
     private void selectNextTab() {
@@ -4155,6 +4579,21 @@ public class MainWindow {
         } catch (Exception e) {
             logger.error("Failed to open Snippet Manager", e);
             showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private void showJobScheduler() {
+        logger.info("showJobScheduler() called - Opening JobScheduler");
+        try {
+            if (app.getJobSchedulerService() == null) {
+                showError(I18n.get("error.title"), "JobScheduler is not initialized.");
+                return;
+            }
+            JobSchedulerDialog dialog = new JobSchedulerDialog(app, stage);
+            dialog.show();
+        } catch (Exception e) {
+            logger.error("Failed to open JobScheduler", e);
+            showError(I18n.get("error.title"), "JobScheduler could not be opened: " + e.getMessage());
         }
     }
 
