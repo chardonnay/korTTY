@@ -23,13 +23,14 @@ class RsyncCommandBuilderTest {
         action.setRsyncTargetRoot("/srv/www");
         action.setRsyncDeleteEnabled(true);
         action.setUseSudo(true);
+        Path knownHostsFile = Path.of("/tmp/known_hosts");
 
         RsyncCommandBuilder.BuiltRsyncCommand command = builder.build(new RsyncCommandBuilder.RsyncCommandInput(
             "/usr/bin/rsync",
             "/usr/bin/ssh",
             connection(),
             action,
-            Path.of("/tmp/known_hosts"),
+            knownHostsFile,
             Optional.empty(),
             AuthMethod.PASSWORD,
             false,
@@ -48,7 +49,7 @@ class RsyncCommandBuilderTest {
             "daniel@example.test:'/srv/www'"
         ).inOrder();
         assertThat(command.arguments().get(5)).contains("StrictHostKeyChecking=yes");
-        assertThat(command.arguments().get(5)).contains("UserKnownHostsFile=/tmp/known_hosts");
+        assertThat(command.arguments().get(5)).contains("UserKnownHostsFile=" + knownHostsFile);
         assertThat(command.arguments().get(5)).contains("PreferredAuthentications=password,keyboard-interactive");
     }
 
@@ -59,14 +60,16 @@ class RsyncCommandBuilderTest {
         action.setRsyncDirection(RsyncDirection.DOWNLOAD);
         action.setRsyncSourcePaths(List.of("/var/www", "/srv/data"));
         action.setRsyncTargetRoot("/Users/daniel/sync");
+        Path knownHostsFile = Path.of("/tmp/known_hosts");
+        Path privateKeyPath = Path.of("/Users/daniel/.ssh/id_ed25519");
 
         RsyncCommandBuilder.BuiltRsyncCommand command = builder.build(new RsyncCommandBuilder.RsyncCommandInput(
             "/usr/bin/rsync",
             "/usr/bin/ssh",
             connection(),
             action,
-            Path.of("/tmp/known_hosts"),
-            Optional.of(Path.of("/Users/daniel/.ssh/id_ed25519")),
+            knownHostsFile,
+            Optional.of(privateKeyPath),
             AuthMethod.PUBLIC_KEY,
             false,
             "/Users/daniel/sync/Fedora44-12345678"));
@@ -82,7 +85,7 @@ class RsyncCommandBuilderTest {
             "/Users/daniel/sync/Fedora44-12345678"
         ).inOrder();
         assertThat(command.arguments().get(4)).contains("-i");
-        assertThat(command.arguments().get(4)).contains("/Users/daniel/.ssh/id_ed25519");
+        assertThat(command.arguments().get(4)).contains(privateKeyPath.toString());
         assertThat(command.arguments().get(4)).contains("IdentitiesOnly=yes");
     }
 
