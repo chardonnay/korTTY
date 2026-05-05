@@ -10,6 +10,8 @@ import jakarta.xml.bind.annotation.*;
 public class GlobalSettings {
 
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
+    public static final int DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS = 14;
+    public static final int MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS = 3650;
     
     @XmlElement
     private int maxBackupCount = 10; // Default: 10 backups, 0 = unlimited
@@ -52,6 +54,13 @@ public class GlobalSettings {
 
     @XmlElement
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
+
+    // 0 means keep journal entries indefinitely.
+    @XmlElement
+    private Integer jobSchedulerJournalRetentionDays = DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS;
+
+    @XmlElement
+    private Double jobSchedulerJournalDetailDividerPosition; // Vertical journal/detail split position
 
     @XmlElement
     private String jobSchedulerRsyncBinaryPath; // Optional rsync binary path; blank means PATH lookup
@@ -483,6 +492,44 @@ public class GlobalSettings {
 
     public void setJobSchedulerMenuStatusEnabled(boolean jobSchedulerMenuStatusEnabled) {
         this.jobSchedulerMenuStatusEnabled = jobSchedulerMenuStatusEnabled;
+    }
+
+    public int getJobSchedulerJournalRetentionDays() {
+        if (jobSchedulerJournalRetentionDays == null) {
+            return DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS;
+        }
+        return Math.max(
+            0,
+            Math.min(jobSchedulerJournalRetentionDays, MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS)
+        );
+    }
+
+    public void setJobSchedulerJournalRetentionDays(Integer jobSchedulerJournalRetentionDays) {
+        if (jobSchedulerJournalRetentionDays == null) {
+            this.jobSchedulerJournalRetentionDays = DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS;
+        } else {
+            this.jobSchedulerJournalRetentionDays = Math.max(
+                0,
+                Math.min(jobSchedulerJournalRetentionDays, MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS)
+            );
+        }
+    }
+
+    public double getJobSchedulerJournalDetailDividerPosition() {
+        if (jobSchedulerJournalDetailDividerPosition == null
+            || jobSchedulerJournalDetailDividerPosition <= 0.0
+            || jobSchedulerJournalDetailDividerPosition >= 1.0) {
+            return 0.72;
+        }
+        return jobSchedulerJournalDetailDividerPosition;
+    }
+
+    public void setJobSchedulerJournalDetailDividerPosition(Double jobSchedulerJournalDetailDividerPosition) {
+        if (jobSchedulerJournalDetailDividerPosition == null) {
+            this.jobSchedulerJournalDetailDividerPosition = null;
+            return;
+        }
+        this.jobSchedulerJournalDetailDividerPosition = Math.max(0.2, Math.min(0.9, jobSchedulerJournalDetailDividerPosition));
     }
 
     public String getJobSchedulerRsyncBinaryPath() {

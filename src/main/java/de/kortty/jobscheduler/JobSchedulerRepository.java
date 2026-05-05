@@ -101,14 +101,7 @@ public class JobSchedulerRepository {
     }
 
     private Instant journalStartedInstant(JobJournalEntry entry) {
-        if (entry == null || entry.getStartedAt() == null || entry.getStartedAt().isBlank()) {
-            return Instant.MIN;
-        }
-        try {
-            return ZonedDateTime.parse(entry.getStartedAt()).toInstant();
-        } catch (DateTimeParseException e) {
-            return Instant.MIN;
-        }
+        return parseJournalInstant(entry != null ? entry.getStartedAt() : null).orElse(Instant.MIN);
     }
 
     public synchronized List<JobJournalEntry> getJournalForJob(String jobId) {
@@ -139,6 +132,40 @@ public class JobSchedulerRepository {
         int before = data.getJournal().size();
         data.getJournal().removeIf(entry -> idsToDelete.contains(entry.getId()));
         return before - data.getJournal().size();
+    }
+
+    public synchronized int deleteJournalEntriesOlderThan(Instant cutoff) {
+        if (cutoff == null) {
+            return 0;
+        }
+        int before = data.getJournal().size();
+        data.getJournal().removeIf(entry -> journalRetentionInstant(entry)
+            .map(instant -> instant.isBefore(cutoff))
+            .orElse(false));
+        return before - data.getJournal().size();
+    }
+
+    private Optional<Instant> journalRetentionInstant(JobJournalEntry entry) {
+        if (entry == null) {
+            return Optional.empty();
+        }
+        Optional<Instant> finishedAt = parseJournalInstant(entry.getFinishedAt());
+        return finishedAt.isPresent() ? finishedAt : parseJournalInstant(entry.getStartedAt());
+    }
+
+    private Optional<Instant> parseJournalInstant(String value) {
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(ZonedDateTime.parse(value).toInstant());
+        } catch (DateTimeParseException e) {
+            try {
+                return Optional.of(Instant.parse(value));
+            } catch (DateTimeParseException ignored) {
+                return Optional.empty();
+            }
+        }
     }
 
     public synchronized List<SudoCredential> getSudoCredentials() {

@@ -1,6 +1,6 @@
 = KorTTY - SSH Client
 
-*v2.1.0* — A modern SSH client with JavaFX interface, tabbed terminals, SFTP tooling, and OpenAI-compatible AI assistance.
+*v2.1.0* — A modern SSH client with JavaFX interface, tabbed terminals, SFTP tooling, background job scheduling, and OpenAI-compatible AI assistance.
 
 == Architecture Overview
 
@@ -29,6 +29,11 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *Snippet Manager*: Create, search, favorite, and organize reusable snippets with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, and JSON/XML/YAML import/export
 * *AI-assisted Snippet Editing*: Generate snippet name/description/language from code, correct description text, transform selected comments and user-facing output text, create technical descriptions, and request alternative implementations
 * *AI Skills*: Define reusable local instruction blocks for AI Chat/functions and/or AI Agent, enable or disable them globally or per skill, import/export Markdown skills, and optionally send only skills that match the current request
+* *JobScheduler*: Schedule background command, SnippetManager script, AI Agent, SFTP, and Rsync jobs for saved SSH TCP connections or connection groups while KorTTY is running; no terminal tab has to stay open
+* *JobScheduler Scheduling and Status*: Run jobs on selected weekdays, fixed times, active date ranges, time windows, and intervals; the optional menu-bar status shows running jobs or the next run countdown and exposes the next five queued jobs
+* *JobScheduler Journal and Shutdown Safety*: Persist redacted or full journals, sort and delete journal entries from the UI, store local timestamps, auto-delete entries older than 14 days by default, and warn before quitting while background jobs are still running
+* *JobScheduler Security Controls*: Require pinned SSH host keys by default, allow explicit per-job host-key verification disablement, store server/group sudo passwords encrypted, and block secret-dependent jobs while the master password is locked
+* *JobScheduler Script, SFTP, and Rsync Actions*: Run SnippetManager scripts with additional per-job parameters; upload, download, sync, delete, rename, mkdir, chmod, chown, remote-copy, and archive via SFTP; synchronize one or more directories via external `rsync` over SSH
 * *ASCII Art Banner*: Generate FIGlet banners with multiple styles (Tools menu)
 * *Window Geometry Storage*: Automatic restoration of window position and size
 * *Dashboard State Storage*: Automatic restoration of dashboard state
@@ -60,6 +65,38 @@ AI Skills are local reusable instructions that can be attached to AI Chat/functi
 
 image::docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
 
+== JobScheduler Overview
+
+Open *Tools → JobScheduler...* to create unattended jobs that run in the background while the KorTTY process is running. Scheduler jobs use saved SSH TCP connections and connection groups from the Connection Manager. Mosh connections are not supported for scheduler execution and are blocked with a journal entry.
+
+The *Job* tab defines the schedule and targets:
+
+* Select one or more servers or groups through the Connection Manager selection dialog.
+* Use an optional working directory, active-from/active-until dates, a start/end time window, interval minutes, fixed times, and selected weekdays. Schedule calculations use the system time zone.
+* Confirm and pin host keys before unattended execution, or explicitly disable host-key verification for a single job when that risk is acceptable.
+* Store server-specific sudo passwords or group sudo passwords. Server-specific entries take precedence over group entries.
+* Toggle the optional menu-bar job status. The menu appears only when at least one enabled scheduler entry exists or a job is running.
+
+The *Action* tab supports:
+
+* `COMMAND` for non-interactive remote shell commands.
+* `SNIPPET_SCRIPT` for SnippetManager scripts. Additional parameters are entered in the job as one argument per line and passed to supported script languages as argv values.
+* `AI_AGENT` for headless AI-agent execution with explicit auto-approval required before commands are run unattended.
+* SFTP actions for upload, download, sync, delete, rename, mkdir, chmod, chown, remote copy, and archive creation. Archive formats are ZIP, password-protected ZIP, TAR, and TAR.BZ2; archive jobs can optionally download the created archive.
+* `RSYNC_SYNC` for upload or download directory synchronization via the local `rsync` and `ssh` commands. Multiple sources are supported, `--delete` is optional and off by default, and group downloads are written below separate per-target directories to avoid overwrites.
+
+For SFTP fields, the dialog offers local file-system selection and remote directory browsing where the job target allows it. Owner and group selectors can query the remote target. Permissions accept numeric modes such as `755` or symbolic modes such as `u+rw,o-w`.
+
+Snippet script jobs resolve built-in snippet variables and stored SnippetManager variables before execution. If a selected snippet is missing, a required snippet variable has no stored value, or the snippet language cannot be converted for scheduler execution, the job is blocked and the reason is written to the journal.
+
+Rsync jobs use an external `rsync` binary from `PATH` by default; an explicit binary path can be configured in *Settings → SFTP → JobScheduler Rsync*. The system `ssh` command must also be available in `PATH`. For Rsync sudo, the current scheduler integration uses passwordless remote sudo only through `sudo -n rsync`; stored sudo passwords are not passed to Rsync.
+
+The *Journal* tab records status, local timestamps, exit codes, stdout/stderr, and details according to the selected journal mode. `LIMITED_REDACTED` stores bounded, redacted excerpts. `FULL` stores full output/transcripts while still redacting KorTTY-managed secrets before persistence. Journal columns are sortable, selected entries can be deleted, and journal entries older than 14 days are deleted automatically by default; set the retention value to `0` to keep entries indefinitely. The protocol/detail pane can be resized vertically, KorTTY remembers that divider position, and selected detail text can be copied from the right-click menu.
+
+The in-window menu bar shows the JobScheduler status after *Help* when the status option is enabled and there is an enabled scheduler entry or active run. Clicking the menu shows the next five queued jobs with start time and live countdown. Right-clicking the status label provides a shortcut menu for cancelling running jobs and opening JobScheduler.
+
+When KorTTY is about to quit while scheduler jobs are running, it warns the user. If the user chooses to wait and quit, KorTTY enters drain mode, blocks new job starts, journals the shutdown wait, waits for active jobs to complete or cancel cleanly, and then exits.
+
 == User Guide
 
 For a comprehensive step-by-step user guide covering all features, see *link:docs/USER_GUIDE.adoc[User Guide]*.
@@ -70,6 +107,7 @@ For a comprehensive step-by-step user guide covering all features, see *link:doc
 * *Git* and *Maven* (to build SithTermFX from source; no GitHub token needed)
 * For GitHub Actions `windows-11-arm` release builds, Java 21 is used in CI for compatibility with currently available runner/toolchain combinations.
 * Gradle 9.x (automatically downloaded via wrapper)
+* Optional for JobScheduler Rsync jobs: local `rsync` and `ssh` commands available in `PATH`, or a configured `rsync` binary path in *Settings → SFTP*
 
 == Build
 
@@ -134,6 +172,7 @@ image::docs/diagrams/modules-overview.png[Modules overview,align=center]
 | | zxcvbn (password strength) | 1.9.0
 | *Logging* | SLF4J / Logback | 2.0.9 / 1.4.14
 | *Optional (runtime)* | mosh4j (Mosh support, loaded dynamically) | 2.0.0
+| *Optional system tools* | rsync + ssh for JobScheduler Rsync jobs | external
 |===
 
 SithTermFX is built from source (see <<#sithtermfx-integration,SithTermFX Integration>>). mosh4j JARs are bundled in release builds so Mosh works without a first-run download.
@@ -340,6 +379,13 @@ sudo rpm -i build/jpackage/korTTY-2.1.0.rpm
 * Current release builds include `jdk.localedata` in the packaged runtime.
 * If you use an older binary, rebuild or update to `v2.1.0+` to get the full target language list in *Settings → Translation*.
 
+*JobScheduler job is blocked:*
+* Open *Tools → JobScheduler... → Journal* and inspect the selected entry's detail text.
+* Common causes are a locked master password, missing host-key pin, unsupported Mosh target, missing `rsync` or `ssh`, or an older host-key pin without OpenSSH public-key material for Rsync.
+
+*JobScheduler Rsync cannot start:*
+* Verify local `rsync --version` and `ssh -V`, or configure the Rsync binary path in *Settings → SFTP → JobScheduler Rsync*.
+
 == JMX Monitoring
 
 The SSH client registers a JMX MBean under `de.kortty:type=SSHClient`.
@@ -444,6 +490,7 @@ All configuration files are stored under `~/.kortty/`:
 ├── ssh-keys.xml        # SSH key management
 ├── gpg-keys.xml        # GPG keys for backup encryption
 ├── global-settings.xml # Global application settings
+├── job-scheduler.xml   # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── master-password-hash # Master password hash
 ├── kortty.log          # Log file
 ├── history/            # Terminal history (compressed)
@@ -884,6 +931,8 @@ These features can be configured in *Settings → Window*. The menu bar can also
 * Master password is hashed with PBKDF2 (310,000 iterations)
 * Connection passwords are encrypted with AES-256-GCM
 * Private SSH key passphrases are also stored encrypted
+* JobScheduler sudo secrets and archive passwords are stored encrypted, and scheduler journals redact KorTTY-managed secrets before persistence
+* JobScheduler unattended SSH/SFTP/Rsync execution requires pinned host keys by default
 * Passwords are never stored in plain text
 * SSH keys can optionally be copied to user directory (included in backups)
 

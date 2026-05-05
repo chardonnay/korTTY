@@ -27,12 +27,14 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -70,10 +72,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final MenuItem translateSelectionTextItem;
     private final MenuItem describeSnippetItem;
     private final MenuButton oneLinerMenu;
+    private final Label fontSizeLabel;
+    private final MenuButton backgroundBrightnessMenu;
+    private final Label backgroundBrightnessValueLabel;
     private final Label statusLabel;
     private final Snippet existingSnippet;
-    private final EditorSettingsHelper.Settings editorSettings;
+    private EditorSettingsHelper.Settings editorSettings;
     private final AiAssist aiAssist;
+    private final Color backgroundBrightnessBaseColor;
     private Task<SuggestedSnippetMetadata> metadataTask;
     private Task<String> descriptionCorrectionTask;
     private Task<?> snippetAiActionTask;
@@ -86,6 +92,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private boolean descriptionUserEdited;
     private LastAiChangeSnapshot lastAiChangeSnapshot;
     private boolean lastAiChangeShowingModified = true;
+    private String initialContentSnapshot = "";
+    private boolean allowCloseWithoutUnsavedPrompt;
     
     // Syntax highlight style constants (reused from FileEditorTab)
     private static final String STYLE_COMMENT = "-fx-fill: #888888; -fx-font-style: italic;";
@@ -98,6 +106,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private static final String STYLE_VARIABLE = "-fx-fill: #cc6600;";
     private static final String STYLE_BRACE = "-fx-fill: #cc6600; -fx-font-weight: bold;";
     private static final String STYLE_PLAIN = "-fx-fill: #d4d4d4;";
+    private static final int MIN_EDITOR_FONT_SIZE = 8;
+    private static final int MAX_EDITOR_FONT_SIZE = 72;
+    private static final int EDITOR_FONT_ZOOM_STEP = 1;
     
     private static final List<String> LANGUAGES = List.of(
         "plain", "bash", "shell", "python", "perl", "ruby", "java", "javascript", "groovy",
@@ -202,6 +213,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 "BLOCK",
                 loaded.cursorColor()
         );
+        this.backgroundBrightnessBaseColor = parseEditorBackgroundColor();
         
         setTitle(snippet == null ? I18n.get("snippets.addTitle") : I18n.get("snippets.editTitle"));
         setResizable(true);
@@ -299,11 +311,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         contentArea.setPrefHeight(350);
         contentArea.setPrefWidth(600);
         EditorSettingsHelper.applyStyle(contentArea, editorSettings);
-        EditorSettingsHelper.installPersistentCaretStyling(contentArea, editorSettings);
+        EditorSettingsHelper.installPersistentCaretStyling(contentArea, () -> editorSettings);
         // Ensure block caret remains visible while typing (caret node may be recreated).
         contentArea.caretPositionProperty().addListener((obs, oldPos, newPos) ->
                 EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings));
         contentArea.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (handleEditorZoomShortcut(event)) {
+                return;
+            }
             KeyCode code = event.getCode();
             if (code == KeyCode.UP || code == KeyCode.DOWN || code == KeyCode.LEFT || code == KeyCode.RIGHT
                     || code == KeyCode.HOME || code == KeyCode.END
@@ -436,9 +451,26 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         updateFormatLintButtonState();
         updateOneLinerButtonState();
 
+        Button zoomOutButton = new Button(I18n.get("editor.zoomOut"));
+        zoomOutButton.setTooltip(new Tooltip(I18n.get("menu.view.zoomOut")));
+        zoomOutButton.setOnAction(e -> changeEditorFontSize(-EDITOR_FONT_ZOOM_STEP));
+
+        fontSizeLabel = new Label(formatEditorFontSize());
+        fontSizeLabel.setMinWidth(42);
+        fontSizeLabel.setAlignment(Pos.CENTER);
+
+        Button zoomInButton = new Button(I18n.get("editor.zoomIn"));
+        zoomInButton.setTooltip(new Tooltip(I18n.get("menu.view.zoomIn")));
+        zoomInButton.setOnAction(e -> changeEditorFontSize(EDITOR_FONT_ZOOM_STEP));
+
+        backgroundBrightnessValueLabel = new Label(formatBackgroundBrightnessValue());
+        backgroundBrightnessMenu = createBackgroundBrightnessMenu();
+
         HBox contentHeader = new HBox(10,
                 new Label(I18n.get("snippets.content") + ":"),
-                formatBtn, lintBtn, aiTextMenu, toggleLastAiChangeButton, oneLinerMenu, new Separator(), wordWrapCheckBox, lineNumbersCheckBox);
+                formatBtn, lintBtn, aiTextMenu, toggleLastAiChangeButton, oneLinerMenu,
+                new Separator(), zoomOutButton, fontSizeLabel, zoomInButton, backgroundBrightnessMenu,
+                new Separator(), wordWrapCheckBox, lineNumbersCheckBox);
         contentHeader.setAlignment(Pos.CENTER_LEFT);
         formGrid.add(contentHeader, 0, 5, 2, 1);
 
@@ -465,6 +497,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         
         // Disable OK if name or content is empty
         Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
+        Button cancelButton = (Button) getDialogPane().lookupButton(ButtonType.CANCEL);
         okButton.setDisable(true);
         nameField.textProperty().addListener((obs, o, n) -> {
             if (!programmaticNameUpdate) {
@@ -510,6 +543,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         updateFormatLintButtonState();
         updateOneLinerButtonState();
         updateAiActionAvailability();
+        initialContentSnapshot = safeContentText();
+        installUnsavedContentCloseGuard(cancelButton);
         
         // Restore saved geometry
         restoreGeometry();
@@ -518,14 +553,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         setResultConverter(buttonType -> {
             saveGeometry();
             if (buttonType == ButtonType.OK) {
-                Snippet result = existingSnippet != null ? existingSnippet : new Snippet();
-                result.setName(nameField.getText().trim());
-                result.setContent(contentArea.getText());
-                result.setLanguage(SnippetLanguageSupport.detectSnippetLanguage(languageCombo.getValue(), contentArea.getText()));
-                result.setCategory(categoryCombo.getValue() != null ? categoryCombo.getValue().trim() : null);
-                result.setTagsFromString(tagsField.getText());
-                result.setDescription(descriptionArea.getText() != null ? descriptionArea.getText().trim() : null);
-                return result;
+                return buildResultSnippet();
             }
             return null;
         });
@@ -541,6 +569,82 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
     
+    private void installUnsavedContentCloseGuard(Button cancelButton) {
+        if (cancelButton != null) {
+            cancelButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                if (hasUnsavedContentChanges()) {
+                    event.consume();
+                    promptForUnsavedContentBeforeClose();
+                }
+            });
+        }
+
+        setOnCloseRequest(event -> {
+            if (allowCloseWithoutUnsavedPrompt || !hasUnsavedContentChanges()) {
+                return;
+            }
+            event.consume();
+            promptForUnsavedContentBeforeClose();
+        });
+    }
+
+    private void promptForUnsavedContentBeforeClose() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(getTitle());
+        alert.setHeaderText(I18n.get("editor.close.header"));
+        alert.setContentText(I18n.get("editor.close.unsaved"));
+
+        ButtonType saveButtonType = new ButtonType(I18n.get("editor.close.save"));
+        ButtonType discardButtonType = new ButtonType(I18n.get("editor.close.discard"));
+        ButtonType cancelButtonType = new ButtonType(I18n.get("editor.close.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(saveButtonType, discardButtonType, cancelButtonType);
+
+        if (getDialogPane().getScene() != null) {
+            alert.initOwner(getDialogPane().getScene().getWindow());
+        }
+        alert.getDialogPane().lookupButton(saveButtonType).setDisable(!isSnippetFormValid());
+
+        Optional<ButtonType> response = alert.showAndWait();
+        if (response.isEmpty() || response.get() == cancelButtonType) {
+            return;
+        }
+
+        saveGeometry();
+        allowCloseWithoutUnsavedPrompt = true;
+        if (response.get() == saveButtonType) {
+            setResult(buildResultSnippet());
+        } else {
+            setResult(null);
+        }
+        close();
+    }
+
+    private boolean hasUnsavedContentChanges() {
+        return !safeContentText().equals(initialContentSnapshot != null ? initialContentSnapshot : "");
+    }
+
+    private boolean isSnippetFormValid() {
+        return nameField.getText() != null && !nameField.getText().isBlank()
+                && !safeContentText().isBlank();
+    }
+
+    private String safeContentText() {
+        String content = contentArea.getText();
+        return content != null ? content : "";
+    }
+
+    private Snippet buildResultSnippet() {
+        Snippet result = existingSnippet != null ? existingSnippet : new Snippet();
+        String content = safeContentText();
+        result.setName(nameField.getText().trim());
+        result.setContent(content);
+        result.setLanguage(SnippetLanguageSupport.detectSnippetLanguage(languageCombo.getValue(), content));
+        result.setCategory(categoryCombo.getValue() != null ? categoryCombo.getValue().trim() : null);
+        result.setTagsFromString(tagsField.getText());
+        result.setDescription(descriptionArea.getText() != null ? descriptionArea.getText().trim() : null);
+        return result;
+    }
+
     private void restoreGeometry() {
         try {
             var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
@@ -610,6 +714,182 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         try {
             var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
             gs.setSnippetLineNumbers(enabled);
+            KorTTYApplication.getInstance().getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            // Ignore - non-critical
+        }
+    }
+
+    private boolean handleEditorZoomShortcut(KeyEvent event) {
+        if (!event.isShortcutDown()) {
+            return false;
+        }
+
+        KeyCode code = event.getCode();
+        if (code == KeyCode.PLUS || code == KeyCode.ADD || code == KeyCode.EQUALS) {
+            changeEditorFontSize(EDITOR_FONT_ZOOM_STEP);
+            event.consume();
+            return true;
+        }
+        if (code == KeyCode.MINUS || code == KeyCode.SUBTRACT) {
+            changeEditorFontSize(-EDITOR_FONT_ZOOM_STEP);
+            event.consume();
+            return true;
+        }
+        return false;
+    }
+
+    private void changeEditorFontSize(int delta) {
+        int newSize = Math.max(MIN_EDITOR_FONT_SIZE,
+                Math.min(MAX_EDITOR_FONT_SIZE, editorSettings.fontSize() + delta));
+        if (newSize == editorSettings.fontSize()) {
+            updateFontSizeLabel();
+            return;
+        }
+
+        editorSettings = new EditorSettingsHelper.Settings(
+                editorSettings.fontFamily(),
+                newSize,
+                editorSettings.foregroundColor(),
+                editorSettings.backgroundColor(),
+                editorSettings.cursorStyle(),
+                editorSettings.cursorColor()
+        );
+
+        applyEditorAppearance();
+        updateFontSizeLabel();
+        saveSnippetFontSize(newSize);
+        setStatus(I18n.get("editor.status.fontSize", newSize));
+    }
+
+    private MenuButton createBackgroundBrightnessMenu() {
+        MenuButton menu = new MenuButton(formatBackgroundBrightnessButton());
+        menu.setTooltip(new Tooltip(I18n.get("snippets.editor.backgroundBrightness.tooltip")));
+
+        Slider brightnessSlider = new Slider(0, 100, currentBackgroundBrightnessPercent());
+        brightnessSlider.setPrefWidth(180);
+        brightnessSlider.setBlockIncrement(5);
+        brightnessSlider.setMajorTickUnit(25);
+        brightnessSlider.setMinorTickCount(4);
+        brightnessSlider.setShowTickMarks(true);
+
+        brightnessSlider.valueProperty().addListener((obs, oldValue, newValue) -> {
+            applyEditorBackgroundBrightness(newValue.doubleValue(), !brightnessSlider.isValueChanging());
+        });
+        brightnessSlider.valueChangingProperty().addListener((obs, wasChanging, isChanging) -> {
+            if (!isChanging) {
+                saveSnippetBackgroundColor(editorSettings.backgroundColor());
+            }
+        });
+
+        VBox controlBox = new VBox(8, new Label(I18n.get("snippets.editor.backgroundBrightness")), brightnessSlider,
+                backgroundBrightnessValueLabel);
+        controlBox.setPadding(new Insets(8));
+        CustomMenuItem sliderItem = new CustomMenuItem(controlBox, false);
+        menu.getItems().add(sliderItem);
+        return menu;
+    }
+
+    private void applyEditorBackgroundBrightness(double brightnessPercent, boolean save) {
+        double brightness = Math.max(0.0, Math.min(1.0, brightnessPercent / 100.0));
+        Color adjusted = Color.hsb(
+                backgroundBrightnessBaseColor.getHue(),
+                backgroundBrightnessBaseColor.getSaturation(),
+                brightness
+        );
+        String backgroundColor = toHex(adjusted);
+
+        editorSettings = new EditorSettingsHelper.Settings(
+                editorSettings.fontFamily(),
+                editorSettings.fontSize(),
+                editorSettings.foregroundColor(),
+                backgroundColor,
+                editorSettings.cursorStyle(),
+                editorSettings.cursorColor()
+        );
+
+        applyEditorAppearance();
+        updateBackgroundBrightnessControls();
+        if (save) {
+            saveSnippetBackgroundColor(backgroundColor);
+        }
+        setStatus(I18n.get("snippets.editor.backgroundBrightness.status", currentBackgroundBrightnessPercent()));
+    }
+
+    private void applyEditorAppearance() {
+        EditorSettingsHelper.applyStyle(contentArea, editorSettings);
+        if (lineNumbersCheckBox != null && lineNumbersCheckBox.isSelected()) {
+            EditorSettingsHelper.applyLineNumbers(contentArea, true, editorSettings);
+        }
+        applyHighlighting();
+        EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings);
+    }
+
+    private void updateFontSizeLabel() {
+        if (fontSizeLabel != null) {
+            fontSizeLabel.setText(formatEditorFontSize());
+        }
+    }
+
+    private String formatEditorFontSize() {
+        return editorSettings.fontSize() + "pt";
+    }
+
+    private void updateBackgroundBrightnessControls() {
+        if (backgroundBrightnessMenu != null) {
+            backgroundBrightnessMenu.setText(formatBackgroundBrightnessButton());
+        }
+        if (backgroundBrightnessValueLabel != null) {
+            backgroundBrightnessValueLabel.setText(formatBackgroundBrightnessValue());
+        }
+    }
+
+    private String formatBackgroundBrightnessButton() {
+        return "\u2600 " + currentBackgroundBrightnessPercent() + "%";
+    }
+
+    private String formatBackgroundBrightnessValue() {
+        return I18n.get("snippets.editor.backgroundBrightness.value", currentBackgroundBrightnessPercent());
+    }
+
+    private int currentBackgroundBrightnessPercent() {
+        return (int) Math.round(parseEditorBackgroundColor().getBrightness() * 100.0);
+    }
+
+    private Color parseEditorBackgroundColor() {
+        String backgroundColor = editorSettings != null ? editorSettings.backgroundColor() : "#1e1e1e";
+        try {
+            return Color.web(backgroundColor);
+        } catch (Exception e) {
+            return Color.web("#1e1e1e");
+        }
+    }
+
+    private static String toHex(Color color) {
+        return String.format("#%02X%02X%02X",
+                colorComponentToByte(color.getRed()),
+                colorComponentToByte(color.getGreen()),
+                colorComponentToByte(color.getBlue()));
+    }
+
+    private static int colorComponentToByte(double component) {
+        return (int) Math.round(Math.max(0.0, Math.min(1.0, component)) * 255.0);
+    }
+
+    private void saveSnippetFontSize(int fontSize) {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            gs.setSnippetFontSize(fontSize);
+            KorTTYApplication.getInstance().getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            // Ignore - non-critical
+        }
+    }
+
+    private void saveSnippetBackgroundColor(String backgroundColor) {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            gs.setSnippetBackgroundColor(backgroundColor);
             KorTTYApplication.getInstance().getGlobalSettingsManager().save();
         } catch (Exception e) {
             // Ignore - non-critical

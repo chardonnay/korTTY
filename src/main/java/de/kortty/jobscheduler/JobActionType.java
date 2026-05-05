@@ -8,6 +8,9 @@ public enum JobActionType {
     @XmlEnumValue("COMMAND")
     COMMAND,
 
+    @XmlEnumValue("SNIPPET_SCRIPT")
+    SNIPPET_SCRIPT,
+
     @XmlEnumValue("AI_AGENT")
     AI_AGENT,
 

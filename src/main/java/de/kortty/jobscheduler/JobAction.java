@@ -20,6 +20,13 @@ public class JobAction {
     private String command;
 
     @XmlElement
+    private String snippetId;
+
+    @XmlElementWrapper(name = "snippetArguments")
+    @XmlElement(name = "argument")
+    private List<String> snippetArguments = new ArrayList<>();
+
+    @XmlElement
     private String aiPrompt;
 
     @XmlElement
@@ -114,6 +121,25 @@ public class JobAction {
 
     public void setCommand(String command) {
         this.command = trimToNull(command);
+    }
+
+    public String getSnippetId() {
+        return snippetId;
+    }
+
+    public void setSnippetId(String snippetId) {
+        this.snippetId = trimToNull(snippetId);
+    }
+
+    public List<String> getSnippetArguments() {
+        if (snippetArguments == null) {
+            snippetArguments = new ArrayList<>();
+        }
+        return snippetArguments;
+    }
+
+    public void setSnippetArguments(List<String> snippetArguments) {
+        this.snippetArguments = snippetArguments != null ? new ArrayList<>(snippetArguments) : new ArrayList<>();
     }
 
     public String getAiPrompt() {

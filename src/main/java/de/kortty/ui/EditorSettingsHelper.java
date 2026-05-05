@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 /**
  * Shared utility for loading editor appearance settings from GlobalSettings
@@ -185,16 +186,25 @@ public final class EditorSettingsHelper {
      * Combines: CSS stylesheet + scene listener + focus listener + timed retries.
      */
     public static void installPersistentCaretStyling(InlineCssTextArea area, Settings settings) {
+        installPersistentCaretStyling(area, () -> settings);
+    }
+
+    /**
+     * Sets up persistent caret styling with settings resolved at event time.
+     * Use this overload when a dialog can change its editor font size while it is open.
+     */
+    public static void installPersistentCaretStyling(InlineCssTextArea area, Supplier<Settings> settingsSupplier) {
+        Settings settings = settingsSupplier.get();
         // 1. CSS stylesheet (works once the node is in a rendered scene)
         applyCaretCss(area, settings);
         
         // 2. Focus listener: re-style every time the area gains focus
-        installCaretFocusListener(area, settings);
+        installCaretFocusListener(area, settingsSupplier);
         
         // 3. Scene listener: when the area enters a scene, start retry styling
         area.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
-                styleCaretNodesWithRetry(area, settings, 8);
+                styleCaretNodesWithRetry(area, settingsSupplier.get(), 8);
             }
         });
         
@@ -488,6 +498,14 @@ public final class EditorSettingsHelper {
         area.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
             if (isFocused) {
                 Platform.runLater(() -> styleCaretNodesDirect(area, settings));
+            }
+        });
+    }
+
+    private static void installCaretFocusListener(InlineCssTextArea area, Supplier<Settings> settingsSupplier) {
+        area.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (isFocused) {
+                Platform.runLater(() -> styleCaretNodesDirect(area, settingsSupplier.get()));
             }
         });
     }

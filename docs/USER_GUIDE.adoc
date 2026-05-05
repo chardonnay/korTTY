@@ -16,6 +16,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *Project workspaces* that save and restore your complete session
 * *SFTP file manager* with a dual-panel view
 * *Code snippet manager* with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, placeholder variables, and import/export
+* *JobScheduler* for background command, SnippetManager script, AI Agent, SFTP, and Rsync jobs that run while KorTTY is open without requiring a terminal tab
 * *ASCII Art Banner* generator with 11+ FIGlet font styles
 * *SSH tunnels* (local, remote, dynamic) and jump server support
 * *Backup and restore* with password-protected ZIP or GPG encryption
@@ -31,6 +32,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 | Java | 25 or higher (CI exception: Windows ARM64 release runner currently uses Java 21)
 | Gradle | 9.x (included via wrapper)
 | OS | macOS, Windows, Linux
+| Optional for JobScheduler Rsync | local `rsync` and `ssh` commands available in PATH, or a configured `rsync` binary path
 |===
 
 == 2. Getting Started
@@ -99,7 +101,7 @@ image::diagrams/architecture.png[KorTTY architecture,align=center]
 ----
 +---------------------------------------------------------------+
 | Menu Bar: File | Edit | Connections | Management | Tools |    |
-|           View | Help                                         |
+|           View | Help | optional JobScheduler status           |
 +---------------------------------------------------------------+
 | Tab Bar: [Server-1] [Server-2] [Server-3]            [+]     |
 +-------------------+-------------------------------------------+
@@ -118,6 +120,7 @@ image::diagrams/architecture.png[KorTTY architecture,align=center]
 * *Tab Bar* - Each SSH session runs in its own tab. Ctrl+Tab / Ctrl+Shift+Tab to switch.
 * *Dashboard* - Toggle with Ctrl+Shift+D. Shows all open connections with status indicators. Right-click a connection to *Reconnect* (always available; closes active connection and re-establishes it), duplicate, open SFTP, or close.
 * *Status Bar* - Shows connection state, host/IP, active protocol, temporary SSH key timer, and connection duration.
+* *JobScheduler menu status* - When enabled and at least one scheduler entry is active, an additional menu appears after *Help*. It shows running jobs or the next scheduled run with a live countdown.
 
 == 3. Connections
 
@@ -623,18 +626,141 @@ Your Machine  --->  Jump Server (bastion)  --->  Target Server
 
 KorTTY first establishes an SSH connection to the jump server, then uses it to connect to the target server. All traffic is routed through the jump server.
 
-== 7. SFTP Manager
+== 7. JobScheduler
+
+The JobScheduler runs unattended background jobs while the KorTTY process is open. It does not start an operating-system service and it does not require an SSH terminal tab to remain open for the scheduled job.
+
+Open it with *Tools > JobScheduler...*. The dialog remembers its window position and size after you resize it.
+
+=== 7.1 Targets and Schedules
+
+Use the *Job* tab to define where and when a job runs.
+
+[cols="1,2"]
+|===
+| Field | Description
+| *Enabled* | Enables or disables the job.
+| *Name* | Display name shown in the job list, journal, and menu-bar status.
+| *Connection* | Opens the Connection Manager selection dialog. Select individual SSH TCP servers, whole groups, or both.
+| *Working directory* | Optional remote directory. Use *Browse...* to connect to the target and pick a directory when the path is not known.
+| *Journal* | `LIMITED_REDACTED` stores bounded, redacted excerpts. `FULL` stores full output/transcripts with KorTTY-managed secrets still redacted.
+| *Active from* / *Active until* | Optional date range for the job.
+| *Window start* / *Window end* | Time window for the job. Values are selected from validated time lists.
+| *Interval minutes* | Optional repeated interval inside the active window.
+| *Fixed times* | Optional explicit start times. Values are selected from validated time lists.
+| *Weekdays* | Optional weekday filter. Use the all-toggle to select or clear all weekdays.
+|===
+
+Schedule calculations use the local system time zone. If no fixed time and no interval is configured, the next run is the window start on an allowed date.
+
+Scheduler jobs support saved SSH TCP connections. Mosh targets are blocked as unsupported and the reason is written to the journal.
+
+=== 7.2 Host Keys, Sudo, and Secrets
+
+Host-key verification is secure by default. Before unattended SSH/SFTP/Rsync execution, select the target and click *Confirm host key* so KorTTY stores the pinned fingerprint and OpenSSH public-key material. Rsync jobs need the OpenSSH key material, so older pins without it must be confirmed again.
+
+The checkbox *Disable host-key verification for this job* disables host-key verification only for the selected job. This is unsafe and should only be used when the risk is understood.
+
+Sudo passwords can be stored for one server or for a server group:
+
+* Server-specific sudo passwords are used first.
+* Group sudo passwords are used as fallback.
+* Stored sudo passwords are encrypted with the master password.
+* If the master password is locked and a job needs SSH, sudo, API, or archive secrets, the job is blocked and journaled.
+
+For Rsync jobs, *Use sudo* means passwordless remote sudo only through `sudo -n rsync`. Stored sudo passwords are not used by the current Rsync integration.
+
+=== 7.3 Actions
+
+Use the *Action* tab to choose what the job does. The action selector includes:
+
+[cols="1,2"]
+|===
+| Action | Purpose
+| `COMMAND` | Run a non-interactive remote command.
+| `SNIPPET_SCRIPT` | Run a SnippetManager script on the selected target. The *Snippet script* field selects the snippet, and *Snippet parameters* passes additional arguments as one argv value per line.
+| `AI_AGENT` | Run the headless scheduler AI agent. Unattended command execution requires *Auto-approve AI commands* on the job.
+| `SFTP_UPLOAD` | Upload a local path to a remote path.
+| `SFTP_DOWNLOAD` | Download a remote path to a local path.
+| `SFTP_SYNC` | Synchronize local and remote paths in the selected upload/download direction.
+| `SFTP_DELETE` | Delete a remote path.
+| `SFTP_RENAME` | Rename a remote path.
+| `SFTP_MKDIR` | Create a remote directory.
+| `SFTP_CHMOD` | Change permissions. Numeric modes such as `755` and symbolic modes such as `u+rw,o-w` are accepted.
+| `SFTP_CHOWN` | Change owner and/or group. Owner and group buttons can query the target and show available values.
+| `SFTP_COPY_REMOTE` | Copy a remote path to another remote path on the same target.
+| `SFTP_ARCHIVE` | Create a remote archive.
+| `RSYNC_SYNC` | Synchronize one or more directories via external `rsync` over SSH.
+|===
+
+Path fields provide local Finder/Explorer selection where the path is local and remote directory browsing where the path is remote. Remote browsing requires a selected target and host-key verification unless the job explicitly disables host-key verification.
+
+Snippet script jobs use the selected SnippetManager entry without requiring an open terminal tab. KorTTY resolves built-in snippet variables and stored SnippetManager variables before execution. Missing snippets, missing stored variable values, and unsupported snippet languages block the job and write the reason to the journal. Additional snippet parameters are entered one per line so values with spaces are passed as single script arguments.
+
+SFTP archive jobs support ZIP, password-protected ZIP, TAR, and TAR.BZ2. Archive sources and exclude patterns accept one path or pattern per line. The archive can optionally be downloaded after creation.
+
+When *Use sudo staging for SFTP paths* is enabled, KorTTY stages files in a temporary location and uses sudo-assisted remote commands such as `mv`, `cp`, `tar`, `chmod`, and `chown` where elevated rights are required. Cleanup failures are written to the journal.
+
+=== 7.4 Rsync Jobs
+
+`RSYNC_SYNC` supports upload and download between the local filesystem and saved SSH TCP connections.
+
+* Upload: local source directories are synchronized under the remote target root.
+* Download: remote source directories are synchronized under the local target root.
+* Multiple sources are supported.
+* *Delete missing files* adds `--delete`; it is off by default.
+* For downloads from multiple group targets, KorTTY writes each target into its own subdirectory below the local target root to avoid overwriting files from another server.
+
+KorTTY builds Rsync execution as a `ProcessBuilder` argument list instead of shell-concatenating the command. The command uses `-a --itemize-changes`; `--delete` is added only when the job checkbox is enabled.
+
+Rsync prerequisites:
+
+* `rsync` is taken from `PATH`, unless an explicit binary path is configured in *Settings > SFTP > JobScheduler Rsync*.
+* `ssh` must be available in `PATH`.
+* Host-key pinning is required unless the job explicitly disables host-key verification.
+* Password and private-key passphrase authentication use a temporary owner-only `SSH_ASKPASS` helper. Secrets, helper paths, and temporary secret-file paths are redacted before journaling.
+
+=== 7.5 Journal
+
+The *Journal* tab lists job runs with local KorTTY timestamps, status, job name, and summary. The columns *Started*, *Status*, *Job*, and *Summary* are sortable; the default order shows the newest started entries first. Selecting a row shows stdout, stderr, and detail text. Use *Delete selected* to remove selected journal entries. By default, KorTTY automatically deletes scheduler journal entries older than 14 days; set the retention value to `0` to keep entries indefinitely.
+
+The protocol/detail area below the table is separated by a vertical splitter. Resize it to give the output more or less height; KorTTY stores that divider position in the global settings. In the detail text area, mark text and right-click to copy the selected text to the clipboard.
+
+Journal statuses include successful, failed, blocked, cancelled, and running/system entries. Reasons such as locked master password, missing host-key pin, missing `rsync`/`ssh`, unsupported Mosh target, or shutdown drain are written as journal details.
+
+=== 7.6 Menu-Bar Status and Cancellation
+
+When *Show Jobs status in menu bar* is enabled, KorTTY shows the scheduler status after *Help* only if an enabled scheduler entry exists or a job is currently running. The status shows the running job, cancellation state, or the next job with a live countdown.
+
+Click the status menu to see:
+
+* *Open JobScheduler...*
+* running jobs and cancel entries
+* up to five next queued jobs with start time and live countdown
+
+Right-click the status label for a compact menu with cancel actions for running jobs and a shortcut to open JobScheduler. Cancellation requests are journaled and running SSH/Rsync work is interrupted cleanly where possible.
+
+=== 7.7 Quitting KorTTY While Jobs Run
+
+If KorTTY is about to exit while JobScheduler jobs are running, it shows a warning with the active job names. Choosing *Cancel* keeps KorTTY running. Choosing *Wait and quit* starts shutdown drain mode:
+
+* new scheduled or manual job starts are blocked;
+* the shutdown wait is written to the journal;
+* KorTTY waits for running jobs to complete or cancel;
+* KorTTY exits automatically after the drain finishes.
+
+== 8. SFTP Manager
 
 The integrated SFTP Manager provides a graphical file manager for transferring files between your local machine and remote servers.
 
-=== 7.1 Opening SFTP Manager
+=== 8.1 Opening SFTP Manager
 
 * *Menu:* Tools > Open SFTP Manager
 * *Dashboard:* Right-click a connection > "Open SFTP Manager"
 
 If the connection uses a temporary SSH key that has expired, you will be prompted to enter a new key.
 
-=== 7.2 Interface
+=== 8.2 Interface
 
 The SFTP Manager uses a *two-panel layout*:
 
@@ -659,7 +785,7 @@ Both panels show the same *sortable columns*:
 | *Permissions* | Permissions (e.g. rwxr-xr-x)
 |===
 
-=== 7.3 Default Sort Order (Type Column)
+=== 8.3 Default Sort Order (Type Column)
 
 The default sort is by *Type*. The order is:
 
@@ -671,7 +797,7 @@ The default sort is by *Type*. The order is:
 
 You can click any column header to sort by that column; clicking the Type column again toggles ascending/descending.
 
-=== 7.4 File Operations
+=== 8.4 File Operations
 
 [cols="1,2"]
 |===
@@ -686,20 +812,20 @@ You can click any column header to sort by that column; clicking the Type column
 | *Set Owner/Permissions* | Select file(s), use context menu or button. Separate fields for User, Group, and octal permissions (e.g. 755).
 |===
 
-=== 7.5 Search
+=== 8.5 Search
 
 Both panels support *glob pattern search* using the `*` wildcard. For example, `*.log` finds all log files in the current directory.
 
-== 8. Snippet Manager
+== 9. Snippet Manager
 
 The Snippet Manager lets you store, organize, and quickly insert reusable code snippets, scripts, and configuration templates.
 
-=== 8.1 Opening the Snippet Manager
+=== 9.1 Opening the Snippet Manager
 
 * *Menu:* Tools > Snippet Manager
 * *Shortcut:* Ctrl+Shift+S (Cmd+Shift+S on macOS)
 
-=== 8.2 Creating and Editing Snippets
+=== 9.2 Creating and Editing Snippets
 
 1. Click *Add* (or *Edit* to modify an existing snippet).
 2. Fill in the fields:
@@ -747,7 +873,7 @@ The editor context menu exposes the same AI text actions and also adds *Alternat
 * remembers the dialog size you last used,
 * replaces exactly the originally selected code when you click *Apply*.
 
-=== 8.3 Placeholder Variables
+=== 9.3 Placeholder Variables
 
 Snippets can contain placeholder variables that are replaced when you insert the snippet.
 
@@ -755,7 +881,7 @@ Snippets can contain placeholder variables that are replaced when you insert the
 
 *Custom variables:* Any `${variableName}` not in the built-in list is treated as a custom variable. When you insert the snippet, KorTTY checks the Variable Manager for stored values; variables without stored values prompt for input.
 
-=== 8.4 Sending Snippets to the Terminal
+=== 9.4 Sending Snippets to the Terminal
 
 The Snippet Manager can send a selected snippet directly to the active terminal.
 
@@ -767,60 +893,60 @@ The Snippet Manager can send a selected snippet directly to the active terminal.
 * If script arguments are entered for an unsupported language, KorTTY shows an information message and sends nothing.
 * For embedded/base64 one-liners, the terminal shows the `KorTTY snippet: ...` label instead of echoing the full generated command.
 
-=== 8.5 Import / Export
+=== 9.5 Import / Export
 
 Snippets can be imported and exported in JSON, XML, or YAML format. Use *Export* to save selected or all snippets; use *Import* to merge from a file.
 
-== 9. ASCII Art Banner
+== 10. ASCII Art Banner
 
 Generate ASCII art text banners using FIGlet fonts. *Menu:* Tools > ASCII Art Banner. Select a style, type your text, and click *Copy to Clipboard* to copy the result.
 
-== 10. Credential Management
+== 11. Credential Management
 
 Centrally manage username/password credentials that can be reused across connections. The following diagram shows how credentials and SSH keys flow from storage to connections.
 
 image::diagrams/credential-flow.png[Credential and authentication flow,align=center]
 
-=== 10.1 Opening
+=== 11.1 Opening
 
 *Menu:* Management > Manage Credentials
 
-=== 10.2 Adding Credentials
+=== 11.2 Adding Credentials
 
 1. Click *Add*.
 2. Fill in: *Name*, *Username*, *Password* (stored encrypted), *Environment*, optional *Server Pattern* (glob for automatic matching), and optional *Description*.
 
-=== 10.3 Using Credentials
+=== 11.3 Using Credentials
 
 When editing a connection, select the stored credential from the *Credentials* dropdown; username and password are filled in automatically.
 
-== 11. SSH Key Management
+== 12. SSH Key Management
 
 *Menu:* Management > Manage SSH Keys. Add keys with optional encrypted passphrase, search with wildcards, and use *Copy to User Directory* to copy keys to `~/.kortty/ssh-keys/` (included in backups). When editing a connection, set *Authentication* to "Private Key" and select the key from the dropdown.
 
-== 12. GPG Key Management
+== 13. GPG Key Management
 
 *Menu:* Management > Manage GPG Keys. Add keys manually or import from your system GPG keyring. Use for *Backup Encryption* (Settings > Backup) and *Export Encryption* when exporting connections.
 
-== 13. Backup and Restore
+== 14. Backup and Restore
 
 KorTTY creates encrypted backups of all your settings, connections, credentials, and keys.
 
 image::diagrams/backup-restore.png[Backup and restore flow,align=center]
 
-=== 13.1 Creating a Backup
+=== 14.1 Creating a Backup
 
 *Edit > Create Backup* (Ctrl+Shift+B). Select a destination directory. The backup uses the encryption method configured in Settings.
 
-=== 13.2 Importing a Backup
+=== 14.2 Importing a Backup
 
 *Edit > Import Backup*. Select the backup file (`.zip` or `.gpg`), enter the password if prompted, choose whether to overwrite existing files, and restart the application for all changes to take effect.
 
-=== 13.3 Backup Settings
+=== 14.3 Backup Settings
 
 Configure in *Settings > Backup*: *Encryption Type* (ZIP or GPG), *Credential / GPG Key*, and *Maximum Backups* (0 = unlimited; oldest backups are deleted automatically).
 
-== 14. Projects
+== 15. Projects
 
 Projects save your complete workspace state: all open windows, tabs, connections, and terminal sessions.
 
@@ -828,13 +954,13 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 *Load:* *File > Open Project* (Ctrl+O). Select a `.kortty` file; the *Project Preview* dialog shows windows, tabs, and settings before you click *Open*.
 
-== 15. Settings
+== 16. Settings
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, optional supported reasoning effort per profile, per-profile internet access mode, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, terminal-agent panel preferences, snippet-AI behavior switches, saved-chat compatibility, and token quotas), *AI Skills* (local reusable skill instructions for AI Chat/functions and AI Agent), and *Themes* (color profiles with live preview, add/edit/delete actions for custom and preconfigured themes, and dedicated Terminal AI agent panel colors).
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *SFTP* (SFTP auto-close, archive defaults, and optional JobScheduler Rsync binary path), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, optional supported reasoning effort per profile, per-profile internet access mode, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, terminal-agent panel preferences, snippet-AI behavior switches, saved-chat compatibility, and token quotas), *AI Skills* (local reusable skill instructions for AI Chat/functions and AI Agent), and *Themes* (color profiles with live preview, add/edit/delete actions for custom and preconfigured themes, and dedicated Terminal AI agent panel colors).
 
-== 16. Keyboard Shortcuts
+== 17. Keyboard Shortcuts
 
 On macOS, "Ctrl" refers to the *Cmd* key; "Alt" refers to the *Option* key.
 
@@ -866,20 +992,23 @@ On macOS, "Ctrl" refers to the *Cmd* key; "Alt" refers to the *Option* key.
 | Ctrl+Q | Quit
 |===
 
-== 17. Configuration Files
+== 18. Configuration Files
 
 All KorTTY data is stored under `~/.kortty/`:
 
-* `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `gpg-keys.xml`, `global-settings.xml`, `ai-chats.xml`, `snippets.xml`, `snippet-variables.xml`, `master-password-hash`, `kortty.log`
+* `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `gpg-keys.xml`, `global-settings.xml`, `job-scheduler.xml`, `ai-chats.xml`, `snippets.xml`, `snippet-variables.xml`, `master-password-hash`, `kortty.log`
 * `history/` (terminal history), `projects/` (.kortty files), `i18n/` (generated language files), `ssh-keys/` (optional copied keys)
 
-== 18. Troubleshooting
+== 19. Troubleshooting
 
 * *macOS - App will not open:* Check logs with `log show --predicate 'process == "korTTY"' --last 5m`; run directly from `Contents/MacOS/korTTY` to see errors.
 * *macOS - Gatekeeper:* Right-click > Open, or Security and Privacy > "Open Anyway".
 * *Windows - MSI build failed:* Install WiX Toolset and add its bin directory to PATH.
 * *Linux - DEB/RPM build failed:* Install `fakeroot dpkg-dev` (DEB) or `rpm-build` (RPM).
 * *Connection timeout:* Increase connection timeout, enable SSH Keep-Alive, increase retry count.
+* *JobScheduler job is blocked:* Open *Tools > JobScheduler... > Journal* and inspect the detail text. Common causes are a locked master password, missing host-key pin, unsupported Mosh target, missing `rsync` or `ssh`, or an old host-key pin without OpenSSH public-key material for Rsync.
+* *JobScheduler Rsync cannot start:* Verify `rsync --version` and `ssh -V` in the local system PATH, or set the Rsync binary path in *Settings > SFTP > JobScheduler Rsync*.
+* *JobScheduler remote browser cannot open:* Select exactly one target and confirm the host key first, unless the job explicitly disables host-key verification.
 * *Master password lost:* Encrypted data cannot be recovered; delete `master-password-hash` and `credentials.xml`, restart, set new master password, re-enter passwords.
 * *Encoding issues:* Ensure connection and remote server use the same encoding (e.g. UTF-8); try `LANG=en_US.UTF-8` on the remote server.
 
@@ -892,6 +1021,8 @@ All KorTTY data is stored under `~/.kortty/`:
 | Password Encryption | AES-256-GCM
 | SSH Key Passphrases | Stored encrypted with master password
 | Backup Encryption | Password-protected ZIP or GPG
+| JobScheduler Secrets | Sudo and archive passwords are encrypted with the master password; journal persistence redacts KorTTY-managed secrets
+| JobScheduler Host Keys | Host-key pinning is required by default for unattended SSH/SFTP/Rsync jobs
 | Credentials | Never stored in plain text
 |===
 

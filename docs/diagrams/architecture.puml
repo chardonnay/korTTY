@@ -43,6 +43,8 @@ package "KorTTY Application" as App #EAF4FF {
   component "Terminal Tabs" as TerminalTabs <<UI>>
   component "SFTP Manager Tabs" as SftpTabs <<UI>>
   component "AI Result Tabs" as AiTabs <<UI>>
+  component "JobScheduler Dialog" as JobSchedulerDialog <<UI>>
+  component "JobScheduler\nMenu Status" as JobSchedulerStatus <<UI>>
 }
 
 package "Tools & Workflows" as Workflows #F2ECFF {
@@ -50,15 +52,18 @@ package "Tools & Workflows" as Workflows #F2ECFF {
   component "Connection Manager" as ConnectionManager <<Workflow>>
   component "Open SFTP" as OpenSftp <<Workflow>>
   component "Snippet Manager" as Snippets <<Workflow>>
+  component "JobScheduler Service" as JobScheduler <<Workflow>>
   component "AI Manager" as AiManager <<Workflow>>
   component "AI Profiles" as AiProfiles <<Workflow>>
   component "Saved Chats" as SavedChatsUi <<Workflow>>
+  component "Headless SSH/SFTP/Rsync\nExecution" as HeadlessExecution <<Workflow>>
 }
 
 database "Configuration & Data" as Data #EAF7EF {
   component "connections.xml" as Connections <<Data>>
   component "credentials.xml" as Credentials <<Security>>
   component "global-settings.xml" as Settings <<Data>>
+  component "job-scheduler.xml" as JobSchedulerData <<Security>>
   component "projects/" as Projects <<Data>>
   component "saved-ai-chats.json" as AiChats <<Data>>
   component "SSH / GPG keys" as Keys <<Security>>
@@ -73,10 +78,19 @@ TabBar --> TerminalTabs
 TabBar --> SftpTabs
 TabBar --> AiTabs
 MenuBar --> Workflows
+MenuBar --> JobSchedulerStatus
 ConnectionManager --> Connections
 QuickConnect --> Connections
 OpenSftp --> SftpTabs
 Snippets --> Settings
+JobSchedulerDialog --> JobScheduler
+JobSchedulerStatus --> JobScheduler
+JobScheduler --> Connections
+JobScheduler --> Snippets : snippet scripts
+JobScheduler --> JobSchedulerData
+JobScheduler --> Credentials
+JobScheduler --> Keys
+JobScheduler --> HeadlessExecution
 AiManager --> SavedChatsUi
 AiProfiles --> Settings
 SavedChatsUi --> AiChats

@@ -16,7 +16,9 @@ import de.kortty.jobscheduler.PinnedHostKey;
 import de.kortty.jobscheduler.RsyncDirection;
 import de.kortty.jobscheduler.ScheduledJob;
 import de.kortty.jobscheduler.SftpSyncDirection;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.Snippet;
 import de.kortty.model.WindowGeometry;
 import de.kortty.security.EncryptionService;
 import javafx.animation.PauseTransition;
@@ -26,8 +28,10 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.SortedList;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.control.Alert;
@@ -36,10 +40,12 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
@@ -59,6 +65,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -92,6 +100,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private static final double DEFAULT_DIALOG_HEIGHT = 800;
     private static final double FORM_LABEL_MIN_WIDTH = 170;
     private static final double TIME_COMBO_WIDTH = 86;
+    private static final double DEFAULT_JOURNAL_DETAIL_DIVIDER_POSITION = 0.72;
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter JOURNAL_TIMESTAMP_FORMAT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
@@ -139,6 +148,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         .toArray(CheckBox[]::new);
 
     private final TextArea commandArea = new TextArea();
+    private final ComboBox<SnippetChoice> snippetCombo = new ComboBox<>();
+    private final TextArea snippetArgumentsArea = new TextArea();
     private final TextArea aiPromptArea = new TextArea();
     private final ComboBox<String> aiProfileCombo = new ComboBox<>();
     private final CheckBox aiAutoApproveCheck = new CheckBox("Auto-approve AI commands");
@@ -161,6 +172,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final TextField archiveDownloadPathField = new TextField();
     private final PasswordField archivePasswordField = new PasswordField();
     private final Label archivePasswordStatusLabel = new Label();
+    private final Spinner<Integer> journalRetentionDaysSpinner = new Spinner<>(
+        0,
+        GlobalSettings.MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS,
+        GlobalSettings.DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS,
+        1
+    );
     private final ComboBox<RsyncDirection> rsyncDirectionCombo = new ComboBox<>();
     private final TextArea rsyncSourcesArea = new TextArea();
     private final TextField rsyncTargetRootField = new TextField();
@@ -168,6 +185,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final List<String> selectedConnectionIds = new ArrayList<>();
     private final List<String> selectedGroupNames = new ArrayList<>();
     private final PauseTransition geometrySaveDelay = new PauseTransition(Duration.millis(500));
+    private final PauseTransition journalDividerSaveDelay = new PauseTransition(Duration.millis(500));
 
     private ScheduledJob selectedJob;
     private String loadedEncryptedArchivePassword;
@@ -351,6 +369,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         archiveFormatCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateArchivePasswordState());
         archiveCompressionSpinner.setEditable(true);
         commandArea.setPrefRowCount(4);
+        refreshSnippetChoices();
+        snippetCombo.setPromptText("Select SnippetManager script");
+        snippetCombo.setMaxWidth(Double.MAX_VALUE);
+        snippetArgumentsArea.setPrefRowCount(3);
+        snippetArgumentsArea.setPromptText("One argument per line");
         aiPromptArea.setPrefRowCount(4);
         archiveSourcesArea.setPrefRowCount(4);
         archiveExcludesArea.setPrefRowCount(3);
@@ -397,6 +420,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         int row = 0;
         addRow(grid, row++, "Action", actionTypeCombo);
         addRow(grid, row++, "Command", commandArea);
+        addRow(grid, row++, "Snippet script", snippetCombo);
+        addRow(grid, row++, "Snippet parameters", snippetArgumentsArea);
         addRow(grid, row++, "AI profile", aiProfileCombo);
         addRow(grid, row++, "AI prompt", aiPromptArea);
         addRow(grid, row++, "Local path", fieldButtonBox(localPathField, localPathButton));
@@ -427,24 +452,35 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     }
 
     private VBox buildJournalView() {
-        journalTable.setItems(journal);
+        SortedList<JobJournalEntry> sortedJournal = new SortedList<>(journal);
+        sortedJournal.comparatorProperty().bind(journalTable.comparatorProperty());
+        journalTable.setItems(sortedJournal);
         journalTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         journalTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         TableColumn<JobJournalEntry, String> startedColumn = new TableColumn<>("Started");
         startedColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(formatJournalTimestamp(cell.getValue().getStartedAt())));
+        startedColumn.setComparator(Comparator.nullsLast(Comparator.<String>naturalOrder()));
         TableColumn<JobJournalEntry, String> statusColumn = new TableColumn<>("Status");
         statusColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().getStatus().name()));
+        statusColumn.setComparator(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
         TableColumn<JobJournalEntry, String> jobColumn = new TableColumn<>("Job");
         jobColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(nonBlank(cell.getValue().getJobName(), "")));
+        jobColumn.setComparator(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
         TableColumn<JobJournalEntry, String> summaryColumn = new TableColumn<>("Summary");
         summaryColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(nonBlank(cell.getValue().getSummary(), "")));
+        summaryColumn.setComparator(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
         journalTable.getColumns().add(startedColumn);
         journalTable.getColumns().add(statusColumn);
         journalTable.getColumns().add(jobColumn);
         journalTable.getColumns().add(summaryColumn);
+        startedColumn.setSortType(TableColumn.SortType.DESCENDING);
+        journalTable.getSortOrder().clear();
+        journalTable.getSortOrder().add(startedColumn);
         TextArea detailArea = new TextArea();
         detailArea.setEditable(false);
         detailArea.setPrefRowCount(8);
+        detailArea.setMinHeight(80);
+        installJournalDetailContextMenu(detailArea);
         journalTable.getSelectionModel().selectedItemProperty().addListener((obs, oldEntry, entry) -> {
             if (entry == null) {
                 detailArea.clear();
@@ -462,9 +498,99 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         deleteButton.disableProperty().bind(journalTable.getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelectedJournalEntries(detailArea));
         HBox buttons = new HBox(8, refreshButton, deleteButton);
-        VBox box = padded(new VBox(10, journalTable, detailArea, buttons));
-        VBox.setVgrow(journalTable, Priority.ALWAYS);
+        HBox retentionControls = buildJournalRetentionControls();
+        SplitPane journalSplitPane = new SplitPane(journalTable, detailArea);
+        journalSplitPane.setOrientation(Orientation.VERTICAL);
+        journalSplitPane.setDividerPositions(getJournalDetailDividerPosition());
+        journalDividerSaveDelay.setOnFinished(event -> saveJournalDetailDividerPosition(journalSplitPane));
+        journalSplitPane.getDividers().get(0).positionProperty().addListener(
+            (observable, oldValue, newValue) -> journalDividerSaveDelay.playFromStart());
+        Platform.runLater(() -> journalSplitPane.setDividerPositions(getJournalDetailDividerPosition()));
+        VBox box = padded(new VBox(10, retentionControls, journalSplitPane, buttons));
+        VBox.setVgrow(journalSplitPane, Priority.ALWAYS);
         return box;
+    }
+
+    private HBox buildJournalRetentionControls() {
+        journalRetentionDaysSpinner.setEditable(true);
+        journalRetentionDaysSpinner.setPrefWidth(90);
+        journalRetentionDaysSpinner.getValueFactory().setValue(getJournalRetentionDays());
+        journalRetentionDaysSpinner.valueProperty().addListener(
+            (observable, oldValue, newValue) -> saveJournalRetentionDays(newValue));
+        journalRetentionDaysSpinner.getEditor().setOnAction(event -> commitJournalRetentionEditorValue());
+        journalRetentionDaysSpinner.getEditor().focusedProperty().addListener((observable, oldValue, focused) -> {
+            if (!focused) {
+                commitJournalRetentionEditorValue();
+            }
+        });
+        Label label = new Label("Auto-delete journal entries older than");
+        Label suffix = new Label("days (default: 14, 0 = never)");
+        HBox controls = new HBox(8, label, journalRetentionDaysSpinner, suffix);
+        controls.setAlignment(Pos.CENTER_LEFT);
+        return controls;
+    }
+
+    private void installJournalDetailContextMenu(TextArea detailArea) {
+        MenuItem copySelected = new MenuItem("Copy selected text");
+        copySelected.setOnAction(event -> copySelectedJournalDetailText(detailArea));
+        ContextMenu contextMenu = new ContextMenu(copySelected);
+        contextMenu.setOnShowing(event -> copySelected.setDisable(detailArea.getSelectedText() == null
+            || detailArea.getSelectedText().isEmpty()));
+        detailArea.setContextMenu(contextMenu);
+    }
+
+    private void copySelectedJournalDetailText(TextArea detailArea) {
+        String selectedText = detailArea.getSelectedText();
+        if (selectedText == null || selectedText.isEmpty()) {
+            return;
+        }
+        ClipboardContent content = new ClipboardContent();
+        content.putString(selectedText);
+        Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    private void commitJournalRetentionEditorValue() {
+        int current = journalRetentionDaysSpinner.getValue() != null ? journalRetentionDaysSpinner.getValue() : 0;
+        String text = journalRetentionDaysSpinner.getEditor().getText();
+        try {
+            int parsed = Integer.parseInt(text != null ? text.trim() : "");
+            int normalized = normalizeJournalRetentionDays(parsed);
+            journalRetentionDaysSpinner.getValueFactory().setValue(normalized);
+            journalRetentionDaysSpinner.getEditor().setText(Integer.toString(normalized));
+        } catch (NumberFormatException e) {
+            journalRetentionDaysSpinner.getValueFactory().setValue(current);
+            journalRetentionDaysSpinner.getEditor().setText(Integer.toString(current));
+        }
+    }
+
+    private int getJournalRetentionDays() {
+        try {
+            return app.getGlobalSettingsManager().getSettings().getJobSchedulerJournalRetentionDays();
+        } catch (Exception e) {
+            logger.debug("Could not read JobScheduler journal retention setting", e);
+            return GlobalSettings.DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS;
+        }
+    }
+
+    private void saveJournalRetentionDays(Integer value) {
+        int retentionDays = normalizeJournalRetentionDays(value);
+        try {
+            app.getGlobalSettingsManager().getSettings().setJobSchedulerJournalRetentionDays(retentionDays);
+            app.getGlobalSettingsManager().save();
+            int deleted = schedulerService.deleteJournalEntriesOlderThanDays(retentionDays);
+            if (deleted > 0) {
+                journal.setAll(schedulerService.getJournal());
+            }
+        } catch (Exception e) {
+            showError("Could not save journal retention setting", e.getMessage());
+        }
+    }
+
+    private int normalizeJournalRetentionDays(Integer value) {
+        if (value == null || value <= 0) {
+            return 0;
+        }
+        return Math.min(value, GlobalSettings.MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS);
     }
 
     private void refreshLater() {
@@ -580,6 +706,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private void loadAction(JobAction action) {
         actionTypeCombo.getSelectionModel().select(action.getType());
         commandArea.setText(nonBlank(action.getCommand(), ""));
+        selectSnippet(action.getSnippetId());
+        snippetArgumentsArea.setText(String.join("\n", action.getSnippetArguments()));
         aiPromptArea.setText(nonBlank(action.getAiPrompt(), ""));
         selectAiProfile(action.getAiProfileId());
         aiAutoApproveCheck.setSelected(action.isAiAutoApproveCommands());
@@ -664,6 +792,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         JobAction action = new JobAction();
         action.setType(actionTypeCombo.getSelectionModel().getSelectedItem());
         action.setCommand(commandArea.getText());
+        action.setSnippetId(selectedSnippetId());
+        action.setSnippetArguments(lines(snippetArgumentsArea.getText()));
         action.setAiPrompt(aiPromptArea.getText());
         action.setAiProfileId(selectedAiProfileId());
         action.setAiAutoApproveCommands(aiAutoApproveCheck.isSelected());
@@ -1374,6 +1504,55 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         aiProfileCombo.getSelectionModel().clearSelection();
     }
 
+    private void refreshSnippetChoices() {
+        String selectedSnippetId = selectedSnippetId();
+        List<SnippetChoice> choices = app.getSnippetManager().getAllSnippets().stream()
+            .filter(snippet -> snippet != null && snippet.getContent() != null && !snippet.getContent().isBlank())
+            .sorted(Comparator.comparing(this::snippetSortKey))
+            .map(this::toSnippetChoice)
+            .toList();
+        snippetCombo.getItems().setAll(choices);
+        selectSnippet(selectedSnippetId);
+    }
+
+    private SnippetChoice toSnippetChoice(Snippet snippet) {
+        String name = nonBlank(snippet.getName(), snippet.getId());
+        String category = snippet.getCategory() != null && !snippet.getCategory().isBlank()
+            ? snippet.getCategory().trim() + " / "
+            : "";
+        String language = snippet.getLanguage() != null && !snippet.getLanguage().isBlank()
+            ? " [" + snippet.getLanguage().trim() + "]"
+            : "";
+        return new SnippetChoice(snippet.getId(), category + name + language);
+    }
+
+    private String snippetSortKey(Snippet snippet) {
+        String category = snippet.getCategory() != null ? snippet.getCategory() : "";
+        String name = snippet.getName() != null ? snippet.getName() : "";
+        return (category + "\n" + name).toLowerCase(Locale.ROOT);
+    }
+
+    private void selectSnippet(String snippetId) {
+        if (snippetId == null || snippetId.isBlank()) {
+            snippetCombo.getSelectionModel().clearSelection();
+            return;
+        }
+        for (SnippetChoice choice : snippetCombo.getItems()) {
+            if (snippetId.equals(choice.id())) {
+                snippetCombo.getSelectionModel().select(choice);
+                return;
+            }
+        }
+        SnippetChoice missing = new SnippetChoice(snippetId, "Missing snippet: " + snippetId);
+        snippetCombo.getItems().add(missing);
+        snippetCombo.getSelectionModel().select(missing);
+    }
+
+    private String selectedSnippetId() {
+        SnippetChoice selected = snippetCombo.getSelectionModel().getSelectedItem();
+        return selected != null ? selected.id() : null;
+    }
+
     private String selectedAiProfileId() {
         String value = aiProfileCombo.getSelectionModel().getSelectedItem();
         if (value == null || value.isBlank()) {
@@ -1479,6 +1658,28 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         }
     }
 
+    private double getJournalDetailDividerPosition() {
+        try {
+            return app.getGlobalSettingsManager().getSettings().getJobSchedulerJournalDetailDividerPosition();
+        } catch (Exception e) {
+            logger.debug("Could not read JobScheduler journal detail divider position", e);
+            return DEFAULT_JOURNAL_DETAIL_DIVIDER_POSITION;
+        }
+    }
+
+    private void saveJournalDetailDividerPosition(SplitPane journalSplitPane) {
+        if (journalSplitPane == null || journalSplitPane.getDividers().isEmpty()) {
+            return;
+        }
+        try {
+            double position = journalSplitPane.getDividers().get(0).getPosition();
+            app.getGlobalSettingsManager().getSettings().setJobSchedulerJournalDetailDividerPosition(position);
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.debug("Could not save JobScheduler journal detail divider position", e);
+        }
+    }
+
     private static Label iconLabel(String symbol, int fontSizePx) {
         Label label = new Label(symbol);
         label.setStyle("-fx-font-size: " + fontSizePx + "px;");
@@ -1560,5 +1761,13 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             return cause.getMessage().trim();
         }
         return error.getClass().getSimpleName();
+    }
+
+    private record SnippetChoice(String id, String label) {
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 }

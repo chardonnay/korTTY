@@ -16,6 +16,7 @@ import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -444,7 +445,7 @@ public class AiAgentActivityPanel extends VBox {
         CompletableFuture<TerminalAgentModels.PasswordResponse> password = pendingPassword;
         if (password != null && !password.isDone()) {
             if (event.getCode() == KeyCode.ENTER) {
-                submitPassword();
+                submitPasswordIfPresent();
                 return true;
             }
             if (pendingPasswordField != null && pendingPasswordField.isFocused()) {
@@ -1306,10 +1307,10 @@ public class AiAgentActivityPanel extends VBox {
         PasswordField passwordField = new PasswordField();
         passwordField.getStyleClass().add("ai-agent-password-field");
         passwordField.setPromptText(I18n.get("common.password"));
-        passwordField.setOnAction(event -> submitPassword());
+        passwordField.setOnAction(event -> submitPasswordIfPresent());
         passwordField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.ENTER) {
-                submitPassword();
+                submitPasswordIfPresent();
                 event.consume();
             }
         });
@@ -1324,7 +1325,10 @@ public class AiAgentActivityPanel extends VBox {
 
         Button submitButton = new Button(I18n.get("dialog.ok"));
         submitButton.setDefaultButton(true);
-        submitButton.setOnAction(event -> submitPassword());
+        submitButton.disableProperty().bind(Bindings.createBooleanBinding(
+            () -> !hasPasswordText(passwordField.getText()),
+            passwordField.textProperty()));
+        submitButton.setOnAction(event -> submitPasswordIfPresent());
         Button cancelButton = new Button(I18n.get("dialog.cancel"));
         cancelButton.setCancelButton(true);
         cancelButton.setOnAction(event -> completePassword(null));
@@ -1369,6 +1373,22 @@ public class AiAgentActivityPanel extends VBox {
         String password = pendingPasswordField != null ? pendingPasswordField.getText() : null;
         boolean cacheForSession = pendingPasswordCacheCheckBox == null || pendingPasswordCacheCheckBox.isSelected();
         completePassword(new TerminalAgentModels.PasswordResponse(password, cacheForSession));
+    }
+
+    private boolean submitPasswordIfPresent() {
+        if (!hasPendingPasswordText()) {
+            return false;
+        }
+        submitPassword();
+        return true;
+    }
+
+    private boolean hasPendingPasswordText() {
+        return pendingPasswordField != null && hasPasswordText(pendingPasswordField.getText());
+    }
+
+    private boolean hasPasswordText(String password) {
+        return password != null && !password.isBlank();
     }
 
     private void completePassword(TerminalAgentModels.PasswordResponse passwordResponse) {

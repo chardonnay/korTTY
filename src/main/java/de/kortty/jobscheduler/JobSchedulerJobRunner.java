@@ -17,6 +17,7 @@ public class JobSchedulerJobRunner {
     private final EncryptionService encryptionService = new EncryptionService();
     private final JobSchedulerArchiveCommandBuilder archiveCommandBuilder = new JobSchedulerArchiveCommandBuilder();
     private final JobSchedulerAiSupport aiSupport;
+    private final JobSchedulerSnippetSupport snippetSupport;
     private final JobSchedulerRsyncSupport rsyncSupport;
 
     public JobSchedulerJobRunner(KorTTYApplication app, JobSchedulerRepository repository) {
@@ -33,6 +34,9 @@ public class JobSchedulerJobRunner {
         this.connectionResolver = new JobSchedulerConnectionResolver(app);
         this.sudoService = new JobSchedulerSudoService(repository);
         this.aiSupport = new JobSchedulerAiSupport(app);
+        this.snippetSupport = new JobSchedulerSnippetSupport(
+            app != null ? app.getSnippetManager() : null,
+            app != null ? app.getSnippetVariableManager() : null);
         this.rsyncSupport = rsyncSupport;
     }
 
@@ -191,6 +195,7 @@ public class JobSchedulerJobRunner {
         JobAction action = job.getAction();
         return switch (action.getType()) {
             case COMMAND -> executeCommand(job, remote, sudoPassword);
+            case SNIPPET_SCRIPT -> executeSnippet(job, remote, sudoPassword);
             case AI_AGENT -> aiSupport.runAiAgent(
                 job,
                 new JobSchedulerAiSupport.ServerConnectionContext(connection.getDisplayName()),
@@ -213,6 +218,30 @@ public class JobSchedulerJobRunner {
 
     private JobExecutionOutcome executeCommand(ScheduledJob job, JobSchedulerRemoteSession remote, String sudoPassword) throws Exception {
         String command = requireNonBlank(job.getAction().getCommand(), "Command is required.");
+        return executeShellCommand(job, remote, sudoPassword, command, "Command completed.", "Command failed.", null);
+    }
+
+    private JobExecutionOutcome executeSnippet(ScheduledJob job, JobSchedulerRemoteSession remote, String sudoPassword) throws Exception {
+        JobSchedulerSnippetSupport.BuiltSnippetScript snippet = snippetSupport.build(job.getAction());
+        return executeShellCommand(
+            job,
+            remote,
+            sudoPassword,
+            snippet.command(),
+            "Snippet script completed.",
+            "Snippet script failed.",
+            snippet.detail());
+    }
+
+    private JobExecutionOutcome executeShellCommand(
+        ScheduledJob job,
+        JobSchedulerRemoteSession remote,
+        String sudoPassword,
+        String command,
+        String successSummary,
+        String failureSummary,
+        String detailOverride) throws Exception {
+
         if (job.getWorkingDirectory() != null && !job.getWorkingDirectory().isBlank()) {
             command = "cd " + ShellEscaper.quote(job.getWorkingDirectory()) + " && " + command;
         }
@@ -220,9 +249,10 @@ public class JobSchedulerJobRunner {
             ? JobSchedulerArchiveCommandBuilder.sudoWrap(command, sudoPassword)
             : "sh -lc " + ShellEscaper.quote(command);
         JobSchedulerRemoteSession.CommandResult result = remote.execute(shellCommand, sudoPassword != null ? sudoPassword + "\n" : null);
+        String detail = detailOverride != null && !detailOverride.isBlank() ? detailOverride : shellCommand;
         return result.isSuccess()
-            ? JobExecutionOutcome.success("Command completed.", result.stdout(), result.stderr(), shellCommand)
-            : JobExecutionOutcome.failed("Command failed.", result.exitCode(), result.stdout(), result.stderr(), shellCommand);
+            ? JobExecutionOutcome.success(successSummary, result.stdout(), result.stderr(), detail)
+            : JobExecutionOutcome.failed(failureSummary, result.exitCode(), result.stdout(), result.stderr(), detail);
     }
 
     private JobExecutionOutcome executeUpload(JobAction action, String runId, JobSchedulerRemoteSession remote, String sudoPassword) throws Exception {

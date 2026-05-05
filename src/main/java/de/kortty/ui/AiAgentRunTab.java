@@ -7,6 +7,7 @@ import de.kortty.model.TerminalAgentModels;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -270,10 +271,13 @@ public class AiAgentRunTab extends Tab {
             cacheForSessionCheckBox.setSelected(true);
             dialog.getDialogPane().setContent(new VBox(8, new Label(request.userMessage()), passwordField, cacheForSessionCheckBox));
             Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
-            passwordField.setOnAction(event -> okButton.fire());
+            okButton.disableProperty().bind(Bindings.createBooleanBinding(
+                () -> !hasPasswordText(passwordField),
+                passwordField.textProperty()));
+            passwordField.setOnAction(event -> fireOkIfPasswordPresent(passwordField, okButton));
             passwordField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
                 if (event.getCode() == KeyCode.ENTER) {
-                    okButton.fire();
+                    fireOkIfPasswordPresent(passwordField, okButton);
                     event.consume();
                 }
             });
@@ -281,6 +285,17 @@ public class AiAgentRunTab extends Tab {
             return dialog.showAndWait()
                 .map(password -> new TerminalAgentModels.PasswordResponse(password, cacheForSessionCheckBox.isSelected()))
                 .orElse(null);
+        }
+
+        private boolean hasPasswordText(PasswordField passwordField) {
+            String password = passwordField != null ? passwordField.getText() : null;
+            return password != null && !password.isBlank();
+        }
+
+        private void fireOkIfPasswordPresent(PasswordField passwordField, Button okButton) {
+            if (hasPasswordText(passwordField)) {
+                okButton.fire();
+            }
         }
 
         @Override

@@ -9,6 +9,7 @@ import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.TerminalAgentModels;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -604,10 +605,13 @@ public class AiAgentPlanTab extends Tab {
         VBox content = new VBox(8, wrappedLabel(I18n.get("ai.plan.sudo.message")), passwordField, cacheForSessionCheckBox);
         dialog.getDialogPane().setContent(content);
         Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
-        passwordField.setOnAction(event -> okButton.fire());
+        okButton.disableProperty().bind(Bindings.createBooleanBinding(
+            () -> !hasPasswordText(passwordField),
+            passwordField.textProperty()));
+        passwordField.setOnAction(event -> fireOkIfPasswordPresent(passwordField, okButton));
         passwordField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.ENTER) {
-                okButton.fire();
+                fireOkIfPasswordPresent(passwordField, okButton);
                 event.consume();
             }
         });
@@ -616,6 +620,17 @@ public class AiAgentPlanTab extends Tab {
             : null);
         Platform.runLater(passwordField::requestFocus);
         return dialog.showAndWait();
+    }
+
+    private boolean hasPasswordText(PasswordField passwordField) {
+        String password = passwordField != null ? passwordField.getText() : null;
+        return password != null && !password.isBlank();
+    }
+
+    private void fireOkIfPasswordPresent(PasswordField passwordField, Button okButton) {
+        if (hasPasswordText(passwordField)) {
+            okButton.fire();
+        }
     }
 
     private void executeAcceptedPlan() {

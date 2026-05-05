@@ -6,6 +6,7 @@ import org.testng.annotations.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -60,6 +61,32 @@ class JobSchedulerRepositoryTest {
     }
 
     @Test
+    void saveAndLoadPreservesSnippetScriptAction() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-snippet");
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            ScheduledJob job = new ScheduledJob();
+            job.setName("Snippet cleanup");
+            job.getAction().setType(JobActionType.SNIPPET_SCRIPT);
+            job.getAction().setSnippetId("snippet-1");
+            job.getAction().setSnippetArguments(List.of("--dry-run", "/srv/data"));
+            repository.upsertJob(job);
+            repository.save();
+
+            JobSchedulerRepository reloaded = new JobSchedulerRepository(dir);
+            reloaded.load();
+
+            JobAction action = reloaded.getJobs().get(0).getAction();
+            assertThat(action.getType()).isEqualTo(JobActionType.SNIPPET_SCRIPT);
+            assertThat(action.getSnippetId()).isEqualTo("snippet-1");
+            assertThat(action.getSnippetArguments()).containsExactly("--dry-run", "/srv/data").inOrder();
+        } finally {
+            Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void deleteJournalEntriesRemovesOnlySelectedEntriesAndPersists() throws Exception {
         Path dir = Files.createTempDirectory("kortty-job-scheduler-journal-delete");
         try {
@@ -81,6 +108,43 @@ class JobSchedulerRepositoryTest {
 
             assertThat(reloaded.getJournal().stream().map(JobJournalEntry::getId).toList())
                 .containsExactly(second.getId());
+        } finally {
+            Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void deleteJournalEntriesOlderThanRemovesOnlyExpiredTimestampedEntries() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-journal-retention");
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            ZonedDateTime now = ZonedDateTime.parse("2026-05-05T12:00:00+02:00[Europe/Berlin]");
+            JobJournalEntry oldEntry = JobJournalEntry.system(JobRunStatus.SUCCESS, "old", "old details");
+            oldEntry.setStartedAt(now.minusDays(4).toString());
+            oldEntry.setFinishedAt(now.minusDays(3).toString());
+            JobJournalEntry recentEntry = JobJournalEntry.system(JobRunStatus.SUCCESS, "recent", "recent details");
+            recentEntry.setStartedAt(now.minusHours(4).toString());
+            recentEntry.setFinishedAt(now.minusHours(3).toString());
+            JobJournalEntry invalidTimestampEntry = JobJournalEntry.system(JobRunStatus.SUCCESS, "invalid", "invalid details");
+            invalidTimestampEntry.setStartedAt("not-a-timestamp");
+            invalidTimestampEntry.setFinishedAt("also-not-a-timestamp");
+            repository.appendJournal(oldEntry);
+            repository.appendJournal(recentEntry);
+            repository.appendJournal(invalidTimestampEntry);
+
+            int deleted = repository.deleteJournalEntriesOlderThan(now.minusDays(2).toInstant());
+            repository.save();
+
+            assertThat(deleted).isEqualTo(1);
+            assertThat(repository.getJournal().stream().map(JobJournalEntry::getId).toList())
+                .containsExactly(recentEntry.getId(), invalidTimestampEntry.getId());
+
+            JobSchedulerRepository reloaded = new JobSchedulerRepository(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getJournal().stream().map(JobJournalEntry::getId).toList())
+                .containsExactly(recentEntry.getId(), invalidTimestampEntry.getId());
         } finally {
             Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
             Files.deleteIfExists(dir);

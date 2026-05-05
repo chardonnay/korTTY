@@ -36,8 +36,13 @@ skinparam component<<Optional>> {
   BackgroundColor #FDEEEF
   BorderColor #B94A48
 }
+skinparam component<<Workflow>> {
+  BackgroundColor #FFF7E6
+  BorderColor #C77D00
+}
 
 component "KorTTY\n de.kortty" as KorTTY <<App>>
+component "JobScheduler\n de.kortty.jobscheduler" as JobScheduler <<Workflow>>
 
 package "Java Platform" #EAF4FF {
   component "JavaFX 21\ncontrols, fxml, graphics, swing" as JavaFx <<App>>
@@ -70,9 +75,15 @@ package "Utilities" #F7FAFE {
 
 package "Optional runtime" #FDEEEF {
   component "mosh4j 2.0\nprotocol, crypto,\ntransport, terminal, core" as Mosh4j <<Optional>>
+  component "System rsync + ssh\nfor scheduler sync jobs" as RsyncSsh <<Optional>>
 }
 
 KorTTY --> JavaFx
+KorTTY --> JobScheduler
+JobScheduler --> Sshd
+JobScheduler --> Jaxb
+JobScheduler --> Zip4j
+JobScheduler --> RsyncSsh
 KorTTY --> Sshd
 Sshd --> Ed25519
 KorTTY --> SithTerm

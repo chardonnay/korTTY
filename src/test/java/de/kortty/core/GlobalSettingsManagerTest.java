@@ -7,6 +7,7 @@ import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.TerminalAgentExecutionTarget;
 import org.testng.annotations.Test;
 
@@ -384,6 +385,41 @@ class GlobalSettingsManagerTest {
             reloaded.load();
 
             assertThat(reloaded.getSettings().isJobSchedulerMenuStatusEnabled()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void jobSchedulerJournalSettingsDefaultClampAndPersist() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-job-scheduler-journal");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getJobSchedulerJournalRetentionDays())
+                .isEqualTo(GlobalSettings.DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS);
+            assertThat(manager.getSettings().getJobSchedulerJournalDetailDividerPosition()).isWithin(0.0001).of(0.72);
+
+            manager.getSettings().setJobSchedulerJournalRetentionDays(5000);
+            manager.getSettings().setJobSchedulerJournalDetailDividerPosition(0.82);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getJobSchedulerJournalRetentionDays())
+                .isEqualTo(GlobalSettings.MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS);
+            assertThat(reloaded.getSettings().getJobSchedulerJournalDetailDividerPosition()).isWithin(0.0001).of(0.82);
+
+            reloaded.getSettings().setJobSchedulerJournalRetentionDays(-1);
+            reloaded.getSettings().setJobSchedulerJournalDetailDividerPosition(2.0);
+
+            assertThat(reloaded.getSettings().getJobSchedulerJournalRetentionDays()).isEqualTo(0);
+            assertThat(reloaded.getSettings().getJobSchedulerJournalDetailDividerPosition()).isWithin(0.0001).of(0.9);
+
+            reloaded.getSettings().setJobSchedulerJournalRetentionDays(null);
+            assertThat(reloaded.getSettings().getJobSchedulerJournalRetentionDays())
+                .isEqualTo(GlobalSettings.DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

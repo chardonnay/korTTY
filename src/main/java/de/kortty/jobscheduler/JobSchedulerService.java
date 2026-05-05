@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,6 +28,7 @@ public class JobSchedulerService {
     private static final Logger logger = LoggerFactory.getLogger(JobSchedulerService.class);
     private static final long WORKER_SHUTDOWN_TIMEOUT_SECONDS = 30L;
 
+    private final KorTTYApplication app;
     private final JobSchedulerRepository repository;
     private final JobScheduleCalculator scheduleCalculator;
     private final JobRunner jobRunner;
@@ -46,6 +48,7 @@ public class JobSchedulerService {
 
     private JobSchedulerService(KorTTYApplication app, JobSchedulerRepository repository) {
         this(
+            app,
             repository,
             new JobScheduleCalculator(),
             new DefaultPinningJobRunner(app, repository),
@@ -58,6 +61,17 @@ public class JobSchedulerService {
         JobRunner jobRunner,
         Clock clock) {
 
+        this(null, repository, scheduleCalculator, jobRunner, clock);
+    }
+
+    private JobSchedulerService(
+        KorTTYApplication app,
+        JobSchedulerRepository repository,
+        JobScheduleCalculator scheduleCalculator,
+        JobRunner jobRunner,
+        Clock clock) {
+
+        this.app = app;
         this.repository = repository;
         this.scheduleCalculator = scheduleCalculator;
         this.jobRunner = jobRunner;
@@ -76,6 +90,7 @@ public class JobSchedulerService {
 
     public void load() throws Exception {
         repository.load();
+        pruneJournalByConfiguredRetention();
         recomputeNextRuns();
         repository.save();
     }
@@ -159,6 +174,19 @@ public class JobSchedulerService {
 
     public int deleteJournalEntries(Collection<String> entryIds) throws Exception {
         int deleted = repository.deleteJournalEntries(entryIds);
+        if (deleted > 0) {
+            repository.save();
+            notifyListeners();
+        }
+        return deleted;
+    }
+
+    public int deleteJournalEntriesOlderThanDays(int retentionDays) throws Exception {
+        if (retentionDays <= 0) {
+            return 0;
+        }
+        Instant cutoff = ZonedDateTime.now(clock).minusDays(retentionDays).toInstant();
+        int deleted = repository.deleteJournalEntriesOlderThan(cutoff);
         if (deleted > 0) {
             repository.save();
             notifyListeners();
@@ -270,6 +298,7 @@ public class JobSchedulerService {
         if (draining) {
             return;
         }
+        pruneJournalByConfiguredRetention();
         ZonedDateTime now = ZonedDateTime.now(clock);
         for (ScheduledJob job : repository.getJobs()) {
             if (!job.isEnabled() || !job.getSchedule().isEnabled()) {
@@ -397,6 +426,30 @@ public class JobSchedulerService {
         for (ScheduledJob job : repository.getJobs()) {
             updateNextRun(job);
             repository.upsertJob(job);
+        }
+    }
+
+    private void pruneJournalByConfiguredRetention() {
+        int retentionDays = configuredJournalRetentionDays();
+        if (retentionDays <= 0) {
+            return;
+        }
+        try {
+            deleteJournalEntriesOlderThanDays(retentionDays);
+        } catch (Exception e) {
+            logger.warn("Could not prune JobScheduler journal entries older than {} day(s)", retentionDays, e);
+        }
+    }
+
+    private int configuredJournalRetentionDays() {
+        try {
+            if (app == null || app.getGlobalSettingsManager() == null) {
+                return 0;
+            }
+            return app.getGlobalSettingsManager().getSettings().getJobSchedulerJournalRetentionDays();
+        } catch (Exception e) {
+            logger.debug("Could not read JobScheduler journal retention setting", e);
+            return 0;
         }
     }
 
