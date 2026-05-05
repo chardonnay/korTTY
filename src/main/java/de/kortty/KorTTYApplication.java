@@ -10,6 +10,7 @@ import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.ThemeManager;
+import de.kortty.core.TerminalEffectPluginManager;
 import de.kortty.core.BackupManager;
 import de.kortty.core.AiChatManager;
 import de.kortty.teamwork.TeamworkSyncService;
@@ -60,6 +61,7 @@ public class KorTTYApplication extends Application {
     private SnippetVariableManager snippetVariableManager;
     private GlobalSettingsManager globalSettingsManager;
     private ThemeManager themeManager;
+    private TerminalEffectPluginManager terminalEffectPluginManager;
     private BackupManager backupManager;
     private AiChatManager aiChatManager;
     private TeamworkSyncService teamworkSyncService;
@@ -104,6 +106,7 @@ public class KorTTYApplication extends Application {
         snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
         themeManager = new ThemeManager(configDir);
+        terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
         aiChatManager = new AiChatManager(configDir);
         
         // Register JMX MBean
@@ -208,6 +211,12 @@ public class KorTTYApplication extends Application {
                 jobSchedulerService.start();
             } catch (Exception e) {
                 logger.warn("Failed to load GPG keys or credentials", e);
+            }
+
+            try {
+                terminalEffectPluginManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load terminal effect plugins", e);
             }
             
             // Start teamwork sync and recycle bin (separate try-catch for accurate error context)
@@ -479,6 +488,10 @@ public class KorTTYApplication extends Application {
     
     public ThemeManager getThemeManager() {
         return themeManager;
+    }
+
+    public TerminalEffectPluginManager getTerminalEffectPluginManager() {
+        return terminalEffectPluginManager;
     }
 
     public AiChatManager getAiChatManager() {

@@ -2418,13 +2418,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private static boolean isCursorBlink(String cursorStyle) {
-        return cursorStyle != null && cursorStyle.toUpperCase().startsWith("BLINK");
+        return TerminalCursorStyleSupport.isBlinkingStyle(cursorStyle);
     }
 
     private static String deriveCursorStyle(String currentStyle, boolean blink) {
-        String s = (currentStyle != null && !currentStyle.isEmpty()) ? currentStyle : "BLINK_BLOCK";
-        String suffix = s.contains("_") ? s.substring(s.indexOf('_') + 1) : "BLOCK";
-        return blink ? "BLINK_" + suffix : "STEADY_" + suffix;
+        return TerminalCursorStyleSupport.withBlinkingPreference(currentStyle, blink);
     }
 
     

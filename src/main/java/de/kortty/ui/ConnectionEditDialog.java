@@ -14,6 +14,7 @@ import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Theme;
 import de.kortty.model.WindowGeometry;
+import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
@@ -75,6 +76,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private ColorPicker backgroundColorPicker;
     private CheckBox closeWithoutConfirmCheck;
     private CheckBox commandTimestampsCheck;
+    private ComboBox<TerminalEffectUiSupport.Option> terminalEffectCombo;
+    private TerminalEffectUiSupport.AnimationSpeedControls terminalEffectSpeedControls;
     
     // Terminal Logging
     private CheckBox enableLoggingCheck;
@@ -564,6 +567,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 } else {
                     connection.setSettings(null); // Use global settings
                 }
+                saveTerminalEffectSettings();
                 
                 // Save tunnel settings (checkboxes control enabled state in models)
                 // Tunnels are managed through add/edit/remove buttons
@@ -761,6 +765,18 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         commandTimestampsCheck = new CheckBox(I18n.get("settings.terminal.commandTimestamps"));
         commandTimestampsCheck.setSelected(connSettings != null && connSettings.isCommandTimestampsEnabled());
         commandTimestampsCheck.setTooltip(new javafx.scene.control.Tooltip(I18n.get("settings.terminal.commandTimestamps.tooltip")));
+
+        terminalEffectCombo = new ComboBox<>();
+        terminalEffectCombo.setPrefWidth(220);
+        TerminalEffectUiSupport.configureComboBox(terminalEffectCombo);
+        TerminalEffectUiSupport.selectPlugin(terminalEffectCombo, connection.getTerminalEffectPluginId());
+
+        terminalEffectSpeedControls = TerminalEffectUiSupport.createAnimationSpeedControls(
+                connection.getTerminalEffectAnimationSpeed() != null
+                        ? connection.getTerminalEffectAnimationSpeed()
+                        : TerminalEffectAnimationSpeed.DEFAULT);
+        terminalEffectCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateTerminalEffectSpeedState());
+        updateTerminalEffectSpeedState();
         
         // Theme selector
         themeCombo = new ComboBox<>();
@@ -831,15 +847,56 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         useCustomSettingsCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
             settingsGrid.setDisable(!newVal);
         });
+
+        GridPane terminalEffectGrid = new GridPane();
+        terminalEffectGrid.setHgap(10);
+        terminalEffectGrid.setVgap(10);
+        terminalEffectGrid.setPadding(new Insets(10));
+        int effectRow = 0;
+        terminalEffectGrid.add(new Label(I18n.get("connection.terminalEffect")), 0, effectRow);
+        terminalEffectGrid.add(terminalEffectCombo, 1, effectRow++);
+        terminalEffectGrid.add(new Label(I18n.get("connection.animationSpeed")), 0, effectRow);
+        terminalEffectGrid.add(terminalEffectSpeedControls.root(), 1, effectRow);
+
+        Label terminalEffectLabel = new Label(I18n.get("connection.terminalEffect"));
+        terminalEffectLabel.setStyle("-fx-font-weight: bold;");
         
         vbox.getChildren().addAll(
                 useCustomSettingsCheck,
                 new Label(I18n.get("connEdit.customSettingsInfo")),
                 settingsGrid
         );
+        if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            vbox.getChildren().addAll(
+                    new Separator(),
+                    terminalEffectLabel,
+                    terminalEffectGrid
+            );
+        }
         
         tab.setContent(vbox);
         return tab;
+    }
+
+    private void updateTerminalEffectSpeedState() {
+        String pluginId = TerminalEffectUiSupport.selectedPluginId(terminalEffectCombo);
+        boolean enabled = pluginId != null;
+        if (terminalEffectSpeedControls != null) {
+            terminalEffectSpeedControls.setDisable(!enabled);
+        }
+    }
+
+    private void saveTerminalEffectSettings() {
+        if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            return;
+        }
+        String pluginId = TerminalEffectUiSupport.selectedPluginId(terminalEffectCombo);
+        connection.setTerminalEffectPluginId(pluginId);
+        connection.setTerminalEffectAnimationSpeed(TerminalEffectUiSupport.animationSpeedForStorage(
+                pluginId,
+                terminalEffectSpeedControls != null
+                        ? terminalEffectSpeedControls.getValue()
+                        : TerminalEffectAnimationSpeed.DEFAULT));
     }
     
     private void browseForKey() {

@@ -34,6 +34,7 @@ state SplitOptional <<UI>>
 state SinglePane <<Active>>
 state Broadcast <<Active>>
 state Reconnecting <<UI>>
+state EffectActive <<UI>>
 
 [*] --> NewTab : User opens tab
 NewTab --> Connecting : Start connection
@@ -44,17 +45,27 @@ Failed --> [*] : Close tab
 
 Connected --> SplitOptional : Optional split
 Connected --> SinglePane : Single pane
+Connected --> EffectActive : Select terminal effect
 SplitOptional --> Broadcast : Enable broadcast
 SinglePane --> Connected
 SplitOptional --> Connected
 Broadcast --> Connected
+EffectActive --> Connected : Disable or switch effect
 
 Connected --> Reconnecting : Reconnect requested
+EffectActive --> Reconnecting : Reconnect with effect
 Reconnecting --> Connecting : Close and reconnect
 Connected --> [*] : Close tab
+EffectActive --> [*] : Close tab\nstop effect
 
 note right of Connected
   Split panes and broadcast are UI modes
   around the same terminal-session lifecycle.
+end note
+
+note right of EffectActive
+  Terminal effects are per terminal view.
+  They can apply appearance, overlays,
+  and connector wrappers.
 end note
 @enduml

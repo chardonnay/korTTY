@@ -35,6 +35,7 @@ import de.kortty.persistence.exporter.ConnectionExporter;
 import de.kortty.persistence.exporter.KorTTYExporter;
 import de.kortty.persistence.exporter.MTPuTTYExporter;
 import de.kortty.persistence.exporter.MobaXTermExporter;
+import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.security.PasswordVault;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -920,6 +921,7 @@ public class MainWindow {
             createConnectionsMenu(),
             createManagementMenu(),
             createToolsMenu(),
+            createPluginsMenu(),
             createViewMenu(target),
             createHelpMenu(),
             createJobSchedulerStatusMenu(target)
@@ -1098,6 +1100,14 @@ public class MainWindow {
         return toolsMenu;
     }
 
+    private Menu createPluginsMenu() {
+        Menu pluginsMenu = new Menu(I18n.get("menu.plugins"));
+        MenuItem terminalEffects = new MenuItem(I18n.get("menu.plugins.terminalEffects"));
+        terminalEffects.setOnAction(event -> showTerminalEffectPluginManager());
+        pluginsMenu.getItems().add(terminalEffects);
+        return pluginsMenu;
+    }
+
     private Menu createJobSchedulerStatusMenu(MenuBarTarget target) {
         Menu jobsMenu = new Menu(I18n.get("jobscheduler.menu.noJobs"));
         if (target == MenuBarTarget.WINDOW) {
@@ -1172,13 +1182,173 @@ public class MainWindow {
         resetZoom.setAccelerator(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.ALT_DOWN));
         resetZoom.setOnAction(e -> resetTerminalZoom());
 
+        Menu terminalEffectMenu = createTerminalEffectMenu(null);
+        terminalEffectMenu.setOnShowing(event ->
+                rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab()));
+
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
 
         viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, new SeparatorMenuItem(),
-            zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), fullscreen);
+            zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(), fullscreen);
         return viewMenu;
+    }
+
+    private Menu createTerminalEffectMenu(TerminalTab terminalTab) {
+        Menu menu = new Menu(I18n.get("plugin.terminalEffect"));
+        rebuildTerminalEffectMenu(menu, terminalTab);
+        return menu;
+    }
+
+    private void rebuildTerminalEffectMenu(Menu menu, TerminalTab terminalTab) {
+        menu.getItems().clear();
+        if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            menu.setDisable(true);
+            return;
+        }
+        menu.setDisable(false);
+        ToggleGroup group = new ToggleGroup();
+        String activePluginId = terminalTab != null ? terminalTab.getTerminalView().getTerminalEffectPluginId() : null;
+
+        RadioMenuItem noneItem = new RadioMenuItem(I18n.get("plugin.none"));
+        noneItem.setToggleGroup(group);
+        noneItem.setSelected(activePluginId == null);
+        noneItem.setDisable(terminalTab == null);
+        noneItem.setOnAction(event -> {
+            if (terminalTab != null) {
+                terminalTab.getTerminalView().setTerminalEffectPluginId(null);
+                rememberTerminalEffectPluginId(terminalTab, null);
+                updateAllTabContextMenus();
+            }
+        });
+        menu.getItems().add(noneItem);
+
+        var manager = app.getTerminalEffectPluginManager();
+        if (manager == null || manager.getPlugins().isEmpty()) {
+            menu.setDisable(terminalTab == null);
+            return;
+        }
+
+        menu.getItems().add(new SeparatorMenuItem());
+        for (var plugin : manager.getPlugins()) {
+            RadioMenuItem pluginItem = new RadioMenuItem(plugin.displayName());
+            pluginItem.setToggleGroup(group);
+            pluginItem.setSelected(plugin.id().equals(activePluginId));
+            pluginItem.setDisable(terminalTab == null);
+            pluginItem.setOnAction(event -> {
+                if (terminalTab != null) {
+                    terminalTab.getTerminalView().setTerminalEffectPluginId(plugin.id());
+                    rememberTerminalEffectPluginId(terminalTab, plugin.id());
+                    updateAllTabContextMenus();
+                }
+            });
+            menu.getItems().add(pluginItem);
+        }
+        menu.getItems().add(new SeparatorMenuItem());
+        menu.getItems().add(createTerminalEffectAnimationSpeedMenuItem(terminalTab, activePluginId != null));
+        menu.setDisable(false);
+    }
+
+    private CustomMenuItem createTerminalEffectAnimationSpeedMenuItem(TerminalTab terminalTab, boolean enabled) {
+        double currentSpeed = terminalTab != null
+                ? terminalTab.getTerminalView().getTerminalEffectAnimationSpeed()
+                : TerminalEffectAnimationSpeed.DEFAULT;
+        TerminalEffectUiSupport.AnimationSpeedControls speedControls =
+                TerminalEffectUiSupport.createAnimationSpeedControls(currentSpeed);
+        speedControls.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (terminalTab != null) {
+                terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(newValue.doubleValue());
+                rememberTerminalEffectAnimationSpeed(terminalTab, newValue.doubleValue());
+            }
+        });
+
+        VBox content = speedControls.root();
+        content.setPadding(new Insets(4, 8, 6, 8));
+        CustomMenuItem item = new CustomMenuItem(content);
+        item.setHideOnClick(false);
+        item.setDisable(terminalTab == null || !enabled);
+        return item;
+    }
+
+    private void rememberTerminalEffectAnimationSpeed(TerminalTab terminalTab, double speed) {
+        if (terminalTab == null || terminalTab.getTerminalView() == null) {
+            return;
+        }
+        String pluginId = terminalTab.getTerminalView().getTerminalEffectPluginId();
+        Double speedForStorage = TerminalEffectUiSupport.animationSpeedForStorage(pluginId, speed);
+        ServerConnection connection = terminalTab.getConnection();
+        if (connection != null) {
+            connection.setTerminalEffectAnimationSpeed(speedForStorage);
+        }
+
+        if (rememberSavedConnectionTerminalEffectAnimationSpeed(connection, speedForStorage)) {
+            return;
+        }
+        rememberQuickConnectTerminalEffectAnimationSpeed(speedForStorage);
+    }
+
+    private boolean rememberSavedConnectionTerminalEffectAnimationSpeed(
+            ServerConnection connection,
+            Double speedForStorage) {
+        if (connection == null || connection.getId() == null || app == null || app.getConfigManager() == null) {
+            return false;
+        }
+        ServerConnection stored = app.getConfigManager().getConnectionById(connection.getId());
+        if (stored == null) {
+            return false;
+        }
+        stored.setTerminalEffectAnimationSpeed(speedForStorage);
+        try {
+            app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+        } catch (Exception e) {
+            logger.warn("Could not persist terminal effect animation speed for '{}': {}",
+                    stored.getDisplayName(), e.getMessage());
+        }
+        return true;
+    }
+
+    private void rememberQuickConnectTerminalEffectAnimationSpeed(Double speedForStorage) {
+        if (app == null || app.getGlobalSettingsManager() == null) {
+            return;
+        }
+        try {
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            if (settings != null) {
+                settings.setLastQuickConnectTerminalEffectAnimationSpeed(speedForStorage);
+                app.getGlobalSettingsManager().save();
+            }
+        } catch (Exception e) {
+            logger.warn("Could not persist QuickConnect terminal effect animation speed: {}", e.getMessage());
+        }
+    }
+
+    private void rememberTerminalEffectPluginId(TerminalTab terminalTab, String pluginId) {
+        if (terminalTab == null) {
+            return;
+        }
+        ServerConnection connection = terminalTab.getConnection();
+        if (connection != null) {
+            connection.setTerminalEffectPluginId(pluginId);
+        }
+        rememberSavedConnectionTerminalEffectPluginId(connection, pluginId);
+    }
+
+    private void rememberSavedConnectionTerminalEffectPluginId(ServerConnection connection, String pluginId) {
+        if (connection == null || connection.getId() == null || app == null || app.getConfigManager() == null) {
+            return;
+        }
+        ServerConnection stored = app.getConfigManager().getConnectionById(connection.getId());
+        if (stored == null) {
+            return;
+        }
+        stored.setTerminalEffectPluginId(pluginId);
+        try {
+            app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
+        } catch (Exception e) {
+            logger.warn("Could not persist terminal effect plugin for '{}': {}",
+                    stored.getDisplayName(), e.getMessage());
+        }
     }
 
     private Menu createHelpMenu() {
@@ -1281,7 +1451,13 @@ public class MainWindow {
      * Opens a new SSH connection in a new tab with optional history restore and temporary SSH key.
      */
     public void openConnection(ServerConnection connection, String password, String historyToRestore, de.kortty.model.TemporarySSHKey temporarySSHKey) {
-        openConnectionAndReturnTab(connection, password, historyToRestore, temporarySSHKey);
+        openConnectionAndReturnTab(
+                connection,
+                password,
+                historyToRestore,
+                temporarySSHKey,
+                connection != null ? connection.getTerminalEffectPluginId() : null,
+                connection != null ? connection.getTerminalEffectAnimationSpeed() : null);
     }
     
     /**
@@ -1289,7 +1465,27 @@ public class MainWindow {
      * The tab starts with NO group (independent from connection group).
      */
     private TerminalTab openConnectionAndReturnTab(ServerConnection connection, String password, String historyToRestore, de.kortty.model.TemporarySSHKey temporarySSHKey) {
+        return openConnectionAndReturnTab(
+                connection,
+                password,
+                historyToRestore,
+                temporarySSHKey,
+                connection != null ? connection.getTerminalEffectPluginId() : null,
+                connection != null ? connection.getTerminalEffectAnimationSpeed() : null);
+    }
+
+    private TerminalTab openConnectionAndReturnTab(
+            ServerConnection connection,
+            String password,
+            String historyToRestore,
+            de.kortty.model.TemporarySSHKey temporarySSHKey,
+            String terminalEffectPluginId,
+            Double terminalEffectAnimationSpeed) {
         try {
+            if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+                terminalEffectPluginId = null;
+                terminalEffectAnimationSpeed = null;
+            }
             // Resolve temporary SSH key when connection was configured with one
             de.kortty.model.TemporarySSHKey keyToUse = temporarySSHKey;
             if (keyToUse == null && connection.getTemporaryKeyContent() != null && !connection.getTemporaryKeyContent().trim().isEmpty()) {
@@ -1326,6 +1522,10 @@ public class MainWindow {
             // Create terminal tab with SithTermFX
             // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
             TerminalTab terminalTab = new TerminalTab(connection, password, keyToUse);
+            if (terminalEffectAnimationSpeed != null) {
+                terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(terminalEffectAnimationSpeed);
+            }
+            terminalTab.getTerminalView().setTerminalEffectPluginId(terminalEffectPluginId);
             
             // Set callback for "Split with new connection" feature
             terminalTab.getTerminalView().setNewConnectionCallback(this::requestNewConnectionForSplit);
@@ -1473,6 +1673,11 @@ public class MainWindow {
                 ServerConnection stored = app.getConfigManager().getConnectionById(result.connection().getId());
                 if (stored != null) {
                     stored.incrementUsageCount();
+                    if (result.connection().getSettings() != null) {
+                        stored.setSettings(new ConnectionSettings(result.connection().getSettings()));
+                    }
+                    stored.setTerminalEffectPluginId(result.connection().getTerminalEffectPluginId());
+                    stored.setTerminalEffectAnimationSpeed(result.connection().getTerminalEffectAnimationSpeed());
                     app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
                 }
             }
@@ -1546,6 +1751,11 @@ public class MainWindow {
                 ServerConnection stored = app.getConfigManager().getConnectionById(result.connection().getId());
                 if (stored != null) {
                     stored.incrementUsageCount();
+                    if (result.connection().getSettings() != null) {
+                        stored.setSettings(new ConnectionSettings(result.connection().getSettings()));
+                    }
+                    stored.setTerminalEffectPluginId(result.connection().getTerminalEffectPluginId());
+                    stored.setTerminalEffectAnimationSpeed(result.connection().getTerminalEffectAnimationSpeed());
                     app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
                 }
             }
@@ -1685,8 +1895,19 @@ public class MainWindow {
                 ServerConnection conn = terminalTab.getConnection();
                 if (conn != null && conn.getId() != null) {
                     ServerConnection stored = app.getConfigManager().getConnectionById(conn.getId());
-                    if (stored != null && stored.getSettings() != null) {
-                        terminalTab.applyConnectionSettings(stored.getSettings());
+                    if (stored != null) {
+                        if (stored.getSettings() != null) {
+                            terminalTab.applyConnectionSettings(stored.getSettings());
+                        }
+                        if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+                            terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(
+                                    stored.getTerminalEffectAnimationSpeed() != null
+                                            ? stored.getTerminalEffectAnimationSpeed()
+                                            : TerminalEffectAnimationSpeed.DEFAULT);
+                            terminalTab.getTerminalView().setTerminalEffectPluginId(stored.getTerminalEffectPluginId());
+                        } else {
+                            terminalTab.getTerminalView().setTerminalEffectPluginId(null);
+                        }
                     }
                 }
             }
@@ -2416,6 +2637,11 @@ public class MainWindow {
                 sessionState.setSettings(connection.getSettings());
                 sessionState.setTerminalHistory(terminalTab.getTerminalView().getTerminalHistory());
                 sessionState.setTerminalTimestamps(terminalTab.getTerminalView().getPrimaryTimestampEntries());
+                sessionState.setTerminalEffectPluginId(terminalTab.getTerminalView().getTerminalEffectPluginId());
+                double terminalEffectAnimationSpeed = terminalTab.getTerminalView().getTerminalEffectAnimationSpeed();
+                if (Double.compare(terminalEffectAnimationSpeed, TerminalEffectAnimationSpeed.DEFAULT) != 0) {
+                    sessionState.setTerminalEffectAnimationSpeed(terminalEffectAnimationSpeed);
+                }
                 sessionState.setGroup(terminalTab.getGroup()); // Save tab group (not connection group)
                 // Save current font size (zoom level) - may differ from settings when user zoomed
                 int currentFontSize = terminalTab.getTerminalView().getCurrentFontSize();
@@ -2505,7 +2731,13 @@ public class MainWindow {
                                 String password = isKeyAuth ? null : getConnectionPassword(connection);
                                 if (password != null || isKeyAuth) {
                                     String history = sessionState.getTerminalHistory();
-                                    TerminalTab restoredTab = openConnectionAndReturnTab(connection, password, history, null);
+                                    TerminalTab restoredTab = openConnectionAndReturnTab(
+                                            connection,
+                                            password,
+                                            history,
+                                            null,
+                                            sessionState.getTerminalEffectPluginId(),
+                                            sessionState.getTerminalEffectAnimationSpeed());
                                     restoredTab.getTerminalView().restorePrimaryTimestampEntries(
                                             sessionState.getTerminalTimestamps());
                                     // Restore tab group (not connection group)
@@ -4472,6 +4704,13 @@ public class MainWindow {
             
             // Open tab
             TerminalTab tab = new TerminalTab(conn, password);
+            if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+                tab.getTerminalView().setTerminalEffectAnimationSpeed(
+                        conn.getTerminalEffectAnimationSpeed() != null
+                                ? conn.getTerminalEffectAnimationSpeed()
+                                : TerminalEffectAnimationSpeed.DEFAULT);
+                tab.getTerminalView().setTerminalEffectPluginId(conn.getTerminalEffectPluginId());
+            }
             installAiSelectionHandler(tab);
             tab.setTimestampToggleListener(() -> Platform.runLater(() -> {
                 Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
@@ -4533,6 +4772,51 @@ public class MainWindow {
         } catch (Exception e) {
             logger.error("Failed to show teamwork settings", e);
             showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private void showTerminalEffectPluginManager() {
+        try {
+            var manager = app.getTerminalEffectPluginManager();
+            if (manager == null) {
+                showError(I18n.get("error.title"), I18n.get("plugin.initError"));
+                return;
+            }
+            TerminalEffectPluginManagerDialog dialog =
+                    new TerminalEffectPluginManagerDialog(stage, manager);
+            dialog.showAndWait();
+            deactivateTerminalEffectsIfDisabled();
+            deactivateUnavailableTerminalEffects();
+            updateAllTabContextMenus();
+        } catch (Exception e) {
+            logger.error("Failed to show terminal effect plugin manager", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private void deactivateUnavailableTerminalEffects() {
+        var manager = app.getTerminalEffectPluginManager();
+        if (manager == null) {
+            return;
+        }
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                String pluginId = terminalTab.getTerminalView().getTerminalEffectPluginId();
+                if (pluginId != null && manager.findPlugin(pluginId).isEmpty()) {
+                    terminalTab.getTerminalView().setTerminalEffectPluginId(null);
+                }
+            }
+        }
+    }
+
+    private void deactivateTerminalEffectsIfDisabled() {
+        if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            return;
+        }
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                terminalTab.getTerminalView().setTerminalEffectPluginId(null);
+            }
         }
     }
     
@@ -5298,6 +5582,13 @@ public class MainWindow {
         });
         contextMenu.getItems().add(reconnectItem);
         
+        if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            contextMenu.getItems().add(new SeparatorMenuItem());
+            Menu terminalEffectMenu = createTerminalEffectMenu(terminalTab);
+            terminalEffectMenu.setOnShowing(event -> rebuildTerminalEffectMenu(terminalEffectMenu, terminalTab));
+            contextMenu.getItems().add(terminalEffectMenu);
+        }
+
         contextMenu.getItems().add(new SeparatorMenuItem());
         
         // Get all available groups

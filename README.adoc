@@ -20,6 +20,7 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *Customizable Display*: Font size, colors (global or per connection)
 * *Theme Profiles*: Multiple built-in color profiles (including IntelliJ-inspired themes) with live preview, one-click apply in Global Settings, editable built-in/custom themes, new theme creation, and dedicated Terminal AI agent panel colors
 * *Theme Font Control*: Themes apply colors by default; font family/size are applied only when explicitly enabled in settings
+* *Terminal Effect Plugins*: Load, enable, disable, import, and export Java terminal-effect plugins from *Plugins → Terminal Effects*; effects can adjust terminal appearance, overlays, and output animation speed per session or saved connection
 * *Project Management*: Save and load connection sets with history
 * *Import/Export*: Import connections from MTPuTTY, MobaXterm, and PuTTY Connection Manager
 * *JMX Monitoring*: Monitor active connections, memory usage, etc.
@@ -101,6 +102,8 @@ When KorTTY is about to quit while scheduler jobs are running, it warns the user
 
 For a comprehensive step-by-step user guide covering all features, see *link:docs/USER_GUIDE.adoc[User Guide]*.
 
+For terminal-effect plugin development, packaging, import/export behavior, and validation guidance, see *link:docs/TERMINAL_EFFECT_PLUGINS.adoc[Terminal Effect Plugin Development]*.
+
 == Requirements
 
 * Java 25 or higher
@@ -146,6 +149,30 @@ KorTTY uses *SithTermFX 1.1.0*, built from source. No GitHub token required (loc
 
 * *Local build:* The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the link:https://github.com/chardonnay/SithTermFX[SithTermFX] repo at tag `v1.1.0` into `vendor/sithtermfx`, then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: *Git* and *Maven* on your PATH.
 * *CI (GitHub Actions):* The workflow clones SithTermFX at tag `v1.1.0` into `vendor/sithtermfx`, installs Maven, then Gradle runs the same `installSithtermfxLocal` task. No GitHub token required.
+
+== Terminal Effect Plugins
+
+KorTTY terminal-effect plugins are Java `ServiceLoader` plugins loaded from the application classpath, bundled plugin JARs, or external JARs imported into `~/.kortty/plugins`. The plugin SPI is under `de.kortty.plugin.terminaleffects` and covers:
+
+* `TerminalEffectPlugin` for the stable plugin id, display name, description, and session creation.
+* `TerminalEffectSession` for lifecycle hooks and optional `TtyConnector` wrapping.
+* `TerminalEffectContext` for overlay access, current SithTermFX widgets, animation speed, and appearance application.
+* `TerminalEffectAppearance` for optional font/color/cursor overrides.
+* `TerminalEffectConnectorWrapper` for transparent connector wrappers that KorTTY can unwrap safely.
+
+External plugins are trusted local code and are not sandboxed. Only import JARs from sources you trust. Dependencies that are not already bundled with KorTTY must be shaded into the plugin JAR; adjacent dependency JARs are not loaded automatically.
+
+The MOTHER effect is built as an exportable bundled plugin JAR and can be used as the in-repository reference implementation:
+
+image::docs/diagrams/terminal-effect-plugin-flow.png[Terminal effect plugin lifecycle,align=center]
+
+[source,bash]
+----
+./gradlew motherTerminalEffectPluginJar
+jar tf build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
+----
+
+Detailed development, packaging, lifecycle, security, and validation guidance is documented in *link:docs/TERMINAL_EFFECT_PLUGINS.adoc[Terminal Effect Plugin Development]*.
 
 == Modules and Dependencies
 
@@ -491,9 +518,12 @@ All configuration files are stored under `~/.kortty/`:
 ├── gpg-keys.xml        # GPG keys for backup encryption
 ├── global-settings.xml # Global application settings
 ├── job-scheduler.xml   # JobScheduler jobs, host-key pins, sudo secrets, journal
+├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin ids
 ├── master-password-hash # Master password hash
 ├── kortty.log          # Log file
 ├── history/            # Terminal history (compressed)
+├── plugins/            # Imported terminal-effect plugin JARs
+├── bundled-plugins/    # Runtime copies of bundled exportable terminal-effect plugin JARs
 ├── projects/           # Project files (.kortty)
 ├── i18n/               # Dynamically generated language files (messages_XX.properties)
 └── ssh-keys/           # Copied SSH keys (optional)

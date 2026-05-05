@@ -164,6 +164,26 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesLastQuickConnectTerminalEffectAnimationSpeed() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-terminal-effect-speed");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setLastQuickConnectTerminalEffectAnimationSpeed(7.0);
+            manager.getSettings().setTerminalEffectsEnabled(false);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getLastQuickConnectTerminalEffectAnimationSpeed()).isEqualTo(7.0);
+            assertThat(reloaded.getSettings().isTerminalEffectsEnabled()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesEveryAiInternetAccessMode() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-ai-internet-modes");
         try {

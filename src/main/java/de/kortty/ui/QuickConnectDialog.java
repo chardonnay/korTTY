@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.model.ServerConnection;
+import de.kortty.model.ConnectionSettings;
 import de.kortty.model.SSHKey;
 import de.kortty.model.Theme;
 import de.kortty.model.AuthMethod;
@@ -10,6 +11,7 @@ import de.kortty.model.TemporarySSHKey;
 import de.kortty.security.PasswordVault;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.TemporarySSHKeyManager;
+import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -68,6 +70,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private Spinner<Integer> fontSizeSpinner;
     private ColorPicker foregroundColorPicker;
     private ColorPicker backgroundColorPicker;
+    private ComboBox<TerminalEffectUiSupport.Option> terminalEffectCombo;
+    private TerminalEffectUiSupport.AnimationSpeedControls terminalEffectSpeedControls;
     
     // Group tab
     private ListView<String> groupListView;
@@ -226,6 +230,10 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 // Look up temporary SSH key from manager if connection uses one
                 TemporarySSHKey tempKeyForBtn = null;
                 ServerConnection selectedConn = ServerConnection.copyForAuth(conn);
+                if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+                    selectedConn.setTerminalEffectPluginId(null);
+                    selectedConn.setTerminalEffectAnimationSpeed(null);
+                }
                 if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
                     tempKeyForBtn = TemporarySSHKeyManager.getInstance().getTemporaryKey(conn.getTemporaryKeyContent());
                     if (tempKeyForBtn == null || !tempKeyForBtn.isValid()) {
@@ -674,12 +682,35 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         
         foregroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#FFFFFF"));
         backgroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#1E1E1E"));
+        terminalEffectCombo = new ComboBox<>();
+        terminalEffectCombo.setPrefWidth(220);
+        TerminalEffectUiSupport.configureComboBox(terminalEffectCombo);
+
+        terminalEffectSpeedControls = TerminalEffectUiSupport.createAnimationSpeedControls(
+                TerminalEffectAnimationSpeed.DEFAULT);
+        terminalEffectCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateTerminalEffectSpeedState());
+        updateTerminalEffectSpeedState();
         
         grid.add(new Label(I18n.get("quickConnect.textColor")), 0, row);
         grid.add(foregroundColorPicker, 1, row++);
         
         grid.add(new Label(I18n.get("quickConnect.background")), 0, row);
         grid.add(backgroundColorPicker, 1, row++);
+
+        if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            grid.add(new Separator(), 0, row++, 2, 1);
+
+            Label terminalEffectLabel = new Label(I18n.get("connection.terminalEffect"));
+            terminalEffectLabel.setStyle("-fx-font-weight: bold;");
+            grid.add(terminalEffectLabel, 0, row, 2, 1);
+            row++;
+
+            grid.add(new Label(I18n.get("connection.terminalEffect")), 0, row);
+            grid.add(terminalEffectCombo, 1, row++);
+
+            grid.add(new Label(I18n.get("connection.animationSpeed")), 0, row);
+            grid.add(terminalEffectSpeedControls.root(), 1, row++);
+        }
         
         Button resetButton = new Button(I18n.get("quickConnect.resetToDefaults"));
         resetButton.setOnAction(e -> resetToDefaultSettings());
@@ -762,6 +793,11 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         // Set timeout and retry from connection
         timeoutSpinner.getValueFactory().setValue(conn.getConnectionTimeoutSeconds());
         retrySpinner.getValueFactory().setValue(conn.getRetryCount());
+        TerminalEffectUiSupport.selectPlugin(terminalEffectCombo, conn.getTerminalEffectPluginId());
+        terminalEffectSpeedControls.setValue(conn.getTerminalEffectAnimationSpeed() != null
+                ? conn.getTerminalEffectAnimationSpeed()
+                : TerminalEffectAnimationSpeed.DEFAULT);
+        updateTerminalEffectSpeedState();
         
         // Set authentication method
         if (temporaryKeyAuthRadio != null && temporaryKeyArea != null && conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
@@ -820,6 +856,29 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         }
         saveConnectionCheck.setSelected(false);
     }
+
+    private void updateTerminalEffectSpeedState() {
+        String selectedPluginId = TerminalEffectUiSupport.selectedPluginId(terminalEffectCombo);
+        boolean enabled = selectedPluginId != null;
+        if (terminalEffectSpeedControls != null) {
+            terminalEffectSpeedControls.setDisable(!enabled);
+        }
+    }
+
+    private void applyTerminalEffectSettings(ServerConnection connection) {
+        if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            connection.setTerminalEffectPluginId(null);
+            connection.setTerminalEffectAnimationSpeed(null);
+            return;
+        }
+        String pluginId = TerminalEffectUiSupport.selectedPluginId(terminalEffectCombo);
+        connection.setTerminalEffectPluginId(pluginId);
+        connection.setTerminalEffectAnimationSpeed(TerminalEffectUiSupport.animationSpeedForStorage(
+                pluginId,
+                terminalEffectSpeedControls != null
+                        ? terminalEffectSpeedControls.getValue()
+                        : TerminalEffectAnimationSpeed.DEFAULT));
+    }
     
     private ConnectionResult createIndividualResult() {
         String resolvedPassword = passwordField.getText();
@@ -859,7 +918,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 modified.setPort(selected.getPort());
                 modified.setUsername(selected.getUsername());
                 modified.setGroup(selected.getGroup());
-                modified.setSettings(selected.getSettings());
+                modified.setSettings(copyTerminalSettings(selected));
                 modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
@@ -899,6 +958,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                     modified.setTemporaryKeyPermanent(selected.isTemporaryKeyPermanent());
                     modified.setPrivateKeyPath("TEMPORARY:" + keyContent);
                 }
+                applyTerminalSettings(modified);
+                applyTerminalEffectSettings(modified);
                 return new ConnectionResult(modified, null, false, true, null, false, tempKey);
             }
 
@@ -910,7 +971,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 modified.setPort(selected.getPort());
                 modified.setUsername(selected.getUsername());
                 modified.setGroup(selected.getGroup());
-                modified.setSettings(selected.getSettings());
+                modified.setSettings(copyTerminalSettings(selected));
                 modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PASSWORD);
@@ -925,6 +986,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 } else {
                     modified.setCredentialId(selected.getCredentialId());
                 }
+                applyTerminalSettings(modified);
+                applyTerminalEffectSettings(modified);
                 return new ConnectionResult(modified, resolvedPassword, false, true, null, false, null);
             }
             
@@ -937,7 +1000,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 modified.setPort(selected.getPort());
                 modified.setUsername(selected.getUsername());
                 modified.setGroup(selected.getGroup());
-                modified.setSettings(selected.getSettings());
+                modified.setSettings(copyTerminalSettings(selected));
                 // Use values from spinners, not from saved connection
                 modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 modified.setRetryCount(retrySpinner.getValue());
@@ -949,6 +1012,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                         sshKeyManager.getEffectiveKeyPath(savedSSHKeysCombo.getValue()) : 
                         savedSSHKeysCombo.getValue().getKeyPath());
                 }
+                applyTerminalSettings(modified);
+                applyTerminalEffectSettings(modified);
                 return new ConnectionResult(modified, null, false, true, null, false, null);
             } else if (passwordAuthRadio.isSelected() && selected.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
                 // User switched to password auth
@@ -959,7 +1024,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 modified.setPort(selected.getPort());
                 modified.setUsername(selected.getUsername());
                 modified.setGroup(selected.getGroup());
-                modified.setSettings(selected.getSettings());
+                modified.setSettings(copyTerminalSettings(selected));
                 // Use values from spinners, not from saved connection
                 modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 modified.setRetryCount(retrySpinner.getValue());
@@ -973,6 +1038,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 if (savedCredentialsCombo.getValue() != null) {
                     modified.setCredentialId(savedCredentialsCombo.getValue().getId());
                 }
+                applyTerminalSettings(modified);
+                applyTerminalEffectSettings(modified);
                 return new ConnectionResult(modified, resolvedPassword, false, true, null, false, null);
             }
             // Using an existing saved connection, but update timeout and retries from spinners
@@ -983,7 +1050,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             modified.setPort(selected.getPort());
             modified.setUsername(selected.getUsername());
             modified.setGroup(selected.getGroup());
-            modified.setSettings(selected.getSettings());
+            modified.setSettings(copyTerminalSettings(selected));
             modified.setAuthMethod(selected.getAuthMethod());
             modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
             modified.setSshKeyId(selected.getSshKeyId());
@@ -1012,6 +1079,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             if (savedCredentialsCombo.getValue() != null && modified.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
                 modified.setCredentialId(savedCredentialsCombo.getValue().getId());
             }
+            applyTerminalSettings(modified);
+            applyTerminalEffectSettings(modified);
             return new ConnectionResult(modified, resolvedPassword, false, true, null, false, existingTempKey);
         }
         
@@ -1065,6 +1134,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         
         // Apply terminal settings from the dialog
         applyTerminalSettings(connection);
+        applyTerminalEffectSettings(connection);
         
         return new ConnectionResult(connection, resolvedPassword, saveConnectionCheck.isSelected(), false, null, false, tempKey);
     }
@@ -1217,6 +1287,13 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                     if (settings.getBackgroundColor() != null) backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
                 }
             }
+
+            if (terminalEffectSpeedControls != null && globalSettings != null) {
+                Double lastSpeed = globalSettings.getLastQuickConnectTerminalEffectAnimationSpeed();
+                terminalEffectSpeedControls.setValue(lastSpeed != null
+                        ? lastSpeed
+                        : TerminalEffectAnimationSpeed.DEFAULT);
+            }
         } catch (Exception e) {
             // Ignore, use default values
         }
@@ -1279,6 +1356,14 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                     settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
                 }
                 globalSettings.setLastQuickConnectTerminalSettings(settings);
+
+                String pluginId = TerminalEffectUiSupport.selectedPluginId(terminalEffectCombo);
+                globalSettings.setLastQuickConnectTerminalEffectAnimationSpeed(
+                        TerminalEffectUiSupport.animationSpeedForStorage(
+                                pluginId,
+                                terminalEffectSpeedControls != null
+                                        ? terminalEffectSpeedControls.getValue()
+                                        : TerminalEffectAnimationSpeed.DEFAULT));
                 
                 // Save connection settings (timeout and retries)
                 globalSettings.setLastQuickConnectTimeout(timeoutSpinner.getValue());
@@ -1325,6 +1410,11 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     /**
      * Applies terminal settings to a connection.
      */
+    private ConnectionSettings copyTerminalSettings(ServerConnection connection) {
+        ConnectionSettings settings = connection != null ? connection.getSettings() : null;
+        return settings != null ? new ConnectionSettings(settings) : new ConnectionSettings();
+    }
+
     private void applyTerminalSettings(ServerConnection connection) {
         if (connection.getSettings() == null) {
             connection.setSettings(new de.kortty.model.ConnectionSettings());

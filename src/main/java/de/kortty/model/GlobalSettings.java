@@ -261,6 +261,14 @@ public class GlobalSettings {
     // Last terminal settings used in QuickConnect dialog
     @XmlElement
     private ConnectionSettings lastQuickConnectTerminalSettings;
+
+    // Last terminal effect animation speed used in QuickConnect dialog. Null = default.
+    @XmlElement
+    private Double lastQuickConnectTerminalEffectAnimationSpeed;
+
+    // Master switch for terminal effect plugin functionality.
+    @XmlElement
+    private boolean terminalEffectsEnabled = true;
     
     // Last connection timeout and retries used in QuickConnect dialog
     @XmlElement
@@ -1097,6 +1105,22 @@ public class GlobalSettings {
     
     public void setLastQuickConnectTerminalSettings(ConnectionSettings lastQuickConnectTerminalSettings) {
         this.lastQuickConnectTerminalSettings = lastQuickConnectTerminalSettings;
+    }
+
+    public Double getLastQuickConnectTerminalEffectAnimationSpeed() {
+        return lastQuickConnectTerminalEffectAnimationSpeed;
+    }
+
+    public void setLastQuickConnectTerminalEffectAnimationSpeed(Double lastQuickConnectTerminalEffectAnimationSpeed) {
+        this.lastQuickConnectTerminalEffectAnimationSpeed = lastQuickConnectTerminalEffectAnimationSpeed;
+    }
+
+    public boolean isTerminalEffectsEnabled() {
+        return terminalEffectsEnabled;
+    }
+
+    public void setTerminalEffectsEnabled(boolean terminalEffectsEnabled) {
+        this.terminalEffectsEnabled = terminalEffectsEnabled;
     }
     
     public Integer getLastQuickConnectTimeout() {

@@ -76,6 +76,34 @@ class XMLConnectionRepositoryTest {
         }
     }
 
+    @Test
+    void saveAndLoadPreservesTerminalEffectSettings() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-terminal-effect");
+        try {
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+            ServerConnection connection = new ServerConnection();
+            connection.setName("MOTHER connection");
+            connection.setHost("example.com");
+            connection.setUsername("root");
+            connection.setTerminalEffectPluginId("mother");
+            connection.setTerminalEffectAnimationSpeed(2.5);
+
+            repository.saveConnections(List.of(connection), null);
+
+            String persistedXml = Files.readString(dir.resolve("connections.xml"));
+            assertThat(persistedXml).contains("<terminalEffectPluginId>mother</terminalEffectPluginId>");
+            assertThat(persistedXml).contains("<terminalEffectAnimationSpeed>2.5</terminalEffectAnimationSpeed>");
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getTerminalEffectPluginId()).isEqualTo("mother");
+            assertThat(reloaded.get(0).getTerminalEffectAnimationSpeed()).isEqualTo(2.5);
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
     private SecretKey deriveTestKey() throws Exception {
         EncryptionService encryptionService = new EncryptionService();
         return encryptionService.deriveKey("test-master-password".toCharArray(), encryptionService.generateSalt());

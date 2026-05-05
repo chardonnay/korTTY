@@ -92,6 +92,24 @@ class SshTtyConnectorAgentOscTest {
     }
 
     @Test
+    void extractsWorkingDirectoryFromOsc7FileUri() {
+        assertThat(SshTtyConnector.extractWorkingDirectoryFromOsc7Uri("file://fedora/home/daniel/Dokumente"))
+            .isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
+    void extractsWorkingDirectoryFromEncodedOsc7FileUri() {
+        assertThat(SshTtyConnector.extractWorkingDirectoryFromOsc7Uri("file://fedora/home/daniel/My%20Docs"))
+            .isEqualTo("/home/daniel/My Docs");
+    }
+
+    @Test
+    void extractsWorkingDirectoryFromUnescapedOsc7FileUri() {
+        assertThat(SshTtyConnector.extractWorkingDirectoryFromOsc7Uri("file://fedora/home/daniel/My Docs"))
+            .isEqualTo("/home/daniel/My Docs");
+    }
+
+    @Test
     void removesStartupPromptLineBeforeCleanupMarker() {
         String output = "Activate the web console\r\n"
             + "Last login: Thu Apr 30 16:29:21 2026 from 10.211.55.2\r\n"
@@ -115,5 +133,24 @@ class SshTtyConnectorAgentOscTest {
         String output = "Activate the web console\r\nLast login: Thu Apr 30 16:29:21 2026";
 
         assertThat(SshTtyConnector.removeShellStartupPromptBeforeCleanup(output)).isEqualTo(output);
+    }
+
+    @Test
+    void appliesSimpleTabCompletionSuffixToTrackedInputLine() {
+        assertThat(SshTtyConnector.applyTabCompletionOutputToInputLine("cd Do", "kumente/"))
+            .isEqualTo("cd Dokumente/");
+    }
+
+    @Test
+    void appliesRedrawnTabCompletionLineToTrackedInputLine() {
+        assertThat(SshTtyConnector.applyTabCompletionOutputToInputLine(
+            "cd Do",
+            "\r\u001B[Kdaniel@fedora:~$ cd Dokumente/"))
+            .isEqualTo("cd Dokumente/");
+    }
+
+    @Test
+    void ignoresTabCompletionOutputWithoutCommandLine() {
+        assertThat(SshTtyConnector.applyTabCompletionOutputToInputLine("cd Do", "\u0007")).isNull();
     }
 }

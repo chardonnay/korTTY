@@ -82,6 +82,7 @@ public class SshTtyConnector implements TtyConnector {
     private final StringBuilder osc7Buffer = new StringBuilder();
     private final StringBuilder agentOscBuffer = new StringBuilder();
     private final Object directoryLock = new Object();
+    private boolean tabCompletionPending;
     
     public SshTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
@@ -492,6 +493,7 @@ public class SshTtyConnector implements TtyConnector {
     }
 
     private void notifyDataRead(String data) {
+        trackPotentialTabCompletionOutput(data);
         updateCurrentDirectoryFromOutput(data);
         for (DataListener dataListener : dataListeners) {
             try {
@@ -830,15 +832,12 @@ public class SshTtyConnector implements TtyConnector {
     }
 
     private void updateCurrentDirectoryFromOsc7(String uriText) {
-        try {
-            URI uri = URI.create(uriText);
-            String path = uri.getPath();
-            if (path != null && !path.isBlank()) {
-                setCurrentRemoteDirectory(path);
-                logger.debug("Updated remote directory from OSC 7: {}", path);
-            }
-        } catch (Exception e) {
-            logger.debug("Failed to parse OSC 7 URI '{}': {}", uriText, e.getMessage());
+        String path = extractWorkingDirectoryFromOsc7Uri(uriText);
+        if (path != null && !path.isBlank()) {
+            setCurrentRemoteDirectory(path);
+            logger.debug("Updated remote directory from OSC 7: {}", path);
+        } else {
+            logger.debug("Failed to parse OSC 7 URI '{}'", uriText);
         }
     }
 
@@ -864,18 +863,73 @@ public class SshTtyConnector implements TtyConnector {
                 if (ch == '\r' || ch == '\n') {
                     processInputLine(inputLineBuffer.toString());
                     inputLineBuffer.setLength(0);
+                    tabCompletionPending = false;
+                } else if (ch == '\t') {
+                    tabCompletionPending = true;
                 } else if (ch == '\b' || ch == 127) {
                     if (inputLineBuffer.length() > 0) {
                         inputLineBuffer.deleteCharAt(inputLineBuffer.length() - 1);
                     }
+                    tabCompletionPending = false;
                 } else if (!Character.isISOControl(ch)) {
                     inputLineBuffer.append(ch);
+                    tabCompletionPending = false;
                 }
             }
             if (inputLineBuffer.length() > 2048) {
                 inputLineBuffer.delete(0, inputLineBuffer.length() - 2048);
             }
         }
+    }
+
+    private void trackPotentialTabCompletionOutput(String data) {
+        synchronized (inputLineBuffer) {
+            if (!tabCompletionPending) {
+                return;
+            }
+            String completedLine = applyTabCompletionOutputToInputLine(inputLineBuffer.toString(), data);
+            if (completedLine != null && completedLine.length() <= 2048) {
+                inputLineBuffer.setLength(0);
+                inputLineBuffer.append(completedLine);
+            }
+            tabCompletionPending = completedLine != null
+                && data.indexOf('\r') < 0
+                && data.indexOf('\n') < 0;
+        }
+    }
+
+    static String applyTabCompletionOutputToInputLine(String inputLine, String terminalOutput) {
+        if (inputLine == null || inputLine.isEmpty() || terminalOutput == null || terminalOutput.isEmpty()) {
+            return null;
+        }
+        String text = TERMINAL_CONTROL_SEQUENCE_PATTERN.matcher(terminalOutput).replaceAll("");
+        if (text.isEmpty()) {
+            return null;
+        }
+        if (text.indexOf('\r') >= 0 || text.indexOf('\n') >= 0) {
+            String lastLine = lastTerminalLine(text);
+            String candidate = stripIsoControls(lastLine);
+            int commandStart = candidate.lastIndexOf(inputLine);
+            return commandStart >= 0 ? candidate.substring(commandStart) : null;
+        }
+        String suffix = stripIsoControls(text);
+        return suffix.isEmpty() ? null : inputLine + suffix;
+    }
+
+    private static String lastTerminalLine(String text) {
+        int lineStart = Math.max(text.lastIndexOf('\r'), text.lastIndexOf('\n'));
+        return lineStart >= 0 ? text.substring(lineStart + 1) : text;
+    }
+
+    private static String stripIsoControls(String text) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (!Character.isISOControl(ch)) {
+                out.append(ch);
+            }
+        }
+        return out.toString();
     }
 
     private byte[] applyInputInterceptor(byte[] bytes) throws IOException {
@@ -1108,6 +1162,31 @@ public class SshTtyConnector implements TtyConnector {
             return cwd.startsWith("/") ? cwd : null;
         } catch (IllegalArgumentException e) {
             return null;
+        }
+    }
+
+    static String extractWorkingDirectoryFromOsc7Uri(String uriText) {
+        if (uriText == null || uriText.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(uriText);
+            if (!"file".equalsIgnoreCase(uri.getScheme())) {
+                return null;
+            }
+            String path = uri.getPath();
+            return path != null && path.startsWith("/") ? path : null;
+        } catch (IllegalArgumentException e) {
+            String filePrefix = "file://";
+            if (!uriText.startsWith(filePrefix)) {
+                return null;
+            }
+            int pathStart = uriText.indexOf('/', filePrefix.length());
+            if (pathStart < 0) {
+                return null;
+            }
+            String path = uriText.substring(pathStart);
+            return path.startsWith("/") ? path : null;
         }
     }
 

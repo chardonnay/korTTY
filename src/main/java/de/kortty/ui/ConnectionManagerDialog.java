@@ -739,6 +739,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             copy.setProtocol(selected.getProtocol());
             copy.setAuthMethod(selected.getAuthMethod());
             copy.setPrivateKeyPath(selected.getPrivateKeyPath());
+            copy.setTerminalEffectPluginId(selected.getTerminalEffectPluginId());
+            copy.setTerminalEffectAnimationSpeed(selected.getTerminalEffectAnimationSpeed());
             copy.setGroup(selected.getGroup());
             
             if (selected.getSettings() != null) {
@@ -952,6 +954,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             copy.setAuthMethod(conn.getAuthMethod());
             copy.setPrivateKeyPath(conn.getPrivateKeyPath());
             copy.setSshKeyId(conn.getSshKeyId());
+            copy.setTerminalEffectPluginId(conn.getTerminalEffectPluginId());
+            copy.setTerminalEffectAnimationSpeed(conn.getTerminalEffectAnimationSpeed());
             
             // Username (optional)
             if (result.includeUsername) {
@@ -1265,6 +1269,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 imported.setHost(conn.getHost());
                 imported.setPort(conn.getPort());
                 imported.setAuthMethod(conn.getAuthMethod());
+                imported.setTerminalEffectPluginId(conn.getTerminalEffectPluginId());
+                imported.setTerminalEffectAnimationSpeed(conn.getTerminalEffectAnimationSpeed());
                 
                 // SSH Key (conditional or replaced)
                 if (result.replaceSSHKey && result.replacementSSHKey != null) {
