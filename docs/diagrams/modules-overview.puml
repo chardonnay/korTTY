@@ -59,6 +59,12 @@ package "Terminal" #F2ECFF {
   component "pty4j 0.12" as Pty4j <<Terminal>>
 }
 
+package "Terminal Effect Plugins" #FFF7E6 {
+  component "Terminal Effect SPI\n de.kortty.plugin.terminaleffects" as TerminalEffectSpi <<Workflow>>
+  component "MOTHER bundled plugin JAR" as MotherPlugin <<Workflow>>
+  component "External plugin JARs\n~/.kortty/plugins" as ExternalEffectPlugins <<Workflow>>
+}
+
 package "Data & Serialization" #EAF7EF {
   component "JAXB 4\njakarta.xml.bind" as Jaxb <<Data>>
   component "zip4j 2.11" as Zip4j <<Data>>
@@ -89,6 +95,11 @@ Sshd --> Ed25519
 KorTTY --> SithTerm
 SithTerm --> Lanterna
 KorTTY --> Pty4j
+KorTTY --> TerminalEffectSpi
+TerminalEffectSpi --> SithTerm : optional\nconnector wrapping
+MotherPlugin --> TerminalEffectSpi
+MotherPlugin --> JavaFx : overlay drawing
+ExternalEffectPlugins --> TerminalEffectSpi
 KorTTY --> Jaxb
 KorTTY --> Zip4j
 KorTTY --> Gson

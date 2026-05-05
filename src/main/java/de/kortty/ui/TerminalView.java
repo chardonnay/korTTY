@@ -26,6 +26,12 @@ import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.Theme;
+import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
+import de.kortty.plugin.terminaleffects.TerminalEffectAppearance;
+import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
+import de.kortty.plugin.terminaleffects.TerminalEffectContext;
+import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
+import de.kortty.plugin.terminaleffects.TerminalEffectSession;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -87,6 +93,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.Scene;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
+import org.apache.sshd.sftp.common.SftpConstants;
+import org.apache.sshd.sftp.common.SftpException;
 
 /**
  * Terminal view component using SithTermFX for professional terminal emulation.
@@ -164,6 +172,22 @@ public class TerminalView extends BorderPane {
             this.toggleDetailsHandler = toggleDetailsHandler;
         }
     }
+
+    private static final class ActiveTerminalEffect {
+        private final String pluginId;
+        private final TerminalEffectSession session;
+        private ConnectionSettings baselineSettings;
+        private TerminalEffectAppearance appearance;
+
+        private ActiveTerminalEffect(
+            String pluginId,
+            TerminalEffectSession session,
+            ConnectionSettings baselineSettings) {
+            this.pluginId = pluginId;
+            this.session = session;
+            this.baselineSettings = baselineSettings;
+        }
+    }
     
     private final ServerConnection connection;
     private final ConnectionSettings settings;
@@ -217,6 +241,8 @@ public class TerminalView extends BorderPane {
     private final Map<SshTtyConnector, StringBuilder> terminalAgentOscBuffers = new ConcurrentHashMap<>();
     private volatile boolean agentShortcutPromptReady;
     private volatile boolean timestampGuttersVisibleState;
+    private double terminalEffectAnimationSpeed = TerminalEffectAnimationSpeed.DEFAULT;
+    private ActiveTerminalEffect activeTerminalEffect;
     
     public TerminalView(ServerConnection connection, String password) {
         this(connection, password, null);
@@ -487,7 +513,7 @@ public class TerminalView extends BorderPane {
         if (widget == null) {
             return null;
         }
-        TtyConnector connector = widget.getTtyConnector();
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
         if (connector instanceof SshTtyConnector sshConnector && sshConnector.isConnected()) {
             return createTerminalAgentRunContext(widget, sshConnector, null);
         }
@@ -549,7 +575,7 @@ public class TerminalView extends BorderPane {
             return null;
         }
         for (SithTermFxWidget widget : splitPane.getAllWidgets()) {
-            if (widget != null && widget.getTtyConnector() == connector) {
+            if (widget != null && unwrapTerminalEffectConnector(widget.getTtyConnector()) == connector) {
                 return widget;
             }
         }
@@ -594,6 +620,166 @@ public class TerminalView extends BorderPane {
                 panel.applyTheme(theme);
             }
         }
+    }
+
+    public @Nullable String getTerminalEffectPluginId() {
+        ActiveTerminalEffect effect = activeTerminalEffect;
+        return effect != null ? effect.pluginId : null;
+    }
+
+    public double getTerminalEffectAnimationSpeed() {
+        return terminalEffectAnimationSpeed;
+    }
+
+    public void setTerminalEffectAnimationSpeed(double speed) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> setTerminalEffectAnimationSpeed(speed));
+            return;
+        }
+        terminalEffectAnimationSpeed = TerminalEffectAnimationSpeed.normalize(speed);
+    }
+
+    public void setTerminalEffectPluginId(@Nullable String pluginId) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> setTerminalEffectPluginId(pluginId));
+            return;
+        }
+        if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            stopActiveTerminalEffect();
+            return;
+        }
+        String normalizedPluginId = normalizeTerminalEffectPluginId(pluginId);
+        if (Objects.equals(getTerminalEffectPluginId(), normalizedPluginId)) {
+            return;
+        }
+
+        stopActiveTerminalEffect();
+        if (normalizedPluginId == null) {
+            return;
+        }
+
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        if (app == null || app.getTerminalEffectPluginManager() == null) {
+            logger.warn("Terminal effect plugin manager is not available");
+            return;
+        }
+        TerminalEffectPlugin plugin = app.getTerminalEffectPluginManager()
+                .findPlugin(normalizedPluginId)
+                .orElse(null);
+        if (plugin == null) {
+            logger.warn("Terminal effect plugin '{}' is not available", normalizedPluginId);
+            return;
+        }
+
+        ConnectionSettings baselineSettings = new ConnectionSettings(settings);
+        TerminalEffectContext context = new TerminalEffectContext(
+                normalizedPluginId,
+                this,
+                terminalContainer,
+                this::getTerminalEffectWidgets,
+                this::getTerminalEffectAnimationSpeed,
+                appearance -> applyTerminalEffectAppearance(normalizedPluginId, appearance),
+                () -> restoreTerminalEffectAppearance(normalizedPluginId));
+
+        try {
+            TerminalEffectSession session = plugin.createSession(context);
+            if (session == null) {
+                throw new IllegalStateException("Plugin returned no terminal effect session");
+            }
+            activeTerminalEffect = new ActiveTerminalEffect(
+                    normalizedPluginId,
+                    session,
+                    baselineSettings);
+            session.start();
+            logger.info("Activated terminal effect plugin '{}' for {}", normalizedPluginId, connection.getDisplayName());
+        } catch (Exception e) {
+            logger.warn("Could not activate terminal effect plugin '{}': {}", normalizedPluginId, e.getMessage(), e);
+            activeTerminalEffect = null;
+            applyConnectionSettings(baselineSettings);
+        }
+    }
+
+    private void stopActiveTerminalEffect() {
+        ActiveTerminalEffect effect = activeTerminalEffect;
+        if (effect == null) {
+            return;
+        }
+        activeTerminalEffect = null;
+        try {
+            effect.session.stop();
+        } catch (Exception e) {
+            logger.warn("Terminal effect plugin '{}' failed to stop: {}", effect.pluginId, e.getMessage(), e);
+        } finally {
+            applyConnectionSettings(effect.baselineSettings);
+            logger.info("Deactivated terminal effect plugin '{}'", effect.pluginId);
+        }
+    }
+
+    private void applyTerminalEffectAppearance(String pluginId, TerminalEffectAppearance appearance) {
+        ActiveTerminalEffect effect = activeTerminalEffect;
+        if (effect == null || !effect.pluginId.equals(pluginId) || appearance == null) {
+            return;
+        }
+        effect.appearance = appearance;
+        if (appearance.fontFamily() != null && !appearance.fontFamily().isBlank()) {
+            settings.setFontFamily(appearance.fontFamily());
+        }
+        if (appearance.fontSize() != null && appearance.fontSize() > 0) {
+            settings.setFontSize(appearance.fontSize());
+        }
+        if (appearance.foregroundColor() != null && !appearance.foregroundColor().isBlank()) {
+            settings.setForegroundColor(appearance.foregroundColor());
+        }
+        if (appearance.backgroundColor() != null && !appearance.backgroundColor().isBlank()) {
+            settings.setBackgroundColor(appearance.backgroundColor());
+        }
+        if (appearance.cursorColor() != null && !appearance.cursorColor().isBlank()) {
+            settings.setCursorColor(appearance.cursorColor());
+        }
+        if (appearance.cursorStyle() != null && !appearance.cursorStyle().isBlank()) {
+            boolean cursorBlinking = TerminalCursorStyleSupport.isBlinkingStyle(effect.baselineSettings.getCursorStyle());
+            settings.setCursorStyle(TerminalCursorStyleSupport.withBlinkingPreference(
+                    appearance.cursorStyle(),
+                    cursorBlinking));
+        }
+        settingsProvider.setFontSize(settings.getFontSize());
+        refreshTerminalAppearanceFromSettings();
+    }
+
+    private void restoreTerminalEffectAppearance(String pluginId) {
+        ActiveTerminalEffect effect = activeTerminalEffect;
+        if (effect != null && effect.pluginId.equals(pluginId)) {
+            applyConnectionSettings(effect.baselineSettings);
+        }
+    }
+
+    private List<SithTermFxWidget> getTerminalEffectWidgets() {
+        if (splitPane != null) {
+            return splitPane.getAllWidgets();
+        }
+        return terminalWidget != null ? List.of(terminalWidget) : List.of();
+    }
+
+    private void refreshTerminalAppearanceFromSettings() {
+        if (splitPane != null) {
+            for (SithTermFxWidget w : splitPane.getAllWidgets()) {
+                applyStyleStateColors(w);
+                applyCursorShape(w);
+                setCursorVisible(w, true);
+            }
+        } else if (terminalWidget != null) {
+            applyStyleStateColors(terminalWidget);
+            applyCursorShape(terminalWidget);
+            setCursorVisible(terminalWidget, true);
+        }
+        updateAllTerminalFonts();
+    }
+
+    private static @Nullable String normalizeTerminalEffectPluginId(@Nullable String pluginId) {
+        if (pluginId == null || pluginId.isBlank()) {
+            return null;
+        }
+        return pluginId.trim();
     }
 
     private Region createTerminalAgentActivityPanel(SithTermFxWidget widget) {
@@ -833,7 +1019,7 @@ public class TerminalView extends BorderPane {
 
     private TtyConnector getFocusedConnector() {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : null;
-        return focused != null ? focused.getTtyConnector() : null;
+        return focused != null ? unwrapTerminalEffectConnector(focused.getTtyConnector()) : null;
     }
 
     public SshTtyConnector getActiveSshConnector() {
@@ -848,8 +1034,26 @@ public class TerminalView extends BorderPane {
         if (connector == null) {
             return null;
         }
-        installAgentShortcutInputInterceptor(widget, connector);
-        return connector;
+        TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
+        installAgentShortcutInputInterceptor(widget, baseConnector);
+        ActiveTerminalEffect effect = activeTerminalEffect;
+        if (effect == null) {
+            return baseConnector;
+        }
+        try {
+            return effect.session.wrapConnector(widget, baseConnector);
+        } catch (Exception e) {
+            logger.warn("Terminal effect '{}' failed to wrap connector: {}", effect.pluginId, e.getMessage());
+            return baseConnector;
+        }
+    }
+
+    private TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
+        TtyConnector current = connector;
+        while (current instanceof TerminalEffectConnectorWrapper wrapper) {
+            current = wrapper.delegate();
+        }
+        return current;
     }
 
     private void installAgentShortcutInputInterceptor(SithTermFxWidget widget, TtyConnector connector) {
@@ -871,11 +1075,12 @@ public class TerminalView extends BorderPane {
     }
 
     private boolean usesTerminalConnector(TtyConnector candidate, TtyConnector expected) {
-        return expected != null && candidate == expected;
+        return expected != null && unwrapTerminalEffectConnector(candidate) == expected;
     }
 
     private boolean shouldPreferRemoteAgentShortcut(TtyConnector connector) {
-        return connector instanceof SshTtyConnector sshConnector
+        TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
+        return baseConnector instanceof SshTtyConnector sshConnector
             && sshConnector.hasShellStartupCommandConfigured();
     }
 
@@ -923,7 +1128,7 @@ public class TerminalView extends BorderPane {
                 int copied = 0;
                 for (int i = 0; i < toUpload.size() && !aborted.get(); i++) {
                     PathPair p = toUpload.get(i);
-                    String fullRemote = (remoteHome.endsWith("/") ? remoteHome : remoteHome + "/") + p.remote;
+                    String fullRemote = appendRemotePath(remoteHome, p.remote);
                     uploadOne(sftp, p, fullRemote);
                     if (aborted.get()) break;
                     copied++;
@@ -990,13 +1195,10 @@ public class TerminalView extends BorderPane {
 
     private void uploadOne(SftpClient sftp, PathPair p, String fullRemotePath) throws java.io.IOException {
         if (p.isDir) {
-            try {
-                sftp.mkdir(fullRemotePath);
-            } catch (Exception e) {
-                // may already exist
-            }
+            mkdirsRemote(sftp, fullRemotePath);
             return;
         }
+        mkdirsRemote(sftp, parentRemotePath(fullRemotePath));
         try (InputStream in = Files.newInputStream(p.local);
              OutputStream out = sftp.write(fullRemotePath, java.util.EnumSet.of(
                  SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
@@ -1004,6 +1206,76 @@ public class TerminalView extends BorderPane {
             int n;
             while ((n = in.read(buf)) != -1) {
                 out.write(buf, 0, n);
+            }
+        }
+    }
+
+    static String appendRemotePath(String basePath, String relativePath) {
+        String base = basePath == null || basePath.isBlank() ? "." : basePath.trim();
+        String relative = relativePath == null ? "" : relativePath.trim();
+        if (relative.isEmpty()) {
+            return base;
+        }
+        if (relative.startsWith("/")) {
+            return relative;
+        }
+        if ("/".equals(base)) {
+            return "/" + relative;
+        }
+        return base.endsWith("/") ? base + relative : base + "/" + relative;
+    }
+
+    static String parentRemotePath(String remotePath) {
+        if (remotePath == null || remotePath.isBlank()) {
+            return ".";
+        }
+        String normalized = remotePath.trim();
+        int index = normalized.lastIndexOf('/');
+        if (index < 0) {
+            return ".";
+        }
+        if (index == 0) {
+            return "/";
+        }
+        return normalized.substring(0, index);
+    }
+
+    private void mkdirsRemote(SftpClient sftp, String remoteDirectory) throws IOException {
+        if (remoteDirectory == null || remoteDirectory.isBlank()
+                || ".".equals(remoteDirectory) || "/".equals(remoteDirectory)) {
+            return;
+        }
+        boolean absolute = remoteDirectory.startsWith("/");
+        String current = absolute ? "/" : null;
+        for (String part : remoteDirectory.split("/")) {
+            if (part == null || part.isBlank() || ".".equals(part)) {
+                continue;
+            }
+            if ("..".equals(part)) {
+                current = current == null ? part : appendRemotePath(current, part);
+                continue;
+            }
+            current = current == null ? part : appendRemotePath(current, part);
+            ensureRemoteDirectory(sftp, current);
+        }
+    }
+
+    private void ensureRemoteDirectory(SftpClient sftp, String remoteDirectory) throws IOException {
+        try {
+            SftpClient.Attributes attrs = sftp.stat(remoteDirectory);
+            if (!attrs.isDirectory()) {
+                throw new IOException("Remote path exists but is not a directory: " + remoteDirectory);
+            }
+        } catch (SftpException e) {
+            if (e.getStatus() != SftpConstants.SSH_FX_NO_SUCH_FILE) {
+                throw e;
+            }
+            try {
+                sftp.mkdir(remoteDirectory);
+            } catch (SftpException mkdirException) {
+                if (mkdirException.getStatus() != SftpConstants.SSH_FX_FILE_ALREADY_EXISTS) {
+                    throw mkdirException;
+                }
             }
         }
     }
@@ -1399,6 +1671,10 @@ public class TerminalView extends BorderPane {
         }
         applyTerminalAgentActivityTheme(theme);
         updateAllTerminalFonts();
+        ActiveTerminalEffect effect = activeTerminalEffect;
+        if (effect != null && effect.appearance != null) {
+            applyTerminalEffectAppearance(effect.pluginId, effect.appearance);
+        }
     }
 
     private void applyStyleStateColors(SithTermFxWidget widget) {
@@ -3427,6 +3703,7 @@ public class TerminalView extends BorderPane {
     public void cleanup() {
         stopAllTerminalAgentShellKeepAlives();
         stopLogger();
+        stopActiveTerminalEffect();
         if (ttyConnector != null) {
             try {
                 ttyConnector.close();
@@ -3731,6 +4008,13 @@ public class TerminalView extends BorderPane {
         }
 
         logger.debug("Applied connection settings: {} {}pt", family, size);
+        ActiveTerminalEffect effect = activeTerminalEffect;
+        if (effect != null) {
+            effect.baselineSettings = new ConnectionSettings(settings);
+            if (effect.appearance != null) {
+                applyTerminalEffectAppearance(effect.pluginId, effect.appearance);
+            }
+        }
     }
 
     private boolean isThemeFontApplyEnabled() {
@@ -4194,6 +4478,13 @@ public class TerminalView extends BorderPane {
         @Override
         public boolean audibleBell() {
             return false; // Disable bell sound!
+        }
+
+        @Override
+        public int caretBlinkingMs() {
+            return TerminalCursorStyleSupport.caretBlinkingPeriodMs(
+                    settings.getCursorStyle(),
+                    super.caretBlinkingMs());
         }
         
         @Override

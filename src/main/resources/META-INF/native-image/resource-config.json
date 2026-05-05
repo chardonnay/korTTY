@@ -12,6 +12,7 @@
       {"pattern": "logback\\.xml$"},
       {"pattern": "icon/.*"},
       {"pattern": "styles/.*"},
+      {"pattern": "bundled-plugins/.*"},
       {"pattern": "META-INF/.*"}
     ]
   },

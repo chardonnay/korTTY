@@ -45,6 +45,7 @@ package "KorTTY Application" as App #EAF4FF {
   component "AI Result Tabs" as AiTabs <<UI>>
   component "JobScheduler Dialog" as JobSchedulerDialog <<UI>>
   component "JobScheduler\nMenu Status" as JobSchedulerStatus <<UI>>
+  component "Terminal Effects\nPlugin Dialog" as TerminalEffectDialog <<UI>>
 }
 
 package "Tools & Workflows" as Workflows #F2ECFF {
@@ -59,11 +60,20 @@ package "Tools & Workflows" as Workflows #F2ECFF {
   component "Headless SSH/SFTP/Rsync\nExecution" as HeadlessExecution <<Workflow>>
 }
 
+package "Terminal Effects" as Effects #FFF7E6 {
+  component "TerminalEffectPluginManager" as EffectManager <<Workflow>>
+  component "TerminalEffectSession" as EffectSession <<Workflow>>
+  component "MOTHER bundled JAR" as MotherJar <<Workflow>>
+  component "External plugin JARs" as ExternalJars <<Workflow>>
+}
+
 database "Configuration & Data" as Data #EAF7EF {
   component "connections.xml" as Connections <<Data>>
   component "credentials.xml" as Credentials <<Security>>
   component "global-settings.xml" as Settings <<Data>>
   component "job-scheduler.xml" as JobSchedulerData <<Security>>
+  component "terminal-effect-plugins.disabled" as EffectDisabled <<Data>>
+  component "plugins/ + bundled-plugins/" as EffectJars <<Data>>
   component "projects/" as Projects <<Data>>
   component "saved-ai-chats.json" as AiChats <<Data>>
   component "SSH / GPG keys" as Keys <<Security>>
@@ -79,8 +89,11 @@ TabBar --> SftpTabs
 TabBar --> AiTabs
 MenuBar --> Workflows
 MenuBar --> JobSchedulerStatus
+MenuBar --> TerminalEffectDialog
 ConnectionManager --> Connections
+ConnectionManager --> EffectManager : saved effect id + speed
 QuickConnect --> Connections
+QuickConnect --> EffectManager : selected effect id + speed
 OpenSftp --> SftpTabs
 Snippets --> Settings
 JobSchedulerDialog --> JobScheduler
@@ -100,6 +113,15 @@ Keys --> ConnectionManager
 Projects --> Dashboard
 Environments --> ConnectionManager
 AiTabs --> SavedChatsUi
+TerminalEffectDialog --> EffectManager
+TerminalTabs --> EffectSession
+EffectManager --> MotherJar
+EffectManager --> ExternalJars
+EffectManager --> EffectDisabled
+EffectManager --> EffectJars
+EffectSession --> TerminalTabs : appearance, overlay,\nconnector wrapper
+MotherJar --> EffectSession
+ExternalJars --> EffectSession
 
 note right of App
   UI surfaces stay in JavaFX tabs and dialogs.

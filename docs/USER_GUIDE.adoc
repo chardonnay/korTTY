@@ -18,6 +18,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *Code snippet manager* with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, placeholder variables, and import/export
 * *JobScheduler* for background command, SnippetManager script, AI Agent, SFTP, and Rsync jobs that run while KorTTY is open without requiring a terminal tab
 * *ASCII Art Banner* generator with 11+ FIGlet font styles
+* *Terminal effect plugins* with per-session or per-connection selection, animation speed, import/export, and plugin enable/disable management
 * *SSH tunnels* (local, remote, dynamic) and jump server support
 * *Backup and restore* with password-protected ZIP or GPG encryption
 * *8 built-in languages* plus *dynamic translation*: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
@@ -101,7 +102,7 @@ image::diagrams/architecture.png[KorTTY architecture,align=center]
 ----
 +---------------------------------------------------------------+
 | Menu Bar: File | Edit | Connections | Management | Tools |    |
-|           View | Help | optional JobScheduler status           |
+|           Plugins | View | Help | optional JobScheduler status   |
 +---------------------------------------------------------------+
 | Tab Bar: [Server-1] [Server-2] [Server-3]            [+]     |
 +-------------------+-------------------------------------------+
@@ -141,7 +142,7 @@ The Quick Connect dialog has three sections:
 2. *Individual Connection* tab:
 * Select a saved connection from the dropdown, or enter host, port, and username manually.
 * Choose an authentication method (Password, SSH Key, or Temporary SSH Key).
-* Optionally customize terminal appearance (font, size, colors).
+* Optionally customize terminal appearance (font, size, colors), terminal effect plugin, and terminal-effect animation speed.
 * Check *Save Connection* to add the connection to your library.
 
 3. *Open Group* tab:
@@ -196,6 +197,7 @@ When you create or edit a connection, a dialog with multiple tabs opens:
 
 ==== Terminal Settings Tab
 * Override global font, colors, and terminal size for this specific connection.
+* Select a terminal-effect plugin and animation speed for this connection. The slider covers `1x` through `10x`; the numeric field accepts larger values up to `99x`.
 * *Close Confirmation* - Ask before closing this tab.
 
 When you save a connection (e.g. after changing font size or family), any *open terminal tabs* using that connection update their font and appearance *immediately*; no restart or reconnect is required.
@@ -267,9 +269,35 @@ Adjust the font size of the active terminal without reconnecting:
 | Alt+0 | Reset zoom to saved/default font
 |===
 
-*Reset zoom* restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right‑click → *Font size* → *Reset*. The zoom level applies only to the currently focused terminal.
+*Reset zoom* restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right-click → *Font size* → *Reset*. The zoom level applies only to the currently focused terminal.
 
-=== 4.5 Split-Screen with Broadcast
+=== 4.5 Terminal Effects
+
+Terminal effects can change the visible terminal style and output animation. Effects are Java plugins managed from *Plugins > Terminal Effects*.
+
+User controls:
+
+* *Current terminal:* Use *View > Terminal Effect* or the terminal context menu to choose an effect for the active terminal.
+* *Quick Connect:* Choose the effect and speed before opening a temporary or saved connection.
+* *Connection Manager:* Store the effect and speed on a saved connection so new tabs use it automatically.
+* *Speed:* Use the slider for `1x` through `10x`; if that is still too slow, type a custom value up to `99x` in the numeric speed field.
+
+Plugin management:
+
+* Open *Plugins > Terminal Effects*.
+* The table lists loaded plugins with active state, name, and description.
+* Disable a plugin to keep it installed but unavailable for activation.
+* Import external `.jar` plugins. KorTTY copies them into `~/.kortty/plugins`.
+* Export plugins that have a source JAR. The bundled MOTHER effect is exportable.
+
+[WARNING]
+====
+Imported terminal-effect plugins are trusted Java code and are not sandboxed. Only import plugins from sources you trust.
+====
+
+Developer documentation for creating plugin JARs is in link:TERMINAL_EFFECT_PLUGINS.adoc[Terminal Effect Plugin Development].
+
+=== 4.6 Split-Screen with Broadcast
 
 Split the terminal view to display multiple connections side by side:
 
@@ -279,7 +307,7 @@ Split the terminal view to display multiple connections side by side:
 * *Resizable Panes:* Drag dividers to adjust pane sizes.
 * *Move Panes:* Hold *Shift+Alt* (Windows/Linux) or *Shift+Option* (Mac) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.
 
-=== 4.6 AI Assistant for Terminal Selections
+=== 4.7 AI Assistant for Terminal Selections
 
 KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint and open the answer in a temporary AI result tab.
 
@@ -538,7 +566,7 @@ Activity rows use semantic markers:
 
 Red styling is reserved for error and failed states.
 
-=== 4.7 Terminal Logging
+=== 4.8 Terminal Logging
 
 Automatically log terminal session output for audit and debugging:
 
@@ -550,7 +578,7 @@ Automatically log terminal session output for audit and debugging:
 3. Set a *maximum file size* (default: 10 MB). When exceeded, the log file is rotated.
 4. Logs are stored in `~/.kortty/history/` as compressed files.
 
-=== 4.8 SSH Keep-Alive
+=== 4.9 SSH Keep-Alive
 
 Prevent connections from dropping due to inactivity:
 
@@ -958,7 +986,7 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *SFTP* (SFTP auto-close, archive defaults, and optional JobScheduler Rsync binary path), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, optional supported reasoning effort per profile, per-profile internet access mode, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, terminal-agent panel preferences, snippet-AI behavior switches, saved-chat compatibility, and token quotas), *AI Skills* (local reusable skill instructions for AI Chat/functions and AI Agent), and *Themes* (color profiles with live preview, add/edit/delete actions for custom and preconfigured themes, and dedicated Terminal AI agent panel colors).
+Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *SFTP* (SFTP auto-close, archive defaults, and optional JobScheduler Rsync binary path), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, optional supported reasoning effort per profile, per-profile internet access mode, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, terminal-agent panel preferences, snippet-AI behavior switches, saved-chat compatibility, and token quotas), *AI Skills* (local reusable skill instructions for AI Chat/functions and AI Agent), and *Themes* (color profiles with live preview, add/edit/delete actions for custom and preconfigured themes, and dedicated Terminal AI agent panel colors). Terminal-effect plugins are managed from *Plugins > Terminal Effects*.
 
 == 17. Keyboard Shortcuts
 
@@ -998,6 +1026,7 @@ All KorTTY data is stored under `~/.kortty/`:
 
 * `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `gpg-keys.xml`, `global-settings.xml`, `job-scheduler.xml`, `ai-chats.xml`, `snippets.xml`, `snippet-variables.xml`, `master-password-hash`, `kortty.log`
 * `history/` (terminal history), `projects/` (.kortty files), `i18n/` (generated language files), `ssh-keys/` (optional copied keys)
+* `plugins/` (imported terminal-effect plugin JARs), `bundled-plugins/` (runtime copies of bundled exportable terminal-effect plugin JARs), `terminal-effect-plugins.disabled` (disabled plugin ids)
 
 == 19. Troubleshooting
 
@@ -1009,6 +1038,7 @@ All KorTTY data is stored under `~/.kortty/`:
 * *JobScheduler job is blocked:* Open *Tools > JobScheduler... > Journal* and inspect the detail text. Common causes are a locked master password, missing host-key pin, unsupported Mosh target, missing `rsync` or `ssh`, or an old host-key pin without OpenSSH public-key material for Rsync.
 * *JobScheduler Rsync cannot start:* Verify `rsync --version` and `ssh -V` in the local system PATH, or set the Rsync binary path in *Settings > SFTP > JobScheduler Rsync*.
 * *JobScheduler remote browser cannot open:* Select exactly one target and confirm the host key first, unless the job explicitly disables host-key verification.
+* *Terminal-effect plugin does not appear:* Open *Plugins > Terminal Effects* and use *Reload*. For external plugins, verify the JAR is in `~/.kortty/plugins`, contains `META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin`, and check `~/.kortty/kortty.log` for invalid provider, duplicate id, or load errors.
 * *Master password lost:* Encrypted data cannot be recovered; delete `master-password-hash` and `credentials.xml`, restart, set new master password, re-enter passwords.
 * *Encoding issues:* Ensure connection and remote server use the same encoding (e.g. UTF-8); try `LANG=en_US.UTF-8` on the remote server.
 

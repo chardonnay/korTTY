@@ -46,6 +46,14 @@ public class ServerConnection {
     
     @XmlElement
     private WindowGeometry windowGeometry;
+
+    /** Terminal effect plugin selected by default for this connection. */
+    @XmlElement
+    private String terminalEffectPluginId;
+
+    /** Terminal effect animation speed multiplier for this connection. Null = default. */
+    @XmlElement
+    private Double terminalEffectAnimationSpeed;
     
     @XmlElement
     private String group;
@@ -133,6 +141,8 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.settings = source.settings;
         c.windowGeometry = source.windowGeometry;
+        c.terminalEffectPluginId = source.terminalEffectPluginId;
+        c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.group = source.group;
         c.usageCount = source.usageCount;
         c.lastUsed = source.lastUsed;
@@ -249,6 +259,22 @@ public class ServerConnection {
     
     public void setWindowGeometry(WindowGeometry windowGeometry) {
         this.windowGeometry = windowGeometry;
+    }
+
+    public String getTerminalEffectPluginId() {
+        return terminalEffectPluginId;
+    }
+
+    public void setTerminalEffectPluginId(String terminalEffectPluginId) {
+        this.terminalEffectPluginId = terminalEffectPluginId;
+    }
+
+    public Double getTerminalEffectAnimationSpeed() {
+        return terminalEffectAnimationSpeed;
+    }
+
+    public void setTerminalEffectAnimationSpeed(Double terminalEffectAnimationSpeed) {
+        this.terminalEffectAnimationSpeed = terminalEffectAnimationSpeed;
     }
     
     public String getGroup() {

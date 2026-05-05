@@ -33,6 +33,39 @@ javafx {
     modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.swing")
 }
 
+val motherTerminalEffectPluginJarName = "kortty-terminal-effect-mother.jar"
+val motherPluginSourceSet = sourceSets.create("motherPlugin") {
+    java.setSrcDirs(listOf("src/motherPlugin/java"))
+    resources.setSrcDirs(listOf("src/motherPlugin/resources"))
+    compileClasspath += sourceSets.main.get().output.classesDirs + configurations.compileClasspath.get()
+    runtimeClasspath += output + compileClasspath
+}
+
+tasks.named<JavaCompile>(motherPluginSourceSet.compileJavaTaskName) {
+    dependsOn(tasks.named("compileJava"))
+}
+
+sourceSets.named("test") {
+    compileClasspath += motherPluginSourceSet.output.classesDirs
+    runtimeClasspath += motherPluginSourceSet.output.classesDirs
+}
+
+val motherTerminalEffectPluginJar = tasks.register<Jar>("motherTerminalEffectPluginJar") {
+    group = "build"
+    description = "Builds the exportable MOTHER terminal effect plugin JAR."
+    dependsOn(tasks.named(motherPluginSourceSet.classesTaskName))
+    archiveFileName.set(motherTerminalEffectPluginJarName)
+    destinationDirectory.set(layout.buildDirectory.dir("terminal-effect-plugins"))
+    from(motherPluginSourceSet.output)
+}
+
+tasks.named<ProcessResources>("processResources") {
+    dependsOn(motherTerminalEffectPluginJar)
+    from(motherTerminalEffectPluginJar.flatMap { it.archiveFile }) {
+        into("bundled-plugins/terminal-effects")
+    }
+}
+
 dependencies {
     // SSH
     implementation("org.apache.sshd:sshd-core:2.12.0")

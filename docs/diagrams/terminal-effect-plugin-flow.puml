@@ -1,0 +1,79 @@
+@startuml
+title Terminal Effect Plugin Lifecycle
+
+skinparam backgroundColor #FBFDFF
+skinparam shadowing false
+skinparam roundcorner 14
+skinparam sequence {
+  ArrowColor #273746
+  ArrowThickness 1.2
+  LifeLineBorderColor #9FB2C8
+  LifeLineBackgroundColor #F7FAFE
+  ParticipantBorderColor #34495E
+  ParticipantBackgroundColor #FFFFFF
+  ActorBorderColor #2E8B57
+  ActorBackgroundColor #EAF7EF
+  BoxBorderColor #9FB2C8
+  BoxBackgroundColor #F7FAFE
+}
+skinparam participant<<UI>> {
+  BackgroundColor #EAF4FF
+  BorderColor #2F74B5
+}
+skinparam participant<<Plugin>> {
+  BackgroundColor #FFF7E6
+  BorderColor #C77D00
+}
+skinparam participant<<Storage>> {
+  BackgroundColor #EAF7EF
+  BorderColor #2E8B57
+}
+skinparam participant<<Terminal>> {
+  BackgroundColor #F2ECFF
+  BorderColor #7E57C2
+}
+skinparam defaultFontName "Arial"
+
+actor User
+participant "Plugins >\nTerminal Effects" as Dialog <<UI>>
+participant "TerminalEffectPluginManager" as Manager <<Plugin>>
+database "Bundled + external\nplugin JARs" as Jars <<Storage>>
+participant "TerminalView" as TerminalView <<UI>>
+participant "TerminalEffectPlugin" as Plugin <<Plugin>>
+participant "TerminalEffectSession" as Session <<Plugin>>
+participant "SithTermFX Widget" as Widget <<Terminal>>
+participant "TtyConnector" as Connector <<Terminal>>
+
+User -> Dialog : Open plugin management
+Dialog -> Manager : load / reload plugins
+Manager -> Jars : scan ServiceLoader descriptors
+Jars --> Manager : plugin providers
+Manager --> Dialog : entries with id,\nname, description, enabled state
+
+User -> TerminalView : Select effect\nand animation speed
+TerminalView -> Manager : find plugin by id
+Manager --> TerminalView : TerminalEffectPlugin
+TerminalView -> Plugin : createSession(context)
+Plugin --> TerminalView : TerminalEffectSession
+TerminalView -> Session : start()
+Session -> TerminalView : applyAppearance(...)
+Session -> TerminalView : add overlay to overlayRoot
+
+TerminalView -> Session : wrapConnector(widget, connector)
+Session -> Connector : delegate or wrap
+Session --> Widget : decorated connector
+
+loop terminal output
+  Connector --> Widget : terminal stream
+  Widget --> User : rendered terminal
+end
+
+User -> TerminalView : Disable effect,\nswitch effect, or close tab
+TerminalView -> Session : stop()
+Session -> TerminalView : remove overlays,\nlisteners, bindings
+
+note over Manager,Jars
+  Imported JARs run as trusted local code.
+  KorTTY does not sandbox terminal-effect plugins.
+end note
+@enduml

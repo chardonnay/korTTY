@@ -55,6 +55,14 @@ public class SessionState {
     @XmlElement
     private SplitPaneState splitPaneState;
 
+    /** Terminal effect plugin selected for this tab. */
+    @XmlElement
+    private String terminalEffectPluginId;
+
+    /** Terminal effect animation speed multiplier for this tab. Null = default. */
+    @XmlElement
+    private Double terminalEffectAnimationSpeed;
+
     /** Recorded terminal timestamps mapped to absolute terminal lines. */
     @XmlElementWrapper(name = "terminalTimestamps")
     @XmlElement(name = "timestamp")
@@ -186,6 +194,22 @@ public class SessionState {
     
     public void setSplitPaneState(SplitPaneState splitPaneState) {
         this.splitPaneState = splitPaneState;
+    }
+
+    public String getTerminalEffectPluginId() {
+        return terminalEffectPluginId;
+    }
+
+    public void setTerminalEffectPluginId(String terminalEffectPluginId) {
+        this.terminalEffectPluginId = terminalEffectPluginId;
+    }
+
+    public Double getTerminalEffectAnimationSpeed() {
+        return terminalEffectAnimationSpeed;
+    }
+
+    public void setTerminalEffectAnimationSpeed(Double terminalEffectAnimationSpeed) {
+        this.terminalEffectAnimationSpeed = terminalEffectAnimationSpeed;
     }
 
     public java.util.List<TerminalTimestampEntry> getTerminalTimestamps() {

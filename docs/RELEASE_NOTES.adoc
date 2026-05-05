@@ -68,9 +68,21 @@
 * *Prompt wrapping*: Wrapped terminal prompt lines are searched from the visible screen so the agent can recover both the task text and current directory.
 * *Web/local separation*: Local file review prompts no longer get derailed into web-search tool rounds when an internet-enabled profile is active.
 
+=== Terminal Effect Plugins
+
+* *New plugin menu*: *Plugins > Terminal Effects* opens terminal-effect plugin management between *Tools* and *View* in the main menu bar.
+* *Plugin management dialog*: Loaded terminal-effect plugins are shown with active state, name, and description. Users can enable, disable, reload, import `.jar` plugins, and export plugins that have a source JAR.
+* *ServiceLoader SPI*: Terminal effects use `de.kortty.plugin.terminaleffects.TerminalEffectPlugin` and `TerminalEffectSession` for appearance changes, JavaFX overlays, and optional SithTermFX `TtyConnector` wrapping.
+* *Per-connection selection*: Quick Connect and Connection Manager can store the selected terminal-effect plugin and animation speed on a connection.
+* *Animation speed controls*: Terminal-effect speed supports a `1x` to `10x` slider plus a numeric field up to `99x`.
+* *Exportable MOTHER plugin*: MOTHER has been moved into a bundled plugin JAR (`kortty-terminal-effect-mother.jar`) and can be exported from the plugin manager.
+* *MOTHER output animation*: MOTHER paces visible terminal output, keeps terminal control sequences immediate, adds CRT overlay styling, and briefly flashes the current output line before fading it back to normal brightness.
+
 === Documentation
 
-* README, User Guide, and Release Notes now describe JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, AI Skills, Terminal AI Agent usage, failure handling, and manual validation paths in more detail.
+* README, User Guide, and Release Notes now describe JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, AI Skills, Terminal AI Agent usage, terminal-effect plugins, failure handling, and manual validation paths in more detail.
+* Added `docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
+* Updated and re-rendered the architecture, module overview, connection flow, session lifecycle, and new terminal-effect plugin lifecycle diagrams.
 
 ---
 

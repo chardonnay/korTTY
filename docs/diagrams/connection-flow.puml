@@ -21,12 +21,18 @@ skinparam defaultFontName "Arial"
 actor User
 participant "KorTTY UI" as KorTTY
 participant "Connection Manager" as ConnMgr
+participant "Terminal Effect\nRuntime" as Effect
 participant "SSH / Mosh Client" as Client
 participant "Remote Server" as Server
 
 User -> KorTTY : Open connection\nQuick Connect / tab
 KorTTY -> ConnMgr : Load connection settings
-ConnMgr --> KorTTY : Host, auth, protocol
+ConnMgr --> KorTTY : Host, auth, protocol,\neffect id + speed
+
+opt Terminal effect selected
+  KorTTY -> Effect : Create effect session
+  Effect --> KorTTY : Apply appearance\nand install overlay
+end
 
 alt SSH over TCP
   KorTTY -> Client : Establish SSH session
@@ -38,8 +44,19 @@ else Mosh via mosh4j
   KorTTY -> Client : Start UDP session
 end
 
-Server --> KorTTY : Terminal stream
+Server --> Client : Terminal stream
+alt Terminal effect enabled
+  Client --> Effect : Connector output
+  Effect --> KorTTY : Paced or decorated stream
+else No terminal effect
+  Client --> KorTTY : Raw terminal stream
+end
 KorTTY --> User : Display terminal\nSithTermFX
+
+note over KorTTY,Effect
+  Effects can change appearance, draw overlays,
+  and wrap the terminal connector.
+end note
 
 note over KorTTY,Client
   Protocol choice changes transport setup,
