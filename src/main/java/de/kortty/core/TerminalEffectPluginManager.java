@@ -205,7 +205,15 @@ public class TerminalEffectPluginManager {
                 logger.warn("Bundled terminal effect plugin resource missing: {}", resourceName);
                 return;
             }
-            Files.copy(pluginStream, target, StandardCopyOption.REPLACE_EXISTING);
+            try {
+                Files.copy(pluginStream, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                if (!Files.isRegularFile(target)) {
+                    throw e;
+                }
+                logger.warn("Could not refresh bundled terminal effect plugin {}: {}. Using existing copy.",
+                        target, e.getMessage());
+            }
         }
         loadPluginJar(target, PluginSource.BUNDLED_JAR);
     }

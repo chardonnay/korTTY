@@ -29,11 +29,9 @@ public class RsyncCommandBuilder {
             sources.stream()
                 .map(source -> remoteSpec(input.connection(), source))
                 .forEach(args::add);
-            args.add(Path.of(targetRoot).toString());
+            args.add(targetRoot);
         } else {
-            sources.stream()
-                .map(source -> Path.of(source).toString())
-                .forEach(args::add);
+            args.addAll(sources);
             args.add(remoteSpec(input.connection(), targetRoot));
         }
         return new BuiltRsyncCommand(List.copyOf(args), displayCommand(args));
