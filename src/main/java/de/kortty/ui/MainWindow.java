@@ -2546,9 +2546,7 @@ public class MainWindow {
             case SFTP_MANAGER:
                 // Open SFTP Manager for this connection
                 if (terminalTab.isConnected()) {
-                    de.kortty.model.TemporarySSHKey tempKey = terminalTab.getTemporarySSHKey() != null ?
-                        de.kortty.core.TemporarySSHKeyManager.getInstance().getCurrentTemporaryKey() : null;
-                    openSFTPManagerForConnection(terminalTab.getConnection(), tempKey);
+                    openSFTPManagerForConnection(terminalTab.getConnection(), terminalTab.getTemporarySSHKey());
                 } else {
                     showError(I18n.get("error.notConnected"), I18n.get("error.notConnectedMessage"));
                 }
@@ -4903,12 +4901,7 @@ public class MainWindow {
         if (selectedTab instanceof TerminalTab terminalTab && terminalTab.isConnected()) {
             // Use current connection - pass temporary key if tab was connected with one
             logger.info("Using active connection: {}", terminalTab.getConnection().getDisplayName());
-            de.kortty.model.TemporarySSHKey tempKey = null;
-            if (terminalTab.getTemporarySSHKey() != null) {
-                // Tab was connected with temp key - use current global key (may have been updated)
-                tempKey = de.kortty.core.TemporarySSHKeyManager.getInstance().getCurrentTemporaryKey();
-            }
-            openSFTPManagerForConnection(terminalTab.getConnection(), tempKey);
+            openSFTPManagerForConnection(terminalTab.getConnection(), terminalTab.getTemporarySSHKey());
             return;
         }
         

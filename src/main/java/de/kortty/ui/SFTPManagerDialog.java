@@ -549,19 +549,7 @@ public class SFTPManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private SFTPSession createConfiguredSession() {
-        ServerConnection connToUse = connection;
-        if (temporarySSHKey != null && temporarySSHKey.isValid()) {
-            connToUse = new ServerConnection();
-            connToUse.setId(connection.getId());
-            connToUse.setName(connection.getName());
-            connToUse.setHost(connection.getHost());
-            connToUse.setPort(connection.getPort());
-            connToUse.setUsername(connection.getUsername());
-            connToUse.setSettings(connection.getSettings());
-            connToUse.setConnectionTimeoutSeconds(connection.getConnectionTimeoutSeconds());
-            connToUse.setAuthMethod(de.kortty.model.AuthMethod.PUBLIC_KEY);
-            connToUse.setPrivateKeyPath("TEMPORARY:" + temporarySSHKey.getKeyContent());
-        }
+        ServerConnection connToUse = SftpConnectionSupport.connectionForSftp(connection, temporarySSHKey);
 
         SFTPSession session = new SFTPSession(connToUse, password);
         if (temporarySSHKey == null

@@ -681,20 +681,7 @@ public class SFTPManagerTab extends Tab {
     private void connectToSFTP() {
         new Thread(() -> {
             try {
-                // Create connection for SFTP with optional temporary SSH key
-                ServerConnection connToUse = connection;
-                
-                // If using temporary SSH key, update connection
-                if (temporarySSHKey != null && temporarySSHKey.isValid()) {
-                    connToUse = new ServerConnection();
-                    connToUse.setName(connection.getName());
-                    connToUse.setHost(connection.getHost());
-                    connToUse.setPort(connection.getPort());
-                    connToUse.setUsername(connection.getUsername());
-                    connToUse.setAuthMethod(de.kortty.model.AuthMethod.PUBLIC_KEY);
-                    connToUse.setPrivateKeyPath("TEMPORARY:" + temporarySSHKey.getKeyContent());
-                    connToUse.setSettings(connection.getSettings());
-                }
+                ServerConnection connToUse = SftpConnectionSupport.connectionForSftp(connection, temporarySSHKey);
                 
                 sftpSession = new SFTPSession(connToUse, password);
                 
