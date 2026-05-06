@@ -15,6 +15,7 @@ import org.apache.sshd.common.signature.BuiltinSignatures;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -161,7 +162,11 @@ public class SFTPSession {
         }
         session.auth().verify(Duration.ofSeconds(timeoutSeconds));
         
-        sftpClient = SftpClientFactory.instance().createSftpClient(session);
+        try {
+            sftpClient = SftpClientFactory.instance().createSftpClient(session);
+        } catch (IOException | RuntimeException e) {
+            throw new IOException(sftpSubsystemFailureMessage(e), e);
+        }
         
         // Initialize current directory
         try {
@@ -189,6 +194,44 @@ public class SFTPSession {
             new UserAuthKeyboardInteractiveFactory(),
             new UserAuthPublicKeyFactory()
         );
+    }
+
+    static String sftpSubsystemFailureMessage(Throwable failure) {
+        String causeMessage = safeFailureMessage(failure);
+        if (isSftpSubsystemNegotiationFailure(failure)) {
+            return "SFTP-Subsystem wurde nach erfolgreicher SSH-Authentifizierung vom Server geschlossen. "
+                + "Es wurde keine SFTP-Version ausgehandelt. Prüfe, ob SFTP für dieses Ziel bzw. den SSH-Proxy "
+                + "freigegeben ist. Technische Ursache: " + causeMessage;
+        }
+        return "SFTP-Subsystem konnte nach erfolgreicher SSH-Authentifizierung nicht gestartet werden: "
+            + causeMessage;
+    }
+
+    static boolean isSftpSubsystemNegotiationFailure(Throwable failure) {
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            if (current instanceof EOFException) {
+                return true;
+            }
+            String message = current.getMessage();
+            if (message != null
+                    && (message.contains("Channel closing")
+                    || message.contains("closed before version negotiated")
+                    || message.contains("EOFException"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String safeFailureMessage(Throwable failure) {
+        if (failure == null) {
+            return "unbekannter Fehler";
+        }
+        String message = failure.getMessage();
+        if (message == null || message.isBlank()) {
+            message = failure.getClass().getSimpleName();
+        }
+        return message;
     }
     
     /**

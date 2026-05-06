@@ -18,7 +18,6 @@ import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.session.SessionHeartbeatController;
 import org.apache.sshd.common.signature.BuiltinSignatures;
 import org.apache.sshd.core.CoreModuleProperties;
-import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -297,7 +296,6 @@ public class SshTtyConnector implements TtyConnector {
             outputStream = channel.getInvertedIn();
             reader = new InputStreamReader(inputStream, charset);
 
-            initializeCurrentRemoteDirectory();
             writeShellStartupCommandIfConfigured();
             
             connected.set(true);
@@ -735,22 +733,6 @@ public class SshTtyConnector implements TtyConnector {
     public void updateCurrentRemoteDirectoryHint(String directory) {
         if (directory != null && directory.startsWith("/")) {
             setCurrentRemoteDirectory(directory);
-        }
-    }
-
-    private void initializeCurrentRemoteDirectory() {
-        try (var sftp = SftpClientFactory.instance().createSftpClient(session)) {
-            String initialDir = sftp.canonicalPath(".");
-            if (initialDir != null && !initialDir.isBlank()) {
-                synchronized (directoryLock) {
-                    currentRemoteDirectory = initialDir;
-                    homeRemoteDirectory = initialDir;
-                    previousRemoteDirectory = initialDir;
-                    logger.debug("Initialized remote directory to {}", initialDir);
-                }
-            }
-        } catch (Exception e) {
-            logger.debug("Could not initialize remote directory via SFTP: {}", e.getMessage());
         }
     }
 
@@ -1251,31 +1233,6 @@ public class SshTtyConnector implements TtyConnector {
                 if (keyContentFixed.length() > 100) {
                     logger.debug("Key content starts with: {}", keyContentFixed.substring(0, 50).replace("\n", "\\n"));
                     logger.debug("Key content ends with: {}", keyContentFixed.substring(keyContentFixed.length() - 50).replace("\n", "\\n"));
-                }
-                
-                // DEBUG: Save a copy to a known location for inspection
-                java.io.File debugFile = new java.io.File(System.getProperty("user.home"), ".kortty/debug_temp_key.pem");
-                try (java.io.FileWriter debugWriter = new java.io.FileWriter(debugFile, java.nio.charset.StandardCharsets.UTF_8)) {
-                    debugWriter.write(keyContentFixed);
-                    // Set permissions to 600 (owner read/write only)
-                    try {
-                        java.nio.file.Files.setPosixFilePermissions(
-                            debugFile.toPath(),
-                            java.util.Set.of(
-                                java.nio.file.attribute.PosixFilePermission.OWNER_READ,
-                                java.nio.file.attribute.PosixFilePermission.OWNER_WRITE
-                            )
-                        );
-                    } catch (UnsupportedOperationException permEx) {
-                        // Windows fallback
-                        debugFile.setReadable(false, false);
-                        debugFile.setReadable(true, true);
-                        debugFile.setWritable(false, false);
-                        debugFile.setWritable(true, true);
-                    }
-                    logger.info("DEBUG: Saved temporary key to {} for inspection (chmod 600)", debugFile.getAbsolutePath());
-                } catch (Exception debugEx) {
-                    logger.warn("DEBUG: Could not save debug key file: {}", debugEx.getMessage());
                 }
                 
                 // Write temporary key to a temporary file

@@ -7,6 +7,7 @@ import org.apache.sshd.client.auth.password.UserAuthPasswordFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
 import org.testng.annotations.Test;
 
+import java.io.EOFException;
 import java.util.List;
 import static com.google.common.truth.Truth.assertThat;
 
@@ -39,5 +40,25 @@ class SFTPSessionTest {
         assertThat(factoryNames.getFirst()).isEqualTo(UserAuthPublicKeyFactory.class.getSimpleName());
         assertThat(factoryNames.contains(UserAuthKeyboardInteractiveFactory.class.getSimpleName())).isTrue();
         assertThat(factoryNames.contains(UserAuthPasswordFactory.class.getSimpleName())).isTrue();
+    }
+
+    @Test
+    void detectsSftpSubsystemNegotiationFailure() {
+        RuntimeException failure = new RuntimeException(
+            "IoWriteFutureImpl[SftpChannelSubsystem][SSH_MSG_CHANNEL_DATA]: Failed (EOFException) to execute: Channel closing",
+            new EOFException("Channel closing"));
+
+        assertThat(SFTPSession.isSftpSubsystemNegotiationFailure(failure)).isTrue();
+        assertThat(SFTPSession.sftpSubsystemFailureMessage(failure))
+            .contains("SFTP-Subsystem wurde nach erfolgreicher SSH-Authentifizierung vom Server geschlossen");
+    }
+
+    @Test
+    void genericSftpStartFailureKeepsCauseMessage() {
+        RuntimeException failure = new RuntimeException("permission denied");
+
+        assertThat(SFTPSession.isSftpSubsystemNegotiationFailure(failure)).isFalse();
+        assertThat(SFTPSession.sftpSubsystemFailureMessage(failure))
+            .isEqualTo("SFTP-Subsystem konnte nach erfolgreicher SSH-Authentifizierung nicht gestartet werden: permission denied");
     }
 }
