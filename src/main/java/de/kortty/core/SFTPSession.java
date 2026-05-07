@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -199,7 +200,7 @@ public class SFTPSession {
     static String sftpSubsystemFailureMessage(Throwable failure) {
         String causeMessage = safeFailureMessage(failure);
         if (isSftpSubsystemNegotiationFailure(failure)) {
-            return "SFTP-Subsystem wurde nach erfolgreicher SSH-Authentifizierung vom Server geschlossen. "
+            return "SFTP-Subsystem wurde nach erfolgreicher SSH-Authentifizierung vom Server abgelehnt oder geschlossen. "
                 + "Es wurde keine SFTP-Version ausgehandelt. Prüfe, ob SFTP für dieses Ziel bzw. den SSH-Proxy "
                 + "freigegeben ist. Technische Ursache: " + causeMessage;
         }
@@ -213,10 +214,12 @@ public class SFTPSession {
                 return true;
             }
             String message = current.getMessage();
+            String normalizedMessage = message != null ? message.toLowerCase(Locale.ROOT) : null;
             if (message != null
-                    && (message.contains("Channel closing")
-                    || message.contains("closed before version negotiated")
-                    || message.contains("EOFException"))) {
+                    && (normalizedMessage.contains("channel closing")
+                    || normalizedMessage.contains("closed before version negotiated")
+                    || normalizedMessage.contains("eofexception")
+                    || normalizedMessage.contains("subsystem request failed"))) {
                 return true;
             }
         }

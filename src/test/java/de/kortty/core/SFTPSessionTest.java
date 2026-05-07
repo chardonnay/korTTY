@@ -50,7 +50,16 @@ class SFTPSessionTest {
 
         assertThat(SFTPSession.isSftpSubsystemNegotiationFailure(failure)).isTrue();
         assertThat(SFTPSession.sftpSubsystemFailureMessage(failure))
-            .contains("SFTP-Subsystem wurde nach erfolgreicher SSH-Authentifizierung vom Server geschlossen");
+            .contains("SFTP-Subsystem wurde nach erfolgreicher SSH-Authentifizierung vom Server abgelehnt oder geschlossen");
+    }
+
+    @Test
+    void detectsSftpSubsystemRequestFailure() {
+        RuntimeException failure = new RuntimeException("subsystem request failed on channel 0");
+
+        assertThat(SFTPSession.isSftpSubsystemNegotiationFailure(failure)).isTrue();
+        assertThat(SFTPSession.sftpSubsystemFailureMessage(failure))
+            .contains("Prüfe, ob SFTP für dieses Ziel bzw. den SSH-Proxy freigegeben ist");
     }
 
     @Test
