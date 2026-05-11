@@ -162,7 +162,7 @@ KorTTY terminal-effect plugins are Java `ServiceLoader` plugins loaded from the 
 
 External plugins are trusted local code and are not sandboxed. Only import JARs from sources you trust. Dependencies that are not already bundled with KorTTY must be shaded into the plugin JAR; adjacent dependency JARs are not loaded automatically.
 
-The MOTHER effect is built as an exportable bundled plugin JAR and can be used as the in-repository reference implementation:
+The MU/TH/UR 6000 effect is built as an exportable bundled plugin JAR and can be used as the in-repository reference implementation:
 
 image::docs/diagrams/terminal-effect-plugin-flow.png[Terminal effect plugin lifecycle,align=center]
 

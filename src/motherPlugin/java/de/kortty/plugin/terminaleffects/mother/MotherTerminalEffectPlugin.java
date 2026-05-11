@@ -26,7 +26,7 @@ public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
 
     @Override
     public String displayName() {
-        return "MOTHER";
+        return "MU/TH/UR 6000";
     }
 
     @Override

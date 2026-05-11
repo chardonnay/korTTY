@@ -33,7 +33,7 @@ public class TerminalEffectPluginManagerTest {
         assertThat(entry.exportable()).isTrue();
         assertThat(entry.sourcePath().getFileName().toString()).isEqualTo("kortty-terminal-effect-mother.jar");
         assertThat(manager.findPlugin(MotherTerminalEffectPlugin.PLUGIN_ID).orElseThrow().displayName())
-                .isEqualTo("MOTHER");
+                .isEqualTo("MU/TH/UR 6000");
         assertThat(manager.findPlugin(MotherTerminalEffectPlugin.PLUGIN_ID).orElseThrow().description())
                 .contains("CRT");
     }
