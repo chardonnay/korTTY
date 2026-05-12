@@ -5,6 +5,8 @@ plugins {
 }
 
 import org.gradle.jvm.toolchain.JvmVendorSpec
+import java.net.URI
+import java.security.MessageDigest
 
 group = "de.kortty"
 version = "2.1.0"
@@ -30,7 +32,7 @@ repositories {
 
 javafx {
     version = "21"
-    modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.swing")
+    modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.swing", "javafx.web")
 }
 
 val motherTerminalEffectPluginJarName = "kortty-terminal-effect-mother.jar"
@@ -108,6 +110,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.13.2")
     implementation("com.knuddels:jtokkit:1.1.0")
     implementation("org.apache.pdfbox:pdfbox:3.0.6")
+    implementation("com.google.googlejavaformat:google-java-format:1.35.0")
 
     // PTY support for native Mosh client
     implementation("org.jetbrains.pty4j:pty4j:0.12.25")
@@ -121,8 +124,23 @@ dependencies {
     testImplementation("org.testng:testng:7.12.0")
 }
 
+val googleJavaFormatJvmArgs = listOf(
+    "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+    "--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+    "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+    "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+    "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+    "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+)
+
 application {
     mainClass.set("de.kortty.KorTTYApplication")
+    applicationDefaultJvmArgs = googleJavaFormatJvmArgs
+}
+
+tasks.named<JavaExec>("run") {
+    dependsOn("copyBundledFormatters")
+    systemProperty("kortty.formatters.dir", layout.buildDirectory.dir("jpackage-input/libs/formatters").get().asFile.absolutePath)
 }
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
@@ -195,6 +213,272 @@ val isWindows = osName.contains("windows")
 val isMac = osName.contains("mac")
 val isLinux = osName.contains("linux")
 
+// ==================== Gebuendelte Code-Formatter ====================
+
+val formatterDownloadDir = layout.buildDirectory.dir("formatter-downloads")
+val bundledFormatterDir = jpackageInput.map { it.dir("libs/formatters") }
+val formatterNodeVersion = "24.15.0"
+val formatterShfmtVersion = "3.13.1"
+val formatterPrettierVersion = "3.6.2"
+val formatterSqlFormatterVersion = "15.7.3"
+val formatterPerlTidyVersion = "20260204"
+
+fun formatterArch(): String = when (System.getProperty("os.arch", "").lowercase()) {
+    "aarch64", "arm64" -> "arm64"
+    "x86_64", "amd64" -> "x64"
+    else -> System.getProperty("os.arch", "").lowercase()
+}
+
+fun shfmtAsset(): Pair<String, String>? {
+    val arch = formatterArch()
+    return when {
+        isMac && arch == "x64" -> "shfmt_v${formatterShfmtVersion}_darwin_amd64" to "6feedafc72915794163114f512348e2437d080d0047ef8b8fa2ec63b575f12af"
+        isMac && arch == "arm64" -> "shfmt_v${formatterShfmtVersion}_darwin_arm64" to "9680526be4a66ea1ffe988ed08af58e1400fe1e4f4aef5bd88b20bb9b3da33f8"
+        isLinux && arch == "x64" -> "shfmt_v${formatterShfmtVersion}_linux_amd64" to "fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1"
+        isLinux && arch == "arm64" -> "shfmt_v${formatterShfmtVersion}_linux_arm64" to "32d92acaa5cd8abb29fc49dac123dc412442d5713967819d8af2c29f1b3857c7"
+        isWindows && arch == "x64" -> "shfmt_v${formatterShfmtVersion}_windows_amd64.exe" to "60cd368533d0ad73fa86d93d5bbf95ef40587245ce684ed138c1b31557b5fe97"
+        else -> null
+    }
+}
+
+fun nodeArchiveName(): String? {
+    val arch = formatterArch()
+    return when {
+        isMac && arch == "x64" -> "node-v${formatterNodeVersion}-darwin-x64.tar.gz"
+        isMac && arch == "arm64" -> "node-v${formatterNodeVersion}-darwin-arm64.tar.gz"
+        isLinux && arch == "x64" -> "node-v${formatterNodeVersion}-linux-x64.tar.gz"
+        isLinux && arch == "arm64" -> "node-v${formatterNodeVersion}-linux-arm64.tar.gz"
+        isWindows && arch == "x64" -> "node-v${formatterNodeVersion}-win-x64.zip"
+        else -> null
+    }
+}
+
+fun sha256(file: File): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { input ->
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            digest.update(buffer, 0, read)
+        }
+    }
+    return digest.digest().joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+}
+
+fun downloadPinned(url: String, target: File, expectedSha256: String) {
+    target.parentFile.mkdirs()
+    if (!target.isFile || sha256(target) != expectedSha256) {
+        URI(url).toURL().openStream().use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        }
+    }
+    val actual = sha256(target)
+    if (!actual.equals(expectedSha256, ignoreCase = true)) {
+        throw GradleException("Checksum mismatch for ${target.name}: expected $expectedSha256, got $actual")
+    }
+}
+
+fun download(url: String, target: File) {
+    target.parentFile.mkdirs()
+    if (!target.isFile) {
+        URI(url).toURL().openStream().use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        }
+    }
+}
+
+fun stripFirstPathSegment(details: org.gradle.api.file.FileCopyDetails) {
+    val segments = details.relativePath.segments
+    if (segments.size > 1) {
+        details.relativePath = org.gradle.api.file.RelativePath(true, *segments.drop(1).toTypedArray())
+    }
+}
+
+tasks.register("copyBundledShfmt") {
+    group = "build"
+    description = "Downloads pinned shfmt and copies it into the jpackage formatter directory."
+    doLast {
+        val asset = shfmtAsset()
+        if (asset == null) {
+            logger.warn("No bundled shfmt asset configured for ${System.getProperty("os.name")} ${System.getProperty("os.arch")}; skipping.")
+            return@doLast
+        }
+        val (assetName, checksum) = asset
+        val downloadFile = formatterDownloadDir.get().asFile.resolve(assetName)
+        downloadPinned(
+            "https://github.com/mvdan/sh/releases/download/v$formatterShfmtVersion/$assetName",
+            downloadFile,
+            checksum
+        )
+        val executableName = if (isWindows) "shfmt.exe" else "shfmt"
+        val target = bundledFormatterDir.get().asFile.resolve("bin").resolve(executableName)
+        target.parentFile.mkdirs()
+        downloadFile.copyTo(target, overwrite = true)
+        target.setExecutable(true, false)
+    }
+}
+
+tasks.register("copyBundledNode") {
+    group = "build"
+    description = "Downloads pinned Node.js LTS and copies it into the jpackage formatter directory."
+    doLast {
+        val archiveName = nodeArchiveName()
+        if (archiveName == null) {
+            logger.warn("No bundled Node.js archive configured for ${System.getProperty("os.name")} ${System.getProperty("os.arch")}; skipping.")
+            return@doLast
+        }
+        val downloadBase = "https://nodejs.org/dist/v$formatterNodeVersion"
+        val shasumsFile = formatterDownloadDir.get().asFile.resolve("node-v$formatterNodeVersion-SHASUMS256.txt")
+        // Trust model: Node's SHASUMS256.txt is accepted only through HTTPS here; it is not
+        // independently signature-verified, so a compromised TLS endpoint could affect expected.
+        download("$downloadBase/SHASUMS256.txt", shasumsFile)
+        val expected = shasumsFile.readLines()
+            .firstOrNull { it.endsWith("  $archiveName") || it.endsWith(" *$archiveName") }
+            ?.substringBefore(" ")
+            ?: throw GradleException("No Node.js checksum found for $archiveName")
+        val archive = formatterDownloadDir.get().asFile.resolve(archiveName)
+        downloadPinned("$downloadBase/$archiveName", archive, expected)
+
+        val unpackDir = layout.buildDirectory.get().asFile.resolve("formatter-node-unpack")
+        delete(unpackDir)
+        unpackDir.mkdirs()
+        copy {
+            from(if (archiveName.endsWith(".zip")) zipTree(archive) else tarTree(resources.gzip(archive)))
+            into(unpackDir)
+        }
+        val unpackedRoot = unpackDir.listFiles()?.singleOrNull { it.isDirectory }
+            ?: throw GradleException("Could not find unpacked Node.js root for $archiveName")
+        val target = bundledFormatterDir.get().asFile.resolve("node")
+        delete(target)
+        copy {
+            from(unpackedRoot)
+            into(target)
+        }
+        val nodeExecutable = if (isWindows) target.resolve("node.exe") else target.resolve("bin/node")
+        nodeExecutable.setExecutable(true, false)
+    }
+}
+
+tasks.register("copyBundledPrettier") {
+    group = "build"
+    description = "Downloads pinned Prettier and copies it into the jpackage formatter directory."
+    doLast {
+        val archive = formatterDownloadDir.get().asFile.resolve("prettier-$formatterPrettierVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/prettier/-/prettier-$formatterPrettierVersion.tgz",
+            archive,
+            "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf3415831ff13a875bdf"
+        )
+        val target = bundledFormatterDir.get().asFile.resolve("prettier")
+        delete(target)
+        copy {
+            from(tarTree(resources.gzip(archive))) {
+                eachFile { stripFirstPathSegment(this) }
+                includeEmptyDirs = false
+            }
+            into(target)
+        }
+    }
+}
+
+tasks.register("copyBundledSqlFormatter") {
+    group = "build"
+    description = "Downloads pinned sql-formatter and copies it into the jpackage formatter directory."
+    doLast {
+        val archive = formatterDownloadDir.get().asFile.resolve("sql-formatter-$formatterSqlFormatterVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/sql-formatter/-/sql-formatter-$formatterSqlFormatterVersion.tgz",
+            archive,
+            "5ec54da8958d4ad9f6c948a8032ce55a2444361a9a9223766f8b4e75d2b29819"
+        )
+        val target = bundledFormatterDir.get().asFile.resolve("sql-formatter")
+        delete(target)
+        copy {
+            from(tarTree(resources.gzip(archive))) {
+                eachFile { stripFirstPathSegment(this) }
+                includeEmptyDirs = false
+            }
+            into(target)
+        }
+        target.resolve("kortty-sql-formatter.cjs").writeText(
+            """
+            const fs = require("fs");
+            const sqlFormatter = require("./dist/sql-formatter.min.cjs");
+            const input = fs.readFileSync(0, "utf8");
+            process.stdout.write(sqlFormatter.format(input));
+            """.trimIndent() + "\n"
+        )
+    }
+}
+
+tasks.register("copyBundledPerlTidy") {
+    group = "build"
+    description = "Downloads pinned Perl::Tidy and copies it into the jpackage formatter directory."
+    doLast {
+        val archive = formatterDownloadDir.get().asFile.resolve("Perl-Tidy-$formatterPerlTidyVersion.tar.gz")
+        downloadPinned(
+            "https://cpan.metacpan.org/authors/id/S/SH/SHANCOCK/Perl-Tidy-$formatterPerlTidyVersion.tar.gz",
+            archive,
+            "56a1fc2f1f813e49026a0f284b9209a6b2824620993e7598c85b01c444ff0f64"
+        )
+        val target = bundledFormatterDir.get().asFile.resolve("perltidy")
+        delete(target)
+        copy {
+            from(tarTree(resources.gzip(archive))) {
+                include("Perl-Tidy-$formatterPerlTidyVersion/bin/**")
+                include("Perl-Tidy-$formatterPerlTidyVersion/lib/**")
+                include("Perl-Tidy-$formatterPerlTidyVersion/COPYING")
+                eachFile { stripFirstPathSegment(this) }
+                includeEmptyDirs = false
+            }
+            into(target)
+        }
+        target.resolve("bin/perltidy").setExecutable(true, false)
+    }
+}
+
+tasks.register("copyBundledFormatterManifest") {
+    group = "build"
+    description = "Writes the bundled formatter manifest next to jpackage formatter artifacts."
+    doLast {
+        val target = bundledFormatterDir.get().asFile.resolve("formatter-manifest.properties")
+        target.parentFile.mkdirs()
+        target.writeText(
+            """
+            google-java-format.version=1.35.0
+            google-java-format.source=https://central.sonatype.com/artifact/com.google.googlejavaformat/google-java-format/1.35.0
+            node.version=$formatterNodeVersion
+            node.source=https://nodejs.org/dist/v$formatterNodeVersion/
+            shfmt.version=$formatterShfmtVersion
+            shfmt.source=https://github.com/mvdan/sh/releases/tag/v$formatterShfmtVersion
+            prettier.version=$formatterPrettierVersion
+            prettier.source=https://www.npmjs.com/package/prettier/v/$formatterPrettierVersion
+            sql-formatter.version=$formatterSqlFormatterVersion
+            sql-formatter.source=https://www.npmjs.com/package/sql-formatter/v/$formatterSqlFormatterVersion
+            perltidy.version=$formatterPerlTidyVersion
+            perltidy.source=https://metacpan.org/dist/Perl-Tidy/view/lib/Perl/Tidy.pod
+            """.trimIndent() + "\n"
+        )
+    }
+}
+
+tasks.register("copyBundledFormatters") {
+    group = "build"
+    description = "Copies all pinned formatter runtimes and packages into the jpackage input."
+    dependsOn(
+        "copyDependencies",
+        "copyJar",
+        "copyMosh4jBundled",
+        "copyBundledShfmt",
+        "copyBundledNode",
+        "copyBundledPrettier",
+        "copyBundledSqlFormatter",
+        "copyBundledPerlTidy",
+        "copyBundledFormatterManifest"
+    )
+}
+
 // Task zum Sammeln aller Dependencies in einem Verzeichnis
 tasks.register<Copy>("copyDependencies") {
     from(configurations.runtimeClasspath)
@@ -252,9 +536,22 @@ tasks.register("copyMosh4jBundled") {
     }
 }
 
+listOf(
+    "copyBundledShfmt",
+    "copyBundledNode",
+    "copyBundledPrettier",
+    "copyBundledSqlFormatter",
+    "copyBundledPerlTidy",
+    "copyBundledFormatterManifest"
+).forEach { formatterTaskName ->
+    tasks.named(formatterTaskName) {
+        mustRunAfter("copyDependencies", "copyJar", "copyMosh4jBundled")
+    }
+}
+
 // Task zum Vorbereiten der jpackage Eingabe
 tasks.register("prepareJpackage") {
-    dependsOn("copyDependencies", "copyJar", "copyMosh4jBundled")
+    dependsOn("copyBundledFormatters")
 }
 
 // Gemeinsame jpackage Parameter
@@ -271,10 +568,13 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--dest", outputDir,
         // Keep a complete base runtime for classpath apps and include extended locale data.
         // Without java.xml, logback initialization can fail at startup (org.xml.sax.InputSource).
-        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.crypto.ec,jdk.localedata,jdk.unsupported",
+        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.localedata,jdk.unsupported",
         "--java-options", "-Djava.awt.headless=false",
         "--java-options", "--enable-native-access=ALL-UNNAMED"
     )
+    googleJavaFormatJvmArgs.forEach { javaOption ->
+        args.addAll(listOf("--java-options", javaOption))
+    }
     return args
 }
 

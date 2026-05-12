@@ -46,6 +46,8 @@ package "KorTTY Application" as App #EAF4FF {
   component "JobScheduler Dialog" as JobSchedulerDialog <<UI>>
   component "JobScheduler\nMenu Status" as JobSchedulerStatus <<UI>>
   component "Terminal Effects\nPlugin Dialog" as TerminalEffectDialog <<UI>>
+  component "Snippet Editor" as SnippetEditor <<UI>>
+  component "Snippet AI\nReview + Diff Dialogs" as SnippetAiDialogs <<UI>>
 }
 
 package "Tools & Workflows" as Workflows #F2ECFF {
@@ -53,6 +55,9 @@ package "Tools & Workflows" as Workflows #F2ECFF {
   component "Connection Manager" as ConnectionManager <<Workflow>>
   component "Open SFTP" as OpenSftp <<Workflow>>
   component "Snippet Manager" as Snippets <<Workflow>>
+  component "Snippet AI Workflows" as SnippetAi <<Workflow>>
+  component "Code Formatter Service" as FormatterService <<Workflow>>
+  component "PlantUML Render Service" as PlantUmlRenderer <<Workflow>>
   component "JobScheduler Service" as JobScheduler <<Workflow>>
   component "AI Manager" as AiManager <<Workflow>>
   component "AI Profiles" as AiProfiles <<Workflow>>
@@ -76,6 +81,9 @@ database "Configuration & Data" as Data #EAF7EF {
   component "plugins/ + bundled-plugins/" as EffectJars <<Data>>
   component "projects/" as Projects <<Data>>
   component "saved-ai-chats.json" as AiChats <<Data>>
+  component "snippets.xml" as SnippetData <<Data>>
+  component "snippet-variables.xml" as SnippetVariables <<Data>>
+  component "formatter tools\n+ manifest" as FormatterTools <<Data>>
   component "SSH / GPG keys" as Keys <<Security>>
   component "Environments" as Environments <<Data>>
 }
@@ -96,6 +104,17 @@ QuickConnect --> Connections
 QuickConnect --> EffectManager : selected effect id + speed
 OpenSftp --> SftpTabs
 Snippets --> Settings
+Snippets --> SnippetEditor
+Snippets --> SnippetData
+Snippets --> SnippetVariables
+SnippetEditor --> SnippetAiDialogs
+SnippetEditor --> SnippetAi
+SnippetEditor --> FormatterService
+SnippetEditor --> PlantUmlRenderer
+SnippetAi --> AiProfiles : default profile,\nno internet tools
+SnippetAi --> Settings : Chat/Functions\nAI Skills
+FormatterService --> FormatterTools
+PlantUmlRenderer --> SnippetData : logical diagrams\nstored with snippet
 JobSchedulerDialog --> JobScheduler
 JobSchedulerStatus --> JobScheduler
 JobScheduler --> Connections

@@ -72,6 +72,15 @@ package "Data & Serialization" #EAF7EF {
   component "PDFBox 3" as PdfBox <<Data>>
 }
 
+package "Editor Formatters & Diagrams" #EAF7EF {
+  component "CodeFormatterService\nshared editor formatting" as FormatterService <<Data>>
+  component "Built-in formatters\nJSON, XML, YAML,\nTOML, INI, Groovy" as BuiltInFormatters <<Data>>
+  component "Bundled formatter tools\nshfmt, Prettier,\nsql-formatter, Perl::Tidy" as BundledFormatters <<Data>>
+  component "google-java-format 1.35" as GoogleJavaFormat <<Data>>
+  component "PlantUML 1.2026.2\nlocal render cache" as PlantUml <<Data>>
+  component "Graphviz dot\nlocal rendering" as Graphviz <<Optional>>
+}
+
 package "Utilities" #F7FAFE {
   component "RichTextFX 0.11" as RichText <<App>>
   component "jfiglet 0.0.9" as JFiglet <<App>>
@@ -104,6 +113,12 @@ KorTTY --> Jaxb
 KorTTY --> Zip4j
 KorTTY --> Gson
 KorTTY --> PdfBox
+KorTTY --> FormatterService
+FormatterService --> BuiltInFormatters
+FormatterService --> BundledFormatters
+FormatterService --> GoogleJavaFormat
+KorTTY --> PlantUml
+PlantUml --> Graphviz
 KorTTY --> RichText
 KorTTY --> JFiglet
 KorTTY --> Zxcvbn

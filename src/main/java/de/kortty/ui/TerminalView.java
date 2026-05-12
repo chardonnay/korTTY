@@ -15,6 +15,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenWarningLevel;
+import de.kortty.core.ConnectionSettingsSupport;
 import de.kortty.core.Mosh4jTtyConnector;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.NativeMoshTtyConnector;
@@ -249,11 +250,14 @@ public class TerminalView extends BorderPane {
     }
     
     public TerminalView(ServerConnection connection, String password, de.kortty.model.TemporarySSHKey temporarySSHKey) {
+        if (connection == null) {
+            throw new IllegalArgumentException("connection must not be null");
+        }
         this.connection = connection;
         this.password = password;
         this.temporarySSHKey = temporarySSHKey;
         // Capture connection's font size and family at open (before theme/default resolution) for zoom reset.
-        ConnectionSettings connSettingsForReset = (connection != null) ? connection.getSettings() : null;
+        ConnectionSettings connSettingsForReset = connection.getSettings();
         int savedSize = 0;
         String savedFamily = null;
         if (connSettingsForReset != null) {
@@ -265,20 +269,10 @@ public class TerminalView extends BorderPane {
         this.connectionSavedFontSize = savedSize;
         this.connectionSavedFontFamily = savedFamily;
         
-        // Ensure settings is never null - use connection settings or create defaults
-        ConnectionSettings connSettings = connection.getSettings();
-        if (connSettings == null) {
-            connSettings = new ConnectionSettings();
-            try {
-                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-                if (gs != null && gs.getDefaultTerminalSettings() != null) {
-                    connSettings = new ConnectionSettings(gs.getDefaultTerminalSettings());
-                }
-            } catch (Exception e) {
-                // Use defaults
-            }
-            connection.setSettings(connSettings);
-            logger.warn("Connection '{}' had no settings, using defaults", connection.getName());
+        ConnectionSettings connSettings = resolveInitialSettings(connection);
+        if (connection.getSettings() == null) {
+            connection.setSettings(new ConnectionSettings());
+            logger.warn("Connection '{}' had no settings, using effective terminal defaults", connection.getName());
         }
         // Resolve theme if themeId is set
         ConnectionSettings effective = connSettings;
@@ -298,6 +292,25 @@ public class TerminalView extends BorderPane {
         this.timestampGuttersVisibleState = isCommandTimestampsEnabled();
         
         initializeTerminal();
+    }
+
+    private static ConnectionSettings resolveInitialSettings(ServerConnection connection) {
+        return resolveEffectiveSettings(connection != null ? connection.getSettings() : null);
+    }
+
+    private static ConnectionSettings resolveEffectiveSettings(ConnectionSettings connectionSettings) {
+        try {
+            var app = KorTTYApplication.getInstance();
+            var globalSettings = app != null && app.getGlobalSettingsManager() != null
+                    ? app.getGlobalSettingsManager().getSettings()
+                    : null;
+            var globalDefaults = globalSettings != null ? globalSettings.getDefaultTerminalSettings() : null;
+            return ConnectionSettingsSupport.effectiveTerminalSettings(connectionSettings, globalDefaults);
+        } catch (Exception e) {
+            return ConnectionSettingsSupport.effectiveTerminalSettings(
+                    connectionSettings,
+                    null);
+        }
     }
     
     private void initializeTerminal() {
@@ -3956,13 +3969,14 @@ public class TerminalView extends BorderPane {
      */
     public void applyConnectionSettings(ConnectionSettings s) {
         if (s == null) return;
-        ConnectionSettings effective = s;
-        String themeId = s.getThemeId();
+        ConnectionSettings resolved = resolveEffectiveSettings(s);
+        ConnectionSettings effective = resolved;
+        String themeId = resolved.getThemeId();
         if (themeId != null && !themeId.isEmpty()) {
             try {
                 var tm = KorTTYApplication.getInstance().getThemeManager();
                 if (tm != null) {
-                    effective = tm.resolveSettings(s, themeId, isThemeFontApplyEnabled());
+                    effective = tm.resolveSettings(resolved, themeId, isThemeFontApplyEnabled());
                 }
             } catch (Exception e) {
                 logger.debug("Could not resolve theme '{}' while applying settings: {}", themeId, e.getMessage());

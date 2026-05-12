@@ -45,15 +45,26 @@ package "Terminal workflow" as Workflow #EAF4FF {
   component "AI Manager\nsaved chats" as Manager <<UI>>
 }
 
+package "Snippet editor workflow" as SnippetWorkflow #EAF4FF {
+  component "Snippet content\nselection + caret" as SnippetContent <<UI>>
+  component "AI Code actions\ncomplete, review,\nimprove, security" as SnippetActions <<UI>>
+  component "Diff / report dialogs\nexplicit apply" as SnippetDiff <<UI>>
+  component "PlantUML diagram request" as SnippetDiagram <<UI>>
+}
+
 package "Local configuration" as Config #EAF7EF {
   component "AI profiles\nmodel + limits" as Profiles <<Storage>>
   component "Token usage\nthresholds + reset cycle" as Quotas <<Storage>>
   component "Encrypted API key\nlocal vault" as Vault <<Security>>
   component "Saved AI chats\nmessages + profile refs" as SavedChats <<Storage>>
+  component "AI Skills\nChat/Functions or Both" as Skills <<Storage>>
 }
 
 package "KorTTY AI pipeline" as Pipeline #F2ECFF {
   component "AiPromptBuilder\nsystem + user messages" as Prompt <<AI>>
+  component "Snippet AI workflow\nstructured JSON" as SnippetPrompt <<AI>>
+  component "Snippet internet gate\nalways disabled" as SnippetGate <<Security>>
+  component "AI Skill prompt support" as SkillPrompt <<AI>>
   component "OpenAI-compatible service\n/chat/completions" as Service <<AI>>
   component "Usage manager\nrecord tokens" as Usage <<AI>>
   component "Response sanitizer\nstrip visible think blocks" as Sanitizer <<AI>>
@@ -72,13 +83,22 @@ Profiles --> Confirm
 Quotas --> Confirm
 Vault --> Service
 Confirm --> Prompt
+SnippetContent --> SnippetActions
+SnippetActions --> SnippetPrompt
+SnippetPrompt --> SnippetGate
+SnippetPrompt --> SkillPrompt
+SnippetDiagram --> SnippetPrompt
+SnippetGate --> Service
+SkillPrompt --> Skills
 Prompt --> Service
 Service --> API
 API --> Service
 Service --> Sanitizer
 Sanitizer --> Result
+Sanitizer --> SnippetDiff
 Service --> Usage
 Usage --> Result
+Usage --> SnippetDiff
 Result ..> Prompt : follow-up prompt
 Result --> ChatManager : save / autosave
 ChatManager --> SavedChats
@@ -88,6 +108,7 @@ ChatManager --> Result
 Profiles ..> Fallback : missing original profile
 Fallback --> ChatManager
 Profiles ..> Service : selected profile
+Profiles ..> SnippetPrompt : default profile
 
 legend right
   <#F2ECFF> AI pipeline

@@ -2,6 +2,27 @@
 
 == Unreleased
 
+=== Snippet Editor AI, Diagrams, and Profiles
+
+* *Cursor-aware AI completion*: The snippet editor can request a completion at the current caret location. Suggestions are shown as ghost text and are inserted only when the user clicks them.
+* *Session-local auto completion*: Auto AI completion can be enabled per editor session. It is off by default and requests suggestions after the user pauses at a caret location.
+* *AI review and rewrite flows*: Error review, improvement themes, custom instructions, alternative solutions, and security fixes use structured AI responses and before/after previews before replacing code.
+* *Selected-code scope*: Alternative solutions and improvement actions operate on the selected code region. When no selection is available for alternative solutions, the request uses the whole snippet.
+* *Security check with selected fixes*: Security review produces selectable findings; only selected findings are sent back for fix generation and preview.
+* *Snippet AI privacy boundary*: Snippet AI uses the default AI profile, token accounting, cancellation, and enabled Chat/Functions/Both AI Skills, but does not expose internet tools.
+* *Technical description dialog*: Descriptions can use current-language comment syntax with configurable line width, preserve a space after the comment marker, and split sentences after a full stop onto the next line.
+* *Local PlantUML diagrams*: Snippet logical-structure diagrams are stored with the snippet, marked stale by content hash, regenerated with saved instructions, rendered locally only, and exportable/copyable as image output.
+* *Editor profiles*: The snippet editor has ten built-in IntelliJ-inspired color/cursor profiles plus user-defined profiles saved in global settings.
+* *Review windows*: AI review/diff/alternative dialogs use larger readable code text, support zoom via buttons and Ctrl/Cmd +/- shortcuts, and expose copy-to-clipboard where applicable.
+
+=== Snippet Export and Code Formatting
+
+* *Plain text script export*: Snippets can be exported as one script file per snippet, using the name and extension from the Snippet Manager *Name* column.
+* *ZIP script export*: Selected or all snippets can be exported as a ZIP archive with one script file per snippet. The script file extension can be kept from each snippet name or forced for every file in the ZIP.
+* *ZIP encryption options*: Script ZIP exports support no encryption, AES password-protected ZIP, or GPG encryption using a stored KorTTY GPG key.
+* *Shared formatter service*: Snippet Editor and File Editor formatting now use the same `CodeFormatterService` with built-in, bundled, optional external fallback, and unavailable provider states.
+* *Bundled formatter manifest*: Formatter versions and sources are pinned in `src/main/resources/formatters/formatter-manifest.properties`; packaged builds can include shfmt, Prettier, sql-formatter, Perl::Tidy, and google-java-format support.
+
 === JobScheduler Background Automation
 
 * *New Tools menu entry*: *Tools > JobScheduler...* opens the scheduler directly after Snippet Manager and before the AI tools.
@@ -80,9 +101,9 @@
 
 === Documentation
 
-* README, User Guide, and Release Notes now describe JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, AI Skills, Terminal AI Agent usage, terminal-effect plugins, failure handling, and manual validation paths in more detail.
+* README, User Guide, and Release Notes now describe JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, AI Skills, Terminal AI Agent usage, terminal-effect plugins, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
 * Added `docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
-* Updated and re-rendered the architecture, module overview, connection flow, session lifecycle, and new terminal-effect plugin lifecycle diagrams.
+* Updated and re-rendered the architecture, module overview, AI API integration, snippet editor workflow, connection flow, session lifecycle, and terminal-effect plugin lifecycle diagrams.
 
 ---
 

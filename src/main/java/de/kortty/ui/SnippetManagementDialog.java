@@ -13,6 +13,7 @@ import de.kortty.core.SnippetOneLiner;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.AiProfile;
+import de.kortty.model.GPGKey;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import javafx.application.Platform;
@@ -23,16 +24,20 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -52,6 +57,76 @@ import java.util.stream.Collectors;
 public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     
     private static final Logger logger = LoggerFactory.getLogger(SnippetManagementDialog.class);
+
+    private enum SnippetExportFormat {
+        JSON("snippets.export.format.json", "json"),
+        XML("snippets.export.format.xml", "xml"),
+        YAML("snippets.export.format.yaml", "yaml"),
+        PLAIN_TEXT("snippets.export.format.plainText", ""),
+        ZIP("snippets.export.format.zip", "zip");
+
+        private final String labelKey;
+        private final String extension;
+
+        SnippetExportFormat(String labelKey, String extension) {
+            this.labelKey = labelKey;
+            this.extension = extension;
+        }
+
+        String extension() {
+            return extension;
+        }
+
+        String fileChooserLabel() {
+            return I18n.get(labelKey) + " (*." + extension + ")";
+        }
+
+        @Override
+        public String toString() {
+            return I18n.get(labelKey);
+        }
+    }
+
+    private enum SnippetZipScriptFormat {
+        FROM_NAME("snippets.export.zip.scriptFormat.fromName", null),
+        TEXT("snippets.export.zip.scriptFormat.text", "txt"),
+        SHELL("snippets.export.zip.scriptFormat.shell", "sh"),
+        PYTHON("snippets.export.zip.scriptFormat.python", "py"),
+        PERL("snippets.export.zip.scriptFormat.perl", "pl"),
+        RUBY("snippets.export.zip.scriptFormat.ruby", "rb"),
+        POWERSHELL("snippets.export.zip.scriptFormat.powershell", "ps1"),
+        SQL("snippets.export.zip.scriptFormat.sql", "sql"),
+        CUSTOM("snippets.export.zip.scriptFormat.custom", null);
+
+        private final String labelKey;
+        private final String extension;
+
+        SnippetZipScriptFormat(String labelKey, String extension) {
+            this.labelKey = labelKey;
+            this.extension = extension;
+        }
+
+        @Override
+        public String toString() {
+            return I18n.get(labelKey);
+        }
+    }
+
+    private enum SnippetZipEncryptionMode {
+        NONE, PASSWORD, GPG
+    }
+
+    private record SnippetZipExportOptions(
+            SnippetZipScriptFormat scriptFormat,
+            String customExtension,
+            SnippetZipEncryptionMode encryptionMode,
+            char[] password,
+            GPGKey gpgKey) {
+
+        String forcedExtension() {
+            return scriptFormat == SnippetZipScriptFormat.CUSTOM ? customExtension : scriptFormat.extension;
+        }
+    }
     
     private final SnippetManager snippetManager;
     private final MainWindow ownerWindow;
@@ -674,7 +749,13 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             request -> correctSnippetSelectionText(profile, aiService, request),
             request -> translateSnippetSelectionText(profile, aiService, request),
             request -> describeSnippet(profile, aiService, request),
-            request -> generateAlternativeSolutions(profile, aiService, request));
+            request -> generateAlternativeSolutions(profile, aiService, request),
+            request -> completeSnippetCode(profile, aiService, request),
+            request -> reviewSnippetCode(profile, aiService, request),
+            request -> improveSnippetCode(profile, aiService, request),
+            request -> reviewSnippetSecurity(profile, aiService, request),
+            request -> applySnippetSecurityFixes(profile, aiService, request),
+            request -> generateSnippetPlantUml(profile, aiService, request));
     }
 
     private SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(
@@ -784,10 +865,108 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
             request.fullContent(),
             request.selectedText(),
+            request.wholeSnippet(),
             request.snippetLanguage(),
             null,
             request.fallbackLanguageCode(),
             request.maxSolutions(),
+            request.additionalInstructions());
+    }
+
+    private SnippetAiResponseSupport.CompletionSuggestion completeSnippetCode(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.CompletionRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.completeSnippetCode(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.cursorOffset(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private List<SnippetAiResponseSupport.CodeReviewFinding> reviewSnippetCode(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.CodeReviewRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.reviewSnippetCode(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.wholeSnippet(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.reviewTheme(),
+            request.additionalInstructions());
+    }
+
+    private SnippetAiResponseSupport.CodeImprovement improveSnippetCode(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.CodeImprovementRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.improveSnippetCode(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.selectedText(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.improvementTheme(),
+            request.additionalInstructions());
+    }
+
+    private List<SnippetAiResponseSupport.SecurityFinding> reviewSnippetSecurity(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.SecurityReviewRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.reviewSnippetSecurity(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private SnippetAiResponseSupport.CodeImprovement applySnippetSecurityFixes(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.SecurityFixRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.applySnippetSecurityFixes(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.selectedFindings(),
+            request.additionalInstructions());
+    }
+
+    private SnippetAiResponseSupport.PlantUmlDiagram generateSnippetPlantUml(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.DiagramRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.generateSnippetPlantUml(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
             request.additionalInstructions());
     }
 
@@ -1318,34 +1497,374 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             showInfo(I18n.get("snippets.exportEmpty"));
             return;
         }
-        
+
+        Optional<SnippetExportFormat> format = chooseExportFormat();
+        if (format.isEmpty()) {
+            return;
+        }
+
+        if (format.get() == SnippetExportFormat.PLAIN_TEXT) {
+            exportPlainTextSnippets(toExport);
+        } else if (format.get() == SnippetExportFormat.ZIP) {
+            exportZipSnippets(toExport);
+        } else {
+            exportStructuredSnippets(toExport, format.get());
+        }
+    }
+
+    private Optional<SnippetExportFormat> chooseExportFormat() {
+        ChoiceDialog<SnippetExportFormat> dialog = new ChoiceDialog<>(
+                SnippetExportFormat.JSON,
+                List.of(
+                        SnippetExportFormat.JSON,
+                        SnippetExportFormat.XML,
+                        SnippetExportFormat.YAML,
+                        SnippetExportFormat.PLAIN_TEXT,
+                        SnippetExportFormat.ZIP
+                )
+        );
+        dialog.setTitle(I18n.get("snippets.export"));
+        dialog.setHeaderText(I18n.get("snippets.export.format.header"));
+        dialog.setContentText(I18n.get("snippets.export.format.content"));
+        return dialog.showAndWait();
+    }
+
+    private void exportStructuredSnippets(List<Snippet> toExport, SnippetExportFormat format) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.get("snippets.export"));
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("JSON (*.json)", "*.json"),
-                new FileChooser.ExtensionFilter("XML (*.xml)", "*.xml"),
-                new FileChooser.ExtensionFilter("YAML (*.yaml)", "*.yaml")
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(format.fileChooserLabel(), "*." + format.extension())
         );
-        fileChooser.setInitialFileName("kortty-snippets.json");
+        fileChooser.setInitialFileName("kortty-snippets." + format.extension());
         
         File file = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
         if (file == null) return;
         
         try {
-            String fileName = file.getName().toLowerCase();
-            
-            if (fileName.endsWith(".xml")) {
-                snippetManager.exportToXml(file.toPath(), toExport);
-            } else if (fileName.endsWith(".yaml") || fileName.endsWith(".yml")) {
-                snippetManager.exportToYaml(file.toPath(), toExport);
-            } else {
-                snippetManager.exportToJson(file.toPath(), toExport);
+            switch (format) {
+                case XML -> snippetManager.exportToXml(file.toPath(), toExport);
+                case YAML -> snippetManager.exportToYaml(file.toPath(), toExport);
+                case JSON -> snippetManager.exportToJson(file.toPath(), toExport);
+                case PLAIN_TEXT, ZIP -> throw new IllegalArgumentException("This export format requires a dedicated target flow");
             }
             
             showInfo(I18n.get("snippets.exportSuccess", toExport.size()));
             logger.info("Exported {} snippets to {}", toExport.size(), file.getPath());
         } catch (Exception e) {
             logger.error("Failed to export snippets", e);
+            showError(I18n.get("snippets.exportFailed", e.getMessage()));
+        }
+    }
+
+    private void exportZipSnippets(List<Snippet> toExport) {
+        Optional<SnippetZipExportOptions> optionsResult = chooseZipExportOptions();
+        if (optionsResult.isEmpty()) {
+            return;
+        }
+
+        SnippetZipExportOptions options = optionsResult.get();
+        Optional<Path> targetResult = chooseZipExportTarget(options.encryptionMode());
+        if (targetResult.isEmpty()) {
+            clearPassword(options.password());
+            return;
+        }
+
+        Path target = targetResult.get();
+        try {
+            List<String> entryNames;
+            if (options.encryptionMode() == SnippetZipEncryptionMode.GPG) {
+                entryNames = snippetManager.exportScriptsToGpgEncryptedZip(
+                        target,
+                        toExport,
+                        options.forcedExtension(),
+                        options.gpgKey());
+                showInfo(I18n.get("snippets.exportZipGpgSuccess", entryNames.size(), target.toString()));
+            } else {
+                entryNames = snippetManager.exportScriptsToZip(
+                        target,
+                        toExport,
+                        options.forcedExtension(),
+                        options.encryptionMode() == SnippetZipEncryptionMode.PASSWORD ? options.password() : null);
+                showInfo(I18n.get("snippets.exportZipSuccess", entryNames.size(), target.toString()));
+            }
+            logger.info("Exported {} snippets as script ZIP to {}", entryNames.size(), target);
+        } catch (Exception e) {
+            logger.error("Failed to export snippets as script ZIP", e);
+            showError(I18n.get("snippets.exportFailed", e.getMessage()));
+        } finally {
+            clearPassword(options.password());
+        }
+    }
+
+    private Optional<SnippetZipExportOptions> chooseZipExportOptions() {
+        Dialog<SnippetZipExportOptions> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("snippets.export.zip.title"));
+        dialog.setHeaderText(I18n.get("snippets.export.zip.header"));
+        dialog.initOwner(getDialogPane().getScene().getWindow());
+
+        ComboBox<SnippetZipScriptFormat> scriptFormatCombo = new ComboBox<>();
+        scriptFormatCombo.getItems().addAll(SnippetZipScriptFormat.values());
+        scriptFormatCombo.getSelectionModel().select(SnippetZipScriptFormat.FROM_NAME);
+        scriptFormatCombo.setMaxWidth(Double.MAX_VALUE);
+
+        TextField customExtensionField = new TextField();
+        customExtensionField.setPromptText(I18n.get("snippets.export.zip.customExtension.prompt"));
+        customExtensionField.setDisable(true);
+        scriptFormatCombo.valueProperty().addListener((obs, oldValue, newValue) ->
+                customExtensionField.setDisable(newValue != SnippetZipScriptFormat.CUSTOM));
+
+        ToggleGroup encryptionGroup = new ToggleGroup();
+        RadioButton noEncryptionRadio = new RadioButton(I18n.get("export.noEncryption"));
+        RadioButton passwordEncryptionRadio = new RadioButton(I18n.get("export.passwordEncryption"));
+        RadioButton gpgEncryptionRadio = new RadioButton(I18n.get("export.gpgEncryption"));
+        noEncryptionRadio.setToggleGroup(encryptionGroup);
+        passwordEncryptionRadio.setToggleGroup(encryptionGroup);
+        gpgEncryptionRadio.setToggleGroup(encryptionGroup);
+        noEncryptionRadio.setSelected(true);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText(I18n.get("export.passwordForZip"));
+        PasswordField confirmPasswordField = new PasswordField();
+        confirmPasswordField.setPromptText(I18n.get("export.confirmPassword"));
+        GridPane passwordPane = new GridPane();
+        passwordPane.setHgap(10);
+        passwordPane.setVgap(8);
+        passwordPane.setPadding(new Insets(6, 0, 6, 24));
+        passwordPane.add(new Label(I18n.get("common.password") + ":"), 0, 0);
+        passwordPane.add(passwordField, 1, 0);
+        passwordPane.add(new Label(I18n.get("export.confirm")), 0, 1);
+        passwordPane.add(confirmPasswordField, 1, 1);
+        GridPane.setHgrow(passwordField, Priority.ALWAYS);
+        GridPane.setHgrow(confirmPasswordField, Priority.ALWAYS);
+        passwordPane.setDisable(true);
+
+        ComboBox<GPGKey> gpgKeyCombo = new ComboBox<>();
+        gpgKeyCombo.setPromptText(I18n.get("export.selectKey"));
+        gpgKeyCombo.setMaxWidth(Double.MAX_VALUE);
+        var gpgKeyManager = KorTTYApplication.getInstance().getGpgKeyManager();
+        if (gpgKeyManager != null) {
+            gpgKeyCombo.getItems().addAll(gpgKeyManager.getAllKeys());
+            if (!gpgKeyCombo.getItems().isEmpty()) {
+                gpgKeyCombo.getSelectionModel().selectFirst();
+            }
+        }
+
+        GridPane gpgPane = new GridPane();
+        gpgPane.setHgap(10);
+        gpgPane.setVgap(8);
+        gpgPane.setPadding(new Insets(6, 0, 6, 24));
+        gpgPane.add(new Label(I18n.get("export.gpgKey")), 0, 0);
+        gpgPane.add(gpgKeyCombo, 1, 0);
+        GridPane.setHgrow(gpgKeyCombo, Priority.ALWAYS);
+        if (gpgKeyCombo.getItems().isEmpty()) {
+            gpgEncryptionRadio.setDisable(true);
+            Label noKeysLabel = new Label(I18n.get("export.noGPGKeys"));
+            noKeysLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 10px;");
+            gpgPane.add(noKeysLabel, 1, 1);
+        }
+        gpgPane.setDisable(true);
+
+        encryptionGroup.selectedToggleProperty().addListener((obs, oldValue, newValue) -> {
+            passwordPane.setDisable(newValue != passwordEncryptionRadio);
+            gpgPane.setDisable(newValue != gpgEncryptionRadio);
+        });
+
+        GridPane optionsGrid = new GridPane();
+        optionsGrid.setHgap(10);
+        optionsGrid.setVgap(10);
+        optionsGrid.add(new Label(I18n.get("snippets.export.zip.scriptFormat")), 0, 0);
+        optionsGrid.add(scriptFormatCombo, 1, 0);
+        optionsGrid.add(new Label(I18n.get("snippets.export.zip.customExtension")), 0, 1);
+        optionsGrid.add(customExtensionField, 1, 1);
+        GridPane.setHgrow(scriptFormatCombo, Priority.ALWAYS);
+        GridPane.setHgrow(customExtensionField, Priority.ALWAYS);
+
+        VBox encryptionBox = new VBox(8,
+                new Label(I18n.get("export.encryption")),
+                noEncryptionRadio,
+                passwordEncryptionRadio,
+                passwordPane,
+                gpgEncryptionRadio,
+                gpgPane);
+
+        VBox content = new VBox(14, optionsGrid, new Separator(), encryptionBox);
+        content.setPadding(new Insets(10));
+        content.setPrefWidth(520);
+        dialog.getDialogPane().setContent(content);
+
+        ButtonType exportButtonType = new ButtonType(I18n.get("snippets.export.zip.create"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(exportButtonType, ButtonType.CANCEL);
+        Node exportButton = dialog.getDialogPane().lookupButton(exportButtonType);
+        exportButton.addEventFilter(ActionEvent.ACTION, event -> {
+            if (!validateZipExportOptions(
+                    dialog,
+                    scriptFormatCombo.getValue(),
+                    customExtensionField.getText(),
+                    encryptionGroup,
+                    passwordEncryptionRadio,
+                    passwordField.getText(),
+                    confirmPasswordField.getText(),
+                    gpgEncryptionRadio,
+                    gpgKeyCombo.getValue())) {
+                event.consume();
+            }
+        });
+
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType != exportButtonType) {
+                return null;
+            }
+
+            RadioButton selectedEncryption = (RadioButton) encryptionGroup.getSelectedToggle();
+            SnippetZipEncryptionMode encryptionMode = SnippetZipEncryptionMode.NONE;
+            char[] password = null;
+            GPGKey gpgKey = null;
+            if (selectedEncryption == passwordEncryptionRadio) {
+                encryptionMode = SnippetZipEncryptionMode.PASSWORD;
+                password = passwordField.getText().toCharArray();
+            } else if (selectedEncryption == gpgEncryptionRadio) {
+                encryptionMode = SnippetZipEncryptionMode.GPG;
+                gpgKey = gpgKeyCombo.getValue();
+            }
+
+            return new SnippetZipExportOptions(
+                    scriptFormatCombo.getValue(),
+                    normalizeCustomExtensionInput(customExtensionField.getText()),
+                    encryptionMode,
+                    password,
+                    gpgKey);
+        });
+
+        return dialog.showAndWait();
+    }
+
+    private boolean validateZipExportOptions(
+            Dialog<?> dialog,
+            SnippetZipScriptFormat scriptFormat,
+            String customExtension,
+            ToggleGroup encryptionGroup,
+            RadioButton passwordEncryptionRadio,
+            String password,
+            String confirmPassword,
+            RadioButton gpgEncryptionRadio,
+            GPGKey gpgKey) {
+
+        if (scriptFormat == SnippetZipScriptFormat.CUSTOM) {
+            String normalizedExtension = normalizeCustomExtensionInput(customExtension);
+            if (normalizedExtension.isBlank()) {
+                showZipExportWarning(dialog, I18n.get("snippets.export.zip.extensionRequired"));
+                return false;
+            }
+            if (containsUnsafeFileNameCharacter(normalizedExtension)) {
+                showZipExportWarning(dialog, I18n.get("snippets.export.zip.extensionInvalid"));
+                return false;
+            }
+        }
+
+        RadioButton selectedEncryption = (RadioButton) encryptionGroup.getSelectedToggle();
+        if (selectedEncryption == passwordEncryptionRadio) {
+            if (password == null || password.isEmpty()) {
+                showZipExportWarning(dialog, I18n.get("export.pleaseEnterPassword"));
+                return false;
+            }
+            if (!Objects.equals(password, confirmPassword)) {
+                showZipExportWarning(dialog, I18n.get("export.passwordsDontMatch"));
+                return false;
+            }
+        } else if (selectedEncryption == gpgEncryptionRadio && gpgKey == null) {
+            showZipExportWarning(dialog, I18n.get("export.pleaseSelectGPGKey"));
+            return false;
+        }
+
+        return true;
+    }
+
+    private void showZipExportWarning(Dialog<?> dialog, String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(I18n.get("snippets.export.zip.validationTitle"));
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.initOwner(dialog.getDialogPane().getScene().getWindow());
+        alert.showAndWait();
+    }
+
+    private Optional<Path> chooseZipExportTarget(SnippetZipEncryptionMode encryptionMode) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(I18n.get("snippets.export.zip.saveTitle"));
+        if (encryptionMode == SnippetZipEncryptionMode.GPG) {
+            fileChooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter(I18n.get("snippets.export.zip.gpgFile"), "*.zip.gpg", "*.gpg")
+            );
+            fileChooser.setInitialFileName("kortty-snippets.zip.gpg");
+        } else {
+            fileChooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter(I18n.get("snippets.export.zip.zipFile"), "*.zip")
+            );
+            fileChooser.setInitialFileName("kortty-snippets.zip");
+        }
+
+        File file = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
+        if (file == null) {
+            return Optional.empty();
+        }
+        return Optional.of(ensureZipExportSuffix(file.toPath(), encryptionMode));
+    }
+
+    private Path ensureZipExportSuffix(Path path, SnippetZipEncryptionMode encryptionMode) {
+        String fileName = path.getFileName().toString();
+        String lowerFileName = fileName.toLowerCase(Locale.ROOT);
+        if (encryptionMode == SnippetZipEncryptionMode.GPG) {
+            if (lowerFileName.endsWith(".zip.gpg") || lowerFileName.endsWith(".gpg")) {
+                return path;
+            }
+            return path.resolveSibling(fileName + ".zip.gpg");
+        }
+        if (lowerFileName.endsWith(".zip")) {
+            return path;
+        }
+        return path.resolveSibling(fileName + ".zip");
+    }
+
+    private String normalizeCustomExtensionInput(String extension) {
+        if (extension == null) {
+            return "";
+        }
+        String normalized = extension.trim();
+        while (normalized.startsWith(".")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
+    }
+
+    private boolean containsUnsafeFileNameCharacter(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c < 32 || "\\/:*?\"<>|".indexOf(c) >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void clearPassword(char[] password) {
+        if (password != null) {
+            Arrays.fill(password, '\0');
+        }
+    }
+
+    private void exportPlainTextSnippets(List<Snippet> toExport) {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle(I18n.get("snippets.exportPlainText.folder"));
+
+        File directory = directoryChooser.showDialog(getDialogPane().getScene().getWindow());
+        if (directory == null) return;
+
+        try {
+            List<Path> exportedFiles = snippetManager.exportToPlainTextDirectory(directory.toPath(), toExport);
+            showInfo(I18n.get("snippets.exportPlainTextSuccess", exportedFiles.size(), directory.getPath()));
+            logger.info("Exported {} snippets as plain text files to {}", exportedFiles.size(), directory.getPath());
+        } catch (Exception e) {
+            logger.error("Failed to export snippets as plain text", e);
             showError(I18n.get("snippets.exportFailed", e.getMessage()));
         }
     }

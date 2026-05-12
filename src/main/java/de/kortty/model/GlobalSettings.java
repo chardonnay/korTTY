@@ -331,6 +331,13 @@ public class GlobalSettings {
     
     @XmlElement
     private String snippetCursorColor; // null = use editor default
+
+    @XmlElement
+    private String selectedSnippetEditorProfileId; // null = use explicit snippet editor colors
+
+    @XmlElementWrapper(name = "snippetEditorProfiles")
+    @XmlElement(name = "profile")
+    private java.util.List<SnippetEditorProfile> snippetEditorProfiles = new java.util.ArrayList<>();
     
     @XmlElement
     private boolean snippetWordWrap = false; // Word wrap in snippet preview & editor (default: off)
@@ -1341,6 +1348,26 @@ public class GlobalSettings {
     
     public String getSnippetCursorColor() { return snippetCursorColor; }
     public void setSnippetCursorColor(String snippetCursorColor) { this.snippetCursorColor = snippetCursorColor; }
+
+    public String getSelectedSnippetEditorProfileId() { return selectedSnippetEditorProfileId; }
+    public void setSelectedSnippetEditorProfileId(String selectedSnippetEditorProfileId) {
+        this.selectedSnippetEditorProfileId = selectedSnippetEditorProfileId != null && !selectedSnippetEditorProfileId.isBlank()
+            ? selectedSnippetEditorProfileId.trim()
+            : null;
+    }
+
+    public java.util.List<SnippetEditorProfile> getSnippetEditorProfiles() {
+        if (snippetEditorProfiles == null) {
+            snippetEditorProfiles = new java.util.ArrayList<>();
+        }
+        return snippetEditorProfiles;
+    }
+
+    public void setSnippetEditorProfiles(java.util.List<SnippetEditorProfile> snippetEditorProfiles) {
+        this.snippetEditorProfiles = snippetEditorProfiles != null
+            ? new java.util.ArrayList<>(snippetEditorProfiles)
+            : new java.util.ArrayList<>();
+    }
     
     public boolean isSnippetWordWrap() { return snippetWordWrap; }
     public void setSnippetWordWrap(boolean snippetWordWrap) { this.snippetWordWrap = snippetWordWrap; }

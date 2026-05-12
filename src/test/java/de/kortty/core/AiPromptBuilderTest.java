@@ -181,4 +181,64 @@ class AiPromptBuilderTest {
         assertThat(userPrompt.contains("\"solutions\"")).isTrue();
         assertThat(userPrompt.contains("Additional user instructions")).isTrue();
     }
+
+    @Test
+    void snippetCompletionPromptRequiresInsertTextOnly() {
+        AiRequest request = new AiRequest(
+            AiAction.COMPLETE_SNIPPET_CODE,
+            "echo start",
+            null,
+            "en",
+            null,
+            "Snippet language: bash\nCursor offset: 10");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertThat(systemPrompt).contains("insertText");
+        assertThat(systemPrompt).contains("not the full file");
+        assertThat(userPrompt).contains("\"insertText\"");
+        assertThat(userPrompt).contains("Script content for context only");
+    }
+
+    @Test
+    void securityFixPromptRequiresSelectedFindingsOnlyAndFullReplacement() {
+        AiRequest request = new AiRequest(
+            AiAction.APPLY_SNIPPET_SECURITY_FIXES,
+            "eval \"$input\"",
+            null,
+            "de",
+            "Keep output text German",
+            "Selected security findings to fix:\n```text\nS1 Unsafe eval\n```");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertThat(systemPrompt).contains("only the selected security findings");
+        assertThat(systemPrompt).contains("full updated snippet content");
+        assertThat(userPrompt).contains("\"replacement\"");
+        assertThat(userPrompt).contains("Additional user instructions");
+    }
+
+    @Test
+    void plantUmlPromptRequiresRenderablePlantUmlJson() {
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_PLANTUML,
+            "if ok; then echo yes; fi",
+            null,
+            "en",
+            "Use activity view",
+            "Snippet language: bash");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertThat(systemPrompt).contains("@startuml");
+        assertThat(systemPrompt).contains("@enduml");
+        assertThat(systemPrompt).contains("activity diagram");
+        assertThat(systemPrompt).contains("Do not use component");
+        assertThat(userPrompt).contains("\"plantUml\"");
+        assertThat(userPrompt).contains("Valid example syntax");
+        assertThat(userPrompt).contains("Snippet context");
+    }
 }

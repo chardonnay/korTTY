@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.core.CodeFormatterService;
 import de.kortty.core.SFTPSession;
 import de.kortty.model.SessionState;
 import javafx.application.Platform;
@@ -361,10 +362,10 @@ public class FileEditorTab extends Tab {
         
         Button formatBtn = new Button(I18n.get("editor.format"));
         formatBtn.setOnAction(e -> runFormatter());
-        // Disable format button if no formatter is available for this file type
+        // Disable format button if no formatter is known for this file type.
         formatBtn.setDisable(getFormatterInfo() == null);
         if (getFormatterInfo() != null) {
-            formatBtn.setTooltip(new Tooltip(I18n.get("editor.format.tooltip", getFormatterInfo().command())));
+            formatBtn.setTooltip(new Tooltip(I18n.get("editor.format.tooltip", getFormatterInfo().displayName())));
         }
         
         // Font size controls
@@ -1221,78 +1222,42 @@ public class FileEditorTab extends Tab {
     // ==================== Code Formatter ====================
     
     /**
-     * Holds information about a code formatter for a specific file type.
-     * @param command the CLI command (first word) to check availability
-     * @param args the full command + args (stdin-based); null if file-based
-     * @param fileArgs the full command + args (file-based); null if stdin-based
-     * @param installHint how to install the tool (e.g. "brew install shfmt")
-     */
-    private record FormatterInfo(String command, String[] stdinArgs, String[] fileArgs, String installHint) {}
-    
-    /**
      * Returns formatter information for the current file type, or null if no formatter is known.
      */
-    private FormatterInfo getFormatterInfo() {
+    private CodeFormatterService.FormatterInfo getFormatterInfo() {
+        String language = formatterLanguageKey();
+        return language == null ? null : CodeFormatterService.getFormatterInfo(language);
+    }
+
+    private String formatterLanguageKey() {
         return switch (fileType) {
-            case JSON -> new FormatterInfo("python3",
-                new String[]{"python3", "-m", "json.tool"}, null,
-                "python3 (usually pre-installed on macOS/Linux)");
-            case XML -> new FormatterInfo("xmllint",
-                new String[]{"xmllint", "--format", "-"}, null,
-                "brew install libxml2  /  apt install libxml2-utils");
-            case YAML, ANSIBLE_YAML -> new FormatterInfo("yq",
-                new String[]{"yq", "eval", ".", "-"}, null,
-                "brew install yq  /  snap install yq");
-            case TOML -> new FormatterInfo("taplo",
-                new String[]{"taplo", "fmt", "-"}, null,
-                "brew install taplo  /  cargo install taplo-cli");
-            case PYTHON -> new FormatterInfo("black",
-                new String[]{"black", "-q", "-"}, null,
-                "pip install black  /  brew install black");
-            case PERL -> new FormatterInfo("perltidy",
-                new String[]{"perltidy", "-st"}, null,
-                "brew install perltidy  /  cpan Perl::Tidy");
-            case RUBY -> new FormatterInfo("rubocop",
-                null, new String[]{"rubocop", "-a", "--stderr", "--stdin"},
-                "gem install rubocop");
-            case SHELL -> new FormatterInfo("shfmt",
-                new String[]{"shfmt"}, null,
-                "brew install shfmt  /  go install mvdan.cc/sh/v3/cmd/shfmt@latest");
-            case HTML -> new FormatterInfo("prettier",
-                new String[]{"prettier", "--parser", "html"}, null,
-                "npm install -g prettier");
-            case CSS -> new FormatterInfo("prettier",
-                new String[]{"prettier", "--parser", "css"}, null,
-                "npm install -g prettier");
-            case JAVASCRIPT -> new FormatterInfo("prettier",
-                new String[]{"prettier", "--parser", "typescript"}, null,
-                "npm install -g prettier");
-            case JAVA -> new FormatterInfo("google-java-format",
-                new String[]{"google-java-format", "-"}, null,
-                "brew install google-java-format");
-            case GO -> new FormatterInfo("gofmt",
-                new String[]{"gofmt"}, null,
-                "go (included with Go installation)");
-            case RUST -> new FormatterInfo("rustfmt",
-                new String[]{"rustfmt"}, null,
-                "rustup component add rustfmt");
-            case SQL -> new FormatterInfo("sql-formatter",
-                new String[]{"sql-formatter"}, null,
-                "npm install -g sql-formatter");
-            case TERRAFORM -> new FormatterInfo("terraform",
-                null, new String[]{"terraform", "fmt"},
-                "brew install terraform  /  https://developer.hashicorp.com/terraform/install");
+            case JSON -> "json";
+            case XML -> "xml";
+            case YAML, ANSIBLE_YAML -> "yaml";
+            case TOML -> "toml";
+            case INI -> "ini";
+            case PYTHON -> "python";
+            case PERL -> "perl";
+            case RUBY -> "ruby";
+            case SHELL -> "bash";
+            case HTML -> "html";
+            case CSS -> "css";
+            case JAVASCRIPT -> "javascript";
+            case JAVA -> "java";
+            case GO -> "go";
+            case RUST -> "rust";
+            case SQL -> "sql";
+            case TERRAFORM -> "terraform";
             default -> null;
         };
     }
     
     /**
-     * Formats the current editor content using an external CLI formatter.
-     * Supports both stdin-based and file-based formatters.
+     * Formats the current editor content using the shared formatter service.
      * Preserves cursor position and undo history.
      */
     private void runFormatter() {
-        FormatterInfo info = getFormatterInfo();
+        CodeFormatterService.FormatterInfo info = getFormatterInfo();
         
         if (info == null) {
             showInfo(I18n.get("editor.format.title"), 
@@ -1300,11 +1265,13 @@ public class FileEditorTab extends Tab {
             return;
         }
         
-        if (!checkCommandAvailable(info.command())) {
+        if (!CodeFormatterService.isFormatterAvailable(info)) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle(I18n.get("editor.format.title"));
-            alert.setHeaderText(I18n.get("editor.format.notInstalled", info.command()));
-            alert.setContentText(I18n.get("editor.format.installHint", info.installHint()));
+            alert.setHeaderText(I18n.get("editor.format.unavailable", info.displayName()));
+            alert.setContentText(info.unavailableReason() != null
+                ? info.unavailableReason()
+                : I18n.get("editor.format.installHint", info.installHint()));
             alert.showAndWait();
             return;
         }
@@ -1315,17 +1282,7 @@ public class FileEditorTab extends Tab {
         Thread formatThread = new Thread(() -> {
             try {
                 String originalText = codeArea.getText();
-                String formattedText;
-                
-                if (info.stdinArgs() != null) {
-                    // stdin-based formatter: pipe content via stdin, read formatted output from stdout
-                    formattedText = runStdinFormatter(info.stdinArgs(), originalText);
-                } else if (info.fileArgs() != null) {
-                    // file-based formatter: write to temp file, run formatter, read back
-                    formattedText = runFileFormatter(info.fileArgs(), originalText);
-                } else {
-                    throw new Exception("No formatter args configured");
-                }
+                String formattedText = CodeFormatterService.formatOrThrow(originalText, info.language());
                 
                 if (formattedText != null && !formattedText.equals(originalText)) {
                     final String result = formattedText;
@@ -1349,89 +1306,6 @@ public class FileEditorTab extends Tab {
         }, "CodeFormatter");
         formatThread.setDaemon(true);
         formatThread.start();
-    }
-    
-    /**
-     * Runs a stdin-based formatter: pipes content to stdin, reads formatted output from stdout.
-     */
-    private String runStdinFormatter(String[] args, String input) throws Exception {
-        ProcessBuilder pb = new ProcessBuilder(args);
-        pb.redirectErrorStream(false);
-        Process process = pb.start();
-        
-        // Write input to stdin in a separate thread to prevent deadlock
-        Thread writerThread = new Thread(() -> {
-            try (var os = process.getOutputStream()) {
-                os.write(input.getBytes(StandardCharsets.UTF_8));
-                os.flush();
-            } catch (Exception e) {
-                logger.debug("Error writing to formatter stdin: {}", e.getMessage());
-            }
-        });
-        writerThread.setDaemon(true);
-        writerThread.start();
-        
-        // Read stdout and stderr
-        String stdout;
-        String stderr;
-        try (var stdoutStream = process.getInputStream();
-             var stderrStream = process.getErrorStream()) {
-            stdout = new String(stdoutStream.readAllBytes(), StandardCharsets.UTF_8);
-            stderr = new String(stderrStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        
-        boolean finished = process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            throw new Exception("Formatter timed out after 15 seconds");
-        }
-        
-        int exitCode = process.exitValue();
-        if (exitCode != 0) {
-            String errorMsg = stderr.isEmpty() ? "exit code " + exitCode : stderr.trim();
-            throw new Exception(errorMsg);
-        }
-        
-        return stdout;
-    }
-    
-    /**
-     * Runs a file-based formatter: writes to temp file, runs formatter on it, reads back.
-     */
-    private String runFileFormatter(String[] args, String input) throws Exception {
-        Path tempFile = Files.createTempFile("kortty_format_", getFileExtension());
-        try {
-            Files.writeString(tempFile, input, StandardCharsets.UTF_8);
-            
-            // Build command with temp file appended
-            java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(args));
-            command.add(tempFile.toString());
-            
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.redirectErrorStream(false);
-            Process process = pb.start();
-            
-            String stderr;
-            try (var stderrStream = process.getErrorStream()) {
-                stderr = new String(stderrStream.readAllBytes(), StandardCharsets.UTF_8);
-            }
-            
-            boolean finished = process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                throw new Exception("Formatter timed out after 15 seconds");
-            }
-            
-            int exitCode = process.exitValue();
-            if (exitCode != 0 && !stderr.isEmpty()) {
-                throw new Exception(stderr.trim());
-            }
-            
-            // Read the formatted file back
-            return Files.readString(tempFile, StandardCharsets.UTF_8);
-        } finally {
-            Files.deleteIfExists(tempFile);
-        }
     }
     
     private void runLinter() {

@@ -8,6 +8,7 @@ import de.kortty.model.AiSkillTarget;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.SnippetEditorProfile;
 import de.kortty.model.TerminalAgentExecutionTarget;
 import org.testng.annotations.Test;
 
@@ -481,6 +482,47 @@ class GlobalSettingsManagerTest {
             reloaded.load();
 
             assertThat(reloaded.getSettings().getAiSnippetAlternativeSolutionCount()).isEqualTo(10);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesSnippetEditorProfiles() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-snippet-editor-profiles");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            SnippetEditorProfile profile = SnippetEditorProfileSupport.fromCurrentSettings(
+                "#111111",
+                "#222222",
+                "UNDERSCORE",
+                "#333333");
+            profile.setId("snippet-profile-1");
+            profile.setName("Ops Dark");
+            profile.setCommentColor("#444444");
+            profile.setStringColor("#555555");
+            profile.setNumberColor("#666666");
+            profile.setBooleanColor("#777777");
+            profile.setKeyColor("#888888");
+            profile.setKeywordColor("#999999");
+            profile.setSectionColor("#AAAAAA");
+            profile.setVariableColor("#BBBBBB");
+            profile.setBraceColor("#CCCCCC");
+            manager.getSettings().setSnippetEditorProfiles(List.of(profile));
+            manager.getSettings().setSelectedSnippetEditorProfileId("snippet-profile-1");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getSelectedSnippetEditorProfileId()).isEqualTo("snippet-profile-1");
+            assertThat(reloaded.getSettings().getSnippetEditorProfiles()).hasSize(1);
+            SnippetEditorProfile reloadedProfile = reloaded.getSettings().getSnippetEditorProfiles().get(0);
+            assertThat(reloadedProfile.getName()).isEqualTo("Ops Dark");
+            assertThat(reloadedProfile.getBackgroundColor()).isEqualTo("#222222");
+            assertThat(reloadedProfile.getCursorStyle()).isEqualTo("UNDERSCORE");
+            assertThat(reloadedProfile.getKeywordColor()).isEqualTo("#999999");
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

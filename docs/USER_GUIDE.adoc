@@ -15,7 +15,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *Encrypted credential storage* using AES-256-GCM with a master password
 * *Project workspaces* that save and restore your complete session
 * *SFTP file manager* with a dual-panel view
-* *Code snippet manager* with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, placeholder variables, and import/export
+* *Code snippet manager* with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, placeholder variables, local formatting, AI-assisted editing, diagrams, and import/export
 * *JobScheduler* for background command, SnippetManager script, AI Agent, SFTP, and Rsync jobs that run while KorTTY is open without requiring a terminal tab
 * *ASCII Art Banner* generator with 11+ FIGlet font styles
 * *Terminal effect plugins* with per-session or per-connection selection, animation speed, import/export, and plugin enable/disable management
@@ -863,9 +863,15 @@ The Snippet Manager lets you store, organize, and quickly insert reusable code s
 * *Tags* - Comma-separated keywords for searching (e.g., `docker, deploy, backup`).
 * *Description* - Optional free-text description of the snippet.
 * *Content* - The snippet code. The editor provides live syntax highlighting based on the selected language.
-3. Click *Save*.
+3. Click *OK*. If the snippet content changed, KorTTY saves the edited snippet while closing the dialog.
 
-The snippet editor toolbar also provides *Format Code*, *Check Syntax*, *AI Text*, *One-liner*, *Word Wrap*, and *Line numbers*.
+The snippet editor toolbar also provides *Format Code*, *Check Syntax*, *AI Text*, *AI Code*, *One-liner*, editor zoom, editor profile selection, background brightness, *Word Wrap*, and *Line numbers*.
+
+image::diagrams/snippet-editor-workflow.png[Snippet editor workflow,align=center]
+
+*Format Code* uses KorTTY's shared local formatter service, which is also used by the file editor. JSON, XML, YAML/YML, TOML, INI/properties, and Groovy formatting are handled internally. Packaged builds can include bundled formatters for Java (`google-java-format`), shell/Bash (`shfmt`), Web/JS/TS/HTML/CSS (Prettier), SQL (`sql-formatter`), and Perl (`Perl::Tidy`, with a local `perl` runtime). Optional PATH fallbacks are used only for developer setups when a bundled formatter is missing. If no formatter is available for the selected language, KorTTY reports that explicitly instead of using an AI rewrite as a formatter.
+
+The profile menu in the editor can switch between the current custom colors, ten built-in IntelliJ-inspired profiles, and user-created snippet-editor profiles. Profiles store foreground/background colors, syntax colors, cursor color, and cursor style. The editor font size can be changed with the toolbar or Ctrl/Cmd plus `+` / `-`.
 
 ==== AI-assisted editor functions
 
@@ -876,6 +882,17 @@ If AI is configured, the snippet editor offers these additional actions:
 * *AI Text* menu - Runs *Correct spelling in selection*, *Translate selection...*, or *Technical description* for the current editor content.
 * *Optional additional instructions* - If enabled in *Settings > AI*, the editor shows a shared instructions field that is sent with spelling correction, translation, and technical description requests.
 * *Last AI change toggle* - The `↺` button switches between the original code and the last AI-generated editor change.
+* *AI Code > AI Complete* - Requests a code completion at the current cursor position and shows it as a non-editing ghost suggestion. Click the suggestion to insert it.
+* *AI Code > Auto AI Complete* - Requests completions automatically after you pause at a cursor position. This is off by default and only stays enabled for the current editor session.
+* *AI Code > Review errors and improvements* - Generates an informational report without changing the editor content.
+* *AI Code > Improve...* - Rewrites only the selected code region. KorTTY shows a before/after preview before applying the replacement.
+* *AI Code > Security Check* - Generates a security report. Select the findings you want to fix; KorTTY asks the AI to apply only those findings and shows a before/after preview before changing the snippet.
+* *AI Code > Diagram* - Generates and reopens a persisted PlantUML logical-structure diagram for the snippet. Diagrams are saved only when the snippet itself is saved.
+
+[WARNING]
+====
+Snippet AI actions send the current snippet content, selection, prompt instructions, and enabled AI Skills to the configured default AI profile. Snippet AI actions do not enable internet tools, even when the selected profile has internet access configured. Auto-completion can send the snippet repeatedly while it is active, so keep it disabled for sensitive snippets unless you trust the configured endpoint.
+====
 
 For selection-based text correction and translation, KorTTY only rewrites editable comment text, string literals, and other user-facing text segments. It does not intentionally rewrite the logical code structure.
 
@@ -901,6 +918,10 @@ The editor context menu exposes the same AI text actions and also adds *Alternat
 * remembers the dialog size you last used,
 * replaces exactly the originally selected code when you click *Apply*.
 
+PlantUML diagrams are stored with the snippet. If the snippet content changes after a diagram was generated, KorTTY marks the diagram as possibly outdated and offers regeneration with the original diagram instructions. Rendering is local only: KorTTY uses a checksum-verified PlantUML JAR and Graphviz `dot`; no remote PlantUML server is used. The diagram dialog shows the rendered image, scales it to the available area without distortion, supports zoom/fit, and can export the image as SVG/PNG or copy it to the clipboard. If local rendering is unavailable, KorTTY shows the dependency error so Java/Graphviz can be fixed locally.
+
+*Validation path:* create or edit a snippet, configure a default AI profile, click *AI Code > AI Complete*, verify that a ghost suggestion appears at the cursor and inserts only on click, then select a code block and use *Improve...* or *Security Check* to confirm the before/after preview. For diagrams, generate one via *AI Code > Diagram*, save the snippet, reopen it, change the snippet content, and verify that the diagram is marked as possibly outdated. Use the diagram dialog's export/copy controls to verify PNG/SVG and clipboard output.
+
 === 9.3 Placeholder Variables
 
 Snippets can contain placeholder variables that are replaced when you insert the snippet.
@@ -923,7 +944,15 @@ The Snippet Manager can send a selected snippet directly to the active terminal.
 
 === 9.5 Import / Export
 
-Snippets can be imported and exported in JSON, XML, or YAML format. Use *Export* to save selected or all snippets; use *Import* to merge from a file.
+Snippets can be imported and exported in JSON, XML, or YAML format. Use *Export* to save selected snippets, or all snippets when nothing is selected. Use *Import* to merge snippets from a file.
+
+For script-focused export, choose one of the script export formats:
+
+* *Plain text script files* opens a target-folder chooser and writes one file per snippet. The filename comes from the snippet's *Name* column, including its extension. Unsafe path characters are sanitized, and duplicate names receive a suffix such as `script (2).sh`.
+* *ZIP script archive* writes one ZIP containing one script file per snippet. You can keep the extension from the *Name* column or force one extension for all files, such as `.sh`, `.py`, `.pl`, `.rb`, `.ps1`, `.sql`, `.txt`, or a custom extension.
+* ZIP exports can be unencrypted, AES password-protected, or GPG-encrypted with a GPG key stored in KorTTY. GPG export creates a `.zip.gpg` file locally and requires the local `gpg` command and a usable public key.
+
+*Validation path:* select two snippets, export them as plain text and confirm that the created files use the names from the *Name* column. Then export the same selection as a ZIP with a forced `.txt` extension and verify that all ZIP entries use `.txt`. For password export, confirm that the ZIP requires the password before extraction. For GPG export, decrypt the resulting `.zip.gpg` with your local GPG setup and inspect the ZIP entries.
 
 == 10. ASCII Art Banner
 
@@ -954,7 +983,7 @@ When editing a connection, select the stored credential from the *Credentials* d
 
 == 13. GPG Key Management
 
-*Menu:* Management > Manage GPG Keys. Add keys manually or import from your system GPG keyring. Use for *Backup Encryption* (Settings > Backup) and *Export Encryption* when exporting connections.
+*Menu:* Management > Manage GPG Keys. Add keys manually or import from your system GPG keyring. Use for *Backup Encryption* (Settings > Backup), connection export encryption, and GPG-encrypted Snippet ZIP exports.
 
 == 14. Backup and Restore
 

@@ -33,6 +33,67 @@ public final class SnippetAiResponseSupport {
         }
     }
 
+    public record CompletionSuggestion(String insertText, String summary) {
+        public CompletionSuggestion {
+            insertText = insertText != null ? insertText : "";
+            summary = summary != null ? summary.trim() : "";
+        }
+
+        public boolean isUsable() {
+            return !insertText.isBlank();
+        }
+    }
+
+    public record CodeReviewFinding(String id, String severity, String title, String detail, String recommendation, Integer line) {
+        public CodeReviewFinding {
+            id = id != null && !id.isBlank() ? id.trim() : "R";
+            severity = severity != null && !severity.isBlank() ? severity.trim() : "info";
+            title = title != null ? title.trim() : "";
+            detail = detail != null ? detail.trim() : "";
+            recommendation = recommendation != null ? recommendation.trim() : "";
+        }
+
+        public boolean isUsable() {
+            return !title.isBlank() || !detail.isBlank() || !recommendation.isBlank();
+        }
+    }
+
+    public record CodeImprovement(String replacement, String summary) {
+        public CodeImprovement {
+            replacement = replacement != null ? replacement : "";
+            summary = summary != null ? summary.trim() : "";
+        }
+
+        public boolean isUsable() {
+            return !replacement.isBlank();
+        }
+    }
+
+    public record SecurityFinding(String id, String severity, String title, String impact, String recommendation) {
+        public SecurityFinding {
+            id = id != null && !id.isBlank() ? id.trim() : "S";
+            severity = severity != null && !severity.isBlank() ? severity.trim() : "info";
+            title = title != null ? title.trim() : "";
+            impact = impact != null ? impact.trim() : "";
+            recommendation = recommendation != null ? recommendation.trim() : "";
+        }
+
+        public boolean isUsable() {
+            return !title.isBlank() || !impact.isBlank() || !recommendation.isBlank();
+        }
+    }
+
+    public record PlantUmlDiagram(String title, String plantUml) {
+        public PlantUmlDiagram {
+            title = title != null && !title.isBlank() ? title.trim() : "Snippet structure";
+            plantUml = SnippetDiagramSupport.normalizePlantUml(plantUml);
+        }
+
+        public boolean isUsable() {
+            return SnippetDiagramSupport.isRenderablePlantUml(plantUml);
+        }
+    }
+
     public static List<String> parseSegmentReplacements(String responseText, int expectedCount) {
         if (expectedCount <= 0) {
             return List.of();
@@ -113,6 +174,71 @@ public final class SnippetAiResponseSupport {
         }
     }
 
+    public static CompletionSuggestion parseCompletionSuggestion(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        if (object == null) {
+            return new CompletionSuggestion("", "");
+        }
+        String insertText = firstString(object, "insertText", "completion", "text", "code");
+        String summary = firstString(object, "summary", "description");
+        CompletionSuggestion suggestion = new CompletionSuggestion(insertText, summary);
+        return suggestion.isUsable() ? suggestion : new CompletionSuggestion("", "");
+    }
+
+    public static List<CodeReviewFinding> parseCodeReviewFindings(String responseText) {
+        JsonArray findings = parseArrayField(responseText, "findings");
+        if (findings == null) {
+            return List.of();
+        }
+        List<CodeReviewFinding> parsedFindings = new ArrayList<>();
+        int fallbackIndex = 1;
+        for (JsonElement element : findings) {
+            CodeReviewFinding finding = parseCodeReviewFinding(element, fallbackIndex++);
+            if (finding != null && finding.isUsable()) {
+                parsedFindings.add(finding);
+            }
+        }
+        return parsedFindings;
+    }
+
+    public static CodeImprovement parseCodeImprovement(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        if (object == null) {
+            return new CodeImprovement("", "");
+        }
+        String replacement = firstString(object, "replacement", "code", "content", "text");
+        String summary = firstString(object, "summary", "description");
+        CodeImprovement improvement = new CodeImprovement(replacement, summary);
+        return improvement.isUsable() ? improvement : new CodeImprovement("", "");
+    }
+
+    public static List<SecurityFinding> parseSecurityFindings(String responseText) {
+        JsonArray findings = parseArrayField(responseText, "findings");
+        if (findings == null) {
+            return List.of();
+        }
+        List<SecurityFinding> parsedFindings = new ArrayList<>();
+        int fallbackIndex = 1;
+        for (JsonElement element : findings) {
+            SecurityFinding finding = parseSecurityFinding(element, fallbackIndex++);
+            if (finding != null && finding.isUsable()) {
+                parsedFindings.add(finding);
+            }
+        }
+        return parsedFindings;
+    }
+
+    public static PlantUmlDiagram parsePlantUmlDiagram(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        if (object == null) {
+            return new PlantUmlDiagram("", "");
+        }
+        PlantUmlDiagram diagram = new PlantUmlDiagram(
+            firstString(object, "title", "name"),
+            firstString(object, "plantUml", "plantuml", "source", "diagram"));
+        return diagram.isUsable() ? diagram : new PlantUmlDiagram("", "");
+    }
+
     private static String extractJsonPayload(String responseText) {
         if (responseText == null || responseText.isBlank()) {
             return null;
@@ -171,5 +297,111 @@ public final class SnippetAiResponseSupport {
             : "";
         AlternativeSolution solution = new AlternativeSolution(title, code, summary);
         return solution.isUsable() ? solution : null;
+    }
+
+    private static JsonObject parseJsonObject(String responseText) {
+        String jsonCandidate = extractJsonPayload(responseText);
+        if (jsonCandidate == null) {
+            return null;
+        }
+        JsonElement root = parseJsonElement(jsonCandidate);
+        return root != null && root.isJsonObject() ? root.getAsJsonObject() : null;
+    }
+
+    private static JsonArray parseArrayField(String responseText, String fieldName) {
+        JsonArray array = parseArrayFieldRoot(parseJsonElement(responseText), fieldName);
+        if (array != null) {
+            return array;
+        }
+        array = parseArrayFieldRoot(parseJsonElement(extractJsonPayload(responseText)), fieldName);
+        if (array != null) {
+            return array;
+        }
+        Matcher arrayMatcher = responseText != null ? JSON_ARRAY_PATTERN.matcher(responseText) : null;
+        return arrayMatcher != null && arrayMatcher.find()
+            ? parseArrayFieldRoot(parseJsonElement(arrayMatcher.group()), fieldName)
+            : null;
+    }
+
+    private static JsonElement parseJsonElement(String jsonCandidate) {
+        if (jsonCandidate == null || jsonCandidate.isBlank()) {
+            return null;
+        }
+        try {
+            return JsonParser.parseString(jsonCandidate);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static JsonArray parseArrayFieldRoot(JsonElement root, String fieldName) {
+        if (root == null) {
+            return null;
+        }
+        if (root.isJsonArray()) {
+            return root.getAsJsonArray();
+        }
+        if (root.isJsonObject()) {
+            JsonObject object = root.getAsJsonObject();
+            if (object.has(fieldName) && object.get(fieldName).isJsonArray()) {
+                return object.getAsJsonArray(fieldName);
+            }
+        }
+        return null;
+    }
+
+    private static CodeReviewFinding parseCodeReviewFinding(JsonElement element, int fallbackIndex) {
+        if (element == null || !element.isJsonObject()) {
+            return null;
+        }
+        JsonObject object = element.getAsJsonObject();
+        Integer line = null;
+        if (object.has("line") && object.get("line").isJsonPrimitive()) {
+            try {
+                line = object.get("line").getAsInt();
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        CodeReviewFinding finding = new CodeReviewFinding(
+            nonBlank(firstString(object, "id"), "R" + fallbackIndex),
+            firstString(object, "severity"),
+            firstString(object, "title"),
+            firstString(object, "detail", "impact", "description"),
+            firstString(object, "recommendation", "fix", "suggestion"),
+            line);
+        return finding.isUsable() ? finding : null;
+    }
+
+    private static SecurityFinding parseSecurityFinding(JsonElement element, int fallbackIndex) {
+        if (element == null || !element.isJsonObject()) {
+            return null;
+        }
+        JsonObject object = element.getAsJsonObject();
+        SecurityFinding finding = new SecurityFinding(
+            nonBlank(firstString(object, "id"), "S" + fallbackIndex),
+            firstString(object, "severity"),
+            firstString(object, "title"),
+            firstString(object, "impact", "detail", "description"),
+            firstString(object, "recommendation", "fix", "suggestion"));
+        return finding.isUsable() ? finding : null;
+    }
+
+    private static String firstString(JsonObject object, String... names) {
+        if (object == null || names == null) {
+            return "";
+        }
+        for (String name : names) {
+            if (name != null && object.has(name) && !object.get(name).isJsonNull()) {
+                try {
+                    return object.get(name).getAsString();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return "";
+    }
+
+    private static String nonBlank(String value, String fallback) {
+        return value != null && !value.isBlank() ? value.trim() : fallback;
     }
 }

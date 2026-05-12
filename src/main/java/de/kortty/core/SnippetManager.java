@@ -1,7 +1,9 @@
 package de.kortty.core;
 
+import de.kortty.model.GPGKey;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
+import de.kortty.model.SnippetDiagram;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
@@ -10,6 +12,12 @@ import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import javafx.scene.input.Clipboard;
+import net.lingala.zip4j.ZipFile;
+import net.lingala.zip4j.model.ZipParameters;
+import net.lingala.zip4j.model.enums.AesKeyStrength;
+import net.lingala.zip4j.model.enums.CompressionLevel;
+import net.lingala.zip4j.model.enums.CompressionMethod;
+import net.lingala.zip4j.model.enums.EncryptionMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +26,7 @@ import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -33,6 +42,12 @@ public class SnippetManager {
     private static final Logger logger = LoggerFactory.getLogger(SnippetManager.class);
     private static final String SNIPPETS_FILE = "snippets.xml";
     private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
+    private static final Pattern UNSAFE_PLAIN_TEXT_FILENAME_CHARS = Pattern.compile("[\\\\/\\p{Cntrl}:*?\"<>|]");
+    private static final Set<String> RESERVED_WINDOWS_FILE_NAMES = Set.of(
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    );
     
     private final Path configDir;
     private final List<Snippet> snippets = new ArrayList<>();
@@ -53,7 +68,7 @@ public class SnippetManager {
         
         try {
             JAXBContext context = JAXBContext.newInstance(
-                SnippetsWrapper.class, Snippet.class, SnippetCategory.class
+                SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class
             );
             Unmarshaller unmarshaller = context.createUnmarshaller();
             SnippetsWrapper wrapper = (SnippetsWrapper) unmarshaller.unmarshal(file.toFile());
@@ -84,7 +99,7 @@ public class SnippetManager {
             wrapper.setCategories(new ArrayList<>(categories));
             
             JAXBContext context = JAXBContext.newInstance(
-                SnippetsWrapper.class, Snippet.class, SnippetCategory.class
+                SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class
             );
             Marshaller marshaller = context.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
@@ -333,6 +348,277 @@ public class SnippetManager {
         
         Files.writeString(file, json.toString(), StandardCharsets.UTF_8);
         logger.info("Exported {} snippets to {}", snippetsToExport.size(), file);
+    }
+
+    /**
+     * Exports each snippet as one plain text file named from the snippet name column.
+     */
+    public List<Path> exportToPlainTextDirectory(Path directory, List<Snippet> snippetsToExport) throws IOException {
+        Objects.requireNonNull(directory, "directory");
+        Objects.requireNonNull(snippetsToExport, "snippetsToExport");
+
+        Path exportDirectory = directory.toAbsolutePath().normalize();
+        Files.createDirectories(exportDirectory);
+
+        Map<String, Integer> usedFileNames = new HashMap<>();
+        List<Path> exportedFiles = new ArrayList<>();
+
+        for (int i = 0; i < snippetsToExport.size(); i++) {
+            Snippet snippet = snippetsToExport.get(i);
+            String fileName = uniquePlainTextExportFileName(
+                    sanitizePlainTextExportFileName(snippet.getName(), i + 1),
+                    usedFileNames,
+                    exportDirectory
+            );
+            Path target = exportDirectory.resolve(fileName).normalize();
+            if (!target.startsWith(exportDirectory)) {
+                throw new IOException("Unsafe snippet export filename: " + snippet.getName());
+            }
+
+            Files.writeString(target, Optional.ofNullable(snippet.getContent()).orElse(""), StandardCharsets.UTF_8);
+            exportedFiles.add(target);
+        }
+
+        logger.info("Exported {} snippets as plain text files to {}", exportedFiles.size(), exportDirectory);
+        return exportedFiles;
+    }
+
+    /**
+     * Exports snippets as script files inside a ZIP archive. If a password is supplied, files are encrypted with AES-256.
+     */
+    public List<String> exportScriptsToZip(
+            Path zipFile,
+            List<Snippet> snippetsToExport,
+            String forcedExtension,
+            char[] password) throws IOException {
+
+        Objects.requireNonNull(zipFile, "zipFile");
+        Objects.requireNonNull(snippetsToExport, "snippetsToExport");
+
+        Path target = zipFile.toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        Path tempZip = Files.createTempFile(parent, "kortty-snippet-scripts-", ".zip");
+        try {
+            List<String> entryNames = writeScriptsZip(tempZip, snippetsToExport, forcedExtension, password);
+            Files.move(tempZip, target, StandardCopyOption.REPLACE_EXISTING);
+            logger.info("Exported {} snippets as ZIP script files to {}", entryNames.size(), target);
+            return entryNames;
+        } finally {
+            Files.deleteIfExists(tempZip);
+        }
+    }
+
+    /**
+     * Exports snippets as a ZIP archive and encrypts that ZIP with the selected local GPG key.
+     */
+    public List<String> exportScriptsToGpgEncryptedZip(
+            Path gpgFile,
+            List<Snippet> snippetsToExport,
+            String forcedExtension,
+            GPGKey gpgKey) throws IOException {
+
+        Objects.requireNonNull(gpgFile, "gpgFile");
+        Objects.requireNonNull(snippetsToExport, "snippetsToExport");
+        if (gpgKey == null || gpgKey.getKeyId() == null || gpgKey.getKeyId().isBlank()) {
+            throw new IOException("GPG key is missing");
+        }
+
+        Path target = gpgFile.toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        Path tempZip = Files.createTempFile(parent, "kortty-snippet-scripts-", ".zip");
+        Path tempGpg = Files.createTempFile(parent, "kortty-snippet-scripts-", ".zip.gpg");
+        try {
+            List<String> entryNames = writeScriptsZip(tempZip, snippetsToExport, forcedExtension, null);
+            Files.deleteIfExists(tempGpg);
+            runGpgEncrypt(tempZip, tempGpg, gpgKey.getKeyId());
+            Files.move(tempGpg, target, StandardCopyOption.REPLACE_EXISTING);
+            logger.info("Exported {} snippets as GPG-encrypted ZIP script files to {}", entryNames.size(), target);
+            return entryNames;
+        } finally {
+            Files.deleteIfExists(tempZip);
+            Files.deleteIfExists(tempGpg);
+        }
+    }
+
+    private List<String> writeScriptsZip(
+            Path zipFile,
+            List<Snippet> snippetsToExport,
+            String forcedExtension,
+            char[] password) throws IOException {
+
+        boolean encrypted = password != null && password.length > 0;
+        String normalizedExtension = normalizeForcedScriptExtension(forcedExtension);
+        Map<String, Integer> usedFileNames = new HashMap<>();
+        List<String> entryNames = new ArrayList<>();
+
+        try (ZipFile zip = encrypted
+                ? new ZipFile(zipFile.toFile(), password)
+                : new ZipFile(zipFile.toFile())) {
+
+            for (int i = 0; i < snippetsToExport.size(); i++) {
+                Snippet snippet = snippetsToExport.get(i);
+                String entryName = uniqueZipEntryFileName(
+                        scriptZipEntryFileName(snippet.getName(), i + 1, normalizedExtension),
+                        usedFileNames
+                );
+                ZipParameters parameters = scriptZipParameters(entryName, encrypted);
+                byte[] content = Optional.ofNullable(snippet.getContent()).orElse("").getBytes(StandardCharsets.UTF_8);
+                zip.addStream(new ByteArrayInputStream(content), parameters);
+                entryNames.add(entryName);
+            }
+        }
+
+        return entryNames;
+    }
+
+    private static ZipParameters scriptZipParameters(String entryName, boolean encrypted) {
+        ZipParameters parameters = new ZipParameters();
+        parameters.setFileNameInZip(entryName);
+        parameters.setCompressionMethod(CompressionMethod.DEFLATE);
+        parameters.setCompressionLevel(CompressionLevel.NORMAL);
+        if (encrypted) {
+            parameters.setEncryptFiles(true);
+            parameters.setEncryptionMethod(EncryptionMethod.AES);
+            parameters.setAesKeyStrength(AesKeyStrength.KEY_STRENGTH_256);
+        }
+        return parameters;
+    }
+
+    private static String scriptZipEntryFileName(String snippetName, int index, String forcedExtension) {
+        String fileName = sanitizePlainTextExportFileName(snippetName, index);
+        if (forcedExtension == null || forcedExtension.isBlank()) {
+            return fileName;
+        }
+
+        int dotIndex = fileName.lastIndexOf('.');
+        String baseName = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
+        return baseName + "." + forcedExtension;
+    }
+
+    private static String normalizeForcedScriptExtension(String forcedExtension) {
+        if (forcedExtension == null || forcedExtension.isBlank()) {
+            return null;
+        }
+
+        String extension = forcedExtension.trim();
+        while (extension.startsWith(".")) {
+            extension = extension.substring(1);
+        }
+        extension = UNSAFE_PLAIN_TEXT_FILENAME_CHARS.matcher(extension).replaceAll("_");
+        extension = stripUnsafeTrailingWindowsCharacters(extension);
+        return extension.isBlank() ? null : extension;
+    }
+
+    private static String uniqueZipEntryFileName(String fileName, Map<String, Integer> usedFileNames) {
+        String candidate = fileName;
+        int duplicateIndex = 1;
+        while (usedFileNames.containsKey(candidate.toLowerCase(Locale.ROOT))) {
+            duplicateIndex++;
+            candidate = appendDuplicateSuffix(fileName, duplicateIndex);
+        }
+        usedFileNames.put(candidate.toLowerCase(Locale.ROOT), duplicateIndex);
+        return candidate;
+    }
+
+    private static void runGpgEncrypt(Path inputFile, Path outputFile, String keyId) throws IOException {
+        ProcessBuilder processBuilder = new ProcessBuilder(
+                "gpg",
+                "--batch",
+                "--yes",
+                "--encrypt",
+                "--recipient", keyId,
+                "--trust-model", "always",
+                "--output", outputFile.toString(),
+                inputFile.toString()
+        );
+        processBuilder.redirectErrorStream(true);
+
+        Process process = processBuilder.start();
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append(System.lineSeparator());
+            }
+        }
+
+        try {
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new IOException("GPG encryption failed with exit code " + exitCode + ": " + output);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("GPG encryption interrupted", e);
+        }
+    }
+
+    private static String sanitizePlainTextExportFileName(String snippetName, int index) {
+        String fallback = "snippet-" + index + ".txt";
+        if (snippetName == null || snippetName.isBlank()) {
+            return fallback;
+        }
+
+        String sanitized = UNSAFE_PLAIN_TEXT_FILENAME_CHARS.matcher(snippetName.trim()).replaceAll("_");
+        sanitized = stripUnsafeTrailingWindowsCharacters(sanitized);
+        if (sanitized.isBlank() || ".".equals(sanitized) || "..".equals(sanitized)) {
+            return fallback;
+        }
+
+        String baseName = sanitized;
+        int dotIndex = sanitized.indexOf('.');
+        if (dotIndex > 0) {
+            baseName = sanitized.substring(0, dotIndex);
+        }
+        if (RESERVED_WINDOWS_FILE_NAMES.contains(baseName.toUpperCase(Locale.ROOT))) {
+            sanitized = "_" + sanitized;
+        }
+        return sanitized;
+    }
+
+    private static String stripUnsafeTrailingWindowsCharacters(String fileName) {
+        int end = fileName.length();
+        while (end > 0) {
+            char c = fileName.charAt(end - 1);
+            if (c != ' ' && c != '.') {
+                break;
+            }
+            end--;
+        }
+        return fileName.substring(0, end);
+    }
+
+    private static String uniquePlainTextExportFileName(
+            String fileName,
+            Map<String, Integer> usedFileNames,
+            Path exportDirectory) {
+
+        String candidate = fileName;
+        int duplicateIndex = 1;
+        while (usedFileNames.containsKey(candidate.toLowerCase(Locale.ROOT))
+                || Files.exists(exportDirectory.resolve(candidate))) {
+            duplicateIndex++;
+            candidate = appendDuplicateSuffix(fileName, duplicateIndex);
+        }
+        usedFileNames.put(candidate.toLowerCase(Locale.ROOT), duplicateIndex);
+        return candidate;
+    }
+
+    private static String appendDuplicateSuffix(String fileName, int count) {
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0) {
+            return fileName.substring(0, dotIndex) + " (" + count + ")" + fileName.substring(dotIndex);
+        }
+        return fileName + " (" + count + ")";
     }
     
     /**

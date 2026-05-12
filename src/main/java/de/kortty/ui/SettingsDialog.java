@@ -2151,10 +2151,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         themeList.setPrefHeight(260);
+        final boolean[] initializingThemeSelection = {true};
         VBox.setVgrow(themeList, javafx.scene.layout.Priority.ALWAYS);
         themeList.getSelectionModel().selectedItemProperty().addListener((obs, oldTheme, newTheme) -> {
             if (newTheme != null) {
                 selectedGlobalThemeId = newTheme.getId();
+                if (!initializingThemeSelection[0]) {
+                    applyThemeCursorStyleToCurrentSettings(newTheme);
+                }
             }
             updateThemePreview(newTheme, previewBox, previewSample, previewSwatches);
         });
@@ -2166,6 +2170,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (themeList.getSelectionModel().getSelectedItem() == null && !themeList.getItems().isEmpty()) {
             themeList.getSelectionModel().selectFirst();
         }
+        initializingThemeSelection[0] = false;
         updateThemePreview(themeList.getSelectionModel().getSelectedItem(), previewBox, previewSample, previewSwatches);
         
         HBox buttons = new HBox(10);
@@ -2291,6 +2296,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         } else {
             colorProfileCombo.getSelectionModel().clearSelection();
+        }
+    }
+
+    private void applyThemeCursorStyleToCurrentSettings(Theme theme) {
+        if (theme == null) {
+            return;
+        }
+        String cursorStyle = theme.getCursorStyle();
+        settings.setCursorStyle(cursorStyle);
+        if (cursorBlinkCheck != null) {
+            cursorBlinkCheck.setSelected(isCursorBlink(cursorStyle));
         }
     }
 

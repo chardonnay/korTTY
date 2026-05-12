@@ -3741,6 +3741,11 @@ public class MainWindow {
             case TRANSLATE_SNIPPET_SELECTION_TEXT -> I18n.get("snippets.ai.menu.translate");
             case DESCRIBE_SNIPPET_SELECTION, DESCRIBE_SNIPPET_FULL -> I18n.get("snippets.ai.menu.describe");
             case GENERATE_SNIPPET_ALTERNATIVES -> I18n.get("snippets.ai.alternatives.context");
+            case COMPLETE_SNIPPET_CODE -> I18n.get("snippets.ai.code.complete");
+            case REVIEW_SNIPPET_CODE -> I18n.get("snippets.ai.code.review");
+            case IMPROVE_SNIPPET_CODE -> I18n.get("snippets.ai.code.improve.custom");
+            case SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES -> I18n.get("snippets.ai.security.title");
+            case GENERATE_SNIPPET_PLANTUML -> I18n.get("snippets.ai.diagram.menu");
         };
     }
 

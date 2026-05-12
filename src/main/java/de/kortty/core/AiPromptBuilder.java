@@ -63,6 +63,53 @@ public final class AiPromptBuilder {
                 + "If you include comments or user-facing strings, use language code " + languageCode + " unless the provided full snippet clearly shows another dominant natural language in comments or user-facing strings. "
                 + "Do not include explanations outside the JSON object.";
         }
+        if (request != null && request.action() == AiAction.COMPLETE_SNIPPET_CODE) {
+            return "You generate a short code completion at the current cursor position in a snippet editor. "
+                + "Return exactly one JSON object with keys insertText and summary. "
+                + "insertText must contain only the code that should be inserted at the cursor, not the full file. "
+                + "Keep the code in the snippet language. Do not include Markdown or explanations outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.REVIEW_SNIPPET_CODE) {
+            return "You review a code snippet or selected code region for likely errors and concrete improvements. "
+                + "Return exactly one JSON object with a findings array. "
+                + "Each finding must contain id, severity, title, detail, recommendation, and optionally line. "
+                + "Write human-readable text in language code " + languageCode + ". "
+                + "Do not rewrite code and do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.IMPROVE_SNIPPET_CODE) {
+            return "You improve a selected code region in a snippet editor according to the requested theme. "
+                + "Return exactly one JSON object with keys replacement and summary. "
+                + "replacement must contain only the replacement code for the selected region. "
+                + "Preserve behavior unless the user explicitly requests a behavior change. "
+                + "Write summary in language code " + languageCode + ". "
+                + "Do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE) {
+            return "You perform a security review of the provided snippet. "
+                + "Return exactly one JSON object with a findings array. "
+                + "Each finding must contain id, severity, title, impact, and recommendation. "
+                + "Only report issues supported by the provided code. If there are no findings, return an empty findings array. "
+                + "Write human-readable text in language code " + languageCode + ". "
+                + "Do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES) {
+            return "You apply only the selected security findings to the provided snippet. "
+                + "Return exactly one JSON object with keys replacement and summary. "
+                + "replacement must contain the full updated snippet content. "
+                + "Do not apply findings that were not selected. Preserve unrelated behavior and formatting where possible. "
+                + "Write summary in language code " + languageCode + ". "
+                + "Do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.GENERATE_SNIPPET_PLANTUML) {
+            return "You generate a compact PlantUML diagram for the logical structure of a code snippet. "
+                + "Return exactly one JSON object with keys title and plantUml. "
+                + "plantUml must start with @startuml and end with @enduml. "
+                + "For scripts and imperative snippets, use only a PlantUML activity diagram. "
+                + "Allowed activity syntax is limited to start, :Action;, if (...) then (...) else (...) endif, and stop. "
+                + "Do not use component, package, class, object, actor, or usecase blocks for scripts. "
+                + "Do not place raw variable names or shell commands as free text inside PlantUML blocks. "
+                + "Do not include Markdown or explanations outside the JSON object.";
+        }
         if (isConversationFollowUp(request)) {
             return "You are continuing an existing AI chat. "
             + "Answer in language code " + languageCode + ". "
@@ -133,10 +180,46 @@ public final class AiPromptBuilder {
                     + "Focus on central blocks, behavior, inputs, outputs, side effects, conditions, and risks.\n"
                     + "Do not describe every line.\n");
             case GENERATE_SNIPPET_ALTERNATIVES -> prompt.append(
-                "Generate alternative solutions for the selected code region.\n"
+                "Generate alternative solutions for the requested target scope. "
+                    + "The target scope can be either a selected code region or the full snippet.\n"
                     + "Return exactly one JSON object with this shape:\n"
                     + "{ \"solutions\": [ { \"title\": \"...\", \"code\": \"...\", \"summary\": \"...\" } ] }\n"
+                    + "Each solution code must replace exactly the target scope.\n"
                     + "Do not include explanations outside the JSON object.\n");
+            case COMPLETE_SNIPPET_CODE -> prompt.append(
+                "Generate a concise completion at the cursor position.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"insertText\": \"...\", \"summary\": \"...\" }\n"
+                    + "Return only text that should be inserted at the cursor.\n");
+            case REVIEW_SNIPPET_CODE -> prompt.append(
+                "Review the provided snippet context for likely errors and useful improvements.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"findings\": [ { \"id\": \"R1\", \"severity\": \"medium\", \"title\": \"...\", \"detail\": \"...\", \"recommendation\": \"...\", \"line\": 1 } ] }\n"
+                    + "If there are no findings, return { \"findings\": [] }.\n");
+            case IMPROVE_SNIPPET_CODE -> prompt.append(
+                "Improve the selected code region according to the requested theme.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"replacement\": \"...\", \"summary\": \"...\" }\n"
+                    + "The replacement must replace only the selected region.\n");
+            case SECURITY_REVIEW_SNIPPET_CODE -> prompt.append(
+                "Review the snippet for security issues.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"findings\": [ { \"id\": \"S1\", \"severity\": \"high\", \"title\": \"...\", \"impact\": \"...\", \"recommendation\": \"...\" } ] }\n"
+                    + "Only report issues supported by the provided code.\n");
+            case APPLY_SNIPPET_SECURITY_FIXES -> prompt.append(
+                "Apply only the selected security findings to the full snippet.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"replacement\": \"...\", \"summary\": \"...\" }\n"
+                    + "The replacement must be the full updated snippet content.\n");
+            case GENERATE_SNIPPET_PLANTUML -> prompt.append(
+                "Generate a compact PlantUML logical-structure diagram for the snippet.\n"
+                    + "For bash/shell or other imperative snippets, use a simple activity diagram only. Valid example syntax:\n"
+                    + "@startuml\\nstart\\n:Read configuration;\\nif (command succeeds?) then (yes)\\n  :Handle success;\\nelse (no)\\n  :Handle failure;\\nendif\\nstop\\n@enduml\n"
+                    + "Do not use component/package/class/object/actor/usecase blocks for script variables or commands.\n"
+                    + "Do not put raw variable declarations or shell commands as standalone PlantUML lines.\n"
+                    + "Each executable step must be an activity line like :Create backup archive;.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"title\": \"...\", \"plantUml\": \"@startuml\\n...\\n@enduml\" }\n");
         }
         prompt.append("Treat the selected text as the primary source of truth.\n");
         if (request.connectionDisplayName() != null && !request.connectionDisplayName().isBlank()) {
@@ -177,7 +260,13 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT
             || request.action() == AiAction.DESCRIBE_SNIPPET_SELECTION
             || request.action() == AiAction.DESCRIBE_SNIPPET_FULL
-            || request.action() == AiAction.GENERATE_SNIPPET_ALTERNATIVES) {
+            || request.action() == AiAction.GENERATE_SNIPPET_ALTERNATIVES
+            || request.action() == AiAction.COMPLETE_SNIPPET_CODE
+            || request.action() == AiAction.REVIEW_SNIPPET_CODE
+            || request.action() == AiAction.IMPROVE_SNIPPET_CODE
+            || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
+            || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
+            || request.action() == AiAction.GENERATE_SNIPPET_PLANTUML) {
             if (request.userPrompt() != null && !request.userPrompt().isBlank()) {
                 prompt.append("Additional user instructions:\n")
                     .append(request.userPrompt().trim())
@@ -197,7 +286,13 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT
             || request.action() == AiAction.DESCRIBE_SNIPPET_SELECTION
             || request.action() == AiAction.DESCRIBE_SNIPPET_FULL
-            || request.action() == AiAction.GENERATE_SNIPPET_ALTERNATIVES;
+            || request.action() == AiAction.GENERATE_SNIPPET_ALTERNATIVES
+            || request.action() == AiAction.COMPLETE_SNIPPET_CODE
+            || request.action() == AiAction.REVIEW_SNIPPET_CODE
+            || request.action() == AiAction.IMPROVE_SNIPPET_CODE
+            || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
+            || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
+            || request.action() == AiAction.GENERATE_SNIPPET_PLANTUML;
         prompt.append(usesScriptContext
                 ? "Script content for context only:\n"
                 : "Selected terminal text:\n")

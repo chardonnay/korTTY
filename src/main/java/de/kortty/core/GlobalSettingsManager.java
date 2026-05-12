@@ -46,6 +46,7 @@ public class GlobalSettingsManager {
                 de.kortty.model.AiSkill.class,
                 de.kortty.model.AiSkillTarget.class,
                 de.kortty.model.ConnectionSettings.class,
+                de.kortty.model.SnippetEditorProfile.class,
                 de.kortty.model.WindowGeometry.class,
                 de.kortty.model.TeamworkSourceConfig.class,
                 de.kortty.model.TeamworkSourceType.class
@@ -73,6 +74,7 @@ public class GlobalSettingsManager {
             de.kortty.model.AiSkill.class,
             de.kortty.model.AiSkillTarget.class,
             de.kortty.model.ConnectionSettings.class,
+            de.kortty.model.SnippetEditorProfile.class,
             de.kortty.model.WindowGeometry.class,
             de.kortty.model.TeamworkSourceConfig.class,
             de.kortty.model.TeamworkSourceType.class

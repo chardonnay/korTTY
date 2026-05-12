@@ -10,10 +10,16 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -30,6 +36,8 @@ import java.util.List;
  * Dialog that shows AI-generated alternative implementations for a selected code region.
  */
 public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetAiResponseSupport.AlternativeSolution> {
+
+    private static final String AI_ACTION_PREFIX = "\u2728 ";
 
     @FunctionalInterface
     public interface AlternativeSolutionLoader {
@@ -76,7 +84,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         instructionsArea.setPrefRowCount(3);
         instructionsArea.setMinHeight(Region.USE_PREF_SIZE);
 
-        reloadButton = new Button("\u21bb");
+        reloadButton = new Button(AI_ACTION_PREFIX + "\u21bb");
         reloadButton.setTooltip(new javafx.scene.control.Tooltip(I18n.get("snippets.ai.alternatives.reload")));
         reloadButton.setOnAction(event -> loadSolutions());
 
@@ -108,6 +116,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
 
         getDialogPane().setContent(root);
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        setResultConverter(buttonType -> null);
         getDialogPane().setPrefWidth(920);
         getDialogPane().setPrefHeight(760);
         restoreGeometry();
@@ -174,11 +183,13 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
 
         InlineCssTextArea previewArea = new InlineCssTextArea();
         previewArea.setEditable(false);
+        previewArea.setFocusTraversable(true);
         previewArea.setWrapText(false);
         previewArea.setPrefHeight(180);
         EditorSettingsHelper.Settings settings = EditorSettingsHelper.loadSnippetSettings();
         EditorSettingsHelper.applyStyle(previewArea, settings);
         previewArea.replaceText(solution.code());
+        installPreviewCopySupport(previewArea);
         previewArea.setStyleSpans(0, SnippetEditDialog.computeHighlighting(
             solution.code(),
             snippetLanguage,
@@ -216,6 +227,36 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         bindPreviewHeight(solutionCard, normalHeightBinding, zoomHeightBinding);
         zoomButton.setOnAction(event -> toggleZoom(solutionCard, normalHeightBinding, zoomHeightBinding));
         return solutionCard;
+    }
+
+    private void installPreviewCopySupport(InlineCssTextArea previewArea) {
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem copyItem = new MenuItem(I18n.get("snippets.copyClipboard"));
+        copyItem.setOnAction(event -> copySelectedPreviewText(previewArea));
+        contextMenu.getItems().add(copyItem);
+        contextMenu.setOnShowing(event -> copyItem.setDisable(!hasSelectedText(previewArea)));
+        previewArea.setContextMenu(contextMenu);
+        previewArea.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.isShortcutDown() && event.getCode() == KeyCode.C) {
+                copySelectedPreviewText(previewArea);
+                event.consume();
+            }
+        });
+    }
+
+    private boolean hasSelectedText(InlineCssTextArea previewArea) {
+        String selectedText = previewArea.getSelectedText();
+        return selectedText != null && !selectedText.isEmpty();
+    }
+
+    private void copySelectedPreviewText(InlineCssTextArea previewArea) {
+        String selectedText = previewArea.getSelectedText();
+        if (selectedText == null || selectedText.isEmpty()) {
+            return;
+        }
+        ClipboardContent content = new ClipboardContent();
+        content.putString(selectedText);
+        Clipboard.getSystemClipboard().setContent(content);
     }
 
     private void bindPreviewHeight(

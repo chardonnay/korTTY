@@ -34,7 +34,13 @@ public final class AiInternetPromptSupport {
                 TRANSLATE_SNIPPET_SELECTION_TEXT,
                 DESCRIBE_SNIPPET_SELECTION,
                 DESCRIBE_SNIPPET_FULL,
-                GENERATE_SNIPPET_ALTERNATIVES -> false;
+                GENERATE_SNIPPET_ALTERNATIVES,
+                COMPLETE_SNIPPET_CODE,
+                REVIEW_SNIPPET_CODE,
+                IMPROVE_SNIPPET_CODE,
+                SECURITY_REVIEW_SNIPPET_CODE,
+                APPLY_SNIPPET_SECURITY_FIXES,
+                GENERATE_SNIPPET_PLANTUML -> false;
         };
     }
 

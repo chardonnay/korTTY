@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.ConnectionSettingsSupport;
 import de.kortty.core.ThemeManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ConnectionProtocol;
@@ -53,7 +54,7 @@ public class TerminalTab extends Tab {
     
     public TerminalTab(ServerConnection connection, String password, TemporarySSHKey temporarySSHKey) {
         this.connection = connection;
-        this.settings = connection.getSettings();
+        this.settings = resolveInitialSettings(connection);
         this.temporarySSHKey = temporarySSHKey;
         this.aiSessionId = UUID.randomUUID().toString();
         this.connectionStartTime = Instant.now();
@@ -99,6 +100,25 @@ public class TerminalTab extends Tab {
             terminalView.cleanup();
         stopStatusBarTimer();
         });
+    }
+
+    private static ConnectionSettings resolveInitialSettings(ServerConnection connection) {
+        return resolveEffectiveSettings(connection != null ? connection.getSettings() : null);
+    }
+
+    private static ConnectionSettings resolveEffectiveSettings(ConnectionSettings connectionSettings) {
+        try {
+            var app = KorTTYApplication.getInstance();
+            var globalSettings = app != null && app.getGlobalSettingsManager() != null
+                    ? app.getGlobalSettingsManager().getSettings()
+                    : null;
+            var globalDefaults = globalSettings != null ? globalSettings.getDefaultTerminalSettings() : null;
+            return ConnectionSettingsSupport.effectiveTerminalSettings(connectionSettings, globalDefaults);
+        } catch (Exception e) {
+            return ConnectionSettingsSupport.effectiveTerminalSettings(
+                    connectionSettings,
+                    null);
+        }
     }
     
     /**
@@ -535,9 +555,10 @@ public class TerminalTab extends Tab {
     }
 
     public void applyConnectionSettings(ConnectionSettings connectionSettings) {
-        this.settings = connectionSettings;
-        terminalView.applyConnectionSettings(connectionSettings);
-        applyAiAgentActivityTheme(connectionSettings);
+        ConnectionSettings effectiveSettings = resolveEffectiveSettings(connectionSettings);
+        this.settings = effectiveSettings;
+        terminalView.applyConnectionSettings(effectiveSettings);
+        applyAiAgentActivityTheme(effectiveSettings);
     }
 
     private void applyAiAgentActivityTheme(ConnectionSettings connectionSettings) {

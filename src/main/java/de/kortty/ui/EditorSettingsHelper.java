@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import de.kortty.core.SnippetEditorProfileSupport;
+import de.kortty.model.SnippetEditorProfile;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -142,6 +144,16 @@ public final class EditorSettingsHelper {
                 if (gs.getSnippetCursorColor() != null && !gs.getSnippetCursorColor().isEmpty()) {
                     cursorColor = gs.getSnippetCursorColor();
                 }
+                SnippetEditorProfile fallbackProfile = SnippetEditorProfileSupport.fromCurrentSettings(
+                    foreground,
+                    background,
+                    cursorStyle,
+                    cursorColor);
+                SnippetEditorProfile activeProfile = SnippetEditorProfileSupport.resolveActiveProfile(gs, fallbackProfile);
+                foreground = activeProfile.getForegroundColor();
+                background = activeProfile.getBackgroundColor();
+                cursorStyle = activeProfile.getCursorStyle();
+                cursorColor = activeProfile.getCursorColor();
             }
         } catch (Exception e) {
             logger.warn("Could not load snippet editor settings, using editor defaults", e);
@@ -266,8 +278,12 @@ public final class EditorSettingsHelper {
 
     private static SnippetGutterPalette snippetGutterPalette(Settings settings) {
         Color editorBg = parseColor(settings.backgroundColor(), Color.web(DEFAULT_BACKGROUND));
-        Color gutterBg = Color.web("#252a33");
-        Color numberFg = Color.web("#d7dde7");
+        Color editorFg = parseColor(settings.foregroundColor(), Color.web(DEFAULT_FOREGROUND));
+        boolean dark = luminance(editorBg) < 0.5;
+        Color gutterBg = dark
+            ? mix(editorBg, Color.WHITE, 0.08)
+            : mix(editorBg, Color.BLACK, 0.06);
+        Color numberFg = mix(editorFg, editorBg, dark ? 0.38 : 0.48);
         return new SnippetGutterPalette(editorBg, gutterBg, numberFg);
     }
 
@@ -316,6 +332,16 @@ public final class EditorSettingsHelper {
 
     private static double luminance(Color c) {
         return 0.2126 * c.getRed() + 0.7152 * c.getGreen() + 0.0722 * c.getBlue();
+    }
+
+    private static Color mix(Color first, Color second, double secondWeight) {
+        double weight = Math.max(0.0, Math.min(1.0, secondWeight));
+        double firstWeight = 1.0 - weight;
+        return new Color(
+            first.getRed() * firstWeight + second.getRed() * weight,
+            first.getGreen() * firstWeight + second.getGreen() * weight,
+            first.getBlue() * firstWeight + second.getBlue() * weight,
+            1.0);
     }
 
     private static Color parseColor(String web, Color fallback) {

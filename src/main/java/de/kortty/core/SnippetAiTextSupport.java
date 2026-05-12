@@ -125,9 +125,14 @@ public final class SnippetAiTextSupport {
     }
 
     public static String formatDescriptionAsComment(String description, String language, String indent) {
-        String normalizedDescription = wrapDescriptionText(description, DEFAULT_DESCRIPTION_WRAP_WIDTH);
+        return formatDescriptionAsComment(description, language, indent, DEFAULT_DESCRIPTION_WRAP_WIDTH);
+    }
+
+    public static String formatDescriptionAsComment(String description, String language, String indent, int maxLineLength) {
         CommentFormat format = commentFormat(SnippetLanguageSupport.normalizeSnippetLanguage(language));
         String indentation = indent != null ? indent : "";
+        int contentWidth = commentContentWidth(format, indentation, maxLineLength);
+        String normalizedDescription = wrapDescriptionText(description, contentWidth);
         if (normalizedDescription.isBlank() || format == null) {
             return normalizedDescription;
         }
@@ -152,6 +157,16 @@ public final class SnippetAiTextSupport {
                 .append(lines[i].stripTrailing());
         }
         return builder.toString();
+    }
+
+    private static int commentContentWidth(CommentFormat format, String indentation, int maxLineLength) {
+        if (format == null) {
+            return maxLineLength;
+        }
+        String linePrefix = format.block()
+            ? indentation + " "
+            : indentation + format.prefix() + " ";
+        return Math.max(20, maxLineLength - linePrefix.length());
     }
 
     public static String wrapDescriptionText(String text, int maxLineLength) {
@@ -183,12 +198,27 @@ public final class SnippetAiTextSupport {
 
     private static String wrapParagraph(String paragraph, int width) {
         String collapsed = paragraph.replaceAll("\\s*\\n\\s*", " ").trim();
-        if (collapsed.isEmpty() || collapsed.length() <= width) {
+        if (collapsed.isEmpty()) {
             return collapsed;
         }
+        List<String> sentenceLines = splitSentencesAfterPeriods(collapsed);
+        if (sentenceLines.size() > 1) {
+            List<String> wrappedSentences = new ArrayList<>();
+            for (String sentence : sentenceLines) {
+                wrappedSentences.add(wrapSingleLine(sentence, width));
+            }
+            return String.join("\n", wrappedSentences);
+        }
+        if (collapsed.length() <= width) {
+            return collapsed;
+        }
+        return wrapSingleLine(collapsed, width);
+    }
+
+    private static String wrapSingleLine(String text, int width) {
         StringBuilder builder = new StringBuilder();
         int lineLength = 0;
-        for (String word : collapsed.split("\\s+")) {
+        for (String word : text.split("\\s+")) {
             if (word.isEmpty()) {
                 continue;
             }
@@ -207,6 +237,43 @@ public final class SnippetAiTextSupport {
             }
         }
         return builder.toString();
+    }
+
+    private static List<String> splitSentencesAfterPeriods(String text) {
+        List<String> sentences = new ArrayList<>();
+        int start = 0;
+        for (int index = 0; index < text.length(); index++) {
+            if (text.charAt(index) != '.') {
+                continue;
+            }
+            int next = index + 1;
+            if (next >= text.length() || !Character.isWhitespace(text.charAt(next))) {
+                continue;
+            }
+            int following = next;
+            while (following < text.length() && Character.isWhitespace(text.charAt(following))) {
+                following++;
+            }
+            if (following >= text.length()) {
+                continue;
+            }
+            String candidate = text.substring(start, index + 1).trim();
+            if (!candidate.isBlank() && !looksLikeShortAbbreviation(candidate)) {
+                sentences.add(candidate);
+                start = following;
+            }
+        }
+        String tail = text.substring(start).trim();
+        if (!tail.isBlank()) {
+            sentences.add(tail);
+        }
+        return sentences;
+    }
+
+    private static boolean looksLikeShortAbbreviation(String sentenceCandidate) {
+        int lastSpace = sentenceCandidate.lastIndexOf(' ');
+        String lastToken = sentenceCandidate.substring(lastSpace + 1);
+        return lastToken.length() == 2 && lastToken.endsWith(".");
     }
 
     public static String findLineIndentation(String text, int offset) {

@@ -1126,7 +1126,13 @@ public class AiResultTab extends Tab {
             request -> correctSnippetSelectionText(profile, aiService, request),
             request -> translateSnippetSelectionText(profile, aiService, request),
             request -> describeSnippet(profile, aiService, request),
-            request -> generateAlternativeSolutions(profile, aiService, request));
+            request -> generateAlternativeSolutions(profile, aiService, request),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
     }
 
     private SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(
@@ -1232,6 +1238,7 @@ public class AiResultTab extends Tab {
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
             request.fullContent(),
             request.selectedText(),
+            request.wholeSnippet(),
             request.snippetLanguage(),
             connectionDisplayName,
             request.fallbackLanguageCode(),

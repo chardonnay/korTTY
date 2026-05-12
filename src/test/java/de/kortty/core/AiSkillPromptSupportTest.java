@@ -80,6 +80,25 @@ class AiSkillPromptSupportTest {
     }
 
     @Test
+    void snippetCompletionUsesChatSkillScopeAndExcludesAgentOnlySkills() {
+        AiSkill chatSkill = skill("Chat Skill", true, AiSkillTarget.CHAT, "Use strict Bash.");
+        AiSkill agentSkill = skill("Agent Skill", true, AiSkillTarget.AGENT, "Run shellcheck.");
+        AiRequest request = new AiRequest(
+            AiAction.COMPLETE_SNIPPET_CODE,
+            "echo hi",
+            null,
+            "en",
+            null,
+            "Snippet language: bash");
+
+        String prompt = new AiSkillPromptSupport(true, false, List.of(chatSkill, agentSkill))
+            .appendChatSkills("base", request);
+
+        assertThat(prompt).contains("Use strict Bash.");
+        assertThat(prompt).doesNotContain("Run shellcheck.");
+    }
+
+    @Test
     void appendAgentSkillsRecordsAndDrainsUsedSkills() {
         AiSkill skill = skill("Agent Skill", true, AiSkillTarget.AGENT, "Prefer safe commands.");
         AiSkillPromptSupport support = new AiSkillPromptSupport(true, List.of(skill));

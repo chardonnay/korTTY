@@ -1,0 +1,81 @@
+@startuml
+title Snippet Editor Workflow
+left to right direction
+
+skinparam backgroundColor #FBFDFF
+skinparam shadowing false
+skinparam roundcorner 14
+skinparam componentStyle rectangle
+skinparam defaultFontName "Arial"
+skinparam defaultTextAlignment center
+skinparam ArrowColor #273746
+skinparam ArrowThickness 1.2
+skinparam packageBorderColor #9FB2C8
+skinparam packageBackgroundColor #F7FAFE
+skinparam component {
+  BorderColor #34495E
+  BackgroundColor #FFFFFF
+  FontColor #17202A
+}
+skinparam component<<Editor>> {
+  BackgroundColor #EAF4FF
+  BorderColor #2F74B5
+}
+skinparam component<<Local>> {
+  BackgroundColor #EAF7EF
+  BorderColor #2E8B57
+}
+skinparam component<<AI>> {
+  BackgroundColor #F2ECFF
+  BorderColor #7E57C2
+}
+skinparam component<<Security>> {
+  BackgroundColor #FFF4E6
+  BorderColor #D97904
+}
+
+package "Snippet Editor" #EAF4FF {
+  component "Code area\nselection + caret" as Code <<Editor>>
+  component "Editor profile\ncolors + cursor" as Profile <<Editor>>
+  component "Toolbar +\ncontext menu" as Toolbar <<Editor>>
+}
+
+package "Local tools" #EAF7EF {
+  component "CodeFormatterService" as Formatter <<Local>>
+  component "PlantUML renderer\nlocal Java + dot" as Renderer <<Local>>
+  component "Diagram storage\ninside snippet" as DiagramStorage <<Local>>
+  component "Script export\nplain files or ZIP" as Export <<Local>>
+}
+
+package "AI code actions" #F2ECFF {
+  component "Ghost completion" as Completion <<AI>>
+  component "Review +\nimprovement themes" as Review <<AI>>
+  component "Security report\nselected fixes only" as Security <<Security>>
+  component "Diff preview\nbefore apply" as Diff <<AI>>
+  component "AI Skills\nChat/Functions or Both" as Skills <<AI>>
+}
+
+Code --> Toolbar
+Profile --> Code
+Toolbar --> Formatter : Format Code
+Toolbar --> Completion : AI Complete
+Toolbar --> Review : Review / Improve
+Toolbar --> Security : Security Check
+Toolbar --> Renderer : Diagram
+Toolbar --> Export : Export
+Completion --> Code : insert on click
+Review --> Diff : replacement actions
+Security --> Diff : selected findings
+Diff --> Code : apply only after confirm
+Skills --> Completion
+Skills --> Review
+Skills --> Security
+Renderer --> DiagramStorage : save with snippet
+DiagramStorage --> Renderer : regenerate when stale
+Export --> Code : selected or all snippets
+
+note bottom of Completion
+  Snippet AI uses the default AI profile,
+  token accounting, cancellation, and no internet tools.
+end note
+@enduml

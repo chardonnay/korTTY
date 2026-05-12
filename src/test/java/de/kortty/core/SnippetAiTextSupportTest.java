@@ -43,4 +43,31 @@ class SnippetAiTextSupportTest {
         assertThat(formatted.startsWith("    # ")).isTrue();
         assertThat(formatted.contains("Compresses all log files.")).isTrue();
     }
+
+    @Test
+    void formatDescriptionAsCommentStartsNextSentenceOnNewCommentLine() {
+        String formatted = SnippetAiTextSupport.formatDescriptionAsComment(
+            "Creates the backup archive. Sends a result email.",
+            "bash",
+            "",
+            80);
+
+        assertThat(formatted).isEqualTo("""
+            # Creates the backup archive.
+            # Sends a result email.""");
+    }
+
+    @Test
+    void formatDescriptionAsCommentRespectsConfiguredTotalLineWidth() {
+        String formatted = SnippetAiTextSupport.formatDescriptionAsComment(
+            "Creates backup archives with timestamps for selected directories.",
+            "bash",
+            "",
+            40);
+
+        for (String line : formatted.split("\\R")) {
+            assertThat(line.length()).isAtMost(40);
+            assertThat(line).startsWith("# ");
+        }
+    }
 }

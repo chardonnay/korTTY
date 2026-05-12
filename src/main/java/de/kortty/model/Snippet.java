@@ -34,6 +34,10 @@ public class Snippet {
     @XmlElementWrapper(name = "tags")
     @XmlElement(name = "tag")
     private List<String> tags = new ArrayList<>();
+
+    @XmlElementWrapper(name = "diagrams")
+    @XmlElement(name = "diagram")
+    private List<SnippetDiagram> diagrams = new ArrayList<>();
     
     @XmlElement
     private boolean favorite;
@@ -79,6 +83,17 @@ public class Snippet {
     
     public List<String> getTags() { return tags; }
     public void setTags(List<String> tags) { this.tags = tags != null ? tags : new ArrayList<>(); }
+
+    public List<SnippetDiagram> getDiagrams() {
+        if (diagrams == null) {
+            diagrams = new ArrayList<>();
+        }
+        return diagrams;
+    }
+
+    public void setDiagrams(List<SnippetDiagram> diagrams) {
+        this.diagrams = diagrams != null ? diagrams : new ArrayList<>();
+    }
     
     public boolean isFavorite() { return favorite; }
     public void setFavorite(boolean favorite) { this.favorite = favorite; }
