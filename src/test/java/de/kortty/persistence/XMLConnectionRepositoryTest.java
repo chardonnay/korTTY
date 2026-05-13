@@ -3,6 +3,8 @@ package de.kortty.persistence;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
+import de.kortty.core.TerminalEmulationSupport;
+import com.sithtermfx.core.emulator.EmulationType;
 import org.testng.annotations.Test;
 
 import javax.crypto.SecretKey;
@@ -98,6 +100,60 @@ class XMLConnectionRepositoryTest {
             assertThat(reloaded).hasSize(1);
             assertThat(reloaded.get(0).getTerminalEffectPluginId()).isEqualTo("mother");
             assertThat(reloaded.get(0).getTerminalEffectAnimationSpeed()).isEqualTo(2.5);
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesTerminalEmulation() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-terminal-emulation");
+        try {
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+            ServerConnection connection = new ServerConnection();
+            connection.setName("VT220 connection");
+            connection.setHost("example.com");
+            connection.setUsername("root");
+            connection.setTerminalEmulationType("VT220");
+
+            repository.saveConnections(List.of(connection), null);
+
+            String persistedXml = Files.readString(dir.resolve("connections.xml"));
+            assertThat(persistedXml).contains("<terminalEmulationType>VT220</terminalEmulationType>");
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getTerminalEmulationType()).isEqualTo("VT220");
+            assertThat(TerminalEmulationSupport.fromConnection(reloaded.get(0))).isEqualTo(EmulationType.VT220);
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void loadOldConnectionWithoutTerminalEmulationDefaultsToXterm() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-terminal-emulation-default");
+        try {
+            Files.writeString(dir.resolve("connections.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <connections>
+                    <connection>
+                        <name>Old connection</name>
+                        <host>example.com</host>
+                        <port>22</port>
+                        <username>root</username>
+                    </connection>
+                </connections>
+                """);
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getTerminalEmulationType()).isEqualTo("XTERM");
+            assertThat(TerminalEmulationSupport.fromConnection(reloaded.get(0))).isEqualTo(EmulationType.XTERM);
         } finally {
             Files.deleteIfExists(dir.resolve("connections.xml"));
             Files.deleteIfExists(dir);

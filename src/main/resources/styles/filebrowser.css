@@ -1,0 +1,65 @@
+.file-browser-panel {
+    -fx-background-color: #21252b;
+}
+
+.file-browser-tree {
+    -fx-background-color: #21252b;
+    -fx-control-inner-background: #21252b;
+    -fx-background-insets: 0;
+    -fx-padding: 4 0 0 0;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.file-browser-tree .tree-cell {
+    -fx-background-color: #21252b;
+    -fx-text-fill: #abb2bf;
+    -fx-font-family: "Menlo", "Monaco", "Consolas", "monospace";
+    -fx-font-size: 12px;
+    -fx-cell-size: 22px;
+    -fx-padding: 0 4 0 2;
+}
+
+.file-browser-tree .tree-cell:hover {
+    -fx-background-color: #282c34;
+}
+
+.file-browser-tree .tree-cell:selected,
+.file-browser-tree .tree-cell:focused:selected {
+    -fx-background-color: #2c313a;
+    -fx-text-fill: #d7dae0;
+}
+
+.file-browser-tree .tree-disclosure-node {
+    -fx-padding: 0 4 0 3;
+}
+
+.file-browser-tree .tree-disclosure-node .arrow {
+    -fx-background-color: #7f8794;
+}
+
+.file-browser-tree .scroll-bar {
+    -fx-background-color: #21252b;
+}
+
+.file-browser-tree .scroll-bar .thumb {
+    -fx-background-color: #3c4450;
+    -fx-background-radius: 0;
+}
+
+.file-browser-tree .scroll-bar .track {
+    -fx-background-color: #21252b;
+}
+
+.file-browser-tree .scroll-bar .increment-button,
+.file-browser-tree .scroll-bar .decrement-button {
+    -fx-background-color: #21252b;
+    -fx-padding: 0;
+}
+
+.file-browser-status {
+    -fx-background-color: #1b1e24;
+    -fx-text-fill: #abb2bf;
+    -fx-font-size: 11px;
+    -fx-padding: 4 6 4 6;
+}

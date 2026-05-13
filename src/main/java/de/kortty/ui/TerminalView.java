@@ -20,6 +20,7 @@ import de.kortty.core.Mosh4jTtyConnector;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.NativeMoshTtyConnector;
 import de.kortty.core.DisconnectListener;
+import de.kortty.core.TerminalEmulationSupport;
 import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
@@ -84,6 +85,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javafx.scene.control.ProgressIndicator;
 import javafx.stage.Modality;
@@ -987,10 +989,18 @@ public class TerminalView extends BorderPane {
         // Capture-phase filters on split pane so we get file drops before cell filters; terminal content is in center so drag target is usually a cell node
         if (splitPane != null) {
             splitPane.addEventFilter(DragEvent.DRAG_OVER, event -> {
-                if (handleFileDragOver(event)) event.consume();
+                logger.debug("splitPane DRAG_OVER filter: hasFiles={}", event.getDragboard().hasFiles());
+                if (handleFileDragOver(event)) {
+                    logger.debug("splitPane DRAG_OVER filter: handling, consuming event");
+                    event.consume();
+                }
             });
             splitPane.addEventFilter(DragEvent.DRAG_DROPPED, event -> {
-                if (handleFileDragDropped(event)) event.consume();
+                logger.debug("splitPane DRAG_DROPPED filter: hasFiles={}", event.getDragboard().hasFiles());
+                if (handleFileDragDropped(event)) {
+                    logger.debug("splitPane DRAG_DROPPED filter: handling, consuming event");
+                    event.consume();
+                }
             });
         }
     }
@@ -1048,6 +1058,7 @@ public class TerminalView extends BorderPane {
             return null;
         }
         TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
+        applyTerminalEmulation(widget, baseConnector);
         installAgentShortcutInputInterceptor(widget, baseConnector);
         ActiveTerminalEffect effect = activeTerminalEffect;
         if (effect == null) {
@@ -1067,6 +1078,21 @@ public class TerminalView extends BorderPane {
             current = wrapper.delegate();
         }
         return current;
+    }
+
+    private void applyTerminalEmulation(SithTermFxWidget widget, TtyConnector connector) {
+        if (widget == null || connector == null) {
+            return;
+        }
+        ServerConnection targetConnection = connection;
+        if (connector instanceof SshTtyConnector sshConnector) {
+            targetConnection = sshConnector.getConnection();
+        } else if (connector instanceof Mosh4jTtyConnector moshConnector) {
+            targetConnection = moshConnector.getConnection();
+        } else if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
+            targetConnection = nativeMoshConnector.getConnection();
+        }
+        widget.setEmulationType(TerminalEmulationSupport.fromConnection(targetConnection));
     }
 
     private void installAgentShortcutInputInterceptor(SithTermFxWidget widget, TtyConnector connector) {
@@ -1105,14 +1131,21 @@ public class TerminalView extends BorderPane {
         if (toUpload.isEmpty()) return;
         int total = toUpload.size();
         AtomicBoolean aborted = new AtomicBoolean(false);
+        AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
         javafx.scene.control.ProgressBar progressBar = new javafx.scene.control.ProgressBar(0);
         progressBar.setPrefWidth(300);
         progressBar.setProgress(0);
+        javafx.scene.control.Label targetLabel = new javafx.scene.control.Label("");
+        targetLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888888;");
+        javafx.scene.control.Label timeLabel = new javafx.scene.control.Label("0s");
+        timeLabel.setStyle("-fx-font-size: 11px;");
         javafx.scene.control.Label statusLabel = new javafx.scene.control.Label(
             I18n.get("terminal.dragDrop.count", 0, total));
+        javafx.scene.control.Label currentFileLabel = new javafx.scene.control.Label("");
+        currentFileLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #aaaaaa;");
         javafx.scene.control.Button abortButton = new javafx.scene.control.Button(I18n.get("terminal.dragDrop.abort"));
-        javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(10,
-            statusLabel, progressBar, abortButton);
+        javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(8,
+            targetLabel, timeLabel, statusLabel, currentFileLabel, progressBar, abortButton);
         vbox.setPadding(new javafx.geometry.Insets(15));
         javafx.scene.control.Dialog<Void> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle(I18n.get("terminal.dragDrop.title"));
@@ -1126,28 +1159,36 @@ public class TerminalView extends BorderPane {
         Thread worker = new Thread(() -> {
             try {
                 SftpClient sftp = SftpClientFactory.instance().createSftpClient(sshConnector.getSession());
-                // Use the connector's tracked working directory and only fall back to the SFTP start directory.
-                String remoteTargetDir = sshConnector.getCurrentRemoteDirectory();
-                if (remoteTargetDir == null || remoteTargetDir.isEmpty()) {
-                    try {
-                        remoteTargetDir = sftp.canonicalPath(".");
-                    } catch (Exception e) {
-                        logger.debug("Could not resolve remote cwd, using '.'");
-                        remoteTargetDir = ".";
-                    }
-                }
-                if (remoteTargetDir == null || remoteTargetDir.isEmpty()) remoteTargetDir = ".";
+                String trackedDir = sshConnector.getCurrentRemoteDirectory();
+                String sftpStartDir = needsSftpStartDirectory(trackedDir) ? resolveSftpStartDirectory(sftp) : null;
+                String remoteTargetDir = resolveDragDropRemoteDirectory(trackedDir, sftpStartDir);
+                logger.debug(
+                    "Using drag-drop remote directory: {} (tracked={}, sftpStart={})",
+                    remoteTargetDir,
+                    trackedDir,
+                    sftpStartDir);
                 final String remoteHome = remoteTargetDir;
+                logger.debug("Drag-drop will upload to remote directory: {}", remoteHome);
+                // Update target label with destination directory
+                Platform.runLater(() -> {
+                    targetLabel.setText(I18n.get("terminal.dragDrop.target", remoteHome));
+                });
                 int copied = 0;
                 for (int i = 0; i < toUpload.size() && !aborted.get(); i++) {
                     PathPair p = toUpload.get(i);
                     String fullRemote = appendRemotePath(remoteHome, p.remote);
+                    final String fileName = p.remote;
+                    Platform.runLater(() -> {
+                        long elapsed = (System.currentTimeMillis() - startTime.get()) / 1000;
+                        timeLabel.setText(elapsed + "s");
+                    });
                     uploadOne(sftp, p, fullRemote);
                     if (aborted.get()) break;
                     copied++;
                     final int done = copied;
                     Platform.runLater(() -> {
                         statusLabel.setText(I18n.get("terminal.dragDrop.count", done, total));
+                        currentFileLabel.setText(fileName);
                         progressBar.setProgress((double) done / total);
                     });
                 }
@@ -1236,6 +1277,57 @@ public class TerminalView extends BorderPane {
             return "/" + relative;
         }
         return base.endsWith("/") ? base + relative : base + "/" + relative;
+    }
+
+    private String resolveSftpStartDirectory(SftpClient sftp) {
+        try {
+            String directory = sftp.canonicalPath(".");
+            if (directory != null && !directory.isBlank()) {
+                return directory.trim();
+            }
+        } catch (IOException e) {
+            logger.debug("Could not resolve SFTP start directory via canonicalPath('.'): {}", e.getMessage());
+        }
+        return ".";
+    }
+
+    private static boolean needsSftpStartDirectory(String trackedDirectory) {
+        if (trackedDirectory == null || trackedDirectory.isBlank()) {
+            return true;
+        }
+        String tracked = trackedDirectory.trim();
+        return "~".equals(tracked) || tracked.startsWith("~/");
+    }
+
+    static String resolveDragDropRemoteDirectory(String trackedDirectory, String sftpStartDirectory) {
+        String fallback = normalizedRemoteDirectoryOrCurrent(sftpStartDirectory);
+        if (trackedDirectory == null || trackedDirectory.isBlank()) {
+            return fallback;
+        }
+        String tracked = trackedDirectory.trim();
+        if (tracked.startsWith("/")) {
+            return tracked;
+        }
+        if ("~".equals(tracked)) {
+            return fallback;
+        }
+        if (tracked.startsWith("~/")) {
+            String relativeToHome = tracked.substring(2);
+            if (relativeToHome.isBlank()) {
+                return fallback;
+            }
+            return fallback.startsWith("/")
+                ? appendRemotePath(fallback, relativeToHome)
+                : relativeToHome;
+        }
+        return tracked;
+    }
+
+    private static String normalizedRemoteDirectoryOrCurrent(String remoteDirectory) {
+        if (remoteDirectory == null || remoteDirectory.isBlank()) {
+            return ".";
+        }
+        return remoteDirectory.trim();
     }
 
     static String parentRemotePath(String remotePath) {
@@ -2430,11 +2522,7 @@ public class TerminalView extends BorderPane {
             return null;
         }
         String beforePrompt = prompt.substring(0, prompt.length() - 1).stripTrailing();
-        int separator = beforePrompt.lastIndexOf(':');
-        if (separator < 0 || separator + 1 >= beforePrompt.length()) {
-            return null;
-        }
-        String candidate = beforePrompt.substring(separator + 1).strip();
+        String candidate = extractWorkingDirectoryCandidate(beforePrompt);
         if (candidate.isBlank()) {
             return null;
         }
@@ -2450,6 +2538,42 @@ public class TerminalView extends BorderPane {
                 : null;
         }
         return null;
+    }
+
+    private static String extractWorkingDirectoryCandidate(String beforePrompt) {
+        String normalized = beforePrompt != null ? beforePrompt.strip() : "";
+        if (normalized.isBlank()) {
+            return "";
+        }
+        int separator = normalized.lastIndexOf(':');
+        if (separator >= 0 && separator + 1 < normalized.length()) {
+            return stripPromptDirectoryDecorations(normalized.substring(separator + 1).strip());
+        }
+        if (normalized.endsWith("]") || normalized.endsWith(")")) {
+            normalized = normalized.substring(0, normalized.length() - 1).stripTrailing();
+        }
+        int whitespace = lastWhitespaceIndex(normalized);
+        if (whitespace < 0 || whitespace + 1 >= normalized.length()) {
+            return "";
+        }
+        return stripPromptDirectoryDecorations(normalized.substring(whitespace + 1).strip());
+    }
+
+    private static int lastWhitespaceIndex(String value) {
+        for (int i = value.length() - 1; i >= 0; i--) {
+            if (Character.isWhitespace(value.charAt(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static String stripPromptDirectoryDecorations(String candidate) {
+        String stripped = candidate != null ? candidate.strip() : "";
+        while (!stripped.isEmpty() && (stripped.endsWith("]") || stripped.endsWith(")"))) {
+            stripped = stripped.substring(0, stripped.length() - 1).stripTrailing();
+        }
+        return stripped;
     }
 
     static @Nullable String extractWorkingDirectoryFromVisibleScreen(String screenLines, String homeDirectory) {

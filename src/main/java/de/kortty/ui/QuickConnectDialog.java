@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import com.sithtermfx.core.emulator.EmulationType;
+import de.kortty.core.TerminalEmulationSupport;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.SSHKey;
@@ -46,6 +48,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private TextField hostField;
     private Spinner<Integer> portSpinner;
     private ComboBox<ConnectionProtocol> protocolCombo;
+    private ComboBox<EmulationType> terminalEmulationCombo;
     private TextField usernameField;
     private PasswordField passwordField;
     private ComboBox<StoredCredential> savedCredentialsCombo;
@@ -308,6 +311,13 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 }
             }
         });
+
+        terminalEmulationCombo = new ComboBox<>();
+        TerminalEmulationComboBoxSupport.configureComboBox(terminalEmulationCombo);
+        TerminalEmulationComboBoxSupport.select(
+                terminalEmulationCombo,
+                TerminalEmulationSupport.defaultStoredValue());
+        terminalEmulationCombo.setPrefWidth(300);
         
         usernameField = new TextField();
         usernameField.setPromptText("root");
@@ -535,25 +545,28 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
 
         grid.add(new Label(I18n.get("quickConnect.protocol")), 0, 2);
         grid.add(protocolCombo, 1, 2);
-        
-        grid.add(new Label(I18n.get("quickConnect.authentication")), 0, 3);
+
+        grid.add(new Label(I18n.get("quickConnect.terminalEmulation")), 0, 3);
+        grid.add(terminalEmulationCombo, 1, 3);
+
+        grid.add(new Label(I18n.get("quickConnect.authentication")), 0, 4);
         VBox authBox = new VBox(5);
         authBox.getChildren().addAll(passwordAuthRadio, keyAuthRadio);
         if (temporaryKeyAuthRadio != null) {
             authBox.getChildren().add(temporaryKeyAuthRadio);
         }
-        grid.add(authBox, 1, 3);
+        grid.add(authBox, 1, 4);
         
-        grid.add(new Label(I18n.get("quickConnect.password")), 0, 4);
-        grid.add(passwordField, 1, 4);
+        grid.add(new Label(I18n.get("quickConnect.password")), 0, 5);
+        grid.add(passwordField, 1, 5);
         
-        grid.add(new Label(I18n.get("connEdit.savedCredentials")), 0, 5);
-        grid.add(savedCredentialsCombo, 1, 5);
+        grid.add(new Label(I18n.get("connEdit.savedCredentials")), 0, 6);
+        grid.add(savedCredentialsCombo, 1, 6);
         
-        grid.add(new Label(I18n.get("quickConnect.sshKey")), 0, 6);
-        grid.add(savedSSHKeysCombo, 1, 6);
+        grid.add(new Label(I18n.get("quickConnect.sshKey")), 0, 7);
+        grid.add(savedSSHKeysCombo, 1, 7);
         
-        int row = 7;
+        int row = 8;
         if (temporaryKeyAuthRadio != null && temporaryKeyArea != null) {
             grid.add(new Label(I18n.get("quickConnect.temporarySSHKey")), 0, row);
             VBox tempKeyBox = new VBox(5);
@@ -776,6 +789,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         portSpinner.getValueFactory().setValue(conn.getPort());
         usernameField.setText(conn.getUsername());
         protocolCombo.setValue(conn.getProtocol());
+        TerminalEmulationComboBoxSupport.select(terminalEmulationCombo, conn.getTerminalEmulationType());
         updateCredentialCombo(conn.getHost());
         if (conn.getCredentialId() != null && credentialManager != null) {
             credentialManager.findCredentialById(conn.getCredentialId()).ifPresent(cred -> {
@@ -923,6 +937,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
                 modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
+                applySelectedTerminalEmulation(modified, selected);
                 
                 TemporarySSHKey tempKey = null;
                 String keyText = temporaryKeyArea != null ? temporaryKeyArea.getText() : null;
@@ -976,6 +991,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PASSWORD);
                 modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
+                applySelectedTerminalEmulation(modified, selected);
                 modified.setSshKeyId(null);
                 modified.setPrivateKeyPath(null);
                 modified.setTemporaryKeyContent(null);
@@ -1006,6 +1022,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
                 modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
+                applySelectedTerminalEmulation(modified, selected);
                 if (savedSSHKeysCombo.getValue() != null) {
                     modified.setSshKeyId(savedSSHKeysCombo.getValue().getId());
                     modified.setPrivateKeyPath(sshKeyManager != null ? 
@@ -1030,6 +1047,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 modified.setRetryCount(retrySpinner.getValue());
                 modified.setAuthMethod(AuthMethod.PASSWORD);
                 modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
+                applySelectedTerminalEmulation(modified, selected);
                 modified.setSshKeyId(null);
                 modified.setPrivateKeyPath(null);
                 modified.setTemporaryKeyContent(null);
@@ -1053,6 +1071,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             modified.setSettings(copyTerminalSettings(selected));
             modified.setAuthMethod(selected.getAuthMethod());
             modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
+            applySelectedTerminalEmulation(modified, selected);
             modified.setSshKeyId(selected.getSshKeyId());
             modified.setPrivateKeyPath(selected.getPrivateKeyPath());
             // Preserve temporary SSH key fields for reconnection
@@ -1089,6 +1108,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         connection.setPort(portSpinner.getValue());
         connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
         connection.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : ConnectionProtocol.SSH_TCP);
+        applySelectedTerminalEmulation(connection, null);
         connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
         connection.setRetryCount(retrySpinner.getValue());
         
@@ -1176,6 +1196,20 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             return I18n.get("protocol.moshClient");
         }
         return I18n.get("protocol.sshTcp");
+    }
+
+    private void applySelectedTerminalEmulation(ServerConnection target, ServerConnection fallback) {
+        if (target == null) {
+            return;
+        }
+        EmulationType selected = TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo);
+        if (selected != null) {
+            target.setTerminalEmulationType(TerminalEmulationSupport.storedValue(selected));
+        } else if (fallback != null) {
+            target.setTerminalEmulationType(fallback.getTerminalEmulationType());
+        } else {
+            target.setTerminalEmulationType(TerminalEmulationSupport.defaultStoredValue());
+        }
     }
     
     /**

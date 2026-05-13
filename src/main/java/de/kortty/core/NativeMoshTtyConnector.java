@@ -53,6 +53,10 @@ public class NativeMoshTtyConnector implements TtyConnector {
         this.password = password;
     }
 
+    public ServerConnection getConnection() {
+        return connection;
+    }
+
     public void setSSHKeyManager(SSHKeyManager sshKeyManager, char[] masterPassword) {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
@@ -174,7 +178,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
 
         Map<String, String> env = new HashMap<>(System.getenv());
         env.put("MOSH_KEY", key);
-        env.put("TERM", "xterm-256color");
+        env.put("TERM", TerminalEmulationSupport.termName(connection));
         if (env.get("LANG") == null || env.get("LANG").isBlank()) {
             env.put("LANG", "en_US.UTF-8");
         }

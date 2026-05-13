@@ -103,6 +103,10 @@ public class Mosh4jTtyConnector implements TtyConnector {
         this.password = password;
     }
 
+    public ServerConnection getConnection() {
+        return connection;
+    }
+
     public void setSSHKeyManager(SSHKeyManager sshKeyManager, char[] masterPassword) {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;

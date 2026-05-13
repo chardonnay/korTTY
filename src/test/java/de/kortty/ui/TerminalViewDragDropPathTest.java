@@ -33,4 +33,24 @@ public class TerminalViewDragDropPathTest {
         assertThat(TerminalView.parentRemotePath("dir/file.txt"))
                 .isEqualTo("dir");
     }
+
+    @Test
+    void resolvesHomeRelativeTrackedDirectoryAgainstSftpStartDirectory() {
+        assertThat(TerminalView.resolveDragDropRemoteDirectory("~/Dokumente", "/home/daniel"))
+                .isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
+    void resolvesUnknownTrackedDirectoryToSftpStartDirectory() {
+        assertThat(TerminalView.resolveDragDropRemoteDirectory(null, "/home/daniel"))
+                .isEqualTo("/home/daniel");
+        assertThat(TerminalView.resolveDragDropRemoteDirectory("~", "/home/daniel"))
+                .isEqualTo("/home/daniel");
+    }
+
+    @Test
+    void keepsAbsoluteTrackedDirectory() {
+        assertThat(TerminalView.resolveDragDropRemoteDirectory("/var/tmp", "/home/daniel"))
+                .isEqualTo("/var/tmp");
+    }
 }

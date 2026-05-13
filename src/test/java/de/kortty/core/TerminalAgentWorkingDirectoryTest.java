@@ -28,8 +28,25 @@ class TerminalAgentWorkingDirectoryTest {
     void leavesCommandUnwrappedWhenWorkingDirectoryIsUnknown() {
         assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", null)).isEqualTo("pwd");
         assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "")).isEqualTo("pwd");
-        assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "~")).isEqualTo("pwd");
         assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "relative/path")).isEqualTo("pwd");
+    }
+
+    @Test
+    void wrapsCommandInRemoteHomeDirectory() {
+        assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "~"))
+            .isEqualTo("cd ~ && pwd");
+    }
+
+    @Test
+    void wrapsCommandInRemoteHomeRelativeDirectoryWithoutKnowingAbsoluteHome() {
+        assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "~/Dokumente"))
+            .isEqualTo("cd ~/'Dokumente' && pwd");
+    }
+
+    @Test
+    void quotesRemoteHomeRelativeDirectorySuffix() {
+        assertThat(TerminalAgentService.wrapCommandForWorkingDirectory("pwd", "~/project's files"))
+            .isEqualTo("cd ~/'project'\"'\"'s files' && pwd");
     }
 
     @Test

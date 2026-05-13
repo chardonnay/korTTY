@@ -146,6 +146,7 @@ public class TerminalAgentService {
             throw new IllegalStateException("Terminal probe failed: " + trimToSingleLine(result.stderr()));
         }
         TerminalAgentModels.ProbeSnapshot probe = parseProbeOutput(result.stdout());
+        resolvedConnector.updateHomeRemoteDirectoryHint(probe.homeDir());
         resolvedConnector.updateCurrentRemoteDirectoryHint(probe.currentDir());
         return probe;
     }
@@ -1896,7 +1897,16 @@ public class TerminalAgentService {
             return command;
         }
         String normalizedDirectory = workingDirectory != null ? workingDirectory : "";
-        if (normalizedDirectory.isBlank() || "~".equals(normalizedDirectory) || !normalizedDirectory.startsWith("/")) {
+        if (normalizedDirectory.isBlank()) {
+            return command;
+        }
+        if ("~".equals(normalizedDirectory)) {
+            return "cd ~ && " + command;
+        }
+        if (normalizedDirectory.startsWith("~/")) {
+            return "cd ~/" + shellSingleQuote(normalizedDirectory.substring(2)) + " && " + command;
+        }
+        if (!normalizedDirectory.startsWith("/")) {
             return command;
         }
         return "cd " + shellSingleQuote(normalizedDirectory) + " && " + command;

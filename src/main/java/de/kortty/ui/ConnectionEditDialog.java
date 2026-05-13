@@ -15,6 +15,8 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.Theme;
 import de.kortty.model.WindowGeometry;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
+import com.sithtermfx.core.emulator.EmulationType;
+import de.kortty.core.TerminalEmulationSupport;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
@@ -49,6 +51,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final TextField hostField;
     private final Spinner<Integer> portSpinner;
     private final ComboBox<ConnectionProtocol> protocolCombo;
+    private final ComboBox<EmulationType> terminalEmulationCombo;
     private final TextField usernameField;
     private final PasswordField passwordField;
     private final TextField groupField;
@@ -186,6 +189,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 }
             }
         });
+
+        terminalEmulationCombo = new ComboBox<>();
+        TerminalEmulationComboBoxSupport.configureComboBox(terminalEmulationCombo);
+        TerminalEmulationComboBoxSupport.select(terminalEmulationCombo, connection.getTerminalEmulationType());
+        terminalEmulationCombo.setPrefWidth(300);
         
         usernameField = new TextField(connection.getUsername());
         usernameField.setPromptText("root");
@@ -347,6 +355,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         connectionGrid.add(new Label(I18n.get("connEdit.protocol")), 0, row);
         connectionGrid.add(protocolCombo, 1, row++);
+
+        connectionGrid.add(new Label(I18n.get("connEdit.terminalEmulation")), 0, row);
+        connectionGrid.add(terminalEmulationCombo, 1, row++);
         
         connectionGrid.add(new Label(I18n.get("connEdit.group")), 0, row);
         connectionGrid.add(groupField, 1, row++);
@@ -470,6 +481,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 connection.setPort(portSpinner.getValue());
                 connection.setUsername(getUsernameText.isEmpty() ? "root" : getUsernameText);
                 connection.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : ConnectionProtocol.SSH_TCP);
+                connection.setTerminalEmulationType(TerminalEmulationSupport.storedValue(
+                    TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo)));
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 connection.setRetryCount(retrySpinner.getValue());

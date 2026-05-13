@@ -741,6 +741,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             copy.setPrivateKeyPath(selected.getPrivateKeyPath());
             copy.setTerminalEffectPluginId(selected.getTerminalEffectPluginId());
             copy.setTerminalEffectAnimationSpeed(selected.getTerminalEffectAnimationSpeed());
+            copy.setTerminalEmulationType(selected.getTerminalEmulationType());
             copy.setGroup(selected.getGroup());
             
             if (selected.getSettings() != null) {
@@ -987,6 +988,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             if (conn.getSettings() != null) {
                 copy.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
             }
+            copy.setTerminalEmulationType(conn.getTerminalEmulationType());
             
             exportList.add(copy);
         }
@@ -1329,6 +1331,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 if (conn.getSettings() != null) {
                     imported.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
                 }
+                imported.setTerminalEmulationType(conn.getTerminalEmulationType());
                 
                 importList.add(imported);
             }

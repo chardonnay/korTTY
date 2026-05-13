@@ -275,7 +275,7 @@ public class SshTtyConnector implements TtyConnector {
             
             // Create shell channel
             channel = session.createShellChannel();
-            channel.setPtyType("xterm-256color");
+            channel.setPtyType(TerminalEmulationSupport.termName(connection));
             channel.setPtyColumns(connection.getSettings().getTerminalColumns());
             channel.setPtyLines(connection.getSettings().getTerminalRows());
             
@@ -715,8 +715,8 @@ public class SshTtyConnector implements TtyConnector {
 
     /**
      * Returns the best-known remote working directory for this terminal session.
-     * The value is initialized from SFTP and then updated passively from terminal
-     * output (OSC 7) and typed directory-changing commands.
+     * The value is updated passively from terminal output (OSC 7) and typed
+     * directory-changing commands, so login output stays visible to the user.
      */
     public String getCurrentRemoteDirectory() {
         synchronized (directoryLock) {
@@ -731,8 +731,29 @@ public class SshTtyConnector implements TtyConnector {
     }
 
     public void updateCurrentRemoteDirectoryHint(String directory) {
-        if (directory != null && directory.startsWith("/")) {
-            setCurrentRemoteDirectory(directory);
+        String resolved = resolveRemoteDirectoryHint(directory, getHomeRemoteDirectory());
+        if (resolved != null) {
+            setCurrentRemoteDirectory(resolved);
+        }
+    }
+
+    public void updateHomeRemoteDirectoryHint(String directory) {
+        String resolved = resolveRemoteDirectoryHint(directory, null);
+        if (resolved == null) {
+            return;
+        }
+        synchronized (directoryLock) {
+            homeRemoteDirectory = resolved;
+            if (currentRemoteDirectory == null
+                    || currentRemoteDirectory.isBlank()
+                    || "~".equals(currentRemoteDirectory)) {
+                currentRemoteDirectory = resolved;
+            }
+            if (previousRemoteDirectory == null
+                    || previousRemoteDirectory.isBlank()
+                    || "~".equals(previousRemoteDirectory)) {
+                previousRemoteDirectory = resolved;
+            }
         }
     }
 
@@ -1031,7 +1052,7 @@ public class SshTtyConnector implements TtyConnector {
     private void applyCdCommand(String segment) {
         String arg = segment.length() <= 2 ? "" : segment.substring(2).trim();
         if (arg.isEmpty()) {
-            setCurrentRemoteDirectory(homeRemoteDirectory);
+            updateCurrentRemoteDirectoryHint("~");
             return;
         }
         String target = unquote(arg);
@@ -1039,8 +1060,12 @@ public class SshTtyConnector implements TtyConnector {
             setCurrentRemoteDirectory(previousRemoteDirectory);
             return;
         }
-        if (target.startsWith("~")) {
-            setCurrentRemoteDirectory(normalizeRemotePath(homeRemoteDirectory + target.substring(1)));
+        String homeResolved = resolveRemoteDirectoryHint(target, getHomeRemoteDirectory());
+        if (homeResolved != null) {
+            setCurrentRemoteDirectory(homeResolved);
+            return;
+        }
+        if (isTildeRemoteDirectoryHint(target)) {
             return;
         }
         if (target.startsWith("/")) {
@@ -1062,10 +1087,13 @@ public class SshTtyConnector implements TtyConnector {
         }
         directoryStack.addFirst(currentRemoteDirectory);
         String target = unquote(arg);
-        if (target.startsWith("/")) {
+        String homeResolved = resolveRemoteDirectoryHint(target, getHomeRemoteDirectory());
+        if (homeResolved != null) {
+            setCurrentRemoteDirectory(homeResolved);
+        } else if (isTildeRemoteDirectoryHint(target)) {
+            return;
+        } else if (target.startsWith("/")) {
             setCurrentRemoteDirectory(normalizeRemotePath(target));
-        } else if (target.startsWith("~")) {
-            setCurrentRemoteDirectory(normalizeRemotePath(homeRemoteDirectory + target.substring(1)));
         } else {
             setCurrentRemoteDirectory(normalizeRemotePath(currentRemoteDirectory + "/" + target));
         }
@@ -1125,6 +1153,62 @@ public class SshTtyConnector implements TtyConnector {
         }
         if (result.isEmpty()) {
             return absolute ? "/" : ".";
+        }
+        return result.toString();
+    }
+
+    static String resolveRemoteDirectoryHint(String directory, String homeDirectory) {
+        if (directory == null || directory.isBlank()) {
+            return null;
+        }
+        String trimmed = directory.trim();
+        if (trimmed.startsWith("/")) {
+            return normalizeAbsoluteRemotePath(trimmed);
+        }
+        if (isTildeRemoteDirectoryHint(trimmed)) {
+            if (homeDirectory == null || !homeDirectory.startsWith("/")) {
+                return null;
+            }
+            if ("~".equals(trimmed)) {
+                return normalizeAbsoluteRemotePath(homeDirectory);
+            }
+            if (trimmed.startsWith("~/")) {
+                return normalizeAbsoluteRemotePath(homeDirectory + trimmed.substring(1));
+            }
+        }
+        return null;
+    }
+
+    private static boolean isTildeRemoteDirectoryHint(String directory) {
+        return directory != null && directory.trim().startsWith("~");
+    }
+
+    private static String normalizeAbsoluteRemotePath(String path) {
+        if (path == null || !path.startsWith("/")) {
+            return null;
+        }
+        String[] parts = path.split("/");
+        Deque<String> normalized = new ArrayDeque<>();
+        for (String part : parts) {
+            if (part.isEmpty() || ".".equals(part)) {
+                continue;
+            }
+            if ("..".equals(part)) {
+                if (!normalized.isEmpty()) {
+                    normalized.removeLast();
+                }
+            } else {
+                normalized.addLast(part);
+            }
+        }
+        StringBuilder result = new StringBuilder("/");
+        boolean first = true;
+        for (String part : normalized) {
+            if (!first) {
+                result.append('/');
+            }
+            result.append(part);
+            first = false;
         }
         return result.toString();
     }

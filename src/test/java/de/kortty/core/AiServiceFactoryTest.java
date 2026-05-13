@@ -4,10 +4,58 @@ import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiProfile;
 import org.testng.annotations.Test;
 
+import java.time.Duration;
+
 import static com.google.common.truth.Truth.assertThat;
 
 
 class AiServiceFactoryTest {
+
+    @Test
+    void createNormalizesOpenAiCompatibleBaseUrlToChatCompletionsEndpoint() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.minimax.io/v1");
+        profile.setModel("MiniMax-M2.7");
+
+        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+
+        assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
+        assertThat(((OpenAiCompatibleAiService) service)
+            .buildConnectionTestHttpRequest(Duration.ofSeconds(1))
+            .uri()
+            .toString())
+            .isEqualTo("https://api.minimax.io/v1/chat/completions");
+    }
+
+    @Test
+    void createPreservesExplicitOpenAiCompatibleChatCompletionsEndpoint() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.minimax.io/v1/chat/completions");
+        profile.setModel("MiniMax-M2.7");
+
+        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+
+        assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
+        assertThat(((OpenAiCompatibleAiService) service)
+            .buildConnectionTestHttpRequest(Duration.ofSeconds(1))
+            .uri()
+            .toString())
+            .isEqualTo("https://api.minimax.io/v1/chat/completions");
+    }
+
+    @Test
+    void createRejectsOpenAiCompatibleProfileWithoutModel() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.minimax.io/v1");
+
+        try {
+            AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        } catch (IllegalStateException ex) {
+            assertThat(ex).hasMessageThat().contains("model");
+            return;
+        }
+        throw new AssertionError("Expected missing model validation to fail.");
+    }
 
     @Test
     void createRejectsMissingInternetAccessMode() {

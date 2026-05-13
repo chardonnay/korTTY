@@ -36,6 +36,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
@@ -107,6 +108,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         this.app = KorTTYApplication.getInstance();
         setTitle(I18n.get("ai.manager.title"));
         setHeaderText(I18n.get("ai.manager.header"));
+        setResizable(true);
         getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
 
         chats = FXCollections.observableArrayList();
@@ -146,6 +148,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         getDialogPane().setContent(root);
         getDialogPane().setPrefSize(980, 640);
+        getDialogPane().setMinSize(760, 480);
 
         refreshAll();
     }
@@ -342,10 +345,16 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         editorGrid.add(tokenUsageLabel, 1, row++);
 
         VBox editorBox = new VBox(10, editorGrid);
-        VBox.setVgrow(editorGrid, Priority.ALWAYS);
+        editorBox.setMinWidth(580);
+        ScrollPane editorScrollPane = new ScrollPane(editorBox);
+        editorScrollPane.setFitToWidth(true);
+        editorScrollPane.setFitToHeight(false);
+        editorScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        editorScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
-        HBox content = new HBox(16, profileListView, editorBox);
-        HBox.setHgrow(editorBox, Priority.ALWAYS);
+        HBox content = new HBox(16, profileListView, editorScrollPane);
+        HBox.setHgrow(editorScrollPane, Priority.ALWAYS);
+        VBox.setVgrow(content, Priority.ALWAYS);
 
         Button addButton = new Button(I18n.get("settings.ai.profile.add"));
         addButton.setOnAction(event -> addProfile());
@@ -369,7 +378,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         HBox actionBar = new HBox(8, addButton, testButton, deleteButton, refreshButton, saveButton);
         actionBar.setAlignment(Pos.CENTER_LEFT);
 
-        VBox root = new VBox(10, content, actionBar);
+        VBox root = new VBox(10, actionBar, content);
         root.setPadding(new Insets(6));
         VBox.setVgrow(content, Priority.ALWAYS);
 
@@ -767,6 +776,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
         if (trimToNull(selectedProfile.getApiUrl()) == null) {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl"));
+            return;
+        }
+        if (trimToNull(selectedProfile.getModel()) == null) {
+            showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noModel"));
             return;
         }
         if (!validateInternetConfigurationForTest(selectedProfile)) {

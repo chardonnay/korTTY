@@ -124,6 +124,20 @@ class TerminalViewShortcutHeuristicsTest {
     }
 
     @Test
+    void extractsHomeRelativeWorkingDirectoryFromSpaceSeparatedPrompt() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "daniel@fedora ~/Dokumente $",
+            "/home/daniel")).isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
+    void extractsHomeRelativeWorkingDirectoryFromBracketedSpaceSeparatedPrompt() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "[daniel@fedora ~/Dokumente]$ agent schreibe ein perl script",
+            "/home/daniel")).isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
     void extractsWorkingDirectoryFromPreviousVisiblePromptLine() {
         assertThat(TerminalView.extractWorkingDirectoryFromVisibleScreen(
             """

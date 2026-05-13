@@ -176,7 +176,7 @@ public class SSHSession {
         channel = session.createShellChannel();
         
         // Set up PTY
-        channel.setPtyType("xterm-256color");
+        channel.setPtyType(TerminalEmulationSupport.termName(connection));
         channel.setPtyColumns(connection.getSettings().getTerminalColumns());
         channel.setPtyLines(connection.getSettings().getTerminalRows());
         

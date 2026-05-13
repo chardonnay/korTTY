@@ -8,6 +8,9 @@ import de.kortty.model.AiProfile;
  */
 public final class AiServiceFactory {
 
+    private static final String OPENAI_CHAT_COMPLETIONS_PATH = "/chat/completions";
+    private static final String MISSING_MODEL_MESSAGE = "AI model must be configured.";
+
     private AiServiceFactory() {
     }
 
@@ -64,9 +67,12 @@ public final class AiServiceFactory {
             }
             webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
         }
+        if (model == null) {
+            throw new IllegalStateException(MISSING_MODEL_MESSAGE);
+        }
         return new OpenAiCompatibleAiService(
-            apiUrl,
-            model != null ? model : "",
+            normalizeOpenAiCompatibleChatCompletionsUrl(apiUrl),
+            model,
             normalizedApiKey,
             AiReasoningSupport.normalizeForProfile(profile),
             webSearchTool,
@@ -75,5 +81,17 @@ public final class AiServiceFactory {
 
     private static String trimToNull(String value) {
         return value != null && !value.isBlank() ? value.trim() : null;
+    }
+
+    private static String normalizeOpenAiCompatibleChatCompletionsUrl(String apiUrl) {
+        String trimmed = apiUrl.trim();
+        String withoutTrailingSlashes = trimmed;
+        while (withoutTrailingSlashes.endsWith("/")) {
+            withoutTrailingSlashes = withoutTrailingSlashes.substring(0, withoutTrailingSlashes.length() - 1);
+        }
+        if (withoutTrailingSlashes.matches("(?i).*/v1")) {
+            return withoutTrailingSlashes + OPENAI_CHAT_COMPLETIONS_PATH;
+        }
+        return trimmed;
     }
 }

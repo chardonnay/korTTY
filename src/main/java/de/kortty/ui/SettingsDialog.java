@@ -1110,7 +1110,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox aiDefaultProfileBox = new HBox(10,
             new Label(I18n.get("settings.ai.defaultProfile")),
             aiDefaultProfileCombo);
-        aiRoot.getChildren().add(aiDefaultProfileBox);
+        Label aiDefaultProfileHint = new Label(I18n.get("settings.ai.defaultProfile.hint"));
+        aiDefaultProfileHint.setWrapText(true);
+        aiDefaultProfileHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiRoot.getChildren().addAll(aiDefaultProfileBox, aiDefaultProfileHint);
 
         aiCodeTextLanguageCombo = new ComboBox<>();
         aiCodeTextLanguageCombo.getItems().setAll(
@@ -3697,6 +3700,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
         if (trimToNull(selectedAiProfile.getApiUrl()) == null) {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl")).showAndWait();
+            return;
+        }
+        if (trimToNull(selectedAiProfile.getModel()) == null) {
+            new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noModel")).showAndWait();
             return;
         }
         if (!validateAiInternetConfigurationForTest(selectedAiProfile)) {

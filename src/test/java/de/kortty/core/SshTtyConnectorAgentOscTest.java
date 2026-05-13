@@ -92,6 +92,40 @@ class SshTtyConnectorAgentOscTest {
     }
 
     @Test
+    void resolvesHomeRelativeDirectoryHintWithAbsoluteHome() {
+        assertThat(SshTtyConnector.resolveRemoteDirectoryHint("~/Dokumente", "/home/daniel"))
+            .isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
+    void resolvesHomeDirectoryHintWithAbsoluteHome() {
+        assertThat(SshTtyConnector.resolveRemoteDirectoryHint("~", "/home/daniel"))
+            .isEqualTo("/home/daniel");
+    }
+
+    @Test
+    void ignoresHomeRelativeDirectoryHintWithoutAbsoluteHome() {
+        assertThat(SshTtyConnector.resolveRemoteDirectoryHint("~/Dokumente", "~")).isNull();
+    }
+
+    @Test
+    void ignoresHomeRelativeDirectoryHintWithoutHome() {
+        assertThat(SshTtyConnector.resolveRemoteDirectoryHint("~/Dokumente", null)).isNull();
+        assertThat(SshTtyConnector.resolveRemoteDirectoryHint("~", null)).isNull();
+    }
+
+    @Test
+    void ignoresNamedHomeDirectoryHint() {
+        assertThat(SshTtyConnector.resolveRemoteDirectoryHint("~other", "/home/daniel")).isNull();
+    }
+
+    @Test
+    void normalizesAbsoluteDirectoryHint() {
+        assertThat(SshTtyConnector.resolveRemoteDirectoryHint("/home/daniel/../daniel/Dokumente", null))
+            .isEqualTo("/home/daniel/Dokumente");
+    }
+
+    @Test
     void extractsWorkingDirectoryFromOsc7FileUri() {
         assertThat(SshTtyConnector.extractWorkingDirectoryFromOsc7Uri("file://fedora/home/daniel/Dokumente"))
             .isEqualTo("/home/daniel/Dokumente");

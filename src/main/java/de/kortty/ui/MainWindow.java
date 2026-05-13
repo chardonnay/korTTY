@@ -42,6 +42,8 @@ import javafx.animation.Timeline;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
+import java.util.function.Consumer;
+
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.Scene;
@@ -63,6 +65,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.TransferMode;
 import javafx.geometry.Point2D;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -131,7 +134,14 @@ public class MainWindow {
     private String dynamicThemeStylesheetUrl;
     private DashboardView dashboardView;
     private boolean dashboardVisible = false;
+    private LocalFileBrowser localFileBrowser;
+    private LocalFileBrowserManager fileBrowserManager;
     private CheckMenuItem showDashboardMenuItem;
+    private CheckMenuItem showFileBrowserLeftMenuItem;
+    private CheckMenuItem showFileBrowserRightMenuItem;
+    private CheckMenuItem systemShowFileBrowserLeftMenuItem;
+    private CheckMenuItem systemShowFileBrowserRightMenuItem;
+    private ResizableDivider fileBrowserDivider;
     private CheckMenuItem systemShowDashboardMenuItem;
     private MenuItem cutMenuItem;
     private MenuItem systemCutMenuItem;
@@ -175,6 +185,8 @@ public class MainWindow {
     private volatile boolean suppressQuickConnect = false;  // Flag to suppress QuickConnect on programmatic tab selection
     private volatile long lastTabCloseTime = 0; // Timestamp of last tab close to prevent QuickConnect
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
+    /** Consumer reference for file browser position listener, stored so it can be removed on close. */
+    private Consumer<LocalFileBrowserManager.Position> fileBrowserPositionListener;
     
     public MainWindow(Stage stage) {
         instance = this;  // Set singleton instance
@@ -579,6 +591,11 @@ public class MainWindow {
             } else {
                 stopJobSchedulerStatusUpdates();
                 closeAllTabs();
+                // Deregister file browser manager listener to prevent memory leaks and stale callbacks
+                if (fileBrowserManager != null && fileBrowserPositionListener != null) {
+                    fileBrowserManager.removePositionListener(fileBrowserPositionListener);
+                    fileBrowserPositionListener = null;
+                }
                 openWindows.remove(this);
 
                 // On macOS the application stays alive after the last window closes so the
@@ -1170,6 +1187,36 @@ public class MainWindow {
             systemShowMenuBarMenuItem = menuBarItem;
         }
 
+        // File Browser submenu
+        Menu fileBrowserMenu = new Menu(I18n.get("menu.view.fileBrowser"));
+        CheckMenuItem fileBrowserLeftItem = new CheckMenuItem(I18n.get("menu.view.fileBrowser.left"));
+        fileBrowserLeftItem.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        fileBrowserLeftItem.setOnAction(e -> {
+            if (fileBrowserLeftItem.isSelected()) {
+                toggleFileBrowser(LocalFileBrowserManager.Position.LEFT);
+            } else {
+                fileBrowserManager.hide();
+            }
+        });
+        CheckMenuItem fileBrowserRightItem = new CheckMenuItem(I18n.get("menu.view.fileBrowser.right"));
+        fileBrowserRightItem.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        fileBrowserRightItem.setOnAction(e -> {
+            if (fileBrowserRightItem.isSelected()) {
+                toggleFileBrowser(LocalFileBrowserManager.Position.RIGHT);
+            } else {
+                fileBrowserManager.hide();
+            }
+        });
+        // Store references for both window and system menus so syncFileBrowserMenuItems can update both
+        if (target == MenuBarTarget.WINDOW) {
+            showFileBrowserLeftMenuItem = fileBrowserLeftItem;
+            showFileBrowserRightMenuItem = fileBrowserRightItem;
+        } else {
+            systemShowFileBrowserLeftMenuItem = fileBrowserLeftItem;
+            systemShowFileBrowserRightMenuItem = fileBrowserRightItem;
+        }
+        fileBrowserMenu.getItems().addAll(fileBrowserLeftItem, fileBrowserRightItem);
+
         MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
@@ -1190,7 +1237,7 @@ public class MainWindow {
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
 
-        viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(), fullscreen);
         return viewMenu;
     }
@@ -1678,6 +1725,7 @@ public class MainWindow {
                     }
                     stored.setTerminalEffectPluginId(result.connection().getTerminalEffectPluginId());
                     stored.setTerminalEffectAnimationSpeed(result.connection().getTerminalEffectAnimationSpeed());
+                    stored.setTerminalEmulationType(result.connection().getTerminalEmulationType());
                     app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
                 }
             }
@@ -1756,6 +1804,7 @@ public class MainWindow {
                     }
                     stored.setTerminalEffectPluginId(result.connection().getTerminalEffectPluginId());
                     stored.setTerminalEffectAnimationSpeed(result.connection().getTerminalEffectAnimationSpeed());
+                    stored.setTerminalEmulationType(result.connection().getTerminalEmulationType());
                     app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
                 }
             }
@@ -1994,6 +2043,9 @@ public class MainWindow {
             }
             if (dashboardView != null) {
                 dashboardView.applyTheme(bg, fg);
+            }
+            if (localFileBrowser != null) {
+                localFileBrowser.applyTheme(bg, fg);
             }
             updateDynamicThemeStylesheet(bg, fg);
         } catch (Exception e) {
@@ -2465,6 +2517,9 @@ public class MainWindow {
     }
     
     private static final int DASHBOARD_FIXED_WIDTH = 300;
+    private static final int FILE_BROWSER_DEFAULT_WIDTH = 220;
+    private static final int FILE_BROWSER_MIN_WIDTH = 160;
+    private static final int FILE_BROWSER_MAX_WIDTH = 420;
 
     private void syncDashboardMenuItems(boolean visible) {
         if (showDashboardMenuItem != null && showDashboardMenuItem.isSelected() != visible) {
@@ -2472,6 +2527,91 @@ public class MainWindow {
         }
         if (systemShowDashboardMenuItem != null && systemShowDashboardMenuItem.isSelected() != visible) {
             systemShowDashboardMenuItem.setSelected(visible);
+        }
+    }
+
+    private void toggleFileBrowser(LocalFileBrowserManager.Position position) {
+        if (fileBrowserManager == null) {
+            fileBrowserManager = LocalFileBrowserManager.getInstance();
+            fileBrowserPositionListener = pos -> onFileBrowserPositionChanged(pos);
+            fileBrowserManager.addPositionListener(fileBrowserPositionListener);
+        }
+
+        fileBrowserManager.toggle(position);
+    }
+
+    private void onFileBrowserPositionChanged(LocalFileBrowserManager.Position position) {
+        // Lazy-create the file browser and divider when first shown
+        if (position != LocalFileBrowserManager.Position.HIDDEN && localFileBrowser == null) {
+            localFileBrowser = new LocalFileBrowser();
+            localFileBrowser.setMinWidth(FILE_BROWSER_MIN_WIDTH);
+            localFileBrowser.setPrefWidth(FILE_BROWSER_DEFAULT_WIDTH);
+            localFileBrowser.setMaxWidth(FILE_BROWSER_MAX_WIDTH);
+
+            fileBrowserDivider = new ResizableDivider(Orientation.VERTICAL);
+            fileBrowserDivider.setResizeListener(delta -> {
+                double currentWidth = localFileBrowser.getPrefWidth();
+                double directionalDelta =
+                    fileBrowserManager.getPosition() == LocalFileBrowserManager.Position.RIGHT ? -delta : delta;
+                double newWidth = currentWidth + directionalDelta;
+                newWidth = Math.max(FILE_BROWSER_MIN_WIDTH, Math.min(FILE_BROWSER_MAX_WIDTH, newWidth));
+                localFileBrowser.setPrefWidth(newWidth);
+                fileBrowserManager.setPreferredWidth(newWidth);
+                return newWidth;
+            });
+        }
+
+        // Remove from current position if visible
+        if (localFileBrowser != null && mainContentBox.getChildren().contains(localFileBrowser)) {
+            mainContentBox.getChildren().remove(localFileBrowser);
+        }
+        if (fileBrowserDivider != null && mainContentBox.getChildren().contains(fileBrowserDivider)) {
+            mainContentBox.getChildren().remove(fileBrowserDivider);
+        }
+
+        if (position == LocalFileBrowserManager.Position.HIDDEN) {
+            // Hidden
+            syncFileBrowserMenuItems(LocalFileBrowserManager.Position.HIDDEN);
+        } else if (position == LocalFileBrowserManager.Position.LEFT) {
+            // Restore saved width
+            restoreFileBrowserWidth();
+            // Insert browser first, then divider so the sidebar is flush with the window edge.
+            int insertIndex = 0;
+            mainContentBox.getChildren().add(insertIndex, localFileBrowser);
+            mainContentBox.getChildren().add(insertIndex + 1, fileBrowserDivider);
+            syncFileBrowserMenuItems(LocalFileBrowserManager.Position.LEFT);
+            applyMainWindowThemeFromGlobalSettings();
+        } else if (position == LocalFileBrowserManager.Position.RIGHT) {
+            // Restore saved width
+            restoreFileBrowserWidth();
+            // Insert divider first, then browser so the sidebar is flush with the window edge.
+            mainContentBox.getChildren().add(fileBrowserDivider);
+            mainContentBox.getChildren().add(localFileBrowser);
+            syncFileBrowserMenuItems(LocalFileBrowserManager.Position.RIGHT);
+            applyMainWindowThemeFromGlobalSettings();
+        }
+    }
+
+    private void restoreFileBrowserWidth() {
+        double clampedWidth = Math.max(
+            FILE_BROWSER_MIN_WIDTH,
+            Math.min(FILE_BROWSER_MAX_WIDTH, fileBrowserManager.getPreferredWidth()));
+        localFileBrowser.setPrefWidth(clampedWidth);
+        fileBrowserManager.setPreferredWidth(clampedWidth);
+    }
+
+    private void syncFileBrowserMenuItems(LocalFileBrowserManager.Position position) {
+        if (showFileBrowserLeftMenuItem != null) {
+            showFileBrowserLeftMenuItem.setSelected(position == LocalFileBrowserManager.Position.LEFT);
+        }
+        if (showFileBrowserRightMenuItem != null) {
+            showFileBrowserRightMenuItem.setSelected(position == LocalFileBrowserManager.Position.RIGHT);
+        }
+        if (systemShowFileBrowserLeftMenuItem != null) {
+            systemShowFileBrowserLeftMenuItem.setSelected(position == LocalFileBrowserManager.Position.LEFT);
+        }
+        if (systemShowFileBrowserRightMenuItem != null) {
+            systemShowFileBrowserRightMenuItem.setSelected(position == LocalFileBrowserManager.Position.RIGHT);
         }
     }
 
@@ -3143,10 +3283,19 @@ public class MainWindow {
             showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
             return;
         }
+        String effectiveModel = effectiveProfile != null ? effectiveProfile.getModel() : null;
+        if (effectiveModel == null || effectiveModel.isBlank()) {
+            showError(I18n.get("ai.error.title"), I18n.get("settings.ai.error.noModel"));
+            return;
+        }
 
         AiService aiService = createAiService(effectiveProfile);
         if (aiService == null) {
             showAiConfigurationDialog();
+            return;
+        }
+        if (aiService instanceof FailingAiService failingService) {
+            showError(I18n.get("ai.error.title"), failingService.message());
             return;
         }
         String connectionName = terminalTab.getConnection() != null ? terminalTab.getConnection().getDisplayName() : null;

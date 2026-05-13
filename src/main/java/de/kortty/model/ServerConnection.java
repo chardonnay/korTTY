@@ -54,6 +54,10 @@ public class ServerConnection {
     /** Terminal effect animation speed multiplier for this connection. Null = default. */
     @XmlElement
     private Double terminalEffectAnimationSpeed;
+
+    /** SithTermFX terminal emulation type stored as enum name. */
+    @XmlElement
+    private String terminalEmulationType = "XTERM";
     
     @XmlElement
     private String group;
@@ -143,6 +147,7 @@ public class ServerConnection {
         c.windowGeometry = source.windowGeometry;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.terminalEmulationType = source.getTerminalEmulationType();
         c.group = source.group;
         c.usageCount = source.usageCount;
         c.lastUsed = source.lastUsed;
@@ -275,6 +280,16 @@ public class ServerConnection {
 
     public void setTerminalEffectAnimationSpeed(Double terminalEffectAnimationSpeed) {
         this.terminalEffectAnimationSpeed = terminalEffectAnimationSpeed;
+    }
+
+    public String getTerminalEmulationType() {
+        return terminalEmulationType != null && !terminalEmulationType.isBlank()
+                ? terminalEmulationType
+                : "XTERM";
+    }
+
+    public void setTerminalEmulationType(String terminalEmulationType) {
+        this.terminalEmulationType = terminalEmulationType;
     }
     
     public String getGroup() {
