@@ -70,6 +70,7 @@ public class SshTtyConnector implements TtyConnector {
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
     private final CopyOnWriteArrayList<DataListener> dataListeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<InputActivityListener> inputActivityListeners = new CopyOnWriteArrayList<>();
     private volatile InputInterceptor inputInterceptor;
     private volatile String shellStartupCommand;
     private volatile boolean shellStartupCleanupPending;
@@ -621,9 +622,20 @@ public class SshTtyConnector implements TtyConnector {
                 if (bytesToWrite == null || bytesToWrite.length == 0) {
                     return;
                 }
+                notifyInputActivity(bytesToWrite.length);
                 trackPotentialDirectoryChange(bytesToWrite);
                 outputStream.write(bytesToWrite);
                 outputStream.flush();
+            }
+        }
+    }
+
+    private void notifyInputActivity(int byteCount) {
+        for (InputActivityListener listener : inputActivityListeners) {
+            try {
+                listener.onInputActivity(byteCount);
+            } catch (Exception e) {
+                logger.warn("Input activity listener error: {}", e.getMessage());
             }
         }
     }
@@ -685,6 +697,18 @@ public class SshTtyConnector implements TtyConnector {
     public void removeDataListener(DataListener listener) {
         if (listener != null) {
             dataListeners.remove(listener);
+        }
+    }
+
+    public void addInputActivityListener(InputActivityListener listener) {
+        if (listener != null) {
+            inputActivityListeners.addIfAbsent(listener);
+        }
+    }
+
+    public void removeInputActivityListener(InputActivityListener listener) {
+        if (listener != null) {
+            inputActivityListeners.remove(listener);
         }
     }
 
@@ -1576,6 +1600,14 @@ public class SshTtyConnector implements TtyConnector {
      */
     public interface DataListener {
         void onData(String data);
+    }
+
+    /**
+     * Listener for outbound terminal input activity. It deliberately receives only a byte count
+     * so features can react to activity without persisting user input text.
+     */
+    public interface InputActivityListener {
+        void onInputActivity(int byteCount);
     }
 
     /**

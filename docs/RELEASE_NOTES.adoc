@@ -2,6 +2,19 @@
 
 == Unreleased
 
+=== Terminal Recording
+
+* *Lightweight replay recording*: Terminal recording can be enabled for the current app session in the Video Manager or permanently in *Settings > Video*. SSH terminal tabs can then start/stop recording from the terminal bar, *Tools > Start/Stop Terminal Recording*, or *Ctrl/Cmd+Shift+E*. Recording stores screen-state replay events instead of continuous pixel capture.
+* *One file per tab session*: Multiple start/stop segments in the same terminal tab append to one JDK/GZIP streaming-compressed `.korttyrec.jsonl.gz` file until the tab closes; existing `.korttyrec.jsonl` replay files remain readable.
+* *Split-aware scope*: When a tab has split terminals, recording can target the active split or the whole tab.
+* *Auto-pause*: Recording automatically pauses after the configured idle threshold when neither visible terminal output nor user input activity changes the terminal, and resumes on the next activity.
+* *Video Manager*: *Tools > Video Manager...* enables terminal recording for the current app session, configures storage path, default format, default scope, optional color capture, auto-pause threshold, optional `ffmpeg` path, replay listing, in-app replay viewing, rename/delete actions, and video export.
+* *Replay viewer controls*: In-app replay viewing includes a timeline slider, a time-jump field accepting minute and `MM:SS` input up to the replay duration, and playback speed from 1x to 20x.
+* *Color and geometry metadata*: New replay screen events can store terminal geometry and optional per-cell color/style runs. Color capture is off by default to keep replay files small.
+* *Export options and progress*: Video export shows an options dialog for full/custom time ranges, color inclusion, and open export format selection. The progress dialog shows the current export phase and an estimated remaining time while frames are rendered and `ffmpeg` encodes the video.
+* *Optional WebM/MKV export*: Replay files can be exported to WebM/VP9 or MKV/FFV1 when `ffmpeg` is found on `PATH` or configured explicitly. The export uses replay timestamps instead of a fixed frame rate, uses recorded terminal geometry or a computed legacy fallback to avoid cropping, and renders frames with bounded CPU parallelism. If `ffmpeg` is missing, replay recording remains available and export is disabled.
+* *No streaming*: Live/network streaming is intentionally not implemented.
+
 === Snippet Editor AI, Diagrams, and Profiles
 
 * *Cursor-aware AI completion*: The snippet editor can request a completion at the current caret location. Suggestions are shown as ghost text and are inserted only when the user clicks them.
@@ -101,7 +114,7 @@
 
 === Documentation
 
-* README, User Guide, and Release Notes now describe JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, AI Skills, Terminal AI Agent usage, terminal-effect plugins, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
+* README, User Guide, and Release Notes now describe terminal recording, JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, AI Skills, Terminal AI Agent usage, terminal-effect plugins, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
 * Added `docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
 * Updated and re-rendered the architecture, module overview, AI API integration, snippet editor workflow, connection flow, session lifecycle, and terminal-effect plugin lifecycle diagrams.
 

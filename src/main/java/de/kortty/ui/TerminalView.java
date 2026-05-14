@@ -5,6 +5,7 @@ import com.sithtermfx.core.Terminal;
 import com.sithtermfx.core.TerminalColor;
 import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.model.SithTerminal;
+import com.sithtermfx.core.model.TerminalModelListener;
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
@@ -22,11 +23,15 @@ import de.kortty.core.NativeMoshTtyConnector;
 import de.kortty.core.DisconnectListener;
 import de.kortty.core.TerminalEmulationSupport;
 import de.kortty.core.TerminalAgentCommandSupport;
+import de.kortty.core.TerminalRecordingScreenSnapshot;
+import de.kortty.core.TerminalRecordingSession;
+import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.TerminalRecordingScope;
 import de.kortty.model.Theme;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.plugin.terminaleffects.TerminalEffectAppearance;
@@ -239,6 +244,8 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, TerminalAgentRunState> terminalAgentRunStates = new ConcurrentHashMap<>();
     private SshTtyConnector.DataListener terminalLoggerDataListener;
     private final Map<SshTtyConnector, SshTtyConnector.DataListener> terminalAgentPromptDataListeners = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, TerminalModelListener> terminalRecordingModelListeners = new ConcurrentHashMap<>();
+    private final Map<SshTtyConnector, SshTtyConnector.InputActivityListener> terminalRecordingInputListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
     private final StringBuilder agentShortcutPromptTail = new StringBuilder();
     private final Map<SshTtyConnector, StringBuilder> terminalAgentOscBuffers = new ConcurrentHashMap<>();
@@ -246,6 +253,9 @@ public class TerminalView extends BorderPane {
     private volatile boolean timestampGuttersVisibleState;
     private double terminalEffectAnimationSpeed = TerminalEffectAnimationSpeed.DEFAULT;
     private ActiveTerminalEffect activeTerminalEffect;
+    private volatile TerminalRecordingSession terminalRecordingSession;
+    private volatile TerminalRecordingScope terminalRecordingScope = TerminalRecordingScope.ACTIVE_SPLIT;
+    private volatile List<SithTermFxWidget> terminalRecordingTargetWidgets = List.of();
     
     public TerminalView(ServerConnection connection, String password) {
         this(connection, password, null);
@@ -1053,6 +1063,290 @@ public class TerminalView extends BorderPane {
         return ttyConnector instanceof SshTtyConnector sshConnector ? sshConnector : null;
     }
 
+    public int getRecordingWidgetCount() {
+        if (splitPane != null) {
+            return splitPane.getWidgetCount();
+        }
+        return terminalWidget != null ? 1 : 0;
+    }
+
+    public synchronized void attachTerminalRecordingSession(
+        TerminalRecordingSession session,
+        TerminalRecordingScope scope) {
+        detachTerminalRecordingSession();
+        if (session == null) {
+            return;
+        }
+        terminalRecordingSession = session;
+        terminalRecordingScope = scope != null ? scope : TerminalRecordingScope.ACTIVE_SPLIT;
+        List<SithTermFxWidget> targetWidgets = resolveRecordingWidgets(terminalRecordingScope);
+        terminalRecordingTargetWidgets = List.copyOf(targetWidgets);
+        for (SithTermFxWidget widget : targetWidgets) {
+            installTerminalRecordingModelListener(widget);
+            installTerminalRecordingInputListener(widget != null ? widget.getTtyConnector() : null);
+            recordTerminalRecordingSnapshot(widget);
+        }
+    }
+
+    public synchronized void detachTerminalRecordingSession() {
+        for (Map.Entry<SithTermFxWidget, TerminalModelListener> entry : terminalRecordingModelListeners.entrySet()) {
+            SithTermFxWidget widget = entry.getKey();
+            if (widget != null && widget.getTerminalTextBuffer() != null) {
+                widget.getTerminalTextBuffer().removeModelListener(entry.getValue());
+            }
+        }
+        terminalRecordingModelListeners.clear();
+        for (Map.Entry<SshTtyConnector, SshTtyConnector.InputActivityListener> entry : terminalRecordingInputListeners.entrySet()) {
+            entry.getKey().removeInputActivityListener(entry.getValue());
+        }
+        terminalRecordingInputListeners.clear();
+        terminalRecordingSession = null;
+        terminalRecordingTargetWidgets = List.of();
+    }
+
+    private List<SithTermFxWidget> resolveRecordingWidgets(TerminalRecordingScope scope) {
+        if (scope == TerminalRecordingScope.WHOLE_TAB && splitPane != null) {
+            return splitPane.getAllWidgets();
+        }
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        return focused != null ? List.of(focused) : List.of();
+    }
+
+    private void installTerminalRecordingModelListener(SithTermFxWidget widget) {
+        TerminalRecordingSession session = terminalRecordingSession;
+        if (session == null || widget == null || widget.getTerminalTextBuffer() == null) {
+            return;
+        }
+        if (!isTerminalRecordingWidgetInScope(widget)) {
+            return;
+        }
+        terminalRecordingModelListeners.computeIfAbsent(widget, key -> {
+            TerminalModelListener listener = () -> recordTerminalRecordingSnapshot(key);
+            key.getTerminalTextBuffer().addModelListener(listener);
+            return listener;
+        });
+    }
+
+    private void installTerminalRecordingInputListener(TtyConnector connector) {
+        TerminalRecordingSession session = terminalRecordingSession;
+        TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
+        if (session == null || !(baseConnector instanceof SshTtyConnector sshConnector)) {
+            return;
+        }
+        if (!isTerminalRecordingConnectorInScope(sshConnector)) {
+            return;
+        }
+        terminalRecordingInputListeners.computeIfAbsent(sshConnector, key -> {
+            SshTtyConnector.InputActivityListener listener = byteCount -> {
+                if (terminalRecordingSession == session && isTerminalRecordingConnectorInScope(key)) {
+                    session.recordUserInputActivity();
+                }
+            };
+            key.addInputActivityListener(listener);
+            return listener;
+        });
+    }
+
+    private boolean isTerminalRecordingWidgetInScope(SithTermFxWidget widget) {
+        if (widget == null || terminalRecordingSession == null) {
+            return false;
+        }
+        return terminalRecordingScope == TerminalRecordingScope.WHOLE_TAB
+            || terminalRecordingTargetWidgets.contains(widget);
+    }
+
+    private boolean isTerminalRecordingConnectorInScope(SshTtyConnector connector) {
+        if (connector == null || terminalRecordingSession == null) {
+            return false;
+        }
+        if (terminalRecordingScope == TerminalRecordingScope.WHOLE_TAB) {
+            return true;
+        }
+        for (SithTermFxWidget widget : terminalRecordingTargetWidgets) {
+            if (widget != null && unwrapTerminalEffectConnector(widget.getTtyConnector()) == connector) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void recordTerminalRecordingSnapshot(SithTermFxWidget widget) {
+        TerminalRecordingSession session = terminalRecordingSession;
+        if (session == null || widget == null || widget.getTerminalTextBuffer() == null) {
+            return;
+        }
+        try {
+            session.recordScreenSnapshot(
+                "terminal-" + Integer.toHexString(System.identityHashCode(widget)),
+                captureTerminalRecordingSnapshot(widget));
+        } catch (IllegalStateException e) {
+            logger.warn("Could not record terminal screen snapshot: {}", e.getMessage());
+        }
+    }
+
+    private TerminalRecordingScreenSnapshot captureTerminalRecordingSnapshot(SithTermFxWidget widget) {
+        var textBuffer = widget.getTerminalTextBuffer();
+        int pixelWidth = widget.getTerminalPanel() != null ? Math.max(0, widget.getTerminalPanel().getPixelWidth()) : 0;
+        int pixelHeight = widget.getTerminalPanel() != null ? Math.max(0, widget.getTerminalPanel().getPixelHeight()) : 0;
+        boolean captureColors = isTerminalRecordingColorCaptureEnabled();
+
+        textBuffer.lock();
+        try {
+            List<TerminalRecordingStyleRun> styleRuns = captureColors
+                ? captureTerminalStyleRuns(textBuffer, settings)
+                : List.of();
+            return new TerminalRecordingScreenSnapshot(
+                textBuffer.getScreenLines(),
+                textBuffer.getWidth(),
+                textBuffer.getHeight(),
+                pixelWidth,
+                pixelHeight,
+                styleRuns);
+        } finally {
+            textBuffer.unlock();
+        }
+    }
+
+    private boolean isTerminalRecordingColorCaptureEnabled() {
+        try {
+            GlobalSettings globalSettings = KorTTYApplication.getInstance()
+                .getGlobalSettingsManager()
+                .getSettings();
+            return globalSettings != null && globalSettings.isTerminalRecordingCaptureColorsEnabled();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    private static List<TerminalRecordingStyleRun> captureTerminalStyleRuns(
+        com.sithtermfx.core.model.TerminalTextBuffer textBuffer,
+        ConnectionSettings settings) {
+        List<TerminalRecordingStyleRun> runs = new ArrayList<>();
+        for (int row = 0; row < textBuffer.getHeight(); row++) {
+            var line = textBuffer.getLine(row);
+            if (line == null || line.isNulOrEmpty()) {
+                continue;
+            }
+            int column = 0;
+            for (var entry : line.getEntries()) {
+                String text = entry.getText() != null ? entry.getText().toString() : "";
+                if (!text.isEmpty()) {
+                    TextStyle style = entry.getStyle();
+                    runs.add(new TerminalRecordingStyleRun(
+                        row,
+                        column,
+                        text,
+                        terminalColorToHex(style != null ? style.getForeground() : null, style, settings, true),
+                        terminalColorToHex(style != null ? style.getBackground() : null, style, settings, false),
+                        terminalStyleOptions(style)));
+                }
+                column += Math.max(0, entry.getLength());
+            }
+        }
+        return runs;
+    }
+
+    private static List<String> terminalStyleOptions(TextStyle style) {
+        if (style == null) {
+            return List.of();
+        }
+        List<String> options = new ArrayList<>();
+        for (TextStyle.Option option : TextStyle.Option.values()) {
+            if (style.hasOption(option)) {
+                options.add(option.name());
+            }
+        }
+        return options;
+    }
+
+    private static String terminalColorToHex(
+        TerminalColor color,
+        TextStyle style,
+        ConnectionSettings settings,
+        boolean foreground) {
+        if (color == null) {
+            return null;
+        }
+        if (color.isIndexed()) {
+            return indexedTerminalColorToHex(color.getColorIndex(), style, settings, foreground);
+        }
+        com.sithtermfx.core.Color resolved;
+        try {
+            resolved = color.toColor();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        if (resolved == null) {
+            return null;
+        }
+        return String.format(
+            java.util.Locale.ROOT,
+            "#%02X%02X%02X",
+            resolved.getRed(),
+            resolved.getGreen(),
+            resolved.getBlue());
+    }
+
+    private static String indexedTerminalColorToHex(
+        int colorIndex,
+        TextStyle style,
+        ConnectionSettings settings,
+        boolean foreground) {
+        if (colorIndex < 0) {
+            return null;
+        }
+        if (colorIndex < 16) {
+            int ansiIndex = colorIndex % 8;
+            boolean bright = colorIndex >= 8
+                || (foreground
+                    && settings != null
+                    && settings.isBoldAsBright()
+                    && style != null
+                    && style.hasOption(TextStyle.Option.BOLD));
+            return settings != null
+                ? settings.getAnsiColor(ansiIndex, bright)
+                : defaultAnsiColor(ansiIndex, bright);
+        }
+        if (colorIndex < 232) {
+            int value = colorIndex - 16;
+            int red = xtermColorCubeValue((value / 36) % 6);
+            int green = xtermColorCubeValue((value / 6) % 6);
+            int blue = xtermColorCubeValue(value % 6);
+            return rgbToHex(red, green, blue);
+        }
+        if (colorIndex < 256) {
+            int level = 8 + ((colorIndex - 232) * 10);
+            return rgbToHex(level, level, level);
+        }
+        return null;
+    }
+
+    private static int xtermColorCubeValue(int component) {
+        return component == 0 ? 0 : 55 + (component * 40);
+    }
+
+    private static String defaultAnsiColor(int index, boolean bright) {
+        return switch (index) {
+            case 0 -> bright ? "#7F7F7F" : "#000000";
+            case 1 -> bright ? "#FF0000" : "#CD0000";
+            case 2 -> bright ? "#00FF00" : "#00CD00";
+            case 3 -> bright ? "#FFFF00" : "#CDCD00";
+            case 4 -> bright ? "#5C5CFF" : "#0000EE";
+            case 5 -> bright ? "#FF00FF" : "#CD00CD";
+            case 6 -> bright ? "#00FFFF" : "#00CDCD";
+            default -> bright ? "#FFFFFF" : "#E5E5E5";
+        };
+    }
+
+    private static String rgbToHex(int red, int green, int blue) {
+        return String.format(
+            java.util.Locale.ROOT,
+            "#%02X%02X%02X",
+            Math.max(0, Math.min(255, red)),
+            Math.max(0, Math.min(255, green)),
+            Math.max(0, Math.min(255, blue)));
+    }
+
     private TtyConnector decorateTerminalConnector(SithTermFxWidget widget, TtyConnector connector) {
         if (connector == null) {
             return null;
@@ -1060,6 +1354,7 @@ public class TerminalView extends BorderPane {
         TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
         applyTerminalEmulation(widget, baseConnector);
         installAgentShortcutInputInterceptor(widget, baseConnector);
+        installTerminalRecordingInputListener(baseConnector);
         ActiveTerminalEffect effect = activeTerminalEffect;
         if (effect == null) {
             return baseConnector;
@@ -1899,6 +2194,7 @@ public class TerminalView extends BorderPane {
                 }
             });
         }
+        installTerminalRecordingModelListener(widget);
     }
 
     private void installAgentShortcutEventDispatcher(SithTermFxWidget widget) {
@@ -3839,6 +4135,7 @@ public class TerminalView extends BorderPane {
      */
     public void cleanup() {
         stopAllTerminalAgentShellKeepAlives();
+        detachTerminalRecordingSession();
         stopLogger();
         stopActiveTerminalEffect();
         if (ttyConnector != null) {

@@ -124,6 +124,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalDragDropCheck;
     private final CheckBox terminalCopyOnSelectCheck;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
+    private final CheckBox terminalRecordingAlwaysEnabledCheck;
+    private final CheckBox terminalRecordingCaptureColorsCheck;
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
@@ -502,6 +504,27 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(connectionRetriesEnabledCheck, 0, 16, 2, 1);
         
         terminalTab.setContent(terminalGrid);
+
+        // Video tab
+        Tab videoTab = new Tab(I18n.get("settings.tab.video"));
+        GridPane videoGrid = new GridPane();
+        videoGrid.setHgap(10);
+        videoGrid.setVgap(10);
+        videoGrid.setPadding(new Insets(20));
+
+        terminalRecordingAlwaysEnabledCheck = new CheckBox(I18n.get("settings.video.recordingAlwaysEnabled"));
+        terminalRecordingAlwaysEnabledCheck.setSelected(globalSettings != null && globalSettings.isTerminalRecordingEnabled());
+        terminalRecordingAlwaysEnabledCheck.setTooltip(
+            new Tooltip(I18n.get("settings.video.recordingAlwaysEnabled.tooltip")));
+
+        terminalRecordingCaptureColorsCheck = new CheckBox(I18n.get("settings.video.captureColors"));
+        terminalRecordingCaptureColorsCheck.setSelected(
+            globalSettings != null && globalSettings.isTerminalRecordingCaptureColorsEnabled());
+        terminalRecordingCaptureColorsCheck.setTooltip(new Tooltip(I18n.get("settings.video.captureColors.tooltip")));
+
+        videoGrid.add(terminalRecordingAlwaysEnabledCheck, 0, 0, 2, 1);
+        videoGrid.add(terminalRecordingCaptureColorsCheck, 0, 1, 2, 1);
+        videoTab.setContent(videoGrid);
         
         // Backup tab
         Tab backupTab = new Tab(I18n.get("settings.tab.backup"));
@@ -1861,7 +1884,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Themes tab
         Tab themesTab = createThemesTab(owner);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, videoTab, backupTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
         
         final double defaultContentWidth = 1000;
         final double minimumContentWidth = 860;
@@ -1956,6 +1979,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
+            globalSettings.setTerminalRecordingEnabled(terminalRecordingAlwaysEnabledCheck.isSelected());
+            globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
             

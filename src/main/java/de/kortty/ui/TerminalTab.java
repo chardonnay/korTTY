@@ -2,32 +2,50 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.ConnectionSettingsSupport;
+import de.kortty.core.TerminalRecordingService;
+import de.kortty.core.TerminalRecordingSession;
+import de.kortty.core.TerminalRecordingState;
+import de.kortty.core.TerminalRecordingRuntimeState;
 import de.kortty.core.ThemeManager;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ConnectionProtocol;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.TerminalRecordingScope;
 import de.kortty.model.TemporarySSHKey;
 import de.kortty.model.Theme;
 import javafx.application.Platform;
+import javafx.scene.Node;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Tab;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
 import javafx.scene.input.MouseButton;
+import javafx.scene.shape.SVGPath;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * A tab containing a terminal view for an SSH session.
  */
 public class TerminalTab extends Tab {
+
+    private static final String ICON_VIDEO =
+        "M17 10.5V6c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v12c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-4.5l4 4v-11z";
+    private static final String ICON_STOP =
+        "M6 6h12v12H6z";
 
     private final ServerConnection connection;
     private final TerminalView terminalView;
@@ -39,6 +57,12 @@ public class TerminalTab extends Tab {
     private Timeline statusBarTimer;
     private Label statusBarLabel;
     private Label disconnectedStatusBar;
+    private HBox recordingBar;
+    private Button recordingToggleButton;
+    private Label recordingStatusLabel;
+    private TerminalRecordingSession recordingSession;
+    private TerminalRecordingScope activeRecordingScope;
+    private boolean recordingControlsRevealedByUser;
     private Instant disconnectedAt;
     private volatile boolean reconnectInProgress = false;
     /** True when the red disconnected bar was shown due to mosh network interruption (so we hide it on recovery). */
@@ -66,12 +90,16 @@ public class TerminalTab extends Tab {
         createStatusBar();
         // Create disconnected status bar (red bar, shown when server disconnects; double-click to reconnect)
         createDisconnectedStatusBar();
+        createRecordingBar();
         
         updateTabTitle();
         
         // Create container with terminal view and status bars
         javafx.scene.layout.VBox container = new javafx.scene.layout.VBox();
         container.getChildren().add(terminalView);
+        if (recordingBar != null) {
+            container.getChildren().add(recordingBar);
+        }
         if (statusBarLabel != null) {
             container.getChildren().add(statusBarLabel);
         }
@@ -97,6 +125,7 @@ public class TerminalTab extends Tab {
                     return;
                 }
             }
+            closeRecordingResources();
             terminalView.cleanup();
         stopStatusBarTimer();
         });
@@ -146,6 +175,190 @@ public class TerminalTab extends Tab {
             if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
                 triggerReconnect();
             }
+        });
+    }
+
+    private void createRecordingBar() {
+        recordingToggleButton = new Button(I18n.get("terminal.recording.start"));
+        setRecordingButtonIcon(false);
+        recordingToggleButton.setGraphicTextGap(6);
+        recordingToggleButton.setOnAction(event -> toggleRecordingFromUser());
+        recordingStatusLabel = new Label(I18n.get("terminal.recording.idle"));
+        recordingStatusLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 11px;");
+        recordingBar = new HBox(8, recordingToggleButton, recordingStatusLabel);
+        recordingBar.setStyle("-fx-background-color: #242424; -fx-padding: 4 8 4 8;");
+        updateRecordingUi(TerminalRecordingState.IDLE);
+    }
+
+    public void toggleRecordingFromUser() {
+        if (recordingSession != null && recordingSession.isActive()) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    }
+
+    public void toggleRecordingFromMenuOrShortcut() {
+        recordingControlsRevealedByUser = true;
+        refreshRecordingControlsVisibility();
+        toggleRecordingFromUser();
+    }
+
+    public boolean isRecordingActive() {
+        return recordingSession != null && recordingSession.isActive();
+    }
+
+    public void refreshRecordingControlsVisibility() {
+        if (recordingBar == null) {
+            return;
+        }
+        boolean visible = isTerminalRecordingEnabled()
+            || recordingControlsRevealedByUser
+            || isRecordingActive();
+        recordingBar.setVisible(visible);
+        recordingBar.setManaged(visible);
+    }
+
+    private void startRecording() {
+        if (!isTerminalRecordingEnabled()) {
+            showRecordingError(I18n.get("terminal.recording.error.disabled"));
+            refreshRecordingControlsVisibility();
+            return;
+        }
+        if (!terminalView.isConnected()) {
+            showRecordingError(I18n.get("terminal.recording.error.notConnected"));
+            return;
+        }
+        try {
+            TerminalRecordingScope scope = chooseRecordingScope();
+            if (scope == null) {
+                return;
+            }
+            TerminalRecordingSession session = ensureRecordingSession();
+            activeRecordingScope = scope;
+            session.start(scope);
+            terminalView.attachTerminalRecordingSession(session, scope);
+            updateRecordingUi(session.getState());
+        } catch (IOException | RuntimeException e) {
+            showRecordingError(I18n.get("terminal.recording.error.start", e.getMessage()));
+        }
+    }
+
+    private void stopRecording() {
+        if (recordingSession == null) {
+            return;
+        }
+        try {
+            terminalView.detachTerminalRecordingSession();
+            recordingSession.stop();
+            updateRecordingUi(recordingSession.getState());
+        } catch (IOException | RuntimeException e) {
+            showRecordingError(I18n.get("terminal.recording.error.stop", e.getMessage()));
+        }
+    }
+
+    public void closeRecordingResources() {
+        terminalView.detachTerminalRecordingSession();
+        if (recordingSession == null) {
+            return;
+        }
+        try {
+            recordingSession.close();
+        } catch (IOException e) {
+            showRecordingError(I18n.get("terminal.recording.error.close", e.getMessage()));
+        } finally {
+            recordingSession = null;
+            activeRecordingScope = null;
+            updateRecordingUi(TerminalRecordingState.IDLE);
+        }
+    }
+
+    private TerminalRecordingSession ensureRecordingSession() throws IOException {
+        if (recordingSession != null) {
+            return recordingSession;
+        }
+        GlobalSettings globalSettings = KorTTYApplication.getInstance()
+            .getGlobalSettingsManager()
+            .getSettings();
+        recordingSession = new TerminalRecordingService().createSession(
+            globalSettings,
+            connection.getDisplayName(),
+            aiSessionId);
+        recordingSession.setStateListener(state -> Platform.runLater(() -> updateRecordingUi(state)));
+        return recordingSession;
+    }
+
+    private TerminalRecordingScope chooseRecordingScope() {
+        GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+        TerminalRecordingScope defaultScope = settings != null
+            ? settings.getTerminalRecordingDefaultScope()
+            : TerminalRecordingScope.ACTIVE_SPLIT;
+        if (terminalView.getRecordingWidgetCount() <= 1) {
+            return defaultScope;
+        }
+        ChoiceDialog<TerminalRecordingScope> dialog = new ChoiceDialog<>(
+            defaultScope,
+            List.of(TerminalRecordingScope.ACTIVE_SPLIT, TerminalRecordingScope.WHOLE_TAB));
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.setTitle(I18n.get("terminal.recording.scope.title"));
+        dialog.setHeaderText(I18n.get("terminal.recording.scope.header"));
+        dialog.setContentText(I18n.get("terminal.recording.scope.content"));
+        return dialog.showAndWait().orElse(null);
+    }
+
+    private void updateRecordingUi(TerminalRecordingState state) {
+        if (recordingBar == null || recordingToggleButton == null || recordingStatusLabel == null) {
+            return;
+        }
+        boolean active = state == TerminalRecordingState.RECORDING || state == TerminalRecordingState.AUTO_PAUSED;
+        refreshRecordingControlsVisibility();
+        recordingToggleButton.setText(active
+            ? I18n.get("terminal.recording.stop")
+            : I18n.get("terminal.recording.start"));
+        setRecordingButtonIcon(active);
+        if (recordingSession == null || state == TerminalRecordingState.IDLE) {
+            recordingStatusLabel.setText(I18n.get("terminal.recording.idle"));
+        } else if (state == TerminalRecordingState.AUTO_PAUSED) {
+            recordingStatusLabel.setText(I18n.get("terminal.recording.autoPaused", recordingSession.getReplayFile()));
+        } else if (state == TerminalRecordingState.RECORDING) {
+            recordingStatusLabel.setText(I18n.get("terminal.recording.active", activeRecordingScope, recordingSession.getReplayFile()));
+        } else {
+            recordingStatusLabel.setText(I18n.get("terminal.recording.stopped", recordingSession.getReplayFile()));
+        }
+    }
+
+    private boolean isTerminalRecordingEnabled() {
+        try {
+            GlobalSettings globalSettings = KorTTYApplication.getInstance()
+                .getGlobalSettingsManager()
+                .getSettings();
+            return TerminalRecordingRuntimeState.isTerminalRecordingEnabled(globalSettings);
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    private void setRecordingButtonIcon(boolean active) {
+        recordingToggleButton.setGraphic(icon(active ? ICON_STOP : ICON_VIDEO));
+    }
+
+    private static Node icon(String path) {
+        SVGPath icon = new SVGPath();
+        icon.setContent(path);
+        icon.setStyle("-fx-fill: -fx-text-base-color;");
+        icon.setScaleX(0.72);
+        icon.setScaleY(0.72);
+        return icon;
+    }
+
+    private void showRecordingError(String message) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            DialogThemeHelper.applyTheme(alert);
+            alert.setTitle(I18n.get("terminal.recording.error.title"));
+            alert.setHeaderText(I18n.get("terminal.recording.error.header"));
+            alert.setContentText(message);
+            alert.showAndWait();
         });
     }
     
@@ -468,6 +681,7 @@ public class TerminalTab extends Tab {
     private void closeTabSilently() {
         TabPane tabPane = getTabPane();
         if (tabPane != null) {
+            closeRecordingResources();
             // Suppress QuickConnect if + tab might be selected after removal
             MainWindow.suppressNextQuickConnect();
             // Remove close request handler temporarily to avoid confirmation

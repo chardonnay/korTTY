@@ -75,6 +75,30 @@ public class GlobalSettings {
     private boolean commandTimestampsEnabled = false; // Show timestamp gutter in terminal
 
     @XmlElement
+    private boolean terminalRecordingEnabled = false;
+
+    @XmlElement
+    private String terminalRecordingStoragePath; // Blank/null = ~/.kortty/recordings
+
+    @XmlElement
+    private TerminalRecordingFormat terminalRecordingFormat = TerminalRecordingFormat.KORTTY_REPLAY;
+
+    @XmlElement
+    private TerminalRecordingScope terminalRecordingDefaultScope = TerminalRecordingScope.ACTIVE_SPLIT;
+
+    @XmlElement
+    private boolean terminalRecordingAutoPauseEnabled = true;
+
+    @XmlElement
+    private Integer terminalRecordingIdlePauseSeconds = 20;
+
+    @XmlElement
+    private String terminalRecordingFfmpegPath; // Blank/null = ffmpeg from PATH
+
+    @XmlElement
+    private boolean terminalRecordingCaptureColorsEnabled = false;
+
+    @XmlElement
     private boolean terminalDragDropEnabled = true; // Allow drag-and-drop file copy into terminal
 
     @XmlElement
@@ -578,6 +602,87 @@ public class GlobalSettings {
     
     public void setCommandTimestampsEnabled(boolean commandTimestampsEnabled) {
         this.commandTimestampsEnabled = commandTimestampsEnabled;
+    }
+
+    public boolean isTerminalRecordingEnabled() {
+        return terminalRecordingEnabled;
+    }
+
+    public void setTerminalRecordingEnabled(boolean terminalRecordingEnabled) {
+        this.terminalRecordingEnabled = terminalRecordingEnabled;
+    }
+
+    public String getTerminalRecordingStoragePath() {
+        return terminalRecordingStoragePath;
+    }
+
+    public void setTerminalRecordingStoragePath(String terminalRecordingStoragePath) {
+        String trimmed = terminalRecordingStoragePath != null ? terminalRecordingStoragePath.trim() : "";
+        this.terminalRecordingStoragePath = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public TerminalRecordingFormat getTerminalRecordingFormat() {
+        return terminalRecordingFormat != null
+            ? terminalRecordingFormat
+            : TerminalRecordingFormat.KORTTY_REPLAY;
+    }
+
+    public void setTerminalRecordingFormat(TerminalRecordingFormat terminalRecordingFormat) {
+        this.terminalRecordingFormat = terminalRecordingFormat != null
+            ? terminalRecordingFormat
+            : TerminalRecordingFormat.KORTTY_REPLAY;
+    }
+
+    public TerminalRecordingScope getTerminalRecordingDefaultScope() {
+        return terminalRecordingDefaultScope != null
+            ? terminalRecordingDefaultScope
+            : TerminalRecordingScope.ACTIVE_SPLIT;
+    }
+
+    public void setTerminalRecordingDefaultScope(TerminalRecordingScope terminalRecordingDefaultScope) {
+        this.terminalRecordingDefaultScope = terminalRecordingDefaultScope != null
+            ? terminalRecordingDefaultScope
+            : TerminalRecordingScope.ACTIVE_SPLIT;
+    }
+
+    public boolean isTerminalRecordingAutoPauseEnabled() {
+        return terminalRecordingAutoPauseEnabled;
+    }
+
+    public void setTerminalRecordingAutoPauseEnabled(boolean terminalRecordingAutoPauseEnabled) {
+        this.terminalRecordingAutoPauseEnabled = terminalRecordingAutoPauseEnabled;
+    }
+
+    public int getTerminalRecordingIdlePauseSeconds() {
+        if (terminalRecordingIdlePauseSeconds == null) {
+            return 20;
+        }
+        return Math.max(1, Math.min(terminalRecordingIdlePauseSeconds, 3600));
+    }
+
+    public void setTerminalRecordingIdlePauseSeconds(Integer terminalRecordingIdlePauseSeconds) {
+        if (terminalRecordingIdlePauseSeconds == null) {
+            this.terminalRecordingIdlePauseSeconds = 20;
+        } else {
+            this.terminalRecordingIdlePauseSeconds = Math.max(1, Math.min(terminalRecordingIdlePauseSeconds, 3600));
+        }
+    }
+
+    public String getTerminalRecordingFfmpegPath() {
+        return terminalRecordingFfmpegPath;
+    }
+
+    public void setTerminalRecordingFfmpegPath(String terminalRecordingFfmpegPath) {
+        String trimmed = terminalRecordingFfmpegPath != null ? terminalRecordingFfmpegPath.trim() : "";
+        this.terminalRecordingFfmpegPath = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public boolean isTerminalRecordingCaptureColorsEnabled() {
+        return terminalRecordingCaptureColorsEnabled;
+    }
+
+    public void setTerminalRecordingCaptureColorsEnabled(boolean terminalRecordingCaptureColorsEnabled) {
+        this.terminalRecordingCaptureColorsEnabled = terminalRecordingCaptureColorsEnabled;
     }
 
     public boolean isTerminalDragDropEnabled() {

@@ -54,6 +54,7 @@ image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
 * *SSH Tunnels*: Local and remote port forwarding (SSH tunnels)
 * *Jump Server*: Support for bastion hosts (SSH hopping)
 * *Terminal Logging*: Automatic logging of terminal sessions
+* *Terminal Recording*: Enable terminal recording for the current app session in *Tools → Video Manager* or permanently in *Settings → Video*, then start and stop lightweight per-tab terminal replay recordings from the terminal bar, *Tools → Start/Stop Terminal Recording*, or *Ctrl/Cmd+Shift+E*. Multiple recording segments in one tab are appended to one JDK/GZIP streaming-compressed `.korttyrec.jsonl.gz` session file until the tab closes; legacy `.korttyrec.jsonl` replays remain readable. Replays can optionally store terminal color runs, preserve recorded terminal geometry for export, and be viewed with timeline/time-jump seeking, 1x-20x playback speed, renamed, or deleted in the Video Manager. Optional timestamp-based WebM/VP9 or MKV/FFV1 export is available with range/color options, CPU-parallel frame rendering, progress, and remaining-time feedback when `ffmpeg` is configured or found on `PATH`; no live/network streaming is implemented.
 * *GPG Key Management*: Manage GPG keys for backup encryption
 * *Menu Bar Visibility Toggle*: Show or hide the in-window menu bar from *View* or *Settings → Window*; if hidden, restore it with *Ctrl/Cmd+Shift+L*
 
@@ -112,6 +113,7 @@ For terminal-effect plugin development, packaging, import/export behavior, and v
 * For GitHub Actions `windows-11-arm` release builds, Java 21 is used in CI for compatibility with currently available runner/toolchain combinations.
 * Gradle 9.x (automatically downloaded via wrapper)
 * Optional for JobScheduler Rsync jobs: local `rsync` and `ssh` commands available in `PATH`, or a configured `rsync` binary path in *Settings → SFTP*
+* Optional for terminal recording video export: local `ffmpeg` available in `PATH`, or a configured binary path in *Tools → Video Manager*
 
 == Build
 

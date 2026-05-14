@@ -113,6 +113,8 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
     private static final KeyCombination MENU_BAR_TOGGLE_ACCELERATOR =
         new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final KeyCombination RECORDING_TOGGLE_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.E, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int JOB_SCHEDULER_STATUS_LEFT_PADDING = 14;
@@ -1090,6 +1092,13 @@ public class MainWindow {
         MenuItem jobScheduler = new MenuItem(I18n.get("menu.tools.jobScheduler"));
         jobScheduler.setOnAction(e -> showJobScheduler());
 
+        MenuItem videoManager = new MenuItem(I18n.get("menu.tools.videoManager"));
+        videoManager.setOnAction(e -> showTerminalRecordingManager());
+
+        MenuItem toggleRecording = new MenuItem(I18n.get("menu.tools.toggleRecording"));
+        toggleRecording.setAccelerator(RECORDING_TOGGLE_ACCELERATOR);
+        toggleRecording.setOnAction(e -> toggleTerminalRecording());
+
         MenuItem aiManager = new MenuItem(I18n.get("menu.tools.aiManager"));
         aiManager.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         aiManager.setOnAction(e -> showAiManager());
@@ -1110,6 +1119,9 @@ public class MainWindow {
             new SeparatorMenuItem(),
             snippetManager,
             jobScheduler,
+            new SeparatorMenuItem(),
+            videoManager,
+            toggleRecording,
             new SeparatorMenuItem(),
             aiManager,
             aiAgent,
@@ -1976,6 +1988,7 @@ public class MainWindow {
                 applyMenuBarVisibility(isMenuBarVisiblePreference());
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
+                refreshTerminalRecordingControlsVisibility();
                 for (Tab tab : tabPane.getTabs()) {
                     if (tab instanceof TerminalTab terminalTab) {
                         // Scrollbar functionality removed
@@ -2193,6 +2206,7 @@ public class MainWindow {
             if (!tab.isClosable()) continue;
             if (tab instanceof TerminalTab terminalTab) {
                 terminalTab.setOnCloseRequest(null);
+                terminalTab.closeRecordingResources();
                 terminalTab.getTerminalView().cleanup();
             }
             tabPane.getTabs().remove(tab);
@@ -4995,6 +5009,37 @@ public class MainWindow {
             logger.error("Failed to open ASCII Art Banner dialog", e);
             showError(I18n.get("error.title"), e.getMessage());
         }
+    }
+
+    private void showTerminalRecordingManager() {
+        try {
+            TerminalRecordingManagerDialog dialog = new TerminalRecordingManagerDialog(
+                app.getGlobalSettingsManager(),
+                new de.kortty.core.TerminalRecordingService());
+            dialog.initOwner(stage);
+            dialog.showAndWait();
+            refreshTerminalRecordingControlsVisibility();
+        } catch (Exception e) {
+            logger.error("Failed to open terminal recording manager", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private void refreshTerminalRecordingControlsVisibility() {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                terminalTab.refreshRecordingControlsVisibility();
+            }
+        }
+    }
+
+    private void toggleTerminalRecording() {
+        Tab activeTab = getActiveTab();
+        if (activeTab instanceof TerminalTab terminalTab) {
+            terminalTab.toggleRecordingFromMenuOrShortcut();
+            return;
+        }
+        updateStatus(I18n.get("terminal.recording.error.noTerminal"));
     }
     
     /**

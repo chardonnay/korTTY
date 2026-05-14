@@ -10,6 +10,8 @@ import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SnippetEditorProfile;
 import de.kortty.model.TerminalAgentExecutionTarget;
+import de.kortty.model.TerminalRecordingFormat;
+import de.kortty.model.TerminalRecordingScope;
 import org.testng.annotations.Test;
 
 import java.nio.file.Files;
@@ -178,6 +180,38 @@ class GlobalSettingsManagerTest {
 
             assertThat(reloaded.getSettings().getLastQuickConnectTerminalEffectAnimationSpeed()).isEqualTo(7.0);
             assertThat(reloaded.getSettings().isTerminalEffectsEnabled()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesTerminalRecordingSettings() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-recording");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setTerminalRecordingEnabled(true);
+            manager.getSettings().setTerminalRecordingStoragePath("/tmp/kortty-recordings");
+            manager.getSettings().setTerminalRecordingFormat(TerminalRecordingFormat.WEBM);
+            manager.getSettings().setTerminalRecordingDefaultScope(TerminalRecordingScope.WHOLE_TAB);
+            manager.getSettings().setTerminalRecordingAutoPauseEnabled(false);
+            manager.getSettings().setTerminalRecordingIdlePauseSeconds(45);
+            manager.getSettings().setTerminalRecordingFfmpegPath("/usr/local/bin/ffmpeg");
+            manager.getSettings().setTerminalRecordingCaptureColorsEnabled(true);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().isTerminalRecordingEnabled()).isTrue();
+            assertThat(reloaded.getSettings().getTerminalRecordingStoragePath()).isEqualTo("/tmp/kortty-recordings");
+            assertThat(reloaded.getSettings().getTerminalRecordingFormat()).isEqualTo(TerminalRecordingFormat.WEBM);
+            assertThat(reloaded.getSettings().getTerminalRecordingDefaultScope()).isEqualTo(TerminalRecordingScope.WHOLE_TAB);
+            assertThat(reloaded.getSettings().isTerminalRecordingAutoPauseEnabled()).isFalse();
+            assertThat(reloaded.getSettings().getTerminalRecordingIdlePauseSeconds()).isEqualTo(45);
+            assertThat(reloaded.getSettings().getTerminalRecordingFfmpegPath()).isEqualTo("/usr/local/bin/ffmpeg");
+            assertThat(reloaded.getSettings().isTerminalRecordingCaptureColorsEnabled()).isTrue();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
