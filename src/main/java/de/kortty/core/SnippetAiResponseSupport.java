@@ -69,6 +69,16 @@ public final class SnippetAiResponseSupport {
         }
     }
 
+    public record OneLinerSuggestion(String command) {
+        public OneLinerSuggestion {
+            command = command != null ? command.trim() : "";
+        }
+
+        public boolean isUsable() {
+            return !command.isBlank() && !command.contains("\n") && !command.contains("\r");
+        }
+    }
+
     public record SecurityFinding(String id, String severity, String title, String impact, String recommendation) {
         public SecurityFinding {
             id = id != null && !id.isBlank() ? id.trim() : "S";
@@ -83,10 +93,19 @@ public final class SnippetAiResponseSupport {
         }
     }
 
-    public record PlantUmlDiagram(String title, String plantUml) {
+    public record PlantUmlDiagram(
+        String title,
+        String plantUml,
+        List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
+
+        public PlantUmlDiagram(String title, String plantUml) {
+            this(title, plantUml, List.of());
+        }
+
         public PlantUmlDiagram {
             title = title != null && !title.isBlank() ? title.trim() : "Snippet structure";
-            plantUml = SnippetDiagramSupport.normalizePlantUml(plantUml);
+            plantUml = SnippetDiagramSupport.ensureReadableActivityColors(plantUml);
+            codeReferences = codeReferences != null ? List.copyOf(codeReferences) : List.of();
         }
 
         public boolean isUsable() {
@@ -133,7 +152,8 @@ public final class SnippetAiResponseSupport {
             }
         }
         if (expectedCount == 1) {
-            return List.of(SnippetAiTextSupport.normalizePlainText(responseText));
+            String sanitized = AiResponseSanitizer.sanitizeForDisplay(responseText);
+            return List.of(SnippetAiTextSupport.normalizePlainText(sanitized));
         }
         return List.of();
     }
@@ -212,6 +232,16 @@ public final class SnippetAiResponseSupport {
         return improvement.isUsable() ? improvement : new CodeImprovement("", "");
     }
 
+    public static OneLinerSuggestion parseOneLinerSuggestion(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        if (object == null) {
+            return new OneLinerSuggestion("");
+        }
+        OneLinerSuggestion suggestion = new OneLinerSuggestion(
+            firstString(object, "command", "oneLiner", "one_liner", "line"));
+        return suggestion.isUsable() ? suggestion : new OneLinerSuggestion("");
+    }
+
     public static List<SecurityFinding> parseSecurityFindings(String responseText) {
         JsonArray findings = parseArrayField(responseText, "findings");
         if (findings == null) {
@@ -235,8 +265,33 @@ public final class SnippetAiResponseSupport {
         }
         PlantUmlDiagram diagram = new PlantUmlDiagram(
             firstString(object, "title", "name"),
-            firstString(object, "plantUml", "plantuml", "source", "diagram"));
+            firstString(object, "plantUml", "plantuml", "source", "diagram"),
+            parseDiagramCodeReferences(object));
         return diagram.isUsable() ? diagram : new PlantUmlDiagram("", "");
+    }
+
+    private static List<SnippetDiagramSupport.SourceCodeReference> parseDiagramCodeReferences(JsonObject object) {
+        JsonArray references = firstArray(object, "codeReferences", "sourceMap", "codeMap", "mappings");
+        if (references == null) {
+            return List.of();
+        }
+        List<SnippetDiagramSupport.SourceCodeReference> parsedReferences = new ArrayList<>();
+        for (JsonElement element : references) {
+            if (element == null || !element.isJsonObject()) {
+                continue;
+            }
+            JsonObject reference = element.getAsJsonObject();
+            String label = firstString(reference, "label", "diagramLabel", "node", "activity", "decision");
+            Integer startLine = firstInt(reference, "startLine", "lineStart", "line");
+            Integer endLine = firstInt(reference, "endLine", "lineEnd");
+            if (endLine == null) {
+                endLine = startLine;
+            }
+            if (label != null && !label.isBlank() && startLine != null && endLine != null) {
+                parsedReferences.add(new SnippetDiagramSupport.SourceCodeReference(label, startLine, endLine));
+            }
+        }
+        return List.copyOf(parsedReferences);
     }
 
     private static String extractJsonPayload(String responseText) {
@@ -399,6 +454,34 @@ public final class SnippetAiResponseSupport {
             }
         }
         return "";
+    }
+
+    private static JsonArray firstArray(JsonObject object, String... names) {
+        if (object == null || names == null) {
+            return null;
+        }
+        for (String name : names) {
+            if (name != null && object.has(name) && object.get(name).isJsonArray()) {
+                return object.getAsJsonArray(name);
+            }
+        }
+        return null;
+    }
+
+    private static Integer firstInt(JsonObject object, String... names) {
+        if (object == null || names == null) {
+            return null;
+        }
+        for (String name : names) {
+            if (name == null || !object.has(name) || object.get(name).isJsonNull()) {
+                continue;
+            }
+            try {
+                return object.get(name).getAsInt();
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
     }
 
     private static String nonBlank(String value, String fallback) {

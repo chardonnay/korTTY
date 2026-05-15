@@ -27,6 +27,8 @@ import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.control.IndexRange;
 import javafx.scene.layout.GridPane;
@@ -80,6 +82,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final MenuItem correctSelectionTextItem;
     private final MenuItem translateSelectionTextItem;
     private final MenuItem describeSnippetItem;
+    private final MenuButton editMenu;
+    private final MenuItem undoItem;
     private final MenuButton aiCodeMenu;
     private final MenuItem completeCodeItem;
     private final CheckMenuItem autoCompleteItem;
@@ -96,6 +100,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final MenuButton backgroundBrightnessMenu;
     private final Label backgroundBrightnessValueLabel;
     private final Label statusLabel;
+    private final Button saveButton;
     private final Snippet existingSnippet;
     private EditorSettingsHelper.Settings editorSettings;
     private SnippetEditorProfile editorProfile;
@@ -147,6 +152,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private static final int MAX_EDITOR_FONT_SIZE = 72;
     private static final int EDITOR_FONT_ZOOM_STEP = 1;
     private static final String AI_ACTION_PREFIX = "\u2728 ";
+    private static final KeyCombination UNDO_SHORTCUT =
+        new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN);
     
     private static final List<String> LANGUAGES = List.of(
         "plain", "bash", "shell", "python", "perl", "ruby", "java", "javascript", "groovy",
@@ -206,6 +213,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     @FunctionalInterface
     public interface SecurityFixProvider {
         SnippetAiResponseSupport.CodeImprovement applyFixes(SecurityFixRequest request) throws Exception;
+    }
+
+    @FunctionalInterface
+    public interface OneLinerProvider {
+        SnippetAiResponseSupport.OneLinerSuggestion generate(OneLinerRequest request) throws Exception;
     }
 
     @FunctionalInterface
@@ -283,6 +295,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String additionalInstructions) {
     }
 
+    public record OneLinerRequest(
+        String fullContent,
+        String snippetLanguage,
+        String fallbackLanguageCode,
+        String additionalInstructions) {
+    }
+
     public record DiagramRequest(
         String fullContent,
         String snippetLanguage,
@@ -305,6 +324,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         CodeImprovementProvider codeImprovementProvider,
         SecurityReportProvider securityReportProvider,
         SecurityFixProvider securityFixProvider,
+        OneLinerProvider oneLinerProvider,
         DiagramProvider diagramProvider) {
     }
 
@@ -449,6 +469,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         contentArea.caretPositionProperty().addListener((obs, oldPos, newPos) ->
                 EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings));
         contentArea.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (UNDO_SHORTCUT.match(event)) {
+                undoContentChange();
+                event.consume();
+                return;
+            }
             if (handleEditorZoomShortcut(event)) {
                 return;
             }
@@ -503,6 +528,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             hideCompletionSuggestion();
             applyHighlighting();
             EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings);
+            updateUndoControls();
+            updateSaveButtonState();
             updateAiActionAvailability();
             scheduleAutoCompletion();
         });
@@ -565,6 +592,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         lintBtn = new Button("\u2713 " + I18n.get("editor.lint"));
         lintBtn.setTooltip(new Tooltip(I18n.get("editor.lint.title")));
         lintBtn.setOnAction(e -> runLint());
+
+        undoItem = new MenuItem(I18n.get("editor.context.undo"));
+        undoItem.setAccelerator(UNDO_SHORTCUT);
+        undoItem.setOnAction(e -> undoContentChange());
+        editMenu = new MenuButton(I18n.get("menu.edit"));
+        editMenu.getItems().add(undoItem);
+        editMenu.setOnShowing(e -> updateUndoControls());
 
         correctSelectionTextItem = new MenuItem(aiActionLabel("snippets.ai.menu.correct"));
         correctSelectionTextItem.setOnAction(e -> runSelectionCorrection());
@@ -643,7 +677,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
         HBox contentHeader = new HBox(10,
                 new Label(I18n.get("snippets.content") + ":"),
-                formatBtn, lintBtn, aiTextMenu, aiCodeMenu, toggleLastAiChangeButton, oneLinerMenu,
+                editMenu, formatBtn, lintBtn, aiTextMenu, aiCodeMenu, toggleLastAiChangeButton, oneLinerMenu,
                 new Separator(), zoomOutButton, fontSizeLabel, zoomInButton, editorProfileMenu, backgroundBrightnessMenu,
                 new Separator(), wordWrapCheckBox, lineNumbersCheckBox);
         contentHeader.setAlignment(Pos.CENTER_LEFT);
@@ -666,19 +700,35 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         VBox.setVgrow(formGrid, Priority.ALWAYS);
 
         getDialogPane().setContent(rootLayout);
-        getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.APPLY);
+        getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.OK, ButtonType.CANCEL);
         getDialogPane().setPrefWidth(700);
         getDialogPane().setPrefHeight(640);
         
         // Disable OK if name or content is empty
         Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
+        saveButton = (Button) getDialogPane().lookupButton(saveButtonType);
         Button cancelButton = (Button) getDialogPane().lookupButton(ButtonType.CANCEL);
         okButton.setDisable(true);
+        saveButton.setVisible(false);
+        saveButton.setManaged(false);
+        saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+            if (!isSnippetFormValid()) {
+                updateSaveButtonState();
+                return;
+            }
+            saveGeometry();
+            allowCloseWithoutUnsavedPrompt = true;
+            setResult(buildResultSnippet());
+            close();
+        });
         nameField.textProperty().addListener((obs, o, n) -> {
             if (!programmaticNameUpdate) {
                 nameUserEdited = true;
             }
             validateForm(okButton);
+            updateSaveButtonState();
         });
         contentArea.textProperty().addListener((obs, o, n) -> {
             validateForm(okButton);
@@ -715,10 +765,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
             applyHighlighting();
         }
+        contentArea.getUndoManager().forgetHistory();
         updateFormatLintButtonState();
         updateOneLinerButtonState();
         updateAiActionAvailability();
         initialContentSnapshot = safeContentText();
+        updateUndoControls();
+        updateSaveButtonState();
         installUnsavedContentCloseGuard(cancelButton);
         
         // Restore saved geometry
@@ -761,6 +814,33 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             event.consume();
             closeFromUnsavedContentChoice(promptForUnsavedContentChoice());
         });
+    }
+
+    private void undoContentChange() {
+        if (!contentArea.isUndoAvailable()) {
+            updateUndoControls();
+            return;
+        }
+        contentArea.undo();
+        refreshBlockCaretSoon();
+        updateUndoControls();
+        updateSaveButtonState();
+    }
+
+    private void updateUndoControls() {
+        if (undoItem != null) {
+            undoItem.setDisable(!contentArea.isUndoAvailable());
+        }
+    }
+
+    private void updateSaveButtonState() {
+        if (saveButton == null) {
+            return;
+        }
+        boolean visible = hasUnsavedContentChanges();
+        saveButton.setVisible(visible);
+        saveButton.setManaged(visible);
+        saveButton.setDisable(!isSnippetFormValid());
     }
 
     private UnsavedContentChoice promptForUnsavedContentChoice() {
@@ -1355,9 +1435,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             lintItem.setDisable(!SnippetLinter.isSupported(lang));
             String t = contentArea.getText();
             boolean hasContent = t != null && !t.isBlank();
-            boolean oneLinerOk = t != null && !t.isBlank() && SnippetOneLiner.isEmbeddedSupported(lang);
-            oneLinerCompactCtx.setDisable(!oneLinerOk);
-            oneLinerEmbeddedCtx.setDisable(!oneLinerOk);
+            boolean compactOneLinerOk = hasContent && (SnippetOneLiner.isCompactSupported(lang) || hasOneLinerProvider());
+            boolean embeddedOneLinerOk = hasContent && SnippetOneLiner.isEmbeddedSupported(lang);
+            oneLinerCompactCtx.setDisable(!compactOneLinerOk || isSnippetAiActionRunning());
+            oneLinerEmbeddedCtx.setDisable(!embeddedOneLinerOk || isSnippetAiActionRunning());
             correctSelectionItem.setDisable(!hasSelection || aiAssist == null || aiAssist.selectionCorrectionProvider() == null || isSnippetAiActionRunning());
             translateSelectionItem.setDisable(!hasSelection || aiAssist == null || aiAssist.selectionTranslationProvider() == null || isSnippetAiActionRunning());
             describeSnippetContextItem.setDisable(!hasContent || aiAssist == null || aiAssist.snippetDescriptionProvider() == null || isSnippetAiActionRunning());
@@ -1384,7 +1465,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void updateOneLinerButtonState() {
         String lang = languageCombo.getValue();
         String text = contentArea.getText();
-        boolean ok = text != null && !text.isBlank() && SnippetOneLiner.isEmbeddedSupported(lang);
+        boolean hasContent = text != null && !text.isBlank();
+        boolean ok = hasContent
+            && !isSnippetAiActionRunning()
+            && (SnippetOneLiner.isEmbeddedSupported(lang)
+            || SnippetOneLiner.isCompactSupported(lang)
+            || hasOneLinerProvider());
         oneLinerMenu.setDisable(!ok);
     }
 
@@ -1451,6 +1537,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private boolean hasSecurityProviders() {
         return aiAssist != null && aiAssist.securityReportProvider() != null && aiAssist.securityFixProvider() != null;
+    }
+
+    private boolean hasOneLinerProvider() {
+        return aiAssist != null && aiAssist.oneLinerProvider() != null;
     }
 
     private boolean hasDiagramProvider() {
@@ -2106,8 +2196,67 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
             copyDiagrams(),
             contentArea.getText(),
+            currentSnippetDisplayName(),
             this::runDiagramGeneration,
-            null).showAndWait();
+            null,
+            this::navigateToDiagramCodeReference).show();
+    }
+
+    private String currentSnippetDisplayName() {
+        String currentName = nameField.getText();
+        if (currentName != null && !currentName.isBlank()) {
+            return currentName.trim();
+        }
+        return existingSnippet != null && existingSnippet.getName() != null && !existingSnippet.getName().isBlank()
+            ? existingSnippet.getName().trim()
+            : I18n.get("snippets.ai.diagram.script.unnamed");
+    }
+
+    private void navigateToDiagramCodeReference(SnippetDiagramDialog.CodeNavigationTarget target) {
+        if (target == null) {
+            return;
+        }
+        Runnable navigation = () -> {
+            String content = contentArea.getText() != null ? contentArea.getText() : "";
+            int startLine = Math.max(1, target.startLine());
+            int endLine = Math.max(startLine, target.endLine());
+            int startOffset = lineStartOffset(content, startLine);
+            int endOffset = lineEndOffset(content, endLine);
+            int safeStart = Math.max(0, Math.min(startOffset, content.length()));
+            int safeEnd = Math.max(safeStart, Math.min(endOffset, content.length()));
+            contentArea.selectRange(safeStart, safeEnd);
+            contentArea.requestFocus();
+            contentArea.requestFollowCaret();
+        };
+        if (Platform.isFxApplicationThread()) {
+            navigation.run();
+        } else {
+            Platform.runLater(navigation);
+        }
+    }
+
+    private int lineStartOffset(String content, int lineNumber) {
+        String value = content != null ? content : "";
+        if (lineNumber <= 1) {
+            return 0;
+        }
+        int currentLine = 1;
+        for (int offset = 0; offset < value.length(); offset++) {
+            if (value.charAt(offset) == '\n') {
+                currentLine++;
+                if (currentLine == lineNumber) {
+                    return offset + 1;
+                }
+            }
+        }
+        return value.length();
+    }
+
+    private int lineEndOffset(String content, int lineNumber) {
+        String value = content != null ? content : "";
+        int startOffset = lineStartOffset(value, lineNumber);
+        int endOffset = value.indexOf('\n', startOffset);
+        return endOffset >= 0 ? endOffset : value.length();
     }
 
     private void runDiagramGeneration(SnippetDiagram existingDiagram) {
@@ -2188,6 +2337,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             diagram.setPlantUmlSource(generated.plantUml());
             diagram.setSourceContentSha256(SnippetDiagramSupport.contentHash(fullContent));
             diagram.setCustomInstructions(requestInstructions);
+            diagram.setCodeReferences(persistedCodeReferences(generated, fullContent));
             diagram.setUpdatedAt(System.currentTimeMillis());
             upsertDiagram(diagram);
             pruneDuplicateDefaultLogicalStructureDiagrams();
@@ -2202,6 +2352,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Thread thread = new Thread(task, "snippet-ai-diagram");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private List<SnippetDiagram.CodeReference> persistedCodeReferences(
+        SnippetAiResponseSupport.PlantUmlDiagram generated,
+        String fullContent) {
+
+        if (generated == null || !generated.isUsable()) {
+            return List.of();
+        }
+        List<SnippetDiagramSupport.CodeReference> validatedReferences =
+            SnippetDiagramSupport.buildExpandedCodeReferences(
+                generated.plantUml(),
+                fullContent,
+                generated.codeReferences());
+        List<SnippetDiagram.CodeReference> persistedReferences = new ArrayList<>();
+        for (SnippetDiagramSupport.CodeReference reference : validatedReferences) {
+            persistedReferences.add(new SnippetDiagram.CodeReference(
+                reference.label(),
+                reference.startLine(),
+                reference.endLine()));
+        }
+        return persistedReferences;
     }
 
     private void upsertDiagram(SnippetDiagram diagram) {
@@ -2596,6 +2768,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         hideSnippetAiHint();
         updateAiActionAvailability();
+        updateOneLinerButtonState();
     }
 
     private void runOneLiner(boolean compact) {
@@ -2605,11 +2778,68 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 ? SnippetOneLiner.toCompact(text, lang)
                 : SnippetOneLiner.toEmbedded(text, lang);
         if (!r.isOk()) {
+            if (compact && shouldGenerateCompactOneLinerWithAi(r)) {
+                runCompactOneLinerGeneration(text, lang);
+                return;
+            }
             setStatus(I18n.get(r.errorKey(), r.errorArgs()));
             return;
         }
+        copyOneLinerToClipboard(r.line());
+    }
+
+    private boolean shouldGenerateCompactOneLinerWithAi(SnippetOneLiner.OneLinerResult localResult) {
+        return localResult != null
+            && hasOneLinerProvider()
+            && !"snippets.oneliner.empty".equals(localResult.errorKey())
+            && ensureSnippetAiDataNoticeAccepted(false);
+    }
+
+    private void runCompactOneLinerGeneration(String text, String lang) {
+        if (text == null || text.isBlank()) {
+            setStatus(I18n.get("snippets.oneliner.empty"));
+            return;
+        }
+        String instructions = additionalInstructions();
+        Task<SnippetAiResponseSupport.OneLinerSuggestion> task = new Task<>() {
+            @Override
+            protected SnippetAiResponseSupport.OneLinerSuggestion call() throws Exception {
+                return aiAssist.oneLinerProvider().generate(new OneLinerRequest(
+                    text,
+                    lang,
+                    resolveAiTextFallbackLanguageCode(),
+                    instructions));
+            }
+        };
+        snippetAiActionTask = task;
+        task.setOnRunning(event -> {
+            showSnippetAiHint(I18n.get("snippets.oneliner.generating"));
+            setStatus(I18n.get("snippets.oneliner.generating"));
+            updateAiActionAvailability();
+            updateOneLinerButtonState();
+        });
+        task.setOnSucceeded(event -> {
+            finishSnippetAiAction(task);
+            SnippetAiResponseSupport.OneLinerSuggestion suggestion = task.getValue();
+            if (suggestion == null || !suggestion.isUsable()) {
+                setStatus(I18n.get("snippets.oneliner.generateFailed"));
+                return;
+            }
+            copyOneLinerToClipboard(suggestion.command());
+        });
+        task.setOnFailed(event -> {
+            finishSnippetAiAction(task);
+            setStatus(I18n.get("snippets.oneliner.generateFailed"));
+        });
+        task.setOnCancelled(event -> finishSnippetAiAction(task));
+        Thread thread = new Thread(task, "snippet-ai-one-liner");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void copyOneLinerToClipboard(String line) {
         ClipboardContent clip = new ClipboardContent();
-        clip.putString(r.line());
+        clip.putString(line);
         Clipboard.getSystemClipboard().setContent(clip);
         setStatus(I18n.get("snippets.oneliner.success"));
     }

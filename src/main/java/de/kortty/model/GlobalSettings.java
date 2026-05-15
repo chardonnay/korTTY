@@ -357,6 +357,9 @@ public class GlobalSettings {
     private String snippetCursorColor; // null = use editor default
 
     @XmlElement
+    private String snippetDiagramBackgroundColor = "#FFFFFF";
+
+    @XmlElement
     private String selectedSnippetEditorProfileId; // null = use explicit snippet editor colors
 
     @XmlElementWrapper(name = "snippetEditorProfiles")
@@ -1453,6 +1456,18 @@ public class GlobalSettings {
     
     public String getSnippetCursorColor() { return snippetCursorColor; }
     public void setSnippetCursorColor(String snippetCursorColor) { this.snippetCursorColor = snippetCursorColor; }
+
+    public String getSnippetDiagramBackgroundColor() {
+        return snippetDiagramBackgroundColor != null && !snippetDiagramBackgroundColor.isBlank()
+            ? snippetDiagramBackgroundColor
+            : "#FFFFFF";
+    }
+
+    public void setSnippetDiagramBackgroundColor(String snippetDiagramBackgroundColor) {
+        this.snippetDiagramBackgroundColor = snippetDiagramBackgroundColor != null && !snippetDiagramBackgroundColor.isBlank()
+            ? snippetDiagramBackgroundColor.trim()
+            : "#FFFFFF";
+    }
 
     public String getSelectedSnippetEditorProfileId() { return selectedSnippetEditorProfileId; }
     public void setSelectedSnippetEditorProfileId(String selectedSnippetEditorProfileId) {

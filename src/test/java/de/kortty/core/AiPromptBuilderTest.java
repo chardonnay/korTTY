@@ -120,9 +120,11 @@ class AiPromptBuilderTest {
 
         assertThat(systemPrompt.contains("correct spelling and grammar")).isTrue();
         assertThat(systemPrompt.contains("plain text")).isTrue();
+        assertThat(systemPrompt.contains("<think> tags")).isTrue();
         assertThat(userPrompt.contains("Description to correct")).isTrue();
         assertThat(userPrompt.contains("Script content for context only")).isTrue();
         assertThat(userPrompt.contains("Detected script language: bash")).isTrue();
+        assertThat(userPrompt.contains("<think> tags")).isTrue();
     }
 
     @Test
@@ -143,6 +145,23 @@ class AiPromptBuilderTest {
         assertThat(userPrompt.contains("JSON object")).isTrue();
         assertThat(userPrompt.contains("Additional user instructions")).isTrue();
         assertThat(userPrompt.contains("Snippet context")).isTrue();
+    }
+
+    @Test
+    void describeSnippetPromptForbidsThinkTags() {
+        AiRequest request = new AiRequest(
+            AiAction.DESCRIBE_SNIPPET_SELECTION,
+            "print $file",
+            null,
+            "en",
+            null,
+            "Snippet language: perl");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+
+        assertThat(systemPrompt).contains("technical description");
+        assertThat(systemPrompt).contains("Do not include hidden reasoning");
+        assertThat(systemPrompt).contains("<think> tags");
     }
 
     @Test
@@ -237,8 +256,42 @@ class AiPromptBuilderTest {
         assertThat(systemPrompt).contains("@enduml");
         assertThat(systemPrompt).contains("activity diagram");
         assertThat(systemPrompt).contains("Do not use component");
+        assertThat(systemPrompt).contains("semantic HEX color palette");
+        assertThat(systemPrompt).contains(":Action; <<#RRGGBB>>");
+        assertThat(systemPrompt).contains("codeReferences");
+        assertThat(systemPrompt).contains("startLine");
+        assertThat(systemPrompt).contains("endLine");
+        assertThat(systemPrompt).contains("for every activity and decision");
         assertThat(userPrompt).contains("\"plantUml\"");
+        assertThat(userPrompt).contains("\"codeReferences\"");
         assertThat(userPrompt).contains("Valid example syntax");
+        assertThat(userPrompt).contains(":Run main command; <<#EAF4FF>>");
+        assertThat(userPrompt).contains(":Action label; <<#RRGGBB>>");
+        assertThat(userPrompt).contains("every visible activity and decision");
+        assertThat(userPrompt).contains("1-based line numbers");
         assertThat(userPrompt).contains("Snippet context");
+    }
+
+    @Test
+    void compactOneLinerPromptRequiresSingleJsonCommandWithoutBase64() {
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_ONE_LINER,
+            "def main():\n    print('ok')\nmain()",
+            null,
+            "en",
+            null,
+            "Snippet language: python");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertThat(systemPrompt).contains("one-line shell command");
+        assertThat(systemPrompt).contains("key command");
+        assertThat(systemPrompt).contains("base64");
+        assertThat(systemPrompt).contains("external URLs");
+        assertThat(userPrompt).contains("\"command\"");
+        assertThat(userPrompt).contains("Do not use base64, heredocs");
+        assertThat(userPrompt).contains("Do not invent files");
+        assertThat(userPrompt).contains("Script content for context only");
     }
 }

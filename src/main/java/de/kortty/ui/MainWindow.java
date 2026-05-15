@@ -3908,6 +3908,7 @@ public class MainWindow {
             case REVIEW_SNIPPET_CODE -> I18n.get("snippets.ai.code.review");
             case IMPROVE_SNIPPET_CODE -> I18n.get("snippets.ai.code.improve.custom");
             case SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES -> I18n.get("snippets.ai.security.title");
+            case GENERATE_SNIPPET_ONE_LINER -> I18n.get("snippets.oneliner.compact");
             case GENERATE_SNIPPET_PLANTUML -> I18n.get("snippets.ai.diagram.menu");
         };
     }
@@ -5017,8 +5018,8 @@ public class MainWindow {
                 app.getGlobalSettingsManager(),
                 new de.kortty.core.TerminalRecordingService());
             dialog.initOwner(stage);
-            dialog.showAndWait();
-            refreshTerminalRecordingControlsVisibility();
+            dialog.setOnHidden(event -> refreshTerminalRecordingControlsVisibility());
+            dialog.show();
         } catch (Exception e) {
             logger.error("Failed to open terminal recording manager", e);
             showError(I18n.get("error.title"), e.getMessage());
@@ -5056,7 +5057,7 @@ public class MainWindow {
             }
             SnippetManagementDialog dialog = new SnippetManagementDialog(mgr, this);
             dialog.initOwner(stage);
-            dialog.showAndWait();
+            dialog.show();
         } catch (Exception e) {
             logger.error("Failed to open Snippet Manager", e);
             showError(I18n.get("error.title"), e.getMessage());

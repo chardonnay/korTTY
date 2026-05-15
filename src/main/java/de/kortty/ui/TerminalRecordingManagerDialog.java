@@ -41,6 +41,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 
 public class TerminalRecordingManagerDialog extends ThemeAwareDialog<Void> {
 
@@ -90,6 +91,7 @@ public class TerminalRecordingManagerDialog extends ThemeAwareDialog<Void> {
         setTitle(I18n.get("recording.manager.title"));
         setHeaderText(I18n.get("recording.manager.header"));
         setResizable(true);
+        initModality(Modality.NONE);
         buildUi();
         loadSettingsIntoControls();
         refreshRecordings();

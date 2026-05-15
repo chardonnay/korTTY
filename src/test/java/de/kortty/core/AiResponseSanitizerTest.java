@@ -26,4 +26,28 @@ class AiResponseSanitizerTest {
 
         assertThat(sanitized).isEqualTo("Normal answer");
     }
+
+    @Test
+    void sanitizeForDisplayRemovesDanglingThinkBlock() {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay("""
+            Visible result
+
+            <think>
+            internal reasoning without a closing tag
+            """);
+
+        assertThat(sanitized).isEqualTo("Visible result");
+    }
+
+    @Test
+    void sanitizeForDisplayRemovesOrphanClosingThinkPrefix() {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay("""
+            The model should not expose this reasoning.
+            </think>
+
+            Corrected description.
+            """);
+
+        assertThat(sanitized).isEqualTo("Corrected description.");
+    }
 }

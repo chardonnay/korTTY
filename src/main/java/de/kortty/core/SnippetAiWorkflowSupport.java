@@ -1,12 +1,19 @@
 package de.kortty.core;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * Shared request/response workflow helpers for snippet-editor AI actions.
  */
 public final class SnippetAiWorkflowSupport {
+    private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s'\"<>]+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DOWNLOAD_COMMAND_PATTERN =
+        Pattern.compile("(?i)(?:^|[\\s;&|()])(?:curl|wget)(?:\\s|$)");
+    private static final Pattern TEMP_FILE_PATTERN =
+        Pattern.compile("(?i)(?:/tmp/|\\$TMPDIR\\b|\\$\\{TMPDIR}\\b|\\bmktemp\\b)");
 
     @FunctionalInterface
     public interface UsageRecorder {
@@ -61,6 +68,31 @@ public final class SnippetAiWorkflowSupport {
             mergeAdditionalInstructions(additionalInstructions, buildTranslationFallbackNote(fallbackLanguageCode)));
     }
 
+    public static String correctSnippetDescription(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String description,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode) throws Exception {
+
+        AiRequest request = new AiRequest(
+            AiAction.CORRECT_SNIPPET_DESCRIPTION,
+            fullContent != null ? fullContent : "",
+            connectionDisplayName,
+            fallbackLanguageCode,
+            description,
+            snippetLanguage);
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null && usageRecorder != null) {
+            usageRecorder.record(request, result);
+        }
+        String rawText = result != null ? result.content() : description;
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(rawText);
+        return AiSnippetMetadataSupport.normalizeDescription(sanitized);
+    }
+
     public static String describeSnippet(
         AiAction action,
         AiService aiService,
@@ -83,7 +115,8 @@ public final class SnippetAiWorkflowSupport {
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
-        return SnippetAiTextSupport.normalizePlainText(result != null ? result.content() : null);
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(result != null ? result.content() : null);
+        return SnippetAiTextSupport.normalizePlainText(sanitized);
     }
 
     public static List<SnippetAiResponseSupport.AlternativeSolution> generateAlternativeSolutions(
@@ -259,6 +292,33 @@ public final class SnippetAiWorkflowSupport {
         return SnippetAiResponseSupport.parsePlantUmlDiagram(result != null ? result.content() : null);
     }
 
+    public static SnippetAiResponseSupport.OneLinerSuggestion generateCompactOneLiner(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions) throws Exception {
+
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_ONE_LINER,
+            fullContent,
+            connectionDisplayName,
+            fallbackLanguageCode,
+            additionalInstructions,
+            buildOneLinerContext(fullContent, snippetLanguage));
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null && usageRecorder != null) {
+            usageRecorder.record(request, result);
+        }
+        SnippetAiResponseSupport.OneLinerSuggestion suggestion =
+            SnippetAiResponseSupport.parseOneLinerSuggestion(result != null ? result.content() : null);
+        return isAllowedGeneratedOneLiner(suggestion, fullContent)
+            ? suggestion
+            : new SnippetAiResponseSupport.OneLinerSuggestion("");
+    }
+
     private static String transformSelectedText(
         AiAction action,
         AiService aiService,
@@ -401,11 +461,77 @@ public final class SnippetAiWorkflowSupport {
             + "Generate one compact logical-structure PlantUML diagram for this snippet. "
             + "Use only relationships visible in the code. "
             + "For scripts and imperative code, generate only a simple activity diagram with start, activity lines, if/else branches, and stop. "
+            + "Use a small semantic HEX color palette to distinguish setup, main work, success, and failure paths. "
+            + "Activity lines may use :Action label; <<#RRGGBB>> syntax. "
+            + "Do not use gradients or large style blocks. "
             + "Do not use component/package/class/object/actor/usecase blocks for script variables or commands. "
             + "Do not copy raw source lines into PlantUML; summarize them as activity labels.\n"
-            + "Every action line between start and stop must use :Action label; syntax.\n"
+            + "Every action line between start and stop must use :Action label; or :Action label; <<#RRGGBB>> syntax.\n"
+            + "Also return codeReferences. Each entry must map one visible activity label or decision text exactly to a small relevant source range. "
+            + "Create one codeReferences entry for every visible activity and decision; exclude only start, stop, arrows, and merge nodes. "
+            + "Use only the 1-based line numbers shown in the line-numbered snippet. "
+            + "When one diagram element summarizes a block, use the smallest source range that covers that block.\n"
+            + "Line-numbered snippet:\n"
+            + lineNumberedTextBlock(fullContent)
+            + "\n"
             + "Full snippet:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+    }
+
+    private static String buildOneLinerContext(String fullContent, String snippetLanguage) {
+        return "Snippet language: " + snippetLanguage + "\n"
+            + "Generate a compact one-liner, not an embedded/base64 wrapper. "
+            + "Use only the provided snippet content. Do not download code, do not reference external URLs, and do not invent files or endpoints. "
+            + "For shell snippets, use shell syntax on one line. "
+            + "For Python, Perl, or Ruby snippets, use an interpreter command such as python3 -c, perl -e, or ruby -e when needed. "
+            + "Preserve behavior and quote safely.\n"
+            + "Full snippet:\n"
+            + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+    }
+
+    private static boolean isAllowedGeneratedOneLiner(
+        SnippetAiResponseSupport.OneLinerSuggestion suggestion,
+        String fullContent) {
+
+        if (suggestion == null || !suggestion.isUsable()) {
+            return false;
+        }
+        String command = suggestion.command();
+        String source = fullContent != null ? fullContent : "";
+        if (command.contains("<<")) {
+            return false;
+        }
+        if (containsIntroducedPattern(DOWNLOAD_COMMAND_PATTERN, command, source)
+            || containsIntroducedPattern(TEMP_FILE_PATTERN, command, source)) {
+            return false;
+        }
+        Matcher matcher = URL_PATTERN.matcher(command);
+        while (matcher.find()) {
+            if (!source.contains(matcher.group())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean containsIntroducedPattern(Pattern pattern, String command, String source) {
+        Matcher matcher = pattern.matcher(command);
+        if (!matcher.find()) {
+            return false;
+        }
+        return !pattern.matcher(source).find();
+    }
+
+    private static String lineNumberedTextBlock(String text) {
+        String value = text != null ? text : "";
+        String[] lines = value.split("\\R", -1);
+        int width = String.valueOf(Math.max(1, lines.length)).length();
+        StringBuilder builder = new StringBuilder("```text\n");
+        for (int i = 0; i < lines.length; i++) {
+            builder.append(String.format(java.util.Locale.ROOT, "%" + width + "d | %s%n", i + 1, lines[i]));
+        }
+        builder.append("```");
+        return builder.toString();
     }
 
     private static String buildTranslationFallbackNote(String fallbackLanguageCode) {

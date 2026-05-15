@@ -80,6 +80,36 @@ class SnippetOneLinerTest {
     }
 
     @Test
+    void compactShellKeepsIfThenElseSyntaxValid() {
+        String script = """
+                if [ -f file ]; then
+                  echo ok
+                else
+                  echo missing
+                fi
+                """;
+
+        SnippetOneLiner.OneLinerResult r = SnippetOneLiner.toCompact(script, "bash");
+
+        assertThat(r.isOk()).isTrue();
+        assertThat(r.line()).isEqualTo("if [ -f file ]; then echo ok; else echo missing; fi");
+    }
+
+    @Test
+    void compactShellKeepsLoopDoDoneSyntaxValid() {
+        String script = """
+                for file in *.log; do
+                  echo "$file"
+                done
+                """;
+
+        SnippetOneLiner.OneLinerResult r = SnippetOneLiner.toCompact(script, "bash");
+
+        assertThat(r.isOk()).isTrue();
+        assertThat(r.line()).isEqualTo("for file in *.log; do echo \"$file\"; done");
+    }
+
+    @Test
     void embeddedRoundTripUtf8() {
         String original = "echo 'h\u00e9llo'\n# c\n";
         String expectedCleaned = "echo 'h\u00e9llo'";
@@ -155,11 +185,29 @@ class SnippetOneLinerTest {
     }
 
     @Test
-    void compactPythonFailsOnDef() {
+    void compactPythonUsesExecWrapperForBlocks() {
         String script = "def f():\n    return 1\n";
         SnippetOneLiner.OneLinerResult r = SnippetOneLiner.toCompact(script, "python");
-        assertThat(r.isOk()).isFalse();
-        assertThat(r.errorKey()).isEqualTo("snippets.oneliner.compact.blocks");
+
+        assertThat(r.isOk()).isTrue();
+        assertThat(r.line()).startsWith("python3 -c 'exec(");
+        assertThat(r.line()).contains("def f():\\n    return 1");
+    }
+
+    @Test
+    void compactPerlUsesEvalWrapperForSubroutines() {
+        String script = """
+                sub main {
+                  print "ok\\n";
+                }
+                main();
+                """;
+
+        SnippetOneLiner.OneLinerResult r = SnippetOneLiner.toCompact(script, "perl");
+
+        assertThat(r.isOk()).isTrue();
+        assertThat(r.line()).startsWith("perl -e 'eval ");
+        assertThat(r.line()).contains("sub main {\\n  print");
     }
 
     @Test

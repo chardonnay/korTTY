@@ -175,7 +175,7 @@ public final class SnippetOneLiner {
                 continue;
             }
             if (sb.length() > 0 && lastLine != null) {
-                if (lastLineEndsWithPipeOrLogicalAnd(lastLine)) {
+                if (lastLineContinuesWithoutCommandSeparator(lastLine)) {
                     sb.append(' ');
                 } else {
                     sb.append("; ");
@@ -188,7 +188,7 @@ public final class SnippetOneLiner {
         return one.isEmpty() ? OneLinerResult.error("snippets.oneliner.empty") : OneLinerResult.ok(one);
     }
 
-    private static boolean lastLineEndsWithPipeOrLogicalAnd(String line) {
+    private static boolean lastLineContinuesWithoutCommandSeparator(String line) {
         String t = line.stripTrailing();
         if (t.isEmpty()) {
             return false;
@@ -197,12 +197,22 @@ public final class SnippetOneLiner {
         if (last == '|') {
             return true;
         }
-        return t.endsWith("&&") || t.endsWith("||");
+        return t.endsWith("&&")
+            || t.endsWith("||")
+            || t.endsWith(" then")
+            || t.equals("then")
+            || t.endsWith("; then")
+            || t.endsWith(" do")
+            || t.equals("do")
+            || t.endsWith("; do")
+            || t.equals("else")
+            || t.startsWith("else ")
+            || t.startsWith("elif ");
     }
 
     private static OneLinerResult compactPython(String text) {
         if (PYTHON_BLOCK.matcher(text).find()) {
-            return OneLinerResult.error("snippets.oneliner.compact.blocks");
+            return compactPythonExec(text);
         }
         List<String> logical = logicalLinesAfterMerge(text, false);
         if (logical.isEmpty()) {
@@ -225,7 +235,7 @@ public final class SnippetOneLiner {
 
     private static OneLinerResult compactPerl(String text) {
         if (PERL_SUB.matcher(text).find()) {
-            return OneLinerResult.error("snippets.oneliner.compact.blocks");
+            return compactPerlEval(text);
         }
         List<String> logical = logicalLinesAfterMerge(text, false);
         if (logical.isEmpty()) {
@@ -251,7 +261,7 @@ public final class SnippetOneLiner {
 
     private static OneLinerResult compactRuby(String text) {
         if (RUBY_DEF.matcher(text).find()) {
-            return OneLinerResult.error("snippets.oneliner.compact.blocks");
+            return compactRubyEval(text);
         }
         List<String> logical = logicalLinesAfterMerge(text, false);
         if (logical.isEmpty()) {
@@ -275,6 +285,78 @@ public final class SnippetOneLiner {
         return OneLinerResult.ok("ruby -e '" + shellEscapeSingleQuoted(code) + "'");
     }
 
+    private static OneLinerResult compactPythonExec(String text) {
+        String code = stripScriptComments(text, "python");
+        if (code.isBlank()) {
+            return OneLinerResult.error("snippets.oneliner.empty");
+        }
+        String pythonCommand = "exec(" + doubleQuotedLiteral(code, LiteralTarget.PYTHON) + ")";
+        return OneLinerResult.ok("python3 -c '" + shellEscapeSingleQuoted(pythonCommand) + "'");
+    }
+
+    private static OneLinerResult compactPerlEval(String text) {
+        String code = stripScriptComments(text, "perl");
+        if (code.isBlank()) {
+            return OneLinerResult.error("snippets.oneliner.empty");
+        }
+        String perlCommand = "eval " + doubleQuotedLiteral(code, LiteralTarget.PERL) + "; die $@ if $@";
+        return OneLinerResult.ok("perl -e '" + shellEscapeSingleQuoted(perlCommand) + "'");
+    }
+
+    private static OneLinerResult compactRubyEval(String text) {
+        String code = stripScriptComments(text, "ruby");
+        if (code.isBlank()) {
+            return OneLinerResult.error("snippets.oneliner.empty");
+        }
+        String rubyCommand = "eval(" + doubleQuotedLiteral(code, LiteralTarget.RUBY) + ")";
+        return OneLinerResult.ok("ruby -e '" + shellEscapeSingleQuoted(rubyCommand) + "'");
+    }
+
+    private enum LiteralTarget {
+        PYTHON,
+        PERL,
+        RUBY
+    }
+
+    private static String doubleQuotedLiteral(String value, LiteralTarget target) {
+        String text = value != null ? value : "";
+        StringBuilder builder = new StringBuilder("\"");
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '\\' -> builder.append("\\\\");
+                case '"' -> builder.append("\\\"");
+                case '\n' -> builder.append("\\n");
+                case '\r' -> builder.append("\\r");
+                case '\t' -> builder.append("\\t");
+                case '$' -> {
+                    if (target == LiteralTarget.PERL) {
+                        builder.append("\\$");
+                    } else {
+                        builder.append(c);
+                    }
+                }
+                case '@' -> {
+                    if (target == LiteralTarget.PERL) {
+                        builder.append("\\@");
+                    } else {
+                        builder.append(c);
+                    }
+                }
+                case '#' -> {
+                    if (target == LiteralTarget.RUBY) {
+                        builder.append("\\#");
+                    } else {
+                        builder.append(c);
+                    }
+                }
+                default -> builder.append(c);
+            }
+        }
+        builder.append('"');
+        return builder.toString();
+    }
+
     /**
      * Removes comment lines and {@code #}… to end-of-line outside strings, then joins non-empty lines with newlines.
      */
@@ -290,7 +372,7 @@ public final class SnippetOneLiner {
             };
             String t = line.strip();
             if (!t.isEmpty()) {
-                kept.add(t);
+                kept.add(line.stripTrailing());
             }
         }
         return String.join("\n", kept);

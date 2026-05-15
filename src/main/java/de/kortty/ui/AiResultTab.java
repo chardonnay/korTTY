@@ -1132,6 +1132,7 @@ public class AiResultTab extends Tab {
             null,
             null,
             null,
+            null,
             null);
     }
 
@@ -1164,18 +1165,14 @@ public class AiResultTab extends Tab {
         String snippetLanguage,
         String code,
         String description) throws Exception {
-        AiRequest request = new AiRequest(
-            AiAction.CORRECT_SNIPPET_DESCRIPTION,
+        return SnippetAiWorkflowSupport.correctSnippetDescription(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
             code,
-            connectionDisplayName,
-            languageCode,
             description,
-            snippetLanguage);
-        AiExecutionResult result = aiService.execute(request);
-        if (result != null) {
-            ownerWindow.recordAiUsageForProfile(profile, request, result);
-        }
-        return AiSnippetMetadataSupport.normalizeDescription(result != null ? result.content() : description);
+            snippetLanguage,
+            connectionDisplayName,
+            languageCode);
     }
 
     private String correctSnippetSelectionText(

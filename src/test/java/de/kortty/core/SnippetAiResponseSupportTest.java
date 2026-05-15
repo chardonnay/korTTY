@@ -25,6 +25,20 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseSegmentReplacementsSanitizesPlainTextFallback() {
+        List<String> replacements = SnippetAiResponseSupport.parseSegmentReplacements(
+            """
+            Internal spelling analysis.
+            </think>
+
+            Corrected text.
+            """,
+            1);
+
+        assertThat(replacements).isEqualTo(List.of("Corrected text."));
+    }
+
+    @Test
     void parseAlternativeSolutionsLimitsResultCountAndSkipsEmptyCode() {
         List<SnippetAiResponseSupport.AlternativeSolution> solutions = SnippetAiResponseSupport.parseAlternativeSolutions(
             """
@@ -131,15 +145,37 @@ class SnippetAiResponseSupportTest {
             SnippetAiResponseSupport.parsePlantUmlDiagram("""
             {
               "title": "Flow",
-              "plantUml": "@startuml\\nstart\\n:Run snippet;\\nstop\\n@enduml"
+              "plantUml": "@startuml\\nstart\\n:Run snippet;\\nstop\\n@enduml",
+              "codeReferences": [
+                { "label": "Run snippet", "startLine": 2, "endLine": 4 }
+              ]
             }
             """);
 
         assertThat(diagram.title()).isEqualTo("Flow");
         assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.codeReferences()).containsExactly(
+            new SnippetDiagramSupport.SourceCodeReference("Run snippet", 2, 4));
 
         SnippetAiResponseSupport.PlantUmlDiagram malformed =
             SnippetAiResponseSupport.parsePlantUmlDiagram("{ \"title\": \"Broken\", \"plantUml\": \"\" }");
         assertThat(malformed.isUsable()).isFalse();
+    }
+
+    @Test
+    void parseOneLinerSuggestionRequiresSingleLineCommand() {
+        SnippetAiResponseSupport.OneLinerSuggestion suggestion =
+            SnippetAiResponseSupport.parseOneLinerSuggestion("""
+            { "command": "python3 -c 'print(1)'" }
+            """);
+
+        assertThat(suggestion.isUsable()).isTrue();
+        assertThat(suggestion.command()).isEqualTo("python3 -c 'print(1)'");
+
+        SnippetAiResponseSupport.OneLinerSuggestion multiLine =
+            SnippetAiResponseSupport.parseOneLinerSuggestion("""
+            { "command": "echo one\\necho two" }
+            """);
+        assertThat(multiLine.isUsable()).isFalse();
     }
 }

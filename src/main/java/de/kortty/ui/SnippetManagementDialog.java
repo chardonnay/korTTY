@@ -39,6 +39,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import org.fxmisc.richtext.InlineCssTextArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.slf4j.Logger;
@@ -147,6 +148,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         
         setTitle(I18n.get("snippets.title"));
         setResizable(true);
+        initModality(Modality.NONE);
         
         // ---- Search bar ----
         searchField = new TextField();
@@ -755,6 +757,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             request -> improveSnippetCode(profile, aiService, request),
             request -> reviewSnippetSecurity(profile, aiService, request),
             request -> applySnippetSecurityFixes(profile, aiService, request),
+            request -> generateCompactOneLiner(profile, aiService, request),
             request -> generateSnippetPlantUml(profile, aiService, request));
     }
 
@@ -791,18 +794,14 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         String description) throws Exception {
         String scriptContent = content != null ? content : "";
         String snippetLanguage = SnippetLanguageSupport.detectSnippetLanguage(language, scriptContent);
-        AiRequest request = new AiRequest(
-            AiAction.CORRECT_SNIPPET_DESCRIPTION,
+        return SnippetAiWorkflowSupport.correctSnippetDescription(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
             scriptContent,
-            null,
-            currentLanguageCode(),
             description,
-            snippetLanguage);
-        AiExecutionResult result = aiService.execute(request);
-        if (result != null) {
-            ownerWindow.recordAiUsageForProfile(profile, request, result);
-        }
-        return AiSnippetMetadataSupport.normalizeDescription(result != null ? result.content() : description);
+            snippetLanguage,
+            null,
+            currentLanguageCode());
     }
 
     private String correctSnippetSelectionText(
@@ -961,6 +960,21 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         SnippetEditDialog.DiagramRequest request) throws Exception {
 
         return SnippetAiWorkflowSupport.generateSnippetPlantUml(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.snippetLanguage(),
+            null,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
+    }
+
+    private SnippetAiResponseSupport.OneLinerSuggestion generateCompactOneLiner(
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.OneLinerRequest request) throws Exception {
+
+        return SnippetAiWorkflowSupport.generateCompactOneLiner(
             aiService,
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
             request.fullContent(),

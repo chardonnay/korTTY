@@ -40,6 +40,7 @@ public final class AiInternetPromptSupport {
                 IMPROVE_SNIPPET_CODE,
                 SECURITY_REVIEW_SNIPPET_CODE,
                 APPLY_SNIPPET_SECURITY_FIXES,
+                GENERATE_SNIPPET_ONE_LINER,
                 GENERATE_SNIPPET_PLANTUML -> false;
         };
     }

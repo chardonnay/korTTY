@@ -23,6 +23,7 @@ public final class AiPromptBuilder {
         if (request != null && request.action() == AiAction.CORRECT_SNIPPET_DESCRIPTION) {
             return "You correct spelling and grammar for snippet descriptions. "
                 + "Return only the corrected plain text in language code " + languageCode + ". "
+                + "Do not include hidden reasoning, analysis, or <think> tags. "
                 + "Do not use Markdown, quotes, bullets, or explanations.";
         }
         if (request != null && request.action() == AiAction.CORRECT_SNIPPET_SELECTION_TEXT) {
@@ -31,7 +32,7 @@ public final class AiPromptBuilder {
                 + "Return exactly one JSON object with an array field named segments. "
                 + "Each array entry must contain only the corrected text for one segment in the same order as provided. "
                 + "Use language code " + languageCode + " unless the provided snippet context clearly shows a different natural language for existing comments or user-facing strings. "
-                + "Do not include explanations or Markdown.";
+                + "Do not include hidden reasoning, analysis, <think> tags, explanations, or Markdown.";
         }
         if (request != null && request.action() == AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT) {
             return "You translate only user-facing text segments extracted from source code. "
@@ -39,13 +40,14 @@ public final class AiPromptBuilder {
                 + "Return exactly one JSON object with an array field named segments. "
                 + "Each array entry must contain only the translated text for one segment in the same order as provided. "
                 + "Translate into language code " + languageCode + ". "
-                + "Do not include explanations or Markdown.";
+                + "Do not include hidden reasoning, analysis, <think> tags, explanations, or Markdown.";
         }
         if (request != null && request.action() == AiAction.DESCRIBE_SNIPPET_SELECTION) {
             return "You write a concise technical description for a marked code selection. "
                 + "Write in language code " + languageCode + " unless the provided full snippet clearly shows another dominant natural language in comments or user-facing strings. "
                 + "Summarize only relevant responsibilities, inputs, outputs, side effects, conditions, and risks. "
                 + "Do not explain every single line. "
+                + "Do not include hidden reasoning, analysis, or <think> tags. "
                 + "Return plain text only without Markdown or bullet lists unless short plain-text paragraphs truly need them.";
         }
         if (request != null && request.action() == AiAction.DESCRIBE_SNIPPET_FULL) {
@@ -53,6 +55,7 @@ public final class AiPromptBuilder {
                 + "Write in language code " + languageCode + " unless the provided full snippet clearly shows another dominant natural language in comments or user-facing strings. "
                 + "Summarize only relevant blocks, flow, inputs, outputs, side effects, conditions, and risks. "
                 + "Do not explain every single line. "
+                + "Do not include hidden reasoning, analysis, or <think> tags. "
                 + "Return plain text only without Markdown or bullet lists unless short plain-text paragraphs truly need them.";
         }
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_ALTERNATIVES) {
@@ -100,12 +103,26 @@ public final class AiPromptBuilder {
                 + "Write summary in language code " + languageCode + ". "
                 + "Do not include Markdown outside the JSON object.";
         }
+        if (request != null && request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER) {
+            return "You convert a code snippet into a compact, pasteable one-line shell command. "
+                + "Return exactly one JSON object with key command. "
+                + "command must be a single line with no newline characters. "
+                + "Use only the provided snippet content. "
+                + "Do not use curl, wget, temporary downloads, external URLs, invented files, base64, heredocs, Markdown, or explanations. "
+                + "Preserve the snippet behavior as closely as possible for the declared snippet language.";
+        }
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_PLANTUML) {
             return "You generate a compact PlantUML diagram for the logical structure of a code snippet. "
-                + "Return exactly one JSON object with keys title and plantUml. "
+                + "Return exactly one JSON object with keys title, plantUml, and codeReferences. "
                 + "plantUml must start with @startuml and end with @enduml. "
+                + "codeReferences must be an array of objects with label, startLine, and endLine. "
+                + "Each codeReferences label must exactly match one visible PlantUML activity or decision label. "
+                + "Create one codeReferences entry for every activity and decision in plantUml; exclude only start, stop, arrows, and merge nodes. "
+                + "Line numbers must be 1-based and must refer only to lines visible in the provided line-numbered snippet. "
                 + "For scripts and imperative snippets, use only a PlantUML activity diagram. "
-                + "Allowed activity syntax is limited to start, :Action;, if (...) then (...) else (...) endif, and stop. "
+                + "Use a small semantic HEX color palette to improve readability. "
+                + "Allowed activity syntax is limited to start, :Action;, :Action; <<#RRGGBB>>, if (...) then (...) else (...) endif, and stop. "
+                + "Do not use gradients or large style blocks. "
                 + "Do not use component, package, class, object, actor, or usecase blocks for scripts. "
                 + "Do not place raw variable names or shell commands as free text inside PlantUML blocks. "
                 + "Do not include Markdown or explanations outside the JSON object.";
@@ -158,18 +175,21 @@ public final class AiPromptBuilder {
             case CORRECT_SNIPPET_DESCRIPTION -> prompt.append(
                 "Correct spelling and grammar in the snippet description.\n"
                     + "Return only the corrected plain text.\n"
+                    + "Do not include hidden reasoning, analysis, or <think> tags.\n"
                     + "Preserve the original meaning, commands, file names, code terms, and technical wording.\n");
             case CORRECT_SNIPPET_SELECTION_TEXT -> prompt.append(
                 "Correct spelling and grammar only in the provided editable text segments.\n"
                     + "Return exactly one JSON object with this shape:\n"
                     + "{ \"segments\": [ { \"text\": \"...\" } ] }\n"
                     + "Keep the same segment order.\n"
+                    + "Do not include hidden reasoning, analysis, or <think> tags.\n"
                     + "Never rewrite or explain code.\n");
             case TRANSLATE_SNIPPET_SELECTION_TEXT -> prompt.append(
                 "Translate only the provided editable text segments.\n"
                     + "Return exactly one JSON object with this shape:\n"
                     + "{ \"segments\": [ { \"text\": \"...\" } ] }\n"
                     + "Keep the same segment order.\n"
+                    + "Do not include hidden reasoning, analysis, or <think> tags.\n"
                     + "Never rewrite or explain code.\n");
             case DESCRIBE_SNIPPET_SELECTION -> prompt.append(
                 "Describe the selected code region technically.\n"
@@ -211,15 +231,29 @@ public final class AiPromptBuilder {
                     + "Return exactly one JSON object with this shape:\n"
                     + "{ \"replacement\": \"...\", \"summary\": \"...\" }\n"
                     + "The replacement must be the full updated snippet content.\n");
+            case GENERATE_SNIPPET_ONE_LINER -> prompt.append(
+                "Convert the snippet into a compact one-liner command.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"command\": \"...\" }\n"
+                    + "The command must be a single line that can be pasted into a shell.\n"
+                    + "Do not use base64, heredocs, curl, wget, temporary downloads, or external URLs.\n"
+                    + "Do not invent files, endpoints, placeholders, or network locations.\n"
+                    + "Prefer readable shell separators, interpreter -e/-c flags, and safe quoting.\n");
             case GENERATE_SNIPPET_PLANTUML -> prompt.append(
                 "Generate a compact PlantUML logical-structure diagram for the snippet.\n"
                     + "For bash/shell or other imperative snippets, use a simple activity diagram only. Valid example syntax:\n"
-                    + "@startuml\\nstart\\n:Read configuration;\\nif (command succeeds?) then (yes)\\n  :Handle success;\\nelse (no)\\n  :Handle failure;\\nendif\\nstop\\n@enduml\n"
+                    + "@startuml\\nstart\\n:Read configuration; <<#EAF7EF>>\\n:Run main command; <<#EAF4FF>>\\nif (command succeeds?) then (yes)\\n  :Handle success; <<#EAF7EF>>\\nelse (no)\\n  :Handle failure; <<#FDECEC>>\\nendif\\nstop\\n@enduml\n"
+                    + "Use HEX colors sparingly to distinguish setup, main work, success, and failure paths. "
+                    + "Action lines may use :Action label; <<#RRGGBB>> syntax.\n"
+                    + "Do not use gradients or large style blocks.\n"
                     + "Do not use component/package/class/object/actor/usecase blocks for script variables or commands.\n"
                     + "Do not put raw variable declarations or shell commands as standalone PlantUML lines.\n"
                     + "Each executable step must be an activity line like :Create backup archive;.\n"
                     + "Return exactly one JSON object with this shape:\n"
-                    + "{ \"title\": \"...\", \"plantUml\": \"@startuml\\n...\\n@enduml\" }\n");
+                    + "{ \"title\": \"...\", \"plantUml\": \"@startuml\\n...\\n@enduml\", \"codeReferences\": [ { \"label\": \"Create backup archive\", \"startLine\": 12, \"endLine\": 14 } ] }\n"
+                    + "Each codeReferences label must exactly match a visible activity label or decision text in plantUml.\n"
+                    + "Create a codeReferences entry for every visible activity and decision; exclude only start, stop, arrows, and merge nodes.\n"
+                    + "Use only 1-based line numbers from the line-numbered snippet context.\n");
         }
         prompt.append("Treat the selected text as the primary source of truth.\n");
         if (request.connectionDisplayName() != null && !request.connectionDisplayName().isBlank()) {
@@ -266,6 +300,7 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.IMPROVE_SNIPPET_CODE
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
+            || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
             || request.action() == AiAction.GENERATE_SNIPPET_PLANTUML) {
             if (request.userPrompt() != null && !request.userPrompt().isBlank()) {
                 prompt.append("Additional user instructions:\n")
@@ -292,6 +327,7 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.IMPROVE_SNIPPET_CODE
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
+            || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
             || request.action() == AiAction.GENERATE_SNIPPET_PLANTUML;
         prompt.append(usesScriptContext
                 ? "Script content for context only:\n"
