@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Render PlantUML diagrams (.puml) to PNG and save them in docs/diagrams/.
+# Render PlantUML diagrams (.puml) to PNG and save them in app-docs/diagrams/.
 #
 # Usage:
 #   ./scripts/render-plantuml.sh
@@ -11,7 +11,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-DIAGRAM_DIR="$REPO_ROOT/docs/diagrams"
+DIAGRAM_DIR="$REPO_ROOT/app-docs/diagrams"
 PLANTUML_VERSION="${PLANTUML_VERSION:-1.2026.2}"
 PLANTUML_CACHE_DIR="${PLANTUML_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/kortty/plantuml}"
 PLANTUML_JAR="$PLANTUML_CACHE_DIR/plantuml-$PLANTUML_VERSION.jar"
@@ -77,4 +77,4 @@ else
   done
 fi
 
-echo "Done. PNGs are in docs/diagrams/"
+echo "Done. PNGs are in app-docs/diagrams/"

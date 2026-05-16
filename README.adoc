@@ -6,7 +6,7 @@
 
 The following diagram shows the main components of KorTTY and how they relate.
 
-image::docs/diagrams/architecture.png[KorTTY architecture,align=center]
+image::app-docs/diagrams/architecture.png[KorTTY architecture,align=center]
 
 == Features
 
@@ -66,7 +66,7 @@ Internet access is optional per AI profile and is disabled by default. The direc
 
 AI Skills are local reusable instructions that can be attached to AI Chat/functions, AI Agent, or both. They are managed under *Settings → AI Skills*, can be imported/exported as Markdown, and can be automatically filtered so only skills relevant to the current request are sent.
 
-image::docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
+image::app-docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
 
 == JobScheduler Overview
 
@@ -102,9 +102,9 @@ When KorTTY is about to quit while scheduler jobs are running, it warns the user
 
 == User Guide
 
-For a comprehensive step-by-step user guide covering all features, see *link:docs/USER_GUIDE.adoc[User Guide]*.
+For a comprehensive step-by-step user guide covering all features, see *link:app-docs/USER_GUIDE.adoc[User Guide]*.
 
-For terminal-effect plugin development, packaging, import/export behavior, and validation guidance, see *link:docs/TERMINAL_EFFECT_PLUGINS.adoc[Terminal Effect Plugin Development]*.
+For terminal-effect plugin development, packaging, import/export behavior, and validation guidance, see *link:app-docs/TERMINAL_EFFECT_PLUGINS.adoc[Terminal Effect Plugin Development]*.
 
 == Requirements
 
@@ -167,7 +167,7 @@ External plugins are trusted local code and are not sandboxed. Only import JARs 
 
 The MU/TH/UR 6000 effect is built as an exportable bundled plugin JAR and can be used as the in-repository reference implementation:
 
-image::docs/diagrams/terminal-effect-plugin-flow.png[Terminal effect plugin lifecycle,align=center]
+image::app-docs/diagrams/terminal-effect-plugin-flow.png[Terminal effect plugin lifecycle,align=center]
 
 [source,bash]
 ----
@@ -175,13 +175,13 @@ image::docs/diagrams/terminal-effect-plugin-flow.png[Terminal effect plugin life
 jar tf build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
 ----
 
-Detailed development, packaging, lifecycle, security, and validation guidance is documented in *link:docs/TERMINAL_EFFECT_PLUGINS.adoc[Terminal Effect Plugin Development]*.
+Detailed development, packaging, lifecycle, security, and validation guidance is documented in *link:app-docs/TERMINAL_EFFECT_PLUGINS.adoc[Terminal Effect Plugin Development]*.
 
 == Modules and Dependencies
 
 KorTTY uses the following Java and external modules. The diagram below groups them by function.
 
-image::docs/diagrams/modules-overview.png[Modules overview,align=center]
+image::app-docs/diagrams/modules-overview.png[Modules overview,align=center]
 
 [cols="2,2,1"]
 |===
@@ -476,7 +476,7 @@ The zoom level applies to the currently focused terminal tab. The same reset is 
 
 Split the terminal view to display multiple connections side by side. The following diagram illustrates the session lifecycle including split and broadcast.
 
-image::docs/diagrams/session-lifecycle.png[Terminal session lifecycle,align=center]
+image::app-docs/diagrams/session-lifecycle.png[Terminal session lifecycle,align=center]
 
 * *Split Pane*: Create horizontal or vertical splits within a tab
 * *Broadcast Mode*: When enabled, keyboard input is sent to all visible panes simultaneously
@@ -539,7 +539,7 @@ All configuration files are stored under `~/.kortty/`:
 
 The following sequence diagram shows how a connection is established (SSH or Mosh).
 
-image::docs/diagrams/connection-flow.png[Connection flow,align=center]
+image::app-docs/diagrams/connection-flow.png[Connection flow,align=center]
 
 == Import from Other Programs
 
@@ -564,7 +564,7 @@ Export your connections from PuTTY Connection Manager and import them via:
 
 KorTTY provides centralized management for credentials (username/password). The following diagram shows how credentials and SSH keys are stored and used.
 
-image::docs/diagrams/credential-flow.png[Credential and authentication flow,align=center]
+image::app-docs/diagrams/credential-flow.png[Credential and authentication flow,align=center]
 
 === Features
 
@@ -631,7 +631,7 @@ When importing connections, you can choose:
 
 KorTTY provides encrypted backup functionality to save and restore all your settings.
 
-image::docs/diagrams/backup-restore.png[Backup and restore flow,align=center]
+image::app-docs/diagrams/backup-restore.png[Backup and restore flow,align=center]
 
 === Features
 
@@ -758,7 +758,7 @@ KorTTY supports SSH port forwarding for secure tunneling:
 
 KorTTY supports SSH hopping through jump servers (bastion hosts). The following diagram shows the connection path.
 
-image::docs/diagrams/jump-server-flow.png[Jump server connection flow,align=center]
+image::app-docs/diagrams/jump-server-flow.png[Jump server connection flow,align=center]
 
 === Features
 
@@ -874,7 +874,7 @@ You can generate language files for *any language* using a translation API:
 
 KorTTY can send selected terminal text to OpenAI-compatible chat-completions endpoints and open the response in a temporary AI tab.
 
-image::docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
+image::app-docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
 
 1. Open *Settings → AI*.
 2. Create one or more profiles and enter the *API URL*. *Model* and *API key* are optional so local endpoints such as *LM Studio* or other OpenAI-compatible gateways can be used without both fields.
@@ -974,12 +974,12 @@ These features can be configured in *Settings → Window*. The menu bar can also
 
 == Rendering PlantUML Diagrams
 
-The documentation uses PlantUML diagrams (`.puml` files in `docs/diagrams/`). To regenerate PNG images from them (e.g. after editing a diagram), use the provided script. Requires Java and Graphviz.
+The documentation uses PlantUML diagrams (`.puml` files in `app-docs/diagrams/`). To regenerate PNG images from them (e.g. after editing a diagram), use the provided script. Requires Java and Graphviz.
 
 * Render all diagrams: `./scripts/render-plantuml.sh` or `./scripts/render-plantuml.sh all`
 * Render specific diagrams: `./scripts/render-plantuml.sh architecture connection-flow`
 
-PNGs are written to `docs/diagrams/` and are embedded in the AsciiDoc documentation.
+PNGs are written to `app-docs/diagrams/` and are embedded in the AsciiDoc documentation.
 
 *CI and releases:* The build-release workflow installs Graphviz and runs the render script in the `docs-render` job before other steps. The generated PNGs are uploaded as the `docs-diagrams` artifact and, on release, packaged into `KorTTY-docs-diagrams-<version>.zip` on the GitHub Release. Use the diagram zip for doc publication or to get the diagrams without running the render script locally.
 

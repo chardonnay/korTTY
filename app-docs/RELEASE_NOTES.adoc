@@ -129,7 +129,7 @@
 === Documentation
 
 * README, User Guide, and Release Notes now describe terminal recording, JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, AI Skills, Terminal AI Agent usage, terminal-effect plugins, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
-* Added `docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
+* Added `app-docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
 * Updated and re-rendered the architecture, module overview, AI API integration, snippet editor workflow, connection flow, session lifecycle, and terminal-effect plugin lifecycle diagrams.
 
 ---
