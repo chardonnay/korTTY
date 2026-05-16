@@ -9,7 +9,7 @@ import java.net.URI
 import java.security.MessageDigest
 
 group = "de.kortty"
-version = "2.1.0"
+version = "2.2.0"
 
 java {
     // Allows CI to pin a compatible toolchain per runner when needed.

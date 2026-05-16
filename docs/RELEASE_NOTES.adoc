@@ -1,6 +1,6 @@
 = Release Notes
 
-== Unreleased
+== v2.2.0
 
 === Terminal Recording
 
@@ -15,6 +15,15 @@
 * *Optional WebM/MKV export*: Replay files can be exported to WebM/VP9 or MKV/FFV1 when `ffmpeg` is found on `PATH` or configured explicitly. The export uses replay timestamps instead of a fixed frame rate, uses recorded terminal geometry or a computed legacy fallback to avoid cropping, and renders frames with bounded CPU parallelism. If `ffmpeg` is missing, replay recording remains available and export is disabled.
 * *No streaming*: Live/network streaming is intentionally not implemented.
 
+=== SFTP, Local Files, and Terminal Emulation
+
+* *Temporary SSH keys for SFTP*: SFTP openings that use a valid temporary SSH key now create an authentication-only connection copy, preserving the exact temporary key content without mutating the saved connection's configured authentication.
+* *SFTP subsystem failure diagnostics*: SFTP startup now reports when the server or SSH proxy rejects/closes the SFTP subsystem after SSH authentication, including EOF, channel-closing, and `subsystem request failed` cases, and keeps generic SFTP startup causes visible.
+* *Dockable local file browser*: *View > File Browser* can show a local file browser on the left or right side of the main window with open, copy, cut, paste, delete, new file/folder, archive, details, hidden-file toggle, and owner/permission actions.
+* *Per-connection terminal emulation*: Quick Connect and Connection Edit can store the selected SithTermFX terminal emulation, and SSH/native Mosh sessions use the selected `TERM` value instead of a fixed default.
+* *Terminal drag-and-drop target handling*: Drag-and-drop uploads resolve `~` and `~/...` targets through the SFTP start directory, show the selected remote target, elapsed time, and current file during upload, and improve prompt-directory extraction for wrapped or decorated prompts.
+* *AI profile validation*: OpenAI-compatible AI profiles now require an explicit model value, and `/v1` endpoints are normalized to `/v1/chat/completions`.
+
 === Snippet Editor AI, Diagrams, and Profiles
 
 * *Cursor-aware AI completion*: The snippet editor can request a completion at the current caret location. Suggestions are shown as ghost text and are inserted only when the user clicks them.
@@ -25,14 +34,18 @@
 * *Snippet AI privacy boundary*: Snippet AI uses the default AI profile, token accounting, cancellation, and enabled Chat/Functions/Both AI Skills, but does not expose internet tools.
 * *Technical description dialog*: Descriptions can use current-language comment syntax with configurable line width, preserve a space after the comment marker, and split sentences after a full stop onto the next line.
 * *Local PlantUML diagrams*: Snippet logical-structure diagrams are stored with the snippet, marked stale by content hash, regenerated with saved instructions, rendered locally only, and exportable/copyable as image output.
+* *Diagram code references*: Generated PlantUML diagrams can include code references, and the rendered SVG exposes matching hotspots/tooltips for referenced snippet lines.
+* *Diagram controls*: The diagram dialog can copy PlantUML source, save diagram background color, and apply readable activity colors before rendering/export.
 * *Editor profiles*: The snippet editor has ten built-in IntelliJ-inspired color/cursor profiles plus user-defined profiles saved in global settings.
 * *Review windows*: AI review/diff/alternative dialogs use larger readable code text, support zoom via buttons and Ctrl/Cmd +/- shortcuts, and expose copy-to-clipboard where applicable.
+* *Snippet AI prompt hardening*: Correction, translation, description, diagram, and one-liner prompts explicitly reject hidden reasoning, `<think>` tags, invented files, external URLs, and unsupported output formats where applicable.
 
 === Snippet Export and Code Formatting
 
 * *Plain text script export*: Snippets can be exported as one script file per snippet, using the name and extension from the Snippet Manager *Name* column.
 * *ZIP script export*: Selected or all snippets can be exported as a ZIP archive with one script file per snippet. The script file extension can be kept from each snippet name or forced for every file in the ZIP.
 * *ZIP encryption options*: Script ZIP exports support no encryption, AES password-protected ZIP, or GPG encryption using a stored KorTTY GPG key.
+* *Compact one-liner improvements*: Bash compact one-liners keep `if/then/else` and loop syntax valid, while Python, Perl, and Ruby compact mode can wrap multi-line blocks with interpreter `exec`/`eval` instead of failing.
 * *Shared formatter service*: Snippet Editor and File Editor formatting now use the same `CodeFormatterService` with built-in, bundled, optional external fallback, and unavailable provider states.
 * *Bundled formatter manifest*: Formatter versions and sources are pinned in `src/main/resources/formatters/formatter-manifest.properties`; packaged builds can include shfmt, Prettier, sql-formatter, Perl::Tidy, and google-java-format support.
 
@@ -111,6 +124,7 @@
 * *Animation speed controls*: Terminal-effect speed supports a `1x` to `10x` slider plus a numeric field up to `99x`.
 * *Exportable MOTHER plugin*: MOTHER has been moved into a bundled plugin JAR (`kortty-terminal-effect-mother.jar`) and can be exported from the plugin manager.
 * *MOTHER output animation*: MOTHER paces visible terminal output, keeps terminal control sequences immediate, adds CRT overlay styling, and briefly flashes the current output line before fading it back to normal brightness.
+* *MU/TH/UR 6000 display name*: The bundled MOTHER terminal-effect plugin is shown as *MU/TH/UR 6000* in plugin management.
 
 === Documentation
 

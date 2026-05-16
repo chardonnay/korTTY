@@ -1,6 +1,6 @@
 = KorTTY User Guide
 
-*v2.1.0* | link:../README.adoc[Back to README]
+*v2.2.0* | link:../README.adoc[Back to README]
 
 :toc:
 :toclevels: 3
@@ -74,12 +74,12 @@ KorTTY can be packaged as a native application using `jpackage`. The output matc
 |===
 | Platform | Command | Output
 | macOS (.app) | `./gradlew jpackage` | `build/jpackage/korTTY.app`
-| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-2.1.0.dmg`
+| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-2.2.0.dmg`
 | Windows (.exe) | `gradlew.bat jpackage` | `build\jpackage\korTTY\`
-| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-2.1.0.msi`
+| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-2.2.0.msi`
 | Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/korTTY/`
-| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-2.1.0.deb`
-| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-2.1.0.rpm`
+| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-2.2.0.deb`
+| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-2.2.0.rpm`
 |===
 
 === 2.2 First Launch - Master Password
@@ -1144,4 +1144,4 @@ All KorTTY data is stored under `~/.kortty/`:
 | Credentials | Never stored in plain text
 |===
 
-_KorTTY v2.1.0_
+_KorTTY v2.2.0_
