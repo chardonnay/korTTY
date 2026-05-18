@@ -98,7 +98,7 @@ The master-password dialog uses a wider layout with the KorTTY logo and current 
 
 The following diagram shows the main components of KorTTY (see also the architecture diagram in the README).
 
-image::diagrams/architecture.png[KorTTY architecture,align=center]
+image::diagrams/architecture.svg[KorTTY architecture,align=center]
 
 [source,text]
 ----
@@ -132,7 +132,7 @@ image::diagrams/architecture.png[KorTTY architecture,align=center]
 
 KorTTY supports SSH over TCP and Mosh (via mosh4j). The following diagram illustrates the connection sequence.
 
-image::diagrams/connection-flow.png[Connection flow,align=center]
+image::diagrams/connection-flow.svg[Connection flow,align=center]
 
 === 3.2 Quick Connect
 
@@ -243,7 +243,7 @@ NOTE: Passwords are never included when importing from third-party formats for s
 
 The following diagram shows the terminal tab and session lifecycle (including split and broadcast).
 
-image::diagrams/session-lifecycle.png[Session lifecycle,align=center]
+image::diagrams/session-lifecycle.svg[Session lifecycle,align=center]
 
 === 4.2 Working with Tabs
 
@@ -314,7 +314,7 @@ Split the terminal view to display multiple connections side by side:
 
 KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint and open the answer in a temporary AI result tab.
 
-image::diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
+image::diagrams/ai-api-integration.svg[KorTTY AI API integration,align=center]
 
 [WARNING]
 ====
@@ -706,7 +706,7 @@ Configure your browser or application to use `localhost:1080` as a SOCKS5 proxy.
 
 A jump server (bastion host) acts as an intermediate gateway to reach servers on a private network.
 
-image::diagrams/jump-server-flow.png[Jump server connection flow,align=center]
+image::diagrams/jump-server-flow.svg[Jump server connection flow,align=center]
 
 === Configuration
 
@@ -946,7 +946,7 @@ The Snippet Manager lets you store, organize, and quickly insert reusable code s
 
 The snippet editor toolbar also provides *Format Code*, *Check Syntax*, *AI Text*, *AI Code*, *One-liner*, editor zoom, editor profile selection, background brightness, *Word Wrap*, and *Line numbers*. When the editor is opened from the SFTP Manager for a local or remote file, the same toolbar remains available and the dialog uses file-mode save buttons for overwrite, save-as, or saving the content as a new snippet.
 
-image::diagrams/snippet-editor-workflow.png[Snippet editor workflow,align=center]
+image::diagrams/snippet-editor-workflow.svg[Snippet editor workflow,align=center]
 
 *Format Code* uses KorTTY's shared local formatter service, which is also used by the file editor. JSON, XML, YAML/YML, TOML, INI/properties, and Groovy formatting are handled internally. Packaged builds can include bundled formatters for Java (`google-java-format`), shell/Bash (`shfmt`), Web/JS/TS/HTML/CSS (Prettier), SQL (`sql-formatter`), and Perl (`Perl::Tidy`, with a local `perl` runtime). Optional PATH fallbacks are used only for developer setups when a bundled formatter is missing. If no formatter is available for the selected language, KorTTY reports that explicitly instead of using an AI rewrite as a formatter.
 
@@ -1041,7 +1041,7 @@ Generate ASCII art text banners using FIGlet fonts. *Menu:* Tools > ASCII Art Ba
 
 Centrally manage username/password credentials that can be reused across connections. The following diagram shows how credentials and SSH keys flow from storage to connections.
 
-image::diagrams/credential-flow.png[Credential and authentication flow,align=center]
+image::diagrams/credential-flow.svg[Credential and authentication flow,align=center]
 
 === 11.1 Opening
 
@@ -1068,7 +1068,7 @@ When editing a connection, select the stored credential from the *Credentials* d
 
 KorTTY creates encrypted backups of all your settings, connections, credentials, and keys.
 
-image::diagrams/backup-restore.png[Backup and restore flow,align=center]
+image::diagrams/backup-restore.svg[Backup and restore flow,align=center]
 
 === 14.1 Creating a Backup
 

@@ -16,7 +16,7 @@ on:
 
 jobs:
   docs-render:
-    name: Render PlantUML diagrams
+    name: Validate documentation SVG diagrams
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,17 +25,17 @@ jobs:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
           submodules: false
 
-      - name: Install Graphviz
-        run: sudo apt-get update && sudo apt-get install -y graphviz
+      - name: Install SVG validation tools
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils librsvg2-bin
 
-      - name: Render PlantUML diagrams to PNG
-        run: ./scripts/render-plantuml.sh
+      - name: Validate documentation SVG diagrams
+        run: ./scripts/validate-doc-svg.sh
 
-      - name: Upload diagram PNGs
+      - name: Upload diagram SVGs
         uses: actions/upload-artifact@v6
         with:
           name: docs-diagrams
-          path: app-docs/diagrams/*.png
+          path: app-docs/diagrams/*.svg
           retention-days: 30
 
   build:
@@ -769,12 +769,12 @@ jobs:
           mkdir -p release
           find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.tar' -o -name '*.jar' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.sig' -o -name '*.asc' \) -exec cp {} release/ \;
 
-      - name: Add docs diagram PNGs to release
+      - name: Add docs diagram SVGs to release
         run: |
           VERSION="${{ steps.release.outputs.version }}"
           if [ -d "artifacts/docs-diagrams" ]; then
             cd artifacts/docs-diagrams
-            zip -r "../../release/KorTTY-docs-diagrams-${VERSION}.zip" . -i "*.png"
+            zip -r "../../release/KorTTY-docs-diagrams-${VERSION}.zip" . -i "*.svg"
             cd ../..
           fi
 

@@ -6,7 +6,7 @@
 
 The following diagram shows the main components of KorTTY and how they relate.
 
-image::app-docs/diagrams/architecture.png[KorTTY architecture,align=center]
+image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 
 == Features
 
@@ -69,7 +69,7 @@ For local LM Studio profiles, the model selector can use *Auto*. KorTTY loads cu
 
 AI Skills are local reusable instructions that can be attached to AI Chat/functions, AI Agent, or both. They are managed under *Settings → AI Skills*, can be imported/exported as Markdown, and can be automatically filtered so only skills relevant to the current request are sent.
 
-image::app-docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
+image::app-docs/diagrams/ai-api-integration.svg[KorTTY AI API integration,align=center]
 
 == JobScheduler Overview
 
@@ -170,7 +170,7 @@ External plugins are trusted local code and are not sandboxed. Only import JARs 
 
 The MU/TH/UR 6000 effect is built as an exportable bundled plugin JAR and can be used as the in-repository reference implementation:
 
-image::app-docs/diagrams/terminal-effect-plugin-flow.png[Terminal effect plugin lifecycle,align=center]
+image::app-docs/diagrams/terminal-effect-plugin-flow.svg[Terminal effect plugin lifecycle,align=center]
 
 [source,bash]
 ----
@@ -184,7 +184,7 @@ Detailed development, packaging, lifecycle, security, and validation guidance is
 
 KorTTY uses the following Java and external modules. The diagram below groups them by function.
 
-image::app-docs/diagrams/modules-overview.png[Modules overview,align=center]
+image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 
 [cols="2,2,1"]
 |===
@@ -204,7 +204,7 @@ image::app-docs/diagrams/modules-overview.png[Modules overview,align=center]
 | | google-java-format | 1.35.0
 | *Utilities* | jfiglet (ASCII art) | 0.0.9
 | | zxcvbn (password strength) | 1.9.0
-| *Documentation / Diagrams* | PlantUML renderer used by docs and snippet diagrams | 1.2026.2
+| *Snippet Diagrams* | PlantUML renderer used by the Snippet Editor diagram feature | 1.2026.2
 | *Logging* | SLF4J / Logback | 2.0.9 / 1.4.14
 | *Optional (runtime)* | mosh4j (Mosh support, loaded dynamically) | 2.0.0
 | *Optional system tools* | rsync + ssh for JobScheduler Rsync jobs | external
@@ -479,7 +479,7 @@ The zoom level applies to the currently focused terminal tab. The same reset is 
 
 Split the terminal view to display multiple connections side by side. The following diagram illustrates the session lifecycle including split and broadcast.
 
-image::app-docs/diagrams/session-lifecycle.png[Terminal session lifecycle,align=center]
+image::app-docs/diagrams/session-lifecycle.svg[Terminal session lifecycle,align=center]
 
 * *Split Pane*: Create horizontal or vertical splits within a tab
 * *Broadcast Mode*: When enabled, keyboard input is sent to all visible panes simultaneously
@@ -544,7 +544,7 @@ All configuration files are stored under `~/.kortty/`:
 
 The following sequence diagram shows how a connection is established (SSH or Mosh).
 
-image::app-docs/diagrams/connection-flow.png[Connection flow,align=center]
+image::app-docs/diagrams/connection-flow.svg[Connection flow,align=center]
 
 == Import from Other Programs
 
@@ -569,7 +569,7 @@ Export your connections from PuTTY Connection Manager and import them via:
 
 KorTTY provides centralized management for credentials (username/password). The following diagram shows how credentials and SSH keys are stored and used.
 
-image::app-docs/diagrams/credential-flow.png[Credential and authentication flow,align=center]
+image::app-docs/diagrams/credential-flow.svg[Credential and authentication flow,align=center]
 
 === Features
 
@@ -636,7 +636,7 @@ When importing connections, you can choose:
 
 KorTTY provides encrypted backup functionality to save and restore all your settings.
 
-image::app-docs/diagrams/backup-restore.png[Backup and restore flow,align=center]
+image::app-docs/diagrams/backup-restore.svg[Backup and restore flow,align=center]
 
 === Features
 
@@ -763,7 +763,7 @@ KorTTY supports SSH port forwarding for secure tunneling:
 
 KorTTY supports SSH hopping through jump servers (bastion hosts). The following diagram shows the connection path.
 
-image::app-docs/diagrams/jump-server-flow.png[Jump server connection flow,align=center]
+image::app-docs/diagrams/jump-server-flow.svg[Jump server connection flow,align=center]
 
 === Features
 
@@ -879,7 +879,7 @@ You can generate language files for *any language* using a translation API:
 
 KorTTY can send selected terminal text to OpenAI-compatible chat-completions endpoints and open the response in a temporary AI tab.
 
-image::app-docs/diagrams/ai-api-integration.png[KorTTY AI API integration,align=center]
+image::app-docs/diagrams/ai-api-integration.svg[KorTTY AI API integration,align=center]
 
 1. Open *Settings → AI*.
 2. Create one or more profiles and enter the *API URL*. The editable *Model* selector supports manual model names and, for local LM Studio endpoints, an *Auto* option plus currently loaded local LLMs. *API key* is optional for endpoints that do not require one.
@@ -980,16 +980,16 @@ For distraction-free terminal work, *F12* toggles *View → Terminal-only Fullsc
 * Passwords are never stored in plain text
 * SSH keys can optionally be copied to user directory (included in backups)
 
-== Rendering PlantUML Diagrams
+== Documentation SVG Diagrams
 
-The documentation uses PlantUML diagrams (`.puml` files in `app-docs/diagrams/`). To regenerate PNG images from them (e.g. after editing a diagram), use the provided script. Requires Java and Graphviz.
+The documentation diagrams are hand-maintained SVG files in `app-docs/diagrams/`. They are versioned directly and embedded in the AsciiDoc documentation.
 
-* Render all diagrams: `./scripts/render-plantuml.sh` or `./scripts/render-plantuml.sh all`
-* Render specific diagrams: `./scripts/render-plantuml.sh architecture connection-flow`
+* Validate all diagrams: `./scripts/validate-doc-svg.sh` or `./scripts/validate-doc-svg.sh all`
+* Validate specific diagrams: `./scripts/validate-doc-svg.sh architecture connection-flow`
 
-PNGs are written to `app-docs/diagrams/` and are embedded in the AsciiDoc documentation.
+The validator runs XML checks with `xmllint` and, when available, a render smoke test with `rsvg-convert`.
 
-*CI and releases:* The build-release workflow installs Graphviz and runs the render script in the `docs-render` job before other steps. The generated PNGs are uploaded as the `docs-diagrams` artifact and, on release, packaged into `KorTTY-docs-diagrams-<version>.zip` on the GitHub Release. Use the diagram zip for doc publication or to get the diagrams without running the render script locally.
+*CI and releases:* The build-release workflow validates the SVGs in the `docs-render` job before other steps. The SVGs are uploaded as the `docs-diagrams` artifact and, on release, packaged into `KorTTY-docs-diagrams-<version>.zip` on the GitHub Release.
 
 == License
 

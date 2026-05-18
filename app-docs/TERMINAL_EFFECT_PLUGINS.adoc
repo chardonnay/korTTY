@@ -25,7 +25,7 @@ The built-in MOTHER effect is implemented as a bundled, exportable plugin JAR an
 
 Terminal-effect plugins are loaded by `de.kortty.core.TerminalEffectPluginManager`.
 
-image::diagrams/terminal-effect-plugin-flow.png[Terminal effect plugin lifecycle,align=center]
+image::diagrams/terminal-effect-plugin-flow.svg[Terminal effect plugin lifecycle,align=center]
 
 Load order:
 

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 600" role="img" aria-labelledby="title desc">
+  <title id="title">Terminal session lifecycle</title>
+  <desc id="desc">Lifecycle of a terminal tab from opening and connecting through split modes, effects, reconnect, failure, and close.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.state{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:24}.active{stroke:#34d399}.warn{stroke:#f59e0b}.err{stroke:#fb7185}.title{font-size:28px;font-weight:700;fill:#f8fafc}.small{font-size:14px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}.loop{stroke:#8b5cf6}</style></defs>
+  <rect class="bg" width="1080" height="600"/>
+  <text class="title" x="40" y="54">Terminal Session Lifecycle</text>
+  <text class="small" x="40" y="82">Split panes, broadcast, and terminal effects are UI modes around the same session lifecycle.</text>
+  <rect class="state" x="60" y="250" width="150" height="56"/><text x="103" y="284">New tab</text>
+  <rect class="state warn" x="260" y="250" width="150" height="56"/><text x="295" y="284">Connecting</text>
+  <rect class="state active" x="460" y="250" width="150" height="56"/><text x="500" y="284">Connected</text>
+  <rect class="state err" x="260" y="390" width="150" height="56"/><text x="304" y="424">Failed</text>
+  <rect class="state" x="690" y="130" width="170" height="56"/><text x="735" y="164">Split pane</text>
+  <rect class="state active" x="690" y="250" width="170" height="56"/><text x="728" y="284">Broadcast</text>
+  <rect class="state" x="690" y="370" width="170" height="56"/><text x="716" y="404">Effect active</text>
+  <rect class="state warn" x="460" y="440" width="170" height="56"/><text x="502" y="474">Reconnect</text>
+  <rect class="state" x="920" y="250" width="110" height="56"/><text x="956" y="284">Close</text>
+  <path class="line" d="M210 278 H260"/><path class="line" d="M410 278 H460"/><path class="line" d="M335 306 V390"/><path class="line" d="M335 390 V318 H260"/><path class="line" d="M610 278 H690"/><path class="line" d="M610 278 C645 220 650 158 690 158"/><path class="line" d="M610 278 C645 335 650 398 690 398"/><path class="line loop" d="M775 186 C775 215 745 226 690 250"/><path class="line loop" d="M775 306 C775 335 745 346 690 370"/><path class="line" d="M610 306 C610 370 580 410 545 440"/><path class="line" d="M545 440 C520 390 500 340 500 306"/><path class="line" d="M860 278 H920"/><path class="line" d="M860 398 C900 398 925 340 950 306"/>
+  <text class="small" x="62" y="540">Reconnect closes the current transport and returns through connection setup. Closing a tab stops effects and terminal resources.</text>
+</svg>
