@@ -1149,6 +1149,9 @@ public class GlobalSettings {
             if (profile != null && profile.getInternetAccessMode() == null) {
                 profile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
             }
+            if (profile != null) {
+                profile.setModelSelectionMode(profile.getModelSelectionMode());
+            }
         }
         if (defaultAiProfileId != null && aiProfiles.stream()
             .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())

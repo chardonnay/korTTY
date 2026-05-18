@@ -166,6 +166,23 @@ public class SftpFileTransferService {
         return newPath;
     }
 
+    public static String resolveSiblingRemoteFilePath(String originalRemotePath, String newFileName) {
+        String normalizedOriginalPath = normalizeRemotePath(originalRemotePath);
+        String normalizedFileName = validateRemoteSiblingFileName(newFileName);
+
+        int parentIndex = normalizedOriginalPath.lastIndexOf('/');
+        String parentPath;
+        if (parentIndex < 0) {
+            parentPath = "";
+        } else if (parentIndex == 0) {
+            parentPath = "/";
+        } else {
+            parentPath = normalizedOriginalPath.substring(0, parentIndex);
+        }
+
+        return appendRemoteName(parentPath, normalizedFileName);
+    }
+
     public synchronized String getRemotePermissions(String remotePath) throws IOException {
         return requireConnectedSession().getPermissions(remotePath);
     }
@@ -295,6 +312,25 @@ public class SftpFileTransferService {
         }
 
         return normalizedPath;
+    }
+
+    private static String validateRemoteSiblingFileName(String newFileName) {
+        if (newFileName == null) {
+            throw new IllegalArgumentException("File name must not be null");
+        }
+
+        String normalizedFileName = newFileName.trim();
+        if (normalizedFileName.isEmpty()) {
+            throw new IllegalArgumentException("File name must not be empty");
+        }
+        if (".".equals(normalizedFileName) || "..".equals(normalizedFileName)) {
+            throw new IllegalArgumentException("File name must not be '.' or '..'");
+        }
+        if (normalizedFileName.contains("/") || normalizedFileName.contains("\\")) {
+            throw new IllegalArgumentException("File name must not contain path separators");
+        }
+
+        return normalizedFileName;
     }
 
     private static String extractName(String path) {

@@ -13,6 +13,7 @@ import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.AiServiceFactory;
 import de.kortty.core.AiSkillPromptSupport;
+import de.kortty.core.LocalLmModelResolver;
 import de.kortty.core.AiSkillMarkdownCodec;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiService;
@@ -31,6 +32,7 @@ import de.kortty.model.AiProfile;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
@@ -170,10 +172,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     // AI settings
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String AI_MODEL_AUTO_LABEL = I18n.get("ai.model.auto");
     private final ListView<AiProfile> aiProfileListView;
     private final TextField aiProfileNameField;
     private final TextField aiApiUrlField;
-    private final TextField aiModelField;
+    private final ComboBox<String> aiModelCombo;
+    private final Button aiRefreshModelsButton;
     private final ComboBox<AiReasoningEffort> aiReasoningCombo;
     private final ComboBox<AiInternetAccessMode> aiInternetAccessModeCombo;
     private final PasswordField aiApiKeyField;
@@ -1310,9 +1314,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiEditorGrid.add(aiApiUrlField, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.model")), 0, aiRow);
-        aiModelField = new TextField();
-        aiModelField.setPrefWidth(220);
-        aiEditorGrid.add(aiModelField, 1, aiRow++);
+        aiModelCombo = new ComboBox<>();
+        aiModelCombo.setEditable(true);
+        aiModelCombo.setPrefWidth(220);
+        aiModelCombo.getItems().add(AI_MODEL_AUTO_LABEL);
+        aiRefreshModelsButton = new Button("↻");
+        aiRefreshModelsButton.setTooltip(new Tooltip(I18n.get("ai.model.refresh.tooltip")));
+        aiRefreshModelsButton.setAccessibleText(I18n.get("ai.model.refresh.accessible"));
+        aiRefreshModelsButton.setMinWidth(36);
+        aiRefreshModelsButton.setOnAction(e -> refreshLocalAiModels(true));
+        HBox aiModelBox = new HBox(6, aiModelCombo, aiRefreshModelsButton);
+        HBox.setHgrow(aiModelCombo, Priority.ALWAYS);
+        aiEditorGrid.add(aiModelBox, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.reasoning")), 0, aiRow);
         aiReasoningCombo = new ComboBox<>();
@@ -1325,9 +1338,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         });
         aiEditorGrid.add(aiReasoningCombo, 1, aiRow++);
 
-        aiApiUrlField.textProperty().addListener((obs, oldValue, newValue) ->
-            refreshAiReasoningOptions(aiReasoningCombo.getValue()));
-        aiModelField.textProperty().addListener((obs, oldValue, newValue) ->
+        aiApiUrlField.textProperty().addListener((obs, oldValue, newValue) -> {
+            refreshAiReasoningOptions(aiReasoningCombo.getValue());
+            refreshLocalAiModels(false);
+        });
+        aiModelCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) ->
             refreshAiReasoningOptions(aiReasoningCombo.getValue()));
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.internet.mode")), 0, aiRow);
@@ -2773,6 +2788,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         profile.setName(createDefaultAiProfileName());
         String defaultApiUrl = globalSettings != null ? globalSettings.getAiApiUrl() : null;
         profile.setApiUrl(defaultApiUrl != null && !defaultApiUrl.isBlank() ? defaultApiUrl : DEFAULT_AI_API_URL);
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
         profile.setMaxSelectionChars(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
         profile.setTokenizerType(AiTokenizerType.ESTIMATE);
         profile.setTokenLimitUnit(AiTokenLimitUnit.THOUSANDS);
@@ -3299,10 +3315,113 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         });
     }
 
+    private String aiModelEditorText() {
+        return aiModelCombo != null && aiModelCombo.getEditor() != null
+            ? aiModelCombo.getEditor().getText()
+            : null;
+    }
+
+    private String aiModelTextForReasoning() {
+        String editorText = trimToNull(aiModelEditorText());
+        if (AI_MODEL_AUTO_LABEL.equals(editorText) && selectedAiProfile != null) {
+            return selectedAiProfile.getModel();
+        }
+        return editorText;
+    }
+
+    private void loadAiModelSelection(AiProfile profile) {
+        aiModelCombo.getItems().setAll(AI_MODEL_AUTO_LABEL);
+        String model = trimToNull(profile.getModel());
+        if (model != null && !aiModelCombo.getItems().contains(model)) {
+            aiModelCombo.getItems().add(model);
+        }
+        if (profile.getModelSelectionMode() == AiModelSelectionMode.AUTO) {
+            aiModelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
+        } else {
+            aiModelCombo.getEditor().setText(model != null ? model : "");
+        }
+    }
+
+    private void snapshotAiModelSelection(AiProfile profile) {
+        String editorText = trimToNull(aiModelEditorText());
+        if (AI_MODEL_AUTO_LABEL.equals(editorText)) {
+            profile.setModelSelectionMode(AiModelSelectionMode.AUTO);
+            return;
+        }
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setModel(editorText);
+    }
+
+    private void refreshLocalAiModels(boolean showErrors) {
+        if (aiModelCombo == null || aiApiUrlField == null) {
+            return;
+        }
+        String apiUrl = trimToNull(aiApiUrlField.getText());
+        aiRefreshModelsButton.setDisable(!AiServiceFactory.canAutoResolveLocalModel(apiUrl));
+        if (!AiServiceFactory.canAutoResolveLocalModel(apiUrl)) {
+            preserveCurrentAiModelItems(List.of());
+            return;
+        }
+        AiProfile profile = selectedAiProfile;
+        String profileId = profile != null ? profile.getId() : null;
+        String apiKey = profile != null ? getAiApiKeyPlain(profile) : null;
+        aiRefreshModelsButton.setDisable(true);
+        CompletableFuture
+            .supplyAsync(() -> {
+                try {
+                    return LocalLmModelResolver.loadLoadedLlmModelKeys(apiUrl, apiKey);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            })
+            .whenComplete((models, throwable) -> Platform.runLater(() -> {
+                if (!java.util.Objects.equals(apiUrl, trimToNull(aiApiUrlField.getText()))) {
+                    aiRefreshModelsButton.setDisable(!AiServiceFactory.canAutoResolveLocalModel(trimToNull(aiApiUrlField.getText())));
+                    return;
+                }
+                aiRefreshModelsButton.setDisable(false);
+                if (selectedAiProfile != profile && (selectedAiProfile == null || !java.util.Objects.equals(selectedAiProfile.getId(), profileId))) {
+                    return;
+                }
+                if (throwable != null) {
+                    preserveCurrentAiModelItems(List.of());
+                    if (showErrors) {
+                        Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+                        Alert alert = new Alert(Alert.AlertType.ERROR,
+                            I18n.get("settings.ai.error.testFailed") + ": "
+                                + (cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName()));
+                        alert.setHeaderText(null);
+                        alert.showAndWait();
+                    }
+                    return;
+                }
+                preserveCurrentAiModelItems(models != null ? models : List.of());
+            }));
+    }
+
+    private void preserveCurrentAiModelItems(List<String> loadedModels) {
+        String currentText = aiModelEditorText();
+        List<String> items = new ArrayList<>();
+        items.add(AI_MODEL_AUTO_LABEL);
+        for (String model : loadedModels) {
+            if (model != null && !model.isBlank() && !items.contains(model)) {
+                items.add(model);
+            }
+        }
+        String current = trimToNull(currentText);
+        if (current != null && !items.contains(current)) {
+            items.add(current);
+        }
+        aiModelCombo.getItems().setAll(items);
+        if (currentText != null) {
+            aiModelCombo.getEditor().setText(currentText);
+        }
+    }
+
     private void refreshAiReasoningOptions(AiReasoningEffort requestedEffort) {
         List<AiReasoningEffort> options = AiReasoningSupport.availableEfforts(
             aiApiUrlField != null ? aiApiUrlField.getText() : null,
-            aiModelField != null ? aiModelField.getText() : null);
+            aiModelTextForReasoning());
         AiReasoningEffort selected = AiReasoningSupport.normalize(requestedEffort, options);
         aiReasoningCombo.getItems().setAll(options);
         aiReasoningCombo.getSelectionModel().select(selected);
@@ -3321,7 +3440,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         selectedAiProfile.setName(trimToNull(aiProfileNameField.getText()));
         selectedAiProfile.setApiUrl(trimToNull(aiApiUrlField.getText()));
-        selectedAiProfile.setModel(trimToNull(aiModelField.getText()));
+        snapshotAiModelSelection(selectedAiProfile);
         selectedAiProfile.setReasoningEffort(AiReasoningSupport.normalizeForProfile(
             selectedAiProfile.getApiUrl(),
             selectedAiProfile.getModel(),
@@ -3357,7 +3476,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (profile == null) {
             aiProfileNameField.clear();
             aiApiUrlField.clear();
-            aiModelField.clear();
+            aiModelCombo.getItems().setAll(AI_MODEL_AUTO_LABEL);
+            aiModelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
             refreshAiReasoningOptions(AiReasoningEffort.DISABLED);
             aiInternetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             aiApiKeyField.clear();
@@ -3378,8 +3498,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         aiProfileNameField.setText(profile.getName() != null ? profile.getName() : "");
         aiApiUrlField.setText(profile.getApiUrl() != null ? profile.getApiUrl() : "");
-        aiModelField.setText(profile.getModel() != null ? profile.getModel() : "");
+        loadAiModelSelection(profile);
         refreshAiReasoningOptions(profile.getReasoningEffort());
+        refreshLocalAiModels(false);
         aiInternetAccessModeCombo.setValue(profile.getInternetAccessMode());
         aiMaxSelectionCharsSpinner.getValueFactory().setValue(
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
@@ -3727,7 +3848,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl")).showAndWait();
             return;
         }
-        if (trimToNull(selectedAiProfile.getModel()) == null) {
+        if (selectedAiProfile.getModelSelectionMode() == AiModelSelectionMode.MANUAL
+            && trimToNull(selectedAiProfile.getModel()) == null) {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noModel")).showAndWait();
             return;
         }

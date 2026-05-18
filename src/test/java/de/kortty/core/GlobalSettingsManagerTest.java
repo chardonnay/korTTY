@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiSkill;
@@ -103,6 +104,7 @@ class GlobalSettingsManagerTest {
             assertThat(reloadedProfile.getName()).isEqualTo("LM Studio");
             assertThat(reloadedProfile.getApiUrl()).isEqualTo("http://127.0.0.1:1234/v1/chat/completions");
             assertThat(reloadedProfile.getModel()).isEqualTo("local-model");
+            assertThat(reloadedProfile.getModelSelectionMode()).isEqualTo(AiModelSelectionMode.MANUAL);
             assertThat(reloadedProfile.getReasoningEffort()).isEqualTo(AiReasoningEffort.HIGH);
             assertThat(reloadedProfile.getInternetAccessMode()).isEqualTo(AiInternetAccessMode.KORTTY_TAVILY_TOOL);
             assertThat(reloadedProfile.getEncryptedApiKey()).isEqualTo("encrypted-key");
@@ -275,6 +277,8 @@ class GlobalSettingsManagerTest {
             assertThat(reloaded.getSettings().getAiProfiles().size()).isEqualTo(1);
             assertThat(reloaded.getSettings().getAiProfiles().get(0).getInternetAccessMode())
                 .isEqualTo(AiInternetAccessMode.DISABLED);
+            assertThat(reloaded.getSettings().getAiProfiles().get(0).getModelSelectionMode())
+                .isEqualTo(AiModelSelectionMode.MANUAL);
             assertThat(reloaded.getSettings().isAiSkillsEnabled()).isTrue();
             assertThat(reloaded.getSettings().isAiSkillAutoDetectionEnabled()).isTrue();
             assertThat(reloaded.getSettings().getAiSkills()).isEmpty();
@@ -340,6 +344,38 @@ class GlobalSettingsManagerTest {
             assertThat(profile.getEncryptedApiKey()).isEqualTo("legacy-key");
             assertThat(profile.getMaxSelectionChars()).isEqualTo(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
             assertThat(profile.getInternetAccessMode()).isEqualTo(AiInternetAccessMode.DISABLED);
+            assertThat(profile.getModelSelectionMode()).isEqualTo(AiModelSelectionMode.MANUAL);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void loadLegacyAiProfileWithoutModelDefaultsToAutoModelSelection() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-legacy-ai-model-selection");
+        try {
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <aiProfiles>
+                        <profile>
+                            <id>auto-profile</id>
+                            <name>Auto Profile</name>
+                            <apiUrl>http://127.0.0.1:1234/v1/chat/completions</apiUrl>
+                        </profile>
+                    </aiProfiles>
+                    <defaultAiProfileId>auto-profile</defaultAiProfileId>
+                </globalSettings>
+                """);
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getAiProfiles()).hasSize(1);
+            assertThat(reloaded.getSettings().getAiProfiles().get(0).getModel()).isNull();
+            assertThat(reloaded.getSettings().getAiProfiles().get(0).getModelSelectionMode())
+                .isEqualTo(AiModelSelectionMode.AUTO);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

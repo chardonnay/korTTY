@@ -10,7 +10,9 @@ import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.FailingAiService;
+import de.kortty.core.LocalLmModelResolver;
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
@@ -45,6 +47,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -71,6 +74,7 @@ import java.util.concurrent.CompletableFuture;
 public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String AI_MODEL_AUTO_LABEL = I18n.get("ai.model.auto");
     private static final DateTimeFormatter UPDATED_AT_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     private final MainWindow ownerWindow;
@@ -81,7 +85,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final ListView<AiProfile> profileListView;
     private final TextField profileNameField;
     private final TextField apiUrlField;
-    private final TextField modelField;
+    private final ComboBox<String> modelCombo;
+    private final Button refreshModelsButton;
     private final ComboBox<AiReasoningEffort> reasoningCombo;
     private final ComboBox<AiInternetAccessMode> internetAccessModeCombo;
     private final PasswordField apiKeyField;
@@ -118,7 +123,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profileListView = buildProfileListView();
         profileNameField = new TextField();
         apiUrlField = new TextField();
-        modelField = new TextField();
+        modelCombo = new ComboBox<>();
+        modelCombo.setEditable(true);
+        modelCombo.getItems().add(AI_MODEL_AUTO_LABEL);
+        refreshModelsButton = new Button("↻");
+        refreshModelsButton.setTooltip(new Tooltip(I18n.get("ai.model.refresh.tooltip")));
+        refreshModelsButton.setAccessibleText(I18n.get("ai.model.refresh.accessible"));
         reasoningCombo = new ComboBox<>();
         internetAccessModeCombo = new ComboBox<>();
         apiKeyField = new PasswordField();
@@ -278,7 +288,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         editorGrid.add(apiUrlField, 1, row++);
 
         editorGrid.add(new Label(I18n.get("settings.ai.model")), 0, row);
-        editorGrid.add(modelField, 1, row++);
+        modelCombo.setPrefWidth(260);
+        refreshModelsButton.setMinWidth(36);
+        refreshModelsButton.setOnAction(e -> refreshLocalModels(true));
+        HBox modelBox = new HBox(6, modelCombo, refreshModelsButton);
+        HBox.setHgrow(modelCombo, Priority.ALWAYS);
+        editorGrid.add(modelBox, 1, row++);
 
         editorGrid.add(new Label(I18n.get("settings.ai.reasoning")), 0, row);
         editorGrid.add(reasoningCombo, 1, row++);
@@ -295,9 +310,11 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         editorGrid.add(new Label(I18n.get("settings.ai.internet.mode")), 0, row);
         editorGrid.add(internetAccessModeCombo, 1, row++);
 
-        apiUrlField.textProperty().addListener((obs, oldValue, newValue) ->
-            refreshReasoningOptions(reasoningCombo.getValue()));
-        modelField.textProperty().addListener((obs, oldValue, newValue) ->
+        apiUrlField.textProperty().addListener((obs, oldValue, newValue) -> {
+            refreshReasoningOptions(reasoningCombo.getValue());
+            refreshLocalModels(false);
+        });
+        modelCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) ->
             refreshReasoningOptions(reasoningCombo.getValue()));
 
         editorGrid.add(new Label(I18n.get("settings.ai.apiKey")), 0, row);
@@ -519,6 +536,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profile.setId(UUID.randomUUID().toString());
         profile.setName(createDefaultProfileName());
         profile.setApiUrl(DEFAULT_AI_API_URL);
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
         profile.setMaxSelectionChars(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
         profile.setTokenizerType(AiTokenizerType.ESTIMATE);
         profile.setTokenLimitUnit(AiTokenLimitUnit.THOUSANDS);
@@ -603,10 +621,110 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         };
     }
 
+    private String modelEditorText() {
+        return modelCombo != null && modelCombo.getEditor() != null
+            ? modelCombo.getEditor().getText()
+            : null;
+    }
+
+    private String modelTextForReasoning() {
+        String editorText = trimToNull(modelEditorText());
+        if (AI_MODEL_AUTO_LABEL.equals(editorText) && selectedProfile != null) {
+            return selectedProfile.getModel();
+        }
+        return editorText;
+    }
+
+    private void loadModelSelection(AiProfile profile) {
+        modelCombo.getItems().setAll(AI_MODEL_AUTO_LABEL);
+        String model = trimToNull(profile.getModel());
+        if (model != null && !modelCombo.getItems().contains(model)) {
+            modelCombo.getItems().add(model);
+        }
+        if (profile.getModelSelectionMode() == AiModelSelectionMode.AUTO) {
+            modelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
+        } else {
+            modelCombo.getEditor().setText(model != null ? model : "");
+        }
+    }
+
+    private void snapshotModelSelection(AiProfile profile) {
+        String editorText = trimToNull(modelEditorText());
+        if (AI_MODEL_AUTO_LABEL.equals(editorText)) {
+            profile.setModelSelectionMode(AiModelSelectionMode.AUTO);
+            return;
+        }
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setModel(editorText);
+    }
+
+    private void refreshLocalModels(boolean showErrors) {
+        if (modelCombo == null || apiUrlField == null) {
+            return;
+        }
+        String apiUrl = trimToNull(apiUrlField.getText());
+        refreshModelsButton.setDisable(!AiServiceFactory.canAutoResolveLocalModel(apiUrl));
+        if (!AiServiceFactory.canAutoResolveLocalModel(apiUrl)) {
+            preserveModelItems(List.of());
+            return;
+        }
+        AiProfile profile = selectedProfile;
+        String profileId = profile != null ? profile.getId() : null;
+        String apiKey = profile != null ? getPlainApiKey(profile) : null;
+        refreshModelsButton.setDisable(true);
+        CompletableFuture
+            .supplyAsync(() -> {
+                try {
+                    return LocalLmModelResolver.loadLoadedLlmModelKeys(apiUrl, apiKey);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            })
+            .whenComplete((models, throwable) -> Platform.runLater(() -> {
+                if (!java.util.Objects.equals(apiUrl, trimToNull(apiUrlField.getText()))) {
+                    refreshModelsButton.setDisable(!AiServiceFactory.canAutoResolveLocalModel(trimToNull(apiUrlField.getText())));
+                    return;
+                }
+                refreshModelsButton.setDisable(false);
+                if (selectedProfile != profile && (selectedProfile == null || !java.util.Objects.equals(selectedProfile.getId(), profileId))) {
+                    return;
+                }
+                if (throwable != null) {
+                    preserveModelItems(List.of());
+                    if (showErrors) {
+                        Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+                        showSimpleAlert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed") + ": "
+                            + (cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName()));
+                    }
+                    return;
+                }
+                preserveModelItems(models != null ? models : List.of());
+            }));
+    }
+
+    private void preserveModelItems(List<String> loadedModels) {
+        String currentText = modelEditorText();
+        List<String> items = new ArrayList<>();
+        items.add(AI_MODEL_AUTO_LABEL);
+        for (String model : loadedModels) {
+            if (model != null && !model.isBlank() && !items.contains(model)) {
+                items.add(model);
+            }
+        }
+        String current = trimToNull(currentText);
+        if (current != null && !items.contains(current)) {
+            items.add(current);
+        }
+        modelCombo.getItems().setAll(items);
+        if (currentText != null) {
+            modelCombo.getEditor().setText(currentText);
+        }
+    }
+
     private void refreshReasoningOptions(AiReasoningEffort requestedEffort) {
         List<AiReasoningEffort> options = AiReasoningSupport.availableEfforts(
             apiUrlField != null ? apiUrlField.getText() : null,
-            modelField != null ? modelField.getText() : null);
+            modelTextForReasoning());
         AiReasoningEffort selected = AiReasoningSupport.normalize(requestedEffort, options);
         reasoningCombo.getItems().setAll(options);
         reasoningCombo.getSelectionModel().select(selected);
@@ -624,7 +742,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
         selectedProfile.setName(trimToNull(profileNameField.getText()));
         selectedProfile.setApiUrl(trimToNull(apiUrlField.getText()));
-        selectedProfile.setModel(trimToNull(modelField.getText()));
+        snapshotModelSelection(selectedProfile);
         selectedProfile.setReasoningEffort(AiReasoningSupport.normalizeForProfile(
             selectedProfile.getApiUrl(),
             selectedProfile.getModel(),
@@ -660,7 +778,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         if (profile == null) {
             profileNameField.clear();
             apiUrlField.clear();
-            modelField.clear();
+            modelCombo.getItems().setAll(AI_MODEL_AUTO_LABEL);
+            modelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
             refreshReasoningOptions(AiReasoningEffort.DISABLED);
             internetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             apiKeyField.clear();
@@ -681,8 +800,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         profileNameField.setText(profile.getName() != null ? profile.getName() : "");
         apiUrlField.setText(profile.getApiUrl() != null ? profile.getApiUrl() : "");
-        modelField.setText(profile.getModel() != null ? profile.getModel() : "");
+        loadModelSelection(profile);
         refreshReasoningOptions(profile.getReasoningEffort());
+        refreshLocalModels(false);
         internetAccessModeCombo.setValue(profile.getInternetAccessMode());
         maxSelectionCharsSpinner.getValueFactory().setValue(
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
@@ -778,7 +898,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl"));
             return;
         }
-        if (trimToNull(selectedProfile.getModel()) == null) {
+        if (selectedProfile.getModelSelectionMode() == AiModelSelectionMode.MANUAL
+            && trimToNull(selectedProfile.getModel()) == null) {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noModel"));
             return;
         }
@@ -830,7 +951,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private AiService createAiService(AiProfile profile) {
         String apiUrl = trimToNull(profile.getApiUrl());
-        if (apiUrl == null || apiUrl.matches("^https?://[^/]+/?$")) {
+        if (apiUrl == null) {
             return null;
         }
         String apiKey = getPlainApiKey(profile);

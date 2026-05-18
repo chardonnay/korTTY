@@ -123,6 +123,32 @@ class SftpFileTransferServiceTest {
         assertThat(exception.getMessage()).isEqualTo("Remote path must not be empty");
     }
 
+    @Test
+    void resolveSiblingRemoteFilePathKeepsTargetInSameDirectory() {
+        assertThat(SftpFileTransferService.resolveSiblingRemoteFilePath("/etc/app.conf", "app2.conf"))
+            .isEqualTo("/etc/app2.conf");
+        assertThat(SftpFileTransferService.resolveSiblingRemoteFilePath("/app.conf", "app2.conf"))
+            .isEqualTo("/app2.conf");
+        assertThat(SftpFileTransferService.resolveSiblingRemoteFilePath("app.conf", "app2.conf"))
+            .isEqualTo("app2.conf");
+    }
+
+    @Test
+    void resolveSiblingRemoteFilePathRejectsUnsafeFileNames() {
+        assertThat(expectThrows(IllegalArgumentException.class,
+            () -> SftpFileTransferService.resolveSiblingRemoteFilePath("/etc/app.conf", "")).getMessage())
+            .isEqualTo("File name must not be empty");
+        assertThat(expectThrows(IllegalArgumentException.class,
+            () -> SftpFileTransferService.resolveSiblingRemoteFilePath("/etc/app.conf", "/tmp/app.conf")).getMessage())
+            .isEqualTo("File name must not contain path separators");
+        assertThat(expectThrows(IllegalArgumentException.class,
+            () -> SftpFileTransferService.resolveSiblingRemoteFilePath("/etc/app.conf", "tmp\\app.conf")).getMessage())
+            .isEqualTo("File name must not contain path separators");
+        assertThat(expectThrows(IllegalArgumentException.class,
+            () -> SftpFileTransferService.resolveSiblingRemoteFilePath("/etc/app.conf", "..")).getMessage())
+            .isEqualTo("File name must not be '.' or '..'");
+    }
+
     private static final class RecordingSftpSession extends SFTPSession {
         private String lastOldPath;
         private String lastNewPath;

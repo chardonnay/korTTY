@@ -3,6 +3,7 @@ package de.kortty.core;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.AiReasoningEffort;
@@ -108,6 +109,73 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void executeResolvesBlankLocalModelBeforeOpenAiCompatibleRequest() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            """
+                {
+                  "models": [
+                    {"type": "llm", "key": "qwen/qwen3-coder", "loaded_instances": [{"id": "qwen/qwen3-coder"}]}
+                  ]
+                }
+                """,
+            """
+                {
+                  "choices": [
+                    {"message": {"content": "ok"}}
+                  ],
+                  "usage": {"prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5}
+                }
+                """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://127.0.0.1:1234/v1/chat/completions",
+            "",
+            AiModelSelectionMode.AUTO,
+            "",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"),
+            client,
+            Duration.ofSeconds(5));
+
+        assertThat(result.content()).isEqualTo("ok");
+        assertThat(client.requestUris().get(0).toString()).isEqualTo("http://127.0.0.1:1234/api/v1/models");
+        assertThat(client.requestUris().get(1).toString()).isEqualTo("http://127.0.0.1:1234/v1/chat/completions");
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).contains("\"model\":\"qwen/qwen3-coder\"");
+    }
+
+    @Test
+    void executeResolvesAutoModelBeforeEveryOpenAiCompatibleRequest() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            """
+                {"models": [{"type": "llm", "key": "qwen", "loaded_instances": [{"id": "qwen"}]}]}
+                """,
+            """
+                {"choices": [{"message": {"content": "first"}}]}
+                """,
+            """
+                {"models": [{"type": "llm", "key": "mistral", "loaded_instances": [{"id": "mistral"}]}]}
+                """,
+            """
+                {"choices": [{"message": {"content": "second"}}]}
+                """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://127.0.0.1:1234/v1/chat/completions",
+            "",
+            AiModelSelectionMode.AUTO,
+            "",
+            client);
+
+        service.executeWithClient(new AiRequest(AiAction.SUMMARIZE, "one", "qa-box", "en"), client, Duration.ofSeconds(5));
+        service.executeWithClient(new AiRequest(AiAction.SUMMARIZE, "two", "qa-box", "en"), client, Duration.ofSeconds(5));
+
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(0)).contains("\"model\":\"qwen\"");
+        assertThat(client.requestBodies().get(1)).contains("\"model\":\"mistral\"");
+    }
+
+    @Test
     void buildConnectionTestRequestBodyUsesMinimalHealthCheckPrompt() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",
@@ -117,6 +185,7 @@ class OpenAiCompatibleAiServiceTest {
         String body = service.buildConnectionTestRequestBody();
 
         assertThat(body.contains("\"model\":\"qwen-test\"")).isTrue();
+        assertThat(body.contains("\"max_tokens\":128")).isTrue();
         assertThat(body.contains("Reply with exactly OK.")).isTrue();
         assertThat(body.contains("Connection test.")).isTrue();
         assertThat(!body.contains("Summarize the selected terminal text")).isTrue();
@@ -810,6 +879,7 @@ class OpenAiCompatibleAiServiceTest {
     private static final class SequencedInputStreamHttpClient extends HttpClient {
         private final Queue<String> responseBodies;
         private final List<String> requestBodies = new ArrayList<>();
+        private final List<URI> requestUris = new ArrayList<>();
 
         private SequencedInputStreamHttpClient(String... responseBodies) {
             this.responseBodies = new ArrayDeque<>(List.of(responseBodies));
@@ -817,8 +887,14 @@ class OpenAiCompatibleAiServiceTest {
 
         @Override
         public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) throws IOException {
-            requestBodies.add(readBody(request));
+            requestUris.add(request.uri());
             String body = responseBodies.remove();
+            if ("GET".equalsIgnoreCase(request.method()) && "/api/v1/models".equals(request.uri().getPath())) {
+                @SuppressWarnings("unchecked")
+                T typedBody = (T) body;
+                return new SimpleHttpResponse<>(request, typedBody);
+            }
+            requestBodies.add(readBody(request));
             @SuppressWarnings("unchecked")
             T typedBody = (T) new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
             return new SimpleHttpResponse<>(request, typedBody);
@@ -885,6 +961,10 @@ class OpenAiCompatibleAiServiceTest {
 
         private List<String> requestBodies() {
             return requestBodies;
+        }
+
+        private List<URI> requestUris() {
+            return requestUris;
         }
     }
 

@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiReasoningEffort;
 
 import java.io.IOException;
@@ -32,6 +33,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
 
     private final String apiUrl;
     private final String model;
+    private final AiModelSelectionMode modelSelectionMode;
     private final String apiKey;
     private final AiReasoningEffort reasoningEffort;
     private final AiInternetAccessConfiguration internetConfig;
@@ -46,6 +48,26 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         AiInternetAccessConfiguration internetConfig) {
 
         this(apiUrl, model, apiKey, reasoningEffort, internetConfig, AiSkillPromptSupport.disabled());
+    }
+
+    public LmStudioNativeAiService(
+        String apiUrl,
+        String model,
+        AiModelSelectionMode modelSelectionMode,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        AiInternetAccessConfiguration internetConfig,
+        AiSkillPromptSupport skillPromptSupport) {
+
+        this(
+            apiUrl,
+            model,
+            modelSelectionMode,
+            apiKey,
+            reasoningEffort,
+            internetConfig,
+            HttpClient.newBuilder().connectTimeout(DEFAULT_CONNECT_TIMEOUT).build(),
+            skillPromptSupport);
     }
 
     public LmStudioNativeAiService(
@@ -69,12 +91,44 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
     LmStudioNativeAiService(
         String apiUrl,
         String model,
+        AiModelSelectionMode modelSelectionMode,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        AiInternetAccessConfiguration internetConfig,
+        HttpClient httpClient) {
+
+        this(apiUrl, model, modelSelectionMode, apiKey, reasoningEffort, internetConfig, httpClient, AiSkillPromptSupport.disabled());
+    }
+
+    LmStudioNativeAiService(
+        String apiUrl,
+        String model,
         String apiKey,
         AiReasoningEffort reasoningEffort,
         AiInternetAccessConfiguration internetConfig,
         HttpClient httpClient) {
 
         this(apiUrl, model, apiKey, reasoningEffort, internetConfig, httpClient, AiSkillPromptSupport.disabled());
+    }
+
+    LmStudioNativeAiService(
+        String apiUrl,
+        String model,
+        AiModelSelectionMode modelSelectionMode,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        AiInternetAccessConfiguration internetConfig,
+        HttpClient httpClient,
+        AiSkillPromptSupport skillPromptSupport) {
+
+        this.apiUrl = apiUrl != null ? apiUrl.trim() : "";
+        this.model = model != null ? model.trim() : "";
+        this.modelSelectionMode = modelSelectionMode != null ? modelSelectionMode : AiModelSelectionMode.MANUAL;
+        this.apiKey = apiKey != null ? apiKey.trim() : "";
+        this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
+        this.internetConfig = internetConfig != null ? internetConfig : AiInternetAccessConfiguration.disabled();
+        this.httpClient = httpClient;
+        this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
     }
 
     LmStudioNativeAiService(
@@ -88,6 +142,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
 
         this.apiUrl = apiUrl != null ? apiUrl.trim() : "";
         this.model = model != null ? model.trim() : "";
+        this.modelSelectionMode = AiModelSelectionMode.MANUAL;
         this.apiKey = apiKey != null ? apiKey.trim() : "";
         this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
         this.internetConfig = internetConfig != null ? internetConfig : AiInternetAccessConfiguration.disabled();
@@ -161,9 +216,18 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
     }
 
     String buildRequestBody(String systemPrompt, String userPrompt, boolean includeInternet) {
+        return buildRequestBody(systemPrompt, userPrompt, includeInternet, model);
+    }
+
+    private String buildRequestBody(
+        String systemPrompt,
+        String userPrompt,
+        boolean includeInternet,
+        String effectiveModel) {
+
         JsonObject root = new JsonObject();
-        if (!model.isBlank()) {
-            root.addProperty("model", model);
+        if (effectiveModel != null && !effectiveModel.isBlank()) {
+            root.addProperty("model", effectiveModel);
         }
         root.addProperty("system_prompt", systemPrompt != null ? systemPrompt : "");
         root.addProperty("input", userPrompt != null ? userPrompt : "");
@@ -207,7 +271,10 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         Duration timeout = overrideTimeout != null
             ? overrideTimeout
             : includeInternet ? INTERNET_REQUEST_TIMEOUT : null;
-        HttpRequest request = buildJsonPostRequest(buildRequestBody(systemPrompt, userPrompt, includeInternet), timeout);
+        String effectiveModel = LocalLmModelResolver.resolve(apiUrl, model, modelSelectionMode, apiKey, httpClient);
+        HttpRequest request = buildJsonPostRequest(
+            buildRequestBody(systemPrompt, userPrompt, includeInternet, effectiveModel),
+            timeout);
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IOException("LM Studio API error " + response.statusCode() + ": " + extractErrorMessage(response.body()));

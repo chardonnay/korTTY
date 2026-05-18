@@ -5,6 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiReasoningEffort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +49,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
     private final String apiUrl;
     private final String model;
+    private final AiModelSelectionMode modelSelectionMode;
     private final String apiKey;
     private final AiReasoningEffort reasoningEffort;
     private final HttpClient httpClient;
@@ -66,6 +68,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         this(apiUrl, model, apiKey, AiReasoningEffort.DISABLED, httpClient);
     }
 
+    OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        AiModelSelectionMode modelSelectionMode,
+        String apiKey,
+        HttpClient httpClient) {
+
+        this(apiUrl, model, modelSelectionMode, apiKey, AiReasoningEffort.DISABLED, httpClient);
+    }
+
     public OpenAiCompatibleAiService(
         String apiUrl,
         String model,
@@ -74,6 +86,26 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         TavilyWebSearchTool webSearchTool) {
 
         this(apiUrl, model, apiKey, reasoningEffort, webSearchTool, AiSkillPromptSupport.disabled());
+    }
+
+    public OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        AiModelSelectionMode modelSelectionMode,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        TavilyWebSearchTool webSearchTool,
+        AiSkillPromptSupport skillPromptSupport) {
+
+        this(
+            apiUrl,
+            model,
+            modelSelectionMode,
+            apiKey,
+            reasoningEffort,
+            HttpClient.newBuilder().connectTimeout(DEFAULT_CONNECT_TIMEOUT).build(),
+            webSearchTool,
+            skillPromptSupport);
     }
 
     public OpenAiCompatibleAiService(
@@ -97,11 +129,34 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     OpenAiCompatibleAiService(
         String apiUrl,
         String model,
+        AiModelSelectionMode modelSelectionMode,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        HttpClient httpClient) {
+
+        this(apiUrl, model, modelSelectionMode, apiKey, reasoningEffort, httpClient, null);
+    }
+
+    OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
         String apiKey,
         AiReasoningEffort reasoningEffort,
         HttpClient httpClient) {
 
         this(apiUrl, model, apiKey, reasoningEffort, httpClient, null);
+    }
+
+    OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        AiModelSelectionMode modelSelectionMode,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        HttpClient httpClient,
+        TavilyWebSearchTool webSearchTool) {
+
+        this(apiUrl, model, modelSelectionMode, apiKey, reasoningEffort, httpClient, webSearchTool, AiSkillPromptSupport.disabled());
     }
 
     OpenAiCompatibleAiService(
@@ -118,6 +173,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     OpenAiCompatibleAiService(
         String apiUrl,
         String model,
+        AiModelSelectionMode modelSelectionMode,
         String apiKey,
         AiReasoningEffort reasoningEffort,
         HttpClient httpClient,
@@ -126,6 +182,26 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
         this.apiUrl = apiUrl != null ? apiUrl.trim() : "";
         this.model = model != null ? model.trim() : "";
+        this.modelSelectionMode = modelSelectionMode != null ? modelSelectionMode : AiModelSelectionMode.MANUAL;
+        this.apiKey = apiKey != null ? apiKey.trim() : "";
+        this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
+        this.httpClient = httpClient;
+        this.webSearchTool = webSearchTool;
+        this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
+    }
+
+    OpenAiCompatibleAiService(
+        String apiUrl,
+        String model,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        HttpClient httpClient,
+        TavilyWebSearchTool webSearchTool,
+        AiSkillPromptSupport skillPromptSupport) {
+
+        this.apiUrl = apiUrl != null ? apiUrl.trim() : "";
+        this.model = model != null ? model.trim() : "";
+        this.modelSelectionMode = AiModelSelectionMode.MANUAL;
         this.apiKey = apiKey != null ? apiKey.trim() : "";
         this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
         this.httpClient = httpClient;
@@ -157,14 +233,17 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     AiExecutionResult executeWithClient(AiRequest request, HttpClient client, Duration timeout) throws Exception {
+        String effectiveModel = resolveModelForRequest(client);
+        AiSkillRelevanceClassifier skillClassifier = createSkillClassifier(client, effectiveModel);
         if (webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request)) {
             return executeToolAwareMessages(
-                buildRequestMessages(request, true, createSkillClassifier(client)),
+                buildRequestMessages(request, true, skillClassifier),
                 client,
                 timeout,
-                false);
+                false,
+                effectiveModel);
         }
-        HttpRequest httpRequest = buildHttpRequest(request, timeout, createSkillClassifier(client));
+        HttpRequest httpRequest = buildHttpRequest(request, timeout, skillClassifier, effectiveModel);
         return executeRequestWithClient(httpRequest, client);
     }
 
@@ -195,17 +274,25 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         boolean jsonResponseFormat,
         boolean includeAgentSkills) throws Exception {
 
+        String effectiveModel = resolveModelForRequest(client);
+        AiSkillRelevanceClassifier skillClassifier = createSkillClassifier(client, effectiveModel);
         String effectiveSystemPrompt = includeAgentSkills
-            ? skillPromptSupport.appendAgentSkills(systemPrompt, userPrompt, createSkillClassifier(client))
+            ? skillPromptSupport.appendAgentSkills(systemPrompt, userPrompt, skillClassifier)
             : normalizePrompt(systemPrompt);
         if (webSearchTool != null && AiInternetPromptSupport.isPromptInternetEligible(userPrompt)) {
             return executeToolAwareMessages(
                 buildPromptMessages(AiInternetPromptSupport.appendRules(effectiveSystemPrompt), userPrompt),
                 client,
                 timeout,
-                jsonResponseFormat);
+                jsonResponseFormat,
+                effectiveModel);
         }
-        HttpRequest httpRequest = buildPromptHttpRequest(effectiveSystemPrompt, userPrompt, timeout, jsonResponseFormat);
+        HttpRequest httpRequest = buildPromptHttpRequest(
+            effectiveSystemPrompt,
+            userPrompt,
+            timeout,
+            jsonResponseFormat,
+            effectiveModel);
         return executeRequestWithClient(httpRequest, client);
     }
 
@@ -231,11 +318,12 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         JsonArray messages,
         HttpClient client,
         Duration timeout,
-        boolean jsonResponseFormat) throws Exception {
+        boolean jsonResponseFormat,
+        String effectiveModel) throws Exception {
 
         List<AiTokenUsage> usageEntries = new ArrayList<>();
         for (int round = 0; round <= MAX_WEB_TOOL_ROUNDS; round++) {
-            String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, true);
+            String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, true, effectiveModel);
             HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
             String responseBody = readResponseBody(response.body());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -267,7 +355,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                         messages.add(buildToolRoundLimitMessage(toolCallElement));
                     }
                     messages.add(buildToolRoundLimitInstructionMessage());
-                    return executeFinalMessagesWithoutTools(messages, client, timeout, jsonResponseFormat, usageEntries);
+                    return executeFinalMessagesWithoutTools(messages, client, timeout, jsonResponseFormat, usageEntries, effectiveModel);
                 }
                 messages.add(copyAssistantToolCallMessage(message, limitedToolCalls));
                 for (JsonElement toolCallElement : limitedToolCalls) {
@@ -291,9 +379,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         HttpClient client,
         Duration timeout,
         boolean jsonResponseFormat,
-        List<AiTokenUsage> usageEntries) throws Exception {
+        List<AiTokenUsage> usageEntries,
+        String effectiveModel) throws Exception {
 
-        String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, false);
+        String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, false, effectiveModel);
         HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -458,6 +547,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return new AiTokenUsage(promptTokens, completionTokens, totalTokens);
     }
 
+    private String resolveModelForRequest(HttpClient client) throws IOException, InterruptedException {
+        return LocalLmModelResolver.resolve(apiUrl, model, modelSelectionMode, apiKey, client);
+    }
+
     @Override
     public boolean testConnection() {
         try {
@@ -482,19 +575,36 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         AiRequest request,
         Duration timeout,
         AiSkillRelevanceClassifier skillClassifier) {
+        return buildHttpRequest(request, timeout, skillClassifier, model);
+    }
+
+    private HttpRequest buildHttpRequest(
+        AiRequest request,
+        Duration timeout,
+        AiSkillRelevanceClassifier skillClassifier,
+        String effectiveModel) {
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
         }
         boolean includeTools = webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request);
-        String body = buildMessagesRequestBody(buildRequestMessages(request, includeTools, skillClassifier), 0.2, false, includeTools);
+        String body = buildMessagesRequestBody(
+            buildRequestMessages(request, includeTools, skillClassifier),
+            0.2,
+            false,
+            includeTools,
+            effectiveModel);
         return buildJsonPostRequest(body, timeout);
     }
 
     HttpRequest buildConnectionTestHttpRequest(Duration timeout) {
+        return buildConnectionTestHttpRequest(timeout, model);
+    }
+
+    private HttpRequest buildConnectionTestHttpRequest(Duration timeout, String effectiveModel) {
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
         }
-        return buildJsonPostRequest(buildConnectionTestRequestBody(), timeout);
+        return buildJsonPostRequest(buildConnectionTestRequestBody(effectiveModel), timeout);
     }
 
     HttpRequest buildPromptHttpRequest(String systemPrompt, String userPrompt, Duration timeout) {
@@ -502,10 +612,21 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     HttpRequest buildPromptHttpRequest(String systemPrompt, String userPrompt, Duration timeout, boolean jsonResponseFormat) {
+        return buildPromptHttpRequest(systemPrompt, userPrompt, timeout, jsonResponseFormat, model);
+    }
+
+    private HttpRequest buildPromptHttpRequest(
+        String systemPrompt,
+        String userPrompt,
+        Duration timeout,
+        boolean jsonResponseFormat,
+        String effectiveModel) {
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
         }
-        return buildJsonPostRequest(buildPromptRequestBody(systemPrompt, userPrompt, jsonResponseFormat), timeout);
+        return buildJsonPostRequest(
+            buildPromptRequestBody(systemPrompt, userPrompt, 0.2, jsonResponseFormat, effectiveModel),
+            timeout);
     }
 
     private HttpRequest buildJsonPostRequest(String body, Duration timeout) {
@@ -524,7 +645,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
     String buildRequestBody(AiRequest request) {
         boolean includeTools = webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request);
-        return buildMessagesRequestBody(buildRequestMessages(request, includeTools), 0.2, false, includeTools);
+        return buildMessagesRequestBody(buildRequestMessages(request, includeTools), 0.2, false, includeTools, model);
     }
 
     private JsonArray buildRequestMessages(AiRequest request, boolean includeInternetRules) {
@@ -552,14 +673,15 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return messages;
     }
 
-    private AiSkillRelevanceClassifier createSkillClassifier(HttpClient client) {
-        return (context, skills) -> classifyRelevantSkills(context, skills, client);
+    private AiSkillRelevanceClassifier createSkillClassifier(HttpClient client, String effectiveModel) {
+        return (context, skills) -> classifyRelevantSkills(context, skills, client, effectiveModel);
     }
 
     private List<String> classifyRelevantSkills(
         AiSkillRelevanceSelector.SelectionContext context,
         List<AiSkillRelevanceSelector.SkillMetadata> skills,
-        HttpClient client) throws Exception {
+        HttpClient client,
+        String effectiveModel) throws Exception {
 
         if (skills == null || skills.isEmpty()) {
             return List.of();
@@ -570,7 +692,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 AiSkillRelevanceSelector.buildClassificationUserPrompt(context, skills)),
             0.0,
             true,
-            false);
+            false,
+            effectiveModel);
         HttpResponse<InputStream> response = client.send(
             buildJsonPostRequest(body, SKILL_CLASSIFICATION_TIMEOUT),
             HttpResponse.BodyHandlers.ofInputStream());
@@ -583,7 +706,19 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     String buildConnectionTestRequestBody() {
-        return buildPromptRequestBody(CONNECTION_TEST_SYSTEM_PROMPT, CONNECTION_TEST_USER_PROMPT, 0.0);
+        return buildConnectionTestRequestBody(model);
+    }
+
+    private String buildConnectionTestRequestBody(String effectiveModel) {
+        String body = buildPromptRequestBody(
+            CONNECTION_TEST_SYSTEM_PROMPT,
+            CONNECTION_TEST_USER_PROMPT,
+            0.0,
+            false,
+            effectiveModel);
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        root.addProperty("max_tokens", 128);
+        return GSON.toJson(root);
     }
 
     String buildPromptRequestBody(String systemPrompt, String userPrompt) {
@@ -603,7 +738,22 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         String userPrompt,
         double temperature,
         boolean jsonResponseFormat) {
-        return buildMessagesRequestBody(buildPromptMessages(systemPrompt, userPrompt), temperature, jsonResponseFormat, false);
+        return buildPromptRequestBody(systemPrompt, userPrompt, temperature, jsonResponseFormat, model);
+    }
+
+    private String buildPromptRequestBody(
+        String systemPrompt,
+        String userPrompt,
+        double temperature,
+        boolean jsonResponseFormat,
+        String effectiveModel) {
+
+        return buildMessagesRequestBody(
+            buildPromptMessages(systemPrompt, userPrompt),
+            temperature,
+            jsonResponseFormat,
+            false,
+            effectiveModel);
     }
 
     private JsonArray buildPromptMessages(String systemPrompt, String userPrompt) {
@@ -625,9 +775,18 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         double temperature,
         boolean jsonResponseFormat,
         boolean includeTools) {
+        return buildMessagesRequestBody(messages, temperature, jsonResponseFormat, includeTools, model);
+    }
+
+    private String buildMessagesRequestBody(
+        JsonArray messages,
+        double temperature,
+        boolean jsonResponseFormat,
+        boolean includeTools,
+        String effectiveModel) {
         JsonObject root = new JsonObject();
-        if (!model.isBlank()) {
-            root.addProperty("model", model);
+        if (effectiveModel != null && !effectiveModel.isBlank()) {
+            root.addProperty("model", effectiveModel);
         }
 
         root.add("messages", messages);
@@ -702,7 +861,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     private AiExecutionResult executeConnectionTestWithClient(HttpClient client, Duration timeout) throws Exception {
-        HttpRequest httpRequest = buildConnectionTestHttpRequest(timeout);
+        String effectiveModel = resolveModelForRequest(client);
+        HttpRequest httpRequest = buildConnectionTestHttpRequest(timeout, effectiveModel);
         HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {

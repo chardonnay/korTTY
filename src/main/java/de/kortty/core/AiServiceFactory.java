@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 
 /**
@@ -12,6 +13,15 @@ public final class AiServiceFactory {
     private static final String MISSING_MODEL_MESSAGE = "AI model must be configured.";
 
     private AiServiceFactory() {
+    }
+
+    public static boolean canAutoResolveLocalModel(String apiUrl) {
+        String trimmedApiUrl = trimToNull(apiUrl);
+        if (trimmedApiUrl == null) {
+            return false;
+        }
+        String normalizedApiUrl = normalizeOpenAiCompatibleChatCompletionsUrl(trimmedApiUrl);
+        return LocalLmModelResolver.canResolve(normalizedApiUrl);
     }
 
     public static AiService create(
@@ -32,10 +42,14 @@ public final class AiServiceFactory {
             return null;
         }
         String apiUrl = trimToNull(profile.getApiUrl());
-        if (apiUrl == null || apiUrl.matches("^https?://[^/]+/?$")) {
+        if (apiUrl == null) {
+            return null;
+        }
+        if (apiUrl.matches("^https?://[^/]+/?$") && !LocalLmModelResolver.isLocalLmStudioBaseUrl(apiUrl)) {
             return null;
         }
         String model = trimToNull(profile.getModel());
+        AiModelSelectionMode modelSelectionMode = profile.getModelSelectionMode();
         String normalizedApiKey = apiKey != null ? apiKey.trim() : "";
         AiInternetAccessConfiguration effectiveConfig = internetConfig != null
             ? internetConfig
@@ -51,9 +65,16 @@ public final class AiServiceFactory {
             if (!apiUrl.matches("(?i).*/api/v1/chat/?$")) {
                 throw new IllegalStateException("LM Studio MCP internet modes require the LM Studio native API endpoint /api/v1/chat.");
             }
+            if (modelSelectionMode == AiModelSelectionMode.AUTO && !LocalLmModelResolver.canResolve(apiUrl)) {
+                throw new IllegalStateException(LocalLmModelResolver.MISSING_MODEL_MESSAGE);
+            }
+            if (modelSelectionMode == AiModelSelectionMode.MANUAL && model == null) {
+                throw new IllegalStateException(MISSING_MODEL_MESSAGE);
+            }
             return new LmStudioNativeAiService(
                 apiUrl,
                 model != null ? model : "",
+                modelSelectionMode,
                 normalizedApiKey,
                 AiReasoningSupport.normalizeForProfile(profile),
                 effectiveConfig,
@@ -67,12 +88,19 @@ public final class AiServiceFactory {
             }
             webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
         }
-        if (model == null) {
+        if (modelSelectionMode == AiModelSelectionMode.MANUAL && model == null) {
             throw new IllegalStateException(MISSING_MODEL_MESSAGE);
+        }
+        if (modelSelectionMode == AiModelSelectionMode.AUTO) {
+            String normalizedApiUrl = normalizeOpenAiCompatibleChatCompletionsUrl(apiUrl);
+            if (!LocalLmModelResolver.canResolve(normalizedApiUrl)) {
+                throw new IllegalStateException(LocalLmModelResolver.MISSING_MODEL_MESSAGE);
+            }
         }
         return new OpenAiCompatibleAiService(
             normalizeOpenAiCompatibleChatCompletionsUrl(apiUrl),
-            model,
+            model != null ? model : "",
+            modelSelectionMode,
             normalizedApiKey,
             AiReasoningSupport.normalizeForProfile(profile),
             webSearchTool,
@@ -91,6 +119,9 @@ public final class AiServiceFactory {
         }
         if (withoutTrailingSlashes.matches("(?i).*/v1")) {
             return withoutTrailingSlashes + OPENAI_CHAT_COMPLETIONS_PATH;
+        }
+        if (LocalLmModelResolver.isLocalLmStudioBaseUrl(withoutTrailingSlashes)) {
+            return withoutTrailingSlashes + "/v1" + OPENAI_CHAT_COMPLETIONS_PATH;
         }
         return trimmed;
     }

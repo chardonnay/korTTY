@@ -37,6 +37,20 @@
     -fx-text-fill: #ffffff;
 }
 
+.terminal-only-fullscreen .tab-pane .tab-header-area {
+    visibility: hidden;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+    -fx-padding: 0;
+}
+
+.terminal-only-fullscreen .tab-pane .tab-header-background {
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+}
+
 .tab-close-button {
     -fx-background-color: #666666;
     -fx-background-radius: 2;

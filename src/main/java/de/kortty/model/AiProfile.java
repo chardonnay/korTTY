@@ -27,6 +27,9 @@ public class AiProfile {
     private String model;
 
     @XmlElement
+    private AiModelSelectionMode modelSelectionMode;
+
+    @XmlElement
     private AiReasoningEffort reasoningEffort = AiReasoningEffort.DISABLED;
 
     @XmlElement
@@ -82,6 +85,7 @@ public class AiProfile {
         this.name = source.name;
         this.apiUrl = source.apiUrl;
         this.model = source.model;
+        this.modelSelectionMode = source.getModelSelectionMode();
         this.reasoningEffort = source.getReasoningEffort();
         this.internetAccessMode = source.getInternetAccessMode();
         this.encryptedApiKey = source.encryptedApiKey;
@@ -129,6 +133,19 @@ public class AiProfile {
 
     public void setModel(String model) {
         this.model = model;
+    }
+
+    public AiModelSelectionMode getModelSelectionMode() {
+        if (modelSelectionMode != null) {
+            return modelSelectionMode;
+        }
+        return model != null && !model.isBlank()
+            ? AiModelSelectionMode.MANUAL
+            : AiModelSelectionMode.AUTO;
+    }
+
+    public void setModelSelectionMode(AiModelSelectionMode modelSelectionMode) {
+        this.modelSelectionMode = modelSelectionMode != null ? modelSelectionMode : AiModelSelectionMode.AUTO;
     }
 
     public AiReasoningEffort getReasoningEffort() {

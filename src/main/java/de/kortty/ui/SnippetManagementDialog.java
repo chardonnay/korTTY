@@ -734,31 +734,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
 
     private SnippetEditDialog.AiAssist createSnippetAiAssist() {
-        if (ownerWindow == null) {
-            return null;
-        }
-        AiProfile profile = ownerWindow.getDefaultAiProfile();
-        if (profile == null) {
-            return null;
-        }
-        AiService aiService = ownerWindow.createAiServiceForProfile(profile);
-        if (aiService == null) {
-            return null;
-        }
-        return new SnippetEditDialog.AiAssist(
-            (content, language) -> generateSnippetMetadata(profile, aiService, content, language),
-            (content, language, description) -> correctSnippetDescription(profile, aiService, content, language, description),
-            request -> correctSnippetSelectionText(profile, aiService, request),
-            request -> translateSnippetSelectionText(profile, aiService, request),
-            request -> describeSnippet(profile, aiService, request),
-            request -> generateAlternativeSolutions(profile, aiService, request),
-            request -> completeSnippetCode(profile, aiService, request),
-            request -> reviewSnippetCode(profile, aiService, request),
-            request -> improveSnippetCode(profile, aiService, request),
-            request -> reviewSnippetSecurity(profile, aiService, request),
-            request -> applySnippetSecurityFixes(profile, aiService, request),
-            request -> generateCompactOneLiner(profile, aiService, request),
-            request -> generateSnippetPlantUml(profile, aiService, request));
+        return SnippetAiAssistFactory.create(ownerWindow);
     }
 
     private SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(

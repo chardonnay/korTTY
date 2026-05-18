@@ -29,6 +29,26 @@ public final class SnippetLanguageSupport {
         return shebangLanguage != null ? shebangLanguage : "plain";
     }
 
+    public static String detectFileLanguage(String fileName, String content) {
+        String normalizedFileName = fileName != null ? fileName.trim() : "";
+        if (!normalizedFileName.isBlank()) {
+            String lowerFileName = normalizedFileName.toLowerCase(Locale.ROOT);
+            if ("dockerfile".equals(lowerFileName) || lowerFileName.endsWith(".dockerfile")) {
+                return "dockerfile";
+            }
+
+            int extensionStart = lowerFileName.lastIndexOf('.');
+            if (extensionStart > 0 && extensionStart + 1 < lowerFileName.length()) {
+                String language = languageForKnownExtension(lowerFileName.substring(extensionStart + 1));
+                if (language != null) {
+                    return language;
+                }
+            }
+        }
+
+        return detectSnippetLanguage("", content);
+    }
+
     public static String normalizeSnippetLanguage(String language) {
         if (language == null || language.isBlank()) {
             return "plain";
@@ -52,6 +72,28 @@ public final class SnippetLanguageSupport {
             case "html" -> "html";
             case "plain", "text", "txt" -> "plain";
             default -> language.trim().toLowerCase(Locale.ROOT);
+        };
+    }
+
+    private static String languageForKnownExtension(String extension) {
+        return switch (extension) {
+            case "sh", "shell", "zsh", "bash" -> "bash";
+            case "py" -> "python";
+            case "pl" -> "perl";
+            case "rb" -> "ruby";
+            case "js" -> "javascript";
+            case "ps", "ps1", "pwsh" -> "powershell";
+            case "groovy" -> "groovy";
+            case "java" -> "java";
+            case "json" -> "json";
+            case "yaml", "yml" -> "yaml";
+            case "xml" -> "xml";
+            case "markdown", "md" -> "markdown";
+            case "sql" -> "sql";
+            case "properties", "ini" -> "properties";
+            case "html" -> "html";
+            case "txt", "text" -> "plain";
+            default -> null;
         };
     }
 

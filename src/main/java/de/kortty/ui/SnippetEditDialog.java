@@ -102,6 +102,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final Label statusLabel;
     private final Button saveButton;
     private final Snippet existingSnippet;
+    private final ExternalFileActionConfig externalFileActionConfig;
+    private Button overwriteFileButton;
+    private Button saveFileAsButton;
+    private Button saveAsSnippetButton;
     private EditorSettingsHelper.Settings editorSettings;
     private SnippetEditorProfile editorProfile;
     private final AiAssist aiAssist;
@@ -120,6 +124,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private boolean lastAiChangeShowingModified = true;
     private String initialContentSnapshot = "";
     private boolean allowCloseWithoutUnsavedPrompt;
+    private boolean externalFileActionRunning;
     private final List<SnippetDiagram> diagrams = new ArrayList<>();
     private final PauseTransition autoCompletionDelay = new PauseTransition(Duration.millis(900));
     private Popup completionPopup;
@@ -163,6 +168,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private static String aiActionLabel(String key) {
         return AI_ACTION_PREFIX + I18n.get(key);
+    }
+
+    @FunctionalInterface
+    public interface ExternalFileAction {
+        boolean run(Snippet draft) throws Exception;
+    }
+
+    public record ExternalFileActionConfig(
+        String sourceLabel,
+        String overwriteLabel,
+        String saveAsLabel,
+        String saveAsSnippetLabel,
+        String overwriteSuccessMessage,
+        String saveAsSuccessMessage,
+        String saveAsSnippetSuccessMessage,
+        ExternalFileAction overwriteAction,
+        ExternalFileAction saveAsAction,
+        ExternalFileAction saveAsSnippetAction) {
     }
 
     @FunctionalInterface
@@ -355,8 +378,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     public SnippetEditDialog(Snippet snippet, List<String> existingCategories, AiAssist aiAssist) {
+        this(snippet, existingCategories, aiAssist, null);
+    }
+
+    public SnippetEditDialog(
+        Snippet snippet,
+        List<String> existingCategories,
+        AiAssist aiAssist,
+        ExternalFileActionConfig externalFileActionConfig) {
         this.existingSnippet = snippet;
         this.aiAssist = aiAssist;
+        this.externalFileActionConfig = externalFileActionConfig;
         if (snippet != null && snippet.getDiagrams() != null) {
             for (SnippetDiagram diagram : snippet.getDiagrams()) {
                 if (diagram != null) {
@@ -369,7 +401,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         this.editorSettings = applyProfileToSettings(loaded, editorProfile);
         this.backgroundBrightnessBaseColor = parseEditorBackgroundColor();
         
-        setTitle(snippet == null ? I18n.get("snippets.addTitle") : I18n.get("snippets.editTitle"));
+        setTitle(externalFileActionConfig != null
+            ? I18n.get("snippets.fileEdit.title", externalFileActionConfig.sourceLabel())
+            : snippet == null ? I18n.get("snippets.addTitle") : I18n.get("snippets.editTitle"));
         setResizable(true);
         
         // Form fields
@@ -530,6 +564,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings);
             updateUndoControls();
             updateSaveButtonState();
+            updateExternalFileButtonState();
             updateAiActionAvailability();
             scheduleAutoCompletion();
         });
@@ -700,39 +735,79 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         VBox.setVgrow(formGrid, Priority.ALWAYS);
 
         getDialogPane().setContent(rootLayout);
-        ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.APPLY);
-        getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.OK, ButtonType.CANCEL);
         getDialogPane().setPrefWidth(700);
         getDialogPane().setPrefHeight(640);
-        
-        // Disable OK if name or content is empty
-        Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
-        saveButton = (Button) getDialogPane().lookupButton(saveButtonType);
-        Button cancelButton = (Button) getDialogPane().lookupButton(ButtonType.CANCEL);
-        okButton.setDisable(true);
-        saveButton.setVisible(false);
-        saveButton.setManaged(false);
-        saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-            event.consume();
-            if (!isSnippetFormValid()) {
-                updateSaveButtonState();
-                return;
-            }
-            saveGeometry();
-            allowCloseWithoutUnsavedPrompt = true;
-            setResult(buildResultSnippet());
-            close();
-        });
+
+        Button validationButton;
+        Button cancelButton;
+        Button assignedSaveButton;
+        if (externalFileActionConfig != null) {
+            ButtonType overwriteButtonType = new ButtonType(
+                externalFileActionConfig.overwriteLabel(), ButtonBar.ButtonData.APPLY);
+            ButtonType saveAsButtonType = new ButtonType(
+                externalFileActionConfig.saveAsLabel(), ButtonBar.ButtonData.APPLY);
+            ButtonType saveAsSnippetButtonType = new ButtonType(
+                externalFileActionConfig.saveAsSnippetLabel(), ButtonBar.ButtonData.APPLY);
+            ButtonType closeButtonType = new ButtonType(I18n.get("editor.close"), ButtonBar.ButtonData.CANCEL_CLOSE);
+            getDialogPane().getButtonTypes().addAll(
+                overwriteButtonType, saveAsButtonType, saveAsSnippetButtonType, closeButtonType);
+            overwriteFileButton = (Button) getDialogPane().lookupButton(overwriteButtonType);
+            saveFileAsButton = (Button) getDialogPane().lookupButton(saveAsButtonType);
+            saveAsSnippetButton = (Button) getDialogPane().lookupButton(saveAsSnippetButtonType);
+            configureExternalFileActionButton(
+                overwriteFileButton,
+                externalFileActionConfig.overwriteAction(),
+                externalFileActionConfig.overwriteSuccessMessage(),
+                true);
+            configureExternalFileActionButton(
+                saveFileAsButton,
+                externalFileActionConfig.saveAsAction(),
+                externalFileActionConfig.saveAsSuccessMessage(),
+                true);
+            configureExternalFileActionButton(
+                saveAsSnippetButton,
+                externalFileActionConfig.saveAsSnippetAction(),
+                externalFileActionConfig.saveAsSnippetSuccessMessage(),
+                false);
+            validationButton = null;
+            assignedSaveButton = null;
+            cancelButton = (Button) getDialogPane().lookupButton(closeButtonType);
+        } else {
+            ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.APPLY);
+            getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.OK, ButtonType.CANCEL);
+
+            Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
+            assignedSaveButton = (Button) getDialogPane().lookupButton(saveButtonType);
+            cancelButton = (Button) getDialogPane().lookupButton(ButtonType.CANCEL);
+            okButton.setDisable(true);
+            assignedSaveButton.setVisible(false);
+            assignedSaveButton.setManaged(false);
+            assignedSaveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                event.consume();
+                if (!isSnippetFormValid()) {
+                    updateSaveButtonState();
+                    return;
+                }
+                saveGeometry();
+                allowCloseWithoutUnsavedPrompt = true;
+                setResult(buildResultSnippet());
+                close();
+            });
+            validationButton = okButton;
+        }
+        saveButton = assignedSaveButton;
         nameField.textProperty().addListener((obs, o, n) -> {
             if (!programmaticNameUpdate) {
                 nameUserEdited = true;
             }
-            validateForm(okButton);
+            validateForm(validationButton);
             updateSaveButtonState();
+            updateExternalFileButtonState();
         });
         contentArea.textProperty().addListener((obs, o, n) -> {
-            validateForm(okButton);
+            validateForm(validationButton);
             updateOneLinerButtonState();
+            updateExternalFileButtonState();
         });
         
         // Pre-fill if editing
@@ -772,6 +847,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         initialContentSnapshot = safeContentText();
         updateUndoControls();
         updateSaveButtonState();
+        updateExternalFileButtonState();
         installUnsavedContentCloseGuard(cancelButton);
         
         // Restore saved geometry
@@ -843,6 +919,92 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         saveButton.setDisable(!isSnippetFormValid());
     }
 
+    private void configureExternalFileActionButton(
+        Button button,
+        ExternalFileAction action,
+        String successMessage,
+        boolean markFileSaved) {
+        if (button == null || action == null) {
+            return;
+        }
+        button.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+            runExternalFileAction(action, successMessage, markFileSaved);
+        });
+    }
+
+    private void runExternalFileAction(ExternalFileAction action, String successMessage, boolean markFileSaved) {
+        if (externalFileActionRunning) {
+            return;
+        }
+        if (!isSnippetFormValid()) {
+            updateExternalFileButtonState();
+            return;
+        }
+
+        Snippet draft = buildResultSnippet();
+        externalFileActionRunning = true;
+        updateExternalFileButtonState();
+        Task<Boolean> task = new Task<>() {
+            @Override
+            protected Boolean call() throws Exception {
+                return action.run(draft);
+            }
+        };
+        task.setOnSucceeded(event -> {
+            boolean completed = Boolean.TRUE.equals(task.getValue());
+            if (completed) {
+                if (markFileSaved) {
+                    initialContentSnapshot = safeContentText();
+                }
+                setStatus(successMessage);
+            }
+            externalFileActionRunning = false;
+            updateSaveButtonState();
+            updateExternalFileButtonState();
+        });
+        task.setOnFailed(event -> {
+            Throwable failure = task.getException();
+            String message;
+            if (failure == null) {
+                message = I18n.get("snippets.error.unknown");
+            } else if (failure.getMessage() != null && !failure.getMessage().isBlank()) {
+                message = failure.getMessage();
+            } else {
+                message = failure.getClass().getSimpleName();
+            }
+            setStatus(message);
+            showAlert(message, Alert.AlertType.ERROR);
+            externalFileActionRunning = false;
+            updateSaveButtonState();
+            updateExternalFileButtonState();
+        });
+        task.setOnCancelled(event -> {
+            externalFileActionRunning = false;
+            updateSaveButtonState();
+            updateExternalFileButtonState();
+        });
+        Thread thread = new Thread(task, "snippet-external-file-action");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void updateExternalFileButtonState() {
+        if (externalFileActionConfig == null) {
+            return;
+        }
+        boolean disable = externalFileActionRunning || !isSnippetFormValid();
+        if (overwriteFileButton != null) {
+            overwriteFileButton.setDisable(disable);
+        }
+        if (saveFileAsButton != null) {
+            saveFileAsButton.setDisable(disable);
+        }
+        if (saveAsSnippetButton != null) {
+            saveAsSnippetButton.setDisable(disable);
+        }
+    }
+
     private UnsavedContentChoice promptForUnsavedContentChoice() {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(getTitle());
@@ -852,12 +1014,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         ButtonType saveButtonType = new ButtonType(I18n.get("editor.close.save"));
         ButtonType discardButtonType = new ButtonType(I18n.get("editor.close.discard"));
         ButtonType cancelButtonType = new ButtonType(I18n.get("editor.close.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(saveButtonType, discardButtonType, cancelButtonType);
+        if (externalFileActionConfig != null) {
+            alert.getButtonTypes().setAll(discardButtonType, cancelButtonType);
+        } else {
+            alert.getButtonTypes().setAll(saveButtonType, discardButtonType, cancelButtonType);
+        }
 
         if (getDialogPane().getScene() != null) {
             alert.initOwner(getDialogPane().getScene().getWindow());
         }
-        alert.getDialogPane().lookupButton(saveButtonType).setDisable(!isSnippetFormValid());
+        if (externalFileActionConfig == null) {
+            alert.getDialogPane().lookupButton(saveButtonType).setDisable(!isSnippetFormValid());
+        }
 
         Optional<ButtonType> response = alert.showAndWait();
         if (response.isEmpty() || response.get() == cancelButtonType) {
@@ -1344,7 +1512,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void validateForm(Button okButton) {
         boolean valid = nameField.getText() != null && !nameField.getText().isBlank()
                 && contentArea.getText() != null && !contentArea.getText().isBlank();
-        okButton.setDisable(!valid);
+        if (okButton != null) {
+            okButton.setDisable(!valid);
+        }
     }
 
     private ContextMenu createEditorContextMenu() {

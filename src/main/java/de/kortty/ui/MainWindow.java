@@ -115,6 +115,8 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final KeyCombination RECORDING_TOGGLE_ACCELERATOR =
         new KeyCodeCombination(KeyCode.E, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.F12);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int JOB_SCHEDULER_STATUS_LEFT_PADDING = 14;
@@ -149,6 +151,8 @@ public class MainWindow {
     private MenuItem systemCutMenuItem;
     private CheckMenuItem showMenuBarMenuItem;
     private CheckMenuItem systemShowMenuBarMenuItem;
+    private CheckMenuItem terminalOnlyFullscreenMenuItem;
+    private CheckMenuItem systemTerminalOnlyFullscreenMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
     private CheckMenuItem systemShowTimestampsMenuItem;
     private Menu jobSchedulerStatusMenu;
@@ -184,9 +188,14 @@ public class MainWindow {
     private final Map<String, AiResultTab> openSavedAiChatTabs = new HashMap<>();
 
     private volatile boolean quickConnectDialogOpen = false;
-    private volatile boolean suppressQuickConnect = false;  // Flag to suppress QuickConnect on programmatic tab selection
-    private volatile long lastTabCloseTime = 0; // Timestamp of last tab close to prevent QuickConnect
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
+    private boolean terminalOnlyFullscreenActive = false;
+    private boolean terminalOnlyPreviousFullScreen = false;
+    private boolean terminalOnlyPreviousMenuBarVisible = true;
+    private boolean terminalOnlyPreviousStatusBarVisible = true;
+    private boolean terminalOnlyPreviousDashboardVisible = false;
+    private LocalFileBrowserManager.Position terminalOnlyPreviousFileBrowserPosition =
+        LocalFileBrowserManager.Position.HIDDEN;
     /** Consumer reference for file browser position listener, stored so it can be removed on close. */
     private Consumer<LocalFileBrowserManager.Position> fileBrowserPositionListener;
     
@@ -234,33 +243,6 @@ public class MainWindow {
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
         tabPane.setTabDragPolicy(TabPane.TabDragPolicy.REORDER);
         
-        // Add "new tab" button tab
-        Tab newTabButton = new Tab("+");
-        newTabButton.setClosable(false);
-        tabPane.getTabs().add(newTabButton);
-        
-        // When + tab is selected, go back to previous tab and open QuickConnect
-        // QuickConnect is suppressed when the + tab is selected due to programmatic tab removal (e.g. disconnect)
-        newTabButton.setOnSelectionChanged(e -> {
-            if (newTabButton.isSelected()) {
-                // Capture suppress flag synchronously (set by tab removal listener before selection change fires)
-                boolean suppressed = suppressQuickConnect;
-                suppressQuickConnect = false;
-                Platform.runLater(() -> {
-                    int plusTabIndex = tabPane.getTabs().indexOf(newTabButton);
-                    if (plusTabIndex > 0) {
-                        tabPane.getSelectionModel().select(plusTabIndex - 1);
-                    } else {
-                        tabPane.getSelectionModel().clearSelection();
-                    }
-                    // Only open QuickConnect on explicit user click, not on programmatic selection
-                    if (!suppressed && startupComplete) {
-                        showQuickConnect();
-                    }
-                });
-            }
-        });
-        
         // Auto-focus terminal when tab is selected; tell Mosh connector when this tab is active so it does not show false "interrupted"
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (oldTab instanceof TerminalTab oldTerminalTab) {
@@ -273,12 +255,17 @@ public class MainWindow {
             updateEditMenuItemsForSelection();
         });
         
-        // Listen for tab removals to update dashboard and suppress QuickConnect
+        // Listen for tab removals to update dashboard and clear per-terminal AI state.
         tabPane.getTabs().addListener((javafx.collections.ListChangeListener.Change<? extends Tab> change) -> {
             while (change.next()) {
+                if (change.wasAdded() && terminalOnlyFullscreenActive) {
+                    for (Tab addedTab : change.getAddedSubList()) {
+                        if (addedTab instanceof TerminalTab terminalTab) {
+                            terminalTab.setTerminalChromeVisible(false);
+                        }
+                    }
+                }
                 if (change.wasRemoved()) {
-                    // Suppress QuickConnect if the + tab gets selected as a result of tab removal
-                    suppressQuickConnect = true;
                     for (Tab removedTab : change.getRemoved()) {
                         if (removedTab instanceof TerminalTab terminalTab) {
                             terminalAgentService.clearCachedSudoPassword(terminalTab.getAiSessionId());
@@ -315,7 +302,7 @@ public class MainWindow {
                 return; // drag started in content area: allow text selection / split-pane drag
             }
             Tab selected = tabPane.getSelectionModel().getSelectedItem();
-            if (selected == null || !selected.isClosable() || "+".equals(selected.getText())) {
+            if (selected == null || !selected.isClosable()) {
                 return;
             }
             String transferId = UUID.randomUUID().toString();
@@ -356,7 +343,7 @@ public class MainWindow {
                 return;
             }
             sourcePane.getTabs().remove(tab);
-            // Insert index: before "+" in this pane; approximate position from drop X for reorder
+            // Insert index: approximate position from drop X for reorder.
             int insertIndex = (int) ((event.getX() / Math.max(1, tabPane.getWidth())) * (tabPane.getTabs().size()));
             insertIndex = Math.max(0, Math.min(insertIndex, tabPane.getTabs().size()));
             tabPane.getTabs().add(insertIndex, tab);
@@ -401,7 +388,7 @@ public class MainWindow {
             javafx.scene.control.TabPane sourcePane = sourceWindow.tabPane;
             if (!sourcePane.getTabs().contains(tab)) return;
             sourcePane.getTabs().remove(tab);
-            int insertIndex = Math.max(0, tabPane.getTabs().size() - 1); // before "+"
+            int insertIndex = tabPane.getTabs().size();
             tabPane.getTabs().add(insertIndex, tab);
             tabPane.getSelectionModel().select(tab);
             if (tab instanceof TerminalTab tt) {
@@ -456,6 +443,11 @@ public class MainWindow {
         scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
             if (MENU_BAR_TOGGLE_ACCELERATOR.match(event)) {
                 toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible());
+                event.consume();
+                return;
+            }
+            if (TERMINAL_ONLY_FULLSCREEN_ACCELERATOR.match(event)) {
+                toggleTerminalOnlyFullscreen();
                 event.consume();
                 return;
             }
@@ -545,6 +537,9 @@ public class MainWindow {
         
         // Handle fullscreen changes - resize terminal properly
         stage.fullScreenProperty().addListener((obs, wasFullscreen, isFullscreen) -> {
+            if (!isFullscreen && terminalOnlyFullscreenActive) {
+                setTerminalOnlyFullscreen(false);
+            }
             Platform.runLater(() -> {
                 // Give layout time to update, then resize terminal
                 Platform.runLater(() -> {
@@ -1249,8 +1244,19 @@ public class MainWindow {
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
 
+        CheckMenuItem terminalOnlyFullscreen = new CheckMenuItem(I18n.get("menu.view.terminalOnlyFullscreen"));
+        terminalOnlyFullscreen.setAccelerator(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR);
+        terminalOnlyFullscreen.setSelected(terminalOnlyFullscreenActive);
+        terminalOnlyFullscreen.setOnAction(e -> setTerminalOnlyFullscreen(terminalOnlyFullscreen.isSelected()));
+        if (target == MenuBarTarget.WINDOW) {
+            terminalOnlyFullscreenMenuItem = terminalOnlyFullscreen;
+        } else {
+            systemTerminalOnlyFullscreenMenuItem = terminalOnlyFullscreen;
+        }
+
         viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, new SeparatorMenuItem(),
-            zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(), fullscreen);
+            zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(),
+            fullscreen, terminalOnlyFullscreen);
         return viewMenu;
     }
 
@@ -1482,14 +1488,9 @@ public class MainWindow {
     }
     
     /**
-     * Static method to suppress QuickConnect dialog on next + tab selection.
-     * Called by tabs that are closing programmatically.
+     * Kept for tab classes that notify the main window before closing.
      */
     public static void suppressNextQuickConnect() {
-        if (instance != null) {
-            instance.suppressQuickConnect = true;
-            instance.lastTabCloseTime = System.currentTimeMillis();
-        }
     }
     
     /**
@@ -1616,7 +1617,7 @@ public class MainWindow {
                 terminalTab.setGroup(connection.getGroup().trim());
             }
             
-            // Insert before the "+" tab, maintaining group order
+            // Insert new terminal tabs in group order.
             insertTabInGroupOrder(terminalTab);
             tabPane.getSelectionModel().select(terminalTab);
             
@@ -2337,15 +2338,21 @@ public class MainWindow {
     }
     
     private void selectNextTab() {
+        if (tabPane.getTabs().isEmpty()) {
+            return;
+        }
         int current = tabPane.getSelectionModel().getSelectedIndex();
-        int next = (current + 1) % (tabPane.getTabs().size() - 1); // Skip the "+" tab
+        int next = (current + 1) % tabPane.getTabs().size();
         tabPane.getSelectionModel().select(next);
     }
     
     private void selectPreviousTab() {
+        if (tabPane.getTabs().isEmpty()) {
+            return;
+        }
         int current = tabPane.getSelectionModel().getSelectedIndex();
         int prev = current - 1;
-        if (prev < 0) prev = tabPane.getTabs().size() - 2; // Skip the "+" tab
+        if (prev < 0) prev = tabPane.getTabs().size() - 1;
         tabPane.getSelectionModel().select(prev);
     }
     
@@ -2545,12 +2552,7 @@ public class MainWindow {
     }
 
     private void toggleFileBrowser(LocalFileBrowserManager.Position position) {
-        if (fileBrowserManager == null) {
-            fileBrowserManager = LocalFileBrowserManager.getInstance();
-            fileBrowserPositionListener = pos -> onFileBrowserPositionChanged(pos);
-            fileBrowserManager.addPositionListener(fileBrowserPositionListener);
-        }
-
+        ensureFileBrowserManager();
         fileBrowserManager.toggle(position);
     }
 
@@ -2644,6 +2646,114 @@ public class MainWindow {
         }
         if (systemShowMenuBarMenuItem != null && systemShowMenuBarMenuItem.isSelected() != visible) {
             systemShowMenuBarMenuItem.setSelected(visible);
+        }
+    }
+
+    private void syncTerminalOnlyFullscreenMenuItems() {
+        if (terminalOnlyFullscreenMenuItem != null
+            && terminalOnlyFullscreenMenuItem.isSelected() != terminalOnlyFullscreenActive) {
+            terminalOnlyFullscreenMenuItem.setSelected(terminalOnlyFullscreenActive);
+        }
+        if (systemTerminalOnlyFullscreenMenuItem != null
+            && systemTerminalOnlyFullscreenMenuItem.isSelected() != terminalOnlyFullscreenActive) {
+            systemTerminalOnlyFullscreenMenuItem.setSelected(terminalOnlyFullscreenActive);
+        }
+    }
+
+    private void toggleTerminalOnlyFullscreen() {
+        setTerminalOnlyFullscreen(!terminalOnlyFullscreenActive);
+    }
+
+    private void setTerminalOnlyFullscreen(boolean active) {
+        if (active == terminalOnlyFullscreenActive) {
+            syncTerminalOnlyFullscreenMenuItems();
+            return;
+        }
+
+        if (active) {
+            terminalOnlyPreviousFullScreen = stage.isFullScreen();
+            terminalOnlyPreviousMenuBarVisible = menuBar == null || menuBar.isVisible();
+            terminalOnlyPreviousStatusBarVisible = statusBar == null || statusBar.isVisible();
+            terminalOnlyPreviousDashboardVisible = dashboardVisible;
+            terminalOnlyPreviousFileBrowserPosition = fileBrowserManager != null
+                ? fileBrowserManager.getPosition()
+                : LocalFileBrowserManager.Position.HIDDEN;
+
+            terminalOnlyFullscreenActive = true;
+            if (!stage.isFullScreen()) {
+                stage.setFullScreen(true);
+            }
+            applyMenuBarVisibility(false);
+            applyStatusBarVisibility(false);
+            if (dashboardVisible) {
+                toggleDashboard(false);
+            }
+            if (fileBrowserManager != null) {
+                fileBrowserManager.hide();
+            }
+            applyTerminalTabsChromeVisibility(false);
+            applyTerminalOnlyTabHeaderVisibility(false);
+        } else {
+            terminalOnlyFullscreenActive = false;
+            applyTerminalOnlyTabHeaderVisibility(true);
+            applyTerminalTabsChromeVisibility(true);
+            applyMenuBarVisibility(terminalOnlyPreviousMenuBarVisible);
+            applyStatusBarVisibility(terminalOnlyPreviousStatusBarVisible);
+            if (terminalOnlyPreviousDashboardVisible) {
+                toggleDashboard(true);
+            }
+            restoreTerminalOnlyFileBrowserPosition();
+            stage.setFullScreen(terminalOnlyPreviousFullScreen);
+        }
+
+        syncTerminalOnlyFullscreenMenuItems();
+        Platform.runLater(() -> {
+            Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+            if (selectedTab instanceof TerminalTab terminalTab) {
+                terminalTab.getTerminalView().focusTerminal();
+            }
+        });
+    }
+
+    private void applyStatusBarVisibility(boolean visible) {
+        if (statusBar == null) {
+            return;
+        }
+        statusBar.setVisible(visible);
+        statusBar.setManaged(visible);
+    }
+
+    private void applyTerminalOnlyTabHeaderVisibility(boolean visible) {
+        String styleClass = "terminal-only-fullscreen";
+        if (visible) {
+            root.getStyleClass().remove(styleClass);
+        } else if (!root.getStyleClass().contains(styleClass)) {
+            root.getStyleClass().add(styleClass);
+        }
+    }
+
+    private void applyTerminalTabsChromeVisibility(boolean visible) {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                terminalTab.setTerminalChromeVisible(visible);
+            }
+        }
+    }
+
+    private void restoreTerminalOnlyFileBrowserPosition() {
+        if (terminalOnlyPreviousFileBrowserPosition == null
+            || terminalOnlyPreviousFileBrowserPosition == LocalFileBrowserManager.Position.HIDDEN) {
+            return;
+        }
+        ensureFileBrowserManager();
+        fileBrowserManager.show(terminalOnlyPreviousFileBrowserPosition);
+    }
+
+    private void ensureFileBrowserManager() {
+        if (fileBrowserManager == null) {
+            fileBrowserManager = LocalFileBrowserManager.getInstance();
+            fileBrowserPositionListener = pos -> onFileBrowserPositionChanged(pos);
+            fileBrowserManager.addPositionListener(fileBrowserPositionListener);
         }
     }
     
@@ -2936,7 +3046,7 @@ public class MainWindow {
                                 Integer timeout = sessionState.getSftpAutoCloseTimeout();
                                 int timeoutMinutes = (timeout != null && timeout > 0) ? timeout : 0;
                                 
-                                SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, null, timeoutMinutes);
+                                SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, null, timeoutMinutes, this);
                                 tabPane.getTabs().add(sftpTab);
                                 
                                 // Restore paths if saved
@@ -3298,7 +3408,9 @@ public class MainWindow {
             return;
         }
         String effectiveModel = effectiveProfile != null ? effectiveProfile.getModel() : null;
-        if (effectiveModel == null || effectiveModel.isBlank()) {
+        if (effectiveProfile != null
+            && effectiveProfile.getModelSelectionMode() == AiModelSelectionMode.MANUAL
+            && (effectiveModel == null || effectiveModel.isBlank())) {
             showError(I18n.get("ai.error.title"), I18n.get("settings.ai.error.noModel"));
             return;
         }
@@ -3531,7 +3643,7 @@ public class MainWindow {
         String selectedText,
         String connectionName,
         String languageCode) {
-        String model = profile != null && profile.getModel() != null ? profile.getModel() : "";
+        String model = aiModelDisplayText(profile);
         String apiUrl = profile != null && profile.getApiUrl() != null ? profile.getApiUrl() : "";
         Dialog<AiRequestDraft> dialog = new Dialog<>();
         DialogThemeHelper.applyTheme(dialog);
@@ -3680,6 +3792,19 @@ public class MainWindow {
 
     private String promptAreaInitialValue(AiAction action) {
         return action == AiAction.ASK ? "" : null;
+    }
+
+    private String aiModelDisplayText(AiProfile profile) {
+        if (profile == null) {
+            return "";
+        }
+        String model = profile.getModel() != null ? profile.getModel() : "";
+        if (profile.getModelSelectionMode() == AiModelSelectionMode.AUTO) {
+            return model.isBlank()
+                ? I18n.get("ai.model.auto")
+                : I18n.get("ai.model.autoWithName", model);
+        }
+        return model;
     }
 
     private String buildAiConfirmSummary(
@@ -3874,8 +3999,7 @@ public class MainWindow {
     }
 
     private void insertTemporaryTab(Tab tab) {
-        int insertIndex = Math.max(0, tabPane.getTabs().size() - 1);
-        tabPane.getTabs().add(insertIndex, tab);
+        tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().select(tab);
     }
 
@@ -4274,7 +4398,7 @@ public class MainWindow {
         AiAgentActivityPanel.RunMetadata runMetadata = new AiAgentActivityPanel.RunMetadata(
             profile.getId(),
             profile.getName(),
-            profile.getModel(),
+            aiModelDisplayText(profile),
             AiReasoningSupport.exportStatus(profile));
         Platform.runLater(() -> {
             activityPanel.beginRun(scopedRequest.userPrompt(), cancelRun, reloadRun, runMetadata);
@@ -5290,18 +5414,9 @@ public class MainWindow {
         }
         
         // Create new SFTP tab
-        SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, temporarySSHKey, autoCloseMinutes);
+        SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, temporarySSHKey, autoCloseMinutes, this);
         
-        // Insert before the "+" tab (if exists)
-        int insertIndex = tabPane.getTabs().size();
-        for (int i = 0; i < tabPane.getTabs().size(); i++) {
-            if ("+".equals(tabPane.getTabs().get(i).getText())) {
-                insertIndex = i;
-                break;
-            }
-        }
-        
-        tabPane.getTabs().add(insertIndex, sftpTab);
+        tabPane.getTabs().add(sftpTab);
         tabPane.getSelectionModel().select(sftpTab);
         
         logger.info("Opened SFTP Manager tab for: {}", connection.getDisplayName());
@@ -5476,22 +5591,8 @@ public class MainWindow {
                 newTab.setGroup(sourceGroup);
             }
             
-            // Find the position of the "+" tab
-            int plusTabIndex = -1;
-            for (int i = 0; i < tabPane.getTabs().size(); i++) {
-                Tab tab = tabPane.getTabs().get(i);
-                if (tab.getText().equals("+")) {
-                    plusTabIndex = i;
-                    break;
-                }
-            }
-            
-            // Insert the new tab directly to the right of the source tab
-            // Consider that the "+" tab should always be at the end
+            // Insert the new tab directly to the right of the source tab.
             int insertIndex = sourceIndex + 1;
-            if (plusTabIndex != -1 && insertIndex > plusTabIndex) {
-                insertIndex = plusTabIndex;
-            }
             
             tabPane.getTabs().add(insertIndex, newTab);
             tabPane.getSelectionModel().select(newTab);
@@ -5926,11 +6027,9 @@ public class MainWindow {
             newTabGroup = null;
         }
         
-        int plusTabIndex = tabPane.getTabs().size() - 1; // "+" tab is always last
-        
         // Find insertion point
-        int insertIndex = plusTabIndex;
-        for (int i = 0; i < plusTabIndex; i++) {
+        int insertIndex = tabPane.getTabs().size();
+        for (int i = 0; i < tabPane.getTabs().size(); i++) {
             Tab tab = tabPane.getTabs().get(i);
             if (tab instanceof TerminalTab terminalTab) {
                 String tabGroup = terminalTab.getGroup();
@@ -5966,15 +6065,12 @@ public class MainWindow {
      * Tabs without group come first, then grouped tabs sorted alphabetically by group name.
      */
     private void organizeTabsByGroup() {
-        // Get all terminal tabs (excluding "+" tab)
+        // Get all terminal tabs.
         List<TerminalTab> terminalTabs = new ArrayList<>();
         List<Tab> preservedTabs = new ArrayList<>();
-        Tab plusTab = null;
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
                 terminalTabs.add(terminalTab);
-            } else if ("+".equals(tab.getText())) {
-                plusTab = tab;
             } else {
                 preservedTabs.add(tab);
             }
@@ -6016,11 +6112,6 @@ public class MainWindow {
         }
 
         tabPane.getTabs().addAll(preservedTabs);
-        
-        // Re-add "+" tab at the end
-        if (plusTab != null) {
-            tabPane.getTabs().add(plusTab);
-        }
         
         // Restore selection
         if (selectedTab != null) {

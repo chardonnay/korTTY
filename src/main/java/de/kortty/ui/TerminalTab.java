@@ -65,6 +65,13 @@ public class TerminalTab extends Tab {
     private boolean recordingControlsRevealedByUser;
     private Instant disconnectedAt;
     private volatile boolean reconnectInProgress = false;
+    private boolean terminalChromeVisible = true;
+    private boolean previousRecordingBarVisible;
+    private boolean previousRecordingBarManaged;
+    private boolean previousStatusBarVisible;
+    private boolean previousStatusBarManaged;
+    private boolean previousDisconnectedStatusBarVisible;
+    private boolean previousDisconnectedStatusBarManaged;
     /** True when the red disconnected bar was shown due to mosh network interruption (so we hide it on recovery). */
     private boolean moshInterruptedBarVisible = false;
     private Runnable externalConnectedCallback;
@@ -208,6 +215,33 @@ public class TerminalTab extends Tab {
         return recordingSession != null && recordingSession.isActive();
     }
 
+    public void setTerminalChromeVisible(boolean visible) {
+        if (visible == terminalChromeVisible) {
+            return;
+        }
+        if (!visible) {
+            previousRecordingBarVisible = recordingBar != null && recordingBar.isVisible();
+            previousRecordingBarManaged = recordingBar != null && recordingBar.isManaged();
+            previousStatusBarVisible = statusBarLabel != null && statusBarLabel.isVisible();
+            previousStatusBarManaged = statusBarLabel != null && statusBarLabel.isManaged();
+            previousDisconnectedStatusBarVisible = disconnectedStatusBar != null && disconnectedStatusBar.isVisible();
+            previousDisconnectedStatusBarManaged = disconnectedStatusBar != null && disconnectedStatusBar.isManaged();
+            terminalChromeVisible = false;
+            applyNodeVisibility(recordingBar, false, false);
+            applyNodeVisibility(statusBarLabel, false, false);
+            applyNodeVisibility(disconnectedStatusBar, false, false);
+            return;
+        }
+
+        terminalChromeVisible = true;
+        applyNodeVisibility(recordingBar, previousRecordingBarVisible, previousRecordingBarManaged);
+        applyNodeVisibility(statusBarLabel, previousStatusBarVisible, previousStatusBarManaged);
+        applyNodeVisibility(
+            disconnectedStatusBar,
+            previousDisconnectedStatusBarVisible,
+            previousDisconnectedStatusBarManaged);
+    }
+
     public void refreshRecordingControlsVisibility() {
         if (recordingBar == null) {
             return;
@@ -215,8 +249,21 @@ public class TerminalTab extends Tab {
         boolean visible = isTerminalRecordingEnabled()
             || recordingControlsRevealedByUser
             || isRecordingActive();
+        if (!terminalChromeVisible) {
+            previousRecordingBarVisible = visible;
+            previousRecordingBarManaged = visible;
+            visible = false;
+        }
         recordingBar.setVisible(visible);
         recordingBar.setManaged(visible);
+    }
+
+    private void applyNodeVisibility(Node node, boolean visible, boolean managed) {
+        if (node == null) {
+            return;
+        }
+        node.setVisible(visible);
+        node.setManaged(managed);
     }
 
     private void startRecording() {
@@ -396,12 +443,10 @@ public class TerminalTab extends Tab {
                     ? I18n.get(key, timeStr, elapsedDuration)
                     : I18n.get(key, timeStr);
             disconnectedStatusBar.setText(text);
-            disconnectedStatusBar.setVisible(true);
-            disconnectedStatusBar.setManaged(true);
+            applyChromeAwareVisibility(disconnectedStatusBar, true, true);
         }
         if (statusBarLabel != null) {
-            statusBarLabel.setVisible(false);
-            statusBarLabel.setManaged(false);
+            applyChromeAwareVisibility(statusBarLabel, false, false);
         }
         moshInterruptedBarVisible = forMoshInterrupt;
     }
@@ -426,14 +471,30 @@ public class TerminalTab extends Tab {
      */
     private void hideDisconnectedStatusBar() {
         if (disconnectedStatusBar != null) {
-            disconnectedStatusBar.setVisible(false);
-            disconnectedStatusBar.setManaged(false);
+            applyChromeAwareVisibility(disconnectedStatusBar, false, false);
         }
         if (statusBarLabel != null) {
-            statusBarLabel.setVisible(true);
-            statusBarLabel.setManaged(true);
+            applyChromeAwareVisibility(statusBarLabel, true, true);
         }
         moshInterruptedBarVisible = false;
+    }
+
+    private void applyChromeAwareVisibility(Node node, boolean visible, boolean managed) {
+        if (node == null) {
+            return;
+        }
+        if (node == recordingBar) {
+            previousRecordingBarVisible = visible;
+            previousRecordingBarManaged = managed;
+        } else if (node == statusBarLabel) {
+            previousStatusBarVisible = visible;
+            previousStatusBarManaged = managed;
+        } else if (node == disconnectedStatusBar) {
+            previousDisconnectedStatusBarVisible = visible;
+            previousDisconnectedStatusBarManaged = managed;
+        }
+        node.setVisible(terminalChromeVisible && visible);
+        node.setManaged(terminalChromeVisible && managed);
     }
     
     /**

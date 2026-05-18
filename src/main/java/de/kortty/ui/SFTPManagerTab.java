@@ -3,14 +3,21 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SFTPSession;
+import de.kortty.core.SftpFileTransferService;
+import de.kortty.core.SnippetLanguageSupport;
+import de.kortty.core.SnippetManager;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SessionState;
+import de.kortty.model.Snippet;
+import de.kortty.model.SnippetCategory;
+import de.kortty.model.SnippetDiagram;
 import de.kortty.model.TemporarySSHKey;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
@@ -29,16 +36,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 
 /**
  * SFTP Manager as a Tab for file transfers between local and remote systems.
@@ -49,6 +62,7 @@ public class SFTPManagerTab extends Tab {
     private static final Logger logger = LoggerFactory.getLogger(SFTPManagerTab.class);
     
     private final KorTTYApplication app;
+    private final MainWindow ownerWindow;
     private final ServerConnection connection;
     private final String password;
     private final TemporarySSHKey temporarySSHKey;
@@ -80,15 +94,26 @@ public class SFTPManagerTab extends Tab {
     private Runnable onCloseCallback;
     
     public SFTPManagerTab(KorTTYApplication app, ServerConnection connection, String password) {
-        this(app, connection, password, null, 0);
+        this(app, connection, password, null, 0, null);
     }
     
     public SFTPManagerTab(KorTTYApplication app, ServerConnection connection, String password, TemporarySSHKey temporarySSHKey) {
-        this(app, connection, password, temporarySSHKey, 0);
+        this(app, connection, password, temporarySSHKey, 0, null);
     }
     
     public SFTPManagerTab(KorTTYApplication app, ServerConnection connection, String password, TemporarySSHKey temporarySSHKey, int autoCloseTimeoutMinutes) {
+        this(app, connection, password, temporarySSHKey, autoCloseTimeoutMinutes, null);
+    }
+
+    public SFTPManagerTab(
+            KorTTYApplication app,
+            ServerConnection connection,
+            String password,
+            TemporarySSHKey temporarySSHKey,
+            int autoCloseTimeoutMinutes,
+            MainWindow ownerWindow) {
         this.app = app;
+        this.ownerWindow = ownerWindow;
         this.connection = connection;
         this.password = password;
         this.temporarySSHKey = temporarySSHKey;
@@ -272,8 +297,18 @@ public class SFTPManagerTab extends Tab {
             resetAutoCloseTimer();
             setLocalOwnerPermissionsDialog();
         });
+
+        MenuButton editLocalButton = new MenuButton(I18n.get("sftp.edit"));
+        editLocalButton.setTooltip(new Tooltip(I18n.get("sftp.edit.snippetEditor")));
+        editLocalButton.setDisable(true);
+        MenuItem editLocalSnippetItem = new MenuItem(I18n.get("sftp.edit.snippetEditor"));
+        editLocalSnippetItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedLocalFileInSnippetEditor();
+        });
+        editLocalButton.getItems().add(editLocalSnippetItem);
         
-        localButtons.getChildren().addAll(localLabel, refreshLocalButton, deleteLocalButton, ownerLocalButton);
+        localButtons.getChildren().addAll(localLabel, refreshLocalButton, deleteLocalButton, ownerLocalButton, editLocalButton);
         
         // === Vertical separator ===
         Separator verticalSeparator = new Separator();
@@ -342,34 +377,57 @@ public class SFTPManagerTab extends Tab {
             resetAutoCloseTimer();
             createRemoteArchive();
         });
+
+        MenuButton editRemoteButton = new MenuButton(I18n.get("sftp.edit"));
+        editRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.edit.snippetEditor")));
+        editRemoteButton.setDisable(true);
+        MenuItem editRemoteSnippetItem = new MenuItem(I18n.get("sftp.edit.snippetEditor"));
+        editRemoteSnippetItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileInSnippetEditor();
+        });
+        editRemoteButton.getItems().add(editRemoteSnippetItem);
         
         remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, deleteRemoteButton, ownerRemoteButton,
-                remoteSep1, uploadButton, downloadButton, remoteSep2, archiveButton);
+                remoteSep1, uploadButton, downloadButton, remoteSep2, archiveButton, editRemoteButton);
         
         // Assemble main button box: local | separator | remote
         buttonBox.getChildren().addAll(localButtons, verticalSeparator, remoteButtons);
         HBox.setHgrow(localButtons, Priority.ALWAYS);
         HBox.setHgrow(remoteButtons, Priority.ALWAYS);
         
-        // Enable/disable buttons based on selection
-        localTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+        Runnable updateLocalSelectionActions = () -> {
+            SFTPManagerDialog.FileItem selected = localTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
             uploadButton.setDisable(!hasSelection);
             deleteLocalButton.setDisable(!hasSelection);
             ownerLocalButton.setDisable(!hasSelection);
-        });
-        
-        remoteTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            editLocalButton.setDisable(!isSingleEditableFileSelection(localTable));
+        };
+
+        Runnable updateRemoteSelectionActions = () -> {
+            SFTPManagerDialog.FileItem selected = remoteTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
             downloadButton.setDisable(!hasSelection);
             archiveButton.setDisable(!hasSelection);
             deleteRemoteButton.setDisable(!hasSelection);
             ownerRemoteButton.setDisable(!hasSelection);
-        });
+            editRemoteButton.setDisable(!isSingleEditableFileSelection(remoteTable));
+        };
+
+        // Enable/disable buttons based on selection
+        localTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) ->
+            updateLocalSelectionActions.run());
+        remoteTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) ->
+            updateRemoteSelectionActions.run());
         
         // Enable multiple selection
         localTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         remoteTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        localTable.getSelectionModel().getSelectedItems().addListener(
+            (ListChangeListener<SFTPManagerDialog.FileItem>) change -> updateLocalSelectionActions.run());
+        remoteTable.getSelectionModel().getSelectedItems().addListener(
+            (ListChangeListener<SFTPManagerDialog.FileItem>) change -> updateRemoteSelectionActions.run());
         
         return buttonBox;
     }
@@ -1198,17 +1256,10 @@ public class SFTPManagerTab extends Tab {
             createLocalArchive();
         });
         
-        // Editor options
-        MenuItem openTextItem = new MenuItem(I18n.get("sftp.contextMenu.openAsText"));
-        openTextItem.setOnAction(e -> {
+        MenuItem editWithSnippetEditorItem = new MenuItem(I18n.get("sftp.contextMenu.editWithSnippetEditor"));
+        editWithSnippetEditorItem.setOnAction(e -> {
             resetAutoCloseTimer();
-            openLocalFileAsText();
-        });
-        
-        MenuItem openSyntaxItem = new MenuItem(I18n.get("sftp.contextMenu.openWithSyntax"));
-        openSyntaxItem.setOnAction(e -> {
-            resetAutoCloseTimer();
-            openLocalFileWithSyntax();
+            openSelectedLocalFileInSnippetEditor();
         });
         
         MenuItem openImageItem = new MenuItem(I18n.get("sftp.contextMenu.openImage"));
@@ -1224,7 +1275,7 @@ public class SFTPManagerTab extends Tab {
             new SeparatorMenuItem(), 
             archiveItem,
             new SeparatorMenuItem(),
-            openTextItem, openSyntaxItem, openImageItem
+            editWithSnippetEditorItem, openImageItem
         );
         
         // Disable items when nothing is selected
@@ -1239,8 +1290,7 @@ public class SFTPManagerTab extends Tab {
             deleteItem.setDisable(!hasSelection);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
-            openTextItem.setDisable(!isSingleFile);
-            openSyntaxItem.setDisable(!isSingleFile);
+            editWithSnippetEditorItem.setDisable(!isSingleFile);
             openImageItem.setDisable(!isImageFile);
         });
         
@@ -1274,17 +1324,10 @@ public class SFTPManagerTab extends Tab {
             createRemoteArchive();
         });
         
-        // Editor options
-        MenuItem openTextItem = new MenuItem(I18n.get("sftp.contextMenu.openAsText"));
-        openTextItem.setOnAction(e -> {
+        MenuItem editWithSnippetEditorItem = new MenuItem(I18n.get("sftp.contextMenu.editWithSnippetEditor"));
+        editWithSnippetEditorItem.setOnAction(e -> {
             resetAutoCloseTimer();
-            openRemoteFileAsText();
-        });
-        
-        MenuItem openSyntaxItem = new MenuItem(I18n.get("sftp.contextMenu.openWithSyntax"));
-        openSyntaxItem.setOnAction(e -> {
-            resetAutoCloseTimer();
-            openRemoteFileWithSyntax();
+            openSelectedRemoteFileInSnippetEditor();
         });
         
         MenuItem openImageItem = new MenuItem(I18n.get("sftp.contextMenu.openImage"));
@@ -1300,7 +1343,7 @@ public class SFTPManagerTab extends Tab {
             new SeparatorMenuItem(), 
             archiveItem,
             new SeparatorMenuItem(),
-            openTextItem, openSyntaxItem, openImageItem
+            editWithSnippetEditorItem, openImageItem
         );
         
         // Disable items when nothing is selected
@@ -1315,8 +1358,7 @@ public class SFTPManagerTab extends Tab {
             deleteItem.setDisable(!hasSelection);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
-            openTextItem.setDisable(!isSingleFile);
-            openSyntaxItem.setDisable(!isSingleFile);
+            editWithSnippetEditorItem.setDisable(!isSingleFile);
             openImageItem.setDisable(!isImageFile);
         });
         
@@ -3083,48 +3125,285 @@ public class SFTPManagerTab extends Tab {
                               (errorOutput.length() > 0 ? ": " + errorOutput.toString() : ""));
         }
     }
-    
-    private void openRemoteFileAsText() {
-        var selected = remoteTable.getSelectionModel().getSelectedItem();
-        if (selected == null || !selected.isFile()) return;
-        
+
+    private boolean isSingleEditableFileSelection(TableView<SFTPManagerDialog.FileItem> table) {
+        var selectedItems = table.getSelectionModel().getSelectedItems();
+        if (selectedItems == null || selectedItems.size() != 1) {
+            return false;
+        }
+        SFTPManagerDialog.FileItem selected = selectedItems.get(0);
+        return selected != null && selected.isFile() && !"..".equals(selected.getName());
+    }
+
+    private SFTPManagerDialog.FileItem getSingleEditableFileSelection(TableView<SFTPManagerDialog.FileItem> table) {
+        return isSingleEditableFileSelection(table)
+            ? table.getSelectionModel().getSelectedItems().get(0)
+            : null;
+    }
+
+    private void openSelectedRemoteFileInSnippetEditor() {
+        SFTPManagerDialog.FileItem selected = getSingleEditableFileSelection(remoteTable);
+        if (selected == null) {
+            return;
+        }
+
         new Thread(() -> {
             try {
-                // Download file
-                byte[] content = sftpSession.downloadFileBytes(selected.getPath());
-                
-                // Open in editor tab
-                Platform.runLater(() -> {
-                    try {
-                        FileEditorTab editorTab = new FileEditorTab(
-                            selected.getName(), 
-                            selected.getPath(), 
-                            sftpSession, 
-                            content
-                        );
-                        
-                        // Add tab to the main window's tab pane
-                        TabPane tabPane = (TabPane) getTabPane();
-                        tabPane.getTabs().add(editorTab);
-                        tabPane.getSelectionModel().select(editorTab);
-                        
-                        logger.info("Opened remote file in text editor: {}", selected.getPath());
-                    } catch (Exception e) {
-                        logger.error("Failed to open file in editor", e);
-                        showError(I18n.get("error.title"), "Failed to open file: " + e.getMessage());
-                    }
-                });
+                byte[] bytes = sftpSession.downloadFileBytes(selected.getPath());
+                String content = new String(bytes, StandardCharsets.UTF_8);
+                Platform.runLater(() -> openRemoteSnippetFileDialog(selected, content));
             } catch (Exception e) {
-                logger.error("Failed to download file", e);
-                Platform.runLater(() -> 
-                    showError(I18n.get("error.title"), "Failed to download file: " + e.getMessage())
-                );
+                logger.error("Failed to load remote file into snippet editor: {}", selected.getPath(), e);
+                Platform.runLater(() -> {
+                    statusLabel.setText(I18n.get("sftp.snippetEditor.loadFailed", e.getMessage()));
+                    showError(I18n.get("error.title"), I18n.get("sftp.snippetEditor.loadFailed", e.getMessage()));
+                });
             }
-        }).start();
+        }, "sftp-remote-snippet-loader").start();
     }
-    
-    private void openRemoteFileWithSyntax() {
-        openRemoteFileAsText(); // Same as text, but FileEditorTab auto-detects syntax
+
+    private void openSelectedLocalFileInSnippetEditor() {
+        SFTPManagerDialog.FileItem selected = getSingleEditableFileSelection(localTable);
+        if (selected == null) {
+            return;
+        }
+
+        Path filePath = Path.of(selected.getPath());
+        new Thread(() -> {
+            try {
+                String content = Files.readString(filePath, StandardCharsets.UTF_8);
+                Platform.runLater(() -> openLocalSnippetFileDialog(selected, filePath, content));
+            } catch (Exception e) {
+                logger.error("Failed to load local file into snippet editor: {}", filePath, e);
+                Platform.runLater(() -> {
+                    statusLabel.setText(I18n.get("sftp.snippetEditor.loadFailed", e.getMessage()));
+                    showError(I18n.get("error.title"), I18n.get("sftp.snippetEditor.loadFailed", e.getMessage()));
+                });
+            }
+        }, "sftp-local-snippet-loader").start();
+    }
+
+    private void openRemoteSnippetFileDialog(SFTPManagerDialog.FileItem selected, String content) {
+        Snippet snippet = createFileSnippetDraft(selected.getName(), content);
+        SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
+            selected.getPath(),
+            I18n.get("sftp.snippetEditor.overwriteRemote"),
+            I18n.get("sftp.snippetEditor.saveAs"),
+            I18n.get("sftp.snippetEditor.saveSnippet"),
+            I18n.get("sftp.snippetEditor.savedFile"),
+            I18n.get("sftp.snippetEditor.savedFile"),
+            I18n.get("sftp.snippetEditor.savedSnippet"),
+            draft -> overwriteRemoteSnippetFile(selected.getPath(), draft),
+            draft -> saveRemoteSnippetFileAs(selected.getPath(), selected.getName(), draft),
+            this::saveDraftAsSnippet
+        );
+        showSnippetFileDialog(snippet, config);
+    }
+
+    private void openLocalSnippetFileDialog(SFTPManagerDialog.FileItem selected, Path filePath, String content) {
+        Snippet snippet = createFileSnippetDraft(selected.getName(), content);
+        SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
+            filePath.toString(),
+            I18n.get("sftp.snippetEditor.overwriteLocal"),
+            I18n.get("sftp.snippetEditor.saveAs"),
+            I18n.get("sftp.snippetEditor.saveSnippet"),
+            I18n.get("sftp.snippetEditor.savedFile"),
+            I18n.get("sftp.snippetEditor.savedFile"),
+            I18n.get("sftp.snippetEditor.savedSnippet"),
+            draft -> overwriteLocalSnippetFile(filePath, draft),
+            draft -> saveLocalSnippetFileAs(filePath, draft),
+            this::saveDraftAsSnippet
+        );
+        showSnippetFileDialog(snippet, config);
+    }
+
+    private Snippet createFileSnippetDraft(String fileName, String content) {
+        Snippet snippet = new Snippet();
+        snippet.setName(fileName);
+        snippet.setContent(content);
+        snippet.setLanguage(SnippetLanguageSupport.detectFileLanguage(fileName, content));
+        snippet.setCategory("");
+        snippet.setDescription("");
+        snippet.setTagsFromString("");
+        return snippet;
+    }
+
+    private void showSnippetFileDialog(Snippet snippet, SnippetEditDialog.ExternalFileActionConfig config) {
+        List<String> categoryNames = app.getSnippetManager().getAllCategories().stream()
+            .map(SnippetCategory::getName)
+            .toList();
+        SnippetEditDialog.AiAssist aiAssist = SnippetAiAssistFactory.create(ownerWindow, connection.getDisplayName());
+        SnippetEditDialog dialog = new SnippetEditDialog(snippet, categoryNames, aiAssist, config);
+        if (getTabPane() != null && getTabPane().getScene() != null) {
+            dialog.initOwner(getTabPane().getScene().getWindow());
+        }
+        dialog.showAndWait();
+    }
+
+    private boolean overwriteRemoteSnippetFile(String remotePath, Snippet draft) throws Exception {
+        sftpSession.uploadFileBytes(draft.getContent().getBytes(StandardCharsets.UTF_8), remotePath);
+        Platform.runLater(this::refreshRemote);
+        return true;
+    }
+
+    private boolean saveRemoteSnippetFileAs(String originalRemotePath, String originalFileName, Snippet draft) throws Exception {
+        Optional<String> response = callOnFxThread(() -> {
+            TextInputDialog dialog = new TextInputDialog(originalFileName);
+            dialog.setTitle(I18n.get("sftp.snippetEditor.remoteFileName.title"));
+            dialog.setHeaderText(I18n.get("sftp.snippetEditor.remoteFileName.header"));
+            dialog.setContentText(I18n.get("sftp.snippetEditor.remoteFileName.content"));
+            applyDarkTheme(dialog);
+            if (getTabPane() != null && getTabPane().getScene() != null) {
+                dialog.initOwner(getTabPane().getScene().getWindow());
+            }
+            return dialog.showAndWait();
+        });
+        if (response.isEmpty()) {
+            return false;
+        }
+
+        String targetPath;
+        try {
+            targetPath = SftpFileTransferService.resolveSiblingRemoteFilePath(originalRemotePath, response.get());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(I18n.get("sftp.snippetEditor.invalidFileName", response.get()), e);
+        }
+
+        if (remoteFileExists(targetPath) && !confirmOverwrite(targetPath)) {
+            return false;
+        }
+
+        sftpSession.uploadFileBytes(draft.getContent().getBytes(StandardCharsets.UTF_8), targetPath);
+        Platform.runLater(this::refreshRemote);
+        return true;
+    }
+
+    private boolean overwriteLocalSnippetFile(Path filePath, Snippet draft) throws IOException {
+        Files.writeString(
+            filePath,
+            draft.getContent(),
+            StandardCharsets.UTF_8,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING);
+        Platform.runLater(this::refreshLocal);
+        return true;
+    }
+
+    private boolean saveLocalSnippetFileAs(Path sourcePath, Snippet draft) throws Exception {
+        File targetFile = callOnFxThread(() -> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle(I18n.get("sftp.snippetEditor.saveAs"));
+            if (sourcePath.getParent() != null && Files.isDirectory(sourcePath.getParent())) {
+                chooser.setInitialDirectory(sourcePath.getParent().toFile());
+            }
+            if (sourcePath.getFileName() != null) {
+                chooser.setInitialFileName(sourcePath.getFileName().toString());
+            }
+            return chooser.showSaveDialog(
+                getTabPane() != null && getTabPane().getScene() != null ? getTabPane().getScene().getWindow() : null);
+        });
+        if (targetFile == null) {
+            return false;
+        }
+
+        Path targetPath = targetFile.toPath();
+        if (Files.exists(targetPath) && !confirmOverwrite(targetPath.toString())) {
+            return false;
+        }
+
+        Files.writeString(
+            targetPath,
+            draft.getContent(),
+            StandardCharsets.UTF_8,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING);
+        Platform.runLater(this::refreshLocal);
+        return true;
+    }
+
+    private boolean saveDraftAsSnippet(Snippet draft) throws Exception {
+        SnippetManager snippetManager = app.getSnippetManager();
+        Snippet snippet = copySnippetForManager(draft);
+        ensureSnippetCategoryExists(snippetManager, snippet.getCategory());
+        snippetManager.addSnippet(snippet);
+        snippetManager.save();
+        return true;
+    }
+
+    private Snippet copySnippetForManager(Snippet draft) {
+        Snippet snippet = new Snippet();
+        snippet.setName(draft.getName());
+        snippet.setContent(draft.getContent());
+        snippet.setLanguage(draft.getLanguage());
+        snippet.setCategory(draft.getCategory());
+        snippet.setDescription(draft.getDescription());
+        snippet.setTags(new ArrayList<>(draft.getTags()));
+        List<SnippetDiagram> diagramCopies = new ArrayList<>();
+        for (SnippetDiagram diagram : draft.getDiagrams()) {
+            if (diagram != null) {
+                diagramCopies.add(new SnippetDiagram(diagram));
+            }
+        }
+        snippet.setDiagrams(diagramCopies);
+        return snippet;
+    }
+
+    private void ensureSnippetCategoryExists(SnippetManager snippetManager, String categoryName) {
+        if (categoryName == null || categoryName.isBlank()) {
+            return;
+        }
+        String normalized = categoryName.trim();
+        if (snippetManager.findCategoryByName(normalized).isEmpty()) {
+            snippetManager.addCategory(new SnippetCategory(normalized));
+        }
+    }
+
+    private boolean remoteFileExists(String remotePath) {
+        try {
+            sftpSession.getAttributes(remotePath);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean confirmOverwrite(String targetLabel) {
+        try {
+            return callOnFxThread(() -> {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                confirm.setTitle(I18n.get("sftp.snippetEditor.confirmOverwrite.title"));
+                confirm.setHeaderText(I18n.get("sftp.snippetEditor.confirmOverwrite.header"));
+                confirm.setContentText(I18n.get("sftp.snippetEditor.confirmOverwrite.content", targetLabel));
+                applyDarkTheme(confirm);
+                if (getTabPane() != null && getTabPane().getScene() != null) {
+                    confirm.initOwner(getTabPane().getScene().getWindow());
+                }
+                return confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+            });
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not confirm overwrite", e);
+        }
+    }
+
+    private <T> T callOnFxThread(Callable<T> action) throws Exception {
+        if (Platform.isFxApplicationThread()) {
+            return action.call();
+        }
+        FutureTask<T> task = new FutureTask<>(action);
+        Platform.runLater(task);
+        try {
+            return task.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting for UI action", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception exception) {
+                throw exception;
+            }
+            throw new IllegalStateException(cause);
+        }
     }
     
     private void openRemoteImage() {
@@ -3170,32 +3449,6 @@ public class SFTPManagerTab extends Tab {
         String lower = filename.toLowerCase();
         return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
                lower.endsWith(".gif") || lower.endsWith(".webp") || lower.endsWith(".bmp");
-    }
-    
-    private void openLocalFileAsText() {
-        var selected = localTable.getSelectionModel().getSelectedItem();
-        if (selected == null || !selected.isFile()) return;
-        
-        Platform.runLater(() -> {
-            try {
-                Path filePath = Path.of(selected.getPath());
-                FileEditorTab editorTab = new FileEditorTab(filePath);
-                
-                // Add tab to the main window's tab pane
-                TabPane tabPane = (TabPane) getTabPane();
-                tabPane.getTabs().add(editorTab);
-                tabPane.getSelectionModel().select(editorTab);
-                
-                logger.info("Opened local file in text editor: {}", filePath);
-            } catch (Exception e) {
-                logger.error("Failed to open file in editor", e);
-                showError(I18n.get("error.title"), "Failed to open file: " + e.getMessage());
-            }
-        });
-    }
-    
-    private void openLocalFileWithSyntax() {
-        openLocalFileAsText(); // Same as text, but FileEditorTab auto-detects syntax
     }
     
     private void openLocalImage() {

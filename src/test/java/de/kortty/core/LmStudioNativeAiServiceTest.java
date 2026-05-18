@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
@@ -145,6 +146,32 @@ class LmStudioNativeAiServiceTest {
     }
 
     @Test
+    void executeResolvesBlankModelFromSingleLoadedLmStudioLlm() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble("""
+            {
+              "models": [
+                {"type": "llm", "key": "qwen/qwen3-coder", "loaded_instances": [{"id": "qwen/qwen3-coder"}]}
+              ]
+            }
+            """);
+        LmStudioNativeAiService service = new LmStudioNativeAiService(
+            "http://127.0.0.1:1234/api/v1/chat",
+            "",
+            AiModelSelectionMode.AUTO,
+            "",
+            AiReasoningEffort.DISABLED,
+            config(AiInternetAccessMode.DISABLED),
+            client);
+
+        service.executePrompt("system", "user");
+
+        assertThat(client.requestUris().get(0).toString()).isEqualTo("http://127.0.0.1:1234/api/v1/models");
+        assertThat(client.requestUris().get(1).toString()).isEqualTo("http://127.0.0.1:1234/api/v1/chat");
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).contains("\"model\":\"qwen/qwen3-coder\"");
+    }
+
+    @Test
     void executeSnippetActionDoesNotRequireMcpProviderConfiguration() throws Exception {
         StringHttpClientTestDouble client = new StringHttpClientTestDouble();
         LmStudioNativeAiService service = new LmStudioNativeAiService(
@@ -259,11 +286,30 @@ class LmStudioNativeAiServiceTest {
     private static final class StringHttpClientTestDouble extends HttpClient {
         private final List<String> requestBodies = new ArrayList<>();
         private final List<Optional<Duration>> requestTimeouts = new ArrayList<>();
+        private final List<URI> requestUris = new ArrayList<>();
+        private final String modelListResponse;
+
+        private StringHttpClientTestDouble() {
+            this(null);
+        }
+
+        private StringHttpClientTestDouble(String modelListResponse) {
+            this.modelListResponse = modelListResponse;
+        }
 
         @Override
         public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) throws IOException {
-            requestBodies.add(readBody(request));
+            requestUris.add(request.uri());
             requestTimeouts.add(request.timeout());
+            if ("GET".equalsIgnoreCase(request.method()) && "/api/v1/models".equals(request.uri().getPath())) {
+                if (modelListResponse == null) {
+                    throw new IOException("No model-list response configured for test double.");
+                }
+                @SuppressWarnings("unchecked")
+                T body = (T) modelListResponse;
+                return new SimpleHttpResponse<>(request, body);
+            }
+            requestBodies.add(readBody(request));
             @SuppressWarnings("unchecked")
             T body = (T) """
                 {
@@ -341,6 +387,10 @@ class LmStudioNativeAiServiceTest {
 
         private List<Optional<Duration>> requestTimeouts() {
             return requestTimeouts;
+        }
+
+        private List<URI> requestUris() {
+            return requestUris;
         }
     }
 

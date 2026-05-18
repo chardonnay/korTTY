@@ -19,10 +19,13 @@
 
 * *Temporary SSH keys for SFTP*: SFTP openings that use a valid temporary SSH key now create an authentication-only connection copy, preserving the exact temporary key content without mutating the saved connection's configured authentication.
 * *SFTP subsystem failure diagnostics*: SFTP startup now reports when the server or SSH proxy rejects/closes the SFTP subsystem after SSH authentication, including EOF, channel-closing, and `subsystem request failed` cases, and keeps generic SFTP startup causes visible.
+* *SFTP file editing through Snippet Editor*: Local and remote SFTP panels now provide an *Edit* pulldown and an *Edit with Snippet Editor* context-menu action for exactly one selected file. File mode can overwrite the source file, save under another name, or save the current content as a Snippet Manager snippet while keeping the Snippet Editor toolbar available.
 * *Dockable local file browser*: *View > File Browser* can show a local file browser on the left or right side of the main window with open, copy, cut, paste, delete, new file/folder, archive, details, hidden-file toggle, and owner/permission actions.
 * *Per-connection terminal emulation*: Quick Connect and Connection Edit can store the selected SithTermFX terminal emulation, and SSH/native Mosh sessions use the selected `TERM` value instead of a fixed default.
 * *Terminal drag-and-drop target handling*: Drag-and-drop uploads resolve `~` and `~/...` targets through the SFTP start directory, show the selected remote target, elapsed time, and current file during upload, and improve prompt-directory extraction for wrapped or decorated prompts.
-* *AI profile validation*: OpenAI-compatible AI profiles now require an explicit model value, and `/v1` endpoints are normalized to `/v1/chat/completions`.
+* *Terminal-only fullscreen*: *F12* and *View > Terminal-only Fullscreen* hide menu/status chrome, dashboard, and the local file browser while keeping only the terminal visible, then restore the previous fullscreen and UI state when toggled off.
+* *Tab bar cleanup*: The tab bar no longer shows the separate `+` affordance; new tabs continue through *File > New Tab* or the existing keyboard shortcut.
+* *AI profile model selection*: AI profile editors now use an editable model selector. Local LM Studio profiles can choose *Auto* or a loaded local LLM discovered through `GET /api/v1/models`; Auto resolves again immediately before connection tests, chat/follow-up requests, terminal AI actions, and agent runs. Manual model names remain supported for OpenAI-compatible endpoints, and `/v1` endpoints are normalized to `/v1/chat/completions`.
 
 === Snippet Editor AI, Diagrams, and Profiles
 
@@ -128,7 +131,7 @@
 
 === Documentation
 
-* README, User Guide, and Release Notes now describe terminal recording, JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, AI Skills, Terminal AI Agent usage, terminal-effect plugins, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
+* README, User Guide, and Release Notes now describe terminal recording, JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, LM Studio model auto-selection, AI Skills, Terminal AI Agent usage, terminal-only fullscreen, SFTP-to-Snippet-Editor file editing, terminal-effect plugins, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
 * Added `app-docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
 * Updated and re-rendered the architecture, module overview, AI API integration, snippet editor workflow, connection flow, session lifecycle, and terminal-effect plugin lifecycle diagrams.
 

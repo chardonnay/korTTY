@@ -58,6 +58,31 @@ class AiServiceFactoryTest {
     }
 
     @Test
+    void createAllowsBlankModelForLocalOpenAiCompatibleLmStudioEndpoint() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://127.0.0.1:1234/v1");
+
+        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+
+        assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
+    }
+
+    @Test
+    void createNormalizesLocalLmStudioBaseUrlToOpenAiCompatibleEndpoint() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://127.0.0.1:1234");
+
+        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+
+        assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
+        assertThat(((OpenAiCompatibleAiService) service)
+            .buildConnectionTestHttpRequest(Duration.ofSeconds(1))
+            .uri()
+            .toString())
+            .isEqualTo("http://127.0.0.1:1234/v1/chat/completions");
+    }
+
+    @Test
     void createRejectsMissingInternetAccessMode() {
         AiProfile profile = new AiProfile() {
             @Override
@@ -113,6 +138,34 @@ class AiServiceFactoryTest {
                 null));
 
         assertThat(service).isInstanceOf(LmStudioNativeAiService.class);
+    }
+
+    @Test
+    void createRejectsBlankModelForNonLocalLmStudioMcpEndpoint() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://192.168.1.10:1234/api/v1/chat");
+        profile.setInternetAccessMode(AiInternetAccessMode.BRAVE_SEARCH_MCP);
+
+        try {
+            AiServiceFactory.create(
+                profile,
+                null,
+                new AiInternetAccessConfiguration(
+                    AiInternetAccessMode.BRAVE_SEARCH_MCP,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null));
+        } catch (IllegalStateException ex) {
+            assertThat(ex).hasMessageThat().contains("AI model must be configured");
+            return;
+        }
+        throw new AssertionError("Expected missing non-local LM Studio model validation to fail.");
     }
 
     @Test
