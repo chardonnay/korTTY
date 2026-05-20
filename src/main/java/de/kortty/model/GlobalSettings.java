@@ -12,6 +12,14 @@ public class GlobalSettings {
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
     public static final int DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS = 14;
     public static final int MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS = 3650;
+    public static final int DEFAULT_LOG_RETENTION_DAYS = 7;
+    public static final int MAX_LOG_RETENTION_DAYS = 3650;
+
+    @XmlElement
+    private String logDirectoryPath; // Blank/null = ~/.kortty/logs
+
+    @XmlElement
+    private Integer logRetentionDays = DEFAULT_LOG_RETENTION_DAYS; // 0 = unlimited
     
     @XmlElement
     private int maxBackupCount = 10; // Default: 10 backups, 0 = unlimited
@@ -423,6 +431,30 @@ public class GlobalSettings {
     }
     
     public GlobalSettings() {}
+
+    public String getLogDirectoryPath() {
+        return logDirectoryPath;
+    }
+
+    public void setLogDirectoryPath(String logDirectoryPath) {
+        String normalized = logDirectoryPath != null ? logDirectoryPath.trim() : "";
+        this.logDirectoryPath = normalized.isBlank() ? null : normalized;
+    }
+
+    public int getLogRetentionDays() {
+        if (logRetentionDays == null) {
+            return DEFAULT_LOG_RETENTION_DAYS;
+        }
+        return Math.max(0, Math.min(logRetentionDays, MAX_LOG_RETENTION_DAYS));
+    }
+
+    public void setLogRetentionDays(Integer logRetentionDays) {
+        if (logRetentionDays == null) {
+            this.logRetentionDays = DEFAULT_LOG_RETENTION_DAYS;
+        } else {
+            this.logRetentionDays = Math.max(0, Math.min(logRetentionDays, MAX_LOG_RETENTION_DAYS));
+        }
+    }
     
     public int getMaxBackupCount() {
         return maxBackupCount;

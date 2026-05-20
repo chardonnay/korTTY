@@ -66,6 +66,7 @@ public final class SnippetLanguageSupport {
             case "yaml", "yml" -> "yaml";
             case "xml" -> "xml";
             case "markdown", "md" -> "markdown";
+            case "asciidoctor", "asciidoc", "adoc" -> "asciidoctor";
             case "sql" -> "sql";
             case "dockerfile" -> "dockerfile";
             case "properties", "ini" -> "properties";
@@ -89,6 +90,7 @@ public final class SnippetLanguageSupport {
             case "yaml", "yml" -> "yaml";
             case "xml" -> "xml";
             case "markdown", "md" -> "markdown";
+            case "asciidoctor", "asciidoc", "adoc" -> "asciidoctor";
             case "sql" -> "sql";
             case "properties", "ini" -> "properties";
             case "html" -> "html";
@@ -115,6 +117,7 @@ public final class SnippetLanguageSupport {
             case "yaml" -> ".yml";
             case "xml" -> ".xml";
             case "markdown" -> ".md";
+            case "asciidoctor" -> ".adoc";
             case "sql" -> ".sql";
             case "dockerfile" -> ".Dockerfile";
             case "properties" -> ".properties";

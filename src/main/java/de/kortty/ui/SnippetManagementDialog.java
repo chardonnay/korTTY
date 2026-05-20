@@ -972,9 +972,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         
         SnippetEditDialog dialog = new SnippetEditDialog(null, categoryNames, createSnippetAiAssist());
         dialog.initOwner(getDialogPane().getScene().getWindow());
-        
-        Optional<Snippet> result = dialog.showAndWait();
-        result.ifPresent(snippet -> {
+
+        dialog.showNonBlocking(snippet -> {
             ensureCategory(snippet.getCategory());
             snippetManager.addSnippet(snippet);
             saveAndRefresh();
@@ -990,9 +989,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         
         SnippetEditDialog dialog = new SnippetEditDialog(selected, categoryNames, createSnippetAiAssist());
         dialog.initOwner(getDialogPane().getScene().getWindow());
-        
-        Optional<Snippet> result = dialog.showAndWait();
-        result.ifPresent(snippet -> {
+
+        dialog.showNonBlocking(snippet -> {
             ensureCategory(snippet.getCategory());
             snippetManager.updateSnippet(snippet);
             saveAndRefresh();

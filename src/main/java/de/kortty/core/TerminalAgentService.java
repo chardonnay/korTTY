@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -1163,7 +1164,8 @@ public class TerminalAgentService {
     }
 
     private AgentDecision parseAgentDecision(String rawContent) {
-        AgentDecision decision = GSON.fromJson(extractJsonObjectContent(rawContent), AgentDecision.class);
+        JsonObject object = JsonParser.parseString(extractJsonObjectContent(rawContent)).getAsJsonObject();
+        AgentDecision decision = GSON.fromJson(normalizeAgentDecisionObject(object), AgentDecision.class);
         if (decision == null || decision.status == null) {
             throw new JsonSyntaxException("Missing decision status");
         }
@@ -1175,6 +1177,157 @@ public class TerminalAgentService {
             throw new JsonSyntaxException("Command decisions must include commands");
         }
         return decision;
+    }
+
+    private JsonObject normalizeAgentDecisionObject(JsonObject object) {
+        JsonObject normalized = object != null ? object.deepCopy() : new JsonObject();
+        normalizeAgentDecisionStatus(normalized);
+        normalizeAgentDecisionCommands(normalized);
+        return normalized;
+    }
+
+    private void normalizeAgentDecisionStatus(JsonObject object) {
+        JsonElement statusElement = object.get("status");
+        if (statusElement == null || !statusElement.isJsonPrimitive()) {
+            return;
+        }
+        String status = statusElement.getAsString();
+        if (status == null || status.isBlank()) {
+            return;
+        }
+        String normalized = status.trim()
+            .toLowerCase(Locale.ROOT)
+            .replace('-', '_')
+            .replace(' ', '_');
+        switch (normalized) {
+            case "run", "commands", "run_command", "execute", "execute_commands" -> object.addProperty("status", "run_commands");
+            case "confirm", "confirmation", "requires_confirmation", "need_confirmation" -> object.addProperty("status", "needs_confirmation");
+            case "complete", "completed", "success" -> object.addProperty("status", "done");
+            case "cannot", "failed", "failure" -> object.addProperty("status", "blocked");
+            default -> object.addProperty("status", normalized);
+        }
+    }
+
+    private void normalizeAgentDecisionCommands(JsonObject object) {
+        JsonElement commandsElement = object.get("commands");
+        if (commandsElement == null || commandsElement.isJsonNull()) {
+            commandsElement = firstExistingElement(object, "command", "cmd", "shellCommand", "terminalCommand");
+        }
+        if (commandsElement == null || commandsElement.isJsonNull()) {
+            return;
+        }
+        JsonArray commands = new JsonArray();
+        if (commandsElement.isJsonArray()) {
+            for (JsonElement item : commandsElement.getAsJsonArray()) {
+                JsonObject command = normalizeAgentCommandObject(item, object);
+                if (command != null) {
+                    commands.add(command);
+                }
+            }
+        } else {
+            JsonObject command = normalizeAgentCommandObject(commandsElement, object);
+            if (command != null) {
+                commands.add(command);
+            }
+        }
+        object.add("commands", commands);
+    }
+
+    private JsonObject normalizeAgentCommandObject(JsonElement element, JsonObject decisionObject) {
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+        JsonObject commandObject = element.isJsonObject()
+            ? element.getAsJsonObject().deepCopy()
+            : new JsonObject();
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            commandObject.addProperty("command", element.getAsString());
+        }
+        copyFirstString(commandObject, "command", "cmd", "shellCommand", "terminalCommand");
+        copyFirstString(commandObject, "purpose", "reason", "description", "summary");
+        if (!hasNonBlankString(commandObject, "purpose")) {
+            copyFirstStringFromDecision(commandObject, decisionObject, "purpose", "purpose", "reason", "description", "summary", "userMessage");
+        }
+        copyFirstString(commandObject, "risk", "riskLevel", "confirmation", "safety");
+        if (!hasNonBlankString(commandObject, "risk")) {
+            copyFirstStringFromDecision(commandObject, decisionObject, "risk", "risk", "riskLevel", "confirmation", "safety");
+        }
+        normalizeAgentCommandRisk(commandObject);
+        return hasNonBlankString(commandObject, "command") ? commandObject : null;
+    }
+
+    private void normalizeAgentCommandRisk(JsonObject commandObject) {
+        JsonElement riskElement = commandObject.get("risk");
+        if (riskElement == null || !riskElement.isJsonPrimitive()) {
+            return;
+        }
+        String risk = riskElement.getAsString();
+        if (risk == null || risk.isBlank()) {
+            return;
+        }
+        String normalized = risk.trim()
+            .toLowerCase(Locale.ROOT)
+            .replace('-', '_')
+            .replace(' ', '_');
+        if (normalized.equals("read_only")
+            || normalized.equals("readonly")
+            || normalized.equals("read")
+            || normalized.equals("safe")
+            || normalized.equals("low")) {
+            commandObject.addProperty("risk", "read_only");
+        } else {
+            commandObject.addProperty("risk", "requires_confirmation");
+        }
+    }
+
+    private JsonElement firstExistingElement(JsonObject object, String... names) {
+        for (String name : names) {
+            if (object.has(name)) {
+                return object.get(name);
+            }
+        }
+        return null;
+    }
+
+    private void copyFirstString(JsonObject object, String targetName, String... sourceNames) {
+        if (hasNonBlankString(object, targetName)) {
+            return;
+        }
+        for (String sourceName : sourceNames) {
+            JsonElement value = object.get(sourceName);
+            if (value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+                String text = value.getAsString();
+                if (text != null && !text.isBlank()) {
+                    object.addProperty(targetName, text.trim());
+                    return;
+                }
+            }
+        }
+    }
+
+    private void copyFirstStringFromDecision(JsonObject commandObject, JsonObject decisionObject, String targetName, String... sourceNames) {
+        if (decisionObject == null) {
+            return;
+        }
+        for (String sourceName : sourceNames) {
+            JsonElement value = decisionObject.get(sourceName);
+            if (value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+                String text = value.getAsString();
+                if (text != null && !text.isBlank()) {
+                    commandObject.addProperty(targetName, text.trim());
+                    return;
+                }
+            }
+        }
+    }
+
+    private boolean hasNonBlankString(JsonObject object, String name) {
+        JsonElement value = object.get(name);
+        return value != null
+            && value.isJsonPrimitive()
+            && value.getAsJsonPrimitive().isString()
+            && value.getAsString() != null
+            && !value.getAsString().isBlank();
     }
 
     private AgentDecision parseAndValidateAgentDecision(
@@ -2333,7 +2486,9 @@ public class TerminalAgentService {
             + "Keep using this original request context, including `probe.currentDir` and the active terminal working directory:\n"
             + "<original_request_context>\n" + nonBlank(originalUserPrompt, "") + "\n</original_request_context>\n\n"
             + "Return at most " + MAX_COMMANDS_PER_TURN + " commands. If the task needs more commands, return only the next safe batch; later turns can continue. "
-            + "If no safe command can be returned, use status `blocked`. Do not add Markdown. Previous reply:\n```text\n"
+            + "If status is `run_commands` or `needs_confirmation`, `commands` must be a non-empty array of objects with `command`, `purpose`, and `risk`. "
+            + "Never return `run_commands` or `needs_confirmation` with an empty or missing `commands` array. "
+            + "If no safe command can be returned, use status `blocked` and `commands`: []. Do not add Markdown. Previous reply:\n```text\n"
             + nonBlank(invalidResponse, "") + "\n```";
     }
 
@@ -2615,6 +2770,18 @@ public class TerminalAgentService {
         private String command;
         private String purpose;
         private String risk;
+
+        String command() {
+            return command;
+        }
+
+        String purpose() {
+            return purpose;
+        }
+
+        String risk() {
+            return risk;
+        }
     }
 
     record AgentPlanQuestionDecision(String status, String summary, String userMessage, List<AgentPlanQuestionDecisionItem> questions) {

@@ -93,6 +93,72 @@ class TerminalAgentDecisionRepairTest {
     }
 
     @Test
+    void acceptsSingleTopLevelCommandFieldFromJsonStrictModels() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        AiServiceTestDouble aiService = new AiServiceTestDouble("""
+            {
+              "status": "needs_confirmation",
+              "summary": "Install the package",
+              "userMessage": "I will install gpg-pubkey with dnf.",
+              "command": "sudo -n dnf install -y gpg-pubkey",
+              "purpose": "Install the requested gpg-pubkey package",
+              "risk": "requires confirmation",
+              "needsReprobe": false
+            }
+            """);
+
+        TerminalAgentService.AgentDecision decision = service.requestAgentDecision(
+            aiService,
+            request(),
+            probe(),
+            List.of(),
+            1,
+            false,
+            new RunUiTestDouble(),
+            "run-1");
+
+        assertThat(decision.status()).isEqualTo(TerminalAgentService.AgentDecisionStatus.needs_confirmation);
+        assertThat(decision.commands()).hasSize(1);
+        assertThat(decision.commands().get(0).command()).isEqualTo("sudo -n dnf install -y gpg-pubkey");
+        assertThat(decision.commands().get(0).purpose()).isEqualTo("Install the requested gpg-pubkey package");
+        assertThat(decision.commands().get(0).risk()).isEqualTo("requires_confirmation");
+    }
+
+    @Test
+    void acceptsCommandObjectInsteadOfCommandArray() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        AiServiceTestDouble aiService = new AiServiceTestDouble("""
+            {
+              "status": "run_commands",
+              "summary": "Inspect package availability",
+              "userMessage": "I will check the package name first.",
+              "commands": {
+                "cmd": "dnf info gpg-pubkey",
+                "description": "Check whether the package is available",
+                "risk": "low"
+              },
+              "needsReprobe": false
+            }
+            """);
+
+        TerminalAgentService.AgentDecision decision = service.requestAgentDecision(
+            aiService,
+            request(),
+            probe(),
+            List.of(),
+            1,
+            false,
+            new RunUiTestDouble(),
+            "run-1");
+
+        assertThat(decision.status()).isEqualTo(TerminalAgentService.AgentDecisionStatus.run_commands);
+        assertThat(decision.commands()).hasSize(1);
+        assertThat(decision.commands().get(0).command()).isEqualTo("dnf info gpg-pubkey");
+        assertThat(decision.commands().get(0).purpose()).isEqualTo("Check whether the package is available");
+        assertThat(decision.commands().get(0).risk()).isEqualTo("read_only");
+    }
+
+    @Test
     void publishesUsedAiSkillsInAgentActivityLog() throws Exception {
         TerminalAgentService service = new TerminalAgentService();
         SkillUsageAiService aiService = new SkillUsageAiService("""

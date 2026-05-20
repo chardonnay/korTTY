@@ -24,6 +24,9 @@ public class AiProfile {
     private String apiUrl;
 
     @XmlElement
+    private AiConnectionMode connectionMode;
+
+    @XmlElement
     private String model;
 
     @XmlElement
@@ -37,6 +40,15 @@ public class AiProfile {
 
     @XmlElement
     private String encryptedApiKey;
+
+    @XmlElement
+    private String cliProviderId;
+
+    @XmlElement
+    private String cliExecutablePath;
+
+    @XmlElement
+    private String cliArgumentsTemplate;
 
     @XmlElement
     private Integer maxSelectionChars = DEFAULT_MAX_SELECTION_CHARS;
@@ -84,11 +96,15 @@ public class AiProfile {
         this.id = source.id;
         this.name = source.name;
         this.apiUrl = source.apiUrl;
+        this.connectionMode = source.getConnectionMode();
         this.model = source.model;
         this.modelSelectionMode = source.getModelSelectionMode();
         this.reasoningEffort = source.getReasoningEffort();
         this.internetAccessMode = source.getInternetAccessMode();
         this.encryptedApiKey = source.encryptedApiKey;
+        this.cliProviderId = source.cliProviderId;
+        this.cliExecutablePath = source.cliExecutablePath;
+        this.cliArgumentsTemplate = source.cliArgumentsTemplate;
         this.maxSelectionChars = source.maxSelectionChars;
         this.tokenizerType = source.tokenizerType;
         this.tokenLimitAmount = source.tokenLimitAmount;
@@ -125,6 +141,14 @@ public class AiProfile {
 
     public void setApiUrl(String apiUrl) {
         this.apiUrl = apiUrl;
+    }
+
+    public AiConnectionMode getConnectionMode() {
+        return connectionMode != null ? connectionMode : AiConnectionMode.HTTP_API;
+    }
+
+    public void setConnectionMode(AiConnectionMode connectionMode) {
+        this.connectionMode = connectionMode != null ? connectionMode : AiConnectionMode.HTTP_API;
     }
 
     public String getModel() {
@@ -170,6 +194,30 @@ public class AiProfile {
 
     public void setEncryptedApiKey(String encryptedApiKey) {
         this.encryptedApiKey = encryptedApiKey;
+    }
+
+    public String getCliProviderId() {
+        return cliProviderId;
+    }
+
+    public void setCliProviderId(String cliProviderId) {
+        this.cliProviderId = cliProviderId;
+    }
+
+    public String getCliExecutablePath() {
+        return cliExecutablePath;
+    }
+
+    public void setCliExecutablePath(String cliExecutablePath) {
+        this.cliExecutablePath = cliExecutablePath;
+    }
+
+    public String getCliArgumentsTemplate() {
+        return cliArgumentsTemplate;
+    }
+
+    public void setCliArgumentsTemplate(String cliArgumentsTemplate) {
+        this.cliArgumentsTemplate = cliArgumentsTemplate;
     }
 
     public Integer getMaxSelectionChars() {

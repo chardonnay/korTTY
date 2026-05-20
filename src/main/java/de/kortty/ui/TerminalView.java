@@ -146,6 +146,11 @@ public class TerminalView extends BorderPane {
     }
 
     @FunctionalInterface
+    public interface TerminalTextFileLoadHandler {
+        void handle(@Nullable TerminalAgentRunContext runContext, String selectedText);
+    }
+
+    @FunctionalInterface
     public interface TerminalAgentShortcutHandler {
         void handle(String rawCommand, @Nullable TerminalAgentRunContext runContext);
     }
@@ -236,6 +241,7 @@ public class TerminalView extends BorderPane {
     private Runnable timestampToggleListener;
     private Runnable onReconnectRequested;
     private AiSelectionHandler aiSelectionHandler;
+    private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
     private TerminalAgentContextHandler aiAgentHandler;
     private TerminalAgentContextHandler aiAgentAskHandler;
     private TerminalAgentContextHandler aiPlanningHandler;
@@ -351,6 +357,15 @@ public class TerminalView extends BorderPane {
             List<AiProfile> aiProfiles = getConfiguredAiProfiles();
             boolean hasSelectedText = selectedText != null && !selectedText.isBlank();
             boolean hasAgentActions = aiAgentHandler != null || aiAgentAskHandler != null || aiPlanningHandler != null;
+            if (shouldShowLoadAsTextFileContextItem(selectedText, terminalTextFileLoadHandler != null)) {
+                javafx.scene.control.MenuItem loadTextFileItem =
+                    new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.loadAsTextFile"));
+                loadTextFileItem.setOnAction(e -> terminalTextFileLoadHandler.handle(
+                    createTerminalAgentRunContext(widget),
+                    selectedText));
+                items.add(loadTextFileItem);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
             if (shouldShowAiContextMenu(aiProfiles, hasSelectedText, hasAgentActions)) {
                 javafx.scene.control.Menu aiMenu = new javafx.scene.control.Menu(I18n.get("terminal.contextMenu.ai"));
                 if (aiAgentHandler != null) {
@@ -477,6 +492,10 @@ public class TerminalView extends BorderPane {
 
     public void setAiSelectionHandler(@Nullable AiSelectionHandler aiSelectionHandler) {
         this.aiSelectionHandler = aiSelectionHandler;
+    }
+
+    public void setTerminalTextFileLoadHandler(@Nullable TerminalTextFileLoadHandler terminalTextFileLoadHandler) {
+        this.terminalTextFileLoadHandler = terminalTextFileLoadHandler;
     }
 
     public void setAiAgentHandler(TerminalAgentContextHandler aiAgentHandler) {
@@ -919,6 +938,10 @@ public class TerminalView extends BorderPane {
             return false;
         }
         return hasSelectedText || hasAgentActions;
+    }
+
+    static boolean shouldShowLoadAsTextFileContextItem(@Nullable String selectedText, boolean hasHandler) {
+        return hasHandler && selectedText != null && !selectedText.isBlank();
     }
 
     private String getAiProfileDisplayName(@Nullable AiProfile profile) {

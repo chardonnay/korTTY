@@ -3237,7 +3237,7 @@ public class SFTPManagerTab extends Tab {
         if (getTabPane() != null && getTabPane().getScene() != null) {
             dialog.initOwner(getTabPane().getScene().getWindow());
         }
-        dialog.showAndWait();
+        dialog.showNonBlocking(null);
     }
 
     private boolean overwriteRemoteSnippetFile(String remotePath, Snippet draft) throws Exception {

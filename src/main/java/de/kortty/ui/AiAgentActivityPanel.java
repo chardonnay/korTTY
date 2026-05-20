@@ -679,7 +679,7 @@ public class AiAgentActivityPanel extends VBox {
         if (owner != null) {
             dialog.initOwner(owner);
         }
-        dialog.showAndWait().ifPresent(savedSnippet -> {
+        dialog.showNonBlocking(savedSnippet -> {
             try {
                 ensureSnippetCategoryExists(savedSnippet.getCategory());
                 snippetManager.addSnippet(savedSnippet);

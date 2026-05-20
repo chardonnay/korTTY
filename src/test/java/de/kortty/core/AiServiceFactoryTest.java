@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
 import org.testng.annotations.Test;
 
@@ -194,5 +195,35 @@ class AiServiceFactoryTest {
             return;
         }
         throw new AssertionError("Expected LM Studio native endpoint validation to fail.");
+    }
+
+    @Test
+    void createBuildsLocalCliServiceWithoutApiUrl() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        profile.setCliProviderId("claude-code");
+        profile.setCliExecutablePath("/tmp/kortty-test-cli");
+        profile.setCliArgumentsTemplate("{promptFile}");
+        profile.setModel("custom-model");
+
+        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+
+        assertThat(service).isInstanceOf(LocalCliAiService.class);
+    }
+
+    @Test
+    void createRejectsLocalCliProfileWithoutModel() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        profile.setCliProviderId("claude-code");
+        profile.setCliArgumentsTemplate("{promptFile}");
+
+        try {
+            AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        } catch (IllegalStateException ex) {
+            assertThat(ex).hasMessageThat().contains("model");
+            return;
+        }
+        throw new AssertionError("Expected missing local CLI model validation to fail.");
     }
 }

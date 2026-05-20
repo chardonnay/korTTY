@@ -7,6 +7,7 @@ import de.kortty.core.SnippetEditorProfileSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiTextSupport;
 import de.kortty.core.SnippetLinter;
+import de.kortty.core.SnippetMarkupPreviewRenderer;
 import de.kortty.core.PlantUmlRenderService;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SnippetLanguageSupport;
@@ -35,8 +36,11 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.web.WebView;
+import javafx.stage.Modality;
 import javafx.stage.Popup;
 import javafx.util.Duration;
 import org.fxmisc.richtext.InlineCssTextArea;
@@ -46,6 +50,7 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,6 +74,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final Label snippetAiHintLabel;
     private final Button cancelSnippetAiActionButton;
     private final InlineCssTextArea contentArea;
+    private final ToggleButton markupPreviewToggleButton;
+    private final WebView markupPreviewView;
     private final TextArea aiAdditionalInstructionsArea;
     private final VBox aiAdditionalInstructionsBox;
     private final CheckBox wordWrapCheckBox;
@@ -127,6 +134,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private boolean externalFileActionRunning;
     private final List<SnippetDiagram> diagrams = new ArrayList<>();
     private final PauseTransition autoCompletionDelay = new PauseTransition(Duration.millis(900));
+    private final PauseTransition markupPreviewRefreshDelay = new PauseTransition(Duration.millis(180));
     private Popup completionPopup;
     private SnippetAiResponseSupport.CompletionSuggestion pendingCompletionSuggestion;
     private String pendingCompletionContentSnapshot;
@@ -163,7 +171,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private static final List<String> LANGUAGES = List.of(
         "plain", "bash", "shell", "python", "perl", "ruby", "java", "javascript", "groovy",
         "powershell", "sql", "xml", "json", "yaml", "yml", "toml", "properties", "ini", "html",
-        "markdown", "dockerfile"
+        "markdown", "asciidoctor", "dockerfile"
     );
 
     private static String aiActionLabel(String key) {
@@ -405,6 +413,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             ? I18n.get("snippets.fileEdit.title", externalFileActionConfig.sourceLabel())
             : snippet == null ? I18n.get("snippets.addTitle") : I18n.get("snippets.editTitle"));
         setResizable(true);
+        initModality(Modality.NONE);
         
         // Form fields
         nameField = new TextField();
@@ -419,6 +428,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             if (!programmaticLanguageUpdate) {
                 languageUserEdited = true;
             }
+            updateMarkupPreviewAvailability();
             updateAiActionAvailability();
         });
         
@@ -522,6 +532,23 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         // Wrap content area in VirtualizedScrollPane for scrollbars
         var contentScrollPane = EditorSettingsHelper.createScrollPane(contentArea);
         VBox.setVgrow(contentScrollPane, Priority.ALWAYS);
+
+        markupPreviewView = new WebView();
+        markupPreviewView.getEngine().setJavaScriptEnabled(false);
+        markupPreviewView.setContextMenuEnabled(false);
+        markupPreviewView.setVisible(false);
+        markupPreviewView.setManaged(false);
+        markupPreviewToggleButton = new ToggleButton(I18n.get("snippets.preview"));
+        markupPreviewToggleButton.setTooltip(new Tooltip(I18n.get("snippets.preview.tooltip")));
+        markupPreviewToggleButton.setAccessibleText(I18n.get("snippets.preview.tooltip"));
+        markupPreviewToggleButton.selectedProperty().addListener((obs, oldValue, selected) -> handleMarkupPreviewToggle(selected));
+        contentScrollPane.visibleProperty().bind(markupPreviewToggleButton.selectedProperty().not());
+        contentScrollPane.managedProperty().bind(contentScrollPane.visibleProperty());
+        markupPreviewView.visibleProperty().bind(markupPreviewToggleButton.selectedProperty());
+        markupPreviewView.managedProperty().bind(markupPreviewView.visibleProperty());
+        markupPreviewRefreshDelay.setOnFinished(event -> refreshMarkupPreview());
+        StackPane contentStack = new StackPane(contentScrollPane, markupPreviewView);
+        VBox.setVgrow(contentStack, Priority.ALWAYS);
         
         // Word wrap checkbox – persistent setting
         wordWrapCheckBox = new CheckBox(I18n.get("snippets.wordWrap"));
@@ -551,6 +578,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             applyHighlighting();
             updateFormatLintButtonState();
             updateOneLinerButtonState();
+            updateMarkupPreviewAvailability();
             updateAiActionAvailability();
         });
         
@@ -566,6 +594,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             updateSaveButtonState();
             updateExternalFileButtonState();
             updateAiActionAvailability();
+            scheduleMarkupPreviewRefresh();
             scheduleAutoCompletion();
         });
         contentArea.selectionProperty().addListener((obs, oldSelection, newSelection) -> updateAiActionAvailability());
@@ -714,15 +743,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 new Label(I18n.get("snippets.content") + ":"),
                 editMenu, formatBtn, lintBtn, aiTextMenu, aiCodeMenu, toggleLastAiChangeButton, oneLinerMenu,
                 new Separator(), zoomOutButton, fontSizeLabel, zoomInButton, editorProfileMenu, backgroundBrightnessMenu,
-                new Separator(), wordWrapCheckBox, lineNumbersCheckBox);
+                new Separator(), markupPreviewToggleButton, wordWrapCheckBox, lineNumbersCheckBox);
         contentHeader.setAlignment(Pos.CENTER_LEFT);
         formGrid.add(contentHeader, 0, 5, 2, 1);
 
         formGrid.add(aiAdditionalInstructionsBox, 0, 6, 2, 1);
         formGrid.add(snippetAiHintBox, 0, 7, 2, 1);
 
-        VBox contentBox = new VBox(5, contentScrollPane, placeholderInfo);
-        VBox.setVgrow(contentScrollPane, Priority.ALWAYS);
+        VBox contentBox = new VBox(5, contentStack, placeholderInfo);
+        VBox.setVgrow(contentStack, Priority.ALWAYS);
         formGrid.add(contentBox, 0, 8, 2, 1);
         GridPane.setVgrow(contentBox, Priority.ALWAYS);
 
@@ -843,6 +872,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         contentArea.getUndoManager().forgetHistory();
         updateFormatLintButtonState();
         updateOneLinerButtonState();
+        updateMarkupPreviewAvailability();
         updateAiActionAvailability();
         initialContentSnapshot = safeContentText();
         updateUndoControls();
@@ -871,6 +901,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             && (descriptionArea.getText() == null || descriptionArea.getText().isBlank())) {
             beginMetadataGeneration(false);
         }
+    }
+
+    public void showNonBlocking(Consumer<Snippet> resultHandler) {
+        if (resultHandler != null) {
+            addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+                Snippet result = getResult();
+                if (result != null) {
+                    resultHandler.accept(result);
+                }
+            });
+        }
+        show();
     }
     
     private void installUnsavedContentCloseGuard(Button cancelButton) {
@@ -1642,6 +1684,53 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             || SnippetOneLiner.isCompactSupported(lang)
             || hasOneLinerProvider());
         oneLinerMenu.setDisable(!ok);
+    }
+
+    private void updateMarkupPreviewAvailability() {
+        if (markupPreviewToggleButton == null) {
+            return;
+        }
+        boolean supported = SnippetMarkupPreviewRenderer.supports(languageCombo.getValue());
+        if (!supported && markupPreviewToggleButton.isSelected()) {
+            markupPreviewToggleButton.setSelected(false);
+        } else if (supported && markupPreviewToggleButton.isSelected()) {
+            refreshMarkupPreview();
+        }
+        markupPreviewToggleButton.setDisable(!supported);
+    }
+
+    private void handleMarkupPreviewToggle(boolean selected) {
+        if (!selected) {
+            return;
+        }
+        if (!SnippetMarkupPreviewRenderer.supports(languageCombo.getValue())) {
+            markupPreviewToggleButton.setSelected(false);
+            setStatus(I18n.get("snippets.preview.unsupported"));
+            return;
+        }
+        refreshMarkupPreview();
+    }
+
+    private void scheduleMarkupPreviewRefresh() {
+        if (markupPreviewToggleButton != null && markupPreviewToggleButton.isSelected()) {
+            markupPreviewRefreshDelay.playFromStart();
+        }
+    }
+
+    private void refreshMarkupPreview() {
+        if (markupPreviewView == null
+            || markupPreviewToggleButton == null
+            || !markupPreviewToggleButton.isSelected()) {
+            return;
+        }
+        String language = languageCombo.getValue();
+        if (!SnippetMarkupPreviewRenderer.supports(language)) {
+            updateMarkupPreviewAvailability();
+            return;
+        }
+        markupPreviewView.getEngine().loadContent(
+            SnippetMarkupPreviewRenderer.renderHtml(language, safeContentText()),
+            "text/html");
     }
 
     private void updateAiActionAvailability() {
