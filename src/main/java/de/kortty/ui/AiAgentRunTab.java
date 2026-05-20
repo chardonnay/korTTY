@@ -271,17 +271,22 @@ public class AiAgentRunTab extends Tab {
             cacheForSessionCheckBox.setSelected(true);
             dialog.getDialogPane().setContent(new VBox(8, new Label(request.userMessage()), passwordField, cacheForSessionCheckBox));
             Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+            okButton.setDefaultButton(true);
             okButton.disableProperty().bind(Bindings.createBooleanBinding(
                 () -> !hasPasswordText(passwordField),
                 passwordField.textProperty()));
-            passwordField.setOnAction(event -> fireOkIfPasswordPresent(passwordField, okButton));
-            passwordField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            passwordField.setOnAction(event -> {
+                fireOkIfPasswordPresent(passwordField, okButton);
+                event.consume();
+            });
+            dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
                 if (event.getCode() == KeyCode.ENTER) {
                     fireOkIfPasswordPresent(passwordField, okButton);
                     event.consume();
                 }
             });
             dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK ? passwordField.getText() : null);
+            Platform.runLater(passwordField::requestFocus);
             return dialog.showAndWait()
                 .map(password -> new TerminalAgentModels.PasswordResponse(password, cacheForSessionCheckBox.isSelected()))
                 .orElse(null);

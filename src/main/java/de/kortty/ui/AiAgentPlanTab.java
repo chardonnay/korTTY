@@ -605,11 +605,15 @@ public class AiAgentPlanTab extends Tab {
         VBox content = new VBox(8, wrappedLabel(I18n.get("ai.plan.sudo.message")), passwordField, cacheForSessionCheckBox);
         dialog.getDialogPane().setContent(content);
         Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setDefaultButton(true);
         okButton.disableProperty().bind(Bindings.createBooleanBinding(
             () -> !hasPasswordText(passwordField),
             passwordField.textProperty()));
-        passwordField.setOnAction(event -> fireOkIfPasswordPresent(passwordField, okButton));
-        passwordField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+        passwordField.setOnAction(event -> {
+            fireOkIfPasswordPresent(passwordField, okButton);
+            event.consume();
+        });
+        dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 fireOkIfPasswordPresent(passwordField, okButton);
                 event.consume();

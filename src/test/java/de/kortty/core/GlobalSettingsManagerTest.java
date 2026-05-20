@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
@@ -91,6 +92,8 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setAiCodeTextDefaultLanguage("de");
             manager.getSettings().setAiSnippetEditorAdditionalInstructionsEnabled(true);
             manager.getSettings().setAiSnippetAlternativeSolutionCount(5);
+            manager.getSettings().setLogDirectoryPath(dir.resolve("custom-logs").toString());
+            manager.getSettings().setLogRetentionDays(30);
             manager.getSettings().addAiPromptHistoryEntry("first prompt");
             manager.getSettings().addAiPromptHistoryEntry("second prompt");
             manager.save();
@@ -102,6 +105,7 @@ class GlobalSettingsManagerTest {
             AiProfile reloadedProfile = reloaded.getSettings().getAiProfiles().get(0);
             assertThat(reloadedProfile.getId()).isEqualTo("profile-1");
             assertThat(reloadedProfile.getName()).isEqualTo("LM Studio");
+            assertThat(reloadedProfile.getConnectionMode()).isEqualTo(AiConnectionMode.HTTP_API);
             assertThat(reloadedProfile.getApiUrl()).isEqualTo("http://127.0.0.1:1234/v1/chat/completions");
             assertThat(reloadedProfile.getModel()).isEqualTo("local-model");
             assertThat(reloadedProfile.getModelSelectionMode()).isEqualTo(AiModelSelectionMode.MANUAL);
@@ -148,6 +152,8 @@ class GlobalSettingsManagerTest {
             assertThat(reloaded.getSettings().getAiCodeTextDefaultLanguage()).isEqualTo("de");
             assertThat(reloaded.getSettings().isAiSnippetEditorAdditionalInstructionsEnabled()).isTrue();
             assertThat(reloaded.getSettings().getAiSnippetAlternativeSolutionCount()).isEqualTo(5);
+            assertThat(reloaded.getSettings().getLogDirectoryPath()).isEqualTo(dir.resolve("custom-logs").toString());
+            assertThat(reloaded.getSettings().getLogRetentionDays()).isEqualTo(30);
             assertThat(reloaded.getSettings().getAiPromptHistory().size()).isEqualTo(2);
             assertThat(reloaded.getSettings().getAiPromptHistory().get(0)).isEqualTo("second prompt");
             assertThat(reloaded.getSettings().getAiPromptHistory().get(1)).isEqualTo("first prompt");
@@ -162,6 +168,40 @@ class GlobalSettingsManagerTest {
             assertThat(reloadedSkill.isEnabled()).isTrue();
             assertThat(reloadedSkill.getTarget()).isEqualTo(AiSkillTarget.BOTH);
             assertThat(reloadedSkill.getContent()).isEqualTo("Prefer short shell commands.");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesLocalCliAiProfileFields() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-ai-cli");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            AiProfile profile = new AiProfile();
+            profile.setId("cli-profile");
+            profile.setName("MiniMAX CLI");
+            profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+            profile.setCliProviderId("minimax");
+            profile.setCliExecutablePath("/opt/minimax/bin/minimax");
+            profile.setCliArgumentsTemplate("{promptFile}");
+            profile.setModel("custom-minimax-model");
+            profile.setReasoningEffort(AiReasoningEffort.MEDIUM);
+            manager.getSettings().setAiProfiles(List.of(profile));
+
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            AiProfile reloadedProfile = reloaded.getSettings().getAiProfiles().get(0);
+
+            assertThat(reloadedProfile.getConnectionMode()).isEqualTo(AiConnectionMode.LOCAL_CLI);
+            assertThat(reloadedProfile.getCliProviderId()).isEqualTo("minimax");
+            assertThat(reloadedProfile.getCliExecutablePath()).isEqualTo("/opt/minimax/bin/minimax");
+            assertThat(reloadedProfile.getCliArgumentsTemplate()).isEqualTo("{promptFile}");
+            assertThat(reloadedProfile.getModel()).isEqualTo("custom-minimax-model");
+            assertThat(reloadedProfile.getReasoningEffort()).isEqualTo(AiReasoningEffort.MEDIUM);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

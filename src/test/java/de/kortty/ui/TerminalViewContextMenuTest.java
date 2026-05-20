@@ -28,4 +28,11 @@ class TerminalViewContextMenuTest {
     void showsAiContextMenuWhenProfilesExistAndTextIsSelected() {
         assertThat(TerminalView.shouldShowAiContextMenu(List.of(new AiProfile()), true, false)).isTrue();
     }
+
+    @Test
+    void showsLoadAsTextFileItemOnlyForSelectionAndHandler() {
+        assertThat(TerminalView.shouldShowLoadAsTextFileContextItem("file.txt", true)).isTrue();
+        assertThat(TerminalView.shouldShowLoadAsTextFileContextItem("file.txt", false)).isFalse();
+        assertThat(TerminalView.shouldShowLoadAsTextFileContextItem("   ", true)).isFalse();
+    }
 }

@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
+import de.kortty.model.AiConnectionMode;
 
 import java.util.List;
 import java.util.Locale;
@@ -76,7 +77,17 @@ public final class AiReasoningSupport {
         if (profile == null) {
             return AiReasoningEffort.DISABLED;
         }
-        return normalize(profile.getReasoningEffort(), availableEfforts(profile.getApiUrl(), profile.getModel()));
+        return normalize(profile.getReasoningEffort(), availableEfforts(profile));
+    }
+
+    public static List<AiReasoningEffort> availableEfforts(AiProfile profile) {
+        if (profile == null) {
+            return DISABLED_ONLY;
+        }
+        if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
+            return AiCliProviderRegistry.availableReasoningEfforts(profile.getCliProviderId(), profile.getModel());
+        }
+        return availableEfforts(profile.getApiUrl(), profile.getModel());
     }
 
     public static AiReasoningEffort normalizeForProfile(

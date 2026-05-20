@@ -46,6 +46,7 @@ class SnippetLanguageSupportTest {
         assertThat(SnippetLanguageSupport.detectFileLanguage("data.json", "{}")).isEqualTo("json");
         assertThat(SnippetLanguageSupport.detectFileLanguage("compose.yml", "services: {}")).isEqualTo("yaml");
         assertThat(SnippetLanguageSupport.detectFileLanguage("README.md", "# Title")).isEqualTo("markdown");
+        assertThat(SnippetLanguageSupport.detectFileLanguage("guide.adoc", "= Title")).isEqualTo("asciidoctor");
         assertThat(SnippetLanguageSupport.detectFileLanguage("Dockerfile", "FROM alpine")).isEqualTo("dockerfile");
     }
 

@@ -1,0 +1,241 @@
+package de.kortty.core;
+
+import de.kortty.model.AiProfile;
+import de.kortty.model.AiReasoningEffort;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Executes AI prompts through a locally installed provider CLI.
+ */
+public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
+
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(180);
+    private static final Duration TEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final String CONNECTION_TEST_SYSTEM_PROMPT = "Reply with exactly OK.";
+    private static final String CONNECTION_TEST_USER_PROMPT = "Connection test.";
+
+    private final String providerId;
+    private final String executablePath;
+    private final String argumentsTemplate;
+    private final String model;
+    private final AiReasoningEffort reasoningEffort;
+    private final AiSkillPromptSupport skillPromptSupport;
+    private final Duration requestTimeout;
+
+    public LocalCliAiService(AiProfile profile, AiSkillPromptSupport skillPromptSupport) {
+        this(
+            profile != null ? profile.getCliProviderId() : null,
+            profile != null ? profile.getCliExecutablePath() : null,
+            profile != null ? profile.getCliArgumentsTemplate() : null,
+            profile != null ? profile.getModel() : null,
+            profile != null ? profile.getReasoningEffort() : null,
+            skillPromptSupport,
+            DEFAULT_TIMEOUT);
+    }
+
+    LocalCliAiService(
+        String providerId,
+        String executablePath,
+        String argumentsTemplate,
+        String model,
+        AiReasoningEffort reasoningEffort,
+        AiSkillPromptSupport skillPromptSupport,
+        Duration requestTimeout) {
+
+        this.providerId = providerId != null ? providerId.trim() : "";
+        this.executablePath = executablePath != null ? executablePath.trim() : "";
+        this.argumentsTemplate = argumentsTemplate != null ? argumentsTemplate.trim() : "";
+        this.model = model != null ? model.trim() : "";
+        this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
+        this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
+        this.requestTimeout = requestTimeout != null ? requestTimeout : DEFAULT_TIMEOUT;
+    }
+
+    @Override
+    public AiExecutionResult execute(AiRequest request) throws Exception {
+        String systemPrompt = skillPromptSupport.appendChatSkills(
+            AiPromptBuilder.buildSystemPrompt(request),
+            request);
+        return executePromptInternal(systemPrompt, AiPromptBuilder.buildUserPrompt(request), requestTimeout);
+    }
+
+    @Override
+    public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) throws Exception {
+        String effectiveSystemPrompt = skillPromptSupport.appendAgentSkills(systemPrompt, userPrompt);
+        return executePromptInternal(effectiveSystemPrompt, userPrompt, requestTimeout);
+    }
+
+    @Override
+    public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) throws Exception {
+        return executePrompt(systemPrompt, userPrompt);
+    }
+
+    @Override
+    public AiExecutionResult executeJsonPromptWithoutResponseFormat(String systemPrompt, String userPrompt) throws Exception {
+        return executePrompt(systemPrompt, userPrompt);
+    }
+
+    @Override
+    public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
+        return skillPromptSupport.drainSkillUsages();
+    }
+
+    @Override
+    public boolean testConnection() {
+        try {
+            AiExecutionResult result = executePromptInternal(
+                CONNECTION_TEST_SYSTEM_PROMPT,
+                CONNECTION_TEST_USER_PROMPT,
+                TEST_TIMEOUT);
+            return result != null && result.content() != null && !result.content().isBlank();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    List<String> buildCommandForTest(Path promptFile, Path systemPromptFile, Path userPromptFile) {
+        return buildCommand(promptFile, systemPromptFile, userPromptFile);
+    }
+
+    private AiExecutionResult executePromptInternal(String systemPrompt, String userPrompt, Duration timeout) throws Exception {
+        Path tempDir = Files.createTempDirectory("kortty-ai-cli-");
+        try {
+            String safeSystemPrompt = systemPrompt != null ? systemPrompt : "";
+            String safeUserPrompt = userPrompt != null ? userPrompt : "";
+            Path promptFile = tempDir.resolve("prompt.txt");
+            Path systemPromptFile = tempDir.resolve("system-prompt.txt");
+            Path userPromptFile = tempDir.resolve("user-prompt.txt");
+            Files.writeString(systemPromptFile, safeSystemPrompt, StandardCharsets.UTF_8);
+            Files.writeString(userPromptFile, safeUserPrompt, StandardCharsets.UTF_8);
+            Files.writeString(promptFile, buildCombinedPrompt(safeSystemPrompt, safeUserPrompt), StandardCharsets.UTF_8);
+            CliProcessResult result = runProcess(buildCommand(promptFile, systemPromptFile, userPromptFile), timeout);
+            if (result.exitCode() != 0) {
+                throw new IllegalStateException(buildExitMessage(result));
+            }
+            return new AiExecutionResult(result.stdout().strip(), null);
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    private List<String> buildCommand(Path promptFile, Path systemPromptFile, Path userPromptFile) {
+        String executable = resolveExecutable();
+        AiCliArgumentTemplate template = AiCliArgumentTemplate.parse(argumentsTemplate);
+        if (!template.containsPromptPlaceholder()) {
+            throw new IllegalStateException("AI CLI argument template must include a prompt-file placeholder.");
+        }
+        Map<String, String> values = Map.of(
+            AiCliArgumentTemplate.MODEL, model,
+            AiCliArgumentTemplate.REASONING, reasoningEffort.isApiEnabled() ? reasoningEffort.apiValue() : "",
+            AiCliArgumentTemplate.PROMPT_FILE, promptFile.toString(),
+            AiCliArgumentTemplate.SYSTEM_PROMPT_FILE, systemPromptFile.toString(),
+            AiCliArgumentTemplate.USER_PROMPT_FILE, userPromptFile.toString());
+        List<String> command = new ArrayList<>();
+        command.add(executable);
+        command.addAll(template.expand(values));
+        return command;
+    }
+
+    private String resolveExecutable() {
+        if (!executablePath.isBlank()) {
+            return executablePath;
+        }
+        return AiCliProviderRegistry.findProviderExecutable(providerId)
+            .orElseThrow(() -> new IllegalStateException("AI CLI executable must be configured."));
+    }
+
+    private CliProcessResult runProcess(List<String> command, Duration timeout) throws Exception {
+        Process process;
+        try {
+            process = new ProcessBuilder(command).start();
+        } catch (IOException e) {
+            throw new IllegalStateException("AI CLI could not be started: " + safeMessage(e), e);
+        }
+        CompletableFuture<String> stdout = CompletableFuture.supplyAsync(() -> readStream(process.getInputStream()));
+        CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> readStream(process.getErrorStream()));
+        boolean completed;
+        try {
+            completed = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            process.destroyForcibly();
+            Thread.currentThread().interrupt();
+            throw e;
+        }
+        if (!completed) {
+            process.destroyForcibly();
+            throw new IllegalStateException("AI CLI request timed out after " + timeout.toSeconds() + " seconds.");
+        }
+        return new CliProcessResult(
+            process.exitValue(),
+            stdout.get(5, TimeUnit.SECONDS),
+            stderr.get(5, TimeUnit.SECONDS));
+    }
+
+    private static String readStream(InputStream stream) {
+        try (InputStream input = stream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            input.transferTo(output);
+            return output.toString(StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return "";
+        }
+    }
+
+    private static String buildCombinedPrompt(String systemPrompt, String userPrompt) {
+        return "System prompt:\n"
+            + systemPrompt
+            + "\n\nUser prompt:\n"
+            + userPrompt
+            + "\n";
+    }
+
+    private static String buildExitMessage(CliProcessResult result) {
+        String stderr = result.stderr() != null ? result.stderr().strip() : "";
+        if (stderr.isBlank()) {
+            return "AI CLI exited with code " + result.exitCode() + ".";
+        }
+        return "AI CLI exited with code " + result.exitCode() + ": " + truncate(stderr, 800);
+    }
+
+    private static String safeMessage(Exception e) {
+        return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + "...";
+    }
+
+    private static void deleteRecursively(Path path) {
+        if (path == null || !Files.exists(path)) {
+            return;
+        }
+        try (var paths = Files.walk(path)) {
+            paths.sorted(java.util.Comparator.reverseOrder()).forEach(item -> {
+                try {
+                    Files.deleteIfExists(item);
+                } catch (IOException ignored) {
+                    // Temporary prompt files are best-effort cleanup.
+                }
+            });
+        } catch (IOException ignored) {
+            // Temporary prompt files are best-effort cleanup.
+        }
+    }
+
+    private record CliProcessResult(int exitCode, String stdout, String stderr) {
+    }
+}

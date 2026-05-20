@@ -9,6 +9,7 @@ import de.kortty.core.SSHKeyManager;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.LoggingConfiguration;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.TerminalEffectPluginManager;
 import de.kortty.core.BackupManager;
@@ -38,12 +39,19 @@ import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Main entry point for the KorTTY SSH Client application.
  */
 public class KorTTYApplication extends Application {
-    
+
+    static {
+        LoggingConfiguration.bootstrapFromPersistedSettings(getConfigDirectory());
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(KorTTYApplication.class);
     private static final String APP_NAME = "KorTTY";
     private static final String APP_VERSION = "2.2.0";
@@ -67,6 +75,7 @@ public class KorTTYApplication extends Application {
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
     private JobSchedulerService jobSchedulerService;
+    private ScheduledExecutorService logMaintenanceExecutor;
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
     
@@ -149,6 +158,7 @@ public class KorTTYApplication extends Application {
                 // Initialize language manager EARLY with settings, before any UI is created
                 // This ensures the correct language is used from the start
                 de.kortty.core.LanguageManager.getInstance().initialize(globalSettingsManager.getSettings());
+                applyLoggingSettings();
             } catch (Exception e) {
                 logger.warn("Failed to load global settings, using defaults", e);
             }
@@ -196,6 +206,7 @@ public class KorTTYApplication extends Application {
                 GlobalSettings loadedSettings = globalSettingsManager.getSettings();
                 logger.info("Re-initializing language manager with language: '{}'", loadedSettings.getLanguage());
                 de.kortty.core.LanguageManager.getInstance().initialize(loadedSettings);
+                applyLoggingSettings();
                 
                 // Sync ConfigurationManager with persisted terminal settings
                 // so that all components reading from configManager see the saved values
@@ -303,6 +314,10 @@ public class KorTTYApplication extends Application {
             if (jobSchedulerService != null) {
                 jobSchedulerService.shutdownSchedulerThreads();
             }
+            if (logMaintenanceExecutor != null) {
+                logMaintenanceExecutor.shutdownNow();
+                logMaintenanceExecutor = null;
+            }
         } catch (Exception e) {
             logger.error("Failed to save GPG keys or credentials", e);
         }
@@ -321,6 +336,43 @@ public class KorTTYApplication extends Application {
     private boolean handleMasterPassword(Stage ownerStage) {
         MasterPasswordDialog dialog = new MasterPasswordDialog(ownerStage, masterPasswordManager);
         return dialog.showAndWait();
+    }
+
+    public void applyLoggingSettings() {
+        if (globalSettingsManager == null) {
+            return;
+        }
+        GlobalSettings settings = globalSettingsManager.getSettings();
+        try {
+            LoggingConfiguration.applyRuntimeSettings(settings, getConfigDirectory());
+            restartLogMaintenance(settings);
+            logger.info(
+                "Logging configured: directory={}, retentionDays={}",
+                LoggingConfiguration.resolveLogDirectory(settings, getConfigDirectory()),
+                settings.getLogRetentionDays());
+        } catch (Exception e) {
+            logger.warn("Failed to apply logging settings", e);
+        }
+    }
+
+    private void restartLogMaintenance(GlobalSettings settings) {
+        if (logMaintenanceExecutor != null) {
+            logMaintenanceExecutor.shutdownNow();
+        }
+        Path logDirectory = LoggingConfiguration.resolveLogDirectory(settings, getConfigDirectory());
+        int retentionDays = settings != null ? settings.getLogRetentionDays() : GlobalSettings.DEFAULT_LOG_RETENTION_DAYS;
+        logMaintenanceExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "kortty-log-maintenance");
+            thread.setDaemon(true);
+            return thread;
+        });
+        logMaintenanceExecutor.scheduleWithFixedDelay(() -> {
+            try {
+                LoggingConfiguration.maintainLogDirectory(logDirectory, retentionDays);
+            } catch (Exception e) {
+                logger.debug("Log maintenance failed", e);
+            }
+        }, 1, 1, TimeUnit.HOURS);
     }
     
     private void registerJMXBean() {

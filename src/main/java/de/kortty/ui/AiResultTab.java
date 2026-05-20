@@ -1082,7 +1082,7 @@ public class AiResultTab extends Tab {
             categoryNames,
             createSnippetAiAssist(snippet.getLanguage(), snippet.getContent()));
         dialog.initOwner(getOwnerWindow());
-        dialog.showAndWait().ifPresent(savedSnippet -> {
+        dialog.showNonBlocking(savedSnippet -> {
             try {
                 ensureSnippetCategoryExists(savedSnippet.getCategory());
                 snippetManager.addSnippet(savedSnippet);

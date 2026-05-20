@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 
@@ -41,6 +42,22 @@ public final class AiServiceFactory {
         if (profile == null) {
             return null;
         }
+        AiSkillPromptSupport effectiveSkillSupport = skillPromptSupport != null
+            ? skillPromptSupport
+            : AiSkillPromptSupport.disabled();
+        if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
+            String model = trimToNull(profile.getModel());
+            if (model == null) {
+                throw new IllegalStateException(MISSING_MODEL_MESSAGE);
+            }
+            if (trimToNull(profile.getCliProviderId()) == null) {
+                throw new IllegalStateException("AI CLI provider must be configured.");
+            }
+            if (trimToNull(profile.getCliArgumentsTemplate()) == null) {
+                throw new IllegalStateException("AI CLI argument template must be configured.");
+            }
+            return new LocalCliAiService(profile, effectiveSkillSupport);
+        }
         String apiUrl = trimToNull(profile.getApiUrl());
         if (apiUrl == null) {
             return null;
@@ -54,9 +71,6 @@ public final class AiServiceFactory {
         AiInternetAccessConfiguration effectiveConfig = internetConfig != null
             ? internetConfig
             : AiInternetAccessConfiguration.disabled();
-        AiSkillPromptSupport effectiveSkillSupport = skillPromptSupport != null
-            ? skillPromptSupport
-            : AiSkillPromptSupport.disabled();
         AiInternetAccessMode mode = profile.getInternetAccessMode();
         if (mode == null) {
             throw new IllegalStateException("AI internet access mode must be configured.");
