@@ -14,12 +14,39 @@ public class GlobalSettings {
     public static final int MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS = 3650;
     public static final int DEFAULT_LOG_RETENTION_DAYS = 7;
     public static final int MAX_LOG_RETENTION_DAYS = 3650;
+    public static final int DEFAULT_UPDATE_CHECK_INTERVAL_DAYS = 1;
+    public static final int MIN_UPDATE_CHECK_INTERVAL_DAYS = 1;
+    public static final int MAX_UPDATE_CHECK_INTERVAL_DAYS = 30;
 
     @XmlElement
     private String logDirectoryPath; // Blank/null = ~/.kortty/logs
 
     @XmlElement
     private Integer logRetentionDays = DEFAULT_LOG_RETENTION_DAYS; // 0 = unlimited
+
+    @XmlElement
+    private boolean updateChecksEnabled = true;
+
+    @XmlElement
+    private Integer updateCheckIntervalDays = DEFAULT_UPDATE_CHECK_INTERVAL_DAYS;
+
+    @XmlElement
+    private Long lastSuccessfulUpdateCheckMillis;
+
+    @XmlElement
+    private String ignoredUpdateVersion;
+
+    @XmlElement
+    private String snoozedUpdateVersion;
+
+    @XmlElement
+    private String updateSnoozedUntilLocalDate;
+
+    @XmlElement
+    private String lastAutomaticUpdatePromptVersion;
+
+    @XmlElement
+    private String lastAutomaticUpdatePromptLocalDate;
     
     @XmlElement
     private int maxBackupCount = 10; // Default: 10 backups, 0 = unlimited
@@ -454,6 +481,85 @@ public class GlobalSettings {
         } else {
             this.logRetentionDays = Math.max(0, Math.min(logRetentionDays, MAX_LOG_RETENTION_DAYS));
         }
+    }
+
+    public boolean isUpdateChecksEnabled() {
+        return updateChecksEnabled;
+    }
+
+    public void setUpdateChecksEnabled(boolean updateChecksEnabled) {
+        this.updateChecksEnabled = updateChecksEnabled;
+    }
+
+    public int getUpdateCheckIntervalDays() {
+        if (updateCheckIntervalDays == null) {
+            return DEFAULT_UPDATE_CHECK_INTERVAL_DAYS;
+        }
+        return Math.max(
+            MIN_UPDATE_CHECK_INTERVAL_DAYS,
+            Math.min(updateCheckIntervalDays, MAX_UPDATE_CHECK_INTERVAL_DAYS)
+        );
+    }
+
+    public void setUpdateCheckIntervalDays(Integer updateCheckIntervalDays) {
+        if (updateCheckIntervalDays == null) {
+            this.updateCheckIntervalDays = DEFAULT_UPDATE_CHECK_INTERVAL_DAYS;
+            return;
+        }
+        this.updateCheckIntervalDays = Math.max(
+            MIN_UPDATE_CHECK_INTERVAL_DAYS,
+            Math.min(updateCheckIntervalDays, MAX_UPDATE_CHECK_INTERVAL_DAYS)
+        );
+    }
+
+    public long getLastSuccessfulUpdateCheckMillis() {
+        return lastSuccessfulUpdateCheckMillis != null ? Math.max(0L, lastSuccessfulUpdateCheckMillis) : 0L;
+    }
+
+    public void setLastSuccessfulUpdateCheckMillis(Long lastSuccessfulUpdateCheckMillis) {
+        this.lastSuccessfulUpdateCheckMillis = lastSuccessfulUpdateCheckMillis != null
+            ? Math.max(0L, lastSuccessfulUpdateCheckMillis)
+            : null;
+    }
+
+    public String getIgnoredUpdateVersion() {
+        return ignoredUpdateVersion;
+    }
+
+    public void setIgnoredUpdateVersion(String ignoredUpdateVersion) {
+        this.ignoredUpdateVersion = trimToNull(ignoredUpdateVersion);
+    }
+
+    public String getSnoozedUpdateVersion() {
+        return snoozedUpdateVersion;
+    }
+
+    public void setSnoozedUpdateVersion(String snoozedUpdateVersion) {
+        this.snoozedUpdateVersion = trimToNull(snoozedUpdateVersion);
+    }
+
+    public String getUpdateSnoozedUntilLocalDate() {
+        return updateSnoozedUntilLocalDate;
+    }
+
+    public void setUpdateSnoozedUntilLocalDate(String updateSnoozedUntilLocalDate) {
+        this.updateSnoozedUntilLocalDate = trimToNull(updateSnoozedUntilLocalDate);
+    }
+
+    public String getLastAutomaticUpdatePromptVersion() {
+        return lastAutomaticUpdatePromptVersion;
+    }
+
+    public void setLastAutomaticUpdatePromptVersion(String lastAutomaticUpdatePromptVersion) {
+        this.lastAutomaticUpdatePromptVersion = trimToNull(lastAutomaticUpdatePromptVersion);
+    }
+
+    public String getLastAutomaticUpdatePromptLocalDate() {
+        return lastAutomaticUpdatePromptLocalDate;
+    }
+
+    public void setLastAutomaticUpdatePromptLocalDate(String lastAutomaticUpdatePromptLocalDate) {
+        this.lastAutomaticUpdatePromptLocalDate = trimToNull(lastAutomaticUpdatePromptLocalDate);
     }
     
     public int getMaxBackupCount() {
@@ -1602,5 +1708,10 @@ public class GlobalSettings {
     
     public void setTeamworkUseTemporaryKey(boolean teamworkUseTemporaryKey) {
         this.teamworkUseTemporaryKey = teamworkUseTemporaryKey;
+    }
+
+    private static String trimToNull(String value) {
+        String trimmed = value != null ? value.trim() : "";
+        return trimmed.isBlank() ? null : trimmed;
     }
 }

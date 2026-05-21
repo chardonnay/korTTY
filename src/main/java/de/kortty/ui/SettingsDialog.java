@@ -155,6 +155,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     // Logging settings
     private final TextField logDirectoryPathField;
     private final Spinner<Integer> logRetentionDaysSpinner;
+
+    // Update settings
+    private final CheckBox updateChecksEnabledCheck;
+    private final Slider updateCheckIntervalSlider;
+    private final Label updateCheckIntervalValueLabel;
     
     // Window settings
     private final CheckBox rememberWindowGeometryCheck;
@@ -748,6 +753,57 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         loggingGrid.add(logCompressionInfo, 0, loggingRow++, 2, 1);
 
         loggingTab.setContent(loggingGrid);
+
+        // Updates tab
+        Tab updatesTab = new Tab(I18n.get("settings.tab.updates"));
+        GridPane updatesGrid = new GridPane();
+        updatesGrid.setHgap(10);
+        updatesGrid.setVgap(10);
+        updatesGrid.setPadding(new Insets(20));
+        int updatesRow = 0;
+
+        Label updatesHeader = new Label(I18n.get("settings.updates.header"));
+        updatesHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        updatesGrid.add(updatesHeader, 0, updatesRow++, 2, 1);
+
+        updateChecksEnabledCheck = new CheckBox(I18n.get("settings.updates.automatic"));
+        updateChecksEnabledCheck.setSelected(globalSettings == null || globalSettings.isUpdateChecksEnabled());
+        updateChecksEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.updates.automatic.tooltip")));
+        updatesGrid.add(updateChecksEnabledCheck, 0, updatesRow++, 2, 1);
+
+        updateCheckIntervalSlider = new Slider(
+            GlobalSettings.MIN_UPDATE_CHECK_INTERVAL_DAYS,
+            GlobalSettings.MAX_UPDATE_CHECK_INTERVAL_DAYS,
+            globalSettings != null
+                ? globalSettings.getUpdateCheckIntervalDays()
+                : GlobalSettings.DEFAULT_UPDATE_CHECK_INTERVAL_DAYS);
+        updateCheckIntervalSlider.setMajorTickUnit(1);
+        updateCheckIntervalSlider.setMinorTickCount(0);
+        updateCheckIntervalSlider.setBlockIncrement(1);
+        updateCheckIntervalSlider.setSnapToTicks(true);
+        updateCheckIntervalSlider.setShowTickMarks(true);
+        updateCheckIntervalSlider.setPrefWidth(360);
+        updateCheckIntervalValueLabel = new Label();
+        updateCheckIntervalValueLabel.setMinWidth(140);
+        updateUpdateIntervalLabel();
+        updateCheckIntervalSlider.valueProperty().addListener((obs, oldValue, newValue) -> {
+            updateCheckIntervalSlider.setValue(Math.round(newValue.doubleValue()));
+            updateUpdateIntervalLabel();
+        });
+        updateCheckIntervalSlider.disableProperty().bind(updateChecksEnabledCheck.selectedProperty().not());
+        updateCheckIntervalValueLabel.disableProperty().bind(updateChecksEnabledCheck.selectedProperty().not());
+
+        HBox updateIntervalBox = new HBox(12, updateCheckIntervalSlider, updateCheckIntervalValueLabel);
+        updateIntervalBox.setAlignment(Pos.CENTER_LEFT);
+        updatesGrid.add(new Label(I18n.get("settings.updates.interval")), 0, updatesRow);
+        updatesGrid.add(updateIntervalBox, 1, updatesRow++);
+
+        Label updatesInfoLabel = new Label(I18n.get("settings.updates.info"));
+        updatesInfoLabel.setWrapText(true);
+        updatesInfoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        updatesGrid.add(updatesInfoLabel, 0, updatesRow++, 2, 1);
+
+        updatesTab.setContent(updatesGrid);
         
         // Window tab
         Tab windowTab = new Tab(I18n.get("settings.tab.window"));
@@ -2034,7 +2090,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Themes tab
         Tab themesTab = createThemesTab(owner);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, videoTab, backupTab, loggingTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, videoTab, backupTab, loggingTab, updatesTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
         
         final double defaultContentWidth = 1000;
         final double minimumContentWidth = 860;
@@ -2073,6 +2129,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 try {
                     app.getGlobalSettingsManager().save();
                     app.applyLoggingSettings();
+                    app.restartUpdateCheckService();
                     
                     // Update language manager if language was changed
                     if (globalSettings != null && globalSettings.getLanguage() != null) {
@@ -2137,6 +2194,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             if (!saveLoggingSettingsToSettings()) {
                 return false;
             }
+            globalSettings.setUpdateChecksEnabled(updateChecksEnabledCheck.isSelected());
+            globalSettings.setUpdateCheckIntervalDays((int) Math.round(updateCheckIntervalSlider.getValue()));
             
             // Save language setting
             String selectedLanguage = languageCombo.getValue();
@@ -2331,6 +2390,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             alert.initOwner(getDialogPane().getScene().getWindow());
         }
         alert.showAndWait();
+    }
+
+    private void updateUpdateIntervalLabel() {
+        int days = (int) Math.round(updateCheckIntervalSlider.getValue());
+        updateCheckIntervalValueLabel.setText(I18n.get("settings.updates.interval.days", days));
     }
     
     private void updatePreviewFont(Label previewLabel) {

@@ -19,6 +19,7 @@ import de.kortty.teamwork.TeamworkRecycleBinService;
 import de.kortty.jobscheduler.JobSchedulerService;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.update.UpdateCheckService;
 import de.kortty.jmx.SSHClientMonitor;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.ui.MainWindow;
@@ -75,6 +76,7 @@ public class KorTTYApplication extends Application {
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
     private JobSchedulerService jobSchedulerService;
+    private UpdateCheckService updateCheckService;
     private ScheduledExecutorService logMaintenanceExecutor;
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
@@ -250,6 +252,7 @@ public class KorTTYApplication extends Application {
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
             registerMacDesktopHandlers();
+            startUpdateCheckService();
             
             logger.info("{} started successfully", APP_NAME);
             
@@ -314,6 +317,10 @@ public class KorTTYApplication extends Application {
             if (jobSchedulerService != null) {
                 jobSchedulerService.shutdownSchedulerThreads();
             }
+            if (updateCheckService != null) {
+                updateCheckService.stop();
+                updateCheckService = null;
+            }
             if (logMaintenanceExecutor != null) {
                 logMaintenanceExecutor.shutdownNow();
                 logMaintenanceExecutor = null;
@@ -373,6 +380,27 @@ public class KorTTYApplication extends Application {
                 logger.debug("Log maintenance failed", e);
             }
         }, 1, 1, TimeUnit.HOURS);
+    }
+
+    private void startUpdateCheckService() {
+        if (globalSettingsManager == null) {
+            return;
+        }
+        if (updateCheckService != null) {
+            updateCheckService.stop();
+        }
+        updateCheckService = new UpdateCheckService(
+            globalSettingsManager,
+            update -> Platform.runLater(() -> MainWindow.showAutomaticUpdateAvailable(update)));
+        updateCheckService.start();
+    }
+
+    public void restartUpdateCheckService() {
+        if (updateCheckService == null) {
+            startUpdateCheckService();
+            return;
+        }
+        updateCheckService.restart();
     }
     
     private void registerJMXBean() {
@@ -568,5 +596,9 @@ public class KorTTYApplication extends Application {
 
     public JobSchedulerService getJobSchedulerService() {
         return jobSchedulerService;
+    }
+
+    public UpdateCheckService getUpdateCheckService() {
+        return updateCheckService;
     }
 }

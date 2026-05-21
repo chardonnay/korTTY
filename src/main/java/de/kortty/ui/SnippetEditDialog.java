@@ -153,14 +153,27 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private static final String STYLE_VARIABLE = "-fx-fill: #cc6600;";
     private static final String STYLE_BRACE = "-fx-fill: #cc6600; -fx-font-weight: bold;";
     private static final String STYLE_PLAIN = "-fx-fill: #d4d4d4;";
-    private static final String SNIPPET_AI_HINT_ACTIVE_STYLE = "-fx-background-color: rgba(0,102,204,0.12);"
+    private static final String SNIPPET_AI_HINT_ACTIVE_STYLE = "-fx-background-color: rgba(0,102,204,0.30);"
         + " -fx-background-radius: 8;"
-        + " -fx-border-color: rgba(0,102,204,0.35);"
-        + " -fx-border-radius: 8;";
+        + " -fx-border-color: #4da3ff;"
+        + " -fx-border-width: 1;"
+        + " -fx-border-radius: 8;"
+        + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.30), 8, 0, 0, 2);";
     private static final String SNIPPET_AI_HINT_IDLE_STYLE = "-fx-background-color: transparent;"
         + " -fx-background-radius: 8;"
         + " -fx-border-color: transparent;"
         + " -fx-border-radius: 8;";
+    private static final String SNIPPET_AI_HINT_TEXT_STYLE =
+        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #f4f8ff;";
+    private static final String METADATA_HINT_TEXT_STYLE =
+        "-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #d7dde8;";
+    private static final String STATUS_LABEL_STYLE = "-fx-font-size: 13px;"
+        + " -fx-font-weight: bold;"
+        + " -fx-text-fill: #d7dde8;"
+        + " -fx-background-color: rgba(255,255,255,0.06);"
+        + " -fx-border-color: rgba(255,255,255,0.16);"
+        + " -fx-border-width: 1 0 0 0;"
+        + " -fx-padding: 6 10 6 10;";
     private static final int MIN_EDITOR_FONT_SIZE = 8;
     private static final int MAX_EDITOR_FONT_SIZE = 72;
     private static final int EDITOR_FONT_ZOOM_STEP = 1;
@@ -468,39 +481,42 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         aiAdditionalInstructionsBox.setManaged(isAdditionalInstructionsEnabled());
 
         metadataProgressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
-        metadataProgressIndicator.setPrefSize(16, 16);
-        metadataProgressIndicator.setMinSize(16, 16);
-        metadataProgressIndicator.setMaxSize(16, 16);
+        metadataProgressIndicator.setPrefSize(18, 18);
+        metadataProgressIndicator.setMinSize(18, 18);
+        metadataProgressIndicator.setMaxSize(18, 18);
         metadataHintLabel = new Label();
-        metadataHintLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #6c757d;");
+        metadataHintLabel.setStyle(METADATA_HINT_TEXT_STYLE);
+        metadataHintLabel.setWrapText(true);
         metadataHintBox = new HBox(8, metadataProgressIndicator, metadataHintLabel);
         metadataHintBox.setAlignment(Pos.CENTER_LEFT);
         metadataHintBox.setVisible(false);
         metadataHintBox.setManaged(false);
 
         snippetAiProgressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
-        snippetAiProgressIndicator.setPrefSize(18, 18);
-        snippetAiProgressIndicator.setMinSize(18, 18);
-        snippetAiProgressIndicator.setMaxSize(18, 18);
+        snippetAiProgressIndicator.setPrefSize(24, 24);
+        snippetAiProgressIndicator.setMinSize(24, 24);
+        snippetAiProgressIndicator.setMaxSize(24, 24);
         snippetAiHintLabel = new Label();
-        snippetAiHintLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold;");
-        Region snippetAiHintSpacer = new Region();
-        HBox.setHgrow(snippetAiHintSpacer, Priority.ALWAYS);
+        snippetAiHintLabel.setStyle(SNIPPET_AI_HINT_TEXT_STYLE);
+        snippetAiHintLabel.setWrapText(true);
+        snippetAiHintLabel.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(snippetAiHintLabel, Priority.ALWAYS);
         cancelSnippetAiActionButton = new Button(I18n.get("dialog.cancel"));
         cancelSnippetAiActionButton.setOnAction(e -> cancelSnippetAiActionTask());
         cancelSnippetAiActionButton.setDisable(true);
         snippetAiHintBox = new HBox(
-            10,
+            12,
             snippetAiProgressIndicator,
             snippetAiHintLabel,
-            snippetAiHintSpacer,
             cancelSnippetAiActionButton);
         snippetAiHintBox.setAlignment(Pos.CENTER_LEFT);
-        snippetAiHintBox.setPadding(new Insets(8, 10, 8, 10));
+        snippetAiHintBox.setPadding(new Insets(10, 12, 10, 12));
+        snippetAiHintBox.setMaxWidth(Double.MAX_VALUE);
         snippetAiHintBox.setStyle(SNIPPET_AI_HINT_IDLE_STYLE);
-        snippetAiHintBox.setManaged(true);
-        snippetAiHintBox.setVisible(true);
+        snippetAiHintBox.setManaged(false);
+        snippetAiHintBox.setVisible(false);
         snippetAiProgressIndicator.setVisible(false);
+        cancelSnippetAiActionButton.setManaged(false);
         cancelSnippetAiActionButton.setVisible(false);
         
         // Content area with syntax highlighting – use saved editor settings
@@ -748,19 +764,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         formGrid.add(contentHeader, 0, 5, 2, 1);
 
         formGrid.add(aiAdditionalInstructionsBox, 0, 6, 2, 1);
-        formGrid.add(snippetAiHintBox, 0, 7, 2, 1);
 
         VBox contentBox = new VBox(5, contentStack, placeholderInfo);
         VBox.setVgrow(contentStack, Priority.ALWAYS);
-        formGrid.add(contentBox, 0, 8, 2, 1);
+        formGrid.add(contentBox, 0, 7, 2, 1);
         GridPane.setVgrow(contentBox, Priority.ALWAYS);
 
         statusLabel = new Label();
-        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #6c757d;");
-        statusLabel.setMinHeight(18);
+        statusLabel.setStyle(STATUS_LABEL_STYLE);
+        statusLabel.setMaxWidth(Double.MAX_VALUE);
+        statusLabel.setMinHeight(32);
+        statusLabel.setWrapText(true);
         statusLabel.setText("");
 
-        VBox rootLayout = new VBox(0, formGrid, statusLabel);
+        VBox.setMargin(snippetAiHintBox, new Insets(10, 10, 0, 10));
+        VBox rootLayout = new VBox(0, snippetAiHintBox, formGrid, statusLabel);
         VBox.setVgrow(formGrid, Priority.ALWAYS);
 
         getDialogPane().setContent(rootLayout);
@@ -1647,19 +1665,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             lintItem.setDisable(!SnippetLinter.isSupported(lang));
             String t = contentArea.getText();
             boolean hasContent = t != null && !t.isBlank();
+            boolean aiBusy = isAnyAiTaskRunning();
             boolean compactOneLinerOk = hasContent && (SnippetOneLiner.isCompactSupported(lang) || hasOneLinerProvider());
             boolean embeddedOneLinerOk = hasContent && SnippetOneLiner.isEmbeddedSupported(lang);
-            oneLinerCompactCtx.setDisable(!compactOneLinerOk || isSnippetAiActionRunning());
-            oneLinerEmbeddedCtx.setDisable(!embeddedOneLinerOk || isSnippetAiActionRunning());
-            correctSelectionItem.setDisable(!hasSelection || aiAssist == null || aiAssist.selectionCorrectionProvider() == null || isSnippetAiActionRunning());
-            translateSelectionItem.setDisable(!hasSelection || aiAssist == null || aiAssist.selectionTranslationProvider() == null || isSnippetAiActionRunning());
-            describeSnippetContextItem.setDisable(!hasContent || aiAssist == null || aiAssist.snippetDescriptionProvider() == null || isSnippetAiActionRunning());
-            alternativeSolutionItem.setDisable(!hasContent || !hasAlternativeSolutionProvider() || isSnippetAiActionRunning());
-            completeCodeContextItem.setDisable(!hasContent || !hasCompletionProvider() || isSnippetAiActionRunning());
-            reviewCodeContextItem.setDisable(!hasContent || !hasCodeReviewProvider() || isSnippetAiActionRunning());
-            improveCustomContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || isSnippetAiActionRunning());
-            securityCheckContextItem.setDisable(!hasContent || !hasSecurityProviders() || isSnippetAiActionRunning());
-            diagramContextItem.setDisable(!hasContent || !hasDiagramProvider() || isSnippetAiActionRunning());
+            oneLinerCompactCtx.setDisable(!compactOneLinerOk || aiBusy);
+            oneLinerEmbeddedCtx.setDisable(!embeddedOneLinerOk || aiBusy);
+            correctSelectionItem.setDisable(!hasSelection || aiAssist == null || aiAssist.selectionCorrectionProvider() == null || aiBusy);
+            translateSelectionItem.setDisable(!hasSelection || aiAssist == null || aiAssist.selectionTranslationProvider() == null || aiBusy);
+            describeSnippetContextItem.setDisable(!hasContent || aiAssist == null || aiAssist.snippetDescriptionProvider() == null || aiBusy);
+            alternativeSolutionItem.setDisable(!hasContent || !hasAlternativeSolutionProvider() || aiBusy);
+            completeCodeContextItem.setDisable(!hasContent || !hasCompletionProvider() || aiBusy);
+            reviewCodeContextItem.setDisable(!hasContent || !hasCodeReviewProvider() || aiBusy);
+            improveCustomContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
+            securityCheckContextItem.setDisable(!hasContent || !hasSecurityProviders() || aiBusy);
+            diagramContextItem.setDisable(!hasContent || !hasDiagramProvider() || aiBusy);
         });
         return menu;
     }
@@ -1679,7 +1698,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String text = contentArea.getText();
         boolean hasContent = text != null && !text.isBlank();
         boolean ok = hasContent
-            && !isSnippetAiActionRunning()
+            && !isAnyAiTaskRunning()
             && (SnippetOneLiner.isEmbeddedSupported(lang)
             || SnippetOneLiner.isCompactSupported(lang)
             || hasOneLinerProvider());
@@ -1734,8 +1753,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void updateAiActionAvailability() {
-        boolean metadataRunning = metadataTask != null && metadataTask.isRunning();
-        boolean correctionRunning = descriptionCorrectionTask != null && descriptionCorrectionTask.isRunning();
+        boolean metadataRunning = isMetadataTaskRunning();
+        boolean correctionRunning = isDescriptionCorrectionRunning();
         boolean snippetActionRunning = isSnippetAiActionRunning();
         boolean busy = metadataRunning || correctionRunning || snippetActionRunning;
         boolean hasMetadataProvider = aiAssist != null && aiAssist.metadataProvider() != null;
@@ -1776,6 +1795,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private boolean isSnippetAiActionRunning() {
         return snippetAiActionTask != null && snippetAiActionTask.isRunning();
+    }
+
+    private boolean isMetadataTaskRunning() {
+        return metadataTask != null && metadataTask.isRunning();
+    }
+
+    private boolean isDescriptionCorrectionRunning() {
+        return descriptionCorrectionTask != null && descriptionCorrectionTask.isRunning();
+    }
+
+    private boolean isAnyAiTaskRunning() {
+        return isMetadataTaskRunning() || isDescriptionCorrectionRunning() || isSnippetAiActionRunning();
     }
 
     private boolean hasAlternativeSolutionProvider() {
@@ -2077,7 +2108,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void scheduleAutoCompletion() {
-        if (autoCompleteItem == null || !autoCompleteItem.isSelected() || isSnippetAiActionRunning()) {
+        if (autoCompleteItem == null || !autoCompleteItem.isSelected() || isAnyAiTaskRunning()) {
             return;
         }
         String content = contentArea.getText();
@@ -2088,7 +2119,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runAutoCompletionIfReady() {
-        if (autoCompleteItem == null || !autoCompleteItem.isSelected() || isSnippetAiActionRunning()) {
+        if (autoCompleteItem == null || !autoCompleteItem.isSelected() || isAnyAiTaskRunning()) {
             return;
         }
         String content = contentArea.getText();
@@ -2856,26 +2887,30 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         cancelMetadataTask();
         showMetadataHint(I18n.get("snippets.ai.metadata.generating"));
+        showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), false);
         setStatus(I18n.get("snippets.ai.metadata.generating"));
-        metadataTask = new Task<>() {
+        Task<SuggestedSnippetMetadata> task = new Task<>() {
             @Override
             protected SuggestedSnippetMetadata call() throws Exception {
                 return aiAssist.metadataProvider().generate(contentArea.getText(), languageCombo.getValue());
             }
         };
-        metadataTask.setOnRunning(event -> updateAiActionAvailability());
-        metadataTask.setOnSucceeded(event -> {
-            applySuggestedMetadata(metadataTask.getValue(), overwriteExisting);
-            hideMetadataHint();
+        metadataTask = task;
+        task.setOnRunning(event -> {
+            showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), false);
+            updateAiActionAvailability();
+        });
+        task.setOnSucceeded(event -> {
+            applySuggestedMetadata(task.getValue(), overwriteExisting);
+            finishMetadataTask(task);
             setStatus(I18n.get("snippets.ai.metadata.generated"));
-            updateAiActionAvailability();
         });
-        metadataTask.setOnFailed(event -> {
-            hideMetadataHint();
+        task.setOnFailed(event -> {
+            finishMetadataTask(task);
             setStatus(I18n.get("snippets.ai.metadata.generateFailed"));
-            updateAiActionAvailability();
         });
-        Thread thread = new Thread(metadataTask, "snippet-metadata-suggestion");
+        task.setOnCancelled(event -> finishMetadataTask(task));
+        Thread thread = new Thread(task, "snippet-metadata-suggestion");
         thread.setDaemon(true);
         thread.start();
     }
@@ -2924,16 +2959,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         cancelDescriptionCorrectionTask();
+        showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), false);
         setStatus(I18n.get("snippets.ai.description.correcting"));
-        descriptionCorrectionTask = new Task<>() {
+        Task<String> task = new Task<>() {
             @Override
             protected String call() throws Exception {
                 return aiAssist.descriptionCorrectionProvider().correct(contentArea.getText(), languageCombo.getValue(), description);
             }
         };
-        descriptionCorrectionTask.setOnRunning(event -> updateAiActionAvailability());
-        descriptionCorrectionTask.setOnSucceeded(event -> {
-            String corrected = descriptionCorrectionTask.getValue();
+        descriptionCorrectionTask = task;
+        task.setOnRunning(event -> {
+            showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), false);
+            updateAiActionAvailability();
+        });
+        task.setOnSucceeded(event -> {
+            String corrected = task.getValue();
             if (corrected != null && !corrected.isBlank()) {
                 programmaticDescriptionUpdate = true;
                 try {
@@ -2942,14 +2982,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     programmaticDescriptionUpdate = false;
                 }
             }
+            finishDescriptionCorrectionTask(task);
             setStatus(I18n.get("snippets.ai.description.corrected"));
-            updateAiActionAvailability();
         });
-        descriptionCorrectionTask.setOnFailed(event -> {
+        task.setOnFailed(event -> {
+            finishDescriptionCorrectionTask(task);
             setStatus(I18n.get("snippets.ai.description.correctFailed"));
-            updateAiActionAvailability();
         });
-        Thread thread = new Thread(descriptionCorrectionTask, "snippet-description-correction");
+        task.setOnCancelled(event -> finishDescriptionCorrectionTask(task));
+        Thread thread = new Thread(task, "snippet-description-correction");
         thread.setDaemon(true);
         thread.start();
     }
@@ -2968,6 +3009,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             metadataTask = null;
         }
         hideMetadataHint();
+        hideSnippetAiHintIfIdle();
     }
 
     private void cancelDescriptionCorrectionTask() {
@@ -2975,6 +3017,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             descriptionCorrectionTask.cancel(true);
             descriptionCorrectionTask = null;
         }
+        hideSnippetAiHintIfIdle();
+    }
+
+    private void finishMetadataTask(Task<SuggestedSnippetMetadata> task) {
+        if (metadataTask == task) {
+            metadataTask = null;
+        }
+        hideMetadataHint();
+        hideSnippetAiHintIfIdle();
+        updateAiActionAvailability();
+    }
+
+    private void finishDescriptionCorrectionTask(Task<String> task) {
+        if (descriptionCorrectionTask == task) {
+            descriptionCorrectionTask = null;
+        }
+        hideSnippetAiHintIfIdle();
+        updateAiActionAvailability();
     }
 
     private void cancelSnippetAiActionTask() {
@@ -2985,7 +3045,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (snippetAiActionTask != null) {
             snippetAiActionTask.cancel(true);
             snippetAiActionTask = null;
-            hideSnippetAiHint();
+            hideSnippetAiHintIfIdle();
             if (updateStatus) {
                 setStatus(I18n.get("ai.result.cancelled"));
             }
@@ -3006,26 +3066,42 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void showSnippetAiHint(String text) {
+        showSnippetAiHint(text, true);
+    }
+
+    private void showSnippetAiHint(String text, boolean cancellable) {
         snippetAiHintLabel.setText(text != null ? text : "");
+        snippetAiHintBox.setManaged(true);
+        snippetAiHintBox.setVisible(true);
         snippetAiProgressIndicator.setVisible(true);
-        cancelSnippetAiActionButton.setDisable(false);
-        cancelSnippetAiActionButton.setVisible(true);
+        cancelSnippetAiActionButton.setDisable(!cancellable);
+        cancelSnippetAiActionButton.setManaged(cancellable);
+        cancelSnippetAiActionButton.setVisible(cancellable);
         snippetAiHintBox.setStyle(SNIPPET_AI_HINT_ACTIVE_STYLE);
     }
 
     private void hideSnippetAiHint() {
         snippetAiHintLabel.setText("");
+        snippetAiHintBox.setManaged(false);
+        snippetAiHintBox.setVisible(false);
         snippetAiProgressIndicator.setVisible(false);
         cancelSnippetAiActionButton.setDisable(true);
+        cancelSnippetAiActionButton.setManaged(false);
         cancelSnippetAiActionButton.setVisible(false);
         snippetAiHintBox.setStyle(SNIPPET_AI_HINT_IDLE_STYLE);
+    }
+
+    private void hideSnippetAiHintIfIdle() {
+        if (!isAnyAiTaskRunning()) {
+            hideSnippetAiHint();
+        }
     }
 
     private void finishSnippetAiAction(Task<?> task) {
         if (snippetAiActionTask == task) {
             snippetAiActionTask = null;
         }
-        hideSnippetAiHint();
+        hideSnippetAiHintIfIdle();
         updateAiActionAvailability();
         updateOneLinerButtonState();
     }
