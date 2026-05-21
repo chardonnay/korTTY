@@ -209,6 +209,38 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesUpdateCheckSettings() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-updates");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setUpdateChecksEnabled(false);
+            manager.getSettings().setUpdateCheckIntervalDays(14);
+            manager.getSettings().setLastSuccessfulUpdateCheckMillis(1_777_000_000_000L);
+            manager.getSettings().setIgnoredUpdateVersion("v2.3.0");
+            manager.getSettings().setSnoozedUpdateVersion("v2.4.0");
+            manager.getSettings().setUpdateSnoozedUntilLocalDate("2026-05-21");
+            manager.getSettings().setLastAutomaticUpdatePromptVersion("v2.4.0");
+            manager.getSettings().setLastAutomaticUpdatePromptLocalDate("2026-05-20");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().isUpdateChecksEnabled()).isFalse();
+            assertThat(reloaded.getSettings().getUpdateCheckIntervalDays()).isEqualTo(14);
+            assertThat(reloaded.getSettings().getLastSuccessfulUpdateCheckMillis()).isEqualTo(1_777_000_000_000L);
+            assertThat(reloaded.getSettings().getIgnoredUpdateVersion()).isEqualTo("v2.3.0");
+            assertThat(reloaded.getSettings().getSnoozedUpdateVersion()).isEqualTo("v2.4.0");
+            assertThat(reloaded.getSettings().getUpdateSnoozedUntilLocalDate()).isEqualTo("2026-05-21");
+            assertThat(reloaded.getSettings().getLastAutomaticUpdatePromptVersion()).isEqualTo("v2.4.0");
+            assertThat(reloaded.getSettings().getLastAutomaticUpdatePromptLocalDate()).isEqualTo("2026-05-20");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesLastQuickConnectTerminalEffectAnimationSpeed() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-terminal-effect-speed");
         try {

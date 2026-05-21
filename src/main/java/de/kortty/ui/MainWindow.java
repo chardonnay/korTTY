@@ -42,6 +42,12 @@ import de.kortty.persistence.exporter.MTPuTTYExporter;
 import de.kortty.persistence.exporter.MobaXTermExporter;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.security.PasswordVault;
+import de.kortty.update.AvailableUpdate;
+import de.kortty.update.DownloadDirectoryResolver;
+import de.kortty.update.DownloadException;
+import de.kortty.update.UpdateAssetDownloader;
+import de.kortty.update.UpdateCheckResult;
+import de.kortty.update.UpdateCheckService;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.ConditionalFeature;
@@ -71,6 +77,7 @@ import javafx.scene.input.TransferMode;
 import javafx.geometry.Point2D;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -133,11 +140,20 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final KeyCombination RECORDING_TOGGLE_ACCELERATOR =
         new KeyCodeCombination(KeyCode.E, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final KeyCombination JOB_SCHEDULER_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.J, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final KeyCombination VIDEO_MANAGER_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final KeyCombination AI_AGENT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination AI_PLANNING_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
         new KeyCodeCombination(KeyCode.F12);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int JOB_SCHEDULER_STATUS_LEFT_PADDING = 14;
+    private static final String PROJECT_URL = "https://github.com/chardonnay/korTTY";
     private static final String JOB_SCHEDULER_STATUS_SPACED_TEXT_PROPERTY = "kortty.jobscheduler.status.spacedText";
     private static final String JOB_SCHEDULER_QUEUE_JOB_NAME_PROPERTY = "kortty.jobscheduler.queue.jobName";
     private static final String JOB_SCHEDULER_QUEUE_NEXT_RUN_PROPERTY = "kortty.jobscheduler.queue.nextRun";
@@ -1103,9 +1119,11 @@ public class MainWindow {
         snippetManager.setOnAction(e -> showSnippetManager());
 
         MenuItem jobScheduler = new MenuItem(I18n.get("menu.tools.jobScheduler"));
+        jobScheduler.setAccelerator(JOB_SCHEDULER_ACCELERATOR);
         jobScheduler.setOnAction(e -> showJobScheduler());
 
         MenuItem videoManager = new MenuItem(I18n.get("menu.tools.videoManager"));
+        videoManager.setAccelerator(VIDEO_MANAGER_ACCELERATOR);
         videoManager.setOnAction(e -> showTerminalRecordingManager());
 
         MenuItem toggleRecording = new MenuItem(I18n.get("menu.tools.toggleRecording"));
@@ -1117,9 +1135,11 @@ public class MainWindow {
         aiManager.setOnAction(e -> showAiManager());
 
         MenuItem aiAgent = new MenuItem(I18n.get("menu.tools.aiAgent"));
+        aiAgent.setAccelerator(AI_AGENT_ACCELERATOR);
         aiAgent.setOnAction(e -> showAiAgent());
 
         MenuItem aiPlanning = new MenuItem(I18n.get("menu.tools.aiPlanning"));
+        aiPlanning.setAccelerator(AI_PLANNING_ACCELERATOR);
         aiPlanning.setOnAction(e -> showAiPlanning());
 
         toolsAiMenuItems.add(aiManager);
@@ -3388,14 +3408,47 @@ public class MainWindow {
     }
     
     private void showAbout() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        DialogThemeHelper.applyTheme(alert);
-        alert.setTitle(I18n.get("dialog.about") + " " + KorTTYApplication.getAppName());
-        alert.setHeaderText(KorTTYApplication.getAppName() + " v" + KorTTYApplication.getAppVersion());
-        alert.setContentText(I18n.get("dialog.aboutText") + "\n\n" +
-                I18n.get("dialog.aboutDeveloped") + "\n\n" +
-                I18n.get("dialog.aboutJMX") + "\n" +
-                "de.kortty:type=SSHClient");
+        Dialog<Void> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.initOwner(stage);
+        dialog.setTitle(I18n.get("dialog.about") + " " + KorTTYApplication.getAppName());
+        dialog.setHeaderText(KorTTYApplication.getAppName() + " v" + KorTTYApplication.getAppVersion());
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        Label aboutText = new Label(I18n.get("dialog.aboutText"));
+        aboutText.setWrapText(true);
+        Label developedBy = new Label(I18n.get("dialog.aboutDeveloped"));
+        Label jmxLabel = new Label(I18n.get("dialog.aboutJMX") + "\n" + "de.kortty:type=SSHClient");
+        Hyperlink projectLink = new Hyperlink(PROJECT_URL);
+        projectLink.setOnAction(event -> openProjectPage());
+
+        Button manualUpdateCheckButton = new Button(I18n.get("updates.checkNow"));
+        ProgressIndicator updateProgress = new ProgressIndicator();
+        updateProgress.setPrefSize(18, 18);
+        updateProgress.setVisible(false);
+        updateProgress.setManaged(false);
+        Label updateStatusLabel = new Label();
+        updateStatusLabel.setWrapText(true);
+        updateStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        manualUpdateCheckButton.setOnAction(event ->
+            runManualUpdateCheck(manualUpdateCheckButton, updateProgress, updateStatusLabel));
+
+        HBox updateCheckBox = new HBox(10, manualUpdateCheckButton, updateProgress);
+        updateCheckBox.setAlignment(Pos.CENTER_LEFT);
+        VBox content = new VBox(
+            10,
+            aboutText,
+            developedBy,
+            new Label(I18n.get("dialog.aboutProject")),
+            projectLink,
+            jmxLabel,
+            new Separator(),
+            updateCheckBox,
+            updateStatusLabel);
+        content.setPadding(new Insets(4, 0, 0, 0));
+        content.setPrefWidth(460);
+        dialog.getDialogPane().setContent(content);
+
         var iconUrl = getClass().getResource("/icon/kortty_icon.png");
         if (iconUrl != null) {
             ImageView iconView = new ImageView(new Image(iconUrl.toExternalForm()));
@@ -3403,9 +3456,179 @@ public class MainWindow {
             iconView.setFitHeight(120);
             iconView.setPreserveRatio(true);
             iconView.setSmooth(true);
-            alert.getDialogPane().setGraphic(iconView);
+            dialog.getDialogPane().setGraphic(iconView);
         }
-        alert.showAndWait();
+        dialog.showAndWait();
+    }
+
+    private void openProjectPage() {
+        try {
+            app.getHostServices().showDocument(PROJECT_URL);
+        } catch (Exception e) {
+            logger.warn("Could not open project page", e);
+            showError(I18n.get("error.title"), I18n.get("updates.project.openFailed"));
+        }
+    }
+
+    private void runManualUpdateCheck(
+        Button manualUpdateCheckButton,
+        ProgressIndicator updateProgress,
+        Label updateStatusLabel
+    ) {
+        UpdateCheckService service = ensureUpdateCheckService();
+        if (service == null) {
+            updateStatusLabel.setText(I18n.get("updates.checkFailed"));
+            return;
+        }
+        manualUpdateCheckButton.setDisable(true);
+        updateProgress.setVisible(true);
+        updateProgress.setManaged(true);
+        updateStatusLabel.setText(I18n.get("updates.checking"));
+
+        Task<UpdateCheckResult> task = new Task<>() {
+            @Override
+            protected UpdateCheckResult call() {
+                return service.checkManually();
+            }
+        };
+        task.setOnSucceeded(event -> {
+            manualUpdateCheckButton.setDisable(false);
+            updateProgress.setVisible(false);
+            updateProgress.setManaged(false);
+            handleManualUpdateCheckResult(task.getValue(), updateStatusLabel);
+        });
+        task.setOnFailed(event -> {
+            manualUpdateCheckButton.setDisable(false);
+            updateProgress.setVisible(false);
+            updateProgress.setManaged(false);
+            Throwable error = task.getException();
+            String message = error != null && error.getMessage() != null
+                ? error.getMessage()
+                : I18n.get("updates.checkFailed");
+            updateStatusLabel.setText(message);
+        });
+        Thread thread = new Thread(task, "kortty-manual-update-check");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void handleManualUpdateCheckResult(UpdateCheckResult result, Label updateStatusLabel) {
+        if (result == null) {
+            updateStatusLabel.setText(I18n.get("updates.checkFailed"));
+            return;
+        }
+        switch (result.status()) {
+            case UPDATE_AVAILABLE -> {
+                updateStatusLabel.setText(I18n.get("updates.available.short", result.update().versionLabel()));
+                showUpdateAvailableDialog(result.update(), true);
+            }
+            case NO_UPDATE -> updateStatusLabel.setText(I18n.get("updates.manual.current"));
+            case NO_COMPATIBLE_ASSET -> updateStatusLabel.setText(I18n.get("updates.noCompatibleAsset"));
+            case FAILED -> updateStatusLabel.setText(I18n.get("updates.checkFailed.detail", result.message()));
+        }
+    }
+
+    private void showUpdateAvailableDialog(AvailableUpdate update, boolean manual) {
+        if (update == null) {
+            return;
+        }
+        Dialog<ButtonType> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.initOwner(stage);
+        dialog.setTitle(I18n.get("updates.dialog.title"));
+        dialog.setHeaderText(I18n.get("updates.dialog.header", update.versionLabel()));
+
+        ButtonType downloadButton = new ButtonType(I18n.get("updates.download"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType remindButton = new ButtonType(I18n.get("updates.remindTomorrow"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType skipButton = new ButtonType(I18n.get("updates.skipVersion"), ButtonBar.ButtonData.OTHER);
+        dialog.getDialogPane().getButtonTypes().addAll(downloadButton, remindButton, skipButton);
+
+        Label content = new Label(I18n.get(
+            "updates.dialog.content",
+            KorTTYApplication.getAppVersion(),
+            update.versionLabel(),
+            update.asset().name(),
+            DownloadDirectoryResolver.resolveDefaultDownloadsDirectory()));
+        content.setWrapText(true);
+        content.setPrefWidth(460);
+        dialog.getDialogPane().setContent(content);
+
+        Optional<ButtonType> result = dialog.showAndWait();
+        UpdateCheckService service = ensureUpdateCheckService();
+        if (result.isPresent() && result.get() == downloadButton) {
+            downloadUpdate(update);
+        } else if (service != null && result.isPresent() && result.get() == skipButton) {
+            service.ignoreVersion(update.versionLabel());
+        } else if (service != null && (!manual || (result.isPresent() && result.get() == remindButton))) {
+            service.snoozeUntilTomorrow(update.versionLabel());
+        }
+    }
+
+    private void downloadUpdate(AvailableUpdate update) {
+        Dialog<Void> progressDialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(progressDialog);
+        progressDialog.initOwner(stage);
+        progressDialog.setTitle(I18n.get("updates.download.title"));
+        progressDialog.setHeaderText(I18n.get("updates.download.header", update.versionLabel()));
+        ButtonType cancelButtonType = ButtonType.CANCEL;
+        progressDialog.getDialogPane().getButtonTypes().add(cancelButtonType);
+
+        ProgressIndicator progressIndicator = new ProgressIndicator();
+        Label status = new Label(I18n.get("updates.download.running", update.asset().name()));
+        status.setWrapText(true);
+        VBox content = new VBox(12, progressIndicator, status);
+        content.setAlignment(Pos.CENTER_LEFT);
+        content.setPrefWidth(420);
+        progressDialog.getDialogPane().setContent(content);
+
+        Task<Path> task = new Task<>() {
+            @Override
+            protected Path call() throws Exception {
+                return new UpdateAssetDownloader().download(
+                    update.asset(),
+                    DownloadDirectoryResolver.resolveDefaultDownloadsDirectory());
+            }
+        };
+        Button cancelButton = (Button) progressDialog.getDialogPane().lookupButton(cancelButtonType);
+        cancelButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+            task.cancel(true);
+            progressDialog.close();
+        });
+        task.setOnSucceeded(event -> {
+            progressDialog.close();
+            UpdateCheckService service = ensureUpdateCheckService();
+            if (service != null) {
+                service.recordDownloadedVersion(update.versionLabel());
+            }
+            showInfo(
+                I18n.get("updates.download.complete.title"),
+                I18n.get("updates.download.complete", task.getValue()));
+        });
+        task.setOnFailed(event -> {
+            progressDialog.close();
+            Throwable error = task.getException();
+            String message = error != null && error.getMessage() != null
+                ? error.getMessage()
+                : I18n.get("updates.download.failed");
+            if (error instanceof DownloadException && error.getCause() != null && error.getCause().getMessage() != null) {
+                message = error.getCause().getMessage();
+            }
+            showError(I18n.get("updates.download.failed.title"), message);
+        });
+        Thread thread = new Thread(task, "kortty-update-download");
+        thread.setDaemon(true);
+        thread.start();
+        progressDialog.showAndWait();
+    }
+
+    private UpdateCheckService ensureUpdateCheckService() {
+        UpdateCheckService service = app.getUpdateCheckService();
+        if (service == null) {
+            app.restartUpdateCheckService();
+            service = app.getUpdateCheckService();
+        }
+        return service;
     }
     
     private void updateStatus(String message) {
@@ -5303,6 +5526,13 @@ public class MainWindow {
     
     public static List<MainWindow> getOpenWindows() {
         return openWindows;
+    }
+
+    public static void showAutomaticUpdateAvailable(AvailableUpdate update) {
+        MainWindow window = getFocusedOrLastOpenWindow();
+        if (window != null) {
+            window.showUpdateAvailableDialog(update, false);
+        }
     }
     
     public Stage getStage() {
