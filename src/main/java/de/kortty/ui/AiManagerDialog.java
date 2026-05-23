@@ -214,7 +214,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             cell.getValue().getConnectionDisplayName() != null ? cell.getValue().getConnectionDisplayName() : ""));
         connectionColumn.setMinWidth(180);
 
-        table.getColumns().addAll(titleColumn, profileColumn, updatedColumn, connectionColumn);
+        table.getColumns().addAll(List.of(titleColumn, profileColumn, updatedColumn, connectionColumn));
         table.setPlaceholder(new Label(I18n.get("ai.manager.empty")));
         table.setRowFactory(view -> {
             TableRow<SavedAiChat> row = new TableRow<>();

@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 class SnippetCodeFormatterTest {
 
@@ -116,7 +117,62 @@ class SnippetCodeFormatterTest {
         }
     }
 
+    @Test
+    void exposesLineWidthSupportOnlyForFormattersWithNativeWidthOptions() {
+        assertThat(CodeFormatterService.supportsLineWidth("javascript")).isTrue();
+        assertThat(CodeFormatterService.supportsLineWidth("html")).isTrue();
+        assertThat(CodeFormatterService.supportsLineWidth("python")).isTrue();
+        assertThat(CodeFormatterService.supportsLineWidth("perl")).isTrue();
+        assertThat(CodeFormatterService.supportsLineWidth("java")).isFalse();
+        assertThat(CodeFormatterService.supportsLineWidth("json")).isFalse();
+    }
+
+    @Test
+    void lineWidthFormattingAddsPrettierPrintWidth() throws Exception {
+        String previous = System.getProperty("kortty.formatters.dir");
+        Path root = Files.createTempDirectory("kortty-prettier-width-test");
+        Path argsFile = root.resolve("args.txt");
+        Path node = Files.createDirectories(root.resolve("node/bin")).resolve(isWindows() ? "node.exe" : "node");
+        Files.writeString(node, """
+            #!/bin/sh
+            printf '%%s\\n' "$@" > %s
+            cat
+            """.formatted(shellQuote(argsFile.toString())));
+        node.toFile().setExecutable(true, false);
+        Files.createDirectories(root.resolve("prettier/bin"));
+        Files.writeString(root.resolve("prettier/bin/prettier.cjs"), "");
+
+        try {
+            System.setProperty("kortty.formatters.dir", root.toString());
+
+            String formatted = CodeFormatterService.formatOrThrow("const name = 'korTTY';\n", "javascript", 72);
+
+            assertThat(formatted).isEqualTo("const name = 'korTTY';\n");
+            assertThat(Files.readString(argsFile)).contains("--parser\ntypescript");
+            assertThat(Files.readString(argsFile)).contains("--print-width\n72");
+        } finally {
+            if (previous == null) {
+                System.clearProperty("kortty.formatters.dir");
+            } else {
+                System.setProperty("kortty.formatters.dir", previous);
+            }
+        }
+    }
+
+    @Test
+    void rejectsLineWidthForFormatterWithoutNativeWidthOption() {
+        CodeFormatterService.FormatterException failure = expectThrows(
+            CodeFormatterService.FormatterException.class,
+            () -> CodeFormatterService.formatOrThrow("class Demo {}\n", "java", 80));
+
+        assertThat(failure).hasMessageThat().contains("does not support");
+    }
+
     private static boolean isWindows() {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("windows");
+    }
+
+    private static String shellQuote(String value) {
+        return "'" + value.replace("'", "'\"'\"'") + "'";
     }
 }

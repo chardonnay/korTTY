@@ -30,8 +30,25 @@ repositories {
     }
 }
 
+val osName = System.getProperty("os.name").lowercase()
+val isWindows = osName.contains("windows")
+val isMac = osName.contains("mac")
+val isLinux = osName.contains("linux")
+
+val javaFxVersion = "21"
+val javaFxJsObjectVersion = "25.0.2"
+val javaFxPlatform = when {
+    isWindows -> "win"
+    isMac && System.getProperty("os.arch", "").lowercase() in setOf("aarch64", "arm64") -> "mac-aarch64"
+    isMac -> "mac"
+    isLinux && System.getProperty("os.arch", "").lowercase() in setOf("aarch64", "arm64") -> "linux-aarch64"
+    isLinux -> "linux"
+    else -> throw GradleException("Unsupported JavaFX platform: ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
+}
+val javaFxJsObject = configurations.create("javaFxJsObject")
+
 javafx {
-    version = "21"
+    version = javaFxVersion
     modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.swing", "javafx.web")
 }
 
@@ -97,9 +114,6 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.25.0")
     implementation("org.tukaani:xz:1.9")
     
-    // RichTextFX - Code editor with syntax highlighting
-    implementation("org.fxmisc.richtext:richtextfx:0.11.3")
-    
     // jfiglet - ASCII art banners (FIGfonts)
     implementation("com.github.lalyos:jfiglet:0.0.9")
     
@@ -111,6 +125,11 @@ dependencies {
     implementation("com.knuddels:jtokkit:1.1.0")
     implementation("org.apache.pdfbox:pdfbox:3.0.6")
     implementation("com.google.googlejavaformat:google-java-format:1.35.0")
+
+    // JavaFX provides jdk.jsobject from JavaFX 24 onward; the JDK module is deprecated for removal on JDK 25.
+    val javaFxJsObjectDependency = "org.openjfx:jdk-jsobject:$javaFxJsObjectVersion:$javaFxPlatform"
+    compileOnly(javaFxJsObjectDependency)
+    javaFxJsObject(javaFxJsObjectDependency)
 
     // PTY support for native Mosh client
     implementation("org.jetbrains.pty4j:pty4j:0.12.25")
@@ -202,26 +221,28 @@ tasks.named("compileJava") {
     dependsOn("installSithtermfxLocal")
 }
 
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(listOf("--upgrade-module-path", javaFxJsObject.asPath))
+}
+
 // ==================== jpackage Konfiguration ====================
 
 val jpackageDir = layout.buildDirectory.dir("jpackage")
 val jpackageInput = layout.buildDirectory.dir("jpackage-input")
 
-// Betriebssystem erkennen
-val osName = System.getProperty("os.name").lowercase()
-val isWindows = osName.contains("windows")
-val isMac = osName.contains("mac")
-val isLinux = osName.contains("linux")
-
 // ==================== Gebuendelte Code-Formatter ====================
 
 val formatterDownloadDir = layout.buildDirectory.dir("formatter-downloads")
 val bundledFormatterDir = jpackageInput.map { it.dir("libs/formatters") }
+val monacoBuildNodeDir = layout.buildDirectory.dir("monaco-node")
 val formatterNodeVersion = "24.15.0"
 val formatterShfmtVersion = "3.13.1"
 val formatterPrettierVersion = "3.6.2"
 val formatterSqlFormatterVersion = "15.7.3"
 val formatterPerlTidyVersion = "20260204"
+val monacoEditorVersion = "0.55.1"
+val monacoEditorSha256 = "eec3721fb6b1dc5a0bd1a73e38a5eb5d0c3791af684f7d2571efb90ad8634871"
+val monacoEsbuildVersion = "0.28.0"
 
 fun formatterArch(): String = when (System.getProperty("os.arch", "").lowercase()) {
     "aarch64", "arm64" -> "arm64"
@@ -357,6 +378,170 @@ tasks.register("copyBundledNode") {
         }
         val nodeExecutable = if (isWindows) target.resolve("node.exe") else target.resolve("bin/node")
         nodeExecutable.setExecutable(true, false)
+    }
+}
+
+fun bundledNodeExecutable(): File {
+    val nodeRoot = bundledFormatterDir.get().asFile.resolve("node")
+    return if (isWindows) nodeRoot.resolve("node.exe") else nodeRoot.resolve("bin/node")
+}
+
+fun monacoNodeExecutable(): File {
+    val nodeRoot = monacoBuildNodeDir.get().asFile
+    return if (isWindows) nodeRoot.resolve("node.exe") else nodeRoot.resolve("bin/node")
+}
+
+fun monacoNpmCliScript(): File {
+    return monacoBuildNodeDir.get().asFile.resolve("lib/node_modules/npm/bin/npm-cli.js")
+}
+
+fun runBundledNodeCommand(workingDirectory: File, vararg command: String) {
+    val nodeBinDir = File(command.first()).parentFile.absolutePath
+    val builder = ProcessBuilder(command.toList())
+        .directory(workingDirectory)
+        .inheritIO()
+    val environment = builder.environment()
+    val path = environment["PATH"]
+    environment["PATH"] = if (path.isNullOrBlank()) {
+        nodeBinDir
+    } else {
+        "$nodeBinDir${File.pathSeparator}$path"
+    }
+    val exitCode = builder.start().waitFor()
+    if (exitCode != 0) {
+        throw GradleException("Command failed with exit code $exitCode: ${command.joinToString(" ")}")
+    }
+}
+
+val monacoWorkspaceDir = layout.buildDirectory.dir("monaco-workspace")
+val monacoGeneratedResourceDir = layout.buildDirectory.dir("generated-monaco-resources")
+
+tasks.register("copyMonacoBuildNode") {
+    group = "build"
+    description = "Downloads pinned Node.js LTS for the Monaco build workspace without touching jpackage inputs."
+    outputs.dir(monacoBuildNodeDir)
+    doLast {
+        val archiveName = nodeArchiveName()
+        if (archiveName == null) {
+            throw GradleException("No bundled Node.js archive configured for ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
+        }
+        val downloadBase = "https://nodejs.org/dist/v$formatterNodeVersion"
+        val shasumsFile = formatterDownloadDir.get().asFile.resolve("node-v$formatterNodeVersion-SHASUMS256.txt")
+        download("$downloadBase/SHASUMS256.txt", shasumsFile)
+        val expected = shasumsFile.readLines()
+            .firstOrNull { it.endsWith("  $archiveName") || it.endsWith(" *$archiveName") }
+            ?.substringBefore(" ")
+            ?: throw GradleException("No Node.js checksum found for $archiveName")
+        val archive = formatterDownloadDir.get().asFile.resolve(archiveName)
+        downloadPinned("$downloadBase/$archiveName", archive, expected)
+
+        val unpackDir = layout.buildDirectory.get().asFile.resolve("monaco-node-unpack")
+        delete(unpackDir)
+        unpackDir.mkdirs()
+        copy {
+            from(if (archiveName.endsWith(".zip")) zipTree(archive) else tarTree(resources.gzip(archive)))
+            into(unpackDir)
+        }
+        val unpackedRoot = unpackDir.listFiles()?.singleOrNull { it.isDirectory }
+            ?: throw GradleException("Could not find unpacked Node.js root for $archiveName")
+        val target = monacoBuildNodeDir.get().asFile
+        delete(target)
+        copy {
+            from(unpackedRoot)
+            into(target)
+        }
+        val nodeExecutable = monacoNodeExecutable()
+        nodeExecutable.setExecutable(true, false)
+    }
+}
+
+tasks.register("prepareMonacoWorkspace") {
+    group = "build"
+    description = "Creates a pinned Monaco/npm workspace under build/ without using a global Node.js installation."
+    dependsOn("copyMonacoBuildNode")
+    inputs.dir("src/monaco")
+    inputs.property("monacoEditorVersion", monacoEditorVersion)
+    inputs.property("monacoEditorSha256", monacoEditorSha256)
+    inputs.property("monacoEsbuildVersion", monacoEsbuildVersion)
+    outputs.dir(monacoWorkspaceDir)
+    doLast {
+        val workspace = monacoWorkspaceDir.get().asFile
+        delete(workspace)
+        workspace.mkdirs()
+        copy {
+            from("src/monaco")
+            into(workspace.resolve("src"))
+        }
+        val cachedTarball = formatterDownloadDir.get().asFile.resolve("monaco-editor-$monacoEditorVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/monaco-editor/-/monaco-editor-$monacoEditorVersion.tgz",
+            cachedTarball,
+            monacoEditorSha256
+        )
+        val monacoTarballUri = cachedTarball.toURI().toASCIIString()
+        workspace.resolve("package.json").writeText(
+            """
+            {
+              "private": true,
+              "type": "module",
+              "scripts": {
+                "build": "node src/build-monaco.mjs ${monacoGeneratedResourceDir.get().asFile.resolve("monaco").absolutePath.replace("\\", "\\\\")}"
+              },
+              "dependencies": {
+                "esbuild": "${monacoEsbuildVersion}",
+                "monaco-editor": "${monacoTarballUri}"
+              }
+            }
+            """.trimIndent()
+        )
+        runBundledNodeCommand(
+            workspace,
+            monacoNodeExecutable().absolutePath,
+            monacoNpmCliScript().absolutePath,
+            "install",
+            "--package-lock-only",
+            "--ignore-scripts"
+        )
+        runBundledNodeCommand(
+            workspace,
+            monacoNodeExecutable().absolutePath,
+            monacoNpmCliScript().absolutePath,
+            "ci",
+            "--ignore-scripts"
+        )
+        val monacoArchive = workspace.resolve("node_modules/monaco-editor/package.json")
+        if (!monacoArchive.isFile) {
+            throw GradleException("monaco-editor $monacoEditorVersion was not installed in the local build workspace")
+        }
+        if (!monacoArchive.readText().contains("\"version\": \"$monacoEditorVersion\"")) {
+            throw GradleException("Installed monaco-editor package does not match $monacoEditorVersion")
+        }
+    }
+}
+
+tasks.register("bundleMonacoEditor") {
+    group = "build"
+    description = "Bundles Monaco Editor and its web workers as local JavaFX WebView resources."
+    dependsOn("prepareMonacoWorkspace")
+    inputs.dir("src/monaco")
+    outputs.dir(monacoGeneratedResourceDir)
+    doLast {
+        val outputDir = monacoGeneratedResourceDir.get().asFile
+        delete(outputDir)
+        runBundledNodeCommand(
+            monacoWorkspaceDir.get().asFile,
+            monacoNodeExecutable().absolutePath,
+            monacoNpmCliScript().absolutePath,
+            "run",
+            "build"
+        )
+    }
+}
+
+tasks.named<ProcessResources>("processResources") {
+    dependsOn("bundleMonacoEditor")
+    from(monacoGeneratedResourceDir) {
+        into("")
     }
 }
 
@@ -921,7 +1106,7 @@ if (isLinux) {
 tasks.named<JavaExec>("run") {
     val jmxEnable = project.findProperty("jmx") == "true"
     // JVM-Argumente zur Unterdrückung von JavaFX-Warnungen
-    jvmArgs = listOf(
+    jvmArgs(listOf(
         // Öffne Zugriff auf interne JavaFX-Module (reduziert Warnungen über restricted methods)
         "--add-opens=javafx.graphics/com.sun.glass.utils=ALL-UNNAMED",
         "--add-opens=javafx.graphics/com.sun.javafx.tk.quantum=ALL-UNNAMED",
@@ -943,22 +1128,34 @@ tasks.named<JavaExec>("run") {
         "-Dcom.sun.management.jmxremote.port=9010",
         "-Dcom.sun.management.jmxremote.local.only=false",
         "-Dcom.sun.management.jmxremote.authenticate=false"
-    ) else emptyList()
+    ) else emptyList())
 }
 
 tasks.test {
     useTestNG()
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
+tasks.register<JavaExec>("monacoWebViewSmoke") {
+    group = "verification"
+    description = "Starts a small JavaFX WebView smoke view and verifies Monaco Blob workers."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.MonacoEditorPaneSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
 }
 
 tasks.jar {
+    val implementationTitle = project.name
+    val implementationVersion = project.version
+    val runtimeClasspath = configurations.runtimeClasspath
     doFirst {
         manifest {
             attributes(
                 "Main-Class" to "de.kortty.KorTTYApplication",
-                "Implementation-Title" to project.name,
-                "Implementation-Version" to project.version,
+                "Implementation-Title" to implementationTitle,
+                "Implementation-Version" to implementationVersion,
                 // Class-Path for all dependencies (resolved at execution time)
-                "Class-Path" to configurations.runtimeClasspath.get().files.joinToString(" ") { it.name }
+                "Class-Path" to runtimeClasspath.get().files.joinToString(" ") { it.name }
             )
         }
     }

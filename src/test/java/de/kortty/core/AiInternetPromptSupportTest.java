@@ -19,6 +19,7 @@ class AiInternetPromptSupportTest {
             AiAction.COMPLETE_SNIPPET_CODE,
             AiAction.REVIEW_SNIPPET_CODE,
             AiAction.IMPROVE_SNIPPET_CODE,
+            AiAction.ASSIST_SNIPPET_CODE,
             AiAction.SECURITY_REVIEW_SNIPPET_CODE,
             AiAction.APPLY_SNIPPET_SECURITY_FIXES,
             AiAction.GENERATE_SNIPPET_PLANTUML

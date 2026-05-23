@@ -65,7 +65,6 @@ import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.Duration;
-import org.fxmisc.richtext.InlineCssTextArea;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -871,12 +870,12 @@ public class AiResultTab extends Tab {
             ? new HBox(8, languageLabel, spacer, saveSnippetButton, copyCodeButton)
             : new HBox(8, languageLabel, spacer, copyCodeButton);
 
-        InlineCssTextArea codeArea = new InlineCssTextArea();
+        MonacoEditorPane codeArea = new MonacoEditorPane();
         codeArea.setEditable(false);
         codeArea.replaceText(code != null ? code : "");
+        codeArea.setLanguage(normalizedLanguage);
         EditorSettingsHelper.applyStyle(codeArea, EditorSettingsHelper.loadSnippetSettings());
         codeArea.setStyle(codeArea.getStyle() + String.format(Locale.ROOT, " -fx-font-size: %dpx;", currentFontSize));
-        codeArea.setStyleSpans(0, SnippetEditDialog.computeHighlighting(code != null ? code : "", normalizedLanguage));
 
         var codeScrollPane = EditorSettingsHelper.createScrollPane(codeArea);
         int lineCount = Math.max(3, (code != null ? code : "").split("\\R", -1).length);
@@ -1127,6 +1126,7 @@ public class AiResultTab extends Tab {
             request -> translateSnippetSelectionText(profile, aiService, request),
             request -> describeSnippet(profile, aiService, request),
             request -> generateAlternativeSolutions(profile, aiService, request),
+            null,
             null,
             null,
             null,

@@ -50,6 +50,30 @@ public class SftpFileItem {
         this.parentEntry = parentEntry;
     }
 
+    public static SftpFileItem fromDetails(
+            String name,
+            String path,
+            boolean file,
+            String size,
+            String date,
+            String permissions,
+            String owner,
+            String group
+    ) {
+        return new SftpFileItem(
+                name,
+                path,
+                file,
+                size,
+                date,
+                permissions,
+                owner,
+                group,
+                parseSizeToBytes(size),
+                "..".equals(name)
+        );
+    }
+
     public static SftpFileItem parent(String path) {
         return new SftpFileItem("..", path, false, "", "", "", "", "", Long.MIN_VALUE, true);
     }
@@ -105,6 +129,31 @@ public class SftpFileItem {
             return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
         }
         return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+    }
+
+    private static long parseSizeToBytes(String size) {
+        if (size == null || size.isEmpty() || size.equals("-")
+                || size.equals("<DIR>") || size.equals("...") || size.equals("—")) {
+            return 0L;
+        }
+        try {
+            String cleaned = size.replaceAll("[^0-9.]", "");
+            if (cleaned.isEmpty()) {
+                return 0L;
+            }
+            if (size.contains("KB")) {
+                return (long) (Double.parseDouble(cleaned) * 1024);
+            }
+            if (size.contains("MB")) {
+                return (long) (Double.parseDouble(cleaned) * 1024 * 1024);
+            }
+            if (size.contains("GB")) {
+                return (long) (Double.parseDouble(cleaned) * 1024 * 1024 * 1024);
+            }
+            return Long.parseLong(cleaned);
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     public String getName() {

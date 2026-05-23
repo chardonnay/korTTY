@@ -53,7 +53,7 @@ class SshKeyCompatibilityTest {
             JceOpenSSLPKCS8EncryptorBuilder encryptorBuilder =
                 new JceOpenSSLPKCS8EncryptorBuilder(PKCS8Generator.AES_256_CBC);
             encryptorBuilder.setRandom(new SecureRandom());
-            encryptorBuilder.setPasssword(passphrase.toCharArray());
+            encryptorBuilder.setPassword(passphrase.toCharArray());
             writer.writeObject(new JcaPKCS8Generator(keyPair.getPrivate(), encryptorBuilder.build()));
         } catch (IOException e) {
             Files.deleteIfExists(pemFile);

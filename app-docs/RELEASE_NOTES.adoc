@@ -29,7 +29,12 @@
 
 === Snippet Editor AI, Diagrams, and Profiles
 
+* *Monaco-based snippet editor*: The Snippet Editor now uses the bundled Monaco Editor surface with local WebView resources while preserving the existing Snippet Manager and SFTP file-editing workflows.
+* *Column ruler with live caret marker*: The ruler above the editor keeps the current caret column fixed at the left side, draws a live marker at the editor cursor position, and shows `Position N` when hovering over that marker.
+* *Line-length marker*: Clicking the ruler sets a maximum line-length marker between columns 20 and 240. The same marker is mirrored into the Monaco editor ruler, and the marker context menu can remove the limit again.
 * *Cursor-aware AI completion*: The snippet editor can request a completion at the current caret location. Suggestions are shown as ghost text and are inserted only when the user clicks them.
+* *Right-click AI Assistant*: The editor context menu now opens a cursor-aware AI instruction dialog. It sends the full snippet plus cursor offset, line, and column, lets the user choose whether enabled Chat/Functions AI Skills are considered for that request, and applies the returned full-snippet rewrite only after a before/after preview.
+* *Save edited snippet as new*: While editing an existing Snippet Manager entry, the Snippet Editor can save the current script as a new snippet without overwriting the original.
 * *Session-local auto completion*: Auto AI completion can be enabled per editor session. It is off by default and requests suggestions after the user pauses at a caret location.
 * *AI review and rewrite flows*: Error review, improvement themes, custom instructions, alternative solutions, and security fixes use structured AI responses and before/after previews before replacing code.
 * *Selected-code scope*: Alternative solutions and improvement actions operate on the selected code region. When no selection is available for alternative solutions, the request uses the whole snippet.
@@ -50,6 +55,8 @@
 * *ZIP encryption options*: Script ZIP exports support no encryption, AES password-protected ZIP, or GPG encryption using a stored KorTTY GPG key.
 * *Compact one-liner improvements*: Bash compact one-liners keep `if/then/else` and loop syntax valid, while Python, Perl, and Ruby compact mode can wrap multi-line blocks with interpreter `exec`/`eval` instead of failing.
 * *Shared formatter service*: Snippet Editor and File Editor formatting now use the same `CodeFormatterService` with built-in, bundled, optional external fallback, and unavailable provider states.
+* *Format to ruler width*: The Snippet Editor ruler can run whole-content formatting to the selected line-length marker for formatter providers that support configurable width: Prettier-backed web formats, Python/Black, and Perl/Perl::Tidy. Local line-width formatting now opens a before/after preview before changing the editor. Unsupported languages can fall back to AI-assisted formatting when a matching provider is configured.
+* *AI fallback for unavailable local tools*: When local code formatting, ruler-width formatting, or syntax checking is unavailable for the selected language/provider state, the Snippet Editor asks whether to use AI assistance. AI formatting is still shown in a before/after preview before it changes the editor, and AI syntax checking returns an informational findings report.
 * *Bundled formatter manifest*: Formatter versions and sources are pinned in `src/main/resources/formatters/formatter-manifest.properties`; packaged builds can include shfmt, Prettier, sql-formatter, Perl::Tidy, and google-java-format support.
 
 === JobScheduler Background Automation
@@ -70,6 +77,7 @@
 * *Host-key safety*: Host-key pinning is required by default for unattended SSH/SFTP/Rsync execution. A job can explicitly disable host-key verification, and that unsafe mode remains scoped to that job.
 * *Journal modes*: `LIMITED_REDACTED` stores bounded stdout/stderr excerpts with redaction. `FULL` stores full output/transcripts while still redacting KorTTY-managed secrets before persistence.
 * *Locked master-password behavior*: Jobs that need encrypted SSH, sudo, API, or archive secrets are blocked and journaled when the master password is locked.
+* *Action-specific fields*: The *Action* tab now shows only fields used by the selected scheduler action, and `SNIPPET_SCRIPT` jobs include a search box for filtering large SnippetManager script lists.
 
 === JobScheduler Rsync Integration
 
@@ -90,7 +98,7 @@
 * *Weekday bulk toggle*: The weekdays row has a control to select or clear all weekdays.
 * *Menu-bar status*: When enabled and at least one scheduler entry exists, the menu bar shows running job state or the next run countdown after *Help*. Opening it lists up to five queued jobs with start time and live countdown.
 * *Cancellation*: Running jobs can be cancelled from the JobScheduler status menu or right-click status menu; cancellation requests are journaled.
-* *Journal controls*: Journal columns are sortable, selected journal entries can be deleted, and journal timestamps are displayed in the local KorTTY/system time zone.
+* *Journal controls*: Journal columns are sortable, selected journal entries can be deleted, and journal timestamps are displayed in the local KorTTY/system time zone. The Journal search can scan all persisted fields or selected columns, supports multiple required terms, and treats `*` as a wildcard inside search terms.
 * *Journal retention*: Entries older than 14 days are deleted automatically by default unless the user changes the retention value; `0` keeps entries indefinitely.
 * *Journal detail pane*: The protocol/detail output area can be resized vertically, KorTTY remembers the divider position, and selected detail text can be copied from the right-click menu.
 * *Quit drain*: When KorTTY is asked to quit while scheduler jobs are running, it warns the user. If confirmed, KorTTY blocks new starts, journals the shutdown wait, waits for running jobs to finish or cancel, and exits afterward.
@@ -131,7 +139,7 @@
 
 === Documentation
 
-* README, User Guide, and Release Notes now describe terminal recording, JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, LM Studio model auto-selection, AI Skills, Terminal AI Agent usage, terminal-only fullscreen, SFTP-to-Snippet-Editor file editing, terminal-effect plugins, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
+* README, User Guide, and Release Notes now describe terminal recording, JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, LM Studio model auto-selection, AI Skills, Terminal AI Agent usage, terminal-only fullscreen, SFTP-to-Snippet-Editor file editing, terminal-effect plugins, the Monaco-based Snippet Editor ruler, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
 * Added `app-docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
 * Updated and re-rendered the architecture, module overview, AI API integration, snippet editor workflow, connection flow, session lifecycle, and terminal-effect plugin lifecycle diagrams.
 

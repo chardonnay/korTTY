@@ -208,6 +208,31 @@ public final class SnippetAiWorkflowSupport {
         String improvementTheme,
         String additionalInstructions) throws Exception {
 
+        return improveSnippetCode(
+            aiService,
+            usageRecorder,
+            fullContent,
+            selectedText,
+            snippetLanguage,
+            connectionDisplayName,
+            fallbackLanguageCode,
+            improvementTheme,
+            additionalInstructions,
+            false);
+    }
+
+    public static SnippetAiResponseSupport.CodeImprovement improveSnippetCode(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String selectedText,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String improvementTheme,
+        String additionalInstructions,
+        boolean allowPlainTextFallback) throws Exception {
+
         AiRequest request = new AiRequest(
             AiAction.IMPROVE_SNIPPET_CODE,
             selectedText,
@@ -215,6 +240,38 @@ public final class SnippetAiWorkflowSupport {
             fallbackLanguageCode,
             mergeAdditionalInstructions(improvementTheme, additionalInstructions),
             buildSelectedCodeContext(fullContent, selectedText, false, snippetLanguage, fallbackLanguageCode));
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null && usageRecorder != null) {
+            usageRecorder.record(request, result);
+        }
+        return SnippetAiResponseSupport.parseCodeImprovement(
+            result != null ? result.content() : null,
+            allowPlainTextFallback);
+    }
+
+    public static SnippetAiResponseSupport.CodeImprovement assistSnippetCode(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        int cursorOffset,
+        int cursorLine,
+        int cursorColumn,
+        String userInstruction,
+        String additionalInstructions,
+        boolean includeAiSkills) throws Exception {
+
+        String content = fullContent != null ? fullContent : "";
+        AiRequest request = new AiRequest(
+            AiAction.ASSIST_SNIPPET_CODE,
+            content,
+            connectionDisplayName,
+            fallbackLanguageCode,
+            mergeAdditionalInstructions(userInstruction, additionalInstructions),
+            buildAssistantContext(content, snippetLanguage, fallbackLanguageCode, cursorOffset, cursorLine, cursorColumn),
+            includeAiSkills);
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
@@ -424,6 +481,29 @@ public final class SnippetAiWorkflowSupport {
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent)
             + "\nSelected code region:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(wholeSnippet ? fullContent : selectedText);
+    }
+
+    private static String buildAssistantContext(
+        String fullContent,
+        String snippetLanguage,
+        String fallbackLanguageCode,
+        int cursorOffset,
+        int cursorLine,
+        int cursorColumn) {
+
+        String content = fullContent != null ? fullContent : "";
+        int safeOffset = Math.max(0, Math.min(cursorOffset, content.length()));
+        int safeLine = Math.max(1, cursorLine);
+        int safeColumn = Math.max(1, cursorColumn);
+        return "Snippet language: " + snippetLanguage + "\n"
+            + "Natural language for summary: " + fallbackLanguageCode + "\n"
+            + "Cursor offset: " + safeOffset + "\n"
+            + "Cursor line: " + safeLine + "\n"
+            + "Cursor column: " + safeColumn + "\n"
+            + "The cursor marks the user's focal point. Apply the user instruction to the whole snippet when needed, "
+            + "but avoid unrelated rewrites.\n"
+            + "Full snippet:\n"
+            + AiPromptBuilder.toSafeTextCodeBlock(content);
     }
 
     private static String buildSecurityContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {

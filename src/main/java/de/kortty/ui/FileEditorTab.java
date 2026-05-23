@@ -14,11 +14,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
-import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.InlineCssTextArea;
-import org.fxmisc.richtext.LineNumberFactory;
-import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +39,7 @@ public class FileEditorTab extends Tab {
     
     private static final Logger logger = LoggerFactory.getLogger(FileEditorTab.class);
     
-    private final InlineCssTextArea codeArea;
+    private final MonacoEditorPane codeArea;
     private final Label statusLabel;
     private final SFTPSession sftpSession;
     private final String remotePath;
@@ -190,10 +185,10 @@ public class FileEditorTab extends Tab {
         setText(filename + " (Remote)");
         setClosable(true);
         
-        // Create code area (InlineCssTextArea for reliable syntax highlighting)
-        codeArea = new InlineCssTextArea();
+        // Create code area (MonacoEditorPane for reliable syntax highlighting)
+        codeArea = new MonacoEditorPane();
         codeArea.getStyleClass().add("code-area");
-        codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+        codeArea.setLineNumbers(true);
         // Font size will be applied after UI setup
         
         loadEditorSettings();
@@ -202,7 +197,7 @@ public class FileEditorTab extends Tab {
         String rawText = new String(content, StandardCharsets.UTF_8);
         detectedLineEnding = detectLineEnding(rawText);
         
-        // Load content (InlineCssTextArea normalizes to \n internally)
+        // Load content (MonacoEditorPane normalizes to \n internally)
         codeArea.replaceText(0, 0, rawText);
         codeArea.getUndoManager().forgetHistory();
         
@@ -216,11 +211,11 @@ public class FileEditorTab extends Tab {
         
         // Apply syntax highlighting
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
-            codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            codeArea.setLanguage(fileTypeToLanguage(fileType));
         });
         
         // Initial highlighting
-        codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            codeArea.setLanguage(fileTypeToLanguage(fileType));
         
         // Context menu for right-click
         codeArea.setContextMenu(createContextMenu());
@@ -255,10 +250,10 @@ public class FileEditorTab extends Tab {
         setText(localPath.getFileName().toString());
         setClosable(true);
         
-        // Create code area (InlineCssTextArea for reliable syntax highlighting)
-        codeArea = new InlineCssTextArea();
+        // Create code area (MonacoEditorPane for reliable syntax highlighting)
+        codeArea = new MonacoEditorPane();
         codeArea.getStyleClass().add("code-area");
-        codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+        codeArea.setLineNumbers(true);
         // Font size will be applied after UI setup
         
         loadEditorSettings();
@@ -267,7 +262,7 @@ public class FileEditorTab extends Tab {
         String rawText = readFileWithFallback(localPath);
         detectedLineEnding = detectLineEnding(rawText);
         
-        // Load content (InlineCssTextArea normalizes to \n internally)
+        // Load content (MonacoEditorPane normalizes to \n internally)
         codeArea.replaceText(0, 0, rawText);
         codeArea.getUndoManager().forgetHistory();
         
@@ -281,11 +276,11 @@ public class FileEditorTab extends Tab {
         
         // Apply syntax highlighting
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
-            codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            codeArea.setLanguage(fileTypeToLanguage(fileType));
         });
         
         // Initial highlighting
-        codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            codeArea.setLanguage(fileTypeToLanguage(fileType));
         
         // Context menu for right-click
         codeArea.setContextMenu(createContextMenu());
@@ -521,104 +516,16 @@ public class FileEditorTab extends Tab {
         logger.debug("Applying editor settings - font: {}, size: {}, fg: {}, bg: {}", 
                 editorFontFamily, currentFontSize, editorForegroundColor, editorBackgroundColor);
         
-        // Set font size, family, and background via inline style
-        // InlineCssTextArea uses -fx-background-color directly
-        String style = String.format(
-            "-fx-font-size: %dpt; " +
-            "-fx-font-family: '%s', 'Consolas', 'Monaco', 'Courier New', monospace; " +
-            "-fx-background-color: %s; " +
-            "-fx-control-inner-background: %s;",
-            currentFontSize, editorFontFamily, editorBackgroundColor, editorBackgroundColor
-        );
-        codeArea.setStyle(style);
-        
-        // Apply caret (cursor) color via stylesheet
-        applyCaretStyle();
-        
-        // Re-apply syntax highlighting with current foreground color
-        if (!largeFileMode || loadedBytes <= HIGHLIGHT_LIMIT_BYTES) {
-            try {
-                codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
-            } catch (Exception e) {
-                logger.warn("Failed to re-apply highlighting", e);
-            }
-        }
+        codeArea.setFont(editorFontFamily, currentFontSize);
+        codeArea.setThemeColors(editorForegroundColor, editorBackgroundColor);
+        codeArea.setCursorStyle(editorCursorStyle, editorCursorColor);
+        codeArea.setLanguage(fileTypeToLanguage(fileType));
         
         if (fontSizeLabel != null) {
             fontSizeLabel.setText(currentFontSize + "pt");
         }
         statusLabel.setText(I18n.get("editor.status.fontSize", currentFontSize));
     }
-    
-    private void applyCaretStyle() {
-        // Measure actual character width for block cursor
-        double charWidth;
-        try {
-            javafx.scene.text.Text measure = new javafx.scene.text.Text("M");
-            measure.setFont(javafx.scene.text.Font.font(editorFontFamily, currentFontSize));
-            charWidth = measure.getLayoutBounds().getWidth();
-            if (charWidth <= 0) charWidth = currentFontSize * 0.6;
-        } catch (Exception e) {
-            charWidth = currentFontSize * 0.6;
-        }
-        
-        // Determine stroke width based on cursor style
-        double strokeWidth;
-        boolean isBlock = false;
-        switch (editorCursorStyle.toUpperCase()) {
-            case "LINE":
-                strokeWidth = 2.0;
-                break;
-            case "UNDERSCORE":
-                strokeWidth = 2.0;
-                break;
-            case "BLOCK":
-            default:
-                strokeWidth = charWidth; // Full character width for true block cursor
-                isBlock = true;
-                break;
-        }
-        
-        logger.info("Applying caret style: color={}, style={}, width={}, charWidth={}", 
-                editorCursorColor, editorCursorStyle, strokeWidth, charWidth);
-        
-        // Apply caret style using Platform.runLater to ensure scene is ready
-        final double finalStrokeWidth = strokeWidth;
-        final boolean finalIsBlock = isBlock;
-        Platform.runLater(() -> {
-            try {
-                // Find and style the caret directly
-                codeArea.lookupAll(".caret").forEach(node -> {
-                    if (node instanceof javafx.scene.shape.Path) {
-                        javafx.scene.shape.Path caret = (javafx.scene.shape.Path) node;
-                        caret.setStroke(javafx.scene.paint.Color.web(editorCursorColor));
-                        caret.setStrokeWidth(finalStrokeWidth);
-                        caret.setStrokeLineCap(javafx.scene.shape.StrokeLineCap.BUTT);
-                        // Shift block cursor right so it covers the character after the caret position
-                        if (finalIsBlock) {
-                            caret.setTranslateX(finalStrokeWidth / 2.0);
-                        } else {
-                            caret.setTranslateX(0);
-                        }
-                        logger.debug("Styled caret directly: color={}, width={}, isBlock={}", 
-                                editorCursorColor, finalStrokeWidth, finalIsBlock);
-                    }
-                });
-                
-                // Also set via CSS as fallback
-                String caretCss = String.format(java.util.Locale.US,
-                    ".caret { -fx-stroke: %s; -fx-stroke-width: %.1f; -fx-stroke-line-cap: butt; }",
-                    editorCursorColor, finalStrokeWidth
-                );
-                codeArea.getStylesheets().removeIf(s -> s.startsWith("data:"));
-                String dataUri = "data:text/css;charset=utf-8," + java.net.URLEncoder.encode(caretCss, StandardCharsets.UTF_8);
-                codeArea.getStylesheets().add(dataUri);
-            } catch (Exception e) {
-                logger.warn("Failed to apply caret style", e);
-            }
-        });
-    }
-    
     
     /**
      * Loads the next chunk of a large file and appends it to the editor.
@@ -645,7 +552,7 @@ public class FileEditorTab extends Tab {
                 codeArea.appendText(chunk);
                 loadedBytes += read;
                 if (loadedBytes <= HIGHLIGHT_LIMIT_BYTES) {
-                    codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+            codeArea.setLanguage(fileTypeToLanguage(fileType));
                 }
                 updateLargeFileStatus();
             }
@@ -1489,395 +1396,37 @@ public class FileEditorTab extends Tab {
     private static final String STYLE_OPERATOR = "-fx-fill: #444444; -fx-font-weight: bold;";
     private static final String STYLE_FUNCTION = "-fx-fill: #0055aa;";
     
-    // Computed at runtime from settings
-    private String getPlainTextStyle() {
-        return "-fx-fill: " + editorForegroundColor + ";";
-    }
-    
-    private StyleSpans<String> computeHighlighting(String text) {
-        return switch (fileType) {
-            case XML -> computeXmlHighlighting(text);
-            case JSON -> computeJsonHighlighting(text);
-            case YAML, ANSIBLE_YAML -> computeYamlHighlighting(text);
-            case TOML -> computeTomlHighlighting(text);
-            case MARKDOWN -> computeMarkdownHighlighting(text);
-            case INI, CFG -> computeIniHighlighting(text);
-            case JINJA2 -> computeJinja2Highlighting(text);
-            case PYTHON -> computePythonHighlighting(text);
-            case PERL -> computePerlHighlighting(text);
-            case RUBY -> computeRubyHighlighting(text);
-            case SHELL -> computeShellHighlighting(text);
-            case HTML -> computeHtmlHighlighting(text);
-            case CSS -> computeCssHighlighting(text);
-            case JAVASCRIPT, JAVA, GO, RUST -> computeGenericCodeHighlighting(text);
-            case SQL -> computeSqlHighlighting(text);
-            case DOCKERFILE -> computeDockerfileHighlighting(text);
-            case TERRAFORM -> computeTerraformHighlighting(text);
-            case PUPPET -> computePuppetHighlighting(text);
-            case CFENGINE3 -> computeCfengineHighlighting(text);
-            default -> computePlainTextHighlighting(text);
+    private String fileTypeToLanguage(FileType type) {
+        if (type == null) {
+            return "plain";
+        }
+        return switch (type) {
+            case PLAIN_TEXT -> "plain";
+            case XML -> "xml";
+            case JSON -> "json";
+            case YAML, ANSIBLE_YAML -> "yaml";
+            case TOML -> "toml";
+            case MARKDOWN -> "markdown";
+            case INI, CFG -> "ini";
+            case JINJA2 -> "jinja2";
+            case PYTHON -> "python";
+            case PERL -> "perl";
+            case RUBY -> "ruby";
+            case SHELL -> "shell";
+            case HTML -> "html";
+            case CSS -> "css";
+            case JAVASCRIPT -> "javascript";
+            case JAVA -> "java";
+            case GO -> "go";
+            case RUST -> "rust";
+            case SQL -> "sql";
+            case DOCKERFILE -> "dockerfile";
+            case TERRAFORM -> "terraform";
+            case PUPPET -> "puppet";
+            case CFENGINE3 -> "cfengine3";
         };
     }
-    
-    private StyleSpans<String> computeXmlHighlighting(String text) {
-        Pattern XML_TAG = Pattern.compile("(?<ELEMENT>(</?\\h*)(\\w+)([^<>]*)(\\h*/?>))" +
-            "|(?<COMMENT><!--[^<>]+-->)");
-        
-        Matcher matcher = XML_TAG.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
-        
-        while (matcher.find()) {
-            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
-            if (matcher.group("ELEMENT") != null) {
-                spansBuilder.add(STYLE_XML_ELEMENT, matcher.end() - matcher.start());
-            } else if (matcher.group("COMMENT") != null) {
-                spansBuilder.add(STYLE_COMMENT, matcher.end() - matcher.start());
-            }
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
-        
-        return spansBuilder.create();
-    }
-    
-    private StyleSpans<String> computeJsonHighlighting(String text) {
-        Pattern JSON_PATTERN = Pattern.compile(
-            "(?<STRING>\"([^\"\\\\]|\\\\.)*\")" +
-            "|(?<NUMBER>-?\\d+\\.?\\d*)" +
-            "|(?<BOOLEAN>\\b(true|false|null)\\b)" +
-            "|(?<BRACE>[{}\\[\\]])" +
-            "|(?<COLON>:)" +
-            "|(?<COMMA>,)"
-        );
-        
-        return applyPattern(text, JSON_PATTERN);
-    }
-    
-    private StyleSpans<String> computeYamlHighlighting(String text) {
-        Pattern YAML_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<KEY>^\\s*[\\w-]+(?=:))" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<BOOLEAN>\\b(true|false|yes|no|on|off|null)\\b)" +
-            "|(?<DELIMITER>[-:])"
-        );
-        
-        return applyPattern(text, YAML_PATTERN);
-    }
-    
-    private StyleSpans<String> computeTomlHighlighting(String text) {
-        Pattern TOML_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<SECTION>\\[[^\\]]+\\])" +
-            "|(?<KEY>^\\s*[\\w-]+(?=\\s*=))" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<BOOLEAN>\\b(true|false)\\b)"
-        );
-        
-        return applyPattern(text, TOML_PATTERN);
-    }
-    
-    private StyleSpans<String> computeMarkdownHighlighting(String text) {
-        Pattern MD_PATTERN = Pattern.compile(
-            "(?<HEADER>^#+.*$)" +
-            "|(?<BOLD>\\*\\*[^*]+\\*\\*|__[^_]+__)" +
-            "|(?<ITALIC>\\*[^*]+\\*|_[^_]+_)" +
-            "|(?<CODE>`[^`]+`)" +
-            "|(?<LINK>\\[([^\\]]+)\\]\\(([^)]+)\\))" +
-            "|(?<LIST>^\\s*[-*+]\\s)"
-        );
-        
-        return applyPattern(text, MD_PATTERN);
-    }
-    
-    private StyleSpans<String> computeIniHighlighting(String text) {
-        Pattern INI_PATTERN = Pattern.compile(
-            "(?<COMMENT>[;#].*)" +
-            "|(?<SECTION>\\[[^\\]]+\\])" +
-            "|(?<KEY>^\\s*[\\w.-]+(?=\\s*=))" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')"
-        );
-        
-        return applyPattern(text, INI_PATTERN);
-    }
-    
-    private StyleSpans<String> computeJinja2Highlighting(String text) {
-        Pattern JINJA_PATTERN = Pattern.compile(
-            "(?<JINJA>\\{\\{[^}]+\\}\\}|\\{%[^%]+%\\})" +
-            "|(?<COMMENT>\\{#[^#]+#\\})" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')"
-        );
-        
-        return applyPattern(text, JINJA_PATTERN);
-    }
-    
-    private StyleSpans<String> computePythonHighlighting(String text) {
-        Pattern PYTHON_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<DECORATOR>@\\w+)" +
-            "|(?<STRING>\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(?:and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b)" +
-            "|(?<BUILTIN>\\b(?:True|False|None|print|len|range|int|str|float|list|dict|set|tuple|type|isinstance|open|super|self|cls)\\b)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<FUNCTION>\\b\\w+(?=\\())",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, PYTHON_PATTERN);
-    }
-    
-    private StyleSpans<String> computePerlHighlighting(String text) {
-        Pattern PERL_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(?:my|our|local|sub|use|require|package|if|elsif|else|unless|while|until|for|foreach|do|next|last|return|die|warn|print|say|chomp|chop|push|pop|shift|unshift|splice|keys|values|exists|delete|defined|undef|BEGIN|END)\\b)" +
-            "|(?<VARIABLE>\\$\\w+|@\\w+|%\\w+)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<FUNCTION>\\b\\w+(?=\\())",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, PERL_PATTERN);
-    }
-    
-    private StyleSpans<String> computeRubyHighlighting(String text) {
-        Pattern RUBY_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(?:def|class|module|end|if|elsif|else|unless|while|until|for|do|begin|rescue|ensure|raise|return|yield|block_given|require|require_relative|include|extend|attr_accessor|attr_reader|attr_writer|puts|print|nil|true|false|self|super|then|case|when|break|next|redo|retry)\\b)" +
-            "|(?<VARIABLE>@{1,2}\\w+|\\$\\w+)" +
-            "|(?<DECORATOR>:\\w+)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<FUNCTION>\\b\\w+(?=[!?]?\\())",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, RUBY_PATTERN);
-    }
-    
-    private StyleSpans<String> computeShellHighlighting(String text) {
-        Pattern SHELL_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'[^']*'|`[^`]*`)" +
-            "|(?<KEYWORD>\\b(?:if|then|else|elif|fi|for|while|until|do|done|case|esac|in|function|return|exit|break|continue|local|export|source|alias|unalias|set|unset|shift|trap|eval|exec|readonly|declare|typeset|select)\\b)" +
-            "|(?<BUILTIN>\\b(?:echo|printf|read|cd|pwd|ls|cat|grep|sed|awk|find|sort|uniq|wc|head|tail|cut|tr|tee|xargs|test|mkdir|rmdir|rm|cp|mv|chmod|chown|touch|ln|basename|dirname)\\b)" +
-            "|(?<VARIABLE>\\$\\{?[\\w@#?!*-]+\\}?)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, SHELL_PATTERN);
-    }
-    
-    private StyleSpans<String> computeHtmlHighlighting(String text) {
-        Pattern HTML_PATTERN = Pattern.compile(
-            "(?<COMMENT><!--[\\s\\S]*?-->)" +
-            "|(?<ELEMENT></?\\w+[^>]*>)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')"
-        );
-        
-        Matcher matcher = HTML_PATTERN.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
-        while (matcher.find()) {
-            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
-            if (matcher.group("COMMENT") != null) {
-                spansBuilder.add(STYLE_COMMENT, matcher.end() - matcher.start());
-            } else if (matcher.group("ELEMENT") != null) {
-                spansBuilder.add(STYLE_XML_ELEMENT, matcher.end() - matcher.start());
-            } else if (matcher.group("STRING") != null) {
-                spansBuilder.add(STYLE_STRING, matcher.end() - matcher.start());
-            }
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
-        return spansBuilder.create();
-    }
-    
-    private StyleSpans<String> computeCssHighlighting(String text) {
-        Pattern CSS_PATTERN = Pattern.compile(
-            "(?<COMMENT>/\\*[\\s\\S]*?\\*/)" +
-            "|(?<SELECTOR>[.#]?[\\w-]+(?=\\s*\\{))" +
-            "|(?<KEY>[\\w-]+(?=\\s*:))" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<NUMBER>-?\\d+\\.?\\d*(?:px|em|rem|%|vh|vw|pt|cm|mm|in|ex|ch)?)" +
-            "|(?<BRACE>[{}])"
-        );
-        return applyCodePattern(text, CSS_PATTERN);
-    }
-    
-    private StyleSpans<String> computeGenericCodeHighlighting(String text) {
-        Pattern CODE_PATTERN = Pattern.compile(
-            "(?<COMMENT>//.*|/\\*[\\s\\S]*?\\*/)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|`[^`]*`)" +
-            "|(?<KEYWORD>\\b(?:abstract|break|case|catch|class|const|continue|default|do|else|enum|export|extends|final|finally|for|func|function|goto|if|implements|import|in|instanceof|interface|let|match|module|new|package|private|protected|public|return|static|struct|switch|throw|throws|trait|try|type|typeof|var|void|volatile|while|yield|async|await|fn|impl|mod|mut|pub|ref|self|super|use|where|unsafe|loop|move|crate|dyn|extern|macro)\\b)" +
-            "|(?<BUILTIN>\\b(?:true|false|null|nil|undefined|this|None|True|False|println|fmt|String|Vec|Ok|Err|Some|None)\\b)" +
-            "|(?<DECORATOR>@\\w+)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*[fFdDlL]?\\b)" +
-            "|(?<BRACE>[{}\\[\\]()])" +
-            "|(?<FUNCTION>\\b\\w+(?=\\())",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, CODE_PATTERN);
-    }
-    
-    private StyleSpans<String> computeSqlHighlighting(String text) {
-        Pattern SQL_PATTERN = Pattern.compile(
-            "(?<COMMENT>--.*|/\\*[\\s\\S]*?\\*/)" +
-            "|(?<STRING>'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(?:SELECT|FROM|WHERE|AND|OR|NOT|IN|IS|NULL|AS|ON|JOIN|LEFT|RIGHT|INNER|OUTER|FULL|CROSS|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|ALTER|DROP|INDEX|VIEW|TRIGGER|PROCEDURE|FUNCTION|BEGIN|END|IF|ELSE|THEN|WHEN|CASE|UNION|ALL|DISTINCT|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|EXISTS|BETWEEN|LIKE|GRANT|REVOKE|COMMIT|ROLLBACK|SAVEPOINT|WITH|RECURSIVE|RETURNING|CASCADE|CONSTRAINT|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|CHECK|DEFAULT|NOT|AUTO_INCREMENT|SERIAL|BOOLEAN|INTEGER|VARCHAR|TEXT|DATE|TIMESTAMP|FLOAT|DOUBLE|DECIMAL|CHAR|BLOB|BIGINT|SMALLINT)\\b)",
-            Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
-        );
-        
-        Matcher matcher = SQL_PATTERN.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
-        while (matcher.find()) {
-            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
-            if (matcher.group("COMMENT") != null) {
-                spansBuilder.add(STYLE_COMMENT, matcher.end() - matcher.start());
-            } else if (matcher.group("STRING") != null) {
-                spansBuilder.add(STYLE_STRING, matcher.end() - matcher.start());
-            } else if (matcher.group("KEYWORD") != null) {
-                spansBuilder.add(STYLE_KEYWORD, matcher.end() - matcher.start());
-            }
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
-        return spansBuilder.create();
-    }
-    
-    private StyleSpans<String> computeDockerfileHighlighting(String text) {
-        Pattern DOCKER_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<KEYWORD>^\\s*(?:FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL)\\b)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<VARIABLE>\\$\\{?[\\w]+\\}?)",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, DOCKER_PATTERN);
-    }
-    
-    private StyleSpans<String> computeTerraformHighlighting(String text) {
-        Pattern TF_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*|//.*|/\\*[\\s\\S]*?\\*/)" +
-            "|(?<KEYWORD>\\b(?:resource|data|variable|output|locals|module|provider|terraform|backend|required_providers|required_version|for_each|count|depends_on|lifecycle|provisioner|connection|dynamic|for|in|if|else|endif)\\b)" +
-            "|(?<BUILTIN>\\b(?:true|false|null|string|number|bool|list|map|set|object|tuple|any)\\b)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")" +
-            "|(?<SECTION>[\\w-]+\\s*\\{)" +
-            "|(?<VARIABLE>var\\.[\\w]+|local\\.[\\w]+|data\\.[\\w.]+|module\\.[\\w.]+)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<BRACE>[{}\\[\\]])",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, TF_PATTERN);
-    }
-    
-    /**
-     * Enhanced pattern application for code languages.
-     * Checks for more specific named groups used by language-specific patterns.
-     */
-    private StyleSpans<String> applyCodePattern(String text, Pattern pattern) {
-        Matcher matcher = pattern.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
-        
-        while (matcher.find()) {
-            String inlineStyle = getPlainTextStyle();
-            
-            try { if (matcher.group("COMMENT") != null) inlineStyle = STYLE_COMMENT; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("STRING") != null) inlineStyle = STYLE_STRING; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("KEYWORD") != null) inlineStyle = STYLE_KEYWORD; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BUILTIN") != null) inlineStyle = STYLE_BUILTIN; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("DECORATOR") != null) inlineStyle = STYLE_DECORATOR; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("VARIABLE") != null) inlineStyle = STYLE_VARIABLE; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("FUNCTION") != null) inlineStyle = STYLE_FUNCTION; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("NUMBER") != null) inlineStyle = STYLE_NUMBER; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BRACE") != null) inlineStyle = STYLE_BRACE; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("SECTION") != null) inlineStyle = STYLE_SECTION; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("KEY") != null) inlineStyle = STYLE_KEY; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("SELECTOR") != null) inlineStyle = STYLE_KEYWORD; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("ELEMENT") != null) inlineStyle = STYLE_XML_ELEMENT; } catch (IllegalArgumentException e) {}
-            
-            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
-            spansBuilder.add(inlineStyle, matcher.end() - matcher.start());
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
-        
-        return spansBuilder.create();
-    }
-    
-    private StyleSpans<String> computePuppetHighlighting(String text) {
-        Pattern PUPPET_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(?:class|define|node|site|include|require|contain|inherit|import|if|elsif|else|unless|case|selector|and|or|not|in|true|false|undef|default|ensure|present|absent|running|stopped|installed|latest|purged|file|directory|link)\\b)" +
-            "|(?<BUILTIN>\\b(?:package|service|file|exec|cron|user|group|mount|notify|augeas|yumrepo|apt|template|hiera|lookup|each|map|filter|reduce|notice|warning|err|fail|info|debug|alert|emerg|crit)\\b)" +
-            "|(?<VARIABLE>\\$[a-zA-Z_][a-zA-Z0-9_:]*)" +
-            "|(?<DECORATOR>\\b[A-Z][a-zA-Z0-9_]*(?:\\[))" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<BRACE>[{}\\[\\]])" +
-            "|(?<OPERATOR>=>|->|~>|\\+>|<\\||\\|>)",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, PUPPET_PATTERN);
-    }
-    
-    private StyleSpans<String> computeCfengineHighlighting(String text) {
-        Pattern CFE_PATTERN = Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(?:bundle|body|promise|agent|common|server|monitor|knowledge|edit_line|edit_xml|delete_lines|insert_lines|field_edits|replace_patterns|classes|commands|databases|files|interfaces|methods|packages|processes|reports|services|storage|vars|meta|defaults)\\b)" +
-            "|(?<BUILTIN>\\b(?:string|int|real|slist|ilist|rlist|data|classmatch|regcmp|isvariable|fileexists|isdir|islink|isplain|returnszero|usemodule|canonify|translatepath|lastnode|dirname|join|length|nth|sort|unique|filter|maplist|maparray|some|none|every|reglist|getindices|getvalues|mergedata|readstringlist|readintlist|execresult|readfile|readjson|readyaml|parsejson|parseyaml|storejson|format|string_mustache|bundlestate|classesmatching|variablesmatching|getclassmetatags|getvariablemetatags|now|ago|accumulated|on|hash|escape)\\b)" +
-            "|(?<VARIABLE>\\$\\([^)]+\\)|\\$\\{[^}]+\\}|@\\([^)]+\\)|@\\{[^}]+\\})" +
-            "|(?<SECTION>[a-zA-Z_]+:)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<OPERATOR>=>|->)",
-            Pattern.MULTILINE
-        );
-        return applyCodePattern(text, CFE_PATTERN);
-    }
-    
-    private StyleSpans<String> computePlainTextHighlighting(String text) {
-        return StyleSpans.singleton(getPlainTextStyle(), text.length());
-    }
-    
-    private StyleSpans<String> applyPattern(String text, Pattern pattern) {
-        Matcher matcher = pattern.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
-        
-        while (matcher.find()) {
-            String inlineStyle = getPlainTextStyle();
-            
-            // Check each group safely and map to inline CSS
-            try { if (matcher.group("COMMENT") != null) inlineStyle = STYLE_COMMENT; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("STRING") != null) inlineStyle = STYLE_STRING; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("NUMBER") != null) inlineStyle = STYLE_NUMBER; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BOOLEAN") != null) inlineStyle = STYLE_BOOLEAN; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("KEY") != null) inlineStyle = STYLE_KEY; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("SECTION") != null) inlineStyle = STYLE_SECTION; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("HEADER") != null) inlineStyle = STYLE_HEADER; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BOLD") != null) inlineStyle = STYLE_BOLD; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("ITALIC") != null) inlineStyle = STYLE_ITALIC; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("CODE") != null) inlineStyle = STYLE_CODE; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("LINK") != null) inlineStyle = STYLE_LINK; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("LIST") != null) inlineStyle = STYLE_LIST; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("JINJA") != null) inlineStyle = STYLE_JINJA; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("BRACE") != null) inlineStyle = STYLE_BRACE; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("COLON") != null) inlineStyle = STYLE_PUNCTUATION; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("COMMA") != null) inlineStyle = STYLE_PUNCTUATION; } catch (IllegalArgumentException e) {}
-            try { if (inlineStyle.equals(getPlainTextStyle()) && matcher.group("DELIMITER") != null) inlineStyle = STYLE_PUNCTUATION; } catch (IllegalArgumentException e) {}
-            
-            spansBuilder.add(getPlainTextStyle(), matcher.start() - lastKwEnd);
-            spansBuilder.add(inlineStyle, matcher.end() - matcher.start());
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(getPlainTextStyle(), text.length() - lastKwEnd);
-        
-        return spansBuilder.create();
-    }
-    
+
     private void showError(String title, String message) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR);

@@ -57,7 +57,7 @@
   <text class="label" x="142" y="429">JavaFX 21</text>
   <text class="detail" x="111" y="449">controls, fxml, graphics, swing</text>
   <rect class="box ui" x="85" y="480" width="230" height="56"/>
-  <text class="label" x="142" y="504">RichTextFX</text>
+  <text class="label" x="142" y="504">Monaco Editor</text>
   <text class="detail" x="129" y="524">snippet and code surfaces</text>
   <rect class="box ui" x="85" y="555" width="230" height="56"/>
   <text class="label" x="157" y="579">jfiglet</text>

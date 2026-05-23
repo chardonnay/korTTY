@@ -26,8 +26,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import org.fxmisc.flowless.VirtualizedScrollPane;
-import org.fxmisc.richtext.InlineCssTextArea;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +58,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
     private record SolutionCard(
         VBox container,
         Label summaryLabel,
-        VirtualizedScrollPane<InlineCssTextArea> previewScrollPane,
+        MonacoEditorPane previewScrollPane,
         Button zoomButton) {
     }
 
@@ -181,20 +179,17 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         summaryLabel.setVisible(solution.summary() != null && !solution.summary().isBlank());
         summaryLabel.setManaged(summaryLabel.isVisible());
 
-        InlineCssTextArea previewArea = new InlineCssTextArea();
+        MonacoEditorPane previewArea = new MonacoEditorPane();
         previewArea.setEditable(false);
         previewArea.setFocusTraversable(true);
         previewArea.setWrapText(false);
         previewArea.setPrefHeight(180);
         EditorSettingsHelper.Settings settings = EditorSettingsHelper.loadSnippetSettings();
         EditorSettingsHelper.applyStyle(previewArea, settings);
+        previewArea.setLanguage(snippetLanguage);
         previewArea.replaceText(solution.code());
         installPreviewCopySupport(previewArea);
-        previewArea.setStyleSpans(0, SnippetEditDialog.computeHighlighting(
-            solution.code(),
-            snippetLanguage,
-            EditorSettingsHelper.getPlainTextStyle(settings)));
-        VirtualizedScrollPane<InlineCssTextArea> previewScrollPane = EditorSettingsHelper.createScrollPane(previewArea);
+        MonacoEditorPane previewScrollPane = EditorSettingsHelper.createScrollPane(previewArea);
         previewScrollPane.setMaxWidth(Double.MAX_VALUE);
         VBox.setVgrow(previewScrollPane, Priority.ALWAYS);
 
@@ -229,7 +224,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         return solutionCard;
     }
 
-    private void installPreviewCopySupport(InlineCssTextArea previewArea) {
+    private void installPreviewCopySupport(MonacoEditorPane previewArea) {
         ContextMenu contextMenu = new ContextMenu();
         MenuItem copyItem = new MenuItem(I18n.get("snippets.copyClipboard"));
         copyItem.setOnAction(event -> copySelectedPreviewText(previewArea));
@@ -244,12 +239,12 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         });
     }
 
-    private boolean hasSelectedText(InlineCssTextArea previewArea) {
+    private boolean hasSelectedText(MonacoEditorPane previewArea) {
         String selectedText = previewArea.getSelectedText();
         return selectedText != null && !selectedText.isEmpty();
     }
 
-    private void copySelectedPreviewText(InlineCssTextArea previewArea) {
+    private void copySelectedPreviewText(MonacoEditorPane previewArea) {
         String selectedText = previewArea.getSelectedText();
         if (selectedText == null || selectedText.isEmpty()) {
             return;

@@ -48,6 +48,7 @@ final class SnippetAiAssistFactory {
             request -> completeSnippetCode(ownerWindow, profile, aiService, request, contextDisplayName),
             request -> reviewSnippetCode(ownerWindow, profile, aiService, request, contextDisplayName),
             request -> improveSnippetCode(ownerWindow, profile, aiService, request, contextDisplayName),
+            request -> assistSnippetCode(ownerWindow, profile, aiService, request, contextDisplayName),
             request -> reviewSnippetSecurity(ownerWindow, profile, aiService, request, contextDisplayName),
             request -> applySnippetSecurityFixes(ownerWindow, profile, aiService, request, contextDisplayName),
             request -> generateCompactOneLiner(ownerWindow, profile, aiService, request, contextDisplayName),
@@ -231,7 +232,30 @@ final class SnippetAiAssistFactory {
             connectionDisplayName,
             request.fallbackLanguageCode(),
             request.improvementTheme(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            request.allowPlainTextFallback());
+    }
+
+    private static SnippetAiResponseSupport.CodeImprovement assistSnippetCode(
+        MainWindow ownerWindow,
+        AiProfile profile,
+        AiService aiService,
+        SnippetEditDialog.CodeAssistantRequest request,
+        String connectionDisplayName) throws Exception {
+
+        return SnippetAiWorkflowSupport.assistSnippetCode(
+            aiService,
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            request.fullContent(),
+            request.snippetLanguage(),
+            connectionDisplayName,
+            request.fallbackLanguageCode(),
+            request.cursorOffset(),
+            request.cursorLine(),
+            request.cursorColumn(),
+            request.userInstruction(),
+            request.additionalInstructions(),
+            request.includeAiSkills());
     }
 
     private static List<SnippetAiResponseSupport.SecurityFinding> reviewSnippetSecurity(

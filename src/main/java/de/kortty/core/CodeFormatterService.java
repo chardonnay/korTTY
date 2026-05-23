@@ -40,6 +40,8 @@ public final class CodeFormatterService {
     private static final int JSON_INDENT = 2;
     private static final int DEFAULT_INDENT = 4;
     private static final int FORMATTER_TIMEOUT_SECONDS = 15;
+    private static final int MIN_LINE_WIDTH = 20;
+    private static final int MAX_LINE_WIDTH = 240;
     private static final String PATH_SEPARATOR_REGEX = java.util.regex.Pattern.quote(File.pathSeparator);
 
     public enum ProviderType {
@@ -99,6 +101,10 @@ public final class CodeFormatterService {
         return info != null && info.available();
     }
 
+    public static boolean supportsLineWidth(String language) {
+        return supportsLineWidth(getFormatterInfo(language));
+    }
+
     public static FormatterInfo getFormatterInfo(String language) {
         String lang = normalizeLanguage(language);
         return switch (lang) {
@@ -130,20 +136,32 @@ public final class CodeFormatterService {
     }
 
     public static String format(String text, String language) {
+        return format(text, language, null);
+    }
+
+    public static String format(String text, String language, Integer maxLineLength) {
         try {
-            return formatOrThrow(text, language);
+            return formatOrThrow(text, language, maxLineLength);
         } catch (FormatterException e) {
             return null;
         }
     }
 
     public static String formatOrThrow(String text, String language) throws FormatterException {
+        return formatOrThrow(text, language, null);
+    }
+
+    public static String formatOrThrow(String text, String language, Integer maxLineLength) throws FormatterException {
         if (text == null || text.isBlank()) {
             return null;
         }
         FormatterInfo info = getFormatterInfo(language);
         if (info == null) {
             return null;
+        }
+        Integer safeLineWidth = normalizeLineWidth(maxLineLength);
+        if (safeLineWidth != null && !supportsLineWidth(info)) {
+            throw new FormatterException("Formatter does not support a configurable line width for " + info.language());
         }
         if (!info.available()) {
             throw new FormatterException(info.unavailableReason() != null
@@ -156,13 +174,60 @@ public final class CodeFormatterService {
         if ("google-java-format".equals(info.formatterId()) && info.providerType() == ProviderType.BUNDLED) {
             return formatJava(text);
         }
+        List<String> commandLine = commandLineWithLineWidth(info, safeLineWidth);
         if (info.executionMode() == ExecutionMode.STDIN) {
-            return runStdinFormatter(info.commandLine(), text);
+            return runStdinFormatter(commandLine, text);
         }
         if (info.executionMode() == ExecutionMode.FILE_APPEND) {
-            return runFileFormatter(info.commandLine(), text, info.fileExtension());
+            return runFileFormatter(commandLine, text, info.fileExtension());
         }
         throw new FormatterException("No formatter execution configured for " + info.displayName());
+    }
+
+    private static boolean supportsLineWidth(FormatterInfo info) {
+        if (info == null || info.formatterId() == null) {
+            return false;
+        }
+        return switch (info.formatterId()) {
+            case "prettier", "black", "perltidy" -> true;
+            default -> false;
+        };
+    }
+
+    private static Integer normalizeLineWidth(Integer maxLineLength) throws FormatterException {
+        if (maxLineLength == null) {
+            return null;
+        }
+        if (maxLineLength < MIN_LINE_WIDTH || maxLineLength > MAX_LINE_WIDTH) {
+            throw new FormatterException(
+                "Line width must be between " + MIN_LINE_WIDTH + " and " + MAX_LINE_WIDTH + " characters");
+        }
+        return maxLineLength;
+    }
+
+    private static List<String> commandLineWithLineWidth(FormatterInfo info, Integer maxLineLength) {
+        List<String> commandLine = new ArrayList<>(info.commandLine());
+        if (maxLineLength == null) {
+            return commandLine;
+        }
+        switch (info.formatterId()) {
+            case "prettier" -> {
+                commandLine.add("--print-width");
+                commandLine.add(Integer.toString(maxLineLength));
+            }
+            case "black" -> {
+                int insertAt = !commandLine.isEmpty() && "-".equals(commandLine.get(commandLine.size() - 1))
+                    ? commandLine.size() - 1
+                    : commandLine.size();
+                commandLine.add(insertAt, "--line-length");
+                commandLine.add(insertAt + 1, Integer.toString(maxLineLength));
+            }
+            case "perltidy" -> commandLine.add("-l=" + maxLineLength);
+            default -> {
+                // The caller guards unsupported formatter ids before this point.
+            }
+        }
+        return commandLine;
     }
 
     private static FormatterInfo builtIn(String language, String formatterId, String fileExtension) {

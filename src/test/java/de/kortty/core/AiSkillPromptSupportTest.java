@@ -99,6 +99,27 @@ class AiSkillPromptSupportTest {
     }
 
     @Test
+    void requestCanDisableChatSkills() {
+        AiSkill chatSkill = skill("Chat Skill", true, AiSkillTarget.CHAT, "Use strict Bash.");
+        AiRequest request = new AiRequest(
+            AiAction.ASSIST_SNIPPET_CODE,
+            "echo hi",
+            null,
+            "en",
+            "Add logging",
+            "Snippet language: bash",
+            false);
+        AiSkillPromptSupport support = new AiSkillPromptSupport(true, false, List.of(chatSkill));
+
+        String prompt = support.appendChatSkills("base", request);
+        String block = support.buildChatSkillBlock(request);
+
+        assertThat(prompt).isEqualTo("base");
+        assertThat(block).isEmpty();
+        assertThat(support.drainSkillUsages()).isEmpty();
+    }
+
+    @Test
     void appendAgentSkillsRecordsAndDrainsUsedSkills() {
         AiSkill skill = skill("Agent Skill", true, AiSkillTarget.AGENT, "Prefer safe commands.");
         AiSkillPromptSupport support = new AiSkillPromptSupport(true, List.of(skill));

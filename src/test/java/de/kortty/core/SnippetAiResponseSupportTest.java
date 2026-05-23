@@ -59,6 +59,39 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseAlternativeSolutionsAcceptsCommonProviderAliases() {
+        List<SnippetAiResponseSupport.AlternativeSolution> solutions = SnippetAiResponseSupport.parseAlternativeSolutions(
+            """
+            {
+              "alternatives": [
+                { "title": "A", "replacement": "echo replacement", "description": "Uses a replacement key" },
+                { "title": "B", "content": "echo content" }
+              ]
+            }
+            """,
+            3);
+
+        assertThat(solutions).hasSize(2);
+        assertThat(solutions.get(0).code()).isEqualTo("echo replacement");
+        assertThat(solutions.get(0).summary()).isEqualTo("Uses a replacement key");
+        assertThat(solutions.get(1).code()).isEqualTo("echo content");
+    }
+
+    @Test
+    void parseAlternativeSolutionsAcceptsSingleObjectResponse() {
+        List<SnippetAiResponseSupport.AlternativeSolution> solutions = SnippetAiResponseSupport.parseAlternativeSolutions(
+            """
+            { "title": "Single", "solution": "echo single", "explanation": "One direct alternative" }
+            """,
+            3);
+
+        assertThat(solutions).hasSize(1);
+        assertThat(solutions.get(0).title()).isEqualTo("Single");
+        assertThat(solutions.get(0).code()).isEqualTo("echo single");
+        assertThat(solutions.get(0).summary()).isEqualTo("One direct alternative");
+    }
+
+    @Test
     void parseCompletionSuggestionReadsInsertTextOnly() {
         SnippetAiResponseSupport.CompletionSuggestion suggestion =
             SnippetAiResponseSupport.parseCompletionSuggestion("""
@@ -67,6 +100,83 @@ class SnippetAiResponseSupportTest {
 
         assertThat(suggestion.insertText()).isEqualTo(" && echo done");
         assertThat(suggestion.summary()).contains("success");
+    }
+
+    @Test
+    void parseCodeImprovementReadsStructuredReplacement() {
+        SnippetAiResponseSupport.CodeImprovement improvement =
+            SnippetAiResponseSupport.parseCodeImprovement("""
+            { "replacement": "echo formatted", "summary": "Formatted script" }
+            """);
+
+        assertThat(improvement.replacement()).isEqualTo("echo formatted");
+        assertThat(improvement.summary()).isEqualTo("Formatted script");
+    }
+
+    @Test
+    void parseCodeImprovementUnwrapsNestedStructuredReplacement() {
+        SnippetAiResponseSupport.CodeImprovement improvement =
+            SnippetAiResponseSupport.parseCodeImprovement("""
+            {
+              "replacement": "{\\"replacement\\":\\"#!/bin/bash\\\\necho formatted\\",\\"summary\\":\\"Inner summary\\"}",
+              "summary": "Outer summary"
+            }
+            """, true);
+
+        assertThat(improvement.replacement()).isEqualTo("#!/bin/bash\necho formatted");
+        assertThat(improvement.summary()).isEqualTo("Inner summary");
+    }
+
+    @Test
+    void parseCodeImprovementFallbackExtractsLenientReplacementObjectWithUnescapedCodeQuotes() {
+        SnippetAiResponseSupport.CodeImprovement improvement =
+            SnippetAiResponseSupport.parseCodeImprovement("""
+            {
+              "replacement": "#!/bin/bash\\nBACKUP_DIR="/backup"\\ntar -czf "$BACKUP_FILE" "${SOURCE_DIRS[@]}"",
+              "summary": "Formatted script"
+            }
+            """, true);
+
+        assertThat(improvement.replacement()).startsWith("#!/bin/bash\nBACKUP_DIR=\"/backup\"");
+        assertThat(improvement.replacement()).contains("\"${SOURCE_DIRS[@]}\"");
+        assertThat(improvement.replacement()).doesNotContain("\"replacement\"");
+        assertThat(improvement.summary()).isEqualTo("Formatted script");
+    }
+
+    @Test
+    void parseCodeImprovementRejectsPlainTextWithoutFallback() {
+        SnippetAiResponseSupport.CodeImprovement improvement =
+            SnippetAiResponseSupport.parseCodeImprovement("echo formatted");
+
+        assertThat(improvement.isUsable()).isFalse();
+    }
+
+    @Test
+    void parseCodeImprovementAcceptsPlainTextFallback() {
+        SnippetAiResponseSupport.CodeImprovement improvement =
+            SnippetAiResponseSupport.parseCodeImprovement("""
+            #!/bin/bash
+            if [ "$?" -eq 0 ]; then
+                echo "ok"
+            fi
+            """, true);
+
+        assertThat(improvement.isUsable()).isTrue();
+        assertThat(improvement.replacement()).contains("if [ \"$?\" -eq 0 ]; then");
+    }
+
+    @Test
+    void parseCodeImprovementUnwrapsMarkdownCodeBlockFallback() {
+        SnippetAiResponseSupport.CodeImprovement improvement =
+            SnippetAiResponseSupport.parseCodeImprovement("""
+            Here is the formatted script:
+
+            ```bash
+            echo "formatted"
+            ```
+            """, true);
+
+        assertThat(improvement.replacement()).isEqualTo("echo \"formatted\"");
     }
 
     @Test

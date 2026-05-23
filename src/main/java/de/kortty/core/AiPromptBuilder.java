@@ -85,6 +85,18 @@ public final class AiPromptBuilder {
                 + "replacement must contain only the replacement code for the selected region. "
                 + "Preserve behavior unless the user explicitly requests a behavior change. "
                 + "Write summary in language code " + languageCode + ". "
+                + "Do not nest this JSON object inside another JSON string. "
+                + "Do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.ASSIST_SNIPPET_CODE) {
+            return "You edit a complete code snippet according to the user's instruction and cursor context. "
+                + "Return exactly one JSON object with keys replacement and summary. "
+                + "replacement must contain the full updated snippet content, not a patch, not Markdown, and not only a selected region. "
+                + "Use the cursor as the user's focal point, but update other locations when the instruction requires it. "
+                + "Preserve existing behavior unless the user explicitly requests a behavior change. "
+                + "Do not invent files, endpoints, configuration keys, schemas, secrets, versions, or external facts. "
+                + "Write summary in language code " + languageCode + ". "
+                + "Do not nest this JSON object inside another JSON string. "
                 + "Do not include Markdown outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE) {
@@ -221,6 +233,13 @@ public final class AiPromptBuilder {
                     + "Return exactly one JSON object with this shape:\n"
                     + "{ \"replacement\": \"...\", \"summary\": \"...\" }\n"
                     + "The replacement must replace only the selected region.\n");
+            case ASSIST_SNIPPET_CODE -> prompt.append(
+                "Apply the user's instruction to the complete snippet.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"replacement\": \"...\", \"summary\": \"...\" }\n"
+                    + "replacement must be the full updated snippet content.\n"
+                    + "Use the cursor metadata as the user's focal point and make wider changes only when required by the instruction.\n"
+                    + "Do not invent files, endpoints, configuration keys, schemas, secrets, versions, or external facts.\n");
             case SECURITY_REVIEW_SNIPPET_CODE -> prompt.append(
                 "Review the snippet for security issues.\n"
                     + "Return exactly one JSON object with this shape:\n"
@@ -255,7 +274,11 @@ public final class AiPromptBuilder {
                     + "Create a codeReferences entry for every visible activity and decision; exclude only start, stop, arrows, and merge nodes.\n"
                     + "Use only 1-based line numbers from the line-numbered snippet context.\n");
         }
-        prompt.append("Treat the selected text as the primary source of truth.\n");
+        if (request.action() == AiAction.ASSIST_SNIPPET_CODE) {
+            prompt.append("Treat the provided full snippet as the editable source of truth.\n");
+        } else {
+            prompt.append("Treat the selected text as the primary source of truth.\n");
+        }
         if (request.connectionDisplayName() != null && !request.connectionDisplayName().isBlank()) {
             prompt.append("Connection: ").append(request.connectionDisplayName().trim()).append("\n");
         }
@@ -298,6 +321,7 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.COMPLETE_SNIPPET_CODE
             || request.action() == AiAction.REVIEW_SNIPPET_CODE
             || request.action() == AiAction.IMPROVE_SNIPPET_CODE
+            || request.action() == AiAction.ASSIST_SNIPPET_CODE
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
             || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
@@ -325,13 +349,16 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.COMPLETE_SNIPPET_CODE
             || request.action() == AiAction.REVIEW_SNIPPET_CODE
             || request.action() == AiAction.IMPROVE_SNIPPET_CODE
+            || request.action() == AiAction.ASSIST_SNIPPET_CODE
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
             || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
             || request.action() == AiAction.GENERATE_SNIPPET_PLANTUML;
-        prompt.append(usesScriptContext
-                ? "Script content for context only:\n"
-                : "Selected terminal text:\n")
+        prompt.append(request.action() == AiAction.ASSIST_SNIPPET_CODE
+                ? "Full script content to update:\n"
+                : usesScriptContext
+                    ? "Script content for context only:\n"
+                    : "Selected terminal text:\n")
             .append(toSafeTextCodeBlock(request.selectedText()));
         return prompt.toString();
     }

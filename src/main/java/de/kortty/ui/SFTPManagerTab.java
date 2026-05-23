@@ -13,6 +13,7 @@ import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
 import de.kortty.model.TemporarySSHKey;
+import de.kortty.ui.sftp.SftpFileItem;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -68,8 +69,8 @@ public class SFTPManagerTab extends Tab {
     private final TemporarySSHKey temporarySSHKey;
     private SFTPSession sftpSession;
     
-    private TableView<SFTPManagerDialog.FileItem> localTable;
-    private TableView<SFTPManagerDialog.FileItem> remoteTable;
+    private TableView<SftpFileItem> localTable;
+    private TableView<SftpFileItem> remoteTable;
     private TextField localPathField;
     private TextField remotePathField;
     private TextField localSearchField;
@@ -79,12 +80,12 @@ public class SFTPManagerTab extends Tab {
     private Path currentLocalPath;
     private String currentRemotePath;
     
-    private ObservableList<SFTPManagerDialog.FileItem> localItems;
-    private ObservableList<SFTPManagerDialog.FileItem> remoteItems;
-    private FilteredList<SFTPManagerDialog.FileItem> filteredLocalItems;
-    private FilteredList<SFTPManagerDialog.FileItem> filteredRemoteItems;
-    private javafx.collections.transformation.SortedList<SFTPManagerDialog.FileItem> sortedLocalItems;
-    private javafx.collections.transformation.SortedList<SFTPManagerDialog.FileItem> sortedRemoteItems;
+    private ObservableList<SftpFileItem> localItems;
+    private ObservableList<SftpFileItem> remoteItems;
+    private FilteredList<SftpFileItem> filteredLocalItems;
+    private FilteredList<SftpFileItem> filteredRemoteItems;
+    private javafx.collections.transformation.SortedList<SftpFileItem> sortedLocalItems;
+    private javafx.collections.transformation.SortedList<SftpFileItem> sortedRemoteItems;
     
     // Auto-close timeout
     private Timeline autoCloseTimer;
@@ -397,7 +398,7 @@ public class SFTPManagerTab extends Tab {
         HBox.setHgrow(remoteButtons, Priority.ALWAYS);
         
         Runnable updateLocalSelectionActions = () -> {
-            SFTPManagerDialog.FileItem selected = localTable.getSelectionModel().getSelectedItem();
+            SftpFileItem selected = localTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
             uploadButton.setDisable(!hasSelection);
             deleteLocalButton.setDisable(!hasSelection);
@@ -406,7 +407,7 @@ public class SFTPManagerTab extends Tab {
         };
 
         Runnable updateRemoteSelectionActions = () -> {
-            SFTPManagerDialog.FileItem selected = remoteTable.getSelectionModel().getSelectedItem();
+            SftpFileItem selected = remoteTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
             downloadButton.setDisable(!hasSelection);
             archiveButton.setDisable(!hasSelection);
@@ -425,9 +426,9 @@ public class SFTPManagerTab extends Tab {
         localTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         remoteTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         localTable.getSelectionModel().getSelectedItems().addListener(
-            (ListChangeListener<SFTPManagerDialog.FileItem>) change -> updateLocalSelectionActions.run());
+            (ListChangeListener<SftpFileItem>) change -> updateLocalSelectionActions.run());
         remoteTable.getSelectionModel().getSelectedItems().addListener(
-            (ListChangeListener<SFTPManagerDialog.FileItem>) change -> updateRemoteSelectionActions.run());
+            (ListChangeListener<SftpFileItem>) change -> updateRemoteSelectionActions.run());
         
         return buttonBox;
     }
@@ -466,48 +467,48 @@ public class SFTPManagerTab extends Tab {
         localTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         
         // Column order: Name, Type, Size, Date, User, Group, Permissions
-        TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
+        TableColumn<SftpFileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameColumn.setPrefWidth(180);
         nameColumn.setMinWidth(100);
         nameColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> typeColumn = new TableColumn<>(I18n.get("sftp.column.type"));
+        TableColumn<SftpFileItem, String> typeColumn = new TableColumn<>(I18n.get("sftp.column.type"));
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
         typeColumn.setPrefWidth(50);
         typeColumn.setMinWidth(40);
         typeColumn.setMaxWidth(60);
         typeColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
+        TableColumn<SftpFileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         sizeColumn.setPrefWidth(80);
         sizeColumn.setMinWidth(60);
         sizeColumn.setMaxWidth(100);
         sizeColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
+        TableColumn<SftpFileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         dateColumn.setPrefWidth(130);
         dateColumn.setMinWidth(110);
         dateColumn.setMaxWidth(150);
         dateColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> userColumn = new TableColumn<>(I18n.get("sftp.column.user"));
+        TableColumn<SftpFileItem, String> userColumn = new TableColumn<>(I18n.get("sftp.column.user"));
         userColumn.setCellValueFactory(new PropertyValueFactory<>("owner"));
         userColumn.setPrefWidth(70);
         userColumn.setMinWidth(50);
         userColumn.setMaxWidth(100);
         userColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> groupColumn = new TableColumn<>(I18n.get("sftp.column.group"));
+        TableColumn<SftpFileItem, String> groupColumn = new TableColumn<>(I18n.get("sftp.column.group"));
         groupColumn.setCellValueFactory(new PropertyValueFactory<>("group"));
         groupColumn.setPrefWidth(70);
         groupColumn.setMinWidth(50);
         groupColumn.setMaxWidth(100);
         groupColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
+        TableColumn<SftpFileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
         permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
         permColumn.setPrefWidth(80);
         permColumn.setMinWidth(60);
@@ -522,10 +523,10 @@ public class SFTPManagerTab extends Tab {
         
         // Double-click to navigate
         localTable.setRowFactory(tv -> {
-            TableRow<SFTPManagerDialog.FileItem> row = new TableRow<>();
+            TableRow<SftpFileItem> row = new TableRow<>();
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
-                    SFTPManagerDialog.FileItem item = row.getItem();
+                    SftpFileItem item = row.getItem();
                     if (!item.isFile()) {
                         navigateLocal(item.getPath());
                     }
@@ -546,7 +547,7 @@ public class SFTPManagerTab extends Tab {
                 return true;
             }
             
-            TableColumn<SFTPManagerDialog.FileItem, ?> primaryColumn = table.getSortOrder().get(0);
+            TableColumn<SftpFileItem, ?> primaryColumn = table.getSortOrder().get(0);
             boolean ascending = primaryColumn.getSortType() == TableColumn.SortType.ASCENDING;
             String columnName = primaryColumn.getText();
             
@@ -618,48 +619,48 @@ public class SFTPManagerTab extends Tab {
         remoteTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         
         // Column order: Name, Type, Size, Date, User, Group, Permissions
-        TableColumn<SFTPManagerDialog.FileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
+        TableColumn<SftpFileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameColumn.setPrefWidth(180);
         nameColumn.setMinWidth(100);
         nameColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> typeColumn = new TableColumn<>(I18n.get("sftp.column.type"));
+        TableColumn<SftpFileItem, String> typeColumn = new TableColumn<>(I18n.get("sftp.column.type"));
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
         typeColumn.setPrefWidth(50);
         typeColumn.setMinWidth(40);
         typeColumn.setMaxWidth(60);
         typeColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
+        TableColumn<SftpFileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         sizeColumn.setPrefWidth(80);
         sizeColumn.setMinWidth(60);
         sizeColumn.setMaxWidth(100);
         sizeColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
+        TableColumn<SftpFileItem, String> dateColumn = new TableColumn<>(I18n.get("sftp.column.date"));
         dateColumn.setCellValueFactory(new PropertyValueFactory<>("date"));
         dateColumn.setPrefWidth(130);
         dateColumn.setMinWidth(110);
         dateColumn.setMaxWidth(150);
         dateColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> userColumn = new TableColumn<>(I18n.get("sftp.column.user"));
+        TableColumn<SftpFileItem, String> userColumn = new TableColumn<>(I18n.get("sftp.column.user"));
         userColumn.setCellValueFactory(new PropertyValueFactory<>("owner"));
         userColumn.setPrefWidth(70);
         userColumn.setMinWidth(50);
         userColumn.setMaxWidth(100);
         userColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> groupColumn = new TableColumn<>(I18n.get("sftp.column.group"));
+        TableColumn<SftpFileItem, String> groupColumn = new TableColumn<>(I18n.get("sftp.column.group"));
         groupColumn.setCellValueFactory(new PropertyValueFactory<>("group"));
         groupColumn.setPrefWidth(70);
         groupColumn.setMinWidth(50);
         groupColumn.setMaxWidth(100);
         groupColumn.setSortable(true);
         
-        TableColumn<SFTPManagerDialog.FileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
+        TableColumn<SftpFileItem, String> permColumn = new TableColumn<>(I18n.get("sftp.column.permissions"));
         permColumn.setCellValueFactory(new PropertyValueFactory<>("permissions"));
         permColumn.setPrefWidth(80);
         permColumn.setMinWidth(60);
@@ -670,10 +671,10 @@ public class SFTPManagerTab extends Tab {
         
         // Double-click to navigate, right-click for context menu
         remoteTable.setRowFactory(tv -> {
-            TableRow<SFTPManagerDialog.FileItem> row = new TableRow<>();
+            TableRow<SftpFileItem> row = new TableRow<>();
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
-                    SFTPManagerDialog.FileItem item = row.getItem();
+                    SftpFileItem item = row.getItem();
                     if (!item.isFile()) {
                         navigateRemote(item.getPath());
                     }
@@ -698,7 +699,7 @@ public class SFTPManagerTab extends Tab {
                 return true;
             }
             
-            TableColumn<SFTPManagerDialog.FileItem, ?> primaryColumn = table.getSortOrder().get(0);
+            TableColumn<SftpFileItem, ?> primaryColumn = table.getSortOrder().get(0);
             boolean ascending = primaryColumn.getSortType() == TableColumn.SortType.ASCENDING;
             String columnName = primaryColumn.getText();
             
@@ -815,7 +816,7 @@ public class SFTPManagerTab extends Tab {
             if (files != null) {
                 // Add parent directory entry
                 if (currentLocalPath.getParent() != null) {
-                    localItems.add(new SFTPManagerDialog.FileItem("..", 
+                    localItems.add(SftpFileItem.fromDetails("..",
                         currentLocalPath.getParent().toString(), false, "—", "", "", "", ""));
                 }
                 
@@ -826,7 +827,7 @@ public class SFTPManagerTab extends Tab {
                     String permissions = getLocalFilePermissions(file.toPath());
                     String owner = getLocalFileOwner(file.toPath());
                     String group = getLocalFileGroup(file.toPath());
-                    localItems.add(new SFTPManagerDialog.FileItem(file.getName(), 
+                    localItems.add(SftpFileItem.fromDetails(file.getName(),
                         file.getAbsolutePath(), file.isFile(), size, date, permissions, owner, group));
                 }
             }
@@ -905,7 +906,7 @@ public class SFTPManagerTab extends Tab {
                 }
                 
                 String fullPath = pathToList.endsWith("/") ? pathToList + name : pathToList + "/" + name;
-                remoteItems.add(new SFTPManagerDialog.FileItem(name, fullPath, !isDir, size, date, permissions, owner, group));
+                remoteItems.add(SftpFileItem.fromDetails(name, fullPath, !isDir, size, date, permissions, owner, group));
             }
             
             remotePathField.setText(currentRemotePath);
@@ -988,7 +989,7 @@ public class SFTPManagerTab extends Tab {
         if (sftpSession == null || !sftpSession.isConnected()) return;
         
         // Collect items to upload (filter out "..")
-        List<SFTPManagerDialog.FileItem> itemsToUpload = new ArrayList<>();
+        List<SftpFileItem> itemsToUpload = new ArrayList<>();
         for (var item : selected) {
             if (!item.getName().equals("..")) {
                 itemsToUpload.add(item);
@@ -1031,7 +1032,7 @@ public class SFTPManagerTab extends Tab {
         }, "SFTP-Upload").start();
     }
     
-    private void uploadSingleFile(SFTPManagerDialog.FileItem item) throws Exception {
+    private void uploadSingleFile(SftpFileItem item) throws Exception {
         String remotePath = currentRemotePath.endsWith("/") 
             ? currentRemotePath + item.getName() 
             : currentRemotePath + "/" + item.getName();
@@ -1064,7 +1065,7 @@ public class SFTPManagerTab extends Tab {
         if (sftpSession == null || !sftpSession.isConnected()) return;
         
         // Collect items to download (filter out "..")
-        List<SFTPManagerDialog.FileItem> itemsToDownload = new ArrayList<>();
+        List<SftpFileItem> itemsToDownload = new ArrayList<>();
         for (var item : selected) {
             if (!item.getName().equals("..")) {
                 itemsToDownload.add(item);
@@ -1107,7 +1108,7 @@ public class SFTPManagerTab extends Tab {
         }, "SFTP-Download").start();
     }
     
-    private void downloadSingleFile(SFTPManagerDialog.FileItem item) throws Exception {
+    private void downloadSingleFile(SftpFileItem item) throws Exception {
         Path localPath = currentLocalPath.resolve(item.getName());
         
         if (item.isFile()) {
@@ -1153,7 +1154,7 @@ public class SFTPManagerTab extends Tab {
         }
     }
     
-    private void copyLocalFile(SFTPManagerDialog.FileItem item, Path targetDir) {
+    private void copyLocalFile(SftpFileItem item, Path targetDir) {
         try {
             Path source = Paths.get(item.getPath());
             Path target = targetDir.resolve(item.getName());
@@ -1207,7 +1208,7 @@ public class SFTPManagerTab extends Tab {
         });
     }
     
-    private void copyRemoteFile(SFTPManagerDialog.FileItem item, String targetPath) {
+    private void copyRemoteFile(SftpFileItem item, String targetPath) {
         if (sftpSession == null || !sftpSession.isConnected()) return;
         
         new Thread(() -> {
@@ -1370,7 +1371,7 @@ public class SFTPManagerTab extends Tab {
         if (selected == null || selected.isEmpty()) return;
         
         // Filter out ".." and collect items to delete
-        List<SFTPManagerDialog.FileItem> toDelete = new java.util.ArrayList<>();
+        List<SftpFileItem> toDelete = new java.util.ArrayList<>();
         for (var item : selected) {
             if (!item.getName().equals("..")) {
                 toDelete.add(item);
@@ -1467,7 +1468,7 @@ public class SFTPManagerTab extends Tab {
         }
         
         // Filter out ".."
-        List<SFTPManagerDialog.FileItem> items = new java.util.ArrayList<>();
+        List<SftpFileItem> items = new java.util.ArrayList<>();
         for (var item : selected) {
             if (!item.getName().equals("..")) {
                 items.add(item);
@@ -1476,7 +1477,7 @@ public class SFTPManagerTab extends Tab {
         if (items.isEmpty()) return;
         
         // Get current values from first selected item for pre-filling
-        SFTPManagerDialog.FileItem firstItem = items.get(0);
+        SftpFileItem firstItem = items.get(0);
         String currentOwner = firstItem.getOwner();
         String currentGroup = firstItem.getGroup();
         String currentPerms = getOctalPermissions(firstItem.getPermissions());
@@ -1603,7 +1604,7 @@ public class SFTPManagerTab extends Tab {
         }
     }
     
-    private void applyOwnerPermissions(List<SFTPManagerDialog.FileItem> items, String owner, String perms, boolean recursive) {
+    private void applyOwnerPermissions(List<SftpFileItem> items, String owner, String perms, boolean recursive) {
         // Show progress dialog
         Dialog<Void> progressDialog = new Dialog<>();
         progressDialog.setTitle(I18n.get("sftp.setOwner.title"));
@@ -2219,7 +2220,7 @@ public class SFTPManagerTab extends Tab {
      * 4. Files starting with "." (hidden files), alphabetically
      * 5. All other files, alphabetically
      */
-    private static int typeSortKey(SFTPManagerDialog.FileItem item) {
+    private static int typeSortKey(SftpFileItem item) {
         String name = item.getName();
         if (name.equals("..")) return 0;
         boolean isDir = !item.isFile();
@@ -2230,7 +2231,7 @@ public class SFTPManagerTab extends Tab {
         return 4; // file, no leading dot
     }
     
-    private java.util.Comparator<SFTPManagerDialog.FileItem> createTypeSortComparator(boolean ascending) {
+    private java.util.Comparator<SftpFileItem> createTypeSortComparator(boolean ascending) {
         return (item1, item2) -> {
             int key1 = typeSortKey(item1);
             int key2 = typeSortKey(item2);
@@ -2278,7 +2279,7 @@ public class SFTPManagerTab extends Tab {
         if (selected == null || selected.isEmpty()) return;
         
         // Filter out ".." and collect items to delete
-        List<SFTPManagerDialog.FileItem> toDelete = new java.util.ArrayList<>();
+        List<SftpFileItem> toDelete = new java.util.ArrayList<>();
         for (var item : selected) {
             if (!item.getName().equals("..")) {
                 toDelete.add(item);
@@ -2375,7 +2376,7 @@ public class SFTPManagerTab extends Tab {
         if (selected == null || selected.isEmpty()) return;
         
         // Filter out ".."
-        List<SFTPManagerDialog.FileItem> items = new java.util.ArrayList<>();
+        List<SftpFileItem> items = new java.util.ArrayList<>();
         for (var item : selected) {
             if (!item.getName().equals("..")) {
                 items.add(item);
@@ -2385,7 +2386,7 @@ public class SFTPManagerTab extends Tab {
         if (items.isEmpty()) return;
         
         // Get current values from first selected item
-        SFTPManagerDialog.FileItem firstItem = items.get(0);
+        SftpFileItem firstItem = items.get(0);
         String currentOwner = getLocalFileOwner(Paths.get(firstItem.getPath()));
         String currentGroup = getLocalFileGroup(Paths.get(firstItem.getPath()));
         String currentPerms = getOctalPermissions(firstItem.getPermissions());
@@ -2504,7 +2505,7 @@ public class SFTPManagerTab extends Tab {
         }
     }
     
-    private void applyLocalOwnerPermissions(List<SFTPManagerDialog.FileItem> items, String owner, 
+    private void applyLocalOwnerPermissions(List<SftpFileItem> items, String owner, 
                                             String permissions, boolean recursive) {
         Dialog<Void> progressDialog = new Dialog<>();
         progressDialog.setTitle(I18n.get("sftp.setOwner.title"));
@@ -3126,23 +3127,23 @@ public class SFTPManagerTab extends Tab {
         }
     }
 
-    private boolean isSingleEditableFileSelection(TableView<SFTPManagerDialog.FileItem> table) {
+    private boolean isSingleEditableFileSelection(TableView<SftpFileItem> table) {
         var selectedItems = table.getSelectionModel().getSelectedItems();
         if (selectedItems == null || selectedItems.size() != 1) {
             return false;
         }
-        SFTPManagerDialog.FileItem selected = selectedItems.get(0);
+        SftpFileItem selected = selectedItems.get(0);
         return selected != null && selected.isFile() && !"..".equals(selected.getName());
     }
 
-    private SFTPManagerDialog.FileItem getSingleEditableFileSelection(TableView<SFTPManagerDialog.FileItem> table) {
+    private SftpFileItem getSingleEditableFileSelection(TableView<SftpFileItem> table) {
         return isSingleEditableFileSelection(table)
             ? table.getSelectionModel().getSelectedItems().get(0)
             : null;
     }
 
     private void openSelectedRemoteFileInSnippetEditor() {
-        SFTPManagerDialog.FileItem selected = getSingleEditableFileSelection(remoteTable);
+        SftpFileItem selected = getSingleEditableFileSelection(remoteTable);
         if (selected == null) {
             return;
         }
@@ -3163,7 +3164,7 @@ public class SFTPManagerTab extends Tab {
     }
 
     private void openSelectedLocalFileInSnippetEditor() {
-        SFTPManagerDialog.FileItem selected = getSingleEditableFileSelection(localTable);
+        SftpFileItem selected = getSingleEditableFileSelection(localTable);
         if (selected == null) {
             return;
         }
@@ -3183,7 +3184,7 @@ public class SFTPManagerTab extends Tab {
         }, "sftp-local-snippet-loader").start();
     }
 
-    private void openRemoteSnippetFileDialog(SFTPManagerDialog.FileItem selected, String content) {
+    private void openRemoteSnippetFileDialog(SftpFileItem selected, String content) {
         Snippet snippet = createFileSnippetDraft(selected.getName(), content);
         SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
             selected.getPath(),
@@ -3200,7 +3201,7 @@ public class SFTPManagerTab extends Tab {
         showSnippetFileDialog(snippet, config);
     }
 
-    private void openLocalSnippetFileDialog(SFTPManagerDialog.FileItem selected, Path filePath, String content) {
+    private void openLocalSnippetFileDialog(SftpFileItem selected, Path filePath, String content) {
         Snippet snippet = createFileSnippetDraft(selected.getName(), content);
         SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
             filePath.toString(),
