@@ -43,9 +43,6 @@ import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Popup;
 import javafx.util.Duration;
-import org.fxmisc.richtext.InlineCssTextArea;
-import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,7 +70,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final ProgressIndicator snippetAiProgressIndicator;
     private final Label snippetAiHintLabel;
     private final Button cancelSnippetAiActionButton;
-    private final InlineCssTextArea contentArea;
+    private final MonacoEditorPane contentArea;
+    private final SnippetColumnRuler columnRuler;
     private final ToggleButton markupPreviewToggleButton;
     private final WebView markupPreviewView;
     private final TextArea aiAdditionalInstructionsArea;
@@ -520,7 +518,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         cancelSnippetAiActionButton.setVisible(false);
         
         // Content area with syntax highlighting – use saved editor settings
-        contentArea = new InlineCssTextArea();
+        contentArea = new MonacoEditorPane();
         contentArea.setPrefHeight(350);
         contentArea.setPrefWidth(600);
         EditorSettingsHelper.applyStyle(contentArea, editorSettings);
@@ -544,8 +542,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 refreshBlockCaretSoon();
             }
         });
+
+        columnRuler = new SnippetColumnRuler();
+        columnRuler.setEditorAppearance(editorSettings);
+        columnRuler.setOnLimitColumnChanged(contentArea::setRulerColumn);
+        columnRuler.setOnFormatAtLimit(this::runFormatToRulerWidth);
+        contentArea.editorContentLeftProperty().addListener((obs, oldValue, newValue) -> updateColumnRulerMetrics());
+        contentArea.editorCharacterWidthProperty().addListener((obs, oldValue, newValue) -> updateColumnRulerMetrics());
+        contentArea.editorScrollLeftProperty().addListener((obs, oldValue, newValue) -> updateColumnRulerMetrics());
+        contentArea.caretVisualXProperty().addListener((obs, oldValue, newValue) -> updateColumnRulerCaret());
         
-        // Wrap content area in VirtualizedScrollPane for scrollbars
+        // Wrap content area in Monaco editor for scrollbars
         var contentScrollPane = EditorSettingsHelper.createScrollPane(contentArea);
         VBox.setVgrow(contentScrollPane, Priority.ALWAYS);
 
@@ -560,6 +567,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         markupPreviewToggleButton.selectedProperty().addListener((obs, oldValue, selected) -> handleMarkupPreviewToggle(selected));
         contentScrollPane.visibleProperty().bind(markupPreviewToggleButton.selectedProperty().not());
         contentScrollPane.managedProperty().bind(contentScrollPane.visibleProperty());
+        columnRuler.visibleProperty().bind(markupPreviewToggleButton.selectedProperty().not());
+        columnRuler.managedProperty().bind(columnRuler.visibleProperty());
         markupPreviewView.visibleProperty().bind(markupPreviewToggleButton.selectedProperty());
         markupPreviewView.managedProperty().bind(markupPreviewView.visibleProperty());
         markupPreviewRefreshDelay.setOnFinished(event -> refreshMarkupPreview());
@@ -610,14 +619,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             updateSaveButtonState();
             updateExternalFileButtonState();
             updateAiActionAvailability();
+            updateColumnRulerCaret();
             scheduleMarkupPreviewRefresh();
             scheduleAutoCompletion();
         });
         contentArea.selectionProperty().addListener((obs, oldSelection, newSelection) -> updateAiActionAvailability());
         contentArea.caretPositionProperty().addListener((obs, oldValue, newValue) -> {
             hideCompletionSuggestion();
+            updateColumnRulerCaret();
             scheduleAutoCompletion();
         });
+        contentArea.caretColumnProperty().addListener((obs, oldValue, newValue) -> updateColumnRulerCaret());
         autoCompletionDelay.setOnFinished(event -> runAutoCompletionIfReady());
         
         // Placeholder info label
@@ -765,7 +777,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
         formGrid.add(aiAdditionalInstructionsBox, 0, 6, 2, 1);
 
-        VBox contentBox = new VBox(5, contentStack, placeholderInfo);
+        updateColumnRulerMetrics();
+        updateColumnRulerCaret();
+
+        VBox contentBox = new VBox(0, columnRuler, contentStack, placeholderInfo);
+        VBox.setMargin(placeholderInfo, new Insets(5, 0, 0, 0));
         VBox.setVgrow(contentStack, Priority.ALWAYS);
         formGrid.add(contentBox, 0, 7, 2, 1);
         GridPane.setVgrow(contentBox, Priority.ALWAYS);
@@ -1487,6 +1503,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private void applyEditorAppearance() {
         EditorSettingsHelper.applyStyle(contentArea, editorSettings);
+        if (columnRuler != null) {
+            columnRuler.setEditorAppearance(editorSettings);
+        }
         if (lineNumbersCheckBox != null && lineNumbersCheckBox.isSelected()) {
             EditorSettingsHelper.applyLineNumbers(contentArea, true, editorSettings);
         }
@@ -1575,6 +1594,23 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (okButton != null) {
             okButton.setDisable(!valid);
         }
+    }
+
+    private void updateColumnRulerMetrics() {
+        if (columnRuler == null || contentArea == null) {
+            return;
+        }
+        columnRuler.setEditorMetrics(
+            contentArea.editorContentLeftProperty().get(),
+            contentArea.editorCharacterWidthProperty().get(),
+            contentArea.editorScrollLeftProperty().get());
+    }
+
+    private void updateColumnRulerCaret() {
+        if (columnRuler == null || contentArea == null) {
+            return;
+        }
+        columnRuler.setCaretColumn(contentArea.getCaretColumn(), contentArea.getCaretVisualX());
     }
 
     private ContextMenu createEditorContextMenu() {
@@ -2066,6 +2102,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
+        contentArea.syncFromEditor();
         IndexRange selection = contentArea.getSelection();
         String fullContent = contentArea.getText();
         if (fullContent == null || fullContent.isBlank()) {
@@ -3180,10 +3217,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runFormat() {
+        runFormat(null);
+    }
+
+    private void runFormatToRulerWidth() {
+        int lineWidth = columnRuler != null ? columnRuler.getLimitColumn() : 0;
+        if (lineWidth <= 0) {
+            setStatus(I18n.get("snippets.ruler.noLimit"));
+            return;
+        }
+        runFormat(lineWidth);
+    }
+
+    private void runFormat(Integer maxLineLength) {
         String lang = languageCombo.getValue();
         CodeFormatterService.FormatterInfo formatterInfo = CodeFormatterService.getFormatterInfo(lang);
         if (formatterInfo == null) {
             setStatus(I18n.get("editor.format.notSupported", lang != null ? lang : "plain"));
+            return;
+        }
+        if (maxLineLength != null && !CodeFormatterService.supportsLineWidth(lang)) {
+            showAlert(I18n.get("snippets.ruler.formatNotSupported", lang != null ? lang : "plain"), Alert.AlertType.WARNING);
+            setStatus(I18n.get("snippets.ruler.formatNotSupported", lang != null ? lang : "plain"));
             return;
         }
         if (!CodeFormatterService.isFormatterAvailable(formatterInfo)) {
@@ -3193,7 +3248,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         int start = contentArea.getSelection().getStart();
         int end = contentArea.getSelection().getEnd();
         String text;
-        boolean selectionOnly = (end > start);
+        boolean selectionOnly = maxLineLength == null && (end > start);
         if (selectionOnly) {
             text = contentArea.getSelectedText();
             if (text == null || text.isBlank()) return;
@@ -3204,7 +3259,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Task<String> task = new Task<>() {
             @Override
             protected String call() throws Exception {
-                return CodeFormatterService.formatOrThrow(text, lang);
+                return CodeFormatterService.formatOrThrow(text, lang, maxLineLength);
             }
         };
         task.setOnRunning(event -> {
@@ -3219,7 +3274,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 return;
             }
             if (formatted.equals(text)) {
-                setStatus(I18n.get("editor.format.noChanges"));
+                if (maxLineLength == null) {
+                    setStatus(I18n.get("editor.format.noChanges"));
+                } else {
+                    setFormatSuccessStatus(formatted, maxLineLength);
+                }
                 return;
             }
             clearLastAiChangeSnapshot();
@@ -3237,7 +3296,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 programmaticContentUpdate = false;
             }
             applyHighlighting();
-            setStatus(I18n.get("editor.format.success"));
+            setFormatSuccessStatus(formatted, maxLineLength);
         });
         task.setOnFailed(event -> {
             updateFormatLintButtonState();
@@ -3250,6 +3309,42 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Thread thread = new Thread(task, "snippet-code-formatter");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private void setFormatSuccessStatus(String formatted, Integer maxLineLength) {
+        if (maxLineLength == null) {
+            setStatus(I18n.get("editor.format.success"));
+            return;
+        }
+        int overLimitLineCount = countLinesLongerThan(formatted, maxLineLength);
+        if (overLimitLineCount > 0) {
+            setStatus(I18n.get("snippets.ruler.formatPartial", overLimitLineCount, maxLineLength));
+            return;
+        }
+        setStatus(I18n.get("snippets.ruler.formatSuccess", maxLineLength));
+    }
+
+    private static int countLinesLongerThan(String text, int maxLineLength) {
+        if (text == null || maxLineLength <= 0) {
+            return 0;
+        }
+        int count = 0;
+        int currentLength = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\n') {
+                if (currentLength > maxLineLength) {
+                    count++;
+                }
+                currentLength = 0;
+            } else if (c != '\r') {
+                currentLength++;
+            }
+        }
+        if (currentLength > maxLineLength) {
+            count++;
+        }
+        return count;
     }
 
     private void showFormatterUnavailable(CodeFormatterService.FormatterInfo formatterInfo) {
@@ -3308,305 +3403,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private void refreshBlockCaretSoon() {
         EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings);
-        // Run once more on the next pulse, because RichTextFX may recreate caret after key handling.
+        // Run once more on the next pulse, because Monaco Editor may recreate caret after key handling.
         Platform.runLater(() -> EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings));
     }
     
-    // ---- Syntax Highlighting ----
-    
+    // ---- Monaco Syntax Highlighting ----
+
     private void applyHighlighting() {
-        try {
-            String text = contentArea.getText();
-            if (text == null || text.isEmpty()) return;
-            
-            String lang = languageCombo.getValue();
-            String plainStyle = EditorSettingsHelper.getPlainTextStyle(editorSettings);
-            String fontStyle = EditorSettingsHelper.getEditorFontStyle(editorSettings);
-            StyleSpans<String> spans = computeHighlighting(text, lang, plainStyle, fontStyle, editorProfile);
-            contentArea.setStyleSpans(0, spans);
-        } catch (Exception e) {
-            // Ignore highlighting errors
+        if (contentArea != null && languageCombo != null) {
+            contentArea.setLanguage(languageCombo.getValue());
         }
-    }
-    
-    static StyleSpans<String> computeHighlighting(String text, String language) {
-        return computeHighlighting(text, language, STYLE_PLAIN);
-    }
-    
-    static StyleSpans<String> computeHighlighting(String text, String language, String plainStyle) {
-        return computeHighlighting(text, language, plainStyle, "");
-    }
-
-    static StyleSpans<String> computeHighlighting(String text, String language, String plainStyle, String fontStyle) {
-        return computeHighlighting(text, language, plainStyle, fontStyle, null);
-    }
-
-    static StyleSpans<String> computeHighlighting(
-        String text,
-        String language,
-        String plainStyle,
-        String fontStyle,
-        SnippetEditorProfile profile) {
-
-        language = SnippetLanguageSupport.normalizeSnippetLanguage(language);
-        HighlightStyles styles = profile != null ? profileHighlightStyles(profile) : defaultHighlightStyles();
-        return switch (language) {
-            case "bash", "shell", "sh", "zsh" -> applyPattern(text, computeBashPattern(), plainStyle, fontStyle, styles);
-            case "python" -> applyPattern(text, computePythonPattern(), plainStyle, fontStyle, styles);
-            case "perl", "pl" -> applyPattern(text, computePerlPattern(), plainStyle, fontStyle, styles);
-            case "ruby", "rb" -> applyPattern(text, computeRubyPattern(), plainStyle, fontStyle, styles);
-            case "java", "groovy" -> applyPattern(text, computeJavaPattern(), plainStyle, fontStyle, styles);
-            case "javascript" -> applyPattern(text, computeJavaScriptPattern(), plainStyle, fontStyle, styles);
-            case "powershell" -> applyPattern(text, computePowerShellPattern(), plainStyle, fontStyle, styles);
-            case "sql" -> applyPattern(text, computeSqlPattern(), plainStyle, fontStyle, styles);
-            case "xml" -> applyPattern(text, computeXmlPattern(), plainStyle, fontStyle, styles);
-            case "json" -> applyPattern(text, computeJsonPattern(), plainStyle, fontStyle, styles);
-            case "yaml" -> applyPattern(text, computeYamlPattern(), plainStyle, fontStyle, styles);
-            case "properties", "ini" -> applyPattern(text, computeIniPattern(), plainStyle, fontStyle, styles);
-            case "dockerfile" -> applyPattern(text, computeDockerfilePattern(), plainStyle, fontStyle, styles);
-            case "markdown" -> applyPattern(text, computeMarkdownPattern(), plainStyle, fontStyle, styles);
-            default -> StyleSpans.singleton(mergeInlineStyles(fontStyle, plainStyle), text.length());
-        };
-    }
-
-    private record HighlightStyles(
-        String comment,
-        String string,
-        String number,
-        String bool,
-        String key,
-        String keyword,
-        String section,
-        String variable,
-        String brace) {
-    }
-
-    private static HighlightStyles defaultHighlightStyles() {
-        return new HighlightStyles(
-            STYLE_COMMENT,
-            STYLE_STRING,
-            STYLE_NUMBER,
-            STYLE_BOOLEAN,
-            STYLE_KEY,
-            STYLE_KEYWORD,
-            STYLE_SECTION,
-            STYLE_VARIABLE,
-            STYLE_BRACE);
-    }
-
-    private static HighlightStyles profileHighlightStyles(SnippetEditorProfile profile) {
-        SnippetEditorProfile normalized = SnippetEditorProfileSupport.normalize(profile);
-        return new HighlightStyles(
-            fillStyle(normalized.getCommentColor(), "-fx-font-style: italic;"),
-            fillStyle(normalized.getStringColor(), ""),
-            fillStyle(normalized.getNumberColor(), ""),
-            fillStyle(normalized.getBooleanColor(), "-fx-font-weight: bold;"),
-            fillStyle(normalized.getKeyColor(), "-fx-font-weight: bold;"),
-            fillStyle(normalized.getKeywordColor(), "-fx-font-weight: bold;"),
-            fillStyle(normalized.getSectionColor(), "-fx-font-weight: bold;"),
-            fillStyle(normalized.getVariableColor(), ""),
-            fillStyle(normalized.getBraceColor(), "-fx-font-weight: bold;"));
-    }
-
-    private static String fillStyle(String color, String additionalStyle) {
-        String fill = "-fx-fill: " + SnippetEditorProfileSupport.hex(color, "#D4D4D4") + ";";
-        return additionalStyle == null || additionalStyle.isBlank() ? fill : fill + " " + additionalStyle;
-    }
-    
-    private static Pattern computeBashPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'[^']*')" +
-            "|(?<VARIABLE>\\$\\{?[\\w]+}?)" +
-            "|(?<KEYWORD>\\b(if|then|else|elif|fi|for|while|do|done|case|esac|function|return|local|export|source|echo|exit|cd|ls|grep|awk|sed|cat|chmod|chown|mkdir|rm|cp|mv|find|xargs|curl|wget|sudo|apt|yum|dnf|pip|npm|docker|kubectl|git|ssh|scp|rsync|tar|zip|unzip|gzip|gunzip)\\b)" +
-            "|(?<NUMBER>\\b\\d+\\b)"
-        );
-    }
-    
-    private static Pattern computePythonPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(def|class|import|from|as|if|elif|else|for|while|with|try|except|finally|raise|return|yield|lambda|and|or|not|in|is|None|True|False|pass|break|continue|global|nonlocal|assert|del|print)\\b)" +
-            "|(?<NUMBER>\\b\\d+\\.?\\d*\\b)" +
-            "|(?<VARIABLE>\\bself\\b)"
-        );
-    }
-
-    private static Pattern computePerlPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(?:my|our|local|sub|use|require|package|if|elsif|else|unless|while|until|for|foreach|do|next|last|return|die|warn|print|say|chomp|chop|push|pop|shift|unshift|splice|keys|values|exists|delete|defined|undef|BEGIN|END)\\b)" +
-            "|(?<VARIABLE>\\$\\w+|@\\w+|%\\w+)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<FUNCTION>\\b\\w+(?=\\())",
-            Pattern.MULTILINE
-        );
-    }
-
-    private static Pattern computeRubyPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|%[qQ]?\\{[^}]*})" +
-            "|(?<KEYWORD>\\b(?:def|class|module|if|elsif|else|unless|case|when|while|until|for|in|do|end|begin|rescue|ensure|return|yield|break|next|redo|retry|super|self|nil|true|false|require|include|extend|attr_reader|attr_writer|attr_accessor)\\b)" +
-            "|(?<VARIABLE>@?@?\\w+|:\\w+)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)",
-            Pattern.MULTILINE
-        );
-    }
-    
-    private static Pattern computeJavaPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>//.*|/\\*[\\s\\S]*?\\*/)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")" +
-            "|(?<KEYWORD>\\b(public|private|protected|static|final|abstract|class|interface|extends|implements|new|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|import|package|void|int|long|double|float|boolean|char|byte|short|String|var|record|sealed|permits|yield)\\b)" +
-            "|(?<NUMBER>\\b\\d+\\.?\\d*[fFdDlL]?\\b)" +
-            "|(?<BOOLEAN>\\b(true|false|null)\\b)"
-        );
-    }
-    
-    private static Pattern computeJavaScriptPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>//.*|/\\*[\\s\\S]*?\\*/)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|`([^`\\\\]|\\\\.)*`)" +
-            "|(?<KEYWORD>\\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|class|extends|import|export|from|default|async|await|yield|typeof|instanceof)\\b)" +
-            "|(?<NUMBER>\\b\\d+\\.?\\d*\\b)" +
-            "|(?<BOOLEAN>\\b(true|false|null|undefined|NaN)\\b)"
-        );
-    }
-
-    private static Pattern computePowerShellPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(?:function|param|if|elseif|else|switch|foreach|for|while|do|until|return|break|continue|try|catch|finally|throw|trap|begin|process|end|filter|in|not|and|or|eq|ne|gt|lt|ge|le)\\b)" +
-            "|(?<VARIABLE>\\$[A-Za-z_][A-Za-z0-9_:]*)" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)",
-            Pattern.MULTILINE
-        );
-    }
-    
-    private static Pattern computeSqlPattern() {
-        return Pattern.compile(
-            "(?i)(?<COMMENT>--.*|/\\*[\\s\\S]*?\\*/)" +
-            "|(?<STRING>'([^'\\\\]|\\\\.)*')" +
-            "|(?<KEYWORD>\\b(SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|ALTER|DROP|INDEX|VIEW|JOIN|LEFT|RIGHT|INNER|OUTER|CROSS|ON|AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE|IS|NULL|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|UNION|ALL|DISTINCT|COUNT|SUM|AVG|MAX|MIN|CASE|WHEN|THEN|ELSE|END|BEGIN|COMMIT|ROLLBACK|GRANT|REVOKE|PRIMARY|KEY|FOREIGN|REFERENCES|CONSTRAINT|DEFAULT|CHECK|UNIQUE|AUTO_INCREMENT)\\b)" +
-            "|(?<NUMBER>\\b\\d+\\.?\\d*\\b)"
-        );
-    }
-    
-    private static Pattern computeXmlPattern() {
-        return Pattern.compile(
-            "(?<COMMENT><!--[\\s\\S]*?-->)" +
-            "|(?<KEYWORD></?\\w+[^>]*>)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")"
-        );
-    }
-    
-    private static Pattern computeJsonPattern() {
-        return Pattern.compile(
-            "(?<KEY>\"([^\"\\\\]|\\\\.)*\"\\s*(?=:))" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")" +
-            "|(?<NUMBER>-?\\d+\\.?\\d*)" +
-            "|(?<BOOLEAN>\\b(true|false|null)\\b)" +
-            "|(?<BRACE>[{}\\[\\]])"
-        );
-    }
-    
-    private static Pattern computeYamlPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<KEY>^\\s*[\\w.-]+(?=:))" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<NUMBER>\\b-?\\d+\\.?\\d*\\b)" +
-            "|(?<BOOLEAN>\\b(true|false|yes|no|null)\\b)",
-            Pattern.MULTILINE
-        );
-    }
-    
-    private static Pattern computeIniPattern() {
-        return Pattern.compile(
-            "(?<COMMENT>[;#].*)" +
-            "|(?<SECTION>\\[[^\\]]+\\])" +
-            "|(?<KEY>^\\s*[\\w.-]+(?=\\s*=))" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')",
-            Pattern.MULTILINE
-        );
-    }
-    
-    private static Pattern computeDockerfilePattern() {
-        return Pattern.compile(
-            "(?<COMMENT>#.*)" +
-            "|(?<KEYWORD>^\\s*(FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL)\\b)" +
-            "|(?<STRING>\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')" +
-            "|(?<VARIABLE>\\$\\{?[\\w]+}?)",
-            Pattern.MULTILINE
-        );
-    }
-    
-    private static Pattern computeMarkdownPattern() {
-        return Pattern.compile(
-            "(?<KEYWORD>^#+.*$)" +
-            "|(?<STRING>\\*\\*[^*]+\\*\\*|__[^_]+__)" +
-            "|(?<COMMENT>`[^`]+`)" +
-            "|(?<VARIABLE>\\[([^\\]]+)\\]\\(([^)]+)\\))",
-            Pattern.MULTILINE
-        );
-    }
-    
-    private static StyleSpans<String> applyPattern(String text, Pattern pattern) {
-        return applyPattern(text, pattern, STYLE_PLAIN);
-    }
-    
-    private static StyleSpans<String> applyPattern(String text, Pattern pattern, String plainStyle) {
-        return applyPattern(text, pattern, plainStyle, "");
-    }
-
-    private static StyleSpans<String> applyPattern(String text, Pattern pattern, String plainStyle, String fontStyle) {
-        return applyPattern(text, pattern, plainStyle, fontStyle, defaultHighlightStyles());
-    }
-
-    private static StyleSpans<String> applyPattern(
-        String text,
-        Pattern pattern,
-        String plainStyle,
-        String fontStyle,
-        HighlightStyles styles) {
-
-        Matcher matcher = pattern.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<String> spansBuilder = new StyleSpansBuilder<>();
-        String styledPlainText = mergeInlineStyles(fontStyle, plainStyle);
-        
-        while (matcher.find()) {
-            String style = styledPlainText;
-            try { if (matcher.group("COMMENT") != null) style = mergeInlineStyles(fontStyle, styles.comment()); } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(styledPlainText) && matcher.group("STRING") != null) style = mergeInlineStyles(fontStyle, styles.string()); } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(styledPlainText) && matcher.group("NUMBER") != null) style = mergeInlineStyles(fontStyle, styles.number()); } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(styledPlainText) && matcher.group("BOOLEAN") != null) style = mergeInlineStyles(fontStyle, styles.bool()); } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(styledPlainText) && matcher.group("KEY") != null) style = mergeInlineStyles(fontStyle, styles.key()); } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(styledPlainText) && matcher.group("KEYWORD") != null) style = mergeInlineStyles(fontStyle, styles.keyword()); } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(styledPlainText) && matcher.group("SECTION") != null) style = mergeInlineStyles(fontStyle, styles.section()); } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(styledPlainText) && matcher.group("VARIABLE") != null) style = mergeInlineStyles(fontStyle, styles.variable()); } catch (IllegalArgumentException ignored) {}
-            try { if (style.equals(styledPlainText) && matcher.group("BRACE") != null) style = mergeInlineStyles(fontStyle, styles.brace()); } catch (IllegalArgumentException ignored) {}
-            
-            spansBuilder.add(styledPlainText, matcher.start() - lastKwEnd);
-            spansBuilder.add(style, matcher.end() - matcher.start());
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(styledPlainText, text.length() - lastKwEnd);
-        
-        return spansBuilder.create();
-    }
-
-    private static String mergeInlineStyles(String baseStyle, String accentStyle) {
-        if (baseStyle == null || baseStyle.isBlank()) {
-            return accentStyle;
-        }
-        if (accentStyle == null || accentStyle.isBlank()) {
-            return baseStyle;
-        }
-        return baseStyle + " " + accentStyle;
     }
 }

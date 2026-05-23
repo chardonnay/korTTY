@@ -26,6 +26,7 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -40,8 +41,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
-import org.fxmisc.richtext.InlineCssTextArea;
-import org.fxmisc.richtext.model.StyleSpans;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -134,12 +133,13 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     private final TableView<Snippet> snippetTable;
     private final TextField searchField;
     private final ComboBox<String> categoryFilter;
-    private final InlineCssTextArea previewArea;
+    private final MonacoEditorPane previewArea;
     private final ObservableList<Snippet> snippetList;
     private final FilteredList<Snippet> filteredList;
     private final EditorSettingsHelper.Settings editorSettings;
     private final CheckBox wordWrapCheckBox;
     private final CheckBox lineNumbersCheckBox;
+    private final SplitPane contentSplitPane;
     
     public SnippetManagementDialog(SnippetManager snippetManager, MainWindow ownerWindow) {
         this.snippetManager = snippetManager;
@@ -241,14 +241,14 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         categoryFilter.setOnAction(e -> updateFilter());
         
         // ---- Preview Area with scrollbars ----
-        previewArea = new InlineCssTextArea();
+        previewArea = new MonacoEditorPane();
         previewArea.setEditable(false);
         EditorSettingsHelper.applyStyle(previewArea, editorSettings);
         EditorSettingsHelper.installPersistentCaretStyling(previewArea, editorSettings);
         
-        // Wrap in VirtualizedScrollPane for horizontal + vertical scrollbars
+        // Wrap in Monaco editor for horizontal + vertical scrollbars
         var previewScrollPane = EditorSettingsHelper.createScrollPane(previewArea);
-        previewScrollPane.setPrefHeight(150);
+        previewScrollPane.setMinHeight(90);
         
         // Word wrap checkbox – persistent setting
         wordWrapCheckBox = new CheckBox(I18n.get("snippets.wordWrap"));
@@ -275,6 +275,10 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         
         HBox previewHeader = new HBox(10, previewLabel, wordWrapCheckBox, lineNumbersCheckBox);
         previewHeader.setAlignment(Pos.CENTER_LEFT);
+
+        VBox previewPane = new VBox(6, previewHeader, previewScrollPane);
+        previewPane.setFillWidth(true);
+        VBox.setVgrow(previewScrollPane, Priority.ALWAYS);
         
         // Right-click context menu on preview (vim-style quick actions)
         previewArea.setContextMenu(createPreviewContextMenu());
@@ -362,18 +366,23 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 new Separator(), importBtn, exportBtn, new Separator(), variablesBtn);
         actionButtons.setAlignment(Pos.CENTER_LEFT);
         
+        contentSplitPane = new SplitPane(snippetTable, previewPane);
+        contentSplitPane.setOrientation(Orientation.VERTICAL);
+        contentSplitPane.setDividerPositions(loadPreviewDividerPosition());
+        SplitPane.setResizableWithParent(snippetTable, true);
+        SplitPane.setResizableWithParent(previewPane, true);
+
+        Platform.runLater(() -> contentSplitPane.setDividerPositions(loadPreviewDividerPosition()));
+
         // ---- Layout ----
         VBox layout = new VBox(8,
                 searchBar,
-                snippetTable,
-                previewHeader,
-                previewScrollPane,
+                contentSplitPane,
                 crudButtons,
                 actionButtons
         );
         layout.setPadding(new Insets(10));
-        VBox.setVgrow(snippetTable, Priority.ALWAYS);
-        VBox.setVgrow(previewScrollPane, Priority.SOMETIMES);
+        VBox.setVgrow(contentSplitPane, Priority.ALWAYS);
         
         getDialogPane().setContent(layout);
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
@@ -421,11 +430,29 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                         stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
                 var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
                 gs.setSnippetManagerGeometry(geo);
+                gs.setSnippetManagerPreviewDividerPosition(currentPreviewDividerPosition());
                 KorTTYApplication.getInstance().getGlobalSettingsManager().save();
             }
         } catch (Exception e) {
             logger.debug("Could not save snippet manager geometry", e);
         }
+    }
+
+    private double loadPreviewDividerPosition() {
+        try {
+            return KorTTYApplication.getInstance().getGlobalSettingsManager()
+                .getSettings().getSnippetManagerPreviewDividerPosition();
+        } catch (Exception e) {
+            logger.debug("Could not load snippet manager preview divider position", e);
+            return 0.68;
+        }
+    }
+
+    private double currentPreviewDividerPosition() {
+        if (contentSplitPane == null || contentSplitPane.getDividers().isEmpty()) {
+            return loadPreviewDividerPosition();
+        }
+        return contentSplitPane.getDividers().get(0).getPosition();
     }
     
     // ---- Word Wrap persistence ----
@@ -723,14 +750,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         }
         String content = snippet.getContent() != null ? snippet.getContent() : "";
         previewArea.replaceText(content);
-        
-        try {
-            String plainStyle = EditorSettingsHelper.getPlainTextStyle(editorSettings);
-            StyleSpans<String> spans = SnippetEditDialog.computeHighlighting(content, snippet.getLanguage(), plainStyle);
-            previewArea.setStyleSpans(0, spans);
-        } catch (Exception e) {
-            // Ignore highlighting errors
-        }
+        previewArea.setLanguage(snippet.getLanguage());
     }
 
     private SnippetEditDialog.AiAssist createSnippetAiAssist() {

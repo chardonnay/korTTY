@@ -76,7 +76,7 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
         descriptionColumn.setCellValueFactory(data -> data.getValue().descriptionProperty());
         descriptionColumn.setPrefWidth(420);
 
-        table.getColumns().setAll(enabledColumn, nameColumn, descriptionColumn);
+        table.getColumns().setAll(java.util.List.of(enabledColumn, nameColumn, descriptionColumn));
         table.getSelectionModel().selectedItemProperty().addListener((obs, oldRow, newRow) ->
                 updateExportButtonState());
 

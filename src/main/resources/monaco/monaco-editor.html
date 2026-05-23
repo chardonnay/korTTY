@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: blob: data:; script-src 'self' file: 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' file: 'unsafe-inline'; worker-src blob:;">
+  <link rel="stylesheet" href="monaco-host.css">
+  <style>
+    html, body, #editor {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #1e1e1e;
+    }
+  </style>
+</head>
+<body>
+  <div id="editor"></div>
+  <script>
+    window.korttyStartupErrors = [];
+    window.onerror = function(message, source, line, column, error) {
+      window.korttyStartupErrors.push(String(message) + " at " + String(source) + ":" + String(line) + ":" + String(column));
+      return false;
+    };
+  </script>
+  <script src="monaco-host.js"></script>
+</body>
+</html>

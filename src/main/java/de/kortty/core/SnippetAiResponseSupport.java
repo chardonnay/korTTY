@@ -160,17 +160,23 @@ public final class SnippetAiResponseSupport {
 
     public static List<AlternativeSolution> parseAlternativeSolutions(String responseText, int maxSolutions) {
         int limit = Math.max(1, maxSolutions);
-        String jsonCandidate = extractJsonPayload(responseText);
-        if (jsonCandidate == null) {
+        JsonElement root = parseJsonElement(responseText);
+        if (root == null) {
+            root = parseJsonElement(extractJsonPayload(responseText));
+        }
+        if (root == null) {
             return List.of();
         }
         try {
-            JsonElement root = JsonParser.parseString(jsonCandidate);
             JsonArray solutions = null;
             if (root.isJsonObject()) {
                 JsonObject object = root.getAsJsonObject();
-                if (object.has("solutions") && object.get("solutions").isJsonArray()) {
-                    solutions = object.getAsJsonArray("solutions");
+                solutions = firstArray(object, "solutions", "alternatives", "alternativeSolutions", "results");
+                if (solutions == null) {
+                    AlternativeSolution singleSolution = parseAlternativeSolution(object, 1);
+                    return singleSolution != null && singleSolution.isUsable()
+                        ? List.of(singleSolution)
+                        : List.of();
                 }
             } else if (root.isJsonArray()) {
                 solutions = root.getAsJsonArray();
@@ -344,12 +350,8 @@ public final class SnippetAiResponseSupport {
         String title = object.has("title") && !object.get("title").isJsonNull()
             ? object.get("title").getAsString()
             : "Alternative " + fallbackIndex;
-        String code = object.has("code") && !object.get("code").isJsonNull()
-            ? object.get("code").getAsString()
-            : null;
-        String summary = object.has("summary") && !object.get("summary").isJsonNull()
-            ? object.get("summary").getAsString()
-            : "";
+        String code = firstString(object, "code", "replacement", "content", "text", "solution");
+        String summary = firstString(object, "summary", "description", "explanation");
         AlternativeSolution solution = new AlternativeSolution(title, code, summary);
         return solution.isUsable() ? solution : null;
     }

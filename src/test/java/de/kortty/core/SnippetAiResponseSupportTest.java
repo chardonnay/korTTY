@@ -59,6 +59,39 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseAlternativeSolutionsAcceptsCommonProviderAliases() {
+        List<SnippetAiResponseSupport.AlternativeSolution> solutions = SnippetAiResponseSupport.parseAlternativeSolutions(
+            """
+            {
+              "alternatives": [
+                { "title": "A", "replacement": "echo replacement", "description": "Uses a replacement key" },
+                { "title": "B", "content": "echo content" }
+              ]
+            }
+            """,
+            3);
+
+        assertThat(solutions).hasSize(2);
+        assertThat(solutions.get(0).code()).isEqualTo("echo replacement");
+        assertThat(solutions.get(0).summary()).isEqualTo("Uses a replacement key");
+        assertThat(solutions.get(1).code()).isEqualTo("echo content");
+    }
+
+    @Test
+    void parseAlternativeSolutionsAcceptsSingleObjectResponse() {
+        List<SnippetAiResponseSupport.AlternativeSolution> solutions = SnippetAiResponseSupport.parseAlternativeSolutions(
+            """
+            { "title": "Single", "solution": "echo single", "explanation": "One direct alternative" }
+            """,
+            3);
+
+        assertThat(solutions).hasSize(1);
+        assertThat(solutions.get(0).title()).isEqualTo("Single");
+        assertThat(solutions.get(0).code()).isEqualTo("echo single");
+        assertThat(solutions.get(0).summary()).isEqualTo("One direct alternative");
+    }
+
+    @Test
     void parseCompletionSuggestionReadsInsertTextOnly() {
         SnippetAiResponseSupport.CompletionSuggestion suggestion =
             SnippetAiResponseSupport.parseCompletionSuggestion("""

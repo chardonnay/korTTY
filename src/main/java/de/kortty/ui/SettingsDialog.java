@@ -76,7 +76,6 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import org.fxmisc.richtext.InlineCssTextArea;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -252,7 +251,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final TextField aiSkillTagsField;
     private final CheckBox aiSkillEnabledCheck;
     private final ComboBox<AiSkillTarget> aiSkillTargetCombo;
-    private final InlineCssTextArea aiSkillContentArea;
+    private final MonacoEditorPane aiSkillContentArea;
     private final List<AiSkill> aiSkills = new ArrayList<>();
     private String aiSkillContentTextStyle = "-fx-fill: #d4d4d4;";
     private AiSkill selectedAiSkill;
@@ -2028,7 +2027,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
 
-        aiSkillContentArea = new InlineCssTextArea();
+        aiSkillContentArea = new MonacoEditorPane();
         aiSkillContentArea.setPrefHeight(420);
         aiSkillContentArea.setWrapText(true);
         EditorSettingsHelper.Settings skillEditorSettings = EditorSettingsHelper.loadSnippetSettings();
@@ -3414,7 +3413,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (aiSkillContentArea == null || aiSkillContentArea.getLength() <= 0) {
             return;
         }
-        aiSkillContentArea.setStyle(0, aiSkillContentArea.getLength(), aiSkillContentTextStyle);
+        aiSkillContentArea.setLanguage("markdown");
     }
 
     private String buildReadableAiSkillTextStyle(EditorSettingsHelper.Settings settings) {

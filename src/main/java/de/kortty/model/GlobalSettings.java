@@ -406,6 +406,9 @@ public class GlobalSettings {
     
     @XmlElement
     private boolean snippetLineNumbers = false; // line-number gutter in snippet editor & manager preview (default: off)
+
+    @XmlElement
+    private Double snippetManagerPreviewDividerPosition; // Vertical table/preview divider position
     
     // Snippet dialog geometries
     @XmlElement
@@ -1635,6 +1638,23 @@ public class GlobalSettings {
     
     public boolean isSnippetLineNumbers() { return snippetLineNumbers; }
     public void setSnippetLineNumbers(boolean snippetLineNumbers) { this.snippetLineNumbers = snippetLineNumbers; }
+
+    public double getSnippetManagerPreviewDividerPosition() {
+        if (snippetManagerPreviewDividerPosition == null
+            || snippetManagerPreviewDividerPosition <= 0.0
+            || snippetManagerPreviewDividerPosition >= 1.0) {
+            return 0.68;
+        }
+        return snippetManagerPreviewDividerPosition;
+    }
+
+    public void setSnippetManagerPreviewDividerPosition(Double snippetManagerPreviewDividerPosition) {
+        if (snippetManagerPreviewDividerPosition == null) {
+            this.snippetManagerPreviewDividerPosition = null;
+            return;
+        }
+        this.snippetManagerPreviewDividerPosition = Math.max(0.35, Math.min(0.9, snippetManagerPreviewDividerPosition));
+    }
     
     // ---- Snippet Dialog Geometries ----
     

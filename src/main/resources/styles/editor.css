@@ -1,5 +1,5 @@
-/* RichTextFX Code Editor Syntax Highlighting */
-/* Note: In RichTextFX, style classes from StyleSpans are applied directly to text segments */
+/* Monaco Editor Code Editor Syntax Highlighting */
+/* Note: In Monaco Editor, style classes from Monaco tokens are applied directly to text segments */
 
 .code-area {
     -fx-font-family: 'Monaco', 'Menlo', 'Consolas', monospace;

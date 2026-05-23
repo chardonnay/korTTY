@@ -20,8 +20,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
-import org.fxmisc.flowless.VirtualizedScrollPane;
-import org.fxmisc.richtext.InlineCssTextArea;
 
 import java.util.List;
 import java.util.Objects;
@@ -39,13 +37,13 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         "powershell", "sql", "xml", "json", "yaml", "yml", "toml", "properties", "ini", "html",
         "markdown", "dockerfile");
 
-    private final InlineCssTextArea beforeArea;
-    private final InlineCssTextArea afterArea;
+    private final MonacoEditorPane beforeArea;
+    private final MonacoEditorPane afterArea;
     private final ComboBox<String> syntaxCombo;
     private final Label fontSizeLabel;
     private final SnippetEditorProfile editorProfile;
     private EditorSettingsHelper.Settings previewSettings;
-    private InlineCssTextArea focusedPreviewArea;
+    private MonacoEditorPane focusedPreviewArea;
 
     public SnippetAiDiffDialog(Window owner, String title, String summary, String originalText, String replacementText) {
         this(owner, title, summary, originalText, replacementText, null, EditorSettingsHelper.loadSnippetSettings(), null);
@@ -119,8 +117,8 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         grid.setVgap(6);
         grid.add(new Label(I18n.get("snippets.ai.diff.original")), 0, 0);
         grid.add(new Label(I18n.get("snippets.ai.diff.replacement")), 1, 0);
-        VirtualizedScrollPane<InlineCssTextArea> beforeScrollPane = EditorSettingsHelper.createScrollPane(beforeArea);
-        VirtualizedScrollPane<InlineCssTextArea> afterScrollPane = EditorSettingsHelper.createScrollPane(afterArea);
+        MonacoEditorPane beforeScrollPane = EditorSettingsHelper.createScrollPane(beforeArea);
+        MonacoEditorPane afterScrollPane = EditorSettingsHelper.createScrollPane(afterArea);
         grid.add(beforeScrollPane, 0, 1);
         grid.add(afterScrollPane, 1, 1);
         GridPane.setHgrow(beforeScrollPane, Priority.ALWAYS);
@@ -143,8 +141,8 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         setResultConverter(buttonType -> buttonType == applyButton);
     }
 
-    private InlineCssTextArea createPreviewArea(String text) {
-        InlineCssTextArea area = new InlineCssTextArea();
+    private MonacoEditorPane createPreviewArea(String text) {
+        MonacoEditorPane area = new MonacoEditorPane();
         area.setEditable(false);
         area.setWrapText(false);
         area.setFocusTraversable(true);
@@ -205,16 +203,8 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         applyHighlighting(afterArea);
     }
 
-    private void applyHighlighting(InlineCssTextArea area) {
-        String text = area.getText() != null ? area.getText() : "";
-        String plainStyle = EditorSettingsHelper.getPlainTextStyle(previewSettings);
-        String fontStyle = EditorSettingsHelper.getEditorFontStyle(previewSettings);
-        area.setStyleSpans(0, SnippetEditDialog.computeHighlighting(
-            text,
-            syntaxCombo.getValue(),
-            plainStyle,
-            fontStyle,
-            editorProfile));
+    private void applyHighlighting(MonacoEditorPane area) {
+        area.setLanguage(syntaxCombo.getValue());
     }
 
     private void updateFontSizeLabel() {
@@ -227,7 +217,7 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         copyPreviewText(focusedPreviewArea != null ? focusedPreviewArea : afterArea);
     }
 
-    private void copyPreviewText(InlineCssTextArea area) {
+    private void copyPreviewText(MonacoEditorPane area) {
         String selectedText = area.getSelectedText();
         String value = selectedText != null && !selectedText.isEmpty() ? selectedText : area.getText();
         ClipboardContent content = new ClipboardContent();

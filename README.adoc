@@ -27,8 +27,8 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Dashboard*: Overview of all open connections in the project
 * *SFTP Manager*: File transfer between local system and remote servers (User/Group columns, sortable by type with dot-prefix order), including local/remote file editing through the Snippet Editor
 * *SFTP Archive Exclude*: Archive dialogs support exclude patterns (one pattern per line) for files/directories
-* *Snippet Manager*: Create, search, favorite, and organize reusable snippets with syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, JSON/XML/YAML import/export, plain-text script export, and ZIP script archives with optional password or GPG encryption
-* *Snippet Editor Profiles and Formatting*: Use IntelliJ-inspired built-in editor profiles or custom color/cursor profiles, zoom with toolbar buttons or Ctrl/Cmd +/- keys, and format supported languages through the shared local formatter service
+* *Snippet Manager*: Create, search, favorite, and organize reusable snippets with Monaco-powered syntax highlighting, line numbers, one-liner export, optional one-liner script arguments, JSON/XML/YAML import/export, plain-text script export, and ZIP script archives with optional password or GPG encryption
+* *Snippet Editor Profiles, Ruler, and Formatting*: Use IntelliJ-inspired built-in editor profiles or custom color/cursor profiles, zoom with toolbar buttons or Ctrl/Cmd +/- keys, track the current caret column in the fixed ruler label and live marker, set a maximum line-length marker, and format supported languages through the shared local formatter service
 * *AI-assisted Snippet Editing*: Generate snippet name/description/language from code, correct description text, transform selected comments and user-facing output text, create technical descriptions, request alternative implementations, use cursor-based AI completion, run selected-code improvements and security checks with previews, and keep locally rendered PlantUML structure diagrams with snippets
 * *AI Skills*: Define reusable local instruction blocks for AI Chat/functions and/or AI Agent, enable or disable them globally or per skill, import/export Markdown skills, and optionally send only skills that match the current request
 * *JobScheduler*: Schedule background command, SnippetManager script, AI Agent, SFTP, and Rsync jobs for saved SSH TCP connections or connection groups while KorTTY is running; no terminal tab has to stay open
@@ -200,7 +200,7 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 | | Gson | 2.13.2
 | *Archive & Compression* | Apache Commons Compress | 1.25.0
 | | Tukaani xz | 1.9
-| *UI / Editor* | RichTextFX | 0.11.3
+| *UI / Editor* | Monaco Editor | 0.55.1
 | | google-java-format | 1.35.0
 | *Utilities* | jfiglet (ASCII art) | 0.0.9
 | | zxcvbn (password strength) | 1.9.0

@@ -1148,9 +1148,11 @@ public class MainWindow {
 
         toolsMenu.getItems().addAll(
             openSFTPManager,
+            new SeparatorMenuItem(),
             asciiArtBanner,
             new SeparatorMenuItem(),
             snippetManager,
+            new SeparatorMenuItem(),
             jobScheduler,
             new SeparatorMenuItem(),
             videoManager,
