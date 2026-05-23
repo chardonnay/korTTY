@@ -770,13 +770,13 @@ For Rsync jobs, *Use sudo* means passwordless remote sudo only through `sudo -n 
 
 === 7.3 Actions
 
-Use the *Action* tab to choose what the job does. The action selector includes:
+Use the *Action* tab to choose what the job does. The tab shows only the fields that the selected action can use, so unrelated command, SFTP, archive, AI, or Rsync fields are hidden. The action selector includes:
 
 [cols="1,2"]
 |===
 | Action | Purpose
 | `COMMAND` | Run a non-interactive remote command.
-| `SNIPPET_SCRIPT` | Run a SnippetManager script on the selected target. The *Snippet script* field selects the snippet, and *Snippet parameters* passes additional arguments as one argv value per line.
+| `SNIPPET_SCRIPT` | Run a SnippetManager script on the selected target. The *Snippet search* field filters the script dropdown by snippet name, category, language, or ID; *Snippet parameters* passes additional arguments as one argv value per line.
 | `AI_AGENT` | Run the headless scheduler AI agent. Unattended command execution requires *Auto-approve AI commands* on the job.
 | `SFTP_UPLOAD` | Upload a local path to a remote path.
 | `SFTP_DOWNLOAD` | Download a remote path to a local path.
@@ -820,11 +820,13 @@ Rsync prerequisites:
 
 === 7.5 Journal
 
-The *Journal* tab lists job runs with local KorTTY timestamps, status, job name, and summary. The columns *Started*, *Status*, *Job*, and *Summary* are sortable; the default order shows the newest started entries first. Selecting a row shows stdout, stderr, and detail text. Use *Delete selected* to remove selected journal entries. By default, KorTTY automatically deletes scheduler journal entries older than 14 days; set the retention value to `0` to keep entries indefinitely.
+The *Journal* tab lists job runs with local KorTTY timestamps, status, job name, and summary. The columns *Started*, *Status*, *Job*, and *Summary* are sortable; the default order shows the newest started entries first. The search row can match all persisted journal fields or only selected columns such as status, job, summary, stdout, stderr, and detail. Enter multiple whitespace-separated terms when every term must occur somewhere in the selected search scope; use `*` inside a term as a wildcard, for example `backup*fail`. Selecting a row shows stdout, stderr, and detail text. Use *Delete selected* to remove selected journal entries. By default, KorTTY automatically deletes scheduler journal entries older than 14 days; set the retention value to `0` to keep entries indefinitely.
 
 The protocol/detail area below the table is separated by a vertical splitter. Resize it to give the output more or less height; KorTTY stores that divider position in the global settings. In the detail text area, mark text and right-click to copy the selected text to the clipboard.
 
 Journal statuses include successful, failed, blocked, cancelled, and running/system entries. Reasons such as locked master password, missing host-key pin, missing `rsync`/`ssh`, unsupported Mosh target, or shutdown drain are written as journal details.
+
+*Validation path:* open *Tools > JobScheduler...*, create or select a job, and switch through `COMMAND`, `SNIPPET_SCRIPT`, `AI_AGENT`, SFTP, archive, and `RSYNC_SYNC` actions. Confirm that only the fields used by the selected action are visible. For `SNIPPET_SCRIPT`, type part of a snippet name/category/language/ID into *Snippet search* and confirm that the script dropdown narrows without losing the selected script. In *Journal*, search for two terms that both occur in an entry, repeat with a wildcard such as `fail*`, then switch to selected-column mode and confirm that unchecked columns are no longer searched.
 
 === 7.6 Menu-Bar Status and Cancellation
 
@@ -942,15 +944,15 @@ The Snippet Manager lets you store, organize, and quickly insert reusable code s
 * *Tags* - Comma-separated keywords for searching (e.g., `docker, deploy, backup`).
 * *Description* - Optional free-text description of the snippet.
 * *Content* - The snippet code. The editor provides live syntax highlighting based on the selected language.
-3. Click *OK*. If the snippet content changed, KorTTY saves the edited snippet while closing the dialog.
+3. Click *OK*. If the snippet content changed, KorTTY saves the edited snippet while closing the dialog. When editing an existing Snippet Manager entry, *Save as new snippet* stores the current editor content as a new snippet with a new ID and leaves the original snippet unchanged.
 
 The snippet editor toolbar also provides *Format Code*, *Check Syntax*, *AI Text*, *AI Code*, *One-liner*, editor zoom, editor profile selection, background brightness, *Word Wrap*, and *Line numbers*. When the editor is opened from the SFTP Manager for a local or remote file, the same toolbar remains available and the dialog uses file-mode save buttons for overwrite, save-as, or saving the content as a new snippet.
 
-The content field uses the bundled Monaco Editor. Above it, the column ruler keeps the current caret column fixed at the left side as `Column N` and shows a live marker at the matching editor position. Moving the mouse over that live marker shows the current position as `Position N`. Click the ruler to set a maximum line-length marker between columns 20 and 240; right-click that marker to format the whole editor content to the selected width. Line-width formatting is available only for formatters that support a configurable width: Prettier-backed web formats, Python/Black, and Perl/Perl::Tidy. If the selected language does not support line-width formatting, KorTTY reports that explicitly.
+The content field uses the bundled Monaco Editor. Above it, the column ruler keeps the current caret column fixed at the left side as `Column N` and shows a live marker at the matching editor position. Moving the mouse over that live marker shows the current position as `Position N`. Click the ruler to set a maximum line-length marker between columns 20 and 240. Right-click that marker to format the whole editor content to the selected width or remove the marker. Line-width formatting is available locally only for formatters that support a configurable width: Prettier-backed web formats, Python/Black, and Perl/Perl::Tidy. Local and AI-assisted line-width formatting both show a before/after preview before changing the editor content. If local line-width formatting is unavailable, KorTTY asks whether it should use AI-assisted formatting.
 
 image::diagrams/snippet-editor-workflow.svg[Snippet editor workflow,align=center]
 
-*Format Code* uses KorTTY's shared local formatter service, which is also used by the file editor. JSON, XML, YAML/YML, TOML, INI/properties, and Groovy formatting are handled internally. Packaged builds can include bundled formatters for Java (`google-java-format`), shell/Bash (`shfmt`), Web/JS/TS/HTML/CSS (Prettier), SQL (`sql-formatter`), and Perl (`Perl::Tidy`, with a local `perl` runtime). Optional PATH fallbacks are used only for developer setups when a bundled formatter is missing. If no formatter is available for the selected language, KorTTY reports that explicitly instead of using an AI rewrite as a formatter. Formatting from the ruler always targets the full editor content and can report when a syntax-safe formatter leaves lines longer than the selected marker.
+*Format Code* uses KorTTY's shared local formatter service, which is also used by the file editor. JSON, XML, YAML/YML, TOML, INI/properties, and Groovy formatting are handled internally. Packaged builds can include bundled formatters for Java (`google-java-format`), shell/Bash (`shfmt`), Web/JS/TS/HTML/CSS (Prettier), SQL (`sql-formatter`), and Perl (`Perl::Tidy`, with a local `perl` runtime). Optional PATH fallbacks are used only for developer setups when a bundled formatter is missing. If local formatting or local syntax checking is unavailable and the configured AI profile provides the needed snippet AI capability, KorTTY asks whether to use AI assistance instead. AI formatting is applied only after the before/after preview is accepted; AI syntax checking returns an informational findings report. Formatting from the ruler always targets the full editor content, opens a preview before applying the formatted text, and can report when a syntax-safe formatter leaves lines longer than the selected marker.
 
 The profile menu in the editor can switch between the current custom colors, ten built-in IntelliJ-inspired profiles, and user-created snippet-editor profiles. Profiles store foreground/background colors, syntax colors, cursor color, and cursor style. The editor font size can be changed with the toolbar or Ctrl/Cmd plus `+` / `-`.
 
@@ -965,6 +967,7 @@ If AI is configured, the snippet editor offers these additional actions:
 * *Last AI change toggle* - The `↺` button switches between the original code and the last AI-generated editor change.
 * *AI Code > AI Complete* - Requests a code completion at the current cursor position and shows it as a non-editing ghost suggestion. Click the suggestion to insert it.
 * *AI Code > Auto AI Complete* - Requests completions automatically after you pause at a cursor position. This is off by default and only stays enabled for the current editor session.
+* Editor context menu *AI Assistant...* - Opens a small instruction dialog for the current cursor position. KorTTY sends the full snippet, cursor offset, line, column, and your instruction to the configured AI profile. The dialog can include or suppress enabled Chat/Functions AI Skills for this request. The AI must return a full updated snippet, and KorTTY shows a before/after preview before applying it.
 * *AI Code > Review errors and improvements* - Generates an informational report without changing the editor content.
 * *AI Code > Improve...* - Rewrites only the selected code region. KorTTY shows a before/after preview before applying the replacement.
 * *AI Code > Security Check* - Generates a security report. Select the findings you want to fix; KorTTY asks the AI to apply only those findings and shows a before/after preview before changing the snippet.
@@ -972,7 +975,7 @@ If AI is configured, the snippet editor offers these additional actions:
 
 [WARNING]
 ====
-Snippet AI actions send the current snippet content, selection, prompt instructions, and enabled AI Skills to the configured default AI profile. Snippet AI actions do not enable internet tools, even when the selected profile has internet access configured. Auto-completion can send the snippet repeatedly while it is active, so keep it disabled for sensitive snippets unless you trust the configured endpoint.
+Snippet AI actions send the current snippet content, selection or cursor metadata, prompt instructions, and optionally enabled AI Skills to the configured default AI profile. Snippet AI actions do not enable internet tools, even when the selected profile has internet access configured. Auto-completion can send the snippet repeatedly while it is active, so keep it disabled for sensitive snippets unless you trust the configured endpoint.
 ====
 
 For selection-based text correction and translation, KorTTY only rewrites editable comment text, string literals, and other user-facing text segments. It does not intentionally rewrite the logical code structure.
@@ -1001,7 +1004,7 @@ The editor context menu exposes the same AI text actions and also adds *Alternat
 
 PlantUML diagrams are stored with the snippet. If the snippet content changes after a diagram was generated, KorTTY marks the diagram as possibly outdated and offers regeneration with the original diagram instructions. Rendering is local only: KorTTY uses a checksum-verified PlantUML JAR and Graphviz `dot`; no remote PlantUML server is used. The diagram dialog shows the rendered image, scales it to the available area without distortion, supports zoom/fit, and can export the image as SVG/PNG or copy it to the clipboard. If local rendering is unavailable, KorTTY shows the dependency error so Java/Graphviz can be fixed locally.
 
-*Validation path:* create or edit a snippet, move the caret across a line and verify that the fixed ruler label and live marker update to the same column. Hover the live marker and verify the `Position N` tooltip. Click the ruler to set a marker, right-click it, and verify that width-aware formatting runs only for a supported language. Configure a default AI profile, click *AI Code > AI Complete*, verify that a ghost suggestion appears at the cursor and inserts only on click, then select a code block and use *Improve...* or *Security Check* to confirm the before/after preview. For diagrams, generate one via *AI Code > Diagram*, save the snippet, reopen it, change the snippet content, and verify that the diagram is marked as possibly outdated. Use the diagram dialog's export/copy controls to verify PNG/SVG and clipboard output.
+*Validation path:* create or edit a snippet, move the caret across a line and verify that the fixed ruler label and live marker update to the same column. Hover the live marker and verify the `Position N` tooltip. Click the ruler to set a marker, right-click it, remove the marker, then set it again and trigger formatting. For a language with local line-width support, confirm that KorTTY shows a before/after formatting preview and applies it only after acceptance. For a language without local line-width support, confirm that KorTTY asks for AI-assisted formatting and shows a preview before applying it. Use *Check Syntax* for a language without a local linter and verify that KorTTY asks for an AI-assisted syntax check. Configure a default AI profile, click *AI Code > AI Complete*, verify that a ghost suggestion appears at the cursor and inserts only on click, then select a code block and use *Improve...* or *Security Check* to confirm the before/after preview. For diagrams, generate one via *AI Code > Diagram*, save the snippet, reopen it, change the snippet content, and verify that the diagram is marked as possibly outdated. Use the diagram dialog's export/copy controls to verify PNG/SVG and clipboard output.
 
 === 9.3 Placeholder Variables
 

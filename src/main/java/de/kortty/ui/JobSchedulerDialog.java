@@ -28,6 +28,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -38,6 +39,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
@@ -45,6 +47,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressIndicator;
@@ -87,11 +90,15 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
@@ -119,6 +126,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final ObservableList<ScheduledJob> jobs = FXCollections.observableArrayList();
     private final ObservableList<JobJournalEntry> journal = FXCollections.observableArrayList();
     private final ObservableList<ServerConnection> connections = FXCollections.observableArrayList();
+    private final ObservableList<SnippetChoice> snippetChoices = FXCollections.observableArrayList();
+    private final FilteredList<SnippetChoice> filteredSnippetChoices = new FilteredList<>(snippetChoices, choice -> true);
     private final TableView<ScheduledJob> jobsTable = new TableView<>();
     private final TableView<JobJournalEntry> journalTable = new TableView<>();
     private final Label statusLabel = new Label();
@@ -148,6 +157,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         .toArray(CheckBox[]::new);
 
     private final TextArea commandArea = new TextArea();
+    private final TextField snippetSearchField = new TextField();
     private final ComboBox<SnippetChoice> snippetCombo = new ComboBox<>();
     private final TextArea snippetArgumentsArea = new TextArea();
     private final TextArea aiPromptArea = new TextArea();
@@ -182,6 +192,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final TextArea rsyncSourcesArea = new TextArea();
     private final TextField rsyncTargetRootField = new TextField();
     private final CheckBox rsyncDeleteCheck = new CheckBox("Delete missing files");
+    private final Map<ActionField, List<javafx.scene.Node>> actionFieldRows = new EnumMap<>(ActionField.class);
+    private final TextField journalSearchField = new TextField();
+    private final ComboBox<JournalSearchMode> journalSearchModeCombo = new ComboBox<>();
+    private final MenuButton journalSearchColumnButton = new MenuButton("Columns");
+    private final Map<JournalSearchColumn, CheckMenuItem> journalSearchColumnItems = new EnumMap<>(JournalSearchColumn.class);
+    private FilteredList<JobJournalEntry> filteredJournal;
     private final List<String> selectedConnectionIds = new ArrayList<>();
     private final List<String> selectedGroupNames = new ArrayList<>();
     private final PauseTransition geometrySaveDelay = new PauseTransition(Duration.millis(500));
@@ -192,6 +208,86 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private boolean geometryListenersInstalled;
     private boolean updatingWeekdaySelection;
     private boolean suppressJobSelectionLoad;
+
+    private enum ActionField {
+        ACTION,
+        COMMAND,
+        SNIPPET_SEARCH,
+        SNIPPET_SCRIPT,
+        SNIPPET_PARAMETERS,
+        AI_PROFILE,
+        AI_PROMPT,
+        AI_AUTO_APPROVE,
+        LOCAL_PATH,
+        REMOTE_PATH,
+        REMOTE_SOURCE,
+        REMOTE_DESTINATION,
+        PERMISSIONS,
+        OWNER,
+        GROUP,
+        SYNC_DIRECTION,
+        SUDO,
+        SUDO_STAGING,
+        ARCHIVE_SOURCES,
+        ARCHIVE_EXCLUDES,
+        ARCHIVE_PATH,
+        ARCHIVE_FORMAT,
+        ARCHIVE_PASSWORD,
+        ARCHIVE_COMPRESSION,
+        ARCHIVE_DOWNLOAD,
+        ARCHIVE_DOWNLOAD_PATH,
+        RSYNC_DIRECTION,
+        RSYNC_SOURCES,
+        RSYNC_TARGET_ROOT,
+        RSYNC_DELETE
+    }
+
+    private enum JournalSearchMode {
+        ALL_FIELDS("All fields"),
+        SELECTED_COLUMNS("Selected columns");
+
+        private final String label;
+
+        JournalSearchMode(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private enum JournalSearchColumn {
+        STARTED("Started", true),
+        FINISHED("Finished", false),
+        STATUS("Status", true),
+        JOB("Job", true),
+        SUMMARY("Summary", true),
+        STDOUT("stdout", false),
+        STDERR("stderr", false),
+        DETAIL("detail", false),
+        TRIGGER("Trigger", false),
+        RUN_ID("Run ID", false),
+        EXIT_CODE("Exit code", false);
+
+        private final String label;
+        private final boolean defaultSelected;
+
+        JournalSearchColumn(String label, boolean defaultSelected) {
+            this.label = label;
+            this.defaultSelected = defaultSelected;
+        }
+
+        boolean isDefaultSelected() {
+            return defaultSelected;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
 
     public JobSchedulerDialog(KorTTYApplication app, Window owner) {
         this.app = app;
@@ -366,12 +462,22 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         syncDirectionCombo.getSelectionModel().select(SftpSyncDirection.UPLOAD);
         archiveFormatCombo.getSelectionModel().select(JobArchiveFormat.ZIP);
         rsyncDirectionCombo.getSelectionModel().select(RsyncDirection.UPLOAD);
-        archiveFormatCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateArchivePasswordState());
+        actionTypeCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateActionFieldVisibility());
+        archiveFormatCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            updateArchivePasswordState();
+            updateActionFieldVisibility();
+        });
+        archiveDownloadCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updateActionFieldVisibility());
+        sudoCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updateActionFieldVisibility());
         archiveCompressionSpinner.setEditable(true);
         commandArea.setPrefRowCount(4);
-        refreshSnippetChoices();
+        snippetCombo.setItems(filteredSnippetChoices);
+        snippetSearchField.setPromptText("Search scripts by name, category, language, or ID");
+        snippetSearchField.textProperty().addListener((obs, oldValue, newValue) -> updateSnippetFilter());
+        snippetCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> updateSnippetFilter());
         snippetCombo.setPromptText("Select SnippetManager script");
         snippetCombo.setMaxWidth(Double.MAX_VALUE);
+        refreshSnippetChoices();
         snippetArgumentsArea.setPrefRowCount(3);
         snippetArgumentsArea.setPromptText("One argument per line");
         aiPromptArea.setPrefRowCount(4);
@@ -417,42 +523,50 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         rsyncTargetRootButton.setOnAction(event -> selectRsyncTargetRoot());
 
         GridPane grid = formGrid();
+        actionFieldRows.clear();
         int row = 0;
-        addRow(grid, row++, "Action", actionTypeCombo);
-        addRow(grid, row++, "Command", commandArea);
-        addRow(grid, row++, "Snippet script", snippetCombo);
-        addRow(grid, row++, "Snippet parameters", snippetArgumentsArea);
-        addRow(grid, row++, "AI profile", aiProfileCombo);
-        addRow(grid, row++, "AI prompt", aiPromptArea);
-        addRow(grid, row++, "Local path", fieldButtonBox(localPathField, localPathButton));
-        addRow(grid, row++, "Remote path", fieldButtonBox(remotePathField, remotePathButton));
-        addRow(grid, row++, "Remote source", fieldButtonBox(remoteSourceField, remoteSourceButton));
-        addRow(grid, row++, "Remote destination", fieldButtonBox(remoteDestinationField, remoteDestinationButton));
-        addRow(grid, row++, "Permissions", fieldButtonBox(permissionsField, permissionsHelpButton));
-        addRow(grid, row++, "Owner", fieldButtonBox(ownerField, ownerButton));
-        addRow(grid, row++, "Group", fieldButtonBox(groupField, groupButton));
-        addRow(grid, row++, "Sync direction", syncDirectionCombo);
-        addRow(grid, row++, "Archive sources", archiveSourcesArea);
-        addRow(grid, row++, "Archive excludes", archiveExcludesArea);
-        addRow(grid, row++, "Archive path", fieldButtonBox(archivePathField, archivePathButton));
-        addRow(grid, row++, "Archive format", archiveFormatCombo);
-        addRow(grid, row++, "Archive password", new VBox(4, archivePasswordField, archivePasswordStatusLabel));
-        addRow(grid, row++, "Compression", archiveCompressionSpinner);
-        addRow(grid, row++, "Archive download path", archiveDownloadPathField);
-        addRow(grid, row++, "Rsync direction", rsyncDirectionCombo);
-        addRow(grid, row++, "Rsync sources", fieldButtonBox(rsyncSourcesArea, rsyncSourceButton));
-        addRow(grid, row++, "Rsync target root", fieldButtonBox(rsyncTargetRootField, rsyncTargetRootButton));
-        addRow(grid, row++, "Rsync", rsyncDeleteCheck);
+        addActionRow(grid, row++, ActionField.ACTION, "Action", actionTypeCombo);
+        addActionRow(grid, row++, ActionField.COMMAND, "Command", commandArea);
+        addActionRow(grid, row++, ActionField.SNIPPET_SEARCH, "Snippet search", snippetSearchField);
+        addActionRow(grid, row++, ActionField.SNIPPET_SCRIPT, "Snippet script", snippetCombo);
+        addActionRow(grid, row++, ActionField.SNIPPET_PARAMETERS, "Snippet parameters", snippetArgumentsArea);
+        addActionRow(grid, row++, ActionField.AI_PROFILE, "AI profile", aiProfileCombo);
+        addActionRow(grid, row++, ActionField.AI_PROMPT, "AI prompt", aiPromptArea);
+        addActionRow(grid, row++, ActionField.AI_AUTO_APPROVE, "AI auto-approve", aiAutoApproveCheck);
+        addActionRow(grid, row++, ActionField.LOCAL_PATH, "Local path", fieldButtonBox(localPathField, localPathButton));
+        addActionRow(grid, row++, ActionField.REMOTE_PATH, "Remote path", fieldButtonBox(remotePathField, remotePathButton));
+        addActionRow(grid, row++, ActionField.REMOTE_SOURCE, "Remote source", fieldButtonBox(remoteSourceField, remoteSourceButton));
+        addActionRow(grid, row++, ActionField.REMOTE_DESTINATION, "Remote destination", fieldButtonBox(remoteDestinationField, remoteDestinationButton));
+        addActionRow(grid, row++, ActionField.PERMISSIONS, "Permissions", fieldButtonBox(permissionsField, permissionsHelpButton));
+        addActionRow(grid, row++, ActionField.OWNER, "Owner", fieldButtonBox(ownerField, ownerButton));
+        addActionRow(grid, row++, ActionField.GROUP, "Group", fieldButtonBox(groupField, groupButton));
+        addActionRow(grid, row++, ActionField.SYNC_DIRECTION, "Sync direction", syncDirectionCombo);
+        addActionRow(grid, row++, ActionField.SUDO, "Sudo", sudoCheck);
+        addActionRow(grid, row++, ActionField.SUDO_STAGING, "SFTP sudo staging", sudoStagingCheck);
+        addActionRow(grid, row++, ActionField.ARCHIVE_SOURCES, "Archive sources", archiveSourcesArea);
+        addActionRow(grid, row++, ActionField.ARCHIVE_EXCLUDES, "Archive excludes", archiveExcludesArea);
+        addActionRow(grid, row++, ActionField.ARCHIVE_PATH, "Archive path", fieldButtonBox(archivePathField, archivePathButton));
+        addActionRow(grid, row++, ActionField.ARCHIVE_FORMAT, "Archive format", archiveFormatCombo);
+        addActionRow(grid, row++, ActionField.ARCHIVE_PASSWORD, "Archive password", new VBox(4, archivePasswordField, archivePasswordStatusLabel));
+        addActionRow(grid, row++, ActionField.ARCHIVE_COMPRESSION, "Compression", archiveCompressionSpinner);
+        addActionRow(grid, row++, ActionField.ARCHIVE_DOWNLOAD, "Archive download", archiveDownloadCheck);
+        addActionRow(grid, row++, ActionField.ARCHIVE_DOWNLOAD_PATH, "Archive download path", archiveDownloadPathField);
+        addActionRow(grid, row++, ActionField.RSYNC_DIRECTION, "Rsync direction", rsyncDirectionCombo);
+        addActionRow(grid, row++, ActionField.RSYNC_SOURCES, "Rsync sources", fieldButtonBox(rsyncSourcesArea, rsyncSourceButton));
+        addActionRow(grid, row++, ActionField.RSYNC_TARGET_ROOT, "Rsync target root", fieldButtonBox(rsyncTargetRootField, rsyncTargetRootButton));
+        addActionRow(grid, row++, ActionField.RSYNC_DELETE, "Rsync", rsyncDeleteCheck);
 
         updateArchivePasswordState();
+        updateActionFieldVisibility();
         ScrollPane scrollPane = new ScrollPane(grid);
         scrollPane.setFitToWidth(true);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
-        return padded(new VBox(12, scrollPane, sudoCheck, sudoStagingCheck, aiAutoApproveCheck, archiveDownloadCheck));
+        return padded(new VBox(12, scrollPane));
     }
 
     private VBox buildJournalView() {
-        SortedList<JobJournalEntry> sortedJournal = new SortedList<>(journal);
+        filteredJournal = new FilteredList<>(journal, this::matchesJournalSearch);
+        SortedList<JobJournalEntry> sortedJournal = new SortedList<>(filteredJournal);
         sortedJournal.comparatorProperty().bind(journalTable.comparatorProperty());
         journalTable.setItems(sortedJournal);
         journalTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
@@ -499,6 +613,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         deleteButton.setOnAction(event -> deleteSelectedJournalEntries(detailArea));
         HBox buttons = new HBox(8, refreshButton, deleteButton);
         HBox retentionControls = buildJournalRetentionControls();
+        HBox searchControls = buildJournalSearchControls();
         SplitPane journalSplitPane = new SplitPane(journalTable, detailArea);
         journalSplitPane.setOrientation(Orientation.VERTICAL);
         journalSplitPane.setDividerPositions(getJournalDetailDividerPosition());
@@ -506,9 +621,124 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         journalSplitPane.getDividers().get(0).positionProperty().addListener(
             (observable, oldValue, newValue) -> journalDividerSaveDelay.playFromStart());
         Platform.runLater(() -> journalSplitPane.setDividerPositions(getJournalDetailDividerPosition()));
-        VBox box = padded(new VBox(10, retentionControls, journalSplitPane, buttons));
+        VBox box = padded(new VBox(10, retentionControls, searchControls, journalSplitPane, buttons));
         VBox.setVgrow(journalSplitPane, Priority.ALWAYS);
         return box;
+    }
+
+    private HBox buildJournalSearchControls() {
+        journalSearchField.setPromptText("Search terms; use * as wildcard");
+        journalSearchField.textProperty().addListener((obs, oldValue, newValue) -> updateJournalFilter());
+        journalSearchModeCombo.getItems().setAll(JournalSearchMode.values());
+        journalSearchModeCombo.getSelectionModel().select(JournalSearchMode.ALL_FIELDS);
+        journalSearchModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateJournalFilter());
+
+        journalSearchColumnItems.clear();
+        journalSearchColumnButton.getItems().clear();
+        for (JournalSearchColumn column : JournalSearchColumn.values()) {
+            CheckMenuItem item = new CheckMenuItem(column.toString());
+            item.setSelected(column.isDefaultSelected());
+            item.selectedProperty().addListener((obs, oldValue, newValue) -> updateJournalFilter());
+            journalSearchColumnItems.put(column, item);
+            journalSearchColumnButton.getItems().add(item);
+        }
+        updateJournalSearchColumnButton();
+
+        HBox controls = new HBox(
+            8,
+            new Label("Search"),
+            journalSearchField,
+            journalSearchModeCombo,
+            journalSearchColumnButton);
+        controls.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(journalSearchField, Priority.ALWAYS);
+        return controls;
+    }
+
+    private void updateJournalFilter() {
+        updateJournalSearchColumnButton();
+        if (filteredJournal == null) {
+            return;
+        }
+        JobJournalEntry selected = journalTable.getSelectionModel().getSelectedItem();
+        filteredJournal.setPredicate(this::matchesJournalSearch);
+        if (selected != null && !journalTable.getItems().contains(selected)) {
+            journalTable.getSelectionModel().clearSelection();
+        }
+    }
+
+    private void updateJournalSearchColumnButton() {
+        JournalSearchMode mode = journalSearchModeCombo.getSelectionModel().getSelectedItem();
+        boolean selectedColumnsMode = mode == JournalSearchMode.SELECTED_COLUMNS;
+        journalSearchColumnButton.setDisable(!selectedColumnsMode);
+        long selectedCount = journalSearchColumnItems.values().stream()
+            .filter(CheckMenuItem::isSelected)
+            .count();
+        journalSearchColumnButton.setText(selectedColumnsMode
+            ? selectedCount + " column(s)"
+            : "All fields");
+    }
+
+    private boolean matchesJournalSearch(JobJournalEntry entry) {
+        List<String> terms = searchTerms(journalSearchField.getText());
+        if (terms.isEmpty()) {
+            return true;
+        }
+        List<String> values = journalSearchValues(entry);
+        if (values.isEmpty()) {
+            return false;
+        }
+        return terms.stream().allMatch(term ->
+            values.stream().anyMatch(value -> matchesSearchTerm(value, term)));
+    }
+
+    private List<String> journalSearchValues(JobJournalEntry entry) {
+        if (entry == null) {
+            return List.of();
+        }
+        JournalSearchMode mode = journalSearchModeCombo.getSelectionModel().getSelectedItem();
+        if (mode != JournalSearchMode.SELECTED_COLUMNS) {
+            List<String> values = new ArrayList<>();
+            values.add(entry.getId());
+            values.add(entry.getJobId());
+            values.add(entry.getJobName());
+            values.add(entry.getRunId());
+            values.add(entry.getStatus().name());
+            values.add(entry.getTriggerType());
+            values.add(entry.getStartedAt());
+            values.add(formatJournalTimestamp(entry.getStartedAt()));
+            values.add(entry.getFinishedAt());
+            values.add(formatJournalTimestamp(entry.getFinishedAt()));
+            values.add(entry.getExitCode() != null ? entry.getExitCode().toString() : null);
+            values.add(entry.getSummary());
+            values.add(entry.getStdoutText());
+            values.add(entry.getStderrText());
+            values.add(entry.getDetailText());
+            return values;
+        }
+        List<String> values = new ArrayList<>();
+        for (Map.Entry<JournalSearchColumn, CheckMenuItem> selectedColumn : journalSearchColumnItems.entrySet()) {
+            if (selectedColumn.getValue().isSelected()) {
+                values.add(journalSearchValue(entry, selectedColumn.getKey()));
+            }
+        }
+        return values;
+    }
+
+    private String journalSearchValue(JobJournalEntry entry, JournalSearchColumn column) {
+        return switch (column) {
+            case STARTED -> formatJournalTimestamp(entry.getStartedAt());
+            case FINISHED -> formatJournalTimestamp(entry.getFinishedAt());
+            case STATUS -> entry.getStatus().name();
+            case JOB -> entry.getJobName();
+            case SUMMARY -> entry.getSummary();
+            case STDOUT -> entry.getStdoutText();
+            case STDERR -> entry.getStderrText();
+            case DETAIL -> entry.getDetailText();
+            case TRIGGER -> entry.getTriggerType();
+            case RUN_ID -> entry.getRunId();
+            case EXIT_CODE -> entry.getExitCode() != null ? entry.getExitCode().toString() : null;
+        };
     }
 
     private HBox buildJournalRetentionControls() {
@@ -735,6 +965,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         rsyncTargetRootField.setText(nonBlank(action.getRsyncTargetRoot(), ""));
         rsyncDeleteCheck.setSelected(action.isRsyncDeleteEnabled());
         updateArchivePasswordState();
+        updateActionFieldVisibility();
     }
 
     private void saveSelectedJob() {
@@ -1511,8 +1742,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             .sorted(Comparator.comparing(this::snippetSortKey))
             .map(this::toSnippetChoice)
             .toList();
-        snippetCombo.getItems().setAll(choices);
+        snippetChoices.setAll(choices);
         selectSnippet(selectedSnippetId);
+        updateSnippetFilter();
     }
 
     private SnippetChoice toSnippetChoice(Snippet snippet) {
@@ -1535,22 +1767,51 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private void selectSnippet(String snippetId) {
         if (snippetId == null || snippetId.isBlank()) {
             snippetCombo.getSelectionModel().clearSelection();
+            updateSnippetFilter();
             return;
         }
-        for (SnippetChoice choice : snippetCombo.getItems()) {
+        for (SnippetChoice choice : snippetChoices) {
             if (snippetId.equals(choice.id())) {
+                if (!snippetMatchesSearch(choice, snippetSearchTerms())) {
+                    snippetSearchField.clear();
+                }
+                updateSnippetFilter();
                 snippetCombo.getSelectionModel().select(choice);
                 return;
             }
         }
         SnippetChoice missing = new SnippetChoice(snippetId, "Missing snippet: " + snippetId);
-        snippetCombo.getItems().add(missing);
+        snippetChoices.add(missing);
+        snippetSearchField.clear();
+        updateSnippetFilter();
         snippetCombo.getSelectionModel().select(missing);
     }
 
     private String selectedSnippetId() {
         SnippetChoice selected = snippetCombo.getSelectionModel().getSelectedItem();
         return selected != null ? selected.id() : null;
+    }
+
+    private void updateSnippetFilter() {
+        String selectedId = selectedSnippetId();
+        List<String> terms = snippetSearchTerms();
+        filteredSnippetChoices.setPredicate(choice ->
+            choice != null
+                && (terms.isEmpty()
+                    || (selectedId != null && selectedId.equals(choice.id()))
+                    || snippetMatchesSearch(choice, terms)));
+    }
+
+    private List<String> snippetSearchTerms() {
+        return searchTerms(snippetSearchField.getText());
+    }
+
+    private boolean snippetMatchesSearch(SnippetChoice choice, List<String> terms) {
+        if (terms == null || terms.isEmpty()) {
+            return true;
+        }
+        String searchable = nonBlank(choice.label(), "") + "\n" + nonBlank(choice.id(), "");
+        return terms.stream().allMatch(term -> matchesSearchTerm(searchable, term));
     }
 
     private String selectedAiProfileId() {
@@ -1589,6 +1850,124 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                 comboBox.setMaxWidth(Double.MAX_VALUE);
             }
         }
+    }
+
+    private void addActionRow(GridPane grid, int row, ActionField field, String label, javafx.scene.Node control) {
+        Label labelNode = new Label(label);
+        labelNode.setMinWidth(FORM_LABEL_MIN_WIDTH);
+        grid.add(labelNode, 0, row);
+        grid.add(control, 1, row);
+        GridPane.setValignment(labelNode, VPos.TOP);
+        GridPane.setValignment(control, VPos.TOP);
+        GridPane.setHgrow(control, Priority.ALWAYS);
+        if (control instanceof TextField textField) {
+            textField.setMaxWidth(Double.MAX_VALUE);
+        }
+        if (control instanceof TextArea textArea) {
+            textArea.setMaxWidth(Double.MAX_VALUE);
+        }
+        if (control instanceof ComboBox<?> comboBox && comboBox.getMaxWidth() == Region.USE_COMPUTED_SIZE) {
+            comboBox.setMaxWidth(Double.MAX_VALUE);
+        }
+        actionFieldRows.put(field, List.of(labelNode, control));
+    }
+
+    private void updateActionFieldVisibility() {
+        JobActionType actionType = actionTypeCombo.getSelectionModel().getSelectedItem();
+        if (actionType == null) {
+            actionType = JobActionType.COMMAND;
+        }
+        Set<ActionField> visibleFields = visibleActionFields(actionType);
+        for (Map.Entry<ActionField, List<javafx.scene.Node>> entry : actionFieldRows.entrySet()) {
+            boolean visible = visibleFields.contains(entry.getKey());
+            for (javafx.scene.Node node : entry.getValue()) {
+                node.setVisible(visible);
+                node.setManaged(visible);
+            }
+        }
+    }
+
+    private Set<ActionField> visibleActionFields(JobActionType actionType) {
+        Set<ActionField> fields = EnumSet.of(ActionField.ACTION);
+        switch (actionType) {
+            case COMMAND -> fields.addAll(EnumSet.of(
+                ActionField.COMMAND,
+                ActionField.SUDO));
+            case SNIPPET_SCRIPT -> fields.addAll(EnumSet.of(
+                ActionField.SNIPPET_SEARCH,
+                ActionField.SNIPPET_SCRIPT,
+                ActionField.SNIPPET_PARAMETERS,
+                ActionField.SUDO));
+            case AI_AGENT -> fields.addAll(EnumSet.of(
+                ActionField.AI_PROFILE,
+                ActionField.AI_PROMPT,
+                ActionField.AI_AUTO_APPROVE));
+            case SFTP_UPLOAD, SFTP_DOWNLOAD -> fields.addAll(EnumSet.of(
+                ActionField.LOCAL_PATH,
+                ActionField.REMOTE_PATH,
+                ActionField.SUDO));
+            case SFTP_SYNC -> fields.addAll(EnumSet.of(
+                ActionField.LOCAL_PATH,
+                ActionField.REMOTE_PATH,
+                ActionField.SYNC_DIRECTION,
+                ActionField.SUDO));
+            case SFTP_DELETE, SFTP_MKDIR -> fields.addAll(EnumSet.of(
+                ActionField.REMOTE_PATH,
+                ActionField.SUDO));
+            case SFTP_RENAME, SFTP_COPY_REMOTE -> fields.addAll(EnumSet.of(
+                ActionField.REMOTE_SOURCE,
+                ActionField.REMOTE_DESTINATION,
+                ActionField.SUDO));
+            case SFTP_CHMOD -> fields.addAll(EnumSet.of(
+                ActionField.REMOTE_PATH,
+                ActionField.PERMISSIONS,
+                ActionField.SUDO));
+            case SFTP_CHOWN -> fields.addAll(EnumSet.of(
+                ActionField.REMOTE_PATH,
+                ActionField.OWNER,
+                ActionField.GROUP,
+                ActionField.SUDO));
+            case SFTP_ARCHIVE -> fields.addAll(visibleArchiveActionFields());
+            case RSYNC_SYNC -> fields.addAll(EnumSet.of(
+                ActionField.RSYNC_DIRECTION,
+                ActionField.RSYNC_SOURCES,
+                ActionField.RSYNC_TARGET_ROOT,
+                ActionField.RSYNC_DELETE));
+        }
+        if (usesSudoStaging(actionType) && sudoCheck.isSelected()) {
+            fields.add(ActionField.SUDO_STAGING);
+        }
+        return fields;
+    }
+
+    private Set<ActionField> visibleArchiveActionFields() {
+        Set<ActionField> fields = EnumSet.of(
+            ActionField.ARCHIVE_SOURCES,
+            ActionField.ARCHIVE_EXCLUDES,
+            ActionField.ARCHIVE_PATH,
+            ActionField.ARCHIVE_FORMAT,
+            ActionField.ARCHIVE_DOWNLOAD,
+            ActionField.SUDO);
+        JobArchiveFormat archiveFormat = archiveFormatCombo.getSelectionModel().getSelectedItem();
+        if (archiveFormat == null) {
+            archiveFormat = JobArchiveFormat.ZIP;
+        }
+        if (archiveFormat == JobArchiveFormat.ZIP_PASSWORD) {
+            fields.add(ActionField.ARCHIVE_PASSWORD);
+        }
+        if (archiveFormat != JobArchiveFormat.TAR) {
+            fields.add(ActionField.ARCHIVE_COMPRESSION);
+        }
+        if (archiveDownloadCheck.isSelected()) {
+            fields.add(ActionField.ARCHIVE_DOWNLOAD_PATH);
+        }
+        return fields;
+    }
+
+    private boolean usesSudoStaging(JobActionType actionType) {
+        return actionType == JobActionType.SFTP_UPLOAD
+            || actionType == JobActionType.SFTP_DOWNLOAD
+            || actionType == JobActionType.SFTP_SYNC;
     }
 
     private void configureCompactTimeCombo(ComboBox<String> comboBox) {
@@ -1695,6 +2074,49 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             .map(String::trim)
             .filter(line -> !line.isEmpty())
             .toList();
+    }
+
+    private static List<String> searchTerms(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(value.trim().split("\\s+"))
+            .map(String::trim)
+            .filter(term -> !term.isEmpty())
+            .toList();
+    }
+
+    private static boolean matchesSearchTerm(String text, String term) {
+        if (term == null || term.isBlank()) {
+            return true;
+        }
+        String safeText = text != null ? text : "";
+        if (!term.contains("*")) {
+            return safeText.toLowerCase(Locale.ROOT).contains(term.toLowerCase(Locale.ROOT));
+        }
+        Pattern pattern = Pattern.compile(globTermToRegex(term), Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        return pattern.matcher(safeText).find();
+    }
+
+    private static String globTermToRegex(String term) {
+        StringBuilder regex = new StringBuilder();
+        StringBuilder literal = new StringBuilder();
+        for (int i = 0; i < term.length(); i++) {
+            char c = term.charAt(i);
+            if (c == '*') {
+                if (!literal.isEmpty()) {
+                    regex.append(Pattern.quote(literal.toString()));
+                    literal.setLength(0);
+                }
+                regex.append(".*");
+            } else {
+                literal.append(c);
+            }
+        }
+        if (!literal.isEmpty()) {
+            regex.append(Pattern.quote(literal.toString()));
+        }
+        return regex.toString();
     }
 
     private LocalDate parseDate(String value) {

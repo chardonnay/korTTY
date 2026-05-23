@@ -221,6 +221,32 @@ class AiPromptBuilderTest {
     }
 
     @Test
+    void snippetAssistantPromptRequiresFullReplacementAndCursorContext() {
+        AiRequest request = new AiRequest(
+            AiAction.ASSIST_SNIPPET_CODE,
+            "def main():\n    print('ok')\nmain()",
+            null,
+            "de",
+            "füge neue Parameter für Verzeichnisnamen ein",
+            "Snippet language: python\nCursor offset: 16\nCursor line: 2\nCursor column: 5\nFull snippet:\n```text\n...\n```");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+        assertThat(systemPrompt).contains("complete code snippet");
+        assertThat(systemPrompt).contains("full updated snippet content");
+        assertThat(systemPrompt).contains("not a patch");
+        assertThat(systemPrompt).contains("Do not invent files");
+        assertThat(userPrompt).contains("\"replacement\"");
+        assertThat(userPrompt).contains("replacement must be the full updated snippet content");
+        assertThat(userPrompt).contains("füge neue Parameter");
+        assertThat(userPrompt).contains("Cursor line: 2");
+        assertThat(userPrompt).contains("Cursor column: 5");
+        assertThat(userPrompt).contains("Treat the provided full snippet as the editable source of truth");
+        assertThat(userPrompt).contains("Full script content to update");
+    }
+
+    @Test
     void securityFixPromptRequiresSelectedFindingsOnlyAndFullReplacement() {
         AiRequest request = new AiRequest(
             AiAction.APPLY_SNIPPET_SECURITY_FIXES,

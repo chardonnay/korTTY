@@ -17,6 +17,8 @@ public final class SnippetAiResponseSupport {
 
     private static final Pattern JSON_OBJECT_PATTERN = Pattern.compile("(?s)\\{.*}");
     private static final Pattern JSON_ARRAY_PATTERN = Pattern.compile("(?s)\\[.*]");
+    private static final Pattern MARKDOWN_CODE_BLOCK_PATTERN =
+        Pattern.compile("(?s)```[A-Za-z0-9_+.#-]*\\R(.*?)\\R?```");
 
     private SnippetAiResponseSupport() {
     }
@@ -228,12 +230,29 @@ public final class SnippetAiResponseSupport {
     }
 
     public static CodeImprovement parseCodeImprovement(String responseText) {
+        return parseCodeImprovement(responseText, false);
+    }
+
+    public static CodeImprovement parseCodeImprovement(String responseText, boolean allowPlainTextFallback) {
         JsonObject object = parseJsonObject(responseText);
-        if (object == null) {
+        if (object == null && !allowPlainTextFallback) {
             return new CodeImprovement("", "");
+        }
+        if (object == null) {
+            CodeImprovement fallback = parseLenientCodeImprovement(responseText);
+            if (fallback == null || !fallback.isUsable()) {
+                fallback = new CodeImprovement(
+                    extractPlainCodeFallback(responseText),
+                    "");
+            }
+            return fallback.isUsable() ? fallback : new CodeImprovement("", "");
         }
         String replacement = firstString(object, "replacement", "code", "content", "text");
         String summary = firstString(object, "summary", "description");
+        CodeImprovement nested = parseNestedCodeImprovement(replacement, summary);
+        if (nested != null && nested.isUsable()) {
+            return nested;
+        }
         CodeImprovement improvement = new CodeImprovement(replacement, summary);
         return improvement.isUsable() ? improvement : new CodeImprovement("", "");
     }
@@ -333,6 +352,103 @@ public final class SnippetAiResponseSupport {
             return object.get("content").getAsString();
         }
         return null;
+    }
+
+    private static String extractPlainCodeFallback(String responseText) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(responseText);
+        if (sanitized.isBlank()) {
+            return "";
+        }
+        CodeImprovement lenient = parseLenientCodeImprovement(sanitized);
+        if (lenient != null && lenient.isUsable()) {
+            return lenient.replacement();
+        }
+        Matcher codeBlock = MARKDOWN_CODE_BLOCK_PATTERN.matcher(sanitized);
+        return codeBlock.find() ? codeBlock.group(1) : sanitized;
+    }
+
+    private static CodeImprovement parseNestedCodeImprovement(String replacement, String outerSummary) {
+        if (replacement == null || replacement.isBlank()) {
+            return null;
+        }
+        JsonObject nestedObject = parseJsonObject(replacement);
+        if (nestedObject != null) {
+            String nestedReplacement = firstString(nestedObject, "replacement", "code", "content", "text");
+            String nestedSummary = firstString(nestedObject, "summary", "description");
+            CodeImprovement nested = new CodeImprovement(
+                nestedReplacement,
+                nonBlank(nestedSummary, outerSummary));
+            return nested.isUsable() ? nested : null;
+        }
+        CodeImprovement lenient = parseLenientCodeImprovement(replacement);
+        if (lenient != null && lenient.isUsable()) {
+            return new CodeImprovement(lenient.replacement(), nonBlank(lenient.summary(), outerSummary));
+        }
+        return null;
+    }
+
+    private static CodeImprovement parseLenientCodeImprovement(String responseText) {
+        String value = responseText != null ? responseText.trim() : "";
+        if (value.isBlank() || !value.contains("\"replacement\"")) {
+            return null;
+        }
+        String replacement = extractLenientJsonStringField(value, "replacement");
+        if (replacement == null || replacement.isBlank()) {
+            return null;
+        }
+        String summary = extractLenientJsonStringField(value, "summary");
+        return new CodeImprovement(replacement, summary);
+    }
+
+    private static String extractLenientJsonStringField(String text, String fieldName) {
+        Pattern fieldPattern = Pattern.compile("\"" + Pattern.quote(fieldName) + "\"\\s*:\\s*\"");
+        Matcher matcher = fieldPattern.matcher(text);
+        if (!matcher.find()) {
+            return null;
+        }
+        int start = matcher.end();
+        StringBuilder value = new StringBuilder();
+        boolean escaping = false;
+        for (int i = start; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (escaping) {
+                appendJsonEscaped(value, c);
+                escaping = false;
+                continue;
+            }
+            if (c == '\\') {
+                escaping = true;
+                continue;
+            }
+            if (c == '"' && looksLikeFieldTerminator(text, i + 1)) {
+                return value.toString();
+            }
+            value.append(c);
+        }
+        return value.toString();
+    }
+
+    private static void appendJsonEscaped(StringBuilder builder, char escaped) {
+        switch (escaped) {
+            case 'n' -> builder.append('\n');
+            case 'r' -> builder.append('\r');
+            case 't' -> builder.append('\t');
+            case 'b' -> builder.append('\b');
+            case 'f' -> builder.append('\f');
+            case '"', '\\', '/' -> builder.append(escaped);
+            default -> builder.append(escaped);
+        }
+    }
+
+    private static boolean looksLikeFieldTerminator(String text, int offset) {
+        int i = offset;
+        while (i < text.length() && Character.isWhitespace(text.charAt(i))) {
+            i++;
+        }
+        return i >= text.length()
+            || text.charAt(i) == ','
+            || text.charAt(i) == '}'
+            || text.charAt(i) == ']';
     }
 
     private static AlternativeSolution parseAlternativeSolution(JsonElement element, int fallbackIndex) {

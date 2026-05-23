@@ -56,3 +56,16 @@ await build({
   },
   logLevel: "info"
 });
+
+await build({
+  entryPoints: [path.join(root, "diff-host.js")],
+  bundle: true,
+  outfile: path.join(outDir, "monaco-diff-host.js"),
+  format: "iife",
+  platform: "browser",
+  target: ["safari15"],
+  loader: {
+    ".ttf": "dataurl"
+  },
+  logLevel: "info"
+});

@@ -54,10 +54,16 @@ public final class AiSkillPromptSupport {
     }
 
     public String appendChatSkills(String systemPrompt, AiRequest request) {
+        if (!includeChatSkills(request)) {
+            return normalizedPrompt(systemPrompt);
+        }
         return appendSkills(systemPrompt, selector.selectChatSkillsLocal(request));
     }
 
     public String appendChatSkills(String systemPrompt, AiRequest request, AiSkillRelevanceClassifier classifier) {
+        if (!includeChatSkills(request)) {
+            return normalizedPrompt(systemPrompt);
+        }
         return appendSkills(systemPrompt, selector.selectChatSkills(request, classifier));
     }
 
@@ -78,6 +84,9 @@ public final class AiSkillPromptSupport {
     }
 
     public String buildChatSkillBlock(AiRequest request) {
+        if (!includeChatSkills(request)) {
+            return "";
+        }
         return buildSkillBlock(selector.selectChatSkillsLocal(request), false);
     }
 
@@ -110,11 +119,19 @@ public final class AiSkillPromptSupport {
 
     private String appendSkills(String systemPrompt, List<AiSkill> selectedSkills) {
         String block = buildSkillBlock(selectedSkills, true);
-        String base = systemPrompt != null ? systemPrompt.trim() : "";
+        String base = normalizedPrompt(systemPrompt);
         if (block.isBlank()) {
             return base;
         }
         return base.isBlank() ? block : block + "\n\n" + base;
+    }
+
+    private static boolean includeChatSkills(AiRequest request) {
+        return request == null || request.includeAiSkills();
+    }
+
+    private static String normalizedPrompt(String systemPrompt) {
+        return systemPrompt != null ? systemPrompt.trim() : "";
     }
 
     private String buildSkillBlock(List<AiSkill> selectedSkills, boolean recordUsage) {

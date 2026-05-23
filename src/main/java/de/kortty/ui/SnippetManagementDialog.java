@@ -8,6 +8,7 @@ import de.kortty.core.AiService;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.AiSnippetMetadataSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
+import de.kortty.core.SnippetDiffSelectionSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
 import de.kortty.core.SnippetLanguageSupport;
@@ -696,6 +697,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         ContextMenu menu = new ContextMenu();
         MenuItem deleteItem = new MenuItem("\u2715 " + I18n.get("snippets.delete"));
         deleteItem.setOnAction(e -> deleteSnippets());
+        MenuItem diffItem = new MenuItem(I18n.get("snippets.diff.menu"));
+        diffItem.setOnAction(e -> showSnippetDiff());
         MenuItem copyItem = new MenuItem("\uD83D\uDCCB " + I18n.get("snippets.copyClipboard"));
         copyItem.setOnAction(e -> copyToClipboard());
         MenuItem insertEditorItem = new MenuItem("\uD83D\uDCC4 " + I18n.get("snippets.insertEditor"));
@@ -711,6 +714,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         menu.getItems().addAll(
                 deleteItem,
                 new SeparatorMenuItem(),
+                diffItem,
+                new SeparatorMenuItem(),
                 copyItem, insertEditorItem, insertTerminalItem, insertTerminalWithParamsItem,
                 new SeparatorMenuItem(),
                 favItem, exportItem
@@ -719,7 +724,9 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
             boolean hasSelection = !selected.isEmpty();
             boolean hasSingle = selected.size() == 1;
+            boolean hasDiffSelection = SnippetDiffSelectionSupport.canDiff(selected);
             deleteItem.setDisable(!hasSelection);
+            diffItem.setDisable(!hasDiffSelection);
             copyItem.setDisable(!hasSingle);
             insertEditorItem.setDisable(!hasSingle);
             insertTerminalItem.setDisable(!hasSingle);
@@ -728,6 +735,32 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             exportItem.setDisable(!hasSelection && snippetList.isEmpty());
         });
         return menu;
+    }
+
+    private void showSnippetDiff() {
+        Optional<SnippetDiffSelectionSupport.SelectionPair> pair = selectedSnippetDiffPair();
+        if (pair.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(I18n.get("snippets.diff.unavailable.title"));
+            alert.setHeaderText(I18n.get("snippets.diff.unavailable.header"));
+            alert.setContentText(I18n.get("snippets.diff.unavailable.content"));
+            alert.initOwner(getDialogPane().getScene().getWindow());
+            alert.showAndWait();
+            return;
+        }
+
+        SnippetDiffDialog dialog = new SnippetDiffDialog(
+                getDialogPane().getScene().getWindow(),
+                pair.get().left(),
+                pair.get().right(),
+                editorSettings);
+        dialog.show();
+    }
+
+    private Optional<SnippetDiffSelectionSupport.SelectionPair> selectedSnippetDiffPair() {
+        return SnippetDiffSelectionSupport.orderedPair(
+                new ArrayList<>(snippetTable.getItems()),
+                snippetTable.getSelectionModel().getSelectedItems());
     }
     
     /** Copies preview content to clipboard: selection if any, otherwise full text. */
@@ -916,7 +949,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             null,
             request.fallbackLanguageCode(),
             request.improvementTheme(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            request.allowPlainTextFallback());
     }
 
     private List<SnippetAiResponseSupport.SecurityFinding> reviewSnippetSecurity(
@@ -1007,12 +1041,16 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         List<String> categoryNames = snippetManager.getAllCategories().stream()
                 .map(SnippetCategory::getName).collect(Collectors.toList());
         
-        SnippetEditDialog dialog = new SnippetEditDialog(selected, categoryNames, createSnippetAiAssist());
+        SnippetEditDialog dialog = new SnippetEditDialog(selected, categoryNames, createSnippetAiAssist(), true);
         dialog.initOwner(getDialogPane().getScene().getWindow());
 
         dialog.showNonBlocking(snippet -> {
             ensureCategory(snippet.getCategory());
-            snippetManager.updateSnippet(snippet);
+            if (selected.getId() != null && selected.getId().equals(snippet.getId())) {
+                snippetManager.updateSnippet(snippet);
+            } else {
+                snippetManager.addSnippet(snippet);
+            }
             saveAndRefresh();
         });
     }

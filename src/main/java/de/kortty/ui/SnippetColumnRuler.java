@@ -31,6 +31,7 @@ final class SnippetColumnRuler extends StackPane {
     private final Canvas canvas = new Canvas();
     private final ContextMenu markerMenu = new ContextMenu();
     private final MenuItem formatToLimitItem = new MenuItem();
+    private final MenuItem clearLimitItem = new MenuItem();
     private final Tooltip rulerTooltip = new Tooltip();
 
     private IntConsumer limitColumnChangedHandler;
@@ -59,12 +60,13 @@ final class SnippetColumnRuler extends StackPane {
         canvas.heightProperty().bind(heightProperty());
         getChildren().add(canvas);
 
-        markerMenu.getItems().add(formatToLimitItem);
+        markerMenu.getItems().addAll(formatToLimitItem, clearLimitItem);
         formatToLimitItem.setOnAction(event -> {
             if (formatAtLimitHandler != null) {
                 formatAtLimitHandler.run();
             }
         });
+        clearLimitItem.setOnAction(event -> clearLimitColumn());
 
         widthProperty().addListener((obs, oldValue, newValue) -> draw());
         heightProperty().addListener((obs, oldValue, newValue) -> draw());
@@ -116,6 +118,10 @@ final class SnippetColumnRuler extends StackPane {
     }
 
     void setLimitColumn(int column) {
+        if (column <= 0) {
+            clearLimitColumn();
+            return;
+        }
         int safeColumn = clamp(column, MIN_LIMIT_COLUMN, MAX_LIMIT_COLUMN);
         if (safeColumn == limitColumn) {
             return;
@@ -123,6 +129,17 @@ final class SnippetColumnRuler extends StackPane {
         limitColumn = safeColumn;
         if (limitColumnChangedHandler != null) {
             limitColumnChangedHandler.accept(limitColumn);
+        }
+        draw();
+    }
+
+    void clearLimitColumn() {
+        if (limitColumn == 0) {
+            return;
+        }
+        limitColumn = 0;
+        if (limitColumnChangedHandler != null) {
+            limitColumnChangedHandler.accept(0);
         }
         draw();
     }
@@ -148,6 +165,7 @@ final class SnippetColumnRuler extends StackPane {
                 return;
             }
             formatToLimitItem.setText(I18n.get("snippets.ruler.formatToLimit", limitColumn));
+            clearLimitItem.setText(I18n.get("snippets.ruler.clearLimit"));
             markerMenu.show(this, Side.BOTTOM, event.getX(), 0);
             event.consume();
         });

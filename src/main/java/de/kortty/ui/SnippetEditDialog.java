@@ -12,6 +12,7 @@ import de.kortty.core.PlantUmlRenderService;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetOneLiner;
+import de.kortty.model.AiSkill;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
@@ -108,9 +109,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final Button saveButton;
     private final Snippet existingSnippet;
     private final ExternalFileActionConfig externalFileActionConfig;
+    private final boolean saveAsNewSnippetEnabled;
     private Button overwriteFileButton;
     private Button saveFileAsButton;
     private Button saveAsSnippetButton;
+    private Button saveAsNewSnippetButton;
     private EditorSettingsHelper.Settings editorSettings;
     private SnippetEditorProfile editorProfile;
     private final AiAssist aiAssist;
@@ -248,6 +251,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     @FunctionalInterface
+    public interface CodeAssistantProvider {
+        SnippetAiResponseSupport.CodeImprovement assist(CodeAssistantRequest request) throws Exception;
+    }
+
+    @FunctionalInterface
     public interface SecurityReportProvider {
         List<SnippetAiResponseSupport.SecurityFinding> review(SecurityReviewRequest request) throws Exception;
     }
@@ -319,7 +327,38 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String selectedText,
         String fallbackLanguageCode,
         String improvementTheme,
-        String additionalInstructions) {
+        String additionalInstructions,
+        boolean allowPlainTextFallback) {
+
+        public CodeImprovementRequest(
+            String fullContent,
+            String snippetLanguage,
+            String selectedText,
+            String fallbackLanguageCode,
+            String improvementTheme,
+            String additionalInstructions) {
+
+            this(
+                fullContent,
+                snippetLanguage,
+                selectedText,
+                fallbackLanguageCode,
+                improvementTheme,
+                additionalInstructions,
+                false);
+        }
+    }
+
+    public record CodeAssistantRequest(
+        String fullContent,
+        String snippetLanguage,
+        int cursorOffset,
+        int cursorLine,
+        int cursorColumn,
+        String fallbackLanguageCode,
+        String userInstruction,
+        String additionalInstructions,
+        boolean includeAiSkills) {
     }
 
     public record SecurityReviewRequest(
@@ -364,6 +403,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         CompletionProvider completionProvider,
         CodeReviewProvider codeReviewProvider,
         CodeImprovementProvider codeImprovementProvider,
+        CodeAssistantProvider codeAssistantProvider,
         SecurityReportProvider securityReportProvider,
         SecurityFixProvider securityFixProvider,
         OneLinerProvider oneLinerProvider,
@@ -380,10 +420,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         int afterCaret) {
     }
 
+    private record CodeAssistantPrompt(String instruction, boolean includeAiSkills) {
+    }
+
+    private record CursorLocation(int offset, int line, int column) {
+    }
+
     private record DiagramGenerationResult(
         SnippetAiResponseSupport.PlantUmlDiagram diagram,
         PlantUmlRenderService.SyntaxCheckResult syntaxCheck,
         PlantUmlRenderService.RenderResult renderCheck) {
+    }
+
+    private enum AiFormatScope {
+        SELECTION,
+        FULL_CONTENT
     }
     
     /**
@@ -404,10 +455,30 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Snippet snippet,
         List<String> existingCategories,
         AiAssist aiAssist,
+        boolean saveAsNewSnippetEnabled) {
+
+        this(snippet, existingCategories, aiAssist, null, saveAsNewSnippetEnabled);
+    }
+
+    public SnippetEditDialog(
+        Snippet snippet,
+        List<String> existingCategories,
+        AiAssist aiAssist,
         ExternalFileActionConfig externalFileActionConfig) {
+
+        this(snippet, existingCategories, aiAssist, externalFileActionConfig, false);
+    }
+
+    private SnippetEditDialog(
+        Snippet snippet,
+        List<String> existingCategories,
+        AiAssist aiAssist,
+        ExternalFileActionConfig externalFileActionConfig,
+        boolean saveAsNewSnippetEnabled) {
         this.existingSnippet = snippet;
         this.aiAssist = aiAssist;
         this.externalFileActionConfig = externalFileActionConfig;
+        this.saveAsNewSnippetEnabled = saveAsNewSnippetEnabled && snippet != null && externalFileActionConfig == null;
         if (snippet != null && snippet.getDiagrams() != null) {
             for (SnippetDiagram diagram : snippet.getDiagrams()) {
                 if (diagram != null) {
@@ -837,10 +908,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             cancelButton = (Button) getDialogPane().lookupButton(closeButtonType);
         } else {
             ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.APPLY);
-            getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.OK, ButtonType.CANCEL);
+            ButtonType saveAsNewButtonType = new ButtonType(I18n.get("snippets.saveAsNew"), ButtonBar.ButtonData.APPLY);
+            if (this.saveAsNewSnippetEnabled) {
+                getDialogPane().getButtonTypes().addAll(saveButtonType, saveAsNewButtonType, ButtonType.OK, ButtonType.CANCEL);
+            } else {
+                getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.OK, ButtonType.CANCEL);
+            }
 
             Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
             assignedSaveButton = (Button) getDialogPane().lookupButton(saveButtonType);
+            saveAsNewSnippetButton = this.saveAsNewSnippetEnabled
+                ? (Button) getDialogPane().lookupButton(saveAsNewButtonType)
+                : null;
             cancelButton = (Button) getDialogPane().lookupButton(ButtonType.CANCEL);
             okButton.setDisable(true);
             assignedSaveButton.setVisible(false);
@@ -856,6 +935,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setResult(buildResultSnippet());
                 close();
             });
+            if (saveAsNewSnippetButton != null) {
+                saveAsNewSnippetButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                    event.consume();
+                    if (!isSnippetFormValid()) {
+                        updateSaveButtonState();
+                        return;
+                    }
+                    saveGeometry();
+                    allowCloseWithoutUnsavedPrompt = true;
+                    setResult(buildNewResultSnippet());
+                    close();
+                });
+            }
             validationButton = okButton;
         }
         saveButton = assignedSaveButton;
@@ -986,13 +1078,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void updateSaveButtonState() {
-        if (saveButton == null) {
-            return;
+        boolean formValid = isSnippetFormValid();
+        if (saveButton != null) {
+            boolean visible = hasUnsavedContentChanges();
+            saveButton.setVisible(visible);
+            saveButton.setManaged(visible);
+            saveButton.setDisable(!formValid);
         }
-        boolean visible = hasUnsavedContentChanges();
-        saveButton.setVisible(visible);
-        saveButton.setManaged(visible);
-        saveButton.setDisable(!isSnippetFormValid());
+        if (saveAsNewSnippetButton != null) {
+            saveAsNewSnippetButton.setDisable(!formValid);
+        }
     }
 
     private void configureExternalFileActionButton(
@@ -1146,6 +1241,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private Snippet buildResultSnippet() {
         Snippet result = existingSnippet != null ? existingSnippet : new Snippet();
+        applyFormValues(result);
+        return result;
+    }
+
+    private Snippet buildNewResultSnippet() {
+        Snippet result = new Snippet();
+        applyFormValues(result);
+        return result;
+    }
+
+    private void applyFormValues(Snippet result) {
         String content = safeContentText();
         result.setName(nameField.getText().trim());
         result.setContent(content);
@@ -1154,7 +1260,6 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         result.setTagsFromString(tagsField.getText());
         result.setDescription(descriptionArea.getText() != null ? descriptionArea.getText().trim() : null);
         result.setDiagrams(copyDiagrams());
-        return result;
     }
 
     private List<SnippetDiagram> copyDiagrams() {
@@ -1643,6 +1748,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         alternativeSolutionItem.setOnAction(e -> runAlternativeSolutions());
         MenuItem completeCodeContextItem = new MenuItem(aiActionLabel("snippets.ai.code.complete"));
         completeCodeContextItem.setOnAction(e -> runCompletion(false));
+        MenuItem codeAssistantContextItem = new MenuItem(aiActionLabel("snippets.ai.assistant.context"));
+        codeAssistantContextItem.setOnAction(e -> runCodeAssistant());
         MenuItem reviewCodeContextItem = new MenuItem(aiActionLabel("snippets.ai.code.review"));
         reviewCodeContextItem.setOnAction(e -> runCodeReview());
         MenuItem improveCustomContextItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.custom"));
@@ -1680,6 +1787,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 new SeparatorMenuItem(),
                 alternativeSolutionItem,
                 completeCodeContextItem,
+                codeAssistantContextItem,
                 reviewCodeContextItem,
                 improveCustomContextItem,
                 securityCheckContextItem,
@@ -1697,11 +1805,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
             lineNumbersItem.setSelected(lineNumbersCheckBox.isSelected());
             String lang = languageCombo.getValue();
-            formatItem.setDisable(!CodeFormatterService.isSupported(lang));
-            lintItem.setDisable(!SnippetLinter.isSupported(lang));
             String t = contentArea.getText();
             boolean hasContent = t != null && !t.isBlank();
             boolean aiBusy = isAnyAiTaskRunning();
+            formatItem.setDisable(!hasContent || aiBusy || (!CodeFormatterService.isSupported(lang) && !hasCodeImprovementProvider()));
+            lintItem.setDisable(!hasContent || aiBusy || (!SnippetLinter.isSupported(lang) && !hasCodeReviewProvider()));
             boolean compactOneLinerOk = hasContent && (SnippetOneLiner.isCompactSupported(lang) || hasOneLinerProvider());
             boolean embeddedOneLinerOk = hasContent && SnippetOneLiner.isEmbeddedSupported(lang);
             oneLinerCompactCtx.setDisable(!compactOneLinerOk || aiBusy);
@@ -1711,6 +1819,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             describeSnippetContextItem.setDisable(!hasContent || aiAssist == null || aiAssist.snippetDescriptionProvider() == null || aiBusy);
             alternativeSolutionItem.setDisable(!hasContent || !hasAlternativeSolutionProvider() || aiBusy);
             completeCodeContextItem.setDisable(!hasContent || !hasCompletionProvider() || aiBusy);
+            codeAssistantContextItem.setDisable(!hasContent || !hasCodeAssistantProvider() || aiBusy);
             reviewCodeContextItem.setDisable(!hasContent || !hasCodeReviewProvider() || aiBusy);
             improveCustomContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
             securityCheckContextItem.setDisable(!hasContent || !hasSecurityProviders() || aiBusy);
@@ -1721,12 +1830,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private void updateFormatLintButtonState() {
         String lang = languageCombo.getValue();
-            CodeFormatterService.FormatterInfo formatterInfo = CodeFormatterService.getFormatterInfo(lang);
-            formatBtn.setDisable(formatterInfo == null);
-            formatBtn.setTooltip(new Tooltip(I18n.get(
-                "editor.format.tooltip",
-                formatterInfo != null ? formatterInfo.displayName() : I18n.get("editor.format.tooltip.builtin"))));
-        lintBtn.setDisable(!SnippetLinter.isSupported(lang));
+        String text = contentArea.getText();
+        boolean hasContent = text != null && !text.isBlank();
+        boolean aiBusy = isAnyAiTaskRunning();
+        CodeFormatterService.FormatterInfo formatterInfo = CodeFormatterService.getFormatterInfo(lang);
+        formatBtn.setDisable(aiBusy || !hasContent || (formatterInfo == null && !hasCodeImprovementProvider()));
+        formatBtn.setTooltip(new Tooltip(I18n.get(
+            "editor.format.tooltip",
+            formatterInfo != null ? formatterInfo.displayName() : I18n.get("editor.format.tooltip.builtin"))));
+        lintBtn.setDisable(aiBusy || !hasContent || (!SnippetLinter.isSupported(lang) && !hasCodeReviewProvider()));
     }
 
     private void updateOneLinerButtonState() {
@@ -1859,6 +1971,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private boolean hasCodeImprovementProvider() {
         return aiAssist != null && aiAssist.codeImprovementProvider() != null;
+    }
+
+    private boolean hasCodeAssistantProvider() {
+        return aiAssist != null && aiAssist.codeAssistantProvider() != null;
     }
 
     private boolean hasSecurityProviders() {
@@ -2413,6 +2529,164 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Thread thread = new Thread(task, "snippet-ai-improve");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private void runCodeAssistant() {
+        if (!hasCodeAssistantProvider()) {
+            return;
+        }
+        String fullContent = contentArea.getText();
+        if (fullContent == null || fullContent.isBlank()) {
+            return;
+        }
+        Optional<CodeAssistantPrompt> prompt = promptCodeAssistantInstruction();
+        if (prompt.isEmpty() || !ensureSnippetAiDataNoticeAccepted(false)) {
+            return;
+        }
+        String snippetLanguage = languageCombo.getValue();
+        String fallbackLanguage = resolveAiTextFallbackLanguageCode();
+        String additionalInstructions = additionalInstructions();
+        CursorLocation cursor = cursorLocation(fullContent, contentArea.getCaretPosition());
+        CodeAssistantPrompt assistantPrompt = prompt.get();
+        Task<SnippetAiResponseSupport.CodeImprovement> task = new Task<>() {
+            @Override
+            protected SnippetAiResponseSupport.CodeImprovement call() throws Exception {
+                return aiAssist.codeAssistantProvider().assist(new CodeAssistantRequest(
+                    fullContent,
+                    snippetLanguage,
+                    cursor.offset(),
+                    cursor.line(),
+                    cursor.column(),
+                    fallbackLanguage,
+                    assistantPrompt.instruction(),
+                    additionalInstructions,
+                    assistantPrompt.includeAiSkills()));
+            }
+        };
+        snippetAiActionTask = task;
+        task.setOnRunning(event -> {
+            showSnippetAiHint(I18n.get("snippets.ai.assistant.running"));
+            setStatus(I18n.get("snippets.ai.assistant.running"));
+            updateAiActionAvailability();
+        });
+        task.setOnSucceeded(event -> {
+            finishSnippetAiAction(task);
+            SnippetAiResponseSupport.CodeImprovement improvement = task.getValue();
+            if (improvement == null || !improvement.isUsable()) {
+                setStatus(I18n.get("snippets.ai.assistant.empty"));
+                return;
+            }
+            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
+                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                I18n.get("snippets.ai.assistant.diffTitle"),
+                improvement.summary(),
+                fullContent,
+                improvement.replacement(),
+                snippetLanguage,
+                editorSettings,
+                editorProfile);
+            if (diffDialog.showAndWait().orElse(false)) {
+                applyAiContentChange(
+                    0,
+                    fullContent.length(),
+                    improvement.replacement(),
+                    I18n.get("snippets.ai.toggle.action.assistant"));
+                setStatus(I18n.get("snippets.ai.assistant.applied"));
+            }
+        });
+        task.setOnFailed(event -> {
+            finishSnippetAiAction(task);
+            setStatus(I18n.get("snippets.ai.assistant.failed"));
+        });
+        task.setOnCancelled(event -> finishSnippetAiAction(task));
+        Thread thread = new Thread(task, "snippet-ai-assistant");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private Optional<CodeAssistantPrompt> promptCodeAssistantInstruction() {
+        Dialog<CodeAssistantPrompt> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("snippets.ai.assistant.title"));
+        dialog.setHeaderText(I18n.get("snippets.ai.assistant.header"));
+        dialog.setResizable(true);
+        if (getDialogPane().getScene() != null) {
+            dialog.initOwner(getDialogPane().getScene().getWindow());
+        }
+
+        TextArea instructionArea = new TextArea();
+        instructionArea.setPromptText(I18n.get("snippets.ai.assistant.prompt"));
+        instructionArea.setPrefRowCount(5);
+        instructionArea.setPrefColumnCount(120);
+        instructionArea.setWrapText(true);
+
+        CheckBox includeSkillsCheck = new CheckBox(I18n.get("snippets.ai.assistant.skills"));
+        boolean skillsAvailable = isAiSkillsAvailableForChat();
+        includeSkillsCheck.setSelected(skillsAvailable);
+        includeSkillsCheck.setDisable(!skillsAvailable);
+        includeSkillsCheck.setTooltip(new Tooltip(skillsAvailable
+            ? I18n.get("snippets.ai.assistant.skills.tooltip")
+            : I18n.get("snippets.ai.assistant.skills.unavailable")));
+
+        VBox content = new VBox(8, new Label(I18n.get("snippets.ai.assistant.instruction")), instructionArea, includeSkillsCheck);
+        content.setPadding(new Insets(10));
+        VBox.setVgrow(instructionArea, Priority.ALWAYS);
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefWidth(900);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setDisable(true);
+        instructionArea.textProperty().addListener((obs, oldValue, newValue) ->
+            okButton.setDisable(newValue == null || newValue.trim().isBlank()));
+        dialog.setResultConverter(button -> {
+            if (button != ButtonType.OK) {
+                return null;
+            }
+            String instruction = instructionArea.getText();
+            return instruction != null && !instruction.trim().isBlank()
+                ? new CodeAssistantPrompt(instruction.trim(), includeSkillsCheck.isSelected())
+                : null;
+        });
+        Platform.runLater(instructionArea::requestFocus);
+        return dialog.showAndWait();
+    }
+
+    private boolean isAiSkillsAvailableForChat() {
+        try {
+            GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            if (settings == null || !settings.isAiSkillsEnabled()) {
+                return false;
+            }
+            for (AiSkill skill : settings.getAiSkills()) {
+                if (skill != null
+                    && skill.isEnabled()
+                    && skill.getTarget().appliesToChat()
+                    && skill.getContent() != null
+                    && !skill.getContent().isBlank()) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
+    }
+
+    private static CursorLocation cursorLocation(String content, int cursorOffset) {
+        String value = content != null ? content : "";
+        int safeOffset = Math.max(0, Math.min(cursorOffset, value.length()));
+        int line = 1;
+        int column = 1;
+        for (int i = 0; i < safeOffset; i++) {
+            char c = value.charAt(i);
+            if (c == '\n') {
+                line++;
+                column = 1;
+            } else if (c != '\r') {
+                column++;
+            }
+        }
+        return new CursorLocation(safeOffset, line, column);
     }
 
     private void runSecurityCheck() {
@@ -3233,16 +3507,35 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String lang = languageCombo.getValue();
         CodeFormatterService.FormatterInfo formatterInfo = CodeFormatterService.getFormatterInfo(lang);
         if (formatterInfo == null) {
+            if (confirmAiFormatFallback(I18n.get("editor.format.notSupported", lang != null ? lang : "plain"))) {
+                runAiFormat(maxLineLength, maxLineLength == null ? currentFormatScope() : AiFormatScope.FULL_CONTENT);
+                return;
+            }
             setStatus(I18n.get("editor.format.notSupported", lang != null ? lang : "plain"));
             return;
         }
         if (maxLineLength != null && !CodeFormatterService.supportsLineWidth(lang)) {
-            showAlert(I18n.get("snippets.ruler.formatNotSupported", lang != null ? lang : "plain"), Alert.AlertType.WARNING);
+            String reason = I18n.get("snippets.ruler.formatNotSupported", lang != null ? lang : "plain");
+            boolean aiFallbackAvailable = hasCodeImprovementProvider();
+            if (confirmAiFormatFallback(reason)) {
+                runAiFormat(maxLineLength, AiFormatScope.FULL_CONTENT);
+                return;
+            }
+            if (aiFallbackAvailable) {
+                showAlert(reason, Alert.AlertType.WARNING);
+            }
             setStatus(I18n.get("snippets.ruler.formatNotSupported", lang != null ? lang : "plain"));
             return;
         }
         if (!CodeFormatterService.isFormatterAvailable(formatterInfo)) {
-            showFormatterUnavailable(formatterInfo);
+            boolean aiFallbackAvailable = hasCodeImprovementProvider();
+            if (confirmAiFormatFallback(I18n.get("editor.format.unavailable", formatterInfo.displayName()))) {
+                runAiFormat(maxLineLength, maxLineLength == null ? currentFormatScope() : AiFormatScope.FULL_CONTENT);
+                return;
+            }
+            if (aiFallbackAvailable) {
+                showFormatterUnavailable(formatterInfo);
+            }
             return;
         }
         int start = contentArea.getSelection().getStart();
@@ -3281,21 +3574,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 }
                 return;
             }
-            clearLastAiChangeSnapshot();
-            programmaticContentUpdate = true;
-            try {
-                if (selectionOnly) {
-                    contentArea.replaceText(start, end, formatted);
-                    contentArea.selectRange(start, start + formatted.length());
-                } else {
-                    int caret = Math.min(contentArea.getCaretPosition(), formatted.length());
-                    contentArea.replaceText(formatted);
-                    contentArea.moveTo(caret);
-                }
-            } finally {
-                programmaticContentUpdate = false;
+            if (maxLineLength != null) {
+                showLineWidthFormatPreview(text, formatted, lang, maxLineLength, selectionOnly, start, end);
+                return;
             }
-            applyHighlighting();
+            applyFormattedText(selectionOnly, start, end, formatted);
             setFormatSuccessStatus(formatted, maxLineLength);
         });
         task.setOnFailed(event -> {
@@ -3307,6 +3590,176 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 Alert.AlertType.ERROR);
         });
         Thread thread = new Thread(task, "snippet-code-formatter");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void showLineWidthFormatPreview(
+        String originalText,
+        String formattedText,
+        String language,
+        int maxLineLength,
+        boolean selectionOnly,
+        int start,
+        int end) {
+
+        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
+            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            I18n.get("snippets.ruler.formatPreviewTitle"),
+            I18n.get("snippets.ruler.formatPreviewSummary", maxLineLength),
+            originalText,
+            formattedText,
+            language,
+            editorSettings,
+            editorProfile);
+        if (diffDialog.showAndWait().orElse(false)) {
+            applyFormattedText(selectionOnly, start, end, formattedText);
+            setFormatSuccessStatus(formattedText, maxLineLength);
+            return;
+        }
+        setStatus(I18n.get("snippets.ruler.formatPreviewCancelled"));
+    }
+
+    private void applyFormattedText(boolean selectionOnly, int start, int end, String formattedText) {
+        clearLastAiChangeSnapshot();
+        programmaticContentUpdate = true;
+        try {
+            if (selectionOnly) {
+                contentArea.replaceText(start, end, formattedText);
+                contentArea.selectRange(start, start + formattedText.length());
+            } else {
+                int caret = Math.min(contentArea.getCaretPosition(), formattedText.length());
+                contentArea.replaceText(formattedText);
+                contentArea.moveTo(caret);
+            }
+        } finally {
+            programmaticContentUpdate = false;
+        }
+        applyHighlighting();
+    }
+
+    private AiFormatScope currentFormatScope() {
+        IndexRange selection = contentArea.getSelection();
+        return selection != null && selection.getLength() > 0
+            ? AiFormatScope.SELECTION
+            : AiFormatScope.FULL_CONTENT;
+    }
+
+    private boolean confirmAiFormatFallback(String reason) {
+        if (!hasCodeImprovementProvider()) {
+            showAlert(I18n.get("snippets.ai.format.unavailable", reason), Alert.AlertType.WARNING);
+            return false;
+        }
+        if (!ensureSnippetAiDataNoticeAccepted(false)) {
+            return false;
+        }
+        return confirmAiFallback(
+            I18n.get("snippets.ai.format.fallback.title"),
+            I18n.get("snippets.ai.format.fallback.header"),
+            I18n.get("snippets.ai.format.fallback.content", reason));
+    }
+
+    private boolean confirmAiLintFallback(String reason) {
+        if (!hasCodeReviewProvider()) {
+            showAlert(I18n.get("snippets.ai.lint.unavailable", reason), Alert.AlertType.WARNING);
+            return false;
+        }
+        if (!ensureSnippetAiDataNoticeAccepted(false)) {
+            return false;
+        }
+        return confirmAiFallback(
+            I18n.get("snippets.ai.lint.fallback.title"),
+            I18n.get("snippets.ai.lint.fallback.header"),
+            I18n.get("snippets.ai.lint.fallback.content", reason));
+    }
+
+    private boolean confirmAiFallback(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        initAlertOwner(alert);
+        Optional<ButtonType> response = alert.showAndWait();
+        return response.isPresent() && response.get() == ButtonType.OK;
+    }
+
+    private void runAiFormat(Integer maxLineLength, AiFormatScope scope) {
+        String fullContent = contentArea.getText();
+        if (fullContent == null || fullContent.isBlank()) {
+            return;
+        }
+        IndexRange selection = contentArea.getSelection();
+        boolean selectionOnly = scope == AiFormatScope.SELECTION && selection != null && selection.getLength() > 0;
+        int replacementStart = selectionOnly ? selection.getStart() : 0;
+        int replacementEnd = selectionOnly ? selection.getEnd() : fullContent.length();
+        String targetText = selectionOnly ? contentArea.getSelectedText() : fullContent;
+        if (targetText == null || targetText.isBlank()) {
+            return;
+        }
+        String lang = languageCombo.getValue();
+        String theme = maxLineLength != null
+            ? I18n.get("snippets.ai.format.widthTheme", maxLineLength)
+            : I18n.get("snippets.ai.format.theme");
+        Task<SnippetAiResponseSupport.CodeImprovement> task = new Task<>() {
+            @Override
+            protected SnippetAiResponseSupport.CodeImprovement call() throws Exception {
+                return aiAssist.codeImprovementProvider().improve(new CodeImprovementRequest(
+                    fullContent,
+                    lang,
+                    targetText,
+                    resolveAiTextFallbackLanguageCode(),
+                    theme,
+                    additionalInstructions(),
+                    true));
+            }
+        };
+        snippetAiActionTask = task;
+        task.setOnRunning(event -> {
+            showSnippetAiHint(I18n.get("snippets.ai.format.running"));
+            setStatus(I18n.get("snippets.ai.format.running"));
+            updateAiActionAvailability();
+            updateFormatLintButtonState();
+        });
+        task.setOnSucceeded(event -> {
+            finishSnippetAiAction(task);
+            updateFormatLintButtonState();
+            SnippetAiResponseSupport.CodeImprovement improvement = task.getValue();
+            if (improvement == null || !improvement.isUsable()) {
+                setStatus(I18n.get("snippets.ai.format.empty"));
+                return;
+            }
+            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
+                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                I18n.get("snippets.ai.format.diffTitle"),
+                improvement.summary(),
+                targetText,
+                improvement.replacement(),
+                lang,
+                editorSettings,
+                editorProfile);
+            if (diffDialog.showAndWait().orElse(false)) {
+                applyAiContentChange(
+                    replacementStart,
+                    replacementEnd,
+                    improvement.replacement(),
+                    I18n.get("snippets.ai.toggle.action.format"));
+                if (maxLineLength != null) {
+                    setFormatSuccessStatus(improvement.replacement(), maxLineLength);
+                } else {
+                    setStatus(I18n.get("snippets.ai.format.applied"));
+                }
+            }
+        });
+        task.setOnFailed(event -> {
+            finishSnippetAiAction(task);
+            updateFormatLintButtonState();
+            setStatus(I18n.get("snippets.ai.format.failed"));
+        });
+        task.setOnCancelled(event -> {
+            finishSnippetAiAction(task);
+            updateFormatLintButtonState();
+        });
+        Thread thread = new Thread(task, "snippet-ai-format");
         thread.setDaemon(true);
         thread.start();
     }
@@ -3363,7 +3816,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String text = contentArea.getText();
         String lang = languageCombo.getValue();
         if (!SnippetLinter.isSupported(lang)) {
-            showAlert(I18n.get("editor.lint.notAvailable", lang != null ? lang : "plain"));
+            String reason = I18n.get("editor.lint.notAvailable", lang != null ? lang : "plain");
+            if (confirmAiLintFallback(reason)) {
+                runAiSyntaxCheck();
+            } else {
+                setStatus(reason);
+            }
             return;
         }
         SnippetLinter.LintResult result = SnippetLinter.lint(text != null ? text : "", lang);
@@ -3372,6 +3830,64 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         } else {
             showAlert(I18n.get("editor.lint.errors") + "\n\n" + result.getMessage(), Alert.AlertType.ERROR);
         }
+    }
+
+    private void runAiSyntaxCheck() {
+        if (!hasCodeReviewProvider()) {
+            return;
+        }
+        String fullContent = contentArea.getText();
+        if (fullContent == null || fullContent.isBlank()) {
+            return;
+        }
+        String lang = languageCombo.getValue();
+        Task<List<SnippetAiResponseSupport.CodeReviewFinding>> task = new Task<>() {
+            @Override
+            protected List<SnippetAiResponseSupport.CodeReviewFinding> call() throws Exception {
+                return aiAssist.codeReviewProvider().review(new CodeReviewRequest(
+                    fullContent,
+                    lang,
+                    fullContent,
+                    true,
+                    resolveAiTextFallbackLanguageCode(),
+                    I18n.get("snippets.ai.lint.theme"),
+                    additionalInstructions()));
+            }
+        };
+        snippetAiActionTask = task;
+        task.setOnRunning(event -> {
+            showSnippetAiHint(I18n.get("snippets.ai.lint.running"));
+            setStatus(I18n.get("snippets.ai.lint.running"));
+            updateAiActionAvailability();
+            updateFormatLintButtonState();
+        });
+        task.setOnSucceeded(event -> {
+            finishSnippetAiAction(task);
+            updateFormatLintButtonState();
+            List<SnippetAiResponseSupport.CodeReviewFinding> findings = task.getValue();
+            if (findings == null || findings.isEmpty()) {
+                showAlert(I18n.get("snippets.ai.lint.noFindings"), Alert.AlertType.INFORMATION);
+                setStatus(I18n.get("snippets.ai.lint.noFindings"));
+                return;
+            }
+            new SnippetAiReviewDialog(
+                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                I18n.get("snippets.ai.lint.title"),
+                findings).showAndWait();
+            setStatus(I18n.get("snippets.ai.lint.ready"));
+        });
+        task.setOnFailed(event -> {
+            finishSnippetAiAction(task);
+            updateFormatLintButtonState();
+            setStatus(I18n.get("snippets.ai.lint.failed"));
+        });
+        task.setOnCancelled(event -> {
+            finishSnippetAiAction(task);
+            updateFormatLintButtonState();
+        });
+        Thread thread = new Thread(task, "snippet-ai-syntax-check");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private void showAlert(String message) {

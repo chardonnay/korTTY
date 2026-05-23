@@ -38,6 +38,7 @@ public final class AiInternetPromptSupport {
                 COMPLETE_SNIPPET_CODE,
                 REVIEW_SNIPPET_CODE,
                 IMPROVE_SNIPPET_CODE,
+                ASSIST_SNIPPET_CODE,
                 SECURITY_REVIEW_SNIPPET_CODE,
                 APPLY_SNIPPET_SECURITY_FIXES,
                 GENERATE_SNIPPET_ONE_LINER,
