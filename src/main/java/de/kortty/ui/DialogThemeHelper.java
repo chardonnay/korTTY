@@ -21,6 +21,7 @@ public final class DialogThemeHelper {
             return;
         }
         applyTheme(dialog.getDialogPane());
+        WindowCloseShortcutSupport.installForDialog(dialog);
     }
 
     public static void applyTheme(DialogPane dialogPane) {

@@ -18,6 +18,7 @@ import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
 import de.kortty.model.SnippetEditorProfile;
+import de.kortty.model.SnippetHistoryEntry;
 import de.kortty.model.WindowGeometry;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -33,6 +34,8 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.control.IndexRange;
+import javafx.scene.Node;
+import javafx.event.EventHandler;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -133,6 +136,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private String initialContentSnapshot = "";
     private boolean allowCloseWithoutUnsavedPrompt;
     private boolean externalFileActionRunning;
+    private Consumer<Snippet> liveSaveHandler;
+    private Snippet liveSavedSnippet;
     private final List<SnippetDiagram> diagrams = new ArrayList<>();
     private final PauseTransition autoCompletionDelay = new PauseTransition(Duration.millis(900));
     private final PauseTransition markupPreviewRefreshDelay = new PauseTransition(Duration.millis(180));
@@ -142,7 +147,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private int pendingCompletionCaretOffset = -1;
     private String lastAutoCompletionKey;
     private boolean autoCompletionWarningAccepted;
-    
+
+    // History slider fields
+    private Slider historySlider;
+    private Label historyLabel;
+    private List<SnippetHistoryEntry> contentHistory = new ArrayList<>();
+    private int currentHistoryIndex = -1;
+    private boolean sliderActive;
+    private boolean updatingHistorySlider;
+    private String pendingHistoryContent = ""; // content pending for history (debounced)
+    private final PauseTransition historyDebounce = new PauseTransition(Duration.millis(500));
+    private String lastTrackedContent = ""; // last content that was added to history
+
     // Syntax highlight style constants (reused from FileEditorTab)
     private static final String STYLE_COMMENT = "-fx-fill: #888888; -fx-font-style: italic;";
     private static final String STYLE_STRING = "-fx-fill: #008800;";
@@ -693,6 +709,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             updateColumnRulerCaret();
             scheduleMarkupPreviewRefresh();
             scheduleAutoCompletion();
+
+            // Track history changes with debounce (only when user is editing, not when slider is active)
+            if (!programmaticContentUpdate && !sliderActive) {
+                pendingHistoryContent = newText;
+                historyDebounce.playFromStart();
+            }
         });
         contentArea.selectionProperty().addListener((obs, oldSelection, newSelection) -> updateAiActionAvailability());
         contentArea.caretPositionProperty().addListener((obs, oldValue, newValue) -> {
@@ -702,6 +724,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         contentArea.caretColumnProperty().addListener((obs, oldValue, newValue) -> updateColumnRulerCaret());
         autoCompletionDelay.setOnFinished(event -> runAutoCompletionIfReady());
+
+        // Setup history debounce timer
+        historyDebounce.setOnFinished(event -> {
+            flushPendingHistory();
+        });
+
+        // Leaving the slider makes the previewed text the active editor content.
+        contentArea.setOnMousePressed(event -> {
+            if (sliderActive) {
+                sliderActive = false;
+                updateSaveButtonState();
+            }
+        });
         
         // Placeholder info label
         Label placeholderInfo = new Label(I18n.get("snippets.placeholderInfo"));
@@ -759,9 +794,48 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         undoItem = new MenuItem(I18n.get("editor.context.undo"));
         undoItem.setAccelerator(UNDO_SHORTCUT);
         undoItem.setOnAction(e -> undoContentChange());
+
+        // History slider UI
+        historyLabel = new Label(I18n.get("snippets.history.label"));
+        historyLabel.setStyle("-fx-font-size: 11px; -fx-padding: 2 4 2 4;");
+        historySlider = new Slider(0, 1, 0);
+        historySlider.setDisable(true);
+        historySlider.setPrefWidth(180);
+        historySlider.setSnapToTicks(true);
+        historySlider.setMajorTickUnit(1);
+        historySlider.setMinorTickCount(0);
+        historySlider.visibleProperty().bind(historySlider.disableProperty().not());
+        historySlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!historySlider.isDisabled() && !updatingHistorySlider) {
+                int idx = (int) Math.round(newVal.doubleValue());
+                navigateToHistoryEntry(idx);
+            }
+        });
+        historySlider.setOnMousePressed(event -> {
+            flushPendingHistory();
+            sliderActive = true;
+        });
+        historySlider.setOnMouseReleased(event -> {
+            sliderActive = false;
+            updateSaveButtonState();
+        });
+        historySlider.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+            // Ensure label is visible when slider has items
+            updateHistorySliderState();
+        });
+
+        VBox historyBox = new VBox(4);
+        historyBox.setStyle("-fx-padding: 4 8 4 8;");
+        historyBox.getChildren().addAll(historyLabel, historySlider);
+
+        CustomMenuItem historyMenuItem = new CustomMenuItem(historyBox, false);
+
         editMenu = new MenuButton(I18n.get("menu.edit"));
-        editMenu.getItems().add(undoItem);
-        editMenu.setOnShowing(e -> updateUndoControls());
+        editMenu.getItems().addAll(historyMenuItem, new SeparatorMenuItem(), undoItem);
+        editMenu.setOnShowing(e -> {
+            updateUndoControls();
+            updateHistorySliderState();
+        });
 
         correctSelectionTextItem = new MenuItem(aiActionLabel("snippets.ai.menu.correct"));
         correctSelectionTextItem.setOnAction(e -> runSelectionCorrection());
@@ -926,14 +1000,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             assignedSaveButton.setManaged(false);
             assignedSaveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
                 event.consume();
-                if (!isSnippetFormValid()) {
-                    updateSaveButtonState();
-                    return;
-                }
-                saveGeometry();
-                allowCloseWithoutUnsavedPrompt = true;
-                setResult(buildResultSnippet());
-                close();
+                saveSnippetWithoutClosing();
             });
             if (saveAsNewSnippetButton != null) {
                 saveAsNewSnippetButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
@@ -943,6 +1010,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                         return;
                     }
                     saveGeometry();
+                    flushPendingHistory();
                     allowCloseWithoutUnsavedPrompt = true;
                     setResult(buildNewResultSnippet());
                     close();
@@ -951,6 +1019,27 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             validationButton = okButton;
         }
         saveButton = assignedSaveButton;
+
+        // Cancel button should close directly without prompting
+        if (cancelButton != null) {
+            cancelButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                allowCloseWithoutUnsavedPrompt = true;
+            });
+        }
+
+        // Prevent Enter key from triggering default button when content area has focus
+        EventHandler<javafx.event.ActionEvent> enterGuard = event -> {
+            if (event.getTarget() instanceof Button) {
+                Button clickedButton = (Button) event.getTarget();
+                Node focusOwner = getDialogPane().getScene().getFocusOwner();
+                // If content area or its inner components have focus, don't trigger button
+                if (focusOwner != null && isDescendantOf(focusOwner, contentArea)) {
+                    event.consume();
+                }
+            }
+        };
+        getDialogPane().addEventFilter(javafx.event.ActionEvent.ACTION, enterGuard);
+
         nameField.textProperty().addListener((obs, o, n) -> {
             if (!programmaticNameUpdate) {
                 nameUserEdited = true;
@@ -994,8 +1083,36 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 programmaticContentUpdate = false;
             }
             applyHighlighting();
+
+            // Initialize history with current content
+            String currentContent = snippet.getContent() != null ? snippet.getContent() : "";
+            contentHistory.clear();
+            if (snippet.getHistory() != null) {
+                for (SnippetHistoryEntry entry : snippet.getHistory()) {
+                    if (entry != null && entry.getContent() != null) {
+                        contentHistory.add(new SnippetHistoryEntry(entry.getContent(), entry.getTimestamp()));
+                    }
+                }
+            }
+            if (contentHistory.isEmpty()
+                    || !currentContent.equals(contentHistory.get(contentHistory.size() - 1).getContent())) {
+                contentHistory.add(new SnippetHistoryEntry(currentContent));
+            }
+            trimHistoryToLimit();
+            currentHistoryIndex = contentHistory.size() - 1;
+            lastTrackedContent = currentContent; // Initialize so first change is tracked
+            updateHistorySliderState();
+        } else {
+            // For new snippets, also initialize history
+            contentHistory.clear();
+            contentHistory.add(new SnippetHistoryEntry(""));
+            currentHistoryIndex = 0;
+            updateHistorySliderState();
         }
-        contentArea.getUndoManager().forgetHistory();
+        // Only forget history for new snippets, not when editing existing ones
+        if (existingSnippet == null) {
+            contentArea.getUndoManager().forgetHistory();
+        }
         updateFormatLintButtonState();
         updateOneLinerButtonState();
         updateMarkupPreviewAvailability();
@@ -1013,6 +1130,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         setResultConverter(buttonType -> {
             saveGeometry();
             if (buttonType == ButtonType.OK) {
+                flushPendingHistory();
                 return buildResultSnippet();
             }
             return null;
@@ -1030,6 +1148,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     public void showNonBlocking(Consumer<Snippet> resultHandler) {
+        this.liveSaveHandler = resultHandler;
         if (resultHandler != null) {
             addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
                 Snippet result = getResult();
@@ -1040,21 +1159,88 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         show();
     }
-    
-    private void installUnsavedContentCloseGuard(Button cancelButton) {
-        if (cancelButton != null) {
-            cancelButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-                if (hasUnsavedContentChanges()) {
-                    event.consume();
-                    closeFromUnsavedContentChoice(promptForUnsavedContentChoice());
-                }
-            });
+
+    private void saveSnippetWithoutClosing() {
+        if (!isSnippetFormValid()) {
+            updateSaveButtonState();
+            return;
         }
 
+        flushPendingHistory();
+        saveGeometry();
+
+        Snippet saved = existingSnippet != null
+            ? existingSnippet
+            : liveSavedSnippet != null ? liveSavedSnippet : new Snippet();
+        applyFormValues(saved);
+
+        boolean firstLiveSave = existingSnippet == null && liveSavedSnippet == null && liveSaveHandler != null;
+        boolean savedSuccessfully;
+        if (firstLiveSave) {
+            try {
+                liveSaveHandler.accept(saved);
+                savedSuccessfully = true;
+            } catch (RuntimeException e) {
+                showSaveFailure(e);
+                savedSuccessfully = false;
+            }
+        } else {
+            savedSuccessfully = persistSnippet(saved);
+        }
+        if (!savedSuccessfully) {
+            updateSaveButtonState();
+            updateExternalFileButtonState();
+            return;
+        }
+
+        liveSavedSnippet = saved;
+        initialContentSnapshot = safeContentText();
+        lastTrackedContent = initialContentSnapshot;
+        pendingHistoryContent = "";
+        sliderActive = false;
+        currentHistoryIndex = contentHistory.isEmpty() ? -1 : contentHistory.size() - 1;
+        updateHistorySliderState();
+        updateSaveButtonState();
+        updateExternalFileButtonState();
+    }
+
+    private boolean persistSnippet(Snippet snippet) {
+        if (snippet == null) {
+            return false;
+        }
+        try {
+            var snippetManager = KorTTYApplication.getInstance().getSnippetManager();
+            if (snippetManager.findById(snippet.getId()).isPresent()) {
+                snippetManager.updateSnippet(snippet);
+            } else {
+                snippetManager.addSnippet(snippet);
+            }
+            snippetManager.save();
+            return true;
+        } catch (Exception e) {
+            showSaveFailure(e);
+            return false;
+        }
+    }
+
+    private void showSaveFailure(Throwable failure) {
+        String message = failure != null && failure.getMessage() != null && !failure.getMessage().isBlank()
+            ? failure.getMessage()
+            : failure != null ? failure.getClass().getSimpleName() : I18n.get("snippets.error.unknown");
+        setStatus(message);
+        showAlert(message, Alert.AlertType.ERROR);
+    }
+    
+    private void installUnsavedContentCloseGuard(Button cancelButton) {
+        // Cancel button should close directly without prompting
+        // Only window close (X) should prompt for unsaved changes
+
         setOnCloseRequest(event -> {
+            // Only prompt if closing via window X button, not from Cancel/OK buttons
             if (allowCloseWithoutUnsavedPrompt || !hasUnsavedContentChanges()) {
                 return;
             }
+            // Check if this close was triggered by a button - buttons handle their own logic
             event.consume();
             closeFromUnsavedContentChoice(promptForUnsavedContentChoice());
         });
@@ -1088,6 +1274,132 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (saveAsNewSnippetButton != null) {
             saveAsNewSnippetButton.setDisable(!formValid);
         }
+    }
+
+    // ---- Content History Methods ----
+
+    private int getEffectiveHistoryMaxSize() {
+        if (existingSnippet != null && existingSnippet.getHistoryMaxSize() != null) {
+            int size = existingSnippet.getHistoryMaxSize();
+            if (size == 0) return Integer.MAX_VALUE; // 0 means unlimited
+            return Math.max(1, Math.min(99, size));
+        }
+        try {
+            var settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            if (settings != null) {
+                int size = settings.getSnippetHistoryMaxSize();
+                if (size == 0) return Integer.MAX_VALUE; // 0 means unlimited
+                return Math.max(1, Math.min(99, size));
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return 30;
+    }
+
+    private void addToHistory(String newContent) {
+        if (newContent == null) {
+            return;
+        }
+        // Don't track if content hasn't changed from last entry
+        if (!contentHistory.isEmpty()
+                && java.util.Objects.equals(contentHistory.get(contentHistory.size() - 1).getContent(), newContent)) {
+            return;
+        }
+        int maxSize = getEffectiveHistoryMaxSize();
+        contentHistory.add(new SnippetHistoryEntry(newContent));
+        currentHistoryIndex = contentHistory.size() - 1;
+
+        trimHistoryToLimit(maxSize);
+
+        updateHistorySliderState();
+    }
+
+    private void flushPendingHistory() {
+        historyDebounce.stop();
+        String currentContent = safeContentText();
+        if (!currentContent.isBlank()
+                && (contentHistory.isEmpty()
+                || !java.util.Objects.equals(currentContent, contentHistory.get(contentHistory.size() - 1).getContent()))) {
+            addToHistory(currentContent);
+        }
+        lastTrackedContent = currentContent;
+        pendingHistoryContent = "";
+    }
+
+    private void trimHistoryToLimit() {
+        trimHistoryToLimit(getEffectiveHistoryMaxSize());
+    }
+
+    private void trimHistoryToLimit(int maxSize) {
+        if (maxSize == Integer.MAX_VALUE) {
+            return;
+        }
+        while (contentHistory.size() > maxSize) {
+            contentHistory.remove(0);
+            currentHistoryIndex--;
+        }
+        if (contentHistory.isEmpty()) {
+            currentHistoryIndex = -1;
+        } else {
+            currentHistoryIndex = Math.max(0, Math.min(currentHistoryIndex, contentHistory.size() - 1));
+        }
+    }
+
+    private void updateHistorySliderState() {
+        if (historySlider == null || historyLabel == null) {
+            return;
+        }
+        int size = contentHistory.size();
+        updatingHistorySlider = true;
+        try {
+            if (size <= 1) {
+                historySlider.setDisable(true);
+                historySlider.setMin(0);
+                historySlider.setMax(1);
+                historySlider.setValue(0);
+                historyLabel.setText(I18n.get("snippets.history.label") + ": 0");
+            } else {
+                historySlider.setDisable(false);
+                historySlider.setMin(0);
+                historySlider.setMax(size - 1);
+                historySlider.setMajorTickUnit(1);
+                historySlider.setValue(Math.max(0, Math.min(currentHistoryIndex, size - 1)));
+                historyLabel.setText(String.format(I18n.get("snippets.history.position"), currentHistoryIndex + 1, size));
+            }
+        } finally {
+            updatingHistorySlider = false;
+        }
+    }
+
+    private void navigateToHistoryEntry(int index) {
+        if (index < 0 || index >= contentHistory.size()) {
+            return;
+        }
+        currentHistoryIndex = index;
+        String historicalContent = contentHistory.get(currentHistoryIndex).getContent();
+        if (!safeContentText().equals(historicalContent)) {
+            programmaticContentUpdate = true;
+            try {
+                contentArea.replaceText(historicalContent);
+            } finally {
+                programmaticContentUpdate = false;
+            }
+        }
+        updateHistorySliderState();
+    }
+
+    private void applyHistoryHighlighting(String oldContent, String newContent) {
+        // Simple diff highlighting - in a full implementation you would use a proper diff algorithm
+        // For now, we just apply a general highlight style
+        // The actual diff visualization would require more complex implementation with the MonacoEditorPane
+        contentArea.setStyle("-fx-background-color: #2d2d30;");
+    }
+
+    private void clearContentHistory() {
+        contentHistory.clear();
+        currentHistoryIndex = -1;
+        updateHistorySliderState();
     }
 
     private void configureExternalFileActionButton(
@@ -1212,6 +1524,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         saveGeometry();
         allowCloseWithoutUnsavedPrompt = true;
         if (choice == UnsavedContentChoice.SAVE) {
+            flushPendingHistory();
             setResult(buildResultSnippet());
         } else {
             setResult(null);
@@ -1240,7 +1553,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private Snippet buildResultSnippet() {
-        Snippet result = existingSnippet != null ? existingSnippet : new Snippet();
+        Snippet result = existingSnippet != null
+            ? existingSnippet
+            : liveSavedSnippet != null ? liveSavedSnippet : new Snippet();
         applyFormValues(result);
         return result;
     }
@@ -1260,6 +1575,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         result.setTagsFromString(tagsField.getText());
         result.setDescription(descriptionArea.getText() != null ? descriptionArea.getText().trim() : null);
         result.setDiagrams(copyDiagrams());
+        result.setHistory(new ArrayList<>(contentHistory));
     }
 
     private List<SnippetDiagram> copyDiagrams() {
@@ -3922,7 +4238,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         // Run once more on the next pulse, because Monaco Editor may recreate caret after key handling.
         Platform.runLater(() -> EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings));
     }
-    
+
+    private boolean isDescendantOf(Node node, Region parent) {
+        if (node == null || parent == null) {
+            return false;
+        }
+        if (node == parent) {
+            return true;
+        }
+        if (node.getParent() != null) {
+            return isDescendantOf(node.getParent(), parent);
+        }
+        return false;
+    }
+
     // ---- Monaco Syntax Highlighting ----
 
     private void applyHighlighting() {

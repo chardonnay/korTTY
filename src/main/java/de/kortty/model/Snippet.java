@@ -50,7 +50,14 @@ public class Snippet {
     
     @XmlElement
     private long createdAt;
-    
+
+    @XmlElementWrapper(name = "history")
+    @XmlElement(name = "entry")
+    private List<SnippetHistoryEntry> history = new ArrayList<>();
+
+    @XmlElement
+    private Integer historyMaxSize; // null = use global default
+
     public Snippet() {
         this.id = java.util.UUID.randomUUID().toString();
         this.createdAt = System.currentTimeMillis();
@@ -106,7 +113,22 @@ public class Snippet {
     
     public long getCreatedAt() { return createdAt; }
     public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
-    
+
+    public List<SnippetHistoryEntry> getHistory() {
+        if (history == null) {
+            history = new ArrayList<>();
+        }
+        return history;
+    }
+
+    public void setHistory(List<SnippetHistoryEntry> history) {
+        this.history = history != null ? history : new ArrayList<>();
+    }
+
+    public Integer getHistoryMaxSize() { return historyMaxSize; }
+
+    public void setHistoryMaxSize(Integer historyMaxSize) { this.historyMaxSize = historyMaxSize; }
+
     /**
      * Increments usage count and updates last used timestamp.
      */

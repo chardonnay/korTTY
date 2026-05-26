@@ -409,7 +409,10 @@ public class GlobalSettings {
 
     @XmlElement
     private Double snippetManagerPreviewDividerPosition; // Vertical table/preview divider position
-    
+
+    @XmlElement
+    private Integer snippetHistoryMaxSize = 30; // Max number of history entries per snippet (default: 30, max: 99)
+
     // Snippet dialog geometries
     @XmlElement
     private WindowGeometry snippetManagerGeometry;
@@ -1655,7 +1658,22 @@ public class GlobalSettings {
         }
         this.snippetManagerPreviewDividerPosition = Math.max(0.35, Math.min(0.9, snippetManagerPreviewDividerPosition));
     }
-    
+
+    public int getSnippetHistoryMaxSize() {
+        if (snippetHistoryMaxSize == null || snippetHistoryMaxSize <= 0) {
+            return 30;
+        }
+        return Math.min(99, snippetHistoryMaxSize);
+    }
+
+    public void setSnippetHistoryMaxSize(Integer snippetHistoryMaxSize) {
+        if (snippetHistoryMaxSize == null) {
+            this.snippetHistoryMaxSize = 30;
+            return;
+        }
+        this.snippetHistoryMaxSize = Math.max(1, Math.min(99, snippetHistoryMaxSize));
+    }
+
     // ---- Snippet Dialog Geometries ----
     
     public WindowGeometry getSnippetManagerGeometry() { return snippetManagerGeometry; }

@@ -253,6 +253,7 @@ public class MainWindow {
         setupUI();
         setupMenuBar();
         setupKeyBindings();
+        WindowCloseShortcutSupport.installForMainWindow(stage, openWindows.isEmpty(), this::fireCloseRequest);
         
         openWindows.add(this);
     }
