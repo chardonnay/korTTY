@@ -7,7 +7,7 @@
 
 == 1. Introduction
 
-KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a tabbed terminal interface with a dark theme, advanced connection management, and tools for everyday server administration.
+KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a tabbed terminal interface, selectable app designs for the JavaFX UI, advanced connection management, and tools for everyday server administration.
 
 === Key Highlights
 
@@ -20,6 +20,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *ASCII Art Banner* generator with 11+ FIGlet font styles
 * *Terminal recording* with lightweight KorTTY replay files, optional color capture, auto-pause on inactivity, split-scope selection, and optional WebM/MKV export via local `ffmpeg`
 * *Terminal effect plugins* with per-session or per-connection selection, animation speed, import/export, and plugin enable/disable management
+* *Selectable app designs* for JavaFX windows and dialogs: Normal, Matrix Terminal, Holographic Interface, Klingon Tactical, and Elegant Dark
 * *SSH tunnels* (local, remote, dynamic) and jump server support
 * *Backup and restore* with password-protected ZIP or GPG encryption
 * *8 built-in languages* plus *dynamic translation*: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
@@ -92,7 +93,7 @@ On the first launch, KorTTY asks you to create a *master password*. This passwor
 
 On subsequent launches, you are prompted to enter the master password to unlock your encrypted data. You can disable this prompt in *Settings > Security*, but stored passwords will not be accessible until you enter the master password manually.
 
-The master-password dialog uses a wider layout with the KorTTY logo and current version shown beside the password fields.
+The master-password dialog uses the refreshed KorTTY logo on a black background. The password field is blue with black text for high contrast, and the current version remains visible beside the logo.
 
 === 2.3 Main Window Overview
 
@@ -124,7 +125,7 @@ image::diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Dashboard* - Toggle with Ctrl+Shift+D. Shows all open connections with status indicators. Right-click a connection to *Reconnect* (always available; closes active connection and re-establishes it), duplicate, open SFTP, or close.
 * *Status Bar* - Shows connection state, host/IP, active protocol, temporary SSH key timer, and connection duration.
 * *JobScheduler menu status* - When enabled and at least one scheduler entry is active, an additional menu appears after *Help*. It shows running jobs or the next scheduled run with a live countdown.
-* *Terminal-only fullscreen* - Press F12 or use *View > Terminal-only Fullscreen* to hide the menu bar, status bar, dashboard, local file browser, and other window chrome so only the terminal remains visible. Press F12 again to restore the previous fullscreen and UI state.
+* *Terminal-only fullscreen* - Press F12 or use *View > Terminal-only Fullscreen* to hide the menu bar, status bar, dashboard, local file browser, and other window chrome so only the terminal remains visible. *View > Hide terminal scrollbars in fullscreen* can also hide terminal scrollbars while fullscreen mode is active. Press F12 again to restore the previous fullscreen and UI state.
 
 == 3. Connections
 
@@ -145,7 +146,7 @@ The Quick Connect dialog has three sections:
 2. *Individual Connection* tab:
 * Select a saved connection from the dropdown, or enter host, port, and username manually.
 * Choose an authentication method (Password, SSH Key, or Temporary SSH Key).
-* Optionally customize terminal appearance (font, size, colors), terminal effect plugin, and terminal-effect animation speed.
+* Optionally customize terminal appearance (font, size, colors, terminal color-sequence handling), terminal effect plugin, and terminal-effect animation speed.
 * Check *Save Connection* to add the connection to your library.
 
 3. *Open Group* tab:
@@ -200,6 +201,7 @@ When you create or edit a connection, a dialog with multiple tabs opens:
 
 ==== Terminal Settings Tab
 * Override global font, colors, and terminal size for this specific connection.
+* Enable or disable terminal colors for this connection. When disabled, ANSI and TrueColor color sequences from the remote process are ignored and the configured foreground/background colors are used.
 * Select a terminal-effect plugin and animation speed for this connection. The slider covers `1x` through `10x`; the numeric field accepts larger values up to `99x`.
 * *Close Confirmation* - Ask before closing this tab.
 
@@ -1099,7 +1101,9 @@ Projects save your complete workspace state: all open windows, tabs, connections
 
 Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
-Key tabs: *Font and Colors*, *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *SFTP* (SFTP auto-close, archive defaults, and optional JobScheduler Rsync binary path), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, and menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, editable model selection with LM Studio Auto mode, optional supported reasoning effort per profile, per-profile internet access mode, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, terminal-agent panel preferences, snippet-AI behavior switches, saved-chat compatibility, and token quotas), *AI Skills* (local reusable skill instructions for AI Chat/functions and AI Agent), and *Themes* (color profiles with live preview, add/edit/delete actions for custom and preconfigured themes, and dedicated Terminal AI agent panel colors). Terminal-effect plugins are managed from *Plugins > Terminal Effects*.
+Key tabs: *Font and Colors* (including the global *Enable terminal colors* default for ANSI/TrueColor color sequences), *Appearance* (app-wide JavaFX window/dialog designs with previews), *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *SFTP* (SFTP auto-close, archive defaults, and optional JobScheduler Rsync binary path), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, and menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, editable model selection with LM Studio Auto mode, optional supported reasoning effort per profile, per-profile internet access mode, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, terminal-agent panel preferences, snippet-AI behavior switches, saved-chat compatibility, and token quotas), *AI Skills* (local reusable skill instructions for AI Chat/functions and AI Agent), and *Themes* (terminal color profiles with live preview, add/edit/delete actions for custom and preconfigured themes, and dedicated Terminal AI agent panel colors). Terminal-effect plugins are managed from *Plugins > Terminal Effects*.
+
+The *Appearance* tab affects JavaFX app chrome, windows, dialogs, tables, lists, buttons, and inputs. It does not change terminal-session colors, terminal color profiles, Monaco editor content, or Snippet Editor content colors. Available app designs are *Normal*, *Matrix Terminal*, *Holographic Interface*, *Klingon Tactical*, and *Elegant Dark*.
 
 == 17. Keyboard Shortcuts
 

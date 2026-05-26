@@ -77,6 +77,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private Spinner<Integer> fontSizeSpinner;
     private ColorPicker foregroundColorPicker;
     private ColorPicker backgroundColorPicker;
+    private CheckBox terminalColorsEnabledCheck;
     private CheckBox closeWithoutConfirmCheck;
     private CheckBox commandTimestampsCheck;
     private ComboBox<TerminalEffectUiSupport.Option> terminalEffectCombo;
@@ -574,6 +575,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     if (fontSizeSpinner != null) customSettings.setFontSize(fontSizeSpinner.getValue());
                     if (foregroundColorPicker != null) customSettings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
                     if (backgroundColorPicker != null) customSettings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+                    if (terminalColorsEnabledCheck != null) customSettings.setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
                     if (closeWithoutConfirmCheck != null) customSettings.setCloseWithoutConfirmation(closeWithoutConfirmCheck.isSelected());
                     if (commandTimestampsCheck != null) customSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
                     connection.setSettings(customSettings);
@@ -769,6 +771,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 Color.web(connSettings.getForegroundColor()) : Color.WHITE);
         backgroundColorPicker = new ColorPicker(connSettings != null ? 
                 Color.web(connSettings.getBackgroundColor()) : Color.BLACK);
+
+        terminalColorsEnabledCheck = new CheckBox(I18n.get("settings.colors.terminalColors"));
+        terminalColorsEnabledCheck.setSelected(connSettings == null || connSettings.isTerminalColorsEnabled());
+        terminalColorsEnabledCheck.setTooltip(new javafx.scene.control.Tooltip(I18n.get("settings.colors.terminalColors.tooltip")));
         
         // Close without confirmation
         closeWithoutConfirmCheck = new CheckBox(I18n.get("connEdit.closeWithoutConfirm"));
@@ -850,6 +856,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         settingsGrid.add(new Label(I18n.get("connEdit.backgroundColor")), 0, row);
         settingsGrid.add(backgroundColorPicker, 1, row++);
+        settingsGrid.add(terminalColorsEnabledCheck, 0, row++, 2, 1);
         
         settingsGrid.add(new Separator(), 0, row++, 2, 1);
         

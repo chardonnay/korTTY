@@ -187,6 +187,8 @@ public class MainWindow {
     private CheckMenuItem systemShowMenuBarMenuItem;
     private CheckMenuItem terminalOnlyFullscreenMenuItem;
     private CheckMenuItem systemTerminalOnlyFullscreenMenuItem;
+    private CheckMenuItem hideFullscreenScrollbarsMenuItem;
+    private CheckMenuItem systemHideFullscreenScrollbarsMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
     private CheckMenuItem systemShowTimestampsMenuItem;
     private Menu jobSchedulerStatusMenu;
@@ -277,6 +279,9 @@ public class MainWindow {
         // Tab pane configuration
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
         tabPane.setTabDragPolicy(TabPane.TabDragPolicy.REORDER);
+        root.getStyleClass().add("kortty-main-root");
+        mainContentBox.getStyleClass().add("main-content");
+        tabPane.getStyleClass().add("main-tab-pane");
         
         // Auto-focus terminal when tab is selected; tell Mosh connector when this tab is active so it does not show false "interrupted"
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
@@ -297,6 +302,13 @@ public class MainWindow {
                     for (Tab addedTab : change.getAddedSubList()) {
                         if (addedTab instanceof TerminalTab terminalTab) {
                             terminalTab.setTerminalChromeVisible(false);
+                            applyTerminalScrollbarVisibility(terminalTab);
+                        }
+                    }
+                } else if (change.wasAdded()) {
+                    for (Tab addedTab : change.getAddedSubList()) {
+                        if (addedTab instanceof TerminalTab terminalTab) {
+                            applyTerminalScrollbarVisibility(terminalTab);
                         }
                     }
                 }
@@ -445,6 +457,8 @@ public class MainWindow {
         
         // Status bar
         statusBar = new VBox(statusLabel);
+        statusBar.getStyleClass().add("status-bar");
+        statusLabel.getStyleClass().add("status-label");
         statusBar.setStyle("-fx-padding: 5; -fx-background-color: #2d2d2d;");
         statusLabel.setStyle("-fx-text-fill: #cccccc;");
         
@@ -556,6 +570,7 @@ public class MainWindow {
         });
         
         stage.setScene(scene);
+        AppDesignStyleSupport.installGlobalWindowStyler();
         // Apply theme again now that scene exists (first call in setupUI had scene == null)
         applyMainWindowThemeFromGlobalSettings();
         stage.setTitle(KorTTYApplication.getAppName());
@@ -575,6 +590,7 @@ public class MainWindow {
             if (!isFullscreen && terminalOnlyFullscreenActive) {
                 setTerminalOnlyFullscreen(false);
             }
+            applyTerminalScrollbarVisibilityForOpenTabs();
             Platform.runLater(() -> {
                 // Give layout time to update, then resize terminal
                 Platform.runLater(() -> {
@@ -1295,9 +1311,20 @@ public class MainWindow {
             systemTerminalOnlyFullscreenMenuItem = terminalOnlyFullscreen;
         }
 
+        CheckMenuItem hideFullscreenScrollbars =
+            new CheckMenuItem(I18n.get("menu.view.hideTerminalScrollbarsFullscreen"));
+        hideFullscreenScrollbars.setSelected(isHideTerminalScrollbarsInFullscreenPreference());
+        hideFullscreenScrollbars.setOnAction(e ->
+            setHideTerminalScrollbarsInFullscreen(hideFullscreenScrollbars.isSelected()));
+        if (target == MenuBarTarget.WINDOW) {
+            hideFullscreenScrollbarsMenuItem = hideFullscreenScrollbars;
+        } else {
+            systemHideFullscreenScrollbarsMenuItem = hideFullscreenScrollbars;
+        }
+
         viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(),
-            fullscreen, terminalOnlyFullscreen);
+            fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
     }
 
@@ -2026,16 +2053,13 @@ public class MainWindow {
         dialog.addChangeListener(() -> {
             logger.info("Settings changed, updating all terminal views");
             Platform.runLater(() -> {
-                applyMainWindowThemeFromGlobalSettings();
+                refreshAppDesignForOpenWindows();
                 applyMenuBarVisibility(isMenuBarVisiblePreference());
+                syncHideFullscreenScrollbarsMenuItems();
+                applyTerminalScrollbarVisibilityForOpenTabs();
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
                 refreshTerminalRecordingControlsVisibility();
-                for (Tab tab : tabPane.getTabs()) {
-                    if (tab instanceof TerminalTab terminalTab) {
-                        // Scrollbar functionality removed
-                    }
-                }
                 if (menuBar != null && !menuBar.isVisible()) {
                     updateStatus(I18n.get("menu.view.menuBar.hiddenHint", MENU_BAR_TOGGLE_SHORTCUT_LABEL));
                 } else {
@@ -2077,13 +2101,14 @@ public class MainWindow {
 
     private void applyMainWindowThemeFromGlobalSettings() {
         try {
+            boolean customAppDesign = AppDesignStyleSupport.isCustomAppDesignActive();
             ThemeCssSupport.ThemeColors colors = ThemeCssSupport.resolveThemeColors(app);
-            if (colors == null) {
-                return;
-            }
-            String bg = colors.backgroundColor();
-            String fg = colors.foregroundColor();
-            if (bg != null && !bg.isEmpty()) {
+            String bg = colors != null ? colors.backgroundColor() : null;
+            String fg = colors != null ? colors.foregroundColor() : null;
+
+            if (customAppDesign) {
+                clearMainWindowInlineThemeStyles();
+            } else if (bg != null && !bg.isEmpty()) {
                 String bgStyle = "-fx-background-color: " + bg + ";";
                 root.setStyle(bgStyle);
                 mainContentBox.setStyle(bgStyle);
@@ -2093,7 +2118,7 @@ public class MainWindow {
                     stage.getScene().setFill(unifiedTitleBarEnabled ? Color.TRANSPARENT : Color.web(bg));
                 }
             }
-            if (fg != null && !fg.isEmpty()) {
+            if (!customAppDesign && fg != null && !fg.isEmpty()) {
                 statusLabel.setStyle("-fx-text-fill: " + fg + ";");
             }
             if (dashboardView != null) {
@@ -2102,10 +2127,30 @@ public class MainWindow {
             if (localFileBrowser != null) {
                 localFileBrowser.applyTheme(bg, fg);
             }
-            updateDynamicThemeStylesheet(bg, fg);
+            if (bg != null && !bg.isEmpty()) {
+                updateDynamicThemeStylesheet(bg, fg);
+            }
+            if (stage.getScene() != null) {
+                AppDesignStyleSupport.applyToScene(stage.getScene());
+                if (customAppDesign) {
+                    stage.getScene().setFill(unifiedTitleBarEnabled
+                        ? Color.TRANSPARENT
+                        : Color.web(AppDesignStyleSupport.activeBackgroundColor()));
+                }
+            }
         } catch (Exception e) {
             logger.debug("Could not apply main window theme from global settings: {}", e.getMessage());
         }
+    }
+
+    private void clearMainWindowInlineThemeStyles() {
+        root.setStyle(null);
+        mainContentBox.setStyle(null);
+        tabPane.setStyle(null);
+        if (statusBar != null) {
+            statusBar.setStyle("-fx-padding: 5;");
+        }
+        statusLabel.setStyle(null);
     }
 
     private void updateDynamicThemeStylesheet(String bg, String fg) {
@@ -2128,6 +2173,13 @@ public class MainWindow {
         } catch (Exception e) {
             logger.debug("Could not update dynamic theme stylesheet: {}", e.getMessage());
         }
+    }
+
+    private static void refreshAppDesignForOpenWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            window.applyMainWindowThemeFromGlobalSettings();
+        }
+        AppDesignStyleSupport.applyToOpenWindows();
     }
     
     private void openNewWindow() {
@@ -2701,6 +2753,38 @@ public class MainWindow {
         }
     }
 
+    private void syncHideFullscreenScrollbarsMenuItems() {
+        boolean hide = isHideTerminalScrollbarsInFullscreenPreference();
+        if (hideFullscreenScrollbarsMenuItem != null
+            && hideFullscreenScrollbarsMenuItem.isSelected() != hide) {
+            hideFullscreenScrollbarsMenuItem.setSelected(hide);
+        }
+        if (systemHideFullscreenScrollbarsMenuItem != null
+            && systemHideFullscreenScrollbarsMenuItem.isSelected() != hide) {
+            systemHideFullscreenScrollbarsMenuItem.setSelected(hide);
+        }
+    }
+
+    private boolean isHideTerminalScrollbarsInFullscreenPreference() {
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        return globalSettings != null && globalSettings.isHideTerminalScrollbarsInFullscreen();
+    }
+
+    private void setHideTerminalScrollbarsInFullscreen(boolean hide) {
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        if (globalSettings != null) {
+            globalSettings.setHideTerminalScrollbarsInFullscreen(hide);
+            try {
+                app.getGlobalSettingsManager().save();
+            } catch (Exception e) {
+                logger.warn("Could not persist fullscreen scrollbar visibility preference", e);
+            }
+        }
+        syncHideFullscreenScrollbarsMenuItems();
+        applyTerminalScrollbarVisibilityForOpenTabs();
+        updateStatus(I18n.get("status.globalSettingsSaved"));
+    }
+
     private void toggleTerminalOnlyFullscreen() {
         setTerminalOnlyFullscreen(!terminalOnlyFullscreenActive);
     }
@@ -2748,12 +2832,37 @@ public class MainWindow {
         }
 
         syncTerminalOnlyFullscreenMenuItems();
+        applyTerminalScrollbarVisibilityForOpenTabs();
         Platform.runLater(() -> {
             Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
             if (selectedTab instanceof TerminalTab terminalTab) {
                 terminalTab.getTerminalView().focusTerminal();
             }
         });
+    }
+
+    private void applyTerminalScrollbarVisibilityForOpenTabs() {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                applyTerminalScrollbarVisibility(terminalTab);
+            }
+        }
+    }
+
+    private void applyTerminalScrollbarVisibility(TerminalTab terminalTab) {
+        if (terminalTab == null) {
+            return;
+        }
+        terminalTab.getTerminalView().setTerminalScrollbarsVisible(shouldShowTerminalScrollbars());
+    }
+
+    private boolean shouldShowTerminalScrollbars() {
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        boolean showTerminalScrollbar = globalSettings == null || globalSettings.isShowTerminalScrollbar();
+        boolean hideForFullscreen = globalSettings != null
+            && globalSettings.isHideTerminalScrollbarsInFullscreen()
+            && stage.isFullScreen();
+        return showTerminalScrollbar && !hideForFullscreen;
     }
 
     private void applyStatusBarVisibility(boolean visible) {
@@ -3438,8 +3547,24 @@ public class MainWindow {
 
         HBox updateCheckBox = new HBox(10, manualUpdateCheckButton, updateProgress);
         updateCheckBox.setAlignment(Pos.CENTER_LEFT);
-        VBox content = new VBox(
-            10,
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(4, 0, 0, 0));
+        content.setPrefWidth(640);
+
+        var iconUrl = getClass().getResource("/icon/kortty_logo.png");
+        if (iconUrl == null) {
+            iconUrl = getClass().getResource("/icon/kortty_icon.png");
+        }
+        if (iconUrl != null) {
+            ImageView iconView = new ImageView(new Image(iconUrl.toExternalForm()));
+            iconView.setFitWidth(560);
+            iconView.setPreserveRatio(true);
+            iconView.setSmooth(true);
+            HBox logoBox = new HBox(iconView);
+            logoBox.setAlignment(Pos.CENTER);
+            content.getChildren().addAll(logoBox, new Separator());
+        }
+        content.getChildren().addAll(
             aboutText,
             developedBy,
             new Label(I18n.get("dialog.aboutProject")),
@@ -3448,19 +3573,7 @@ public class MainWindow {
             new Separator(),
             updateCheckBox,
             updateStatusLabel);
-        content.setPadding(new Insets(4, 0, 0, 0));
-        content.setPrefWidth(460);
         dialog.getDialogPane().setContent(content);
-
-        var iconUrl = getClass().getResource("/icon/kortty_icon.png");
-        if (iconUrl != null) {
-            ImageView iconView = new ImageView(new Image(iconUrl.toExternalForm()));
-            iconView.setFitWidth(120);
-            iconView.setFitHeight(120);
-            iconView.setPreserveRatio(true);
-            iconView.setSmooth(true);
-            dialog.getDialogPane().setGraphic(iconView);
-        }
         dialog.showAndWait();
     }
 

@@ -38,11 +38,14 @@ public class DashboardView extends VBox {
         
         setPadding(new Insets(5));
         setSpacing(5);
+        getStyleClass().add("dashboard-view");
         
         HBox titleBox = new HBox(10);
+        titleBox.getStyleClass().add("dashboard-title");
         titleBox.setPadding(new Insets(0, 0, 5, 0));
         
         refreshButton = new Button("⟳");
+        refreshButton.getStyleClass().add("dashboard-refresh-button");
         refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10; -fx-background-color: transparent;");
         refreshButton.setTooltip(new Tooltip("Aktualisieren"));
         refreshButton.setOnAction(e -> refresh());
@@ -51,6 +54,7 @@ public class DashboardView extends VBox {
         HBox.setHgrow(refreshButton, javafx.scene.layout.Priority.NEVER);
         
         treeView = new TreeView<>();
+        treeView.getStyleClass().add("dashboard-tree");
         treeView.setShowRoot(false);
         
         // Custom cell factory with context menu
@@ -140,12 +144,19 @@ public class DashboardView extends VBox {
         if (fgColor == null) {
             fgColor = "";
         }
-        themeTextColor = fgColor.isEmpty() ? "#cccccc" : fgColor;
-        String bgStyle = bgColor.isEmpty() ? "" : "-fx-background-color: " + bgColor + ";";
-        String fgStyle = fgColor.isEmpty() ? "" : " -fx-text-fill: " + fgColor + ";";
-        setStyle(bgStyle + fgStyle);
-        treeView.setStyle(bgStyle + fgStyle);
-        refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10; -fx-background-color: transparent;" + fgStyle);
+        if (AppDesignStyleSupport.isCustomAppDesignActive()) {
+            themeTextColor = AppDesignStyleSupport.activeTextColor();
+            setStyle(null);
+            treeView.setStyle(null);
+            refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10;");
+        } else {
+            themeTextColor = fgColor.isEmpty() ? "#cccccc" : fgColor;
+            String bgStyle = bgColor.isEmpty() ? "" : "-fx-background-color: " + bgColor + ";";
+            String fgStyle = fgColor.isEmpty() ? "" : " -fx-text-fill: " + fgColor + ";";
+            setStyle(bgStyle + fgStyle);
+            treeView.setStyle(bgStyle + fgStyle);
+            refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10; -fx-background-color: transparent;" + fgStyle);
+        }
         TreeItem<DashboardItem> root = treeView.getRoot();
         if (root != null) {
             treeView.setRoot(null);

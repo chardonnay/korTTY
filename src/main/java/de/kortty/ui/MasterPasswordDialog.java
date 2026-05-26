@@ -3,20 +3,32 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.security.PasswordStrengthChecker;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.effect.BlurType;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Locale;
 
 /**
  * Dialog for setting up or entering the master password.
@@ -24,19 +36,38 @@ import org.slf4j.LoggerFactory;
 public class MasterPasswordDialog {
     
     private static final Logger logger = LoggerFactory.getLogger(MasterPasswordDialog.class);
-    private static final double LOGIN_DIALOG_WIDTH = 680;
-    private static final double LOGIN_DIALOG_HEIGHT = 300;
+    private static final double LOGIN_DIALOG_WIDTH = 1080;
+    private static final double LOGIN_DIALOG_HEIGHT = 560;
+    private static final double ELEGANT_LOGIN_DIALOG_WIDTH = 520;
+    private static final double ELEGANT_LOGIN_DIALOG_HEIGHT = 320;
     private static final double SETUP_DIALOG_WIDTH = 780;
     private static final double SETUP_DIALOG_HEIGHT = 520;
-    private static final double BRAND_PANEL_WIDTH = 190;
-    private static final double LOGO_WIDTH = 128;
+    private static final double LOGIN_BRAND_PANEL_WIDTH = 650;
+    private static final double SETUP_BRAND_PANEL_WIDTH = 220;
+    private static final double TACTICAL_AUTH_PANEL_WIDTH = 104;
+    private static final double TACTICAL_BRAND_PANEL_WIDTH = 130;
+    private static final String LOGO_RESOURCE = "/icon/kortty_logo.png";
+    private static final String ICON_RESOURCE = "/icon/kortty_icon.png";
+    private static final double LOGIN_LOGO_WIDTH = 620;
+    private static final double SETUP_LOGO_WIDTH = 190;
     
     private final Stage dialog;
     private final MasterPasswordManager passwordManager;
+    private final boolean matrixTerminalDesign;
+    private final boolean holographicInterfaceDesign;
+    private final boolean klingonTacticalDesign;
+    private final boolean elegantDarkDesign;
+    private final boolean customAppDesign;
     private boolean result = false;
     
     public MasterPasswordDialog(Stage owner, MasterPasswordManager passwordManager) {
         this.passwordManager = passwordManager;
+        this.matrixTerminalDesign = AppDesignStyleSupport.isMatrixTerminalActive();
+        this.holographicInterfaceDesign = AppDesignStyleSupport.isHolographicInterfaceActive();
+        this.klingonTacticalDesign = AppDesignStyleSupport.isKlingonTacticalActive();
+        this.elegantDarkDesign = AppDesignStyleSupport.isElegantDarkActive();
+        this.customAppDesign = AppDesignStyleSupport.isCustomAppDesignActive();
+        boolean passwordSet = passwordManager.isPasswordSet();
         
         dialog = new Stage();
         dialog.initModality(Modality.APPLICATION_MODAL);
@@ -44,13 +75,13 @@ public class MasterPasswordDialog {
         if (owner != null && owner.isShowing()) {
             dialog.initOwner(owner);
         }
-        dialog.initStyle(StageStyle.UTILITY);
+        dialog.initStyle(isElegantDarkDesign() && passwordSet ? StageStyle.UNDECORATED : StageStyle.UTILITY);
         dialog.setResizable(false);
         dialog.setOnCloseRequest(e -> {
             result = false;
         });
         
-        if (passwordManager.isPasswordSet()) {
+        if (passwordSet) {
             setupLoginDialog();
         } else {
             setupSetupDialog();
@@ -59,6 +90,11 @@ public class MasterPasswordDialog {
     
     private void setupLoginDialog() {
         dialog.setTitle(I18n.get("masterPassword.title"));
+
+        if (isElegantDarkDesign()) {
+            setupElegantLoginDialog();
+            return;
+        }
         
         VBox root = new VBox(15);
         root.setPadding(new Insets(34, 38, 30, 38));
@@ -66,28 +102,203 @@ public class MasterPasswordDialog {
         
         Label titleLabel = new Label(I18n.get("masterPassword.enter"));
         titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        styleFieldLabel(titleLabel);
         
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText(I18n.get("masterPassword.password"));
         passwordField.setPrefWidth(250);
+        stylePasswordField(passwordField);
         
         Label errorLabel = new Label();
-        errorLabel.setStyle("-fx-text-fill: red;");
+        styleErrorLabel(errorLabel);
         errorLabel.setVisible(false);
         
         Button loginButton = new Button(I18n.get("masterPassword.loginButton"));
         loginButton.setDefaultButton(true);
         loginButton.setPrefWidth(100);
+        stylePrimaryButton(loginButton);
         
         Button cancelButton = new Button(I18n.get("dialog.cancel"));
         cancelButton.setCancelButton(true);
         cancelButton.setPrefWidth(100);
+        styleSecondaryButton(cancelButton);
         
         HBox buttonBox = new HBox(10, loginButton, cancelButton);
         buttonBox.setAlignment(Pos.CENTER);
         
         root.getChildren().addAll(titleLabel, passwordField, errorLabel, buttonBox);
-        
+
+        installLoginHandlers(passwordField, errorLabel, loginButton, cancelButton);
+
+        Scene scene = createBrandedScene(root, LOGIN_DIALOG_WIDTH, LOGIN_DIALOG_HEIGHT);
+        dialog.setScene(scene);
+        dialog.setMinWidth(LOGIN_DIALOG_WIDTH);
+        dialog.setMinHeight(LOGIN_DIALOG_HEIGHT);
+    }
+
+    private void setupElegantLoginDialog() {
+        VBox shell = new VBox();
+        shell.setPrefSize(ELEGANT_LOGIN_DIALOG_WIDTH, ELEGANT_LOGIN_DIALOG_HEIGHT);
+        shell.setMinSize(ELEGANT_LOGIN_DIALOG_WIDTH, ELEGANT_LOGIN_DIALOG_HEIGHT);
+        shell.getStyleClass().addAll("master-password-root", "elegant-root");
+        applyElegantWindowShadow(shell);
+
+        HBox titleBar = createElegantTitlebar();
+        installUndecoratedDragSupport(titleBar);
+
+        HBox body = new HBox(34);
+        body.getStyleClass().add("elegant-body");
+        body.setAlignment(Pos.CENTER_LEFT);
+
+        VBox form = new VBox(14);
+        form.setAlignment(Pos.CENTER_LEFT);
+        form.setPrefWidth(318);
+        HBox.setHgrow(form, Priority.ALWAYS);
+
+        Label titleLabel = new Label(I18n.get("masterPassword.enter"));
+        styleFieldLabel(titleLabel);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText(I18n.get("masterPassword.password"));
+        passwordField.setPrefWidth(318);
+        passwordField.setMaxWidth(Double.MAX_VALUE);
+        stylePasswordField(passwordField);
+
+        Label eyeIcon = new Label("o");
+        eyeIcon.getStyleClass().add("elegant-eye-icon");
+        eyeIcon.setMouseTransparent(true);
+        StackPane passwordStack = new StackPane(passwordField, eyeIcon);
+        StackPane.setAlignment(eyeIcon, Pos.CENTER_RIGHT);
+        passwordStack.setMaxWidth(Double.MAX_VALUE);
+
+        Label errorLabel = new Label();
+        styleErrorLabel(errorLabel);
+        errorLabel.setVisible(false);
+        errorLabel.setManaged(false);
+        errorLabel.visibleProperty().addListener((obs, wasVisible, isVisible) -> errorLabel.setManaged(isVisible));
+
+        Button loginButton = new Button(I18n.get("masterPassword.loginButton"));
+        loginButton.setDefaultButton(true);
+        loginButton.setPrefWidth(156);
+        stylePrimaryButton(loginButton);
+        installElegantPrimaryHover(loginButton);
+
+        Button cancelButton = new Button(I18n.get("dialog.cancel"));
+        cancelButton.setCancelButton(true);
+        cancelButton.setPrefWidth(156);
+        styleSecondaryButton(cancelButton);
+
+        HBox buttonBox = new HBox(14, loginButton, cancelButton);
+        buttonBox.setAlignment(Pos.CENTER_LEFT);
+
+        form.getChildren().addAll(titleLabel, passwordStack, errorLabel, buttonBox);
+        body.getChildren().addAll(form, createElegantBrandBox());
+
+        HBox footer = createElegantFooter();
+        VBox.setVgrow(body, Priority.ALWAYS);
+        shell.getChildren().addAll(titleBar, body, footer);
+
+        installLoginHandlers(passwordField, errorLabel, loginButton, cancelButton);
+
+        shell.setOpacity(0);
+        Scene scene = new Scene(shell, ELEGANT_LOGIN_DIALOG_WIDTH, ELEGANT_LOGIN_DIALOG_HEIGHT);
+        AppDesignStyleSupport.applyToScene(scene);
+        dialog.setScene(scene);
+        dialog.setMinWidth(ELEGANT_LOGIN_DIALOG_WIDTH);
+        dialog.setMinHeight(ELEGANT_LOGIN_DIALOG_HEIGHT);
+        dialog.setOnShown(e -> {
+            passwordField.requestFocus();
+            FadeTransition fade = new FadeTransition(Duration.millis(200), shell);
+            fade.setFromValue(0);
+            fade.setToValue(1);
+            fade.setInterpolator(Interpolator.EASE_OUT);
+            fade.play();
+        });
+    }
+
+    private HBox createElegantTitlebar() {
+        HBox titleBar = new HBox(10);
+        titleBar.getStyleClass().add("elegant-titlebar");
+        titleBar.setAlignment(Pos.CENTER_LEFT);
+        titleBar.setMinHeight(38);
+        titleBar.setPrefHeight(38);
+
+        HBox windowDots = new HBox(8);
+        windowDots.setAlignment(Pos.CENTER_LEFT);
+        windowDots.setMinWidth(120);
+        windowDots.setPrefWidth(120);
+        windowDots.getChildren().addAll(
+            createElegantWindowDot("elegant-dot-muted"),
+            createElegantWindowDot("elegant-dot-accent"),
+            createElegantWindowDot("elegant-dot-success")
+        );
+
+        Label title = new Label(I18n.get("masterPassword.title"));
+        title.getStyleClass().add("elegant-window-title");
+        title.setAlignment(Pos.CENTER);
+        title.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(title, Priority.ALWAYS);
+
+        Region rightPad = new Region();
+        rightPad.setMinWidth(120);
+        rightPad.setPrefWidth(120);
+
+        titleBar.getChildren().addAll(windowDots, title, rightPad);
+        return titleBar;
+    }
+
+    private Region createElegantWindowDot(String styleClass) {
+        Region dot = new Region();
+        dot.getStyleClass().addAll("elegant-window-dot", styleClass);
+        return dot;
+    }
+
+    private VBox createElegantBrandBox() {
+        VBox wrapper = new VBox(12);
+        wrapper.setAlignment(Pos.CENTER);
+        wrapper.setMinWidth(104);
+        wrapper.setPrefWidth(104);
+        wrapper.setMaxWidth(104);
+
+        VBox logoPanel = new VBox(6);
+        logoPanel.getStyleClass().add("logo-panel");
+        logoPanel.setAlignment(Pos.CENTER);
+
+        ImageView logoView = createLogoView(86);
+        if (logoView != null) {
+            logoPanel.getChildren().add(logoView);
+        } else {
+            Label name = new Label("KorTTY");
+            name.getStyleClass().add("elegant-brand-name");
+            logoPanel.getChildren().add(name);
+        }
+
+        wrapper.getChildren().addAll(logoPanel, createVersionLabel());
+        return wrapper;
+    }
+
+    private HBox createElegantFooter() {
+        HBox footer = new HBox(10);
+        footer.getStyleClass().add("footer-bar");
+        footer.setAlignment(Pos.CENTER_LEFT);
+
+        Region statusDot = new Region();
+        statusDot.getStyleClass().add("elegant-status-dot");
+        Label status = new Label("SECURE CONNECTION");
+        status.getStyleClass().add("footer-text");
+        HBox statusBox = new HBox(8, statusDot, status);
+        statusBox.setAlignment(Pos.CENTER_LEFT);
+
+        Label cipher = new Label("AES-256 • RSA-4096");
+        cipher.getStyleClass().add("footer-text");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        footer.getChildren().addAll(statusBox, spacer, cipher);
+        return footer;
+    }
+
+    private void installLoginHandlers(PasswordField passwordField, Label errorLabel, Button loginButton, Button cancelButton) {
         loginButton.setOnAction(e -> {
             String password = passwordField.getText();
             if (password.isEmpty()) {
@@ -95,7 +306,7 @@ public class MasterPasswordDialog {
                 errorLabel.setVisible(true);
                 return;
             }
-            
+
             try {
                 if (passwordManager.verifyPassword(password.toCharArray())) {
                     result = true;
@@ -111,16 +322,47 @@ public class MasterPasswordDialog {
                 errorLabel.setVisible(true);
             }
         });
-        
+
         cancelButton.setOnAction(e -> {
             result = false;
             dialog.close();
         });
-        
-        Scene scene = createBrandedScene(root, LOGIN_DIALOG_WIDTH, LOGIN_DIALOG_HEIGHT);
-        dialog.setScene(scene);
-        dialog.setMinWidth(LOGIN_DIALOG_WIDTH);
-        dialog.setMinHeight(LOGIN_DIALOG_HEIGHT);
+    }
+
+    private void installUndecoratedDragSupport(Region titleBar) {
+        double[] dragOffset = new double[2];
+        titleBar.setOnMousePressed(event -> {
+            dragOffset[0] = event.getSceneX();
+            dragOffset[1] = event.getSceneY();
+        });
+        titleBar.setOnMouseDragged(event -> {
+            dialog.setX(event.getScreenX() - dragOffset[0]);
+            dialog.setY(event.getScreenY() - dragOffset[1]);
+        });
+    }
+
+    private void applyElegantWindowShadow(Region root) {
+        DropShadow depth = new DropShadow(BlurType.GAUSSIAN, Color.web("#000000AA"), 60, 0, 0, 20);
+        DropShadow rim = new DropShadow(BlurType.GAUSSIAN, Color.web("#FFFFFF08"), 1, 1, 0, -1);
+        rim.setInput(depth);
+        root.setEffect(rim);
+    }
+
+    private void installElegantPrimaryHover(Button button) {
+        button.setOnMouseEntered(event -> {
+            TranslateTransition transition = new TranslateTransition(Duration.millis(120), button);
+            transition.setToY(-1.5);
+            transition.setInterpolator(Interpolator.EASE_OUT);
+            transition.play();
+            button.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.web("#c8a96e50"), 14, 0.15, 0, 3));
+        });
+        button.setOnMouseExited(event -> {
+            TranslateTransition transition = new TranslateTransition(Duration.millis(120), button);
+            transition.setToY(0);
+            transition.setInterpolator(Interpolator.EASE_OUT);
+            transition.play();
+            button.setEffect(null);
+        });
     }
     
     private void setupSetupDialog() {
@@ -132,9 +374,13 @@ public class MasterPasswordDialog {
         
         Label titleLabel = new Label(I18n.get("masterPassword.setup"));
         titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        styleFieldLabel(titleLabel);
         
         Label infoLabel = new Label(I18n.get("masterPassword.setup.info"));
-        infoLabel.setStyle("-fx-text-fill: #666;");
+        styleFieldLabel(infoLabel);
+        if (!isCustomAppDesign()) {
+            infoLabel.setStyle("-fx-text-fill: #666;");
+        }
         
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -144,47 +390,61 @@ public class MasterPasswordDialog {
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText(I18n.get("masterPassword.password"));
         passwordField.setPrefWidth(200);
+        stylePasswordField(passwordField);
         updatePasswordFieldLengthStyle(passwordField, 0);
         
         PasswordField confirmField = new PasswordField();
         confirmField.setPromptText(I18n.get("masterPassword.confirm"));
         confirmField.setPrefWidth(200);
+        stylePasswordField(confirmField);
         
-        grid.add(new Label(I18n.get("masterPassword.password")), 0, 0);
+        Label passwordLabel = new Label(I18n.get("masterPassword.password"));
+        styleFieldLabel(passwordLabel);
+        Label confirmLabel = new Label(I18n.get("masterPassword.confirm"));
+        styleFieldLabel(confirmLabel);
+
+        grid.add(passwordLabel, 0, 0);
         grid.add(passwordField, 1, 0);
-        grid.add(new Label(I18n.get("masterPassword.confirm")), 0, 1);
+        grid.add(confirmLabel, 0, 1);
         grid.add(confirmField, 1, 1);
         
         Label errorLabel = new Label();
-        errorLabel.setStyle("-fx-text-fill: red;");
+        styleErrorLabel(errorLabel);
         errorLabel.setVisible(false);
         
         // Length-based color feedback and strength indicator
         ProgressBar strengthBar = new ProgressBar(0);
         strengthBar.setPrefWidth(200);
         Label strengthLabel = new Label(I18n.get("masterPassword.strength"));
+        styleFieldLabel(strengthLabel);
         
         passwordField.textProperty().addListener((obs, old, newVal) -> {
             int len = newVal != null ? newVal.length() : 0;
             updatePasswordFieldLengthStyle(passwordField, len);
             double strength = calculatePasswordStrength(newVal);
             strengthBar.setProgress(strength);
-            if (strength < 0.3) {
-                strengthBar.setStyle("-fx-accent: red;");
-            } else if (strength < 0.6) {
-                strengthBar.setStyle("-fx-accent: orange;");
+            if (isCustomAppDesign()) {
+                strengthBar.setStyle(null);
             } else {
-                strengthBar.setStyle("-fx-accent: green;");
+                if (strength < 0.3) {
+                    strengthBar.setStyle("-fx-accent: red;");
+                } else if (strength < 0.6) {
+                    strengthBar.setStyle("-fx-accent: orange;");
+                } else {
+                    strengthBar.setStyle("-fx-accent: green;");
+                }
             }
         });
         
         Button setupButton = new Button(I18n.get("masterPassword.setupButton"));
         setupButton.setDefaultButton(true);
         setupButton.setPrefWidth(100);
+        stylePrimaryButton(setupButton);
         
         Button cancelButton = new Button(I18n.get("dialog.cancel"));
         cancelButton.setCancelButton(true);
         cancelButton.setPrefWidth(100);
+        styleSecondaryButton(cancelButton);
         
         HBox buttonBox = new HBox(10, setupButton, cancelButton);
         buttonBox.setAlignment(Pos.CENTER);
@@ -223,6 +483,7 @@ public class MasterPasswordDialog {
                 warn.setContentText(I18n.get("masterPassword.weakWarning.content"));
                 ButtonType useAnyway = new ButtonType(I18n.get("masterPassword.useAnyway"), ButtonBar.ButtonData.OK_DONE);
                 warn.getButtonTypes().setAll(useAnyway, ButtonType.CANCEL);
+                DialogThemeHelper.applyTheme(warn);
                 if (warn.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.CANCEL) {
                     return;
                 }
@@ -253,27 +514,196 @@ public class MasterPasswordDialog {
     }
 
     private Scene createBrandedScene(VBox content, double width, double height) {
+        if (isKlingonTacticalDesign()) {
+            return createTacticalScene(content, width, height);
+        }
+
+        boolean loginScene = width == LOGIN_DIALOG_WIDTH && height == LOGIN_DIALOG_HEIGHT;
+        double brandPanelWidth = loginScene ? LOGIN_BRAND_PANEL_WIDTH : SETUP_BRAND_PANEL_WIDTH;
+        double logoWidth = loginScene ? LOGIN_LOGO_WIDTH : SETUP_LOGO_WIDTH;
+
         HBox brandedRoot = new HBox(24);
         brandedRoot.setPrefSize(width, height);
         brandedRoot.setMinSize(width, height);
         brandedRoot.setAlignment(Pos.CENTER);
         brandedRoot.setPadding(new Insets(0, 34, 0, 16));
         brandedRoot.getStyleClass().add("master-password-root");
-        brandedRoot.setStyle("-fx-background-color: #ECEFF3;");
-        content.setMaxWidth(width - BRAND_PANEL_WIDTH - 72);
-        VBox brandBox = createBrandBox();
+        if (isMatrixTerminalDesign()) {
+            brandedRoot.getStyleClass().add("terminal-root");
+        } else if (isHolographicInterfaceDesign()) {
+            brandedRoot.getStyleClass().add("holo-root");
+        } else if (!isCustomAppDesign()) {
+            brandedRoot.setStyle("-fx-background-color: #000000;");
+        }
+        content.setMaxWidth(width - brandPanelWidth - 72);
+        VBox brandBox = createBrandBox(brandPanelWidth, logoWidth);
         brandedRoot.getChildren().addAll(content, brandBox);
-        return new Scene(brandedRoot, width, height);
+        Scene scene = new Scene(brandedRoot, width, height);
+        AppDesignStyleSupport.applyToScene(scene);
+        return scene;
     }
 
-    private VBox createBrandBox() {
+    private Scene createTacticalScene(VBox content, double width, double height) {
+        VBox shell = new VBox();
+        shell.setPrefSize(width, height);
+        shell.setMinSize(width, height);
+        shell.getStyleClass().addAll("master-password-root", "tactical-root");
+
+        Region accentBar = new Region();
+        accentBar.getStyleClass().add("accent-bar");
+        accentBar.setMinHeight(2);
+        accentBar.setPrefHeight(2);
+        accentBar.setMaxHeight(2);
+
+        HBox header = createTacticalHeader();
+        HBox body = createTacticalBody(content, width);
+        HBox footer = createTacticalFooter();
+        VBox.setVgrow(body, Priority.ALWAYS);
+
+        shell.getChildren().addAll(accentBar, header, body, footer);
+        Scene scene = new Scene(shell, width, height);
+        AppDesignStyleSupport.applyToScene(scene);
+        return scene;
+    }
+
+    private HBox createTacticalHeader() {
+        HBox header = new HBox(14);
+        header.getStyleClass().add("tac-titlebar");
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setMinHeight(44);
+        header.setPrefHeight(44);
+
+        HBox statusBlocks = new HBox(7);
+        statusBlocks.getStyleClass().add("tactical-window-blocks");
+        statusBlocks.setAlignment(Pos.CENTER_LEFT);
+        statusBlocks.setMinWidth(128);
+        statusBlocks.setPrefWidth(128);
+        statusBlocks.getChildren().addAll(
+            createTacticalStatusBlock("wb-red"),
+            createTacticalStatusBlock("wb-amber"),
+            createTacticalStatusBlock("wb-gold")
+        );
+
+        Label title = new Label("MASTER PASSWORD");
+        title.getStyleClass().addAll("header-tag", "tactical-header-title");
+        title.setAlignment(Pos.CENTER);
+        title.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(title, Priority.ALWAYS);
+
+        Region rightPad = new Region();
+        rightPad.setMinWidth(128);
+        rightPad.setPrefWidth(128);
+
+        header.getChildren().addAll(statusBlocks, title, rightPad);
+        return header;
+    }
+
+    private Region createTacticalStatusBlock(String styleClass) {
+        Region block = new Region();
+        block.getStyleClass().add(styleClass);
+        return block;
+    }
+
+    private HBox createTacticalBody(VBox content, double width) {
+        HBox body = new HBox(24);
+        body.getStyleClass().add("tactical-body");
+        body.setAlignment(Pos.CENTER);
+        body.setPadding(new Insets(22, 30, 20, 34));
+
+        double contentWidth = width - TACTICAL_AUTH_PANEL_WIDTH - TACTICAL_BRAND_PANEL_WIDTH - 112;
+        content.setPrefWidth(Math.max(300, contentWidth));
+        content.setMaxWidth(Math.max(300, contentWidth));
+        content.setPadding(new Insets(8, 0, 8, 0));
+        content.setAlignment(Pos.CENTER_LEFT);
+        content.getStyleClass().add("tactical-form");
+        HBox.setHgrow(content, Priority.ALWAYS);
+
+        body.getChildren().addAll(content, createTacticalAuthPanel(), createTacticalBrandBox());
+        return body;
+    }
+
+    private VBox createTacticalAuthPanel() {
+        VBox authPanel = new VBox(6);
+        authPanel.getStyleClass().add("tactical-auth-panel");
+        authPanel.setAlignment(Pos.TOP_CENTER);
+        authPanel.setMinWidth(TACTICAL_AUTH_PANEL_WIDTH);
+        authPanel.setPrefWidth(TACTICAL_AUTH_PANEL_WIDTH);
+        authPanel.setMaxWidth(TACTICAL_AUTH_PANEL_WIDTH);
+
+        HBox tagRow = new HBox(8);
+        tagRow.setAlignment(Pos.CENTER);
+        Region tagLine = new Region();
+        tagLine.getStyleClass().add("tag-line");
+        HBox.setHgrow(tagLine, Priority.ALWAYS);
+        Label authLabel = new Label("AUTH REQUIRED");
+        authLabel.getStyleClass().add("header-tag");
+        tagRow.getChildren().addAll(tagLine, authLabel);
+
+        authPanel.getChildren().add(tagRow);
+        return authPanel;
+    }
+
+    private VBox createTacticalBrandBox() {
+        VBox wrapper = new VBox(8);
+        wrapper.setAlignment(Pos.TOP_CENTER);
+        wrapper.setMinWidth(TACTICAL_BRAND_PANEL_WIDTH);
+        wrapper.setPrefWidth(TACTICAL_BRAND_PANEL_WIDTH);
+        wrapper.setMaxWidth(TACTICAL_BRAND_PANEL_WIDTH);
+
+        VBox logoPanel = new VBox(4);
+        logoPanel.getStyleClass().add("logo-panel");
+        logoPanel.setAlignment(Pos.CENTER);
+        logoPanel.setMinSize(112, 86);
+        logoPanel.setPrefSize(112, 86);
+
+        Label mark = new Label(">");
+        mark.getStyleClass().add("tactical-brand-mark");
+        Label name = new Label("KorTTY");
+        name.getStyleClass().add("tactical-brand-name");
+        Label channel = new Label("SECURE");
+        channel.getStyleClass().add("header-tag");
+
+        ImageView logoView = createLogoView(96);
+        if (logoView != null) {
+            logoPanel.getChildren().add(logoView);
+        } else {
+            logoPanel.getChildren().addAll(mark, name);
+        }
+        logoPanel.getChildren().add(channel);
+        wrapper.getChildren().addAll(logoPanel, createVersionLabel());
+        return wrapper;
+    }
+
+    private HBox createTacticalFooter() {
+        HBox footer = new HBox();
+        footer.getStyleClass().add("tactical-footer");
+        footer.setAlignment(Pos.CENTER_LEFT);
+        footer.setMinHeight(30);
+        footer.setPrefHeight(30);
+
+        Label ready = new Label("TACTICAL SYSTEM READY");
+        ready.getStyleClass().add("header-tag");
+        Label secure = new Label("SECURE CHANNEL");
+        secure.getStyleClass().add("header-tag");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        footer.getChildren().addAll(ready, spacer, secure);
+        return footer;
+    }
+
+    private VBox createBrandBox(double brandPanelWidth, double logoWidth) {
         VBox brandBox = new VBox(12);
         brandBox.setAlignment(Pos.CENTER);
-        brandBox.setMinWidth(BRAND_PANEL_WIDTH);
-        brandBox.setPrefWidth(BRAND_PANEL_WIDTH);
-        brandBox.setMaxWidth(BRAND_PANEL_WIDTH);
+        brandBox.setMinWidth(brandPanelWidth);
+        brandBox.setPrefWidth(brandPanelWidth);
+        brandBox.setMaxWidth(brandPanelWidth);
+        brandBox.getStyleClass().add("logo-area");
+        if (isHolographicInterfaceDesign()) {
+            brandBox.getStyleClass().add("logo-hex");
+        }
 
-        ImageView logoView = createLogoView();
+        ImageView logoView = createLogoView(logoWidth);
         Label versionLabel = createVersionLabel();
         if (logoView != null) {
             brandBox.getChildren().add(logoView);
@@ -282,21 +712,30 @@ public class MasterPasswordDialog {
         return brandBox;
     }
 
-    private ImageView createLogoView() {
-        var logoUrl = getClass().getResource("/icon/kortty_icon.png");
+    private ImageView createLogoView(double fitWidth) {
+        var logoUrl = getClass().getResource(LOGO_RESOURCE);
+        if (logoUrl == null) {
+            logoUrl = getClass().getResource(ICON_RESOURCE);
+        }
         if (logoUrl == null) {
             return null;
         }
         ImageView logoView = new ImageView(new Image(logoUrl.toExternalForm()));
-        logoView.setFitWidth(LOGO_WIDTH);
+        logoView.setFitWidth(fitWidth);
         logoView.setPreserveRatio(true);
+        logoView.setSmooth(true);
         logoView.setMouseTransparent(true);
         return logoView;
     }
 
     private Label createVersionLabel() {
         Label versionLabel = new Label(I18n.get("app.version") + " " + KorTTYApplication.getAppVersion());
-        versionLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #777;");
+        versionLabel.getStyleClass().add("version-label");
+        if (isCustomAppDesign()) {
+            versionLabel.setStyle("-fx-font-size: 12px;");
+        } else {
+            versionLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #d8e3f0;");
+        }
         return versionLabel;
     }
     
@@ -305,11 +744,121 @@ public class MasterPasswordDialog {
      * red = below minimum, green = meets or exceeds minimum.
      */
     private void updatePasswordFieldLengthStyle(PasswordField field, int length) {
-        if (length < PasswordStrengthChecker.MIN_LENGTH) {
-            field.setStyle("-fx-border-color: #e74c3c; -fx-border-width: 2px; -fx-border-radius: 3px;");
-        } else {
-            field.setStyle("-fx-border-color: #27ae60; -fx-border-width: 2px; -fx-border-radius: 3px;");
+        if (isCustomAppDesign()) {
+            field.setStyle(null);
+            return;
         }
+        String basePasswordStyle = "-fx-background-color: #2f9cff;"
+            + "-fx-control-inner-background: #2f9cff;"
+            + "-fx-text-fill: #000000;"
+            + "-fx-prompt-text-fill: rgba(0,0,0,0.65);"
+            + "-fx-highlight-fill: #000000;"
+            + "-fx-highlight-text-fill: #2f9cff;"
+            + "-fx-border-width: 2px;"
+            + "-fx-border-radius: 6px;"
+            + "-fx-background-radius: 6px;";
+        if (length < PasswordStrengthChecker.MIN_LENGTH) {
+            field.setStyle(basePasswordStyle + "-fx-border-color: #ff6b6b;");
+        } else {
+            field.setStyle(basePasswordStyle + "-fx-border-color: #27ae60;");
+        }
+    }
+
+    private void stylePasswordField(PasswordField passwordField) {
+        passwordField.getStyleClass().add("terminal-input");
+        if (isElegantDarkDesign()) {
+            passwordField.getStyleClass().add("elegant-input");
+        } else if (isHolographicInterfaceDesign()) {
+            passwordField.getStyleClass().add("holo-input");
+        } else if (isKlingonTacticalDesign()) {
+            passwordField.getStyleClass().add("tac-input");
+        } else if (!isCustomAppDesign()) {
+            passwordField.setStyle(
+                "-fx-background-color: #2f9cff;"
+                    + "-fx-control-inner-background: #2f9cff;"
+                    + "-fx-text-fill: #000000;"
+                    + "-fx-prompt-text-fill: rgba(0,0,0,0.65);"
+                    + "-fx-highlight-fill: #000000;"
+                    + "-fx-highlight-text-fill: #2f9cff;"
+                    + "-fx-border-color: #79c4ff;"
+                    + "-fx-border-width: 1.5px;"
+                    + "-fx-border-radius: 6px;"
+                    + "-fx-background-radius: 6px;"
+            );
+        }
+    }
+
+    private void stylePrimaryButton(Button button) {
+        button.getStyleClass().add("btn-primary");
+        if (isHolographicInterfaceDesign()) {
+            button.getStyleClass().add("holo-btn-primary");
+        } else if (isKlingonTacticalDesign()) {
+            button.getStyleClass().add("tac-btn-primary");
+            button.setText(button.getText().toUpperCase(Locale.ROOT));
+        } else if (!isCustomAppDesign()) {
+            button.setStyle(
+                "-fx-background-color: #16324a;"
+                    + "-fx-border-color: #2f9cff;"
+                    + "-fx-border-radius: 6px;"
+                    + "-fx-background-radius: 6px;"
+                    + "-fx-text-fill: #ffffff;"
+                    + "-fx-font-weight: bold;"
+                    + "-fx-cursor: hand;"
+            );
+        }
+    }
+
+    private void styleSecondaryButton(Button button) {
+        button.getStyleClass().add("btn-secondary");
+        if (isHolographicInterfaceDesign()) {
+            button.getStyleClass().add("holo-btn-secondary");
+        } else if (isKlingonTacticalDesign()) {
+            button.getStyleClass().add("tac-btn-secondary");
+            button.setText(button.getText().toUpperCase(Locale.ROOT));
+        } else if (!isCustomAppDesign()) {
+            button.setStyle(
+                "-fx-background-color: #101010;"
+                    + "-fx-border-color: #404854;"
+                    + "-fx-border-radius: 6px;"
+                    + "-fx-background-radius: 6px;"
+                    + "-fx-text-fill: #e7eef8;"
+                    + "-fx-cursor: hand;"
+            );
+        }
+    }
+
+    private void styleFieldLabel(Label label) {
+        label.getStyleClass().add("field-label");
+        if (!isCustomAppDesign()) {
+            label.setStyle("-fx-text-fill: #f1f5fb; -fx-font-weight: bold;");
+        }
+    }
+
+    private void styleErrorLabel(Label label) {
+        styleFieldLabel(label);
+        if (!isCustomAppDesign()) {
+            label.setStyle("-fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
+        }
+    }
+
+    private boolean isMatrixTerminalDesign() {
+        return matrixTerminalDesign;
+    }
+
+    private boolean isHolographicInterfaceDesign() {
+        return holographicInterfaceDesign;
+    }
+
+    private boolean isKlingonTacticalDesign() {
+        return klingonTacticalDesign;
+    }
+
+    private boolean isElegantDarkDesign() {
+        return elegantDarkDesign;
+    }
+
+    private boolean isCustomAppDesign() {
+        return customAppDesign;
     }
     
     private double calculatePasswordStrength(String password) {

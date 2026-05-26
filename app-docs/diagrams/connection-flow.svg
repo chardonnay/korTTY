@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Connection flow</title>
-  <desc id="desc">KorTTY connection flow from user entry through saved settings, authentication, SSH or Mosh transport setup, optional terminal effects, and final terminal display.</desc>
+  <desc id="desc">KorTTY connection flow from user entry through saved settings, authentication, SSH or Mosh transport setup, terminal color handling, optional terminal effects, and final terminal display.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
@@ -53,7 +53,7 @@
   <text class="laneTitle" x="365" y="163">Profile and auth</text>
   <rect class="box profile" x="365" y="215" width="190" height="62"/>
   <text class="label" x="398" y="241">Load settings</text>
-  <text class="detail" x="392" y="262">host, protocol, effect, speed</text>
+  <text class="detail" x="386" y="262">host, protocol, colors, effect</text>
   <rect class="box security" x="365" y="345" width="190" height="62"/>
   <text class="label" x="398" y="371">Resolve auth</text>
   <text class="detail" x="390" y="392">password, key, temporary key</text>
@@ -74,15 +74,18 @@
   <rect class="lane" x="965" y="130" width="275" height="430"/>
   <rect class="laneHeader" x="965" y="130" width="275" height="52"/>
   <text class="laneTitle" x="995" y="163">Terminal output</text>
-  <rect class="box remote" x="1000" y="215" width="205" height="62"/>
-  <text class="label" x="1052" y="241">Remote server</text>
-  <text class="detail" x="1032" y="262">shell stream and control data</text>
-  <rect class="box effect" x="1000" y="345" width="205" height="62"/>
-  <text class="label" x="1032" y="371">Optional effect</text>
-  <text class="detail" x="1018" y="392">appearance, overlay, wrapper</text>
-  <rect class="box" x="1000" y="475" width="205" height="62"/>
-  <text class="label" x="1038" y="501">SithTermFX view</text>
-  <text class="detail" x="1032" y="522">displayed in active tab</text>
+  <rect class="box remote" x="1000" y="205" width="205" height="58"/>
+  <text class="label" x="1052" y="230">Remote server</text>
+  <text class="detail" x="1032" y="250">shell stream and control data</text>
+  <rect class="box profile" x="1000" y="295" width="205" height="58"/>
+  <text class="label" x="1046" y="320">Color handling</text>
+  <text class="detail" x="1025" y="340">ANSI/TrueColor toggle</text>
+  <rect class="box effect" x="1000" y="385" width="205" height="58"/>
+  <text class="label" x="1032" y="410">Optional effect</text>
+  <text class="detail" x="1018" y="430">appearance, overlay, wrapper</text>
+  <rect class="box" x="1000" y="475" width="205" height="58"/>
+  <text class="label" x="1038" y="500">SithTermFX view</text>
+  <text class="detail" x="1032" y="520">displayed in active tab</text>
 
   <path class="line" d="M 165 277 V 345"/>
   <path class="line" d="M 260 246 H 365"/>
@@ -95,10 +98,11 @@
   <path class="line" d="M 880 344 C 940 344 942 246 1000 246"/>
   <path class="line" d="M 775 373 V 425"/>
   <path class="softLine" d="M 880 454 C 955 454 955 282 1000 264"/>
-  <path class="line" d="M 1102 277 V 345"/>
-  <path class="line" d="M 1102 407 V 475"/>
+  <path class="line" d="M 1102 263 V 295"/>
+  <path class="line" d="M 1102 353 V 385"/>
+  <path class="line" d="M 1102 443 V 475"/>
 
   <rect class="lane" x="215" y="600" width="850" height="72"/>
-  <text class="note" x="245" y="631">Terminal effects are optional and stay in the display path. They do not change saved connection authentication.</text>
-  <text class="note" x="245" y="654">Reconnect closes the active transport and returns through profile/auth resolution before creating a new stream.</text>
+  <text class="note" x="245" y="631">Terminal color handling is stored globally and per connection; disabling it ignores color SGR sequences only.</text>
+  <text class="note" x="245" y="654">Effects stay in the display path. Reconnect returns through profile/auth resolution before creating a new stream.</text>
 </svg>

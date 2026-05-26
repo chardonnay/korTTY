@@ -105,6 +105,9 @@ public class GlobalSettings {
     
     @XmlElement
     private boolean showTerminalScrollbar = true; // Show scrollbar in terminal view
+
+    @XmlElement
+    private boolean hideTerminalScrollbarsInFullscreen = false; // Hide terminal scrollbars while the window is fullscreen
     
     @XmlElement
     private boolean commandTimestampsEnabled = false; // Show timestamp gutter in terminal
@@ -144,6 +147,9 @@ public class GlobalSettings {
 
     @XmlElement
     private boolean applyThemeFonts = false; // Apply font family/size when applying themes
+
+    @XmlElement
+    private String appDesign = AppDesign.NORMAL.getId(); // App-level UI design, default: normal
 
     @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
@@ -742,6 +748,14 @@ public class GlobalSettings {
     public void setShowTerminalScrollbar(boolean showTerminalScrollbar) {
         this.showTerminalScrollbar = showTerminalScrollbar;
     }
+
+    public boolean isHideTerminalScrollbarsInFullscreen() {
+        return hideTerminalScrollbarsInFullscreen;
+    }
+
+    public void setHideTerminalScrollbarsInFullscreen(boolean hideTerminalScrollbarsInFullscreen) {
+        this.hideTerminalScrollbarsInFullscreen = hideTerminalScrollbarsInFullscreen;
+    }
     
     public boolean isCommandTimestampsEnabled() {
         return commandTimestampsEnabled;
@@ -862,6 +876,14 @@ public class GlobalSettings {
 
     public void setApplyThemeFonts(boolean applyThemeFonts) {
         this.applyThemeFonts = applyThemeFonts;
+    }
+
+    public AppDesign getAppDesign() {
+        return AppDesign.fromId(appDesign);
+    }
+
+    public void setAppDesign(AppDesign appDesign) {
+        this.appDesign = (appDesign != null ? appDesign : AppDesign.NORMAL).getId();
     }
 
     public boolean isRequireMasterPasswordOnStartup() {

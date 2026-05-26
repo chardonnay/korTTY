@@ -9,6 +9,8 @@ import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
+import de.kortty.model.AppDesign;
+import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SnippetEditorProfile;
 import de.kortty.model.TerminalAgentExecutionTarget;
@@ -694,6 +696,135 @@ class GlobalSettingsManagerTest {
             assertThat(reloadedProfile.getBackgroundColor()).isEqualTo("#222222");
             assertThat(reloadedProfile.getCursorStyle()).isEqualTo("UNDERSCORE");
             assertThat(reloadedProfile.getKeywordColor()).isEqualTo("#999999");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void appDesignDefaultsToNormalAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-app-design");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getAppDesign()).isEqualTo(AppDesign.NORMAL);
+
+            manager.getSettings().setAppDesign(AppDesign.MATRIX_TERMINAL);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getAppDesign()).isEqualTo(AppDesign.MATRIX_TERMINAL);
+
+            reloaded.getSettings().setAppDesign(AppDesign.HOLOGRAPHIC_INTERFACE);
+            reloaded.save();
+
+            GlobalSettingsManager reloadedHolographic = new GlobalSettingsManager(dir);
+            reloadedHolographic.load();
+
+            assertThat(reloadedHolographic.getSettings().getAppDesign()).isEqualTo(AppDesign.HOLOGRAPHIC_INTERFACE);
+
+            reloadedHolographic.getSettings().setAppDesign(AppDesign.KLINGON_TACTICAL);
+            reloadedHolographic.save();
+
+            GlobalSettingsManager reloadedTactical = new GlobalSettingsManager(dir);
+            reloadedTactical.load();
+
+            assertThat(reloadedTactical.getSettings().getAppDesign()).isEqualTo(AppDesign.KLINGON_TACTICAL);
+
+            reloadedTactical.getSettings().setAppDesign(AppDesign.ELEGANT_DARK);
+            reloadedTactical.save();
+
+            GlobalSettingsManager reloadedElegant = new GlobalSettingsManager(dir);
+            reloadedElegant.load();
+
+            assertThat(reloadedElegant.getSettings().getAppDesign()).isEqualTo(AppDesign.ELEGANT_DARK);
+
+            reloaded.getSettings().setAppDesign(null);
+            assertThat(reloaded.getSettings().getAppDesign()).isEqualTo(AppDesign.NORMAL);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void unknownAppDesignFallsBackToNormal() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-app-design-unknown");
+        try {
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <appDesign>unknown-design</appDesign>
+                </globalSettings>
+                """);
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getAppDesign()).isEqualTo(AppDesign.NORMAL);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void removedLiquidGlassAppDesignFallsBackToNormal() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-app-design-liquid-glass");
+        try {
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <appDesign>liquid-glass</appDesign>
+                </globalSettings>
+                """);
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getAppDesign()).isEqualTo(AppDesign.NORMAL);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void hideTerminalScrollbarsInFullscreenDefaultsFalseAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-fullscreen-scrollbars");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().isHideTerminalScrollbarsInFullscreen()).isFalse();
+
+            manager.getSettings().setHideTerminalScrollbarsInFullscreen(true);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().isHideTerminalScrollbarsInFullscreen()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void defaultTerminalSettingsPersistTerminalColorsEnabled() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-terminal-colors");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            ConnectionSettings defaults = new ConnectionSettings();
+            defaults.setTerminalColorsEnabled(false);
+            manager.getSettings().setDefaultTerminalSettings(defaults);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getDefaultTerminalSettings().isTerminalColorsEnabled()).isFalse();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

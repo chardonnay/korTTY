@@ -40,6 +40,7 @@ import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
+import de.kortty.model.AppDesign;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
@@ -63,6 +64,8 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.Clipboard;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -97,6 +100,10 @@ import java.util.stream.Collectors;
  * Dialog for editing global terminal settings.
  */
 public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
+    private static final String MATRIX_TERMINAL_PREVIEW_RESOURCE = "/previews/matrix-terminal-preview.png";
+    private static final String HOLOGRAPHIC_PREVIEW_RESOURCE = "/previews/holographic-preview.png";
+    private static final String KLINGON_TACTICAL_PREVIEW_RESOURCE = "/previews/klingon-tactical-preview.png";
+    private static final String ELEGANT_DARK_PREVIEW_RESOURCE = "/previews/elegant-dark-preview.png";
     
     private final KorTTYApplication app;
     private final ConfigurationManager configManager;
@@ -116,6 +123,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ColorPicker cursorColorPicker;
     private final CheckBox cursorBlinkCheck;
     private final ColorPicker selectionColorPicker;
+    private final CheckBox terminalColorsEnabledCheck;
     
     // Terminal size
     private final Spinner<Integer> columnsSpinner;
@@ -132,6 +140,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
+
+    // Appearance settings
+    private final ComboBox<AppDesign> appDesignCombo;
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
@@ -301,6 +312,60 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Create tabs
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+
+        // Appearance tab
+        Tab appearanceTab = new Tab(I18n.get("settings.tab.appearance"));
+        GridPane appearanceGrid = new GridPane();
+        appearanceGrid.setHgap(10);
+        appearanceGrid.setVgap(10);
+        appearanceGrid.setPadding(new Insets(20));
+
+        appDesignCombo = new ComboBox<>();
+        appDesignCombo.getItems().addAll(
+            AppDesign.NORMAL,
+            AppDesign.MATRIX_TERMINAL,
+            AppDesign.HOLOGRAPHIC_INTERFACE,
+            AppDesign.KLINGON_TACTICAL,
+            AppDesign.ELEGANT_DARK
+        );
+        appDesignCombo.setValue(globalSettings != null ? globalSettings.getAppDesign() : AppDesign.NORMAL);
+        appDesignCombo.setPrefWidth(220);
+        appDesignCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AppDesign design) {
+                return appDesignLabel(design);
+            }
+
+            @Override
+            public AppDesign fromString(String value) {
+                return null;
+            }
+        });
+
+        appearanceGrid.add(new Label(I18n.get("settings.appearance.appDesign")), 0, 0);
+        appearanceGrid.add(appDesignCombo, 1, 0);
+
+        Label appearanceInfo = new Label(I18n.get("settings.appearance.appDesign.info"));
+        appearanceInfo.setWrapText(true);
+        appearanceInfo.setMaxWidth(460);
+        appearanceInfo.getStyleClass().add("settings-info-label");
+        appearanceInfo.setStyle(globalSettings == null || globalSettings.getAppDesign() == AppDesign.NORMAL
+            ? "-fx-font-size: 11px; -fx-text-fill: gray;"
+            : "-fx-font-size: 11px;");
+        appearanceGrid.add(appearanceInfo, 0, 1, 2, 1);
+
+        Label appDesignPreviewLabel = new Label(I18n.get("settings.appearance.preview"));
+        appDesignPreviewLabel.getStyleClass().add("settings-info-label");
+        ImageView appDesignPreviewImage = createAppDesignPreviewImage();
+        VBox appDesignPreviewBox = new VBox(6, appDesignPreviewLabel, appDesignPreviewImage);
+        appDesignPreviewBox.setMaxWidth(460);
+        appDesignPreviewBox.setPadding(new Insets(6));
+        appearanceGrid.add(appDesignPreviewBox, 0, 2, 2, 1);
+        appDesignCombo.valueProperty().addListener((obs, oldDesign, newDesign) ->
+            updateAppDesignPreview(appDesignPreviewBox, appDesignPreviewImage, newDesign));
+        updateAppDesignPreview(appDesignPreviewBox, appDesignPreviewImage, appDesignCombo.getValue());
+
+        appearanceTab.setContent(appearanceGrid);
         
         // Font tab
         Tab fontTab = new Tab(I18n.get("settings.tab.font"));
@@ -365,6 +430,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         cursorBlinkCheck = new CheckBox(I18n.get("settings.colors.cursorBlink"));
         cursorBlinkCheck.setSelected(isCursorBlink(settings.getCursorStyle()));
         cursorBlinkCheck.setTooltip(new Tooltip(I18n.get("settings.colors.cursorBlink.tooltip")));
+        terminalColorsEnabledCheck = new CheckBox(I18n.get("settings.colors.terminalColors"));
+        terminalColorsEnabledCheck.setSelected(settings.isTerminalColorsEnabled());
+        terminalColorsEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.colors.terminalColors.tooltip")));
         colorProfileCombo.setOnAction(e -> {
             try {
                 Theme selected = colorProfileCombo.getValue();
@@ -397,10 +465,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         colorsGrid.add(cursorBlinkCheck, 0, 4, 2, 1);
         colorsGrid.add(new Label(I18n.get("settings.colors.selection")), 0, 5);
         colorsGrid.add(selectionColorPicker, 1, 5);
+        colorsGrid.add(terminalColorsEnabledCheck, 0, 6, 2, 1);
         
         // ANSI Colors section
-        colorsGrid.add(new Separator(), 0, 6, 2, 1);
-        colorsGrid.add(new Label(I18n.get("settings.colors.ansi")), 0, 7, 2, 1);
+        colorsGrid.add(new Separator(), 0, 7, 2, 1);
+        colorsGrid.add(new Label(I18n.get("settings.colors.ansi")), 0, 8, 2, 1);
         
         String[] colorNames = {I18n.get("color.black"), I18n.get("color.red"), I18n.get("color.green"), I18n.get("color.yellow"), I18n.get("color.blue"), I18n.get("color.magenta"), I18n.get("color.cyan"), I18n.get("color.white")};
         HBox normalColorsBox = new HBox(5);
@@ -419,11 +488,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             Tooltip.install(brightPicker, new Tooltip(colorNames[i] + " " + I18n.get("color.bright")));
             brightColorsBox.getChildren().add(brightPicker);
         }
+        normalColorsBox.disableProperty().bind(terminalColorsEnabledCheck.selectedProperty().not());
+        brightColorsBox.disableProperty().bind(terminalColorsEnabledCheck.selectedProperty().not());
         
-        colorsGrid.add(new Label(I18n.get("settings.colors.normal")), 0, 8);
-        colorsGrid.add(normalColorsBox, 1, 8);
-        colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 9);
-        colorsGrid.add(brightColorsBox, 1, 9);
+        colorsGrid.add(new Label(I18n.get("settings.colors.normal")), 0, 9);
+        colorsGrid.add(normalColorsBox, 1, 9);
+        colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 10);
+        colorsGrid.add(brightColorsBox, 1, 10);
         
         colorsTab.setContent(colorsGrid);
         
@@ -2089,7 +2160,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Themes tab
         Tab themesTab = createThemesTab(owner);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, terminalTab, videoTab, backupTab, loggingTab, updatesTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, updatesTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
         
         final double defaultContentWidth = 1000;
         final double minimumContentWidth = 860;
@@ -2151,6 +2222,82 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             return null;
         });
     }
+
+    private String appDesignLabel(AppDesign design) {
+        if (design == AppDesign.MATRIX_TERMINAL) {
+            return I18n.get("settings.appearance.design.matrixTerminal");
+        }
+        if (design == AppDesign.HOLOGRAPHIC_INTERFACE) {
+            return I18n.get("settings.appearance.design.holographicInterface");
+        }
+        if (design == AppDesign.KLINGON_TACTICAL) {
+            return I18n.get("settings.appearance.design.klingonTactical");
+        }
+        if (design == AppDesign.ELEGANT_DARK) {
+            return I18n.get("settings.appearance.design.elegantDark");
+        }
+        return I18n.get("settings.appearance.design.normal");
+    }
+
+    private ImageView createAppDesignPreviewImage() {
+        ImageView imageView = new ImageView();
+        imageView.setFitWidth(440);
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+        return imageView;
+    }
+
+    private void updateAppDesignPreview(VBox previewBox, ImageView previewImage, AppDesign design) {
+        String previewResource = appDesignPreviewResource(design);
+        if (previewResource == null) {
+            previewImage.setImage(null);
+            previewBox.setVisible(false);
+            previewBox.setManaged(false);
+            return;
+        }
+
+        var previewUrl = getClass().getResource(previewResource);
+        if (previewUrl == null) {
+            previewImage.setImage(null);
+            previewBox.setVisible(false);
+            previewBox.setManaged(false);
+            return;
+        }
+
+        previewImage.setImage(new Image(previewUrl.toExternalForm()));
+        previewBox.setStyle(appDesignPreviewStyle(design));
+        previewBox.setVisible(true);
+        previewBox.setManaged(true);
+    }
+
+    private String appDesignPreviewResource(AppDesign design) {
+        if (design == AppDesign.MATRIX_TERMINAL) {
+            return MATRIX_TERMINAL_PREVIEW_RESOURCE;
+        }
+        if (design == AppDesign.HOLOGRAPHIC_INTERFACE) {
+            return HOLOGRAPHIC_PREVIEW_RESOURCE;
+        }
+        if (design == AppDesign.KLINGON_TACTICAL) {
+            return KLINGON_TACTICAL_PREVIEW_RESOURCE;
+        }
+        if (design == AppDesign.ELEGANT_DARK) {
+            return ELEGANT_DARK_PREVIEW_RESOURCE;
+        }
+        return null;
+    }
+
+    private String appDesignPreviewStyle(AppDesign design) {
+        if (design == AppDesign.MATRIX_TERMINAL) {
+            return "-fx-background-color: #080c09; -fx-border-color: #00ff88; -fx-border-width: 1;";
+        }
+        if (design == AppDesign.HOLOGRAPHIC_INTERFACE) {
+            return "-fx-background-color: #000000; -fx-border-color: #00d4ff; -fx-border-width: 1;";
+        }
+        if (design == AppDesign.ELEGANT_DARK) {
+            return "-fx-background-color: #1a1c20; -fx-border-color: rgba(255,255,255,0.12); -fx-border-width: 1;";
+        }
+        return "-fx-background-color: #0d0906; -fx-border-color: #ff3c5a; -fx-border-width: 1;";
+    }
     
     /** @return true if save may continue, false to abort (e.g. vault locked and translation API key cannot be encrypted) */
     private boolean applySettings() {
@@ -2166,6 +2313,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         settings.setTerminalRows(rowsSpinner.getValue());
         settings.setScrollbackLines(scrollbackSpinner.getValue());
         settings.setBoldAsBright(boldAsBrightCheck.isSelected());
+        settings.setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
         settings.setEncoding(encodingCombo.getValue());
         settings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
         settings.setSshKeepAliveEnabled(sshKeepAliveCheck.isSelected());
@@ -2176,6 +2324,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setConnectionRetriesEnabled(connectionRetriesEnabledCheck.isSelected());
             globalSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
             globalSettings.setApplyThemeFonts(applyThemeFontsProperty.get());
+            globalSettings.setAppDesign(appDesignCombo.getValue());
         }
         
         // Save backup settings to GlobalSettings

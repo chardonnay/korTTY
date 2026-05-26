@@ -10,15 +10,16 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 
 == Features
 
-* *GUI-based*: Modern JavaFX interface with dark theme
+* *GUI-based*: Modern JavaFX interface with refreshed KorTTY logo, dark login screen, and selectable app-wide designs
 * *Tab Support*: Multiple SSH connections in one window
 * *Font Size Adjustment*: Zoom in/out in running terminal (Alt+Plus, Alt+Minus; on macOS also Cmd). Reset (Alt+0) restores the connection's font size and family (or the font at tab open).
 * *Split-Screen with Broadcast*: Split terminal view and broadcast input to all panes
 * *Multi-Window*: Open multiple windows for different projects; drag tabs between windows to move sessions (including split terminals)
 * *Encrypted Passwords*: AES-256-GCM encryption with master password
 * *SSH Key Management*: Centralized management of private SSH keys with encrypted passphrases
-* *Customizable Display*: Font size, colors (global or per connection)
+* *Customizable Display*: Font size, colors, terminal color-sequence handling, and terminal scrollbars (global or per connection where applicable)
 * *Theme Profiles*: Multiple built-in color profiles (including IntelliJ-inspired themes) with live preview, one-click apply in Global Settings, editable built-in/custom themes, new theme creation, and dedicated Terminal AI agent panel colors
+* *App Designs*: Choose *Normal*, *Matrix Terminal*, *Holographic Interface*, *Klingon Tactical*, or *Elegant Dark* in *Settings → Appearance* for JavaFX windows and dialogs without changing terminal-session or editor-content colors
 * *Theme Font Control*: Themes apply colors by default; font family/size are applied only when explicitly enabled in settings
 * *Terminal Effect Plugins*: Load, enable, disable, import, and export Java terminal-effect plugins from *Plugins → Terminal Effects*; effects can adjust terminal appearance, overlays, and output animation speed per session or saved connection
 * *Project Management*: Save and load connection sets with history
@@ -57,7 +58,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Terminal Recording*: Enable terminal recording for the current app session in *Tools → Video Manager* or permanently in *Settings → Video*, then start and stop lightweight per-tab terminal replay recordings from the terminal bar, *Tools → Start/Stop Terminal Recording*, or *Ctrl/Cmd+Shift+E*. Multiple recording segments in one tab are appended to one JDK/GZIP streaming-compressed `.korttyrec.jsonl.gz` session file until the tab closes; legacy `.korttyrec.jsonl` replays remain readable. Replays can optionally store terminal color runs, preserve recorded terminal geometry for export, and be viewed with timeline/time-jump seeking, 1x-20x playback speed, renamed, or deleted in the Video Manager. Optional timestamp-based WebM/VP9 or MKV/FFV1 export is available with range/color options, CPU-parallel frame rendering, progress, and remaining-time feedback when `ffmpeg` is configured or found on `PATH`; no live/network streaming is implemented.
 * *GPG Key Management*: Manage GPG keys for backup encryption
 * *Menu Bar Visibility Toggle*: Show or hide the in-window menu bar from *View* or *Settings → Window*; if hidden, restore it with *Ctrl/Cmd+Shift+L*
-* *Terminal-only Fullscreen*: Press *F12* or use *View → Terminal-only Fullscreen* to hide menu/status chrome, dashboard, and file browser while keeping only the terminal visible; toggling it again restores the previous fullscreen and UI state
+* *Terminal-only Fullscreen*: Press *F12* or use *View → Terminal-only Fullscreen* to hide menu/status chrome, dashboard, and file browser while keeping only the terminal visible; *View → Hide terminal scrollbars in fullscreen* can also hide terminal scrollbars while fullscreen is active
 
 == AI Integration Overview
 
@@ -393,6 +394,7 @@ sudo rpm -i build/jpackage/korTTY-2.2.0.rpm
 ** *macOS*: `kortty_icon.icns` (fallback: `kortty_icon.png`)
 ** *Windows*: `kortty_icon.ico` (fallback: `kortty_icon.png`)
 ** *Linux*: `kortty_icon.png` (required)
+** *In-app logo*: `kortty_logo.png` is used in the login and About dialogs, with `kortty_icon.png` as runtime fallback.
 
 === Troubleshooting
 
@@ -680,6 +682,7 @@ KorTTY provides a quick connection dialog for fast access to your most frequentl
 * *Group Connection*: Open all connections in a selected group at once
 * *Connection History*: Tracks usage count and last used timestamp
 * *Save New Connections*: Option to save new connections directly from the dialog
+* *Terminal Color Control*: Enable or disable ANSI/TrueColor terminal color sequences for the connection before opening it
 
 === Usage
 
@@ -694,7 +697,7 @@ KorTTY provides a quick connection dialog for fast access to your most frequentl
 3. *Individual Connection*:
 ** Select "Individual Connection" tab
 ** Choose from saved connections or enter new connection details
-** Configure authentication, terminal appearance, and other settings
+** Configure authentication, terminal appearance, terminal color handling, and other settings
 ** Optionally save the connection for future use
 
 4. *Group Connection*:
@@ -827,6 +830,16 @@ Prevents SSH connections from timing out due to inactivity:
 * Enable "SSH Keep-Alive"
 * Set the interval in seconds
 * Configure in *Settings → Terminal* for global defaults
+
+=== Terminal Colors and ANSI/TrueColor Handling
+
+KorTTY can ignore terminal color control sequences when a plain configured text/background palette is preferred.
+
+* *Global default:* Use *Settings → Colors → Enable terminal colors*.
+* *Quick Connect:* Toggle terminal colors in the terminal appearance section before opening a temporary or saved connection.
+* *Saved connections:* Use the connection editor's terminal appearance settings to enable or disable terminal colors for that connection.
+
+When terminal colors are disabled, KorTTY ignores ANSI and TrueColor color sequences from the remote program and uses the configured foreground/background colors instead. Non-color terminal control sequences continue to work.
 
 === Connection Timeout and Retry
 
@@ -970,7 +983,7 @@ KorTTY automatically remembers:
 
 These features can be configured in *Settings → Window*. The menu bar can also be toggled temporarily from *View → Show Menu Bar* or restored with *Ctrl/Cmd+Shift+L* when hidden.
 
-For distraction-free terminal work, *F12* toggles *View → Terminal-only Fullscreen*. This mode hides the menu bar, status bar, dashboard, local file browser, and other window chrome, then restores the previous fullscreen and UI state when toggled off.
+For distraction-free terminal work, *F12* toggles *View → Terminal-only Fullscreen*. This mode hides the menu bar, status bar, dashboard, local file browser, and other window chrome, then restores the previous fullscreen and UI state when toggled off. If *View → Hide terminal scrollbars in fullscreen* is enabled, terminal scrollbars are hidden while fullscreen mode is active and restored when leaving fullscreen.
 
 == Security
 

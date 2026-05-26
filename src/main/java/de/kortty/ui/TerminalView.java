@@ -26,6 +26,7 @@ import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.core.TerminalRecordingScreenSnapshot;
 import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
+import de.kortty.core.TerminalColorControlSequenceFilter;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
@@ -92,6 +93,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import javafx.scene.control.ProgressIndicator;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -257,6 +259,7 @@ public class TerminalView extends BorderPane {
     private final Map<SshTtyConnector, StringBuilder> terminalAgentOscBuffers = new ConcurrentHashMap<>();
     private volatile boolean agentShortcutPromptReady;
     private volatile boolean timestampGuttersVisibleState;
+    private volatile boolean terminalScrollbarsVisible = true;
     private double terminalEffectAnimationSpeed = TerminalEffectAnimationSpeed.DEFAULT;
     private ActiveTerminalEffect activeTerminalEffect;
     private volatile TerminalRecordingSession terminalRecordingSession;
@@ -347,6 +350,7 @@ public class TerminalView extends BorderPane {
             setupWidgetEventHandlers(widget);
             applyCursorShape(widget);
             setupTimestampGutter(widget);
+            applyTerminalScrollbarVisibility(widget);
         }, widget -> gutterMap.get(widget), this::createTerminalAgentActivityPanel, this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
         splitPane.setResetZoomCallback(this::resetZoom); // Reset zoom to connection or global default (not hardcoded 14)
         
@@ -1379,23 +1383,36 @@ public class TerminalView extends BorderPane {
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
         ActiveTerminalEffect effect = activeTerminalEffect;
+        TtyConnector decorated = baseConnector;
         if (effect == null) {
-            return baseConnector;
+            return new TerminalColorFilteringTtyConnector(
+                decorated,
+                () -> settings == null || settings.isTerminalColorsEnabled());
         }
         try {
-            return effect.session.wrapConnector(widget, baseConnector);
+            decorated = effect.session.wrapConnector(widget, baseConnector);
         } catch (Exception e) {
             logger.warn("Terminal effect '{}' failed to wrap connector: {}", effect.pluginId, e.getMessage());
-            return baseConnector;
+            decorated = baseConnector;
         }
+        return new TerminalColorFilteringTtyConnector(
+            decorated,
+            () -> settings == null || settings.isTerminalColorsEnabled());
     }
 
     private TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
         TtyConnector current = connector;
-        while (current instanceof TerminalEffectConnectorWrapper wrapper) {
-            current = wrapper.delegate();
+        while (true) {
+            if (current instanceof TerminalColorFilteringTtyConnector wrapper) {
+                current = wrapper.delegate();
+                continue;
+            }
+            if (current instanceof TerminalEffectConnectorWrapper wrapper) {
+                current = wrapper.delegate();
+                continue;
+            }
+            return current;
         }
-        return current;
     }
 
     private void applyTerminalEmulation(SithTermFxWidget widget, TtyConnector connector) {
@@ -1923,7 +1940,9 @@ public class TerminalView extends BorderPane {
             ProgressIndicator progress = new ProgressIndicator(-1);
             VBox root = new VBox(15, progress, label);
             root.setStyle("-fx-padding: 20; -fx-alignment: center;");
-            connectingStage.setScene(new Scene(root));
+            Scene scene = new Scene(root);
+            AppDesignStyleSupport.applyToScene(scene);
+            connectingStage.setScene(scene);
             connectingStage.setResizable(false);
             
             Thread connectThread = new Thread(() -> {
@@ -4367,6 +4386,36 @@ public class TerminalView extends BorderPane {
     public boolean isTimestampGuttersVisible() {
         return timestampGuttersVisibleState;
     }
+
+    public void setTerminalScrollbarsVisible(boolean visible) {
+        terminalScrollbarsVisible = visible;
+        Runnable task = () -> {
+            if (splitPane != null) {
+                for (SithTermFxWidget widget : splitPane.getAllWidgets()) {
+                    applyTerminalScrollbarVisibility(widget);
+                }
+                return;
+            }
+            applyTerminalScrollbarVisibility(terminalWidget);
+        };
+        if (Platform.isFxApplicationThread()) {
+            task.run();
+        } else {
+            Platform.runLater(task);
+        }
+    }
+
+    private void applyTerminalScrollbarVisibility(@Nullable SithTermFxWidget widget) {
+        if (widget == null || widget.getTerminalPanel() == null) {
+            return;
+        }
+        ScrollBar scrollBar = widget.getTerminalPanel().getScrollBar();
+        if (scrollBar == null) {
+            return;
+        }
+        scrollBar.setVisible(terminalScrollbarsVisible);
+        scrollBar.setManaged(terminalScrollbarsVisible);
+    }
     
     /**
      * Shows the find bar in the terminal.
@@ -4437,6 +4486,7 @@ public class TerminalView extends BorderPane {
         settings.setBackgroundColor(effective.getBackgroundColor());
         settings.setCursorColor(effective.getCursorColor());
         settings.setCursorStyle(effective.getCursorStyle());
+        settings.setTerminalColorsEnabled(effective.isTerminalColorsEnabled());
         settingsProvider.setFontSize(size);
 
         if (splitPane != null) {
@@ -4885,6 +4935,108 @@ public class TerminalView extends BorderPane {
      * - Font zoom via Cmd+Plus/Minus (or Ctrl+Plus/Minus)
      * - Font zoom via right-click context menu
      */
+    private static final class TerminalColorFilteringTtyConnector implements TtyConnector {
+
+        private final TtyConnector delegate;
+        private final BooleanSupplier terminalColorsEnabled;
+        private final TerminalColorControlSequenceFilter filter = new TerminalColorControlSequenceFilter();
+        private final StringBuilder pendingOutput = new StringBuilder();
+
+        private TerminalColorFilteringTtyConnector(
+                TtyConnector delegate,
+                BooleanSupplier terminalColorsEnabled) {
+            this.delegate = Objects.requireNonNull(delegate, "delegate");
+            this.terminalColorsEnabled = Objects.requireNonNull(terminalColorsEnabled, "terminalColorsEnabled");
+        }
+
+        TtyConnector delegate() {
+            return delegate;
+        }
+
+        @Override
+        public int read(char[] buf, int offset, int length) throws IOException {
+            if (length <= 0) {
+                return 0;
+            }
+            if (terminalColorsEnabled.getAsBoolean()) {
+                filter.reset();
+                pendingOutput.setLength(0);
+                return delegate.read(buf, offset, length);
+            }
+            while (pendingOutput.length() == 0) {
+                char[] source = new char[Math.max(length, 256)];
+                int count = delegate.read(source, 0, source.length);
+                if (count <= 0) {
+                    return count;
+                }
+                pendingOutput.append(filter.filter(source, 0, count));
+            }
+
+            int count = Math.min(length, pendingOutput.length());
+            pendingOutput.getChars(0, count, buf, offset);
+            pendingOutput.delete(0, count);
+            return count;
+        }
+
+        @Override
+        public void write(byte[] bytes) throws IOException {
+            delegate.write(bytes);
+        }
+
+        @Override
+        public void write(String string) throws IOException {
+            delegate.write(string);
+        }
+
+        @Override
+        public boolean isConnected() {
+            return delegate.isConnected();
+        }
+
+        @Override
+        public void resize(@NotNull com.sithtermfx.core.util.TermSize termSize) {
+            delegate.resize(termSize);
+        }
+
+        @Override
+        public int waitFor() throws InterruptedException {
+            return delegate.waitFor();
+        }
+
+        @Override
+        public boolean ready() throws IOException {
+            return delegate.ready();
+        }
+
+        @Override
+        public String getName() {
+            return delegate.getName();
+        }
+
+        @Override
+        public void close() {
+            delegate.close();
+        }
+
+        @SuppressWarnings({"removal", "DeprecatedIsStillUsed"})
+        @Override
+        public boolean init(com.sithtermfx.core.Questioner questioner) {
+            return delegate.init(questioner);
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        public void resize(@NotNull java.awt.Dimension termWinSize) {
+            delegate.resize(termWinSize);
+        }
+
+        @SuppressWarnings({"deprecation", "removal"})
+        @Override
+        public void resize(java.awt.Dimension termWinSize, java.awt.Dimension pixelSize) {
+            delegate.resize(termWinSize, pixelSize);
+        }
+    }
+
     private static class KorTTYSettingsProvider extends DynamicFontSizeSettingsProvider {
         
         private final ConnectionSettings settings;

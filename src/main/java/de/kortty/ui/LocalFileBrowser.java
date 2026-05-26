@@ -195,12 +195,18 @@ public class LocalFileBrowser extends VBox {
     private Node createIcon(FileNode node) {
         SVGPath icon = new SVGPath();
         icon.setContent(node.directory() ? FOLDER_ICON_PATH : FILE_ICON_PATH);
-        icon.setFill(Color.web(
-            node.hidden() ? HIDDEN_ICON_COLOR : (node.directory() ? FOLDER_ICON_COLOR : FILE_ICON_COLOR)));
+        icon.setFill(Color.web(resolveIconColor(node)));
         icon.setScaleX(0.9);
         icon.setScaleY(0.9);
         icon.setOpacity(node.hidden() ? 0.75 : 1.0);
         return icon;
+    }
+
+    private String resolveIconColor(FileNode node) {
+        if (AppDesignStyleSupport.isCustomAppDesignActive()) {
+            return node.hidden() ? AppDesignStyleSupport.activeDimColor() : AppDesignStyleSupport.activeTextColor();
+        }
+        return node.hidden() ? HIDDEN_ICON_COLOR : (node.directory() ? FOLDER_ICON_COLOR : FILE_ICON_COLOR);
     }
 
     private ContextMenu createContextMenu() {
@@ -1113,7 +1119,12 @@ public class LocalFileBrowser extends VBox {
      * terminal theme while still refreshing cells after theme changes.
      */
     public void applyTheme(String bgColor, String fgColor) {
-        setStyle("-fx-background-color: " + PANEL_BACKGROUND + ";");
+        if (AppDesignStyleSupport.isCustomAppDesignActive()) {
+            setStyle(null);
+        } else {
+            setStyle("-fx-background-color: " + PANEL_BACKGROUND + ";");
+        }
+        AppDesignStyleSupport.applyToParent(this);
         treeView.refresh();
     }
 
