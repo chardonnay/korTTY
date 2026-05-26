@@ -38,7 +38,7 @@
   <path class="grid" d="M 0 120 H 1400 M 0 240 H 1400 M 0 360 H 1400 M 0 480 H 1400 M 0 600 H 1400 M 0 720 H 1400 M 160 0 V 880 M 320 0 V 880 M 480 0 V 880 M 640 0 V 880 M 800 0 V 880 M 960 0 V 880 M 1120 0 V 880 M 1280 0 V 880" opacity="0.32"/>
 
   <text class="title" x="48" y="58">KorTTY Module Overview</text>
-  <text class="subtitle" x="48" y="86">Runtime modules grouped by responsibility. Documentation diagrams are SVG; PlantUML here refers only to the Snippet Editor diagram feature.</text>
+  <text class="subtitle" x="48" y="86">Runtime modules grouped by responsibility. App designs are JavaFX CSS resources; PlantUML here refers only to snippet diagrams.</text>
 
   <rect class="panel" x="470" y="120" width="460" height="170"/>
   <rect class="panelHeader" x="470" y="120" width="460" height="52"/>
@@ -60,8 +60,8 @@
   <text class="label" x="142" y="504">Monaco Editor</text>
   <text class="detail" x="129" y="524">snippet and code surfaces</text>
   <rect class="box ui" x="85" y="555" width="230" height="56"/>
-  <text class="label" x="157" y="579">jfiglet</text>
-  <text class="detail" x="126" y="599">ASCII art banner tool</text>
+  <text class="label" x="129" y="579">AppDesign CSS</text>
+  <text class="detail" x="109" y="599">Matrix, Holographic, Tactical, Elegant</text>
 
   <rect class="panel" x="385" y="330" width="300" height="360"/>
   <rect class="panelHeader" x="385" y="330" width="300" height="52"/>
@@ -76,7 +76,7 @@
   <text class="label" x="504" y="579">pty4j</text>
   <text class="detail" x="462" y="599">local PTY integration</text>
   <rect class="box optional" x="420" y="630" width="230" height="36"/>
-  <text class="detail" x="450" y="653">Terminal Effect SPI + plugin JARs</text>
+  <text class="detail" x="440" y="653">Terminal Effect SPI + color handling</text>
 
   <rect class="panel" x="720" y="330" width="300" height="360"/>
   <rect class="panelHeader" x="720" y="330" width="300" height="52"/>

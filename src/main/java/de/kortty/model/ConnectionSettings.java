@@ -48,6 +48,9 @@ public class ConnectionSettings {
     
     @XmlElement
     private boolean boldAsBright = true;
+
+    @XmlElement
+    private boolean terminalColorsEnabled = true;
     
     @XmlElement
     private String encoding = "UTF-8";
@@ -118,6 +121,7 @@ public class ConnectionSettings {
         this.terminalRows = other.terminalRows;
         this.scrollbackLines = other.scrollbackLines;
         this.boldAsBright = other.boldAsBright;
+        this.terminalColorsEnabled = other.terminalColorsEnabled;
         this.encoding = other.encoding;
         this.closeWithoutConfirmation = other.closeWithoutConfirmation;
         this.commandTimestampsEnabled = other.commandTimestampsEnabled;
@@ -249,6 +253,14 @@ public class ConnectionSettings {
     
     public void setBoldAsBright(boolean boldAsBright) {
         this.boldAsBright = boldAsBright;
+    }
+
+    public boolean isTerminalColorsEnabled() {
+        return terminalColorsEnabled;
+    }
+
+    public void setTerminalColorsEnabled(boolean terminalColorsEnabled) {
+        this.terminalColorsEnabled = terminalColorsEnabled;
     }
     
     public String getEncoding() {

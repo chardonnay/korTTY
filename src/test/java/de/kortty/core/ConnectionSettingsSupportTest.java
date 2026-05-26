@@ -15,6 +15,7 @@ class ConnectionSettingsSupportTest {
         ConnectionSettings globalDefaults = new ConnectionSettings();
         globalDefaults.setCursorStyle("STEADY_BLOCK");
         globalDefaults.setBackgroundColor("#112233");
+        globalDefaults.setTerminalColorsEnabled(false);
         globalSettings.setDefaultTerminalSettings(globalDefaults);
 
         ServerConnection connection = new ServerConnection();
@@ -22,6 +23,7 @@ class ConnectionSettingsSupportTest {
         connectionSettings.setUseGlobalSettings(true);
         connectionSettings.setCursorStyle("BLINK_BLOCK");
         connectionSettings.setBackgroundColor("#445566");
+        connectionSettings.setTerminalColorsEnabled(true);
         connection.setSettings(connectionSettings);
 
         ConnectionSettings effective = ConnectionSettingsSupport.effectiveTerminalSettings(
@@ -30,23 +32,28 @@ class ConnectionSettingsSupportTest {
 
         assertThat(effective.getCursorStyle()).isEqualTo("STEADY_BLOCK");
         assertThat(effective.getBackgroundColor()).isEqualTo("#112233");
+        assertThat(effective.isTerminalColorsEnabled()).isFalse();
         assertThat(connection.getSettings().getCursorStyle()).isEqualTo("BLINK_BLOCK");
+        assertThat(connection.getSettings().isTerminalColorsEnabled()).isTrue();
     }
 
     @Test
     void effectiveTerminalSettingsKeepsConnectionSpecificSettingsWhenGlobalSettingsDisabled() {
         ConnectionSettings globalDefaults = new ConnectionSettings();
         globalDefaults.setCursorStyle("STEADY_BLOCK");
+        globalDefaults.setTerminalColorsEnabled(false);
 
         ConnectionSettings connectionSettings = new ConnectionSettings();
         connectionSettings.setUseGlobalSettings(false);
         connectionSettings.setCursorStyle("BLINK_UNDERLINE");
+        connectionSettings.setTerminalColorsEnabled(true);
 
         ConnectionSettings effective = ConnectionSettingsSupport.effectiveTerminalSettings(
                 connectionSettings,
                 globalDefaults);
 
         assertThat(effective.getCursorStyle()).isEqualTo("BLINK_UNDERLINE");
+        assertThat(effective.isTerminalColorsEnabled()).isTrue();
     }
 
     @Test
@@ -56,5 +63,6 @@ class ConnectionSettingsSupportTest {
                 null);
 
         assertThat(effective.getCursorStyle()).isEqualTo("BLINK_BLOCK");
+        assertThat(effective.isTerminalColorsEnabled()).isTrue();
     }
 }

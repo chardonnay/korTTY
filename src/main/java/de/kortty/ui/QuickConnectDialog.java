@@ -73,6 +73,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private Spinner<Integer> fontSizeSpinner;
     private ColorPicker foregroundColorPicker;
     private ColorPicker backgroundColorPicker;
+    private CheckBox terminalColorsEnabledCheck;
     private ComboBox<TerminalEffectUiSupport.Option> terminalEffectCombo;
     private TerminalEffectUiSupport.AnimationSpeedControls terminalEffectSpeedControls;
     
@@ -695,6 +696,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         
         foregroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#FFFFFF"));
         backgroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#1E1E1E"));
+        terminalColorsEnabledCheck = new CheckBox(I18n.get("settings.colors.terminalColors"));
+        terminalColorsEnabledCheck.setSelected(true);
+        terminalColorsEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.colors.terminalColors.tooltip")));
         terminalEffectCombo = new ComboBox<>();
         terminalEffectCombo.setPrefWidth(220);
         TerminalEffectUiSupport.configureComboBox(terminalEffectCombo);
@@ -709,6 +713,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         
         grid.add(new Label(I18n.get("quickConnect.background")), 0, row);
         grid.add(backgroundColorPicker, 1, row++);
+        grid.add(terminalColorsEnabledCheck, 0, row++, 2, 1);
 
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
             grid.add(new Separator(), 0, row++, 2, 1);
@@ -812,6 +817,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 ? conn.getTerminalEffectAnimationSpeed()
                 : TerminalEffectAnimationSpeed.DEFAULT);
         updateTerminalEffectSpeedState();
+        loadTerminalSettingsIntoControls(conn.getSettings());
         
         // Set authentication method
         if (temporaryKeyAuthRadio != null && temporaryKeyArea != null && conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
@@ -877,6 +883,36 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         if (terminalEffectSpeedControls != null) {
             terminalEffectSpeedControls.setDisable(!enabled);
         }
+    }
+
+    private void loadTerminalSettingsIntoControls(ConnectionSettings settings) {
+        if (settings == null) {
+            return;
+        }
+        String themeId = settings.getThemeId();
+        if (themeId != null && themeCombo != null) {
+            try {
+                var tm = de.kortty.KorTTYApplication.getInstance().getThemeManager();
+                if (tm != null) {
+                    tm.getTheme(themeId).ifPresent(themeCombo::setValue);
+                }
+            } catch (Exception ignored) {}
+        } else if (themeCombo != null) {
+            themeCombo.setValue(null);
+        }
+        if (themeCombo == null || themeCombo.getValue() == null) {
+            if (settings.getFontFamily() != null) {
+                fontFamilyCombo.setValue(settings.getFontFamily());
+            }
+            fontSizeSpinner.getValueFactory().setValue(settings.getFontSize());
+            if (settings.getForegroundColor() != null) {
+                foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
+            }
+            if (settings.getBackgroundColor() != null) {
+                backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
+            }
+        }
+        terminalColorsEnabledCheck.setSelected(settings.isTerminalColorsEnabled());
     }
 
     private void applyTerminalEffectSettings(ServerConnection connection) {
@@ -1320,6 +1356,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                     if (settings.getForegroundColor() != null) foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
                     if (settings.getBackgroundColor() != null) backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
                 }
+                terminalColorsEnabledCheck.setSelected(settings.isTerminalColorsEnabled());
             }
 
             if (terminalEffectSpeedControls != null && globalSettings != null) {
@@ -1361,6 +1398,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                     if (settings.getForegroundColor() != null) foregroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getForegroundColor()));
                     if (settings.getBackgroundColor() != null) backgroundColorPicker.setValue(javafx.scene.paint.Color.web(settings.getBackgroundColor()));
                 }
+                terminalColorsEnabledCheck.setSelected(settings.isTerminalColorsEnabled());
             }
         } catch (Exception e) {
             // Ignore
@@ -1389,6 +1427,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                     settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
                     settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
                 }
+                settings.setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
                 globalSettings.setLastQuickConnectTerminalSettings(settings);
 
                 String pluginId = TerminalEffectUiSupport.selectedPluginId(terminalEffectCombo);
@@ -1458,6 +1497,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         connection.getSettings().setFontSize(fontSizeSpinner.getValue());
         connection.getSettings().setForegroundColor(toHex(foregroundColorPicker.getValue()));
         connection.getSettings().setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+        connection.getSettings().setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
         Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
         if (selTheme != null) {
             selTheme.applyTo(connection.getSettings(), isThemeFontApplyEnabled());

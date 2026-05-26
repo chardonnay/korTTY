@@ -32,19 +32,21 @@
   <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 760 M 320 0 V 760 M 480 0 V 760 M 640 0 V 760 M 800 0 V 760 M 960 0 V 760 M 1120 0 V 760" opacity="0.24"/>
 
   <text class="title" x="44" y="54">KorTTY Architecture</text>
-  <text class="subtitle" x="44" y="82">Compact system view: UI shell, workspaces, services, local state, and external systems.</text>
+  <text class="subtitle" x="44" y="82">Compact system view: UI shell, app designs, workspaces, services, local state, and external systems.</text>
 
   <rect class="panel" x="95" y="120" width="1090" height="118"/>
   <rect class="header" x="95" y="120" width="1090" height="50"/>
   <text class="panelTitle" x="128" y="152">JavaFX application shell</text>
-  <rect class="box" x="150" y="185" width="180" height="34"/>
-  <text class="label" x="190" y="207">Main window</text>
-  <rect class="box" x="400" y="185" width="180" height="34"/>
-  <text class="label" x="449" y="207">Menus</text>
-  <rect class="box" x="650" y="185" width="180" height="34"/>
-  <text class="label" x="693" y="207">Tab area</text>
-  <rect class="box" x="900" y="185" width="180" height="34"/>
-  <text class="label" x="930" y="207">Status + dashboard</text>
+  <rect class="box" x="135" y="185" width="160" height="34"/>
+  <text class="label" x="166" y="207">Main window</text>
+  <rect class="box" x="335" y="185" width="160" height="34"/>
+  <text class="label" x="362" y="207">Menus + dialogs</text>
+  <rect class="box" x="535" y="185" width="160" height="34"/>
+  <text class="label" x="568" y="207">Tab area</text>
+  <rect class="box" x="735" y="185" width="160" height="34"/>
+  <text class="label" x="769" y="207">Dashboard</text>
+  <rect class="box" x="935" y="185" width="160" height="34"/>
+  <text class="label" x="966" y="207">App designs</text>
 
   <rect class="panel" x="80" y="300" width="330" height="225"/>
   <rect class="header" x="80" y="300" width="330" height="50"/>
@@ -62,7 +64,7 @@
   <rect class="box service" x="510" y="421" width="250" height="42"/>
   <text class="label" x="548" y="447">AI profiles + chats</text>
   <rect class="box service" x="510" y="477" width="250" height="32"/>
-  <text class="detail" x="552" y="498">JobScheduler + formatter services</text>
+  <text class="detail" x="532" y="498">JobScheduler, formatter, design CSS</text>
 
   <rect class="panel" x="870" y="300" width="330" height="225"/>
   <rect class="header" x="870" y="300" width="330" height="50"/>
@@ -72,7 +74,7 @@
   <rect class="box secure" x="905" y="421" width="250" height="42"/>
   <text class="label" x="942" y="447">Encrypted secrets</text>
   <rect class="box state" x="905" y="477" width="250" height="32"/>
-  <text class="detail" x="950" y="498">projects, snippets, chats, journals</text>
+  <text class="detail" x="930" y="498">projects, snippets, chats, app design</text>
 
   <rect class="panel" x="155" y="590" width="970" height="86"/>
   <rect class="box external" x="205" y="615" width="210" height="38"/>

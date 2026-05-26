@@ -43,5 +43,7 @@ public final class DialogThemeHelper {
         if (dynamicStylesheet != null && !dialogPane.getStylesheets().contains(dynamicStylesheet)) {
             dialogPane.getStylesheets().add(dynamicStylesheet);
         }
+
+        AppDesignStyleSupport.applyToDialogPane(dialogPane);
     }
 }

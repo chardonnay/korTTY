@@ -123,6 +123,7 @@ public class TerminalTab extends Tab {
             if (terminalView.isConnected() && !settings.isCloseWithoutConfirmation()) {
                 // Show confirmation dialog
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                DialogThemeHelper.applyTheme(alert);
                 alert.setTitle(I18n.get("dialog.closeConnection"));
                 alert.setHeaderText(I18n.get("dialog.closeConnectionQuestion"));
                 alert.setContentText(I18n.get("dialog.closeConnectionMessage", connection.getDisplayName()));

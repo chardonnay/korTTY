@@ -1,0 +1,431 @@
+/* Klingon-inspired tactical app design. Cross-platform JavaFX CSS only. */
+
+.root,
+.dialog-pane {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: #0d0906;
+    -fx-text-fill: rgba(255,180,180,0.85);
+}
+
+.tactical-root,
+.kortty-main-root,
+.master-password-root {
+    -fx-background-color: #0d0906;
+    -fx-border-color: #ff3c5a transparent transparent transparent;
+    -fx-border-width: 2 0 0 0;
+    -fx-effect: dropshadow(gaussian, #ff3c5a, 40, 0.12, 0, 0);
+}
+
+.accent-bar {
+    -fx-background-color: linear-gradient(to bottom, #ff3c5a, rgba(255,210,0,0.1));
+    -fx-effect: dropshadow(gaussian, #ff3c5a, 12, 0.6, 0, 0);
+}
+
+.tac-titlebar {
+    -fx-background-color: linear-gradient(to right, rgba(255,60,90,0.25), transparent);
+    -fx-border-color: transparent transparent rgba(255,60,90,0.12) transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 0 34 0 34;
+}
+
+.tactical-window-blocks {
+    -fx-padding: 0 0 0 0;
+}
+
+.wb-red,
+.wb-amber,
+.wb-gold {
+    -fx-border-radius: 1;
+    -fx-background-radius: 1;
+    -fx-border-width: 1;
+    -fx-min-width: 10;
+    -fx-min-height: 10;
+    -fx-pref-width: 10;
+    -fx-pref-height: 10;
+    -fx-max-width: 10;
+    -fx-max-height: 10;
+}
+
+.wb-red {
+    -fx-background-color: rgba(255,60,90,0.3);
+    -fx-border-color: #ff3c5a;
+}
+
+.wb-amber {
+    -fx-background-color: rgba(255,140,0,0.3);
+    -fx-border-color: #ff8c00;
+}
+
+.wb-gold {
+    -fx-background-color: rgba(255,210,0,0.3);
+    -fx-border-color: #ffd200;
+}
+
+.label,
+.check-box,
+.radio-button,
+.hyperlink,
+.titled-pane > .title > .text {
+    -fx-font-family: "Monospaced";
+    -fx-text-fill: rgba(255,180,180,0.85);
+}
+
+.status-bar,
+.main-content,
+.dashboard-view,
+.dialog-pane .content,
+.dialog-pane .header-panel,
+.scroll-pane,
+.scroll-pane .viewport,
+.split-pane,
+.tool-bar,
+.titled-pane > .content {
+    -fx-background-color: #0d0906;
+}
+
+.menu-bar,
+.context-menu,
+.menu-button,
+.combo-box,
+.choice-box,
+.color-picker,
+.spinner,
+.list-view,
+.tree-view,
+.table-view,
+.tab-pane,
+.tab-pane .tab-header-area,
+.tab-pane .tab-header-background,
+.titled-pane > .title {
+    -fx-background-color: #140c08;
+    -fx-control-inner-background: #140c08;
+    -fx-border-color: rgba(255,60,90,0.25);
+    -fx-border-width: 1;
+}
+
+.menu-bar {
+    -fx-padding: 3 8 3 8;
+}
+
+.menu-bar .menu,
+.menu-item,
+.tab {
+    -fx-background-color: transparent;
+}
+
+.menu-bar .menu .label,
+.menu-item .label,
+.menu-button .label,
+.combo-box .list-cell,
+.choice-box .label,
+.color-picker .label,
+.tab .tab-label,
+.settings-info-label {
+    -fx-text-fill: rgba(255,180,180,0.85);
+}
+
+.menu-bar .menu:hover,
+.menu-bar .menu:showing,
+.menu-item:hover,
+.menu-item:focused,
+.menu-button:hover,
+.menu-button:showing,
+.combo-box:hover,
+.choice-box:hover,
+.color-picker:hover,
+.tab:hover {
+    -fx-background-color: rgba(255,60,90,0.25);
+}
+
+.tab:selected {
+    -fx-background-color: #0d0906;
+    -fx-border-color: #ff3c5a;
+    -fx-border-width: 0 0 2 0;
+}
+
+.tab-close-button,
+.menu-button .arrow-button .arrow,
+.combo-box .arrow,
+.choice-box .arrow,
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow,
+.tree-cell .tree-disclosure-node .arrow {
+    -fx-background-color: #ff3c5a;
+}
+
+.button,
+.tac-btn-primary {
+    -fx-font-family: "Rajdhani";
+    -fx-font-weight: bold;
+    -fx-background-color: rgba(255,60,90,0.12);
+    -fx-border-color: #ff3c5a;
+    -fx-border-width: 1;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+    -fx-text-fill: rgba(255,128,144,1);
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
+}
+
+.button:hover,
+.button:focused,
+.tac-btn-primary:hover,
+.tac-btn-primary:focused {
+    -fx-background-color: rgba(255,60,90,0.22);
+    -fx-effect: dropshadow(gaussian, #ff3c5a, 10, 0.25, 0, 0);
+}
+
+.button:default {
+    -fx-background-color: rgba(255,60,90,0.22);
+    -fx-border-color: #ff3c5a;
+    -fx-text-fill: rgba(255,180,180,0.85);
+}
+
+.btn-secondary,
+.tac-btn-secondary {
+    -fx-font-family: "Rajdhani";
+    -fx-font-weight: bold;
+    -fx-background-color: rgba(255,60,90,0.04);
+    -fx-border-color: rgba(255,60,90,0.25);
+    -fx-text-fill: rgba(204,68,85,0.6);
+}
+
+.text-input,
+.text-field,
+.password-field,
+.text-area,
+.text-area .content,
+.tac-input {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: rgba(255,60,90,0.04);
+    -fx-control-inner-background: #140c08;
+    -fx-text-fill: rgba(255,180,180,0.85);
+    -fx-prompt-text-fill: rgba(204,68,85,0.6);
+    -fx-highlight-fill: rgba(255,60,90,0.25);
+    -fx-highlight-text-fill: rgba(255,180,180,0.85);
+    -fx-border-color: rgba(255,60,90,0.2);
+    -fx-border-width: 1;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+}
+
+.tac-input {
+    -fx-border-color: rgba(255,60,90,0.2);
+    -fx-border-width: 1 1 1 0;
+}
+
+.text-field:focused,
+.password-field:focused,
+.text-area:focused,
+.tac-input:focused {
+    -fx-border-color: rgba(255,60,90,0.5);
+    -fx-effect: dropshadow(gaussian, #ff3c5a, 8, 0.3, 0, 0);
+}
+
+.input-bracket-bar {
+    -fx-background-color: linear-gradient(to bottom, #ff3c5a, rgba(255,60,90,0.2));
+    -fx-min-width: 4;
+    -fx-pref-width: 4;
+    -fx-max-width: 4;
+}
+
+.list-cell,
+.tree-cell,
+.table-row-cell,
+.table-cell {
+    -fx-background-color: #0d0906;
+    -fx-text-fill: rgba(255,180,180,0.85);
+}
+
+.list-cell:hover,
+.tree-cell:hover,
+.table-row-cell:hover {
+    -fx-background-color: rgba(255,60,90,0.25);
+}
+
+.list-cell:selected,
+.tree-cell:selected,
+.table-row-cell:selected {
+    -fx-background-color: rgba(255,60,90,0.25);
+    -fx-text-fill: #ffd200;
+}
+
+.table-view {
+    -fx-table-cell-border-color: rgba(255,60,90,0.25);
+}
+
+.table-view .column-header,
+.table-view .column-header-background,
+.table-view .filler {
+    -fx-background-color: #140c08;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #ff3c5a;
+}
+
+.scroll-bar,
+.scroll-bar .track,
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: #0d0906;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: rgba(255,60,90,0.25);
+    -fx-background-radius: 0;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #ff3c5a;
+}
+
+.separator:horizontal .line,
+.separator:vertical .line,
+.split-pane-divider {
+    -fx-background-color: rgba(255,60,90,0.25);
+    -fx-border-color: rgba(255,60,90,0.25);
+}
+
+.check-box .box,
+.radio-button .radio {
+    -fx-background-color: #140c08;
+    -fx-border-color: rgba(255,60,90,0.25);
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+}
+
+.check-box:selected .mark,
+.radio-button:selected .dot {
+    -fx-background-color: #ffd200;
+}
+
+.progress-bar,
+.progress-bar .track,
+.progress-indicator {
+    -fx-background-color: #140c08;
+}
+
+.progress-bar .bar,
+.progress-indicator .indicator {
+    -fx-background-color: #ff3c5a;
+}
+
+.slider .track {
+    -fx-background-color: rgba(255,60,90,0.25);
+}
+
+.slider .thumb {
+    -fx-background-color: #ff3c5a;
+    -fx-background-radius: 0;
+    -fx-effect: dropshadow(gaussian, #ff3c5a, 8, 0.35, 0, 0);
+}
+
+.tooltip {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: #140c08;
+    -fx-text-fill: rgba(255,180,180,0.85);
+    -fx-border-color: rgba(255,60,90,0.25);
+}
+
+.file-browser-panel,
+.file-browser-tree,
+.file-browser-tree .tree-cell,
+.file-browser-tree .scroll-bar,
+.file-browser-tree .scroll-bar .track,
+.file-browser-tree .scroll-bar .increment-button,
+.file-browser-tree .scroll-bar .decrement-button,
+.file-browser-status,
+.dashboard-tree,
+.dashboard-tree .tree-cell {
+    -fx-background-color: #0d0906;
+    -fx-control-inner-background: #0d0906;
+    -fx-text-fill: rgba(255,180,180,0.85);
+}
+
+.file-browser-tree .tree-cell:hover,
+.file-browser-tree .tree-cell:selected,
+.dashboard-tree .tree-cell:hover,
+.dashboard-tree .tree-cell:selected {
+    -fx-background-color: rgba(255,60,90,0.25);
+    -fx-text-fill: #ffd200;
+}
+
+.tactical-body {
+    -fx-background-color: #0d0906;
+    -fx-border-color: transparent transparent rgba(255,60,90,0.12) transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.tactical-form {
+    -fx-background-color: transparent;
+}
+
+.tactical-auth-panel {
+    -fx-background-color: transparent;
+}
+
+.tactical-footer {
+    -fx-background-color: #140c08;
+    -fx-border-color: rgba(255,60,90,0.12) transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 0 34 0 34;
+}
+
+.logo-panel {
+    -fx-border-color: rgba(255,60,90,0.25);
+    -fx-border-width: 2 1 1 1;
+    -fx-background-color: linear-gradient(to bottom right, #1a0808, #0d0906);
+    -fx-effect: dropshadow(gaussian, #ff3c5a, 12, 0.14, 0, 0);
+}
+
+.header-tag {
+    -fx-font-family: "Rajdhani";
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: rgba(204,68,85,0.6);
+}
+
+.tag-line {
+    -fx-background-color: rgba(255,60,90,0.25);
+    -fx-min-height: 1;
+    -fx-pref-height: 1;
+    -fx-max-height: 1;
+}
+
+.tactical-header-title {
+    -fx-font-size: 12px;
+    -fx-text-fill: #ff3c5a;
+}
+
+.tactical-brand-mark {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ff3c5a;
+}
+
+.tactical-brand-name {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: rgba(255,180,180,0.85);
+}
+
+.logo-area {
+    -fx-background-color: linear-gradient(to bottom right, #1a0808, #0d0906);
+    -fx-border-color: rgba(255,60,90,0.25);
+    -fx-border-width: 1;
+    -fx-padding: 18;
+}
+
+.field-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ff3c5a;
+}
+
+.version-label {
+    -fx-font-size: 10px;
+    -fx-text-fill: rgba(204,68,85,0.6);
+}

@@ -1,0 +1,388 @@
+/* Holographic Interface app design. Cross-platform JavaFX CSS only. */
+
+.root,
+.dialog-pane {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: linear-gradient(to bottom, #000000, #040d16);
+    -fx-border-color: transparent;
+    -fx-text-fill: rgba(0,212,255,0.8);
+}
+
+.holo-root,
+.kortty-main-root,
+.master-password-root {
+    -fx-background-color: linear-gradient(to bottom, #000000, #040d16);
+    -fx-border-color: transparent;
+    -fx-effect: dropshadow(gaussian, #00d4ff, 40, 0.15, 0, 0);
+}
+
+.holo-titlebar {
+    -fx-background-color: rgba(0,212,255,0.08);
+    -fx-border-color: transparent transparent rgba(0,212,255,0.1) transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 0 0 0 24;
+}
+
+.wm-dot-red,
+.wm-dot-amber,
+.wm-dot-cyan {
+    -fx-background-radius: 0;
+    -fx-min-width: 9;
+    -fx-min-height: 9;
+    -fx-pref-width: 9;
+    -fx-pref-height: 9;
+    -fx-max-width: 9;
+    -fx-max-height: 9;
+    -fx-rotate: 45;
+}
+
+.wm-dot-red {
+    -fx-background-color: #ff3c5a;
+    -fx-effect: dropshadow(gaussian, #ff3c5a, 8, 0.5, 0, 0);
+}
+
+.wm-dot-amber {
+    -fx-background-color: #ff8c00;
+    -fx-effect: dropshadow(gaussian, #ff8c00, 8, 0.5, 0, 0);
+}
+
+.wm-dot-cyan {
+    -fx-background-color: #00d4ff;
+    -fx-effect: dropshadow(gaussian, #00d4ff, 8, 0.5, 0, 0);
+}
+
+.label,
+.check-box,
+.radio-button,
+.hyperlink,
+.titled-pane > .title > .text {
+    -fx-font-family: "Monospaced";
+    -fx-text-fill: rgba(0,212,255,0.8);
+}
+
+.status-bar,
+.main-content,
+.dashboard-view,
+.dialog-pane .content,
+.dialog-pane .header-panel,
+.scroll-pane,
+.scroll-pane .viewport,
+.split-pane,
+.tool-bar,
+.titled-pane > .content {
+    -fx-background-color: transparent;
+}
+
+.menu-bar,
+.context-menu,
+.menu-button,
+.combo-box,
+.choice-box,
+.color-picker,
+.spinner,
+.list-view,
+.tree-view,
+.table-view,
+.tab-pane,
+.tab-pane .tab-header-area,
+.tab-pane .tab-header-background,
+.titled-pane > .title,
+.logo-area {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(0,212,255,0.08), rgba(0,212,255,0.03)),
+        #000000;
+    -fx-control-inner-background: #000000;
+    -fx-border-color: rgba(0,212,255,0.5);
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, #00d4ff, 16, 0.12, 0, 0);
+}
+
+.menu-bar {
+    -fx-padding: 3 8 3 8;
+}
+
+.menu-bar .menu,
+.menu-item,
+.tab {
+    -fx-background-color: transparent;
+}
+
+.menu-bar .menu .label,
+.menu-item .label,
+.menu-button .label,
+.combo-box .list-cell,
+.choice-box .label,
+.color-picker .label,
+.tab .tab-label,
+.settings-info-label {
+    -fx-text-fill: rgba(0,212,255,0.8);
+}
+
+.menu-bar .menu:hover,
+.menu-bar .menu:showing,
+.menu-item:hover,
+.menu-item:focused,
+.menu-button:hover,
+.menu-button:showing,
+.combo-box:hover,
+.choice-box:hover,
+.color-picker:hover,
+.tab:hover {
+    -fx-background-color: rgba(0,212,255,0.08);
+}
+
+.tab:selected {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(0,212,255,0.12), rgba(0,212,255,0.04)),
+        #000000;
+    -fx-border-color: #00d4ff;
+    -fx-border-width: 0 0 1 0;
+}
+
+.tab-close-button,
+.menu-button .arrow-button .arrow,
+.combo-box .arrow,
+.choice-box .arrow,
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow,
+.tree-cell .tree-disclosure-node .arrow {
+    -fx-background-color: #00d4ff;
+}
+
+.button,
+.holo-btn-primary {
+    -fx-font-family: "Rajdhani";
+    -fx-font-weight: bold;
+    -fx-shape: "M 8 0 L 112 0 L 104 32 L 0 32 Z";
+    -fx-background-color: rgba(0,212,255,0.08);
+    -fx-border-color: #00d4ff;
+    -fx-border-width: 1;
+    -fx-text-fill: #00d4ff;
+    -fx-cursor: hand;
+    -fx-padding: 6 16 6 16;
+}
+
+.button:hover,
+.button:focused,
+.holo-btn-primary:hover,
+.holo-btn-primary:focused {
+    -fx-background-color: rgba(0,212,255,0.08);
+    -fx-effect: dropshadow(gaussian, #00d4ff, 12, 0.25, 0, 0);
+}
+
+.button:default {
+    -fx-background-color: rgba(0,212,255,0.5);
+    -fx-text-fill: #040d16;
+}
+
+.btn-secondary,
+.holo-btn-secondary {
+    -fx-font-family: "Rajdhani";
+    -fx-font-weight: bold;
+    -fx-shape: "M 8 0 L 112 0 L 104 32 L 0 32 Z";
+    -fx-background-color: transparent;
+    -fx-border-color: rgba(0,212,255,0.5);
+    -fx-text-fill: rgba(0,212,255,0.8);
+}
+
+.text-input,
+.text-field,
+.password-field,
+.text-area,
+.text-area .content,
+.holo-input {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: transparent;
+    -fx-control-inner-background: #000000;
+    -fx-text-fill: #00d4ff;
+    -fx-prompt-text-fill: rgba(0,212,255,0.5);
+    -fx-highlight-fill: rgba(0,212,255,0.5);
+    -fx-highlight-text-fill: #040d16;
+    -fx-border-color: transparent transparent #00d4ff transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+}
+
+.holo-input {
+    -fx-padding: 4 6 4 28;
+}
+
+.text-field:focused,
+.password-field:focused,
+.text-area:focused,
+.holo-input:focused {
+    -fx-effect: dropshadow(gaussian, #00d4ff, 12, 0.3, 0, 0);
+}
+
+.input-prefix {
+    -fx-text-fill: rgba(0,212,255,0.5);
+    -fx-font-family: "Monospaced";
+}
+
+.input-glow-bar {
+    -fx-min-height: 1;
+    -fx-pref-height: 1;
+    -fx-max-height: 1;
+    -fx-background-color: linear-gradient(to right, #00d4ff, transparent);
+    -fx-effect: dropshadow(gaussian, #00d4ff, 6, 0.8, 0, 0);
+}
+
+.list-cell,
+.tree-cell,
+.table-row-cell,
+.table-cell {
+    -fx-background-color: #000000;
+    -fx-text-fill: rgba(0,212,255,0.8);
+}
+
+.list-cell:hover,
+.tree-cell:hover,
+.table-row-cell:hover {
+    -fx-background-color: rgba(0,212,255,0.08);
+}
+
+.list-cell:selected,
+.tree-cell:selected,
+.table-row-cell:selected {
+    -fx-background-color: rgba(0,212,255,0.18);
+    -fx-text-fill: #00d4ff;
+}
+
+.table-view {
+    -fx-table-cell-border-color: rgba(0,212,255,0.18);
+}
+
+.table-view .column-header,
+.table-view .column-header-background,
+.table-view .filler {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(0,212,255,0.12), rgba(0,212,255,0.04)),
+        #000000;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #00d4ff;
+}
+
+.scroll-bar,
+.scroll-bar .track,
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: rgba(0,212,255,0.5);
+    -fx-background-radius: 0;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #00d4ff;
+}
+
+.separator:horizontal .line,
+.separator:vertical .line,
+.split-pane-divider {
+    -fx-background-color: rgba(0,212,255,0.5);
+    -fx-border-color: rgba(0,212,255,0.5);
+}
+
+.check-box .box,
+.radio-button .radio {
+    -fx-background-color: transparent;
+    -fx-border-color: rgba(0,212,255,0.5);
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+}
+
+.check-box:selected .mark,
+.radio-button:selected .dot {
+    -fx-background-color: #00d4ff;
+}
+
+.progress-bar,
+.progress-bar .track,
+.progress-indicator {
+    -fx-background-color: rgba(0,212,255,0.08);
+}
+
+.progress-bar .bar,
+.progress-indicator .indicator {
+    -fx-background-color: #00d4ff;
+}
+
+.slider .track {
+    -fx-background-color: rgba(0,212,255,0.5);
+}
+
+.slider .thumb {
+    -fx-background-color: #00d4ff;
+    -fx-background-radius: 0;
+    -fx-effect: dropshadow(gaussian, #00d4ff, 8, 0.4, 0, 0);
+}
+
+.tooltip {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: #000000;
+    -fx-text-fill: #00d4ff;
+    -fx-border-color: rgba(0,212,255,0.5);
+    -fx-effect: dropshadow(gaussian, #00d4ff, 12, 0.2, 0, 0);
+}
+
+.file-browser-panel,
+.file-browser-tree,
+.file-browser-tree .tree-cell,
+.file-browser-tree .scroll-bar,
+.file-browser-tree .scroll-bar .track,
+.file-browser-tree .scroll-bar .increment-button,
+.file-browser-tree .scroll-bar .decrement-button,
+.file-browser-status,
+.dashboard-tree,
+.dashboard-tree .tree-cell {
+    -fx-background-color: #000000;
+    -fx-control-inner-background: #000000;
+    -fx-text-fill: rgba(0,212,255,0.8);
+}
+
+.file-browser-tree .tree-cell:hover,
+.file-browser-tree .tree-cell:selected,
+.dashboard-tree .tree-cell:hover,
+.dashboard-tree .tree-cell:selected {
+    -fx-background-color: rgba(0,212,255,0.08);
+    -fx-text-fill: #00d4ff;
+}
+
+.file-browser-tree .scroll-bar .thumb {
+    -fx-background-color: rgba(0,212,255,0.5);
+}
+
+.logo-hex {
+    -fx-shape: "M 50 0 L 93 25 L 93 75 L 50 100 L 7 75 L 7 25 Z";
+    -fx-background-color: rgba(0,212,255,0.08);
+    -fx-border-color: rgba(0,212,255,0.5);
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, #00d4ff, 16, 0.2, 0, 0);
+}
+
+.logo-area {
+    -fx-padding: 18;
+}
+
+.terminal-input {
+    -fx-border-width: 0 0 1 0;
+}
+
+.terminal-input:focused {
+    -fx-effect: dropshadow(gaussian, #00d4ff, 12, 0.3, 0, 0);
+}
+
+.field-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.version-label {
+    -fx-font-size: 10px;
+    -fx-text-fill: rgba(0,212,255,0.5);
+}
