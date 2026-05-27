@@ -117,6 +117,8 @@ public class SnippetManager {
     // ---- Snippet CRUD ----
     
     public void addSnippet(Snippet snippet) {
+        Objects.requireNonNull(snippet, "snippet");
+        ensureUniqueSnippetName(snippet, null);
         snippets.add(snippet);
         logger.info("Added snippet: {}", snippet.getName());
     }
@@ -127,6 +129,8 @@ public class SnippetManager {
     }
     
     public void updateSnippet(Snippet snippet) {
+        Objects.requireNonNull(snippet, "snippet");
+        ensureUniqueSnippetName(snippet, snippet.getId());
         int index = snippets.indexOf(snippet);
         if (index >= 0) {
             snippets.set(index, snippet);
@@ -140,8 +144,30 @@ public class SnippetManager {
     
     public Optional<Snippet> findById(String id) {
         return snippets.stream()
-                .filter(s -> s.getId().equals(id))
+                .filter(s -> Objects.equals(s.getId(), id))
                 .findFirst();
+    }
+
+    public boolean hasSnippetName(String name, String ignoredSnippetId) {
+        String normalizedName = normalizeSnippetName(name);
+        if (normalizedName.isEmpty()) {
+            return false;
+        }
+        return snippets.stream()
+            .filter(snippet -> !Objects.equals(snippet.getId(), ignoredSnippetId))
+            .map(Snippet::getName)
+            .map(SnippetManager::normalizeSnippetName)
+            .anyMatch(normalizedName::equals);
+    }
+
+    private void ensureUniqueSnippetName(Snippet snippet, String ignoredSnippetId) {
+        if (hasSnippetName(snippet.getName(), ignoredSnippetId)) {
+            throw new IllegalArgumentException("Snippet name already exists: " + snippet.getName());
+        }
+    }
+
+    private static String normalizeSnippetName(String name) {
+        return name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
     }
     
     public void incrementUsage(Snippet snippet) {

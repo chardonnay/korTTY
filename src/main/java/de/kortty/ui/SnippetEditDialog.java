@@ -110,6 +110,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final Label backgroundBrightnessValueLabel;
     private final Label statusLabel;
     private final Button saveButton;
+    private Button okButton;
     private final Snippet existingSnippet;
     private final ExternalFileActionConfig externalFileActionConfig;
     private final boolean saveAsNewSnippetEnabled;
@@ -134,6 +135,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private LastAiChangeSnapshot lastAiChangeSnapshot;
     private boolean lastAiChangeShowingModified = true;
     private String initialContentSnapshot = "";
+    private FormSnapshot initialFormSnapshot;
     private boolean allowCloseWithoutUnsavedPrompt;
     private boolean externalFileActionRunning;
     private Consumer<Snippet> liveSaveHandler;
@@ -448,6 +450,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         PlantUmlRenderService.RenderResult renderCheck) {
     }
 
+    private record FormSnapshot(
+        String name,
+        String language,
+        String category,
+        String tags,
+        String description,
+        String content) {
+    }
+
     private enum AiFormatScope {
         SELECTION,
         FULL_CONTENT
@@ -528,6 +539,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
             updateMarkupPreviewAvailability();
             updateAiActionAvailability();
+            updateSaveButtonState();
         });
         
         categoryCombo = new ComboBox<>();
@@ -537,10 +549,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         categoryCombo.setPromptText(I18n.get("snippets.categoryNew"));
         categoryCombo.setPrefWidth(200);
+        categoryCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateSaveButtonState());
+        categoryCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) -> updateSaveButtonState());
         
         tagsField = new TextField();
         tagsField.setPromptText(I18n.get("snippets.tagsPrompt"));
         tagsField.setPrefWidth(400);
+        tagsField.textProperty().addListener((obs, oldText, newText) -> updateSaveButtonState());
 
         descriptionArea = new TextArea();
         descriptionArea.setPromptText(I18n.get("snippets.descriptionPrompt"));
@@ -552,6 +567,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 descriptionUserEdited = true;
             }
             updateAiActionAvailability();
+            updateSaveButtonState();
         });
 
         aiAdditionalInstructionsArea = new TextArea();
@@ -989,7 +1005,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.OK, ButtonType.CANCEL);
             }
 
-            Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
+            okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
             assignedSaveButton = (Button) getDialogPane().lookupButton(saveButtonType);
             saveAsNewSnippetButton = this.saveAsNewSnippetEnabled
                 ? (Button) getDialogPane().lookupButton(saveAsNewButtonType)
@@ -1006,6 +1022,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 saveAsNewSnippetButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
                     event.consume();
                     if (!isSnippetFormValid()) {
+                        updateSaveButtonState();
+                        return;
+                    }
+                    if (!validateUniqueSnippetNameBeforeSave(null)) {
                         updateSaveButtonState();
                         return;
                     }
@@ -1118,6 +1138,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         updateMarkupPreviewAvailability();
         updateAiActionAvailability();
         initialContentSnapshot = safeContentText();
+        initialFormSnapshot = currentFormSnapshot();
         updateUndoControls();
         updateSaveButtonState();
         updateExternalFileButtonState();
@@ -1130,8 +1151,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         setResultConverter(buttonType -> {
             saveGeometry();
             if (buttonType == ButtonType.OK) {
-                flushPendingHistory();
-                return buildResultSnippet();
+                allowCloseWithoutUnsavedPrompt = true;
             }
             return null;
         });
@@ -1153,7 +1173,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
                 Snippet result = getResult();
                 if (result != null) {
-                    resultHandler.accept(result);
+                    try {
+                        resultHandler.accept(result);
+                    } catch (RuntimeException e) {
+                        showSaveFailure(e);
+                    }
                 }
             });
         }
@@ -1163,6 +1187,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void saveSnippetWithoutClosing() {
         if (!isSnippetFormValid()) {
             updateSaveButtonState();
+            return;
+        }
+        String ignoredSnippetId = existingSnippet != null
+            ? existingSnippet.getId()
+            : liveSavedSnippet != null ? liveSavedSnippet.getId() : null;
+        if (!validateUniqueSnippetNameBeforeSave(ignoredSnippetId)) {
+            updateSaveButtonState();
+            updateExternalFileButtonState();
             return;
         }
 
@@ -1195,6 +1227,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
         liveSavedSnippet = saved;
         initialContentSnapshot = safeContentText();
+        initialFormSnapshot = currentFormSnapshot();
         lastTrackedContent = initialContentSnapshot;
         pendingHistoryContent = "";
         sliderActive = false;
@@ -1265,14 +1298,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private void updateSaveButtonState() {
         boolean formValid = isSnippetFormValid();
+        boolean hasUnsavedChanges = hasUnsavedContentChanges();
         if (saveButton != null) {
-            boolean visible = hasUnsavedContentChanges();
+            boolean visible = hasUnsavedChanges;
             saveButton.setVisible(visible);
             saveButton.setManaged(visible);
             saveButton.setDisable(!formValid);
         }
         if (saveAsNewSnippetButton != null) {
             saveAsNewSnippetButton.setDisable(!formValid);
+        }
+        updateOkButtonState(hasUnsavedChanges);
+    }
+
+    private void updateOkButtonState(boolean hasUnsavedChanges) {
+        if (okButton != null) {
+            okButton.setDisable(hasUnsavedChanges);
         }
     }
 
@@ -1439,6 +1480,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             if (completed) {
                 if (markFileSaved) {
                     initialContentSnapshot = safeContentText();
+                    initialFormSnapshot = currentFormSnapshot();
                 }
                 setStatus(successMessage);
             }
@@ -1524,12 +1566,32 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         saveGeometry();
         allowCloseWithoutUnsavedPrompt = true;
         if (choice == UnsavedContentChoice.SAVE) {
+            String ignoredSnippetId = existingSnippet != null
+                ? existingSnippet.getId()
+                : liveSavedSnippet != null ? liveSavedSnippet.getId() : null;
+            if (!validateUniqueSnippetNameBeforeSave(ignoredSnippetId)) {
+                allowCloseWithoutUnsavedPrompt = false;
+                return;
+            }
             flushPendingHistory();
             setResult(buildResultSnippet());
         } else {
             setResult(null);
         }
         close();
+    }
+
+    private boolean validateUniqueSnippetNameBeforeSave(String ignoredSnippetId) {
+        var app = KorTTYApplication.getInstance();
+        if (app == null || app.getSnippetManager() == null) {
+            return true;
+        }
+        if (!app.getSnippetManager().hasSnippetName(nameField.getText(), ignoredSnippetId)) {
+            return true;
+        }
+        String snippetName = normalizedFieldValue(nameField.getText());
+        showSaveFailure(new IllegalArgumentException(I18n.get("snippets.error.duplicateName", snippetName)));
+        return false;
     }
 
     private enum UnsavedContentChoice {
@@ -1539,7 +1601,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private boolean hasUnsavedContentChanges() {
-        return !safeContentText().equals(initialContentSnapshot != null ? initialContentSnapshot : "");
+        FormSnapshot initial = initialFormSnapshot != null
+            ? initialFormSnapshot
+            : new FormSnapshot("", "", "", "", "", initialContentSnapshot != null ? initialContentSnapshot : "");
+        return !currentFormSnapshot().equals(initial);
     }
 
     private boolean isSnippetFormValid() {
@@ -1550,6 +1615,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private String safeContentText() {
         String content = contentArea.getText();
         return content != null ? content : "";
+    }
+
+    private FormSnapshot currentFormSnapshot() {
+        return new FormSnapshot(
+            normalizedFieldValue(nameField.getText()),
+            normalizedFieldValue(languageCombo.getValue()),
+            normalizedFieldValue(categoryCombo.getValue()),
+            normalizedFieldValue(tagsField.getText()),
+            normalizedFieldValue(descriptionArea.getText()),
+            safeContentText());
+    }
+
+    private String normalizedFieldValue(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private Snippet buildResultSnippet() {
@@ -2010,11 +2089,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
     
     private void validateForm(Button okButton) {
-        boolean valid = nameField.getText() != null && !nameField.getText().isBlank()
-                && contentArea.getText() != null && !contentArea.getText().isBlank();
-        if (okButton != null) {
-            okButton.setDisable(!valid);
-        }
+        updateSaveButtonState();
     }
 
     private void updateColumnRulerMetrics() {

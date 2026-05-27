@@ -1028,9 +1028,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         dialog.initOwner(getDialogPane().getScene().getWindow());
 
         dialog.showNonBlocking(snippet -> {
-            ensureCategory(snippet.getCategory());
-            snippetManager.addSnippet(snippet);
-            saveAndRefresh();
+            saveSnippetFromEditor(snippet, null);
         });
     }
     
@@ -1045,14 +1043,28 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         dialog.initOwner(getDialogPane().getScene().getWindow());
 
         dialog.showNonBlocking(snippet -> {
-            ensureCategory(snippet.getCategory());
-            if (selected.getId() != null && selected.getId().equals(snippet.getId())) {
-                snippetManager.updateSnippet(snippet);
-            } else {
-                snippetManager.addSnippet(snippet);
-            }
-            saveAndRefresh();
+            saveSnippetFromEditor(snippet, selected);
         });
+    }
+
+    private void saveSnippetFromEditor(Snippet snippet, Snippet selectedSnippet) {
+        if (snippet == null) {
+            return;
+        }
+        ensureUniqueSnippetName(snippet);
+        ensureCategory(snippet.getCategory());
+        if (selectedSnippet != null && Objects.equals(selectedSnippet.getId(), snippet.getId())) {
+            snippetManager.updateSnippet(snippet);
+        } else {
+            snippetManager.addSnippet(snippet);
+        }
+        saveAndRefresh();
+    }
+
+    private void ensureUniqueSnippetName(Snippet snippet) {
+        if (snippetManager.hasSnippetName(snippet.getName(), snippet.getId())) {
+            throw new IllegalArgumentException(I18n.get("snippets.error.duplicateName", snippet.getName()));
+        }
     }
     
     /**
@@ -1515,6 +1527,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             } else {
                 imported = snippetManager.importFromJson(file.toPath());
             }
+            ensureImportedSnippetNamesAreUnique(imported);
             
             for (Snippet s : imported) {
                 snippetManager.addSnippet(s);
@@ -1527,6 +1540,24 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             logger.error("Failed to import snippets", e);
             showError(I18n.get("snippets.importFailed", e.getMessage()));
         }
+    }
+
+    private void ensureImportedSnippetNamesAreUnique(List<Snippet> imported) {
+        Set<String> importedNames = new HashSet<>();
+        for (Snippet snippet : imported) {
+            String normalizedName = normalizeSnippetName(snippet.getName());
+            if (normalizedName.isEmpty()) {
+                continue;
+            }
+            if (snippetManager.hasSnippetName(snippet.getName(), snippet.getId())
+                    || !importedNames.add(normalizedName)) {
+                throw new IllegalArgumentException(I18n.get("snippets.error.duplicateName", snippet.getName()));
+            }
+        }
+    }
+
+    private String normalizeSnippetName(String name) {
+        return name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
     }
     
     /**

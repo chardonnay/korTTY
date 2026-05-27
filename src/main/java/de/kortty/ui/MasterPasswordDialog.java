@@ -4,23 +4,32 @@ import de.kortty.KorTTYApplication;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.security.PasswordStrengthChecker;
 import javafx.animation.FadeTransition;
+import javafx.animation.FillTransition;
 import javafx.animation.Interpolator;
-import javafx.animation.TranslateTransition;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaException;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -42,14 +51,23 @@ public class MasterPasswordDialog {
     private static final double ELEGANT_LOGIN_DIALOG_HEIGHT = 320;
     private static final double SETUP_DIALOG_WIDTH = 780;
     private static final double SETUP_DIALOG_HEIGHT = 520;
-    private static final double LOGIN_BRAND_PANEL_WIDTH = 650;
+    private static final double LOGIN_BRAND_PANEL_WIDTH = 675;
     private static final double SETUP_BRAND_PANEL_WIDTH = 220;
     private static final double TACTICAL_AUTH_PANEL_WIDTH = 104;
     private static final double TACTICAL_BRAND_PANEL_WIDTH = 130;
+    private static final String ANIMATED_LOGO_RESOURCE = "/icon/kortty_logo_ai_pingpong.mp4";
     private static final String LOGO_RESOURCE = "/icon/kortty_logo.png";
     private static final String ICON_RESOURCE = "/icon/kortty_icon.png";
-    private static final double LOGIN_LOGO_WIDTH = 620;
+    private static final double LOGIN_LOGO_WIDTH = 650;
+    private static final double ELEGANT_LOGIN_LOGO_WIDTH = 96;
+    private static final double TACTICAL_LOGIN_LOGO_WIDTH = 108;
     private static final double SETUP_LOGO_WIDTH = 190;
+    private static final double PASSWORD_STAR_LEFT_PADDING = 16;
+    private static final Duration PASSWORD_STAR_GLOW_DURATION = Duration.millis(420);
+    private static final Duration BUTTON_HOVER_GLOW_DURATION = Duration.millis(340);
+    private static final Duration PASSWORD_FIELD_FRAME_FLASH_DURATION = Duration.millis(360);
+    private static final String BUTTON_GLOW_TIMELINE_KEY = "kortty.buttonGlowTimeline";
+    private static final String PASSWORD_FIELD_FLASH_TIMELINE_KEY = "kortty.passwordFieldFlashTimeline";
     
     private final Stage dialog;
     private final MasterPasswordManager passwordManager;
@@ -58,6 +76,7 @@ public class MasterPasswordDialog {
     private final boolean klingonTacticalDesign;
     private final boolean elegantDarkDesign;
     private final boolean customAppDesign;
+    private MediaPlayer animatedLogoPlayer;
     private boolean result = false;
     
     public MasterPasswordDialog(Stage owner, MasterPasswordManager passwordManager) {
@@ -80,6 +99,7 @@ public class MasterPasswordDialog {
         dialog.setOnCloseRequest(e -> {
             result = false;
         });
+        dialog.setOnHidden(e -> disposeAnimatedLogoPlayer());
         
         if (passwordSet) {
             setupLoginDialog();
@@ -108,6 +128,7 @@ public class MasterPasswordDialog {
         passwordField.setPromptText(I18n.get("masterPassword.password"));
         passwordField.setPrefWidth(250);
         stylePasswordField(passwordField);
+        StackPane passwordStack = createAnimatedPasswordFieldPane(passwordField);
         
         Label errorLabel = new Label();
         styleErrorLabel(errorLabel);
@@ -117,16 +138,18 @@ public class MasterPasswordDialog {
         loginButton.setDefaultButton(true);
         loginButton.setPrefWidth(100);
         stylePrimaryButton(loginButton);
+        installButtonHoverGlow(loginButton);
         
         Button cancelButton = new Button(I18n.get("dialog.cancel"));
         cancelButton.setCancelButton(true);
         cancelButton.setPrefWidth(100);
         styleSecondaryButton(cancelButton);
+        installButtonHoverGlow(cancelButton);
         
         HBox buttonBox = new HBox(10, loginButton, cancelButton);
         buttonBox.setAlignment(Pos.CENTER);
         
-        root.getChildren().addAll(titleLabel, passwordField, errorLabel, buttonBox);
+        root.getChildren().addAll(titleLabel, passwordStack, errorLabel, buttonBox);
 
         installLoginHandlers(passwordField, errorLabel, loginButton, cancelButton);
 
@@ -167,7 +190,7 @@ public class MasterPasswordDialog {
         Label eyeIcon = new Label("o");
         eyeIcon.getStyleClass().add("elegant-eye-icon");
         eyeIcon.setMouseTransparent(true);
-        StackPane passwordStack = new StackPane(passwordField, eyeIcon);
+        StackPane passwordStack = createAnimatedPasswordFieldPane(passwordField, eyeIcon);
         StackPane.setAlignment(eyeIcon, Pos.CENTER_RIGHT);
         passwordStack.setMaxWidth(Double.MAX_VALUE);
 
@@ -181,12 +204,13 @@ public class MasterPasswordDialog {
         loginButton.setDefaultButton(true);
         loginButton.setPrefWidth(156);
         stylePrimaryButton(loginButton);
-        installElegantPrimaryHover(loginButton);
+        installButtonHoverGlow(loginButton);
 
         Button cancelButton = new Button(I18n.get("dialog.cancel"));
         cancelButton.setCancelButton(true);
         cancelButton.setPrefWidth(156);
         styleSecondaryButton(cancelButton);
+        installButtonHoverGlow(cancelButton);
 
         HBox buttonBox = new HBox(14, loginButton, cancelButton);
         buttonBox.setAlignment(Pos.CENTER_LEFT);
@@ -225,13 +249,18 @@ public class MasterPasswordDialog {
 
         HBox windowDots = new HBox(8);
         windowDots.setAlignment(Pos.CENTER_LEFT);
-        windowDots.setMinWidth(120);
-        windowDots.setPrefWidth(120);
+        windowDots.setMinWidth(52);
+        windowDots.setPrefWidth(52);
         windowDots.getChildren().addAll(
             createElegantWindowDot("elegant-dot-muted"),
             createElegantWindowDot("elegant-dot-accent"),
             createElegantWindowDot("elegant-dot-success")
         );
+
+        HBox leftCluster = new HBox(12, windowDots, createLoginWindowVersionLabel());
+        leftCluster.setAlignment(Pos.CENTER_LEFT);
+        leftCluster.setMinWidth(168);
+        leftCluster.setPrefWidth(168);
 
         Label title = new Label(I18n.get("masterPassword.title"));
         title.getStyleClass().add("elegant-window-title");
@@ -240,10 +269,10 @@ public class MasterPasswordDialog {
         HBox.setHgrow(title, Priority.ALWAYS);
 
         Region rightPad = new Region();
-        rightPad.setMinWidth(120);
-        rightPad.setPrefWidth(120);
+        rightPad.setMinWidth(168);
+        rightPad.setPrefWidth(168);
 
-        titleBar.getChildren().addAll(windowDots, title, rightPad);
+        titleBar.getChildren().addAll(leftCluster, title, rightPad);
         return titleBar;
     }
 
@@ -256,24 +285,26 @@ public class MasterPasswordDialog {
     private VBox createElegantBrandBox() {
         VBox wrapper = new VBox(12);
         wrapper.setAlignment(Pos.CENTER);
-        wrapper.setMinWidth(104);
-        wrapper.setPrefWidth(104);
-        wrapper.setMaxWidth(104);
+        wrapper.setMinWidth(112);
+        wrapper.setPrefWidth(112);
+        wrapper.setMaxWidth(112);
 
         VBox logoPanel = new VBox(6);
         logoPanel.getStyleClass().add("logo-panel");
         logoPanel.setAlignment(Pos.CENTER);
+        logoPanel.setMinSize(108, 96);
+        logoPanel.setPrefSize(108, 96);
 
-        ImageView logoView = createLogoView(86);
-        if (logoView != null) {
-            logoPanel.getChildren().add(logoView);
+        Node logoNode = createLoginLogoNode(ELEGANT_LOGIN_LOGO_WIDTH);
+        if (logoNode != null) {
+            logoPanel.getChildren().add(logoNode);
         } else {
             Label name = new Label("KorTTY");
             name.getStyleClass().add("elegant-brand-name");
             logoPanel.getChildren().add(name);
         }
 
-        wrapper.getChildren().addAll(logoPanel, createVersionLabel());
+        wrapper.getChildren().add(logoPanel);
         return wrapper;
     }
 
@@ -329,6 +360,225 @@ public class MasterPasswordDialog {
         });
     }
 
+    private StackPane createAnimatedPasswordFieldPane(PasswordField passwordField) {
+        return createAnimatedPasswordFieldPane(passwordField, null);
+    }
+
+    private StackPane createAnimatedPasswordFieldPane(PasswordField passwordField, Node trailingNode) {
+        makePasswordTextTransparent(passwordField);
+
+        HBox starBox = new HBox(2);
+        starBox.setAlignment(Pos.CENTER_LEFT);
+        starBox.setMouseTransparent(true);
+        starBox.setLayoutX(PASSWORD_STAR_LEFT_PADDING);
+
+        Pane starLayer = new Pane(starBox);
+        starLayer.setMouseTransparent(true);
+        starLayer.minWidthProperty().bind(passwordField.widthProperty());
+        starLayer.prefWidthProperty().bind(passwordField.widthProperty());
+        starLayer.maxWidthProperty().bind(passwordField.widthProperty());
+        starLayer.minHeightProperty().bind(passwordField.heightProperty());
+        starLayer.prefHeightProperty().bind(passwordField.heightProperty());
+        starLayer.maxHeightProperty().bind(passwordField.heightProperty());
+        starBox.layoutYProperty().bind(starLayer.heightProperty().subtract(starBox.heightProperty()).divide(2).add(1));
+
+        StackPane passwordStack = new StackPane(passwordField, starLayer);
+        if (trailingNode != null) {
+            passwordStack.getChildren().add(trailingNode);
+        }
+        installPasswordFieldFrameFlash(passwordStack);
+
+        passwordField.textProperty().addListener((obs, oldValue, newValue) ->
+            updateAnimatedPasswordStars(starBox, oldValue, newValue));
+        updateAnimatedPasswordStars(starBox, "", passwordField.getText());
+
+        return passwordStack;
+    }
+
+    private void makePasswordTextTransparent(PasswordField passwordField) {
+        String currentStyle = passwordField.getStyle();
+        if (currentStyle == null) {
+            currentStyle = "";
+        }
+        String separator = currentStyle.isBlank() || currentStyle.endsWith(";") ? "" : ";";
+        passwordField.setStyle(currentStyle
+            + separator
+            + "-fx-text-fill: transparent;"
+            + "-fx-highlight-text-fill: transparent;");
+    }
+
+    private void updateAnimatedPasswordStars(HBox starBox, String oldValue, String newValue) {
+        int oldLength = oldValue == null ? 0 : oldValue.length();
+        int newLength = newValue == null ? 0 : newValue.length();
+
+        starBox.getChildren().clear();
+        for (int i = 0; i < newLength; i++) {
+            starBox.getChildren().add(createPasswordStarText());
+        }
+
+        if (newLength <= oldLength) {
+            return;
+        }
+
+        for (int i = oldLength; i < newLength; i++) {
+            animatePasswordStar((Text) starBox.getChildren().get(i));
+        }
+    }
+
+    private Text createPasswordStarText() {
+        Text star = new Text("*");
+        star.setMouseTransparent(true);
+        star.setFill(getPasswordStarColor());
+        star.setStyle("-fx-font-family: Monospaced; -fx-font-size: 19px; -fx-font-weight: bold;");
+        return star;
+    }
+
+    private void animatePasswordStar(Text star) {
+        Color normalColor = getPasswordStarColor();
+        Color glowColor = getPasswordStarGlowColor();
+        star.setFill(glowColor);
+        star.setEffect(new DropShadow(BlurType.GAUSSIAN, glowColor, 14, 0.55, 0, 0));
+
+        FillTransition transition = new FillTransition(PASSWORD_STAR_GLOW_DURATION, star, glowColor, normalColor);
+        transition.setInterpolator(Interpolator.EASE_OUT);
+        transition.setOnFinished(event -> {
+            star.setFill(normalColor);
+            star.setEffect(null);
+        });
+        transition.play();
+    }
+
+    private Color getPasswordStarColor() {
+        if (isElegantDarkDesign()) {
+            return Color.web("#e2e4e8");
+        }
+        if (isHolographicInterfaceDesign()) {
+            return Color.web("#00d4ff");
+        }
+        if (isKlingonTacticalDesign()) {
+            return Color.web("#ffb4b4", 0.86);
+        }
+        if (isMatrixTerminalDesign()) {
+            return Color.web("#00ff88");
+        }
+        if (isCustomAppDesign()) {
+            return Color.web("#d8e3f0");
+        }
+        return Color.web("#000000");
+    }
+
+    private Color getPasswordStarGlowColor() {
+        if (isElegantDarkDesign()) {
+            return Color.web("#c8a96e");
+        }
+        if (isKlingonTacticalDesign()) {
+            return Color.web("#ffd200");
+        }
+        return Color.web("#ffffff");
+    }
+
+    private void installButtonHoverGlow(Button button) {
+        button.setOnMouseEntered(event -> playButtonHoverGlow(button));
+        button.setOnMouseExited(event -> clearButtonHoverGlow(button));
+    }
+
+    private void playButtonHoverGlow(Button button) {
+        clearButtonHoverGlow(button);
+
+        Color glowColor = Color.web("#9fe7ff");
+        DropShadow glow = new DropShadow(BlurType.GAUSSIAN, glowColor, 8, 0.18, 0, 0);
+        button.setEffect(glow);
+
+        Timeline timeline = new Timeline(
+            new KeyFrame(Duration.ZERO, event -> {
+                glow.setRadius(8);
+                glow.setSpread(0.18);
+            }),
+            new KeyFrame(BUTTON_HOVER_GLOW_DURATION.divide(2), event -> {
+                glow.setRadius(22);
+                glow.setSpread(0.58);
+            }),
+            new KeyFrame(BUTTON_HOVER_GLOW_DURATION, event -> {
+                glow.setRadius(10);
+                glow.setSpread(0.14);
+            })
+        );
+        timeline.setOnFinished(event -> {
+            if (button.getProperties().get(BUTTON_GLOW_TIMELINE_KEY) == timeline) {
+                button.getProperties().remove(BUTTON_GLOW_TIMELINE_KEY);
+                button.setEffect(null);
+            }
+        });
+        button.getProperties().put(BUTTON_GLOW_TIMELINE_KEY, timeline);
+        timeline.play();
+    }
+
+    private void clearButtonHoverGlow(Button button) {
+        Object existingTimeline = button.getProperties().remove(BUTTON_GLOW_TIMELINE_KEY);
+        if (existingTimeline instanceof Timeline timeline) {
+            timeline.stop();
+        }
+        button.setEffect(null);
+    }
+
+    private void installPasswordFieldFrameFlash(StackPane passwordStack) {
+        passwordStack.setStyle(createPasswordFieldFrameStyle("transparent"));
+        passwordStack.setOnMouseEntered(event -> playPasswordFieldFrameFlash(passwordStack));
+        passwordStack.setOnMouseExited(event -> clearPasswordFieldFrameFlash(passwordStack));
+    }
+
+    private void playPasswordFieldFrameFlash(StackPane passwordStack) {
+        clearPasswordFieldFrameFlash(passwordStack);
+
+        Color glowColor = Color.web("#9fe7ff");
+        DropShadow glow = new DropShadow(BlurType.GAUSSIAN, glowColor, 8, 0.18, 0, 0);
+        passwordStack.setEffect(glow);
+
+        Timeline timeline = new Timeline(
+            new KeyFrame(Duration.ZERO, event -> {
+                passwordStack.setStyle(createPasswordFieldFrameStyle("#6fcfff"));
+                glow.setRadius(8);
+                glow.setSpread(0.18);
+            }),
+            new KeyFrame(PASSWORD_FIELD_FRAME_FLASH_DURATION.divide(2), event -> {
+                passwordStack.setStyle(createPasswordFieldFrameStyle("#baf4ff"));
+                glow.setRadius(18);
+                glow.setSpread(0.5);
+            }),
+            new KeyFrame(PASSWORD_FIELD_FRAME_FLASH_DURATION, event -> {
+                passwordStack.setStyle(createPasswordFieldFrameStyle("transparent"));
+                glow.setRadius(8);
+                glow.setSpread(0.12);
+            })
+        );
+        timeline.setOnFinished(event -> {
+            if (passwordStack.getProperties().get(PASSWORD_FIELD_FLASH_TIMELINE_KEY) == timeline) {
+                passwordStack.getProperties().remove(PASSWORD_FIELD_FLASH_TIMELINE_KEY);
+                passwordStack.setStyle(createPasswordFieldFrameStyle("transparent"));
+                passwordStack.setEffect(null);
+            }
+        });
+        passwordStack.getProperties().put(PASSWORD_FIELD_FLASH_TIMELINE_KEY, timeline);
+        timeline.play();
+    }
+
+    private void clearPasswordFieldFrameFlash(StackPane passwordStack) {
+        Object existingTimeline = passwordStack.getProperties().remove(PASSWORD_FIELD_FLASH_TIMELINE_KEY);
+        if (existingTimeline instanceof Timeline timeline) {
+            timeline.stop();
+        }
+        passwordStack.setStyle(createPasswordFieldFrameStyle("transparent"));
+        passwordStack.setEffect(null);
+    }
+
+    private String createPasswordFieldFrameStyle(String borderColor) {
+        String radius = isKlingonTacticalDesign() ? "0" : "8";
+        return "-fx-border-color: " + borderColor + ";"
+            + "-fx-border-width: 2;"
+            + "-fx-border-radius: " + radius + ";"
+            + "-fx-background-radius: " + radius + ";";
+    }
+
     private void installUndecoratedDragSupport(Region titleBar) {
         double[] dragOffset = new double[2];
         titleBar.setOnMousePressed(event -> {
@@ -348,23 +598,6 @@ public class MasterPasswordDialog {
         root.setEffect(rim);
     }
 
-    private void installElegantPrimaryHover(Button button) {
-        button.setOnMouseEntered(event -> {
-            TranslateTransition transition = new TranslateTransition(Duration.millis(120), button);
-            transition.setToY(-1.5);
-            transition.setInterpolator(Interpolator.EASE_OUT);
-            transition.play();
-            button.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.web("#c8a96e50"), 14, 0.15, 0, 3));
-        });
-        button.setOnMouseExited(event -> {
-            TranslateTransition transition = new TranslateTransition(Duration.millis(120), button);
-            transition.setToY(0);
-            transition.setInterpolator(Interpolator.EASE_OUT);
-            transition.play();
-            button.setEffect(null);
-        });
-    }
-    
     private void setupSetupDialog() {
         dialog.setTitle(I18n.get("masterPassword.setup"));
         
@@ -536,14 +769,30 @@ public class MasterPasswordDialog {
             brandedRoot.setStyle("-fx-background-color: #000000;");
         }
         content.setMaxWidth(width - brandPanelWidth - 72);
-        VBox brandBox = createBrandBox(brandPanelWidth, logoWidth);
+        VBox brandBox = createBrandBox(brandPanelWidth, logoWidth, loginScene);
         brandedRoot.getChildren().addAll(content, brandBox);
-        Scene scene = new Scene(brandedRoot, width, height);
+        Scene scene = loginScene
+            ? createLoginSceneWithTopLeftVersion(brandedRoot, width, height)
+            : new Scene(brandedRoot, width, height);
         AppDesignStyleSupport.applyToScene(scene);
         return scene;
     }
 
+    private Scene createLoginSceneWithTopLeftVersion(Node content, double width, double height) {
+        StackPane shell = new StackPane(content);
+        shell.setPrefSize(width, height);
+        shell.setMinSize(width, height);
+
+        Label versionLabel = createLoginWindowVersionLabel();
+        StackPane.setAlignment(versionLabel, Pos.TOP_LEFT);
+        StackPane.setMargin(versionLabel, new Insets(14, 0, 0, 18));
+        shell.getChildren().add(versionLabel);
+
+        return new Scene(shell, width, height);
+    }
+
     private Scene createTacticalScene(VBox content, double width, double height) {
+        boolean loginScene = width == LOGIN_DIALOG_WIDTH && height == LOGIN_DIALOG_HEIGHT;
         VBox shell = new VBox();
         shell.setPrefSize(width, height);
         shell.setMinSize(width, height);
@@ -555,8 +804,8 @@ public class MasterPasswordDialog {
         accentBar.setPrefHeight(2);
         accentBar.setMaxHeight(2);
 
-        HBox header = createTacticalHeader();
-        HBox body = createTacticalBody(content, width);
+        HBox header = createTacticalHeader(loginScene);
+        HBox body = createTacticalBody(content, width, loginScene);
         HBox footer = createTacticalFooter();
         VBox.setVgrow(body, Priority.ALWAYS);
 
@@ -566,7 +815,7 @@ public class MasterPasswordDialog {
         return scene;
     }
 
-    private HBox createTacticalHeader() {
+    private HBox createTacticalHeader(boolean loginScene) {
         HBox header = new HBox(14);
         header.getStyleClass().add("tac-titlebar");
         header.setAlignment(Pos.CENTER_LEFT);
@@ -584,6 +833,15 @@ public class MasterPasswordDialog {
             createTacticalStatusBlock("wb-gold")
         );
 
+        HBox leftCluster = new HBox(12);
+        leftCluster.setAlignment(Pos.CENTER_LEFT);
+        leftCluster.setMinWidth(loginScene ? 196 : 128);
+        leftCluster.setPrefWidth(loginScene ? 196 : 128);
+        leftCluster.getChildren().add(statusBlocks);
+        if (loginScene) {
+            leftCluster.getChildren().add(createLoginWindowVersionLabel());
+        }
+
         Label title = new Label("MASTER PASSWORD");
         title.getStyleClass().addAll("header-tag", "tactical-header-title");
         title.setAlignment(Pos.CENTER);
@@ -591,10 +849,10 @@ public class MasterPasswordDialog {
         HBox.setHgrow(title, Priority.ALWAYS);
 
         Region rightPad = new Region();
-        rightPad.setMinWidth(128);
-        rightPad.setPrefWidth(128);
+        rightPad.setMinWidth(loginScene ? 196 : 128);
+        rightPad.setPrefWidth(loginScene ? 196 : 128);
 
-        header.getChildren().addAll(statusBlocks, title, rightPad);
+        header.getChildren().addAll(leftCluster, title, rightPad);
         return header;
     }
 
@@ -604,7 +862,7 @@ public class MasterPasswordDialog {
         return block;
     }
 
-    private HBox createTacticalBody(VBox content, double width) {
+    private HBox createTacticalBody(VBox content, double width, boolean loginScene) {
         HBox body = new HBox(24);
         body.getStyleClass().add("tactical-body");
         body.setAlignment(Pos.CENTER);
@@ -618,7 +876,7 @@ public class MasterPasswordDialog {
         content.getStyleClass().add("tactical-form");
         HBox.setHgrow(content, Priority.ALWAYS);
 
-        body.getChildren().addAll(content, createTacticalAuthPanel(), createTacticalBrandBox());
+        body.getChildren().addAll(content, createTacticalAuthPanel(), createTacticalBrandBox(loginScene));
         return body;
     }
 
@@ -643,7 +901,7 @@ public class MasterPasswordDialog {
         return authPanel;
     }
 
-    private VBox createTacticalBrandBox() {
+    private VBox createTacticalBrandBox(boolean loginScene) {
         VBox wrapper = new VBox(8);
         wrapper.setAlignment(Pos.TOP_CENTER);
         wrapper.setMinWidth(TACTICAL_BRAND_PANEL_WIDTH);
@@ -653,8 +911,8 @@ public class MasterPasswordDialog {
         VBox logoPanel = new VBox(4);
         logoPanel.getStyleClass().add("logo-panel");
         logoPanel.setAlignment(Pos.CENTER);
-        logoPanel.setMinSize(112, 86);
-        logoPanel.setPrefSize(112, 86);
+        logoPanel.setMinSize(124, 92);
+        logoPanel.setPrefSize(124, 92);
 
         Label mark = new Label(">");
         mark.getStyleClass().add("tactical-brand-mark");
@@ -663,14 +921,17 @@ public class MasterPasswordDialog {
         Label channel = new Label("SECURE");
         channel.getStyleClass().add("header-tag");
 
-        ImageView logoView = createLogoView(96);
-        if (logoView != null) {
-            logoPanel.getChildren().add(logoView);
+        Node logoNode = loginScene ? createLoginLogoNode(TACTICAL_LOGIN_LOGO_WIDTH) : createLogoView(96);
+        if (logoNode != null) {
+            logoPanel.getChildren().add(logoNode);
         } else {
             logoPanel.getChildren().addAll(mark, name);
         }
         logoPanel.getChildren().add(channel);
-        wrapper.getChildren().addAll(logoPanel, createVersionLabel());
+        wrapper.getChildren().add(logoPanel);
+        if (!loginScene) {
+            wrapper.getChildren().add(createVersionLabel());
+        }
         return wrapper;
     }
 
@@ -692,7 +953,7 @@ public class MasterPasswordDialog {
         return footer;
     }
 
-    private VBox createBrandBox(double brandPanelWidth, double logoWidth) {
+    private VBox createBrandBox(double brandPanelWidth, double logoWidth, boolean loginScene) {
         VBox brandBox = new VBox(12);
         brandBox.setAlignment(Pos.CENTER);
         brandBox.setMinWidth(brandPanelWidth);
@@ -703,12 +964,13 @@ public class MasterPasswordDialog {
             brandBox.getStyleClass().add("logo-hex");
         }
 
-        ImageView logoView = createLogoView(logoWidth);
-        Label versionLabel = createVersionLabel();
+        Node logoView = loginScene ? createLoginLogoNode(logoWidth) : createLogoView(logoWidth);
         if (logoView != null) {
             brandBox.getChildren().add(logoView);
         }
-        brandBox.getChildren().add(versionLabel);
+        if (!loginScene) {
+            brandBox.getChildren().add(createVersionLabel());
+        }
         return brandBox;
     }
 
@@ -726,6 +988,112 @@ public class MasterPasswordDialog {
         logoView.setSmooth(true);
         logoView.setMouseTransparent(true);
         return logoView;
+    }
+
+    private Node createLoginLogoNode(double fitWidth) {
+        var logoUrl = getClass().getResource(ANIMATED_LOGO_RESOURCE);
+        if (logoUrl == null) {
+            logger.warn("Animated login logo resource not found: {}", ANIMATED_LOGO_RESOURCE);
+            return createLogoView(fitWidth);
+        }
+
+        ImageView fallbackLogoView = createLogoView(fitWidth);
+        if (fallbackLogoView != null) {
+            fallbackLogoView.setVisible(false);
+        }
+
+        try {
+            String mediaSource = logoUrl.toExternalForm();
+            Media media = new Media(mediaSource);
+            MediaPlayer mediaPlayer = new MediaPlayer(media);
+            mediaPlayer.setMute(true);
+            mediaPlayer.setVolume(0.0);
+            mediaPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+
+            MediaView mediaView = new MediaView(mediaPlayer);
+            mediaView.setFitWidth(fitWidth);
+            mediaView.setPreserveRatio(true);
+            mediaView.setSmooth(true);
+            mediaView.setMouseTransparent(true);
+
+            StackPane logoPane = new StackPane();
+            logoPane.setAlignment(Pos.CENTER);
+            logoPane.setMouseTransparent(true);
+            if (fallbackLogoView != null) {
+                logoPane.getChildren().add(fallbackLogoView);
+            }
+            logoPane.getChildren().add(mediaView);
+
+            Runnable fallback = () -> showStaticLogoFallback(mediaSource, media, mediaPlayer, mediaView, fallbackLogoView);
+            media.setOnError(fallback);
+            mediaPlayer.setOnError(fallback);
+
+            disposeAnimatedLogoPlayer();
+            animatedLogoPlayer = mediaPlayer;
+            mediaPlayer.play();
+            return logoPane;
+        } catch (IllegalArgumentException | UnsupportedOperationException | MediaException ex) {
+            logger.warn("Could not initialize animated login logo: {}", ANIMATED_LOGO_RESOURCE, ex);
+            return createLogoView(fitWidth);
+        }
+    }
+
+    private void showStaticLogoFallback(
+        String mediaSource,
+        Media media,
+        MediaPlayer mediaPlayer,
+        MediaView mediaView,
+        ImageView fallbackLogoView
+    ) {
+        if (!mediaView.isVisible()) {
+            return;
+        }
+
+        MediaException error = mediaPlayer.getError();
+        if (error == null) {
+            error = media.getError();
+        }
+        if (error != null) {
+            logger.warn("Could not play animated login logo: {}", mediaSource, error);
+        } else {
+            logger.warn("Could not play animated login logo: {}", mediaSource);
+        }
+
+        mediaPlayer.stop();
+        mediaPlayer.dispose();
+        if (animatedLogoPlayer == mediaPlayer) {
+            animatedLogoPlayer = null;
+        }
+
+        mediaView.setVisible(false);
+        mediaView.setManaged(false);
+        if (fallbackLogoView != null) {
+            fallbackLogoView.setVisible(true);
+            fallbackLogoView.setManaged(true);
+        }
+    }
+
+    private void disposeAnimatedLogoPlayer() {
+        if (animatedLogoPlayer == null) {
+            return;
+        }
+        animatedLogoPlayer.stop();
+        animatedLogoPlayer.dispose();
+        animatedLogoPlayer = null;
+    }
+
+    private Label createLoginWindowVersionLabel() {
+        Label versionLabel = createVersionLabel();
+        versionLabel.setMouseTransparent(true);
+        versionLabel.setAlignment(Pos.CENTER_LEFT);
+        if (isElegantDarkDesign()) {
+            versionLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #8b9099;");
+        } else if (isKlingonTacticalDesign()) {
+            versionLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: rgba(204,68,85,0.72);");
+        } else if (!isCustomAppDesign()) {
+            versionLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #d8e3f0;");
+        }
+        return versionLabel;
     }
 
     private Label createVersionLabel() {
