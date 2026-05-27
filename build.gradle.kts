@@ -49,7 +49,7 @@ val javaFxJsObject = configurations.create("javaFxJsObject")
 
 javafx {
     version = javaFxVersion
-    modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.swing", "javafx.web")
+    modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.media", "javafx.swing", "javafx.web")
 }
 
 val motherTerminalEffectPluginJarName = "kortty-terminal-effect-mother.jar"

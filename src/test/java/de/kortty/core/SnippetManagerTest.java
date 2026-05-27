@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 
 class SnippetManagerTest {
@@ -77,6 +78,48 @@ class SnippetManagerTest {
         assertThat(loaded.getDiagrams()).hasSize(1);
         assertThat(loaded.getDiagrams().getFirst().getTitle()).isEqualTo("Deploy flow");
         assertThat(loaded.getDiagrams().getFirst().getCustomInstructions()).isEqualTo("activity");
+    }
+
+    @Test
+    void addSnippetRejectsDuplicateNamesIgnoringCaseAndWhitespace() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        manager.addSnippet(new Snippet("deploy.sh", "echo first", "bash"));
+
+        IllegalArgumentException failure = expectThrows(IllegalArgumentException.class,
+                () -> manager.addSnippet(new Snippet("  DEPLOY.sh  ", "echo second", "bash")));
+
+        assertThat(failure).hasMessageThat().contains("Snippet name already exists");
+        assertThat(manager.getAllSnippets()).hasSize(1);
+    }
+
+    @Test
+    void updateSnippetRejectsRenamingToExistingSnippetName() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        Snippet first = new Snippet("deploy.sh", "echo first", "bash");
+        Snippet second = new Snippet("cleanup.sh", "echo second", "bash");
+        manager.addSnippet(first);
+        manager.addSnippet(second);
+
+        Snippet renamed = new Snippet("deploy.sh", second.getContent(), second.getLanguage());
+        renamed.setId(second.getId());
+
+        IllegalArgumentException failure = expectThrows(IllegalArgumentException.class,
+                () -> manager.updateSnippet(renamed));
+
+        assertThat(failure).hasMessageThat().contains("Snippet name already exists");
+        assertThat(manager.findById(second.getId()).orElseThrow().getName()).isEqualTo("cleanup.sh");
+    }
+
+    @Test
+    void updateSnippetAllowsKeepingOwnName() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        Snippet snippet = new Snippet("deploy.sh", "echo first", "bash");
+        manager.addSnippet(snippet);
+
+        snippet.setContent("echo changed");
+        manager.updateSnippet(snippet);
+
+        assertThat(manager.getAllSnippets().getFirst().getContent()).isEqualTo("echo changed");
     }
 
     @Test
