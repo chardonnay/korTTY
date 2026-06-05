@@ -33,6 +33,21 @@ class AiCliArgumentTemplateTest {
     }
 
     @Test
+    void expandsStandaloneStdinPromptPlaceholderForExecution() {
+        AiCliArgumentTemplate template = AiCliArgumentTemplate.parse("""
+            exec
+            -
+            {stdinPrompt}
+            """);
+
+        AiCliArgumentTemplate.ExpandedArguments expanded = template.expandForExecution(Map.of());
+
+        assertThat(template.containsPromptPlaceholder()).isTrue();
+        assertThat(expanded.arguments()).containsExactly("exec", "-").inOrder();
+        assertThat(expanded.promptOnStdin()).isTrue();
+    }
+
+    @Test
     void rejectsBlankTemplate() {
         try {
             AiCliArgumentTemplate.parse(" ");

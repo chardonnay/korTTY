@@ -20,6 +20,7 @@ import org.testng.annotations.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.List;
 import static com.google.common.truth.Truth.assertThat;
 
@@ -77,6 +78,8 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setAiLmStudioToolpackMcpPluginId("plugin/toolpack");
             manager.getSettings().setAiResultFontSize(18);
             manager.getSettings().setAiConfirmBeforeSend(false);
+            manager.getSettings().setTerminalAgentExecutionEnabled(false);
+            manager.getSettings().setTerminalAgentConfirmMutatingCommandSets(true);
             manager.getSettings().setDefaultAiProfileId("profile-1");
             manager.getSettings().setDefaultPromptHookEnabled(false);
             manager.getSettings().setTerminalAgentShowDebugMessages(true);
@@ -128,6 +131,8 @@ class GlobalSettingsManagerTest {
             assertThat(reloadedProfile.getUsedTotalTokens()).isEqualTo(579L);
             assertThat(reloaded.getSettings().getAiResultFontSize()).isEqualTo(18);
             assertThat(reloaded.getSettings().isAiConfirmBeforeSend()).isEqualTo(false);
+            assertThat(reloaded.getSettings().isTerminalAgentExecutionEnabled()).isFalse();
+            assertThat(reloaded.getSettings().isTerminalAgentConfirmMutatingCommandSets()).isTrue();
             assertThat(reloaded.getSettings().getEncryptedAiTavilyApiKey()).isEqualTo("encrypted-tavily-key");
             assertThat(reloaded.getSettings().getEncryptedAiBrightDataApiToken()).isEqualTo("encrypted-bright-token");
             assertThat(reloaded.getSettings().getEncryptedAiBraveSearchApiKey()).isEqualTo("encrypted-brave-key");
@@ -204,6 +209,72 @@ class GlobalSettingsManagerTest {
             assertThat(reloadedProfile.getCliArgumentsTemplate()).isEqualTo("{promptFile}");
             assertThat(reloadedProfile.getModel()).isEqualTo("custom-minimax-model");
             assertThat(reloadedProfile.getReasoningEffort()).isEqualTo(AiReasoningEffort.MEDIUM);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesDefaultAiModelSelectionMode() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-ai-default-model");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            AiProfile profile = new AiProfile();
+            profile.setId("default-profile");
+            profile.setName("Default model");
+            profile.setApiUrl("https://api.example.test/v1/chat/completions");
+            profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
+            profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.DISABLED, AiReasoningEffort.HIGH));
+            profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+            manager.getSettings().setAiProfiles(List.of(profile));
+
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            AiProfile reloadedProfile = reloaded.getSettings().getAiProfiles().get(0);
+
+            assertThat(reloadedProfile.getModel()).isNull();
+            assertThat(reloadedProfile.getModelSelectionMode()).isEqualTo(AiModelSelectionMode.DEFAULT);
+            assertThat(reloadedProfile.getDiscoveredReasoningEfforts())
+                .containsExactly(AiReasoningEffort.DISABLED, AiReasoningEffort.HIGH)
+                .inOrder();
+            assertThat(reloadedProfile.getReasoningDiscoveryKey()).isEqualTo(AiReasoningSupport.discoveryKey(profile));
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void reloadIfChangedUpdatesDefaultAiProfile() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-ai-default-reload");
+        try {
+            AiProfile local = new AiProfile();
+            local.setId("local");
+            local.setName("local");
+
+            AiProfile minimax = new AiProfile();
+            minimax.setId("minimax");
+            minimax.setName("MiniMAX");
+
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setAiProfiles(List.of(local, minimax));
+            manager.getSettings().setDefaultAiProfileId("local");
+            manager.save();
+
+            GlobalSettingsManager externalManager = new GlobalSettingsManager(dir);
+            externalManager.load();
+            externalManager.getSettings().setDefaultAiProfileId("minimax");
+            externalManager.save();
+
+            Path settingsFile = dir.resolve("global-settings.xml");
+            long changedMillis = Files.getLastModifiedTime(settingsFile).toMillis() + 1_000L;
+            Files.setLastModifiedTime(settingsFile, FileTime.fromMillis(changedMillis));
+
+            assertThat(manager.reloadIfChanged()).isTrue();
+            assertThat(manager.getSettings().getDefaultAiProfileId()).isEqualTo("minimax");
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

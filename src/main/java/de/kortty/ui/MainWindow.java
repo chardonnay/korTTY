@@ -3,8 +3,10 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.ui.I18n;
 import de.kortty.core.AiAction;
+import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
+import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiService;
@@ -199,6 +201,7 @@ public class MainWindow {
 
     /** Window + system menu bar: AI Manager / Agent / Planning items (disable when AI is turned off). */
     private final List<MenuItem> toolsAiMenuItems = new ArrayList<>(6);
+    private final List<MenuItem> toolsAiAgentExecutionMenuItems = new ArrayList<>(2);
     
     private final KorTTYApplication app;
     private final SessionManager sessionManager;
@@ -701,8 +704,12 @@ public class MainWindow {
         } catch (Exception e) {
             logger.debug("syncAiFeaturesMenuItemsEnabled: {}", e.getMessage());
         }
-        for (MenuItem mi : toolsAiMenuItems) {
-            mi.setDisable(!enabled);
+        boolean agentExecutionEnabled = enabled && isTerminalAgentExecutionEnabled();
+        for (MenuItem menuItem : toolsAiMenuItems) {
+            menuItem.setDisable(!enabled);
+        }
+        for (MenuItem menuItem : toolsAiAgentExecutionMenuItems) {
+            menuItem.setDisable(!agentExecutionEnabled);
         }
     }
 
@@ -710,6 +717,27 @@ public class MainWindow {
         try {
             var gs = app.getGlobalSettingsManager().getSettings();
             return gs != null && gs.isAiFeaturesEnabled();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isTerminalAgentExecutionEnabled() {
+        if (!isAiFeaturesEnabled()) {
+            return false;
+        }
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            return gs == null || gs.isTerminalAgentExecutionEnabled();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean shouldConfirmTerminalAgentMutatingCommandSets() {
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            return gs != null && gs.isTerminalAgentConfirmMutatingCommandSets();
         } catch (Exception e) {
             return false;
         }
@@ -1162,6 +1190,7 @@ public class MainWindow {
         toolsAiMenuItems.add(aiManager);
         toolsAiMenuItems.add(aiAgent);
         toolsAiMenuItems.add(aiPlanning);
+        toolsAiAgentExecutionMenuItems.add(aiAgent);
 
         toolsMenu.getItems().addAll(
             openSFTPManager,
@@ -3766,8 +3795,7 @@ public class MainWindow {
         }
         String effectiveModel = effectiveProfile != null ? effectiveProfile.getModel() : null;
         if (effectiveProfile != null
-            && (effectiveProfile.getConnectionMode() == AiConnectionMode.LOCAL_CLI
-                || effectiveProfile.getModelSelectionMode() == AiModelSelectionMode.MANUAL)
+            && requiresModelForAiProfile(effectiveProfile)
             && (effectiveModel == null || effectiveModel.isBlank())) {
             showError(I18n.get("ai.error.title"), I18n.get("settings.ai.error.noModel"));
             return;
@@ -3849,6 +3877,16 @@ public class MainWindow {
         });
 
         thread.start();
+    }
+
+    private boolean requiresModelForAiProfile(AiProfile profile) {
+        if (profile == null) {
+            return false;
+        }
+        if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
+            return AiCliArgumentTemplate.requiresModel(profile.getCliArgumentsTemplate());
+        }
+        return profile.getModelSelectionMode() == AiModelSelectionMode.MANUAL;
     }
 
     private int getMaxAiSelectionChars(AiProfile profile) {
@@ -4166,6 +4204,9 @@ public class MainWindow {
                 .map(de.kortty.core.AiCliProviderDescriptor::displayName)
                 .orElse(I18n.get("settings.ai.connectionMode.local_cli"));
             return model.isBlank() ? provider : provider + " / " + model;
+        }
+        if (profile.getModelSelectionMode() == AiModelSelectionMode.DEFAULT) {
+            return I18n.get("ai.model.default");
         }
         if (profile.getModelSelectionMode() == AiModelSelectionMode.AUTO) {
             return model.isBlank()
@@ -4785,6 +4826,10 @@ public class MainWindow {
         if (!isAiFeaturesEnabled()) {
             return;
         }
+        if (!isTerminalAgentExecutionEnabled()) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.executionDisabled"));
+            return;
+        }
         TerminalTab terminalTab = getActiveTerminalTab();
         if (terminalTab == null || !terminalTab.isConnected()) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
@@ -4833,6 +4878,10 @@ public class MainWindow {
         if (!isAiFeaturesEnabled()) {
             return;
         }
+        if (!queryOnly && !isTerminalAgentExecutionEnabled()) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.executionDisabled"));
+            return;
+        }
         List<AiProfile> profiles = getAvailableAiProfiles();
         if (profiles.isEmpty()) {
             showAiManager();
@@ -4862,6 +4911,7 @@ public class MainWindow {
                 shouldShowTerminalAgentRuntimeMessages(),
                 askConfirmationBeforeEveryCommand,
                 autoApproveRootCommands,
+                !queryOnly && shouldConfirmTerminalAgentMutatingCommandSets(),
                 queryOnly);
             launchTerminalAgent(terminalTab, directRequest, runContext);
             return;
@@ -4889,6 +4939,7 @@ public class MainWindow {
                 request.showRuntimeMessages(),
                 askConfirmationBeforeEveryCommand || request.askConfirmationBeforeEveryCommand(),
                 autoApproveRootCommands || request.autoApproveRootCommands(),
+                !request.queryOnly() && shouldConfirmTerminalAgentMutatingCommandSets(),
                 request.queryOnly());
             launchTerminalAgent(terminalTab, enrichedRequest, runContext);
         });
@@ -4929,42 +4980,14 @@ public class MainWindow {
     }
 
     private List<AiProfile> reorderProfilesForLookup(List<AiProfile> profiles, String requestedProfileName) {
-        if (profiles.isEmpty()) {
-            return profiles;
-        }
-        AiProfile matched = requestedProfileName != null && !requestedProfileName.isBlank()
-            ? findAiProfileByLookup(requestedProfileName)
-            : getDefaultAiProfile();
-        if (matched == null) {
-            return profiles;
-        }
-        List<AiProfile> reordered = new ArrayList<>();
-        reordered.add(matched);
-        for (AiProfile profile : profiles) {
-            if (profile != null && !matched.getId().equals(profile.getId())) {
-                reordered.add(profile);
-            }
-        }
-        return reordered;
+        return AiProfileSelectionSupport.reorderByRequestedOrDefault(
+            profiles,
+            requestedProfileName,
+            getDefaultAiProfileId());
     }
 
     private AiProfile findAiProfileByLookup(String lookup) {
-        if (lookup == null || lookup.isBlank()) {
-            return null;
-        }
-        String normalized = lookup.trim().toLowerCase(Locale.ROOT);
-        for (AiProfile profile : getAvailableAiProfiles()) {
-            if (profile == null) {
-                continue;
-            }
-            if (profile.getId() != null && profile.getId().trim().equalsIgnoreCase(normalized)) {
-                return profile;
-            }
-            if (profile.getName() != null && profile.getName().trim().equalsIgnoreCase(normalized)) {
-                return profile;
-            }
-        }
-        return null;
+        return AiProfileSelectionSupport.findByLookup(getAvailableAiProfiles(), lookup);
     }
 
     private void launchTerminalAgent(TerminalTab terminalTab, TerminalAgentModels.Request request) {
@@ -4980,6 +5003,7 @@ public class MainWindow {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.profileMissing"));
             return;
         }
+        logger.info("Launching terminal AI agent with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
         AiService service = createAiServiceForProfile(profile);
         if (!(service instanceof AiPromptService aiService)) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.error.notConfigured"));
@@ -5232,6 +5256,7 @@ public class MainWindow {
             request.showRuntimeMessages(),
             request.askConfirmationBeforeEveryCommand(),
             request.autoApproveRootCommands(),
+            request.confirmMutatingCommandSets(),
             request.queryOnly());
     }
 
@@ -5273,6 +5298,7 @@ public class MainWindow {
             showError(I18n.get("ai.plan.title"), I18n.get("ai.agent.error.profileMissing"));
             return;
         }
+        logger.info("Launching terminal AI planning with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
         AiService service = createAiServiceForProfile(profile);
         if (!(service instanceof AiPromptService aiService)) {
             showError(I18n.get("ai.plan.title"), I18n.get("ai.error.notConfigured"));
@@ -5320,6 +5346,10 @@ public class MainWindow {
         TerminalAgentModels.PlanRequest planRequest,
         TerminalAgentModels.PlanReport report,
         TerminalView.TerminalAgentRunContext runContext) {
+        if (!isTerminalAgentExecutionEnabled()) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.executionDisabled"));
+            return;
+        }
         TerminalAgentModels.Request request = new TerminalAgentModels.Request(
             planRequest.sessionId(),
             profile.getId(),
@@ -5331,6 +5361,7 @@ public class MainWindow {
             app.getGlobalSettingsManager().getSettings() != null && app.getGlobalSettingsManager().getSettings().isTerminalAgentShowRuntimeMessages(),
             false,
             false,
+            shouldConfirmTerminalAgentMutatingCommandSets(),
             false);
         launchTerminalAgent(terminalTab, request, runContext);
     }
@@ -5378,6 +5409,7 @@ public class MainWindow {
     }
 
     List<AiProfile> getAvailableAiProfiles() {
+        refreshGlobalSettingsIfChangedBeforeAiProfileResolution();
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         if (settings == null || settings.getAiProfiles() == null) {
             return List.of();
@@ -5389,27 +5421,28 @@ public class MainWindow {
     }
 
     String getDefaultAiProfileId() {
+        refreshGlobalSettingsIfChangedBeforeAiProfileResolution();
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         return settings != null ? settings.getDefaultAiProfileId() : null;
     }
 
-    AiProfile getDefaultAiProfile() {
-        AiProfile configuredDefault = findAiProfileById(getDefaultAiProfileId());
-        if (configuredDefault != null) {
-            return configuredDefault;
+    private void refreshGlobalSettingsIfChangedBeforeAiProfileResolution() {
+        try {
+            var manager = app.getGlobalSettingsManager();
+            if (manager != null && manager.reloadIfChanged()) {
+                logger.info("Reloaded global settings before resolving AI profile selection");
+            }
+        } catch (Exception e) {
+            logger.warn("Could not refresh global settings before resolving AI profile selection: {}", e.getMessage());
         }
-        List<AiProfile> availableProfiles = getAvailableAiProfiles();
-        return availableProfiles.isEmpty() ? null : availableProfiles.getFirst();
+    }
+
+    AiProfile getDefaultAiProfile() {
+        return AiProfileSelectionSupport.defaultProfile(getAvailableAiProfiles(), getDefaultAiProfileId());
     }
 
     AiProfile findAiProfileById(String profileId) {
-        if (profileId == null || profileId.isBlank()) {
-            return null;
-        }
-        return getAvailableAiProfiles().stream()
-            .filter(profile -> profileId.equals(profile.getId()))
-            .findFirst()
-            .orElse(null);
+        return AiProfileSelectionSupport.findById(getAvailableAiProfiles(), profileId);
     }
 
     AiService createAiServiceForProfile(AiProfile profile) {

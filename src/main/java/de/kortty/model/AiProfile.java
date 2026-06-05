@@ -3,7 +3,11 @@ package de.kortty.model;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlRootElement;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Named AI configuration profile for OpenAI-compatible endpoints.
@@ -34,6 +38,13 @@ public class AiProfile {
 
     @XmlElement
     private AiReasoningEffort reasoningEffort = AiReasoningEffort.DISABLED;
+
+    @XmlElementWrapper(name = "discoveredReasoningEfforts")
+    @XmlElement(name = "effort")
+    private List<AiReasoningEffort> discoveredReasoningEfforts = new ArrayList<>();
+
+    @XmlElement
+    private String reasoningDiscoveryKey;
 
     @XmlElement
     private AiInternetAccessMode internetAccessMode = AiInternetAccessMode.DISABLED;
@@ -100,6 +111,8 @@ public class AiProfile {
         this.model = source.model;
         this.modelSelectionMode = source.getModelSelectionMode();
         this.reasoningEffort = source.getReasoningEffort();
+        this.discoveredReasoningEfforts = copyReasoningEfforts(source.getDiscoveredReasoningEfforts());
+        this.reasoningDiscoveryKey = source.reasoningDiscoveryKey;
         this.internetAccessMode = source.getInternetAccessMode();
         this.encryptedApiKey = source.encryptedApiKey;
         this.cliProviderId = source.cliProviderId;
@@ -178,6 +191,25 @@ public class AiProfile {
 
     public void setReasoningEffort(AiReasoningEffort reasoningEffort) {
         this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
+    }
+
+    public List<AiReasoningEffort> getDiscoveredReasoningEfforts() {
+        if (discoveredReasoningEfforts == null) {
+            discoveredReasoningEfforts = new ArrayList<>();
+        }
+        return discoveredReasoningEfforts;
+    }
+
+    public void setDiscoveredReasoningEfforts(List<AiReasoningEffort> discoveredReasoningEfforts) {
+        this.discoveredReasoningEfforts = copyReasoningEfforts(discoveredReasoningEfforts);
+    }
+
+    public String getReasoningDiscoveryKey() {
+        return reasoningDiscoveryKey;
+    }
+
+    public void setReasoningDiscoveryKey(String reasoningDiscoveryKey) {
+        this.reasoningDiscoveryKey = reasoningDiscoveryKey;
     }
 
     public AiInternetAccessMode getInternetAccessMode() {
@@ -314,5 +346,20 @@ public class AiProfile {
 
     public void setUsedTotalTokens(Long usedTotalTokens) {
         this.usedTotalTokens = usedTotalTokens;
+    }
+
+    private static List<AiReasoningEffort> copyReasoningEfforts(List<AiReasoningEffort> source) {
+        List<AiReasoningEffort> result = new ArrayList<>();
+        if (source != null) {
+            for (AiReasoningEffort effort : source) {
+                if (effort != null && !result.contains(effort)) {
+                    result.add(effort);
+                }
+            }
+        }
+        if (!result.isEmpty() && !result.contains(AiReasoningEffort.DISABLED)) {
+            result.add(0, AiReasoningEffort.DISABLED);
+        }
+        return result;
     }
 }

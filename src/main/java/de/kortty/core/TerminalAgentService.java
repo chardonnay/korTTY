@@ -294,7 +294,8 @@ public class TerminalAgentService {
         try {
             TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, connector);
             List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
-            boolean approvalBypass = request.autoApproveRootCommands();
+            boolean confirmMutatingCommandSets = request.confirmMutatingCommandSets();
+            boolean approvalBypass = !confirmMutatingCommandSets && request.autoApproveRootCommands();
             cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
 
             if (tryRunFileTypeCountRequest(terminalTab, connector, request, probe, ui, runId)) {
@@ -368,7 +369,8 @@ public class TerminalAgentService {
                         request.executionTarget(),
                         decision.summary(),
                         decision.userMessage(),
-                        commands);
+                        commands,
+                        !confirmMutatingCommandSets);
                     ui.updateState(new TerminalAgentModels.RunState(
                         runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.AWAITING_APPROVAL,
                         decision.summary(), decision.userMessage(), approval, null, null, turn));
@@ -381,7 +383,8 @@ public class TerminalAgentService {
                         publishCancelled(ui, runId, "cancelled-approval-" + turn, "The run was cancelled before the command set started.");
                         return;
                     }
-                    approvalBypass = approvalBypass || approvalDecision == ApprovalDecision.APPROVE_ALWAYS;
+                    approvalBypass = approvalBypass
+                        || (approval.allowAlways() && approvalDecision == ApprovalDecision.APPROVE_ALWAYS);
                 }
 
                 for (TerminalAgentModels.PlannedCommand planned : commands) {

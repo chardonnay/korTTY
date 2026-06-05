@@ -66,11 +66,6 @@ public class JobSchedulerAiSupport {
         if (!"run_commands".equalsIgnoreCase(decision.status())) {
             return JobExecutionOutcome.success(nonBlank(decision.summary(), "AI agent completed without commands."), null, null, result.content());
         }
-        if (!action.isAiAutoApproveCommands()) {
-            return JobExecutionOutcome.blocked(
-                "AI agent command execution needs explicit job auto-approval.",
-                result.content());
-        }
         StringBuilder stdout = new StringBuilder();
         StringBuilder stderr = new StringBuilder();
         StringBuilder detail = new StringBuilder(result.content()).append("\n\n");
@@ -85,6 +80,12 @@ public class JobSchedulerAiSupport {
                     command.command());
             }
             String normalizedCommand = TerminalAgentService.normalizeSudoForAgentExecution(command.command());
+            if (!action.isAiAutoApproveCommands()
+                && requiresAutoApprovalForServerChange(command, normalizedCommand)) {
+                return JobExecutionOutcome.blocked(
+                    "AI agent planned a server-changing command without job auto-approval.",
+                    normalizedCommand);
+            }
             String stdin = null;
             if (sudoPassword != null && !sudoPassword.isBlank()) {
                 normalizedCommand = rewriteSudoForStoredPassword(normalizedCommand);
@@ -253,6 +254,22 @@ public class JobSchedulerAiSupport {
         }
         matcher.appendTail(rewritten);
         return rewritten.toString();
+    }
+
+    static boolean requiresAutoApprovalForServerChange(AgentCommand command, String normalizedCommand) {
+        String risk = normalizeRisk(command != null ? command.risk() : null);
+        return "requires_confirmation".equals(risk)
+            || "root".equals(risk)
+            || TerminalAgentService.requiresConfirmationByCommandShape(normalizedCommand);
+    }
+
+    private static String normalizeRisk(String risk) {
+        return risk != null
+            ? risk.trim()
+                .toLowerCase(Locale.ROOT)
+                .replace('-', '_')
+                .replace(' ', '_')
+            : "";
     }
 
     public record ServerConnectionContext(String displayName) {

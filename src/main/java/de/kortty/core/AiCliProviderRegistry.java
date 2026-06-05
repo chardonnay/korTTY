@@ -23,9 +23,35 @@ public final class AiCliProviderRegistry {
         AiReasoningEffort.HIGH,
         AiReasoningEffort.XHIGH);
 
+    private static final String LEGACY_CODEX_EXEC_READ_ONLY_STDIN_TEMPLATE = """
+        exec
+        --model
+        {model}
+        --sandbox
+        read-only
+        --skip-git-repo-check
+        --ephemeral
+        -
+        {stdinPrompt}
+        """;
+
+    private static final String CODEX_EXEC_READ_ONLY_STDIN_TEMPLATE = """
+        exec
+        --sandbox
+        read-only
+        --skip-git-repo-check
+        --ephemeral
+        -
+        {stdinPrompt}
+        """;
+
+    private static final AiCliArgumentPreset CODEX_EXEC_READ_ONLY_STDIN = new AiCliArgumentPreset(
+        "codex exec read-only stdin",
+        CODEX_EXEC_READ_ONLY_STDIN_TEMPLATE);
+
     private static final List<AiCliProviderDescriptor> PROVIDERS = List.of(
         provider("claude-code", "Claude Code", List.of("claude")),
-        provider("codex-cli", "Codex CLI", List.of("codex")),
+        provider("codex-cli", "Codex CLI", List.of("codex"), List.of(CODEX_EXEC_READ_ONLY_STDIN)),
         provider("devin-terminal", "Devin for Terminal", List.of()),
         provider("gemini-cli", "Gemini CLI", List.of("gemini")),
         provider("opencode", "OpenCode", List.of("opencode")),
@@ -61,6 +87,17 @@ public final class AiCliProviderRegistry {
 
     public static AiCliProviderDescriptor defaultProvider() {
         return PROVIDERS.get(0);
+    }
+
+    public static Optional<AiCliArgumentPreset> defaultArgumentPreset(String providerId) {
+        return find(providerId).flatMap(provider -> provider.argumentPresets().stream().findFirst());
+    }
+
+    public static boolean isDeprecatedDefaultArgumentTemplate(String providerId, String template) {
+        if (!"codex-cli".equals(normalizeId(providerId))) {
+            return false;
+        }
+        return normalizeTemplate(LEGACY_CODEX_EXEC_READ_ONLY_STDIN_TEMPLATE).equals(normalizeTemplate(template));
     }
 
     public static List<AiReasoningEffort> availableReasoningEfforts(String providerId, String model) {
@@ -125,8 +162,27 @@ public final class AiCliProviderRegistry {
         return providerId != null ? providerId.trim().toLowerCase(Locale.ROOT) : "";
     }
 
+    private static String normalizeTemplate(String template) {
+        if (template == null) {
+            return "";
+        }
+        return String.join("\n", template.lines()
+            .map(String::trim)
+            .filter(line -> !line.isBlank())
+            .toList());
+    }
+
     private static AiCliProviderDescriptor provider(String id, String displayName, List<String> commandCandidates) {
-        return new AiCliProviderDescriptor(id, displayName, commandCandidates, List.of(), false);
+        return provider(id, displayName, commandCandidates, List.of());
+    }
+
+    private static AiCliProviderDescriptor provider(
+        String id,
+        String displayName,
+        List<String> commandCandidates,
+        List<AiCliArgumentPreset> argumentPresets) {
+
+        return new AiCliProviderDescriptor(id, displayName, commandCandidates, List.of(), argumentPresets, false);
     }
 
     private static List<String> executableExtensions() {

@@ -259,6 +259,14 @@ public class GlobalSettings {
     @XmlElement
     private boolean aiConfirmBeforeSend = true;
 
+    /** When false, executable terminal-agent runs are disabled while AI planning and agent-ask remain available. */
+    @XmlElement
+    private boolean terminalAgentExecutionEnabled = true;
+
+    /** When true, mutating terminal-agent command sets require confirmation before they run. */
+    @XmlElement
+    private boolean terminalAgentConfirmMutatingCommandSets = false;
+
     /** Prefer OSC 133 prompt markers when the shell emits them. */
     @XmlElement
     private boolean defaultPromptHookEnabled = true;
@@ -1114,6 +1122,22 @@ public class GlobalSettings {
         this.aiFeaturesEnabled = aiFeaturesEnabled;
     }
 
+    public boolean isTerminalAgentExecutionEnabled() {
+        return terminalAgentExecutionEnabled;
+    }
+
+    public void setTerminalAgentExecutionEnabled(boolean terminalAgentExecutionEnabled) {
+        this.terminalAgentExecutionEnabled = terminalAgentExecutionEnabled;
+    }
+
+    public boolean isTerminalAgentConfirmMutatingCommandSets() {
+        return terminalAgentConfirmMutatingCommandSets;
+    }
+
+    public void setTerminalAgentConfirmMutatingCommandSets(boolean terminalAgentConfirmMutatingCommandSets) {
+        this.terminalAgentConfirmMutatingCommandSets = terminalAgentConfirmMutatingCommandSets;
+    }
+
     public boolean isDefaultPromptHookEnabled() {
         return defaultPromptHookEnabled;
     }
@@ -1317,6 +1341,7 @@ public class GlobalSettings {
             }
             if (profile != null) {
                 profile.setModelSelectionMode(profile.getModelSelectionMode());
+                profile.setDiscoveredReasoningEfforts(profile.getDiscoveredReasoningEfforts());
             }
         }
         if (defaultAiProfileId != null && aiProfiles.stream()

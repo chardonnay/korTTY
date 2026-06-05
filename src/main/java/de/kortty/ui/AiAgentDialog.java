@@ -137,6 +137,7 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
                 !queryOnly && showRuntimeMessagesCheck.isSelected(),
                 false,
                 false,
+                false,
                 queryOnly);
         });
     }

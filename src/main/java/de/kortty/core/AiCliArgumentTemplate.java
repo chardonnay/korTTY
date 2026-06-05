@@ -14,6 +14,7 @@ public final class AiCliArgumentTemplate {
     public static final String PROMPT_FILE = "{promptFile}";
     public static final String SYSTEM_PROMPT_FILE = "{systemPromptFile}";
     public static final String USER_PROMPT_FILE = "{userPromptFile}";
+    public static final String STDIN_PROMPT = "{stdinPrompt}";
 
     private final String source;
     private final List<String> arguments;
@@ -40,12 +41,33 @@ public final class AiCliArgumentTemplate {
     public boolean containsPromptPlaceholder() {
         return source.contains(PROMPT_FILE)
             || source.contains(SYSTEM_PROMPT_FILE)
-            || source.contains(USER_PROMPT_FILE);
+            || source.contains(USER_PROMPT_FILE)
+            || source.contains(STDIN_PROMPT);
+    }
+
+    public boolean containsModelPlaceholder() {
+        return source.contains(MODEL);
+    }
+
+    public static boolean requiresModel(String template) {
+        return template != null && template.contains(MODEL);
     }
 
     public List<String> expand(Map<String, String> values) {
+        return expandForExecution(values).arguments();
+    }
+
+    public ExpandedArguments expandForExecution(Map<String, String> values) {
         List<String> expanded = new ArrayList<>();
+        boolean promptOnStdin = false;
         for (String argument : arguments) {
+            if (STDIN_PROMPT.equals(argument)) {
+                promptOnStdin = true;
+                continue;
+            }
+            if (argument.contains(STDIN_PROMPT)) {
+                throw new IllegalArgumentException("AI CLI stdin prompt placeholder must be a standalone argument.");
+            }
             String resolved = argument;
             if (values != null) {
                 for (Map.Entry<String, String> entry : values.entrySet()) {
@@ -54,7 +76,7 @@ public final class AiCliArgumentTemplate {
             }
             expanded.add(resolved);
         }
-        return expanded;
+        return new ExpandedArguments(expanded, promptOnStdin);
     }
 
     public List<String> arguments() {
@@ -112,5 +134,12 @@ public final class AiCliArgumentTemplate {
             result.add(current.toString());
         }
         return result;
+    }
+
+    public record ExpandedArguments(List<String> arguments, boolean promptOnStdin) {
+
+        public ExpandedArguments {
+            arguments = arguments != null ? List.copyOf(arguments) : List.of();
+        }
     }
 }

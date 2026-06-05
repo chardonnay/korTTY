@@ -55,6 +55,47 @@ class LocalCliAiServiceTest {
     }
 
     @Test
+    void connectionTestReportsCliErrorMessage() throws Exception {
+        Path script = createScript("echo 'ERROR: unsupported model' >&2\nexit 7");
+        LocalCliAiService service = new LocalCliAiService(
+            "test",
+            script.toString(),
+            "{promptFile}",
+            "custom-model",
+            AiReasoningEffort.DISABLED,
+            AiSkillPromptSupport.disabled(),
+            Duration.ofSeconds(5));
+
+        try {
+            service.testConnection();
+        } catch (IllegalStateException ex) {
+            assertThat(ex).hasMessageThat().contains("unsupported model");
+            return;
+        }
+        throw new AssertionError("Expected AI CLI connection test failure to report stderr.");
+    }
+
+    @Test
+    void sendsPromptToStdinWhenTemplateRequestsIt() throws Exception {
+        Path script = createScript("cat");
+        LocalCliAiService service = new LocalCliAiService(
+            "test",
+            script.toString(),
+            "-\n{stdinPrompt}",
+            "custom-model",
+            AiReasoningEffort.DISABLED,
+            AiSkillPromptSupport.disabled(),
+            Duration.ofSeconds(5));
+
+        AiExecutionResult result = service.executePrompt("system", "user");
+
+        assertThat(result.content()).contains("System prompt:");
+        assertThat(result.content()).contains("system");
+        assertThat(result.content()).contains("User prompt:");
+        assertThat(result.content()).contains("user");
+    }
+
+    @Test
     void timesOutLongRunningCli() throws Exception {
         Path script = createScript("sleep 2");
         LocalCliAiService service = new LocalCliAiService(

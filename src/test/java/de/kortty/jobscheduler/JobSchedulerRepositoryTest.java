@@ -87,6 +87,38 @@ class JobSchedulerRepositoryTest {
     }
 
     @Test
+    void loadMigratesAiAgentAutoApproveDefaultOnlyOnce() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-ai-agent");
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            ScheduledJob job = new ScheduledJob();
+            job.setName("AI maintenance");
+            job.getAction().setType(JobActionType.AI_AGENT);
+            job.getAction().setAiAutoApproveCommands(false);
+            repository.upsertJob(job);
+            repository.save();
+
+            JobSchedulerRepository reloaded = new JobSchedulerRepository(dir);
+            reloaded.load();
+
+            ScheduledJob migrated = reloaded.getJobs().get(0);
+            assertThat(migrated.getAction().isAiAutoApproveCommands()).isTrue();
+
+            migrated.getAction().setAiAutoApproveCommands(false);
+            reloaded.upsertJob(migrated);
+            reloaded.save();
+
+            JobSchedulerRepository loadedAfterManualDisable = new JobSchedulerRepository(dir);
+            loadedAfterManualDisable.load();
+
+            assertThat(loadedAfterManualDisable.getJobs().get(0).getAction().isAiAutoApproveCommands()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void deleteJournalEntriesRemovesOnlySelectedEntriesAndPersists() throws Exception {
         Path dir = Files.createTempDirectory("kortty-job-scheduler-journal-delete");
         try {
