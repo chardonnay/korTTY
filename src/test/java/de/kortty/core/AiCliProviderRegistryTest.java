@@ -70,4 +70,25 @@ class AiCliProviderRegistryTest {
         assertThat(AiCliProviderRegistry.isDeprecatedDefaultArgumentTemplate("codex-cli", legacyTemplate)).isTrue();
         assertThat(AiCliProviderRegistry.isDeprecatedDefaultArgumentTemplate("claude-code", legacyTemplate)).isFalse();
     }
+
+    @Test
+    void recognizesCurrentAndDeprecatedDefaultArgumentTemplates() {
+        AiCliProviderDescriptor codex = AiCliProviderRegistry.find("codex-cli").orElseThrow();
+        String currentTemplate = codex.argumentPresets().get(0).argumentsTemplate();
+        String legacyTemplate = """
+            exec
+            --model
+            {model}
+            --sandbox
+            read-only
+            --skip-git-repo-check
+            --ephemeral
+            -
+            {stdinPrompt}
+            """;
+
+        assertThat(AiCliProviderRegistry.isKnownDefaultArgumentTemplate("codex-cli", currentTemplate)).isTrue();
+        assertThat(AiCliProviderRegistry.isKnownDefaultArgumentTemplate("codex-cli", legacyTemplate)).isTrue();
+        assertThat(AiCliProviderRegistry.isKnownDefaultArgumentTemplate("codex-cli", "custom {promptFile}")).isFalse();
+    }
 }

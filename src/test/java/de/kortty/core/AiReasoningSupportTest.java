@@ -86,4 +86,12 @@ class AiReasoningSupportTest {
 
         assertThat(AiReasoningSupport.availableEfforts(profile)).isEqualTo(List.of(AiReasoningEffort.DISABLED));
     }
+
+    @Test
+    void discoveryKeyHandlesProfileWithoutStoredModelSelectionMode() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.example.test/v1/chat/completions");
+
+        assertThat(AiReasoningSupport.discoveryKey(profile)).isNotEmpty();
+    }
 }

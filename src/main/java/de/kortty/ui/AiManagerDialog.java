@@ -343,13 +343,17 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         cliProviderCombo.setConverter(createCliProviderConverter());
         cliProviderCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (selectedProfile != null && newValue != null) {
+                String previousProviderId = oldValue != null ? oldValue.id() : selectedProfile.getCliProviderId();
+                boolean replaceArgumentTemplate = shouldReplaceCliArgumentsTemplateOnProviderChange(
+                    previousProviderId,
+                    selectedProfile.getCliArgumentsTemplate(),
+                    cliArgumentsTemplateArea.getText());
                 selectedProfile.setCliProviderId(newValue.id());
                 ensureCliDefaults(selectedProfile);
-                if (trimToNull(cliArgumentsTemplateArea.getText()) == null) {
-                    cliArgumentsTemplateArea.setText(
-                        selectedProfile.getCliArgumentsTemplate() != null
-                            ? selectedProfile.getCliArgumentsTemplate()
-                            : "");
+                if (replaceArgumentTemplate) {
+                    cliArgumentsTemplateArea.setText(selectedProfile.getCliArgumentsTemplate() != null
+                        ? selectedProfile.getCliArgumentsTemplate()
+                        : "");
                 }
                 loadModelSelection(selectedProfile);
                 refreshReasoningOptions(reasoningCombo.getValue());
@@ -1083,16 +1087,14 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             .whenComplete((options, throwable) -> Platform.runLater(() -> {
                 profileTestRunning.set(false);
                 refreshButton.setDisable(false);
+                if (isStaleReasoningRefresh(profileId, discoveryKey)) {
+                    return;
+                }
                 if (throwable != null) {
                     statusLabel.setText(I18n.get("settings.ai.reasoning.refresh.failed"));
                     Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
                     showSimpleAlert(Alert.AlertType.ERROR,
                         cause.getMessage() != null ? cause.getMessage() : cause.toString());
-                    return;
-                }
-                if (selectedProfile == null
-                    || (profileId != null && !profileId.equals(selectedProfile.getId()))
-                    || !discoveryKey.equals(AiReasoningSupport.discoveryKey(selectedProfile))) {
                     return;
                 }
                 List<AiReasoningEffort> discovered = AiReasoningSupport.normalizeOptions(options);
@@ -1103,6 +1105,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                     ? I18n.get("settings.ai.reasoning.refresh.success", formatReasoningOptions(discovered))
                     : I18n.get("settings.ai.reasoning.refresh.none"));
             }));
+    }
+
+    private boolean isStaleReasoningRefresh(String profileId, String discoveryKey) {
+        return selectedProfile == null
+            || (profileId != null && !profileId.equals(selectedProfile.getId()))
+            || !discoveryKey.equals(AiReasoningSupport.discoveryKey(selectedProfile));
     }
 
     private String formatReasoningOptions(List<AiReasoningEffort> options) {
@@ -1182,6 +1190,22 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                     }
                 });
         }
+    }
+
+    private boolean shouldReplaceCliArgumentsTemplateOnProviderChange(
+        String previousProviderId,
+        String previousProfileTemplate,
+        String editorTemplate) {
+
+        String currentTemplate = trimToNull(editorTemplate);
+        if (currentTemplate == null) {
+            return true;
+        }
+        String previousTemplate = trimToNull(previousProfileTemplate);
+        if (previousTemplate != null && currentTemplate.equals(previousTemplate)) {
+            return true;
+        }
+        return AiCliProviderRegistry.isKnownDefaultArgumentTemplate(previousProviderId, currentTemplate);
     }
 
     private void updateConnectionModeUi() {
@@ -1461,6 +1485,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private boolean requiresModelForTest(AiProfile profile) {
         if (profile == null) {
+            return false;
+        }
+        if (profile.getModelSelectionMode() == AiModelSelectionMode.DEFAULT) {
             return false;
         }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {

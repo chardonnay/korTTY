@@ -737,9 +737,10 @@ public class MainWindow {
     private boolean shouldConfirmTerminalAgentMutatingCommandSets() {
         try {
             var gs = app.getGlobalSettingsManager().getSettings();
-            return gs != null && gs.isTerminalAgentConfirmMutatingCommandSets();
+            return gs == null || gs.isTerminalAgentConfirmMutatingCommandSets();
         } catch (Exception e) {
-            return false;
+            logger.warn("Could not read terminal agent confirmation settings; requiring mutating command confirmation.", e);
+            return true;
         }
     }
 
@@ -3881,6 +3882,9 @@ public class MainWindow {
 
     private boolean requiresModelForAiProfile(AiProfile profile) {
         if (profile == null) {
+            return false;
+        }
+        if (profile.getModelSelectionMode() == AiModelSelectionMode.DEFAULT) {
             return false;
         }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {

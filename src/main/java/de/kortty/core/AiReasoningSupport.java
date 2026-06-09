@@ -3,6 +3,7 @@ package de.kortty.core;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiConnectionMode;
+import de.kortty.model.AiModelSelectionMode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -100,10 +101,12 @@ public final class AiReasoningSupport {
         if (profile == null) {
             return "";
         }
+        AiConnectionMode connectionMode = profile.getConnectionMode();
+        AiModelSelectionMode modelSelectionMode = profile.getModelSelectionMode();
         return String.join("|",
-            normalize(profile.getConnectionMode().name()),
+            normalize(connectionMode != null ? connectionMode.name() : ""),
             normalize(profile.getApiUrl()),
-            normalize(profile.getModelSelectionMode().name()),
+            normalize(modelSelectionMode != null ? modelSelectionMode.name() : ""),
             normalize(profile.getModel()),
             normalize(profile.getCliProviderId()),
             normalize(profile.getCliExecutablePath()),

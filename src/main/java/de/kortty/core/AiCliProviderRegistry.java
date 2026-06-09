@@ -100,6 +100,22 @@ public final class AiCliProviderRegistry {
         return normalizeTemplate(LEGACY_CODEX_EXEC_READ_ONLY_STDIN_TEMPLATE).equals(normalizeTemplate(template));
     }
 
+    public static boolean isKnownDefaultArgumentTemplate(String providerId, String template) {
+        String normalizedTemplate = normalizeTemplate(template);
+        if (normalizedTemplate.isBlank()) {
+            return false;
+        }
+        if (isDeprecatedDefaultArgumentTemplate(providerId, template)) {
+            return true;
+        }
+        return find(providerId)
+            .map(provider -> provider.argumentPresets().stream()
+                .map(AiCliArgumentPreset::argumentsTemplate)
+                .map(AiCliProviderRegistry::normalizeTemplate)
+                .anyMatch(normalizedTemplate::equals))
+            .orElse(false);
+    }
+
     public static List<AiReasoningEffort> availableReasoningEfforts(String providerId, String model) {
         Optional<AiCliProviderDescriptor> provider = find(providerId);
         String normalizedModel = model != null ? model.trim() : "";

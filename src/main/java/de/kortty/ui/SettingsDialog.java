@@ -1664,13 +1664,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiEditorGrid.add(aiCliArgumentsTemplateArea, 1, aiRow++);
         aiCliProviderCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (selectedAiProfile != null && newValue != null) {
+                String previousProviderId = oldValue != null ? oldValue.id() : selectedAiProfile.getCliProviderId();
+                boolean replaceArgumentTemplate = shouldReplaceAiCliArgumentsTemplateOnProviderChange(
+                    previousProviderId,
+                    selectedAiProfile.getCliArgumentsTemplate(),
+                    aiCliArgumentsTemplateArea.getText());
                 selectedAiProfile.setCliProviderId(newValue.id());
                 ensureAiCliDefaults(selectedAiProfile);
-                if (trimToNull(aiCliArgumentsTemplateArea.getText()) == null) {
-                    aiCliArgumentsTemplateArea.setText(
-                        selectedAiProfile.getCliArgumentsTemplate() != null
-                            ? selectedAiProfile.getCliArgumentsTemplate()
-                            : "");
+                if (replaceArgumentTemplate) {
+                    aiCliArgumentsTemplateArea.setText(selectedAiProfile.getCliArgumentsTemplate() != null
+                        ? selectedAiProfile.getCliArgumentsTemplate()
+                        : "");
                 }
                 loadAiModelSelection(selectedAiProfile);
                 refreshAiReasoningOptions(selectedAiReasoningEffort());
@@ -4148,6 +4152,22 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
+    private boolean shouldReplaceAiCliArgumentsTemplateOnProviderChange(
+        String previousProviderId,
+        String previousProfileTemplate,
+        String editorTemplate) {
+
+        String currentTemplate = trimToNull(editorTemplate);
+        if (currentTemplate == null) {
+            return true;
+        }
+        String previousTemplate = trimToNull(previousProfileTemplate);
+        if (previousTemplate != null && currentTemplate.equals(previousTemplate)) {
+            return true;
+        }
+        return AiCliProviderRegistry.isKnownDefaultArgumentTemplate(previousProviderId, currentTemplate);
+    }
+
     private void updateAiConnectionModeUi() {
         boolean cliMode = isAiCliModeSelected();
         aiApiUrlField.setDisable(cliMode);
@@ -4692,6 +4712,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private boolean requiresModelForTest(AiProfile profile) {
         if (profile == null) {
+            return false;
+        }
+        if (profile.getModelSelectionMode() == AiModelSelectionMode.DEFAULT) {
             return false;
         }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
