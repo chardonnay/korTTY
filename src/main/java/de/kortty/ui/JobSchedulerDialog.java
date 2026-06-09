@@ -162,7 +162,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final TextArea snippetArgumentsArea = new TextArea();
     private final TextArea aiPromptArea = new TextArea();
     private final ComboBox<String> aiProfileCombo = new ComboBox<>();
-    private final CheckBox aiAutoApproveCheck = new CheckBox("Auto-approve AI commands");
+    private final CheckBox aiAutoApproveCheck =
+        new CheckBox("AI agent may change the server without runtime confirmation");
     private final TextField localPathField = new TextField();
     private final TextField remotePathField = new TextField();
     private final TextField remoteSourceField = new TextField();
@@ -462,7 +463,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         syncDirectionCombo.getSelectionModel().select(SftpSyncDirection.UPLOAD);
         archiveFormatCombo.getSelectionModel().select(JobArchiveFormat.ZIP);
         rsyncDirectionCombo.getSelectionModel().select(RsyncDirection.UPLOAD);
-        actionTypeCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateActionFieldVisibility());
+        actionTypeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue == JobActionType.AI_AGENT && oldValue != JobActionType.AI_AGENT) {
+                aiAutoApproveCheck.setSelected(true);
+            }
+            updateActionFieldVisibility();
+        });
         archiveFormatCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             updateArchivePasswordState();
             updateActionFieldVisibility();
@@ -532,7 +538,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         addActionRow(grid, row++, ActionField.SNIPPET_PARAMETERS, "Snippet parameters", snippetArgumentsArea);
         addActionRow(grid, row++, ActionField.AI_PROFILE, "AI profile", aiProfileCombo);
         addActionRow(grid, row++, ActionField.AI_PROMPT, "AI prompt", aiPromptArea);
-        addActionRow(grid, row++, ActionField.AI_AUTO_APPROVE, "AI auto-approve", aiAutoApproveCheck);
+        addActionRow(grid, row++, ActionField.AI_AUTO_APPROVE, "AI server changes", aiAutoApproveCheck);
         addActionRow(grid, row++, ActionField.LOCAL_PATH, "Local path", fieldButtonBox(localPathField, localPathButton));
         addActionRow(grid, row++, ActionField.REMOTE_PATH, "Remote path", fieldButtonBox(remotePathField, remotePathButton));
         addActionRow(grid, row++, ActionField.REMOTE_SOURCE, "Remote source", fieldButtonBox(remoteSourceField, remoteSourceButton));
@@ -1901,7 +1907,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             case AI_AGENT -> fields.addAll(EnumSet.of(
                 ActionField.AI_PROFILE,
                 ActionField.AI_PROMPT,
-                ActionField.AI_AUTO_APPROVE));
+                ActionField.AI_AUTO_APPROVE,
+                ActionField.SUDO));
             case SFTP_UPLOAD, SFTP_DOWNLOAD -> fields.addAll(EnumSet.of(
                 ActionField.LOCAL_PATH,
                 ActionField.REMOTE_PATH,

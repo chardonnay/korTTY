@@ -33,6 +33,8 @@ class LocalLmModelResolverTest {
         assertThat(AiServiceFactory.canAutoResolveLocalModel("http://127.0.0.1:1234/v1")).isTrue();
         assertThat(AiServiceFactory.canAutoResolveLocalModel("http://127.0.0.1:1234")).isTrue();
         assertThat(LocalLmModelResolver.canResolve("https://api.openai.com/v1/chat/completions")).isFalse();
+        assertThat(LocalLmModelResolver.canListModels("https://api.openai.com/v1/chat/completions")).isTrue();
+        assertThat(LocalLmModelResolver.canListModels("https://api.openai.com/v1")).isTrue();
         assertThat(LocalLmModelResolver.canResolve("http://192.168.1.10:1234/api/v1/chat")).isFalse();
     }
 
@@ -46,6 +48,21 @@ class LocalLmModelResolverTest {
             new StringHttpClientTestDouble("{}"));
 
         assertThat(model).isEqualTo("configured-model");
+    }
+
+    @Test
+    void resolveDefaultLeavesModelUnsetWithoutModelListRequest() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble("{}");
+
+        String model = LocalLmModelResolver.resolve(
+            "https://api.example.test/v1/chat/completions",
+            "configured-model",
+            AiModelSelectionMode.DEFAULT,
+            null,
+            client);
+
+        assertThat(model).isNull();
+        assertThat(client.requests()).isEmpty();
     }
 
     @Test
@@ -66,6 +83,30 @@ class LocalLmModelResolverTest {
             client);
 
         assertThat(models).containsExactly("qwen");
+    }
+
+    @Test
+    void loadAvailableModelNamesUsesOpenAiCompatibleModelsEndpoint() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble("""
+            {
+              "object": "list",
+              "data": [
+                {"id": "model-alpha", "object": "model"},
+                {"id": "model-beta", "object": "model"}
+              ]
+            }
+            """);
+
+        List<String> models = LocalLmModelResolver.loadAvailableModelNames(
+            "https://api.openai.com/v1/chat/completions",
+            "secret-token",
+            client);
+
+        assertThat(models).containsExactly("model-alpha", "model-beta").inOrder();
+        assertThat(client.requests()).hasSize(1);
+        HttpRequest request = client.requests().get(0);
+        assertThat(request.uri().toString()).isEqualTo("https://api.openai.com/v1/models");
+        assertThat(request.headers().firstValue("Authorization").orElseThrow()).isEqualTo("Bearer secret-token");
     }
 
     @Test

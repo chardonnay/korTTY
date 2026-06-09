@@ -7,6 +7,7 @@ import jakarta.xml.bind.Unmarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -20,6 +21,7 @@ public class GlobalSettingsManager {
     
     private final Path configDir;
     private GlobalSettings settings;
+    private long loadedSettingsLastModifiedMillis;
     
     public GlobalSettingsManager(Path configDir) {
         this.configDir = configDir;
@@ -29,15 +31,17 @@ public class GlobalSettingsManager {
     /**
      * Loads settings from XML file.
      */
-    public void load() throws Exception {
-        Path settingsFile = configDir.resolve(SETTINGS_FILE);
+    public synchronized void load() throws Exception {
+        Path settingsFile = settingsFile();
         
         if (!Files.exists(settingsFile)) {
             logger.info("Settings file not found, using defaults");
             this.settings = new GlobalSettings();
+            this.loadedSettingsLastModifiedMillis = 0L;
             return;
         }
         
+        long lastModifiedMillis = lastModifiedMillis(settingsFile);
         try {
             // Include all nested classes in context
             JAXBContext context = JAXBContext.newInstance(
@@ -60,14 +64,16 @@ public class GlobalSettingsManager {
         } catch (Exception e) {
             logger.error("Failed to load settings, using defaults", e);
             this.settings = new GlobalSettings();
+        } finally {
+            this.loadedSettingsLastModifiedMillis = lastModifiedMillis;
         }
     }
     
     /**
      * Saves settings to XML file.
      */
-    public void save() throws Exception {
-        Path settingsFile = configDir.resolve(SETTINGS_FILE);
+    public synchronized void save() throws Exception {
+        Path settingsFile = settingsFile();
         
         // Include all nested classes in context
         JAXBContext context = JAXBContext.newInstance(
@@ -86,11 +92,33 @@ public class GlobalSettingsManager {
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         marshaller.marshal(settings, settingsFile.toFile());
+        this.loadedSettingsLastModifiedMillis = lastModifiedMillis(settingsFile);
         
         logger.info("Saved global settings to {}", settingsFile);
     }
     
-    public GlobalSettings getSettings() {
+    public synchronized boolean reloadIfChanged() throws Exception {
+        Path settingsFile = settingsFile();
+        long currentLastModifiedMillis = lastModifiedMillis(settingsFile);
+        if (currentLastModifiedMillis == loadedSettingsLastModifiedMillis) {
+            return false;
+        }
+        load();
+        return true;
+    }
+
+    public synchronized GlobalSettings getSettings() {
         return settings;
+    }
+
+    private Path settingsFile() {
+        return configDir.resolve(SETTINGS_FILE);
+    }
+
+    private long lastModifiedMillis(Path settingsFile) throws IOException {
+        if (!Files.exists(settingsFile)) {
+            return 0L;
+        }
+        return Files.getLastModifiedTime(settingsFile).toMillis();
     }
 }

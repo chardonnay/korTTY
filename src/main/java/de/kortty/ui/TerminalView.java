@@ -360,7 +360,8 @@ public class TerminalView extends BorderPane {
             String selectedText = getSelectedText(widget);
             List<AiProfile> aiProfiles = getConfiguredAiProfiles();
             boolean hasSelectedText = selectedText != null && !selectedText.isBlank();
-            boolean hasAgentActions = aiAgentHandler != null || aiAgentAskHandler != null || aiPlanningHandler != null;
+            boolean hasExecutableAgentAction = aiAgentHandler != null && isTerminalAgentExecutionEnabled();
+            boolean hasAgentActions = hasExecutableAgentAction || aiAgentAskHandler != null || aiPlanningHandler != null;
             if (shouldShowLoadAsTextFileContextItem(selectedText, terminalTextFileLoadHandler != null)) {
                 javafx.scene.control.MenuItem loadTextFileItem =
                     new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.loadAsTextFile"));
@@ -372,7 +373,7 @@ public class TerminalView extends BorderPane {
             }
             if (shouldShowAiContextMenu(aiProfiles, hasSelectedText, hasAgentActions)) {
                 javafx.scene.control.Menu aiMenu = new javafx.scene.control.Menu(I18n.get("terminal.contextMenu.ai"));
-                if (aiAgentHandler != null) {
+                if (hasExecutableAgentAction) {
                     javafx.scene.control.MenuItem agentItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.agent"));
                     agentItem.setOnAction(e -> aiAgentHandler.handle(createTerminalAgentRunContext(widget)));
                     aiMenu.getItems().add(agentItem);
@@ -2548,6 +2549,16 @@ public class TerminalView extends BorderPane {
             var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
             var gs = gsm != null ? gsm.getSettings() : null;
             return gs == null || gs.isAiFeaturesEnabled();
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private boolean isTerminalAgentExecutionEnabled() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs == null || gs.isTerminalAgentExecutionEnabled();
         } catch (Exception e) {
             return true;
         }

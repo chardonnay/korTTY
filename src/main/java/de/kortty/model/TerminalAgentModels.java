@@ -101,6 +101,7 @@ public final class TerminalAgentModels {
         boolean showRuntimeMessages,
         boolean askConfirmationBeforeEveryCommand,
         boolean autoApproveRootCommands,
+        boolean confirmMutatingCommandSets,
         boolean queryOnly) {
     }
 
@@ -120,7 +121,8 @@ public final class TerminalAgentModels {
         TerminalAgentExecutionTarget executionTarget,
         String summary,
         String userMessage,
-        List<PlannedCommand> commands) {
+        List<PlannedCommand> commands,
+        boolean allowAlways) {
     }
 
     public record PasswordRequest(

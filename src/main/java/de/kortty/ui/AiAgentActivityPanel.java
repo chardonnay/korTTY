@@ -115,6 +115,7 @@ public class AiAgentActivityPanel extends VBox {
 
     private volatile CompletableFuture<TerminalAgentService.ApprovalDecision> pendingApproval;
     private volatile CompletableFuture<TerminalAgentModels.PasswordResponse> pendingPassword;
+    private volatile boolean pendingApprovalAllowsAlways;
     private volatile boolean running;
     private Runnable cancelCallback;
     private RunSnapshot activeRunSnapshot;
@@ -347,6 +348,7 @@ public class AiAgentActivityPanel extends VBox {
             running = true;
             runStartedAtMillis = System.currentTimeMillis();
             pendingApproval = null;
+            pendingApprovalAllowsAlways = false;
             pendingPassword = null;
             pendingPasswordField = null;
             pendingPasswordCacheCheckBox = null;
@@ -1249,6 +1251,7 @@ public class AiAgentActivityPanel extends VBox {
         TerminalAgentModels.Approval approval,
         CompletableFuture<TerminalAgentService.ApprovalDecision> future) {
         pendingApproval = future;
+        pendingApprovalAllowsAlways = approval != null && approval.allowAlways();
         pendingInputStatusText = I18n.get("ai.agent.activity.inputRequired");
         promptBox.getChildren().clear();
         Label label = new Label(approval != null && approval.userMessage() != null && !approval.userMessage().isBlank()
@@ -1264,11 +1267,18 @@ public class AiAgentActivityPanel extends VBox {
 
         Button onceButton = new Button("1 " + I18n.get("ai.agent.approval.once"));
         onceButton.setOnAction(event -> completeApproval(TerminalAgentService.ApprovalDecision.APPROVE_ONCE));
-        Button alwaysButton = new Button("2 " + I18n.get("ai.agent.approval.always"));
-        alwaysButton.setOnAction(event -> completeApproval(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS));
-        Button cancelButton = new Button("3 " + I18n.get("dialog.cancel"));
+        List<Node> actionButtons = new ArrayList<>();
+        actionButtons.add(onceButton);
+        if (pendingApprovalAllowsAlways) {
+            Button alwaysButton = new Button("2 " + I18n.get("ai.agent.approval.always"));
+            alwaysButton.setOnAction(event -> completeApproval(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS));
+            actionButtons.add(alwaysButton);
+        }
+        Button cancelButton = new Button((pendingApprovalAllowsAlways ? "3 " : "2 ") + I18n.get("dialog.cancel"));
         cancelButton.setOnAction(event -> completeApproval(TerminalAgentService.ApprovalDecision.CANCEL));
-        HBox buttons = new HBox(8, onceButton, alwaysButton, cancelButton);
+        actionButtons.add(cancelButton);
+        HBox buttons = new HBox(8);
+        buttons.getChildren().addAll(actionButtons);
         buttons.setAlignment(Pos.CENTER_LEFT);
         promptBox.getChildren().add(buttons);
         updatePromptVisibility();
@@ -1361,6 +1371,7 @@ public class AiAgentActivityPanel extends VBox {
     private void completeApproval(TerminalAgentService.ApprovalDecision decision) {
         CompletableFuture<TerminalAgentService.ApprovalDecision> future = pendingApproval;
         pendingApproval = null;
+        pendingApprovalAllowsAlways = false;
         pendingInputStatusText = null;
         clearPendingPrompt();
         updateHeaderBusyState();
@@ -1440,9 +1451,11 @@ public class AiAgentActivityPanel extends VBox {
             return TerminalAgentService.ApprovalDecision.APPROVE_ONCE;
         }
         if (code == KeyCode.DIGIT2 || code == KeyCode.NUMPAD2) {
-            return TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS;
+            return pendingApprovalAllowsAlways
+                ? TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS
+                : TerminalAgentService.ApprovalDecision.CANCEL;
         }
-        if (code == KeyCode.DIGIT3 || code == KeyCode.NUMPAD3) {
+        if (pendingApprovalAllowsAlways && (code == KeyCode.DIGIT3 || code == KeyCode.NUMPAD3)) {
             return TerminalAgentService.ApprovalDecision.CANCEL;
         }
         return null;

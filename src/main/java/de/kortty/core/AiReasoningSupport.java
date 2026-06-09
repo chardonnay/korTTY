@@ -3,9 +3,12 @@ package de.kortty.core;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiConnectionMode;
+import de.kortty.model.AiModelSelectionMode;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * Determines the reasoning effort options KorTTY can safely expose for a profile.
@@ -84,10 +87,30 @@ public final class AiReasoningSupport {
         if (profile == null) {
             return DISABLED_ONLY;
         }
+        List<AiReasoningEffort> discoveredEfforts = discoveredEfforts(profile);
+        if (!discoveredEfforts.isEmpty()) {
+            return discoveredEfforts;
+        }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             return AiCliProviderRegistry.availableReasoningEfforts(profile.getCliProviderId(), profile.getModel());
         }
         return availableEfforts(profile.getApiUrl(), profile.getModel());
+    }
+
+    public static String discoveryKey(AiProfile profile) {
+        if (profile == null) {
+            return "";
+        }
+        AiConnectionMode connectionMode = profile.getConnectionMode();
+        AiModelSelectionMode modelSelectionMode = profile.getModelSelectionMode();
+        return String.join("|",
+            normalize(connectionMode != null ? connectionMode.name() : ""),
+            normalize(profile.getApiUrl()),
+            normalize(modelSelectionMode != null ? modelSelectionMode.name() : ""),
+            normalize(profile.getModel()),
+            normalize(profile.getCliProviderId()),
+            normalize(profile.getCliExecutablePath()),
+            normalize(profile.getCliArgumentsTemplate()));
     }
 
     public static AiReasoningEffort normalizeForProfile(
@@ -110,6 +133,26 @@ public final class AiReasoningSupport {
         return normalizeForProfile(profile).exportLabel();
     }
 
+    private static List<AiReasoningEffort> discoveredEfforts(AiProfile profile) {
+        if (!Objects.equals(profile.getReasoningDiscoveryKey(), discoveryKey(profile))) {
+            return List.of();
+        }
+        return normalizeOptions(profile.getDiscoveredReasoningEfforts());
+    }
+
+    public static List<AiReasoningEffort> normalizeOptions(List<AiReasoningEffort> efforts) {
+        List<AiReasoningEffort> normalized = new ArrayList<>();
+        normalized.add(AiReasoningEffort.DISABLED);
+        if (efforts != null) {
+            for (AiReasoningEffort effort : efforts) {
+                if (effort != null && !normalized.contains(effort)) {
+                    normalized.add(effort);
+                }
+            }
+        }
+        return normalized;
+    }
+
     private static boolean isOSeriesReasoningModel(String normalizedModel) {
         return normalizedModel.startsWith("o1")
             || normalizedModel.startsWith("o3")
@@ -118,5 +161,9 @@ public final class AiReasoningSupport {
 
     private static String normalizeModel(String model) {
         return model != null ? model.trim().toLowerCase(Locale.ROOT) : "";
+    }
+
+    private static String normalize(String value) {
+        return value != null ? value.trim() : "";
     }
 }

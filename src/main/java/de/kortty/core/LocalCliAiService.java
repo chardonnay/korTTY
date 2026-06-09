@@ -6,6 +6,7 @@ import de.kortty.model.AiReasoningEffort;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -100,13 +101,13 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
                 CONNECTION_TEST_USER_PROMPT,
                 TEST_TIMEOUT);
             return result != null && result.content() != null && !result.content().isBlank();
-        } catch (Exception ignored) {
-            return false;
+        } catch (Exception e) {
+            throw new IllegalStateException("AI CLI connection test failed: " + safeMessage(e), e);
         }
     }
 
     List<String> buildCommandForTest(Path promptFile, Path systemPromptFile, Path userPromptFile) {
-        return buildCommand(promptFile, systemPromptFile, userPromptFile);
+        return buildCommand(promptFile, systemPromptFile, userPromptFile, "").command();
     }
 
     private AiExecutionResult executePromptInternal(String systemPrompt, String userPrompt, Duration timeout) throws Exception {
@@ -117,10 +118,12 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             Path promptFile = tempDir.resolve("prompt.txt");
             Path systemPromptFile = tempDir.resolve("system-prompt.txt");
             Path userPromptFile = tempDir.resolve("user-prompt.txt");
+            String combinedPrompt = buildCombinedPrompt(safeSystemPrompt, safeUserPrompt);
             Files.writeString(systemPromptFile, safeSystemPrompt, StandardCharsets.UTF_8);
             Files.writeString(userPromptFile, safeUserPrompt, StandardCharsets.UTF_8);
-            Files.writeString(promptFile, buildCombinedPrompt(safeSystemPrompt, safeUserPrompt), StandardCharsets.UTF_8);
-            CliProcessResult result = runProcess(buildCommand(promptFile, systemPromptFile, userPromptFile), timeout);
+            Files.writeString(promptFile, combinedPrompt, StandardCharsets.UTF_8);
+            CliCommand command = buildCommand(promptFile, systemPromptFile, userPromptFile, combinedPrompt);
+            CliProcessResult result = runProcess(command.command(), command.stdin(), timeout);
             if (result.exitCode() != 0) {
                 throw new IllegalStateException(buildExitMessage(result));
             }
@@ -130,11 +133,11 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         }
     }
 
-    private List<String> buildCommand(Path promptFile, Path systemPromptFile, Path userPromptFile) {
+    private CliCommand buildCommand(Path promptFile, Path systemPromptFile, Path userPromptFile, String combinedPrompt) {
         String executable = resolveExecutable();
         AiCliArgumentTemplate template = AiCliArgumentTemplate.parse(argumentsTemplate);
         if (!template.containsPromptPlaceholder()) {
-            throw new IllegalStateException("AI CLI argument template must include a prompt-file placeholder.");
+            throw new IllegalStateException("AI CLI argument template must include a prompt placeholder.");
         }
         Map<String, String> values = Map.of(
             AiCliArgumentTemplate.MODEL, model,
@@ -142,10 +145,11 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             AiCliArgumentTemplate.PROMPT_FILE, promptFile.toString(),
             AiCliArgumentTemplate.SYSTEM_PROMPT_FILE, systemPromptFile.toString(),
             AiCliArgumentTemplate.USER_PROMPT_FILE, userPromptFile.toString());
+        AiCliArgumentTemplate.ExpandedArguments expanded = template.expandForExecution(values);
         List<String> command = new ArrayList<>();
         command.add(executable);
-        command.addAll(template.expand(values));
-        return command;
+        command.addAll(expanded.arguments());
+        return new CliCommand(command, expanded.promptOnStdin() ? combinedPrompt : null);
     }
 
     private String resolveExecutable() {
@@ -156,7 +160,7 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             .orElseThrow(() -> new IllegalStateException("AI CLI executable must be configured."));
     }
 
-    private CliProcessResult runProcess(List<String> command, Duration timeout) throws Exception {
+    private CliProcessResult runProcess(List<String> command, String stdin, Duration timeout) throws Exception {
         Process process;
         try {
             process = new ProcessBuilder(command).start();
@@ -165,6 +169,7 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         }
         CompletableFuture<String> stdout = CompletableFuture.supplyAsync(() -> readStream(process.getInputStream()));
         CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> readStream(process.getErrorStream()));
+        writeProcessInput(process, stdin);
         boolean completed;
         try {
             completed = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -192,6 +197,14 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         }
     }
 
+    private static void writeProcessInput(Process process, String stdin) throws IOException {
+        try (OutputStream output = process.getOutputStream()) {
+            if (stdin != null) {
+                output.write(stdin.getBytes(StandardCharsets.UTF_8));
+            }
+        }
+    }
+
     private static String buildCombinedPrompt(String systemPrompt, String userPrompt) {
         return "System prompt:\n"
             + systemPrompt
@@ -205,7 +218,28 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         if (stderr.isBlank()) {
             return "AI CLI exited with code " + result.exitCode() + ".";
         }
-        return "AI CLI exited with code " + result.exitCode() + ": " + truncate(stderr, 800);
+        return "AI CLI exited with code " + result.exitCode() + ": " + truncate(extractUsefulStderr(stderr), 800);
+    }
+
+    private static String extractUsefulStderr(String stderr) {
+        if (stderr == null || stderr.isBlank()) {
+            return "";
+        }
+        List<String> lines = stderr.lines()
+            .map(String::strip)
+            .filter(line -> !line.isBlank())
+            .toList();
+        for (String line : lines) {
+            if (line.startsWith("ERROR:")) {
+                return line;
+            }
+        }
+        for (String line : lines) {
+            if (line.contains("\"message\"")) {
+                return line;
+            }
+        }
+        return stderr.strip();
     }
 
     private static String safeMessage(Exception e) {
@@ -237,5 +271,8 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
     }
 
     private record CliProcessResult(int exitCode, String stdout, String stderr) {
+    }
+
+    private record CliCommand(List<String> command, String stdin) {
     }
 }

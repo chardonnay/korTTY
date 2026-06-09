@@ -2,10 +2,13 @@ package de.kortty.core;
 
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiConnectionMode;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiReasoningEffort;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
+import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -56,6 +59,43 @@ class AiServiceFactoryTest {
             return;
         }
         throw new AssertionError("Expected missing model validation to fail.");
+    }
+
+    @Test
+    void createAllowsDefaultModelForOpenAiCompatibleProfile() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.minimax.io/v1");
+        profile.setModel("stale-model");
+        profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
+
+        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+
+        assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
+        OpenAiCompatibleAiService openAiService = (OpenAiCompatibleAiService) service;
+        assertThat(openAiService
+            .buildConnectionTestHttpRequest(Duration.ofSeconds(1))
+            .uri()
+            .toString())
+            .isEqualTo("https://api.minimax.io/v1/chat/completions");
+        assertThat(openAiService.buildRequestBody(new AiRequest(AiAction.SUMMARIZE, "sample", "source", "en")))
+            .doesNotContain("\"model\"");
+    }
+
+    @Test
+    void createUsesDiscoveredReasoningForDefaultModelProfile() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.minimax.io/v1");
+        profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
+        profile.setReasoningEffort(AiReasoningEffort.HIGH);
+        profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.HIGH));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+
+        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        OpenAiCompatibleAiService openAiService = (OpenAiCompatibleAiService) service;
+
+        String body = openAiService.buildRequestBody(new AiRequest(AiAction.SUMMARIZE, "sample", "source", "en"));
+        assertThat(body).contains("\"reasoning_effort\":\"high\"");
+        assertThat(body).doesNotContain("\"model\"");
     }
 
     @Test
@@ -212,11 +252,23 @@ class AiServiceFactoryTest {
     }
 
     @Test
-    void createRejectsLocalCliProfileWithoutModel() {
+    void createBuildsLocalCliServiceWithoutModelWhenTemplateDoesNotUseModel() {
         AiProfile profile = new AiProfile();
         profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
         profile.setCliProviderId("claude-code");
         profile.setCliArgumentsTemplate("{promptFile}");
+
+        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+
+        assertThat(service).isInstanceOf(LocalCliAiService.class);
+    }
+
+    @Test
+    void createRejectsLocalCliProfileWithoutModelWhenTemplateUsesModel() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        profile.setCliProviderId("claude-code");
+        profile.setCliArgumentsTemplate("--model\n{model}\n{promptFile}");
 
         try {
             AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
@@ -225,5 +277,23 @@ class AiServiceFactoryTest {
             return;
         }
         throw new AssertionError("Expected missing local CLI model validation to fail.");
+    }
+
+    @Test
+    void createRejectsLocalCliDefaultModelWhenTemplateUsesModel() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        profile.setCliProviderId("claude-code");
+        profile.setCliArgumentsTemplate("--model\n{model}\n{promptFile}");
+        profile.setModel("stale-model");
+        profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
+
+        try {
+            AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        } catch (IllegalStateException ex) {
+            assertThat(ex).hasMessageThat().contains("model");
+            return;
+        }
+        throw new AssertionError("Expected local CLI default model validation to fail for templates using {model}.");
     }
 }

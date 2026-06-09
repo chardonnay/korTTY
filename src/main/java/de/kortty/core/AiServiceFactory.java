@@ -4,6 +4,7 @@ import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiReasoningEffort;
 
 /**
  * Builds the correct AI service implementation for a configured profile.
@@ -39,6 +40,26 @@ public final class AiServiceFactory {
         AiInternetAccessConfiguration internetConfig,
         AiSkillPromptSupport skillPromptSupport) {
 
+        return create(profile, apiKey, internetConfig, skillPromptSupport, null);
+    }
+
+    static AiService createForReasoningProbe(
+        AiProfile profile,
+        String apiKey,
+        AiInternetAccessConfiguration internetConfig,
+        AiSkillPromptSupport skillPromptSupport,
+        AiReasoningEffort reasoningEffort) {
+
+        return create(profile, apiKey, internetConfig, skillPromptSupport, reasoningEffort);
+    }
+
+    private static AiService create(
+        AiProfile profile,
+        String apiKey,
+        AiInternetAccessConfiguration internetConfig,
+        AiSkillPromptSupport skillPromptSupport,
+        AiReasoningEffort reasoningEffortOverride) {
+
         if (profile == null) {
             return null;
         }
@@ -47,16 +68,19 @@ public final class AiServiceFactory {
             : AiSkillPromptSupport.disabled();
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             String model = trimToNull(profile.getModel());
-            if (model == null) {
-                throw new IllegalStateException(MISSING_MODEL_MESSAGE);
-            }
+            AiModelSelectionMode modelSelectionMode = profile.getModelSelectionMode();
             if (trimToNull(profile.getCliProviderId()) == null) {
                 throw new IllegalStateException("AI CLI provider must be configured.");
             }
-            if (trimToNull(profile.getCliArgumentsTemplate()) == null) {
+            String argumentsTemplate = trimToNull(profile.getCliArgumentsTemplate());
+            if (argumentsTemplate == null) {
                 throw new IllegalStateException("AI CLI argument template must be configured.");
             }
-            return new LocalCliAiService(profile, effectiveSkillSupport);
+            if (AiCliArgumentTemplate.requiresModel(argumentsTemplate)
+                && (modelSelectionMode == AiModelSelectionMode.DEFAULT || model == null)) {
+                throw new IllegalStateException(MISSING_MODEL_MESSAGE);
+            }
+            return new LocalCliAiService(profileWithReasoning(profile, reasoningEffortOverride), effectiveSkillSupport);
         }
         String apiUrl = trimToNull(profile.getApiUrl());
         if (apiUrl == null) {
@@ -67,6 +91,9 @@ public final class AiServiceFactory {
         }
         String model = trimToNull(profile.getModel());
         AiModelSelectionMode modelSelectionMode = profile.getModelSelectionMode();
+        String serviceModel = modelSelectionMode == AiModelSelectionMode.DEFAULT
+            ? ""
+            : (model != null ? model : "");
         String normalizedApiKey = apiKey != null ? apiKey.trim() : "";
         AiInternetAccessConfiguration effectiveConfig = internetConfig != null
             ? internetConfig
@@ -87,10 +114,10 @@ public final class AiServiceFactory {
             }
             return new LmStudioNativeAiService(
                 apiUrl,
-                model != null ? model : "",
+                serviceModel,
                 modelSelectionMode,
                 normalizedApiKey,
-                AiReasoningSupport.normalizeForProfile(profile),
+                effectiveReasoningEffort(profile, reasoningEffortOverride),
                 effectiveConfig,
                 effectiveSkillSupport);
         }
@@ -113,12 +140,30 @@ public final class AiServiceFactory {
         }
         return new OpenAiCompatibleAiService(
             normalizeOpenAiCompatibleChatCompletionsUrl(apiUrl),
-            model != null ? model : "",
+            serviceModel,
             modelSelectionMode,
             normalizedApiKey,
-            AiReasoningSupport.normalizeForProfile(profile),
+            effectiveReasoningEffort(profile, reasoningEffortOverride),
             webSearchTool,
             effectiveSkillSupport);
+    }
+
+    private static AiProfile profileWithReasoning(AiProfile profile, AiReasoningEffort reasoningEffortOverride) {
+        if (reasoningEffortOverride == null) {
+            return profile;
+        }
+        AiProfile copy = new AiProfile(profile);
+        copy.setReasoningEffort(reasoningEffortOverride);
+        return copy;
+    }
+
+    private static AiReasoningEffort effectiveReasoningEffort(
+        AiProfile profile,
+        AiReasoningEffort reasoningEffortOverride) {
+
+        return reasoningEffortOverride != null
+            ? reasoningEffortOverride
+            : AiReasoningSupport.normalizeForProfile(profile);
     }
 
     private static String trimToNull(String value) {

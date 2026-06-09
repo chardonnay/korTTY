@@ -30,6 +30,8 @@ public final class LocalLmModelResolver {
     private static final String LM_STUDIO_MODELS_PATH = "/api/v1/models";
     private static final String LM_STUDIO_CHAT_PATH = "/api/v1/chat";
     private static final String OPENAI_CHAT_COMPLETIONS_PATH = "/v1/chat/completions";
+    private static final String OPENAI_V1_PATH = "/v1";
+    private static final String OPENAI_MODELS_PATH = "/v1/models";
 
     private LocalLmModelResolver() {
     }
@@ -37,6 +39,17 @@ public final class LocalLmModelResolver {
     public static boolean canResolve(String apiUrl) {
         URI uri = parseUri(apiUrl);
         return uri != null && isLoopbackHttpUri(uri) && isSupportedChatEndpoint(uri.getPath());
+    }
+
+    public static boolean canListModels(String apiUrl) {
+        URI uri = parseUri(apiUrl);
+        if (uri == null) {
+            return false;
+        }
+        if (isLoopbackHttpUri(uri) && isSupportedModelListEndpoint(uri.getPath())) {
+            return true;
+        }
+        return isHttpUri(uri) && isOpenAiCompatibleModelListEndpoint(uri.getPath());
     }
 
     public static boolean isLocalLmStudioBaseUrl(String apiUrl) {
@@ -52,6 +65,25 @@ public final class LocalLmModelResolver {
         throws IOException, InterruptedException {
 
         return loadLoadedLlmModelKeys(apiUrl, apiKey, null);
+    }
+
+    public static List<String> loadAvailableModelNames(String apiUrl, String apiKey)
+        throws IOException, InterruptedException {
+
+        return loadAvailableModelNames(apiUrl, apiKey, null);
+    }
+
+    static List<String> loadAvailableModelNames(String apiUrl, String apiKey, HttpClient httpClient)
+        throws IOException, InterruptedException {
+
+        URI uri = parseUri(apiUrl);
+        if (uri == null || !canListModels(apiUrl)) {
+            return List.of();
+        }
+        if (isLoopbackHttpUri(uri) && isSupportedModelListEndpoint(uri.getPath())) {
+            return fetchLoadedLlmModelKeys(apiUrl, apiKey, httpClient);
+        }
+        return fetchOpenAiCompatibleModelIds(uri, apiKey, httpClient);
     }
 
     static List<String> loadLoadedLlmModelKeys(String apiUrl, String apiKey, HttpClient httpClient)
@@ -73,6 +105,9 @@ public final class LocalLmModelResolver {
 
         String model = trimToNull(configuredModel);
         AiModelSelectionMode mode = selectionMode != null ? selectionMode : AiModelSelectionMode.MANUAL;
+        if (mode == AiModelSelectionMode.DEFAULT) {
+            return null;
+        }
         if (mode == AiModelSelectionMode.MANUAL && model != null) {
             return model;
         }
@@ -142,6 +177,35 @@ public final class LocalLmModelResolver {
         return parseLoadedLlmModelKeys(response.body(), modelsUri);
     }
 
+    private static List<String> fetchOpenAiCompatibleModelIds(URI apiUri, String apiKey, HttpClient httpClient)
+        throws IOException, InterruptedException {
+
+        HttpClient client = httpClient != null
+            ? httpClient
+            : HttpClient.newBuilder().connectTimeout(MODEL_LIST_TIMEOUT).build();
+        URI modelsUri = buildOpenAiCompatibleModelsUri(apiUri);
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+            .uri(modelsUri)
+            .timeout(MODEL_LIST_TIMEOUT)
+            .GET();
+        String normalizedApiKey = trimToNull(apiKey);
+        if (normalizedApiKey != null) {
+            requestBuilder.header("Authorization", "Bearer " + normalizedApiKey);
+        }
+        HttpResponse<String> response = client.send(
+            requestBuilder.build(),
+            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IOException(
+                "Could not list AI models from "
+                    + modelsUri
+                    + " (HTTP "
+                    + response.statusCode()
+                    + "). Configure the model name manually.");
+        }
+        return parseOpenAiCompatibleModelIds(response.body(), modelsUri);
+    }
+
     static String selectLoadedLlmModelKey(String responseBody, URI sourceUri) throws IOException {
         return selectAutoModel(parseLoadedLlmModelKeys(responseBody, sourceUri), null);
     }
@@ -187,6 +251,34 @@ public final class LocalLmModelResolver {
         return loadedLlmModelKeys;
     }
 
+    static List<String> parseOpenAiCompatibleModelIds(String responseBody, URI sourceUri) throws IOException {
+        JsonObject root;
+        try {
+            root = JsonParser.parseString(responseBody).getAsJsonObject();
+        } catch (RuntimeException ex) {
+            throw new IOException("Could not parse OpenAI-compatible model list from " + sourceUri + ".", ex);
+        }
+        JsonArray models = root.getAsJsonArray("data");
+        if (models == null || models.isEmpty()) {
+            throw new IllegalStateException(
+                "No AI models were reported by "
+                    + sourceUri
+                    + ". Configure the model name manually.");
+        }
+
+        List<String> modelIds = new ArrayList<>();
+        for (JsonElement element : models) {
+            if (element == null || !element.isJsonObject()) {
+                continue;
+            }
+            String id = stringField(element.getAsJsonObject(), "id");
+            if (id != null && !id.isBlank() && !modelIds.contains(id)) {
+                modelIds.add(id);
+            }
+        }
+        return modelIds;
+    }
+
     private static URI buildLmStudioModelsUri(URI chatUri) {
         try {
             return new URI(
@@ -202,6 +294,28 @@ public final class LocalLmModelResolver {
         }
     }
 
+    private static URI buildOpenAiCompatibleModelsUri(URI apiUri) {
+        String normalizedPath = trimTrailingSlashes(apiUri.getPath());
+        String modelPath = OPENAI_MODELS_PATH;
+        if (OPENAI_MODELS_PATH.equals(normalizedPath)) {
+            modelPath = normalizedPath;
+        } else if (OPENAI_CHAT_COMPLETIONS_PATH.equals(normalizedPath) || OPENAI_V1_PATH.equals(normalizedPath)) {
+            modelPath = OPENAI_MODELS_PATH;
+        }
+        try {
+            return new URI(
+                apiUri.getScheme(),
+                null,
+                apiUri.getHost(),
+                apiUri.getPort(),
+                modelPath,
+                null,
+                null);
+        } catch (URISyntaxException ex) {
+            throw new IllegalArgumentException("Invalid OpenAI-compatible API URL: " + apiUri, ex);
+        }
+    }
+
     private static boolean isSupportedChatEndpoint(String path) {
         String normalizedPath = trimTrailingSlashes(path);
         return normalizedPath.isEmpty()
@@ -209,9 +323,27 @@ public final class LocalLmModelResolver {
             || OPENAI_CHAT_COMPLETIONS_PATH.equals(normalizedPath);
     }
 
-    private static boolean isLoopbackHttpUri(URI uri) {
+    private static boolean isSupportedModelListEndpoint(String path) {
+        String normalizedPath = trimTrailingSlashes(path);
+        return isSupportedChatEndpoint(normalizedPath)
+            || OPENAI_V1_PATH.equals(normalizedPath)
+            || OPENAI_MODELS_PATH.equals(normalizedPath);
+    }
+
+    private static boolean isOpenAiCompatibleModelListEndpoint(String path) {
+        String normalizedPath = trimTrailingSlashes(path);
+        return OPENAI_V1_PATH.equals(normalizedPath)
+            || OPENAI_CHAT_COMPLETIONS_PATH.equals(normalizedPath)
+            || OPENAI_MODELS_PATH.equals(normalizedPath);
+    }
+
+    private static boolean isHttpUri(URI uri) {
         String scheme = uri.getScheme();
-        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+        return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+    }
+
+    private static boolean isLoopbackHttpUri(URI uri) {
+        if (!isHttpUri(uri)) {
             return false;
         }
         return isLoopbackHost(uri.getHost());

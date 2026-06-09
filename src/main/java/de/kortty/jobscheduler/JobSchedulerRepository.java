@@ -263,6 +263,9 @@ public class JobSchedulerRepository {
         @XmlElement(name = "journalEntry")
         private List<JobJournalEntry> journal = new ArrayList<>();
 
+        @XmlElement
+        private boolean aiAgentAutoApproveDefaultMigrated;
+
         public List<ScheduledJob> getJobs() {
             if (jobs == null) {
                 jobs = new ArrayList<>();
@@ -307,11 +310,33 @@ public class JobSchedulerRepository {
             this.journal = journal != null ? journal : new ArrayList<>();
         }
 
+        public boolean isAiAgentAutoApproveDefaultMigrated() {
+            return aiAgentAutoApproveDefaultMigrated;
+        }
+
+        public void setAiAgentAutoApproveDefaultMigrated(boolean aiAgentAutoApproveDefaultMigrated) {
+            this.aiAgentAutoApproveDefaultMigrated = aiAgentAutoApproveDefaultMigrated;
+        }
+
         void normalize() {
             getJobs();
             getSudoCredentials();
             getPinnedHostKeys();
             getJournal().forEach(JobJournalEntry::getId);
+            migrateAiAgentAutoApproveDefault();
+        }
+
+        private void migrateAiAgentAutoApproveDefault() {
+            if (aiAgentAutoApproveDefaultMigrated) {
+                return;
+            }
+            for (ScheduledJob job : getJobs()) {
+                JobAction action = job != null ? job.getAction() : null;
+                if (action != null && action.getType() == JobActionType.AI_AGENT) {
+                    action.setAiAutoApproveCommands(true);
+                }
+            }
+            aiAgentAutoApproveDefaultMigrated = true;
         }
     }
 }

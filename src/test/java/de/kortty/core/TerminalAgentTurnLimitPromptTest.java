@@ -35,6 +35,7 @@ class TerminalAgentTurnLimitPromptTest {
             false,
             false,
             false,
+            false,
             false);
         TerminalAgentModels.CommandResult commandResult = new TerminalAgentModels.CommandResult(
             "find /etc -type f 2>/dev/null | wc -l",

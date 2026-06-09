@@ -236,7 +236,11 @@ public class AiAgentRunTab extends Tab {
             dialog.setHeaderText(approval.summary());
             ButtonType onceButton = new ButtonType(I18n.get("ai.agent.approval.once"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
             ButtonType alwaysButton = new ButtonType(I18n.get("ai.agent.approval.always"), javafx.scene.control.ButtonBar.ButtonData.YES);
-            dialog.getDialogPane().getButtonTypes().addAll(onceButton, alwaysButton, ButtonType.CANCEL);
+            dialog.getDialogPane().getButtonTypes().add(onceButton);
+            if (approval.allowAlways()) {
+                dialog.getDialogPane().getButtonTypes().add(alwaysButton);
+            }
+            dialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
             TextArea commandsArea = new TextArea(approval.commands().stream()
                 .map(command -> "$ " + command.command() + "\n" + command.purpose())
                 .reduce((left, right) -> left + "\n\n" + right)
@@ -249,7 +253,7 @@ public class AiAgentRunTab extends Tab {
                 if (buttonType == onceButton) {
                     return TerminalAgentService.ApprovalDecision.APPROVE_ONCE;
                 }
-                if (buttonType == alwaysButton) {
+                if (approval.allowAlways() && buttonType == alwaysButton) {
                     return TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS;
                 }
                 return TerminalAgentService.ApprovalDecision.CANCEL;

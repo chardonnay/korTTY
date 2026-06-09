@@ -39,6 +39,21 @@ class JobSchedulerAiSupportTest {
         assertThat(aiService.fallbackPromptCalls).isEqualTo(0);
     }
 
+    @Test
+    void autoApprovalIsOnlyRequiredForServerChangingCommands() {
+        assertThat(JobSchedulerAiSupport.requiresAutoApprovalForServerChange(
+            new JobSchedulerAiSupport.AgentCommand("find /var/log -type f | head", "Inspect logs", "LOW"),
+            "find /var/log -type f | head")).isFalse();
+
+        assertThat(JobSchedulerAiSupport.requiresAutoApprovalForServerChange(
+            new JobSchedulerAiSupport.AgentCommand("touch /tmp/kortty-test", "Create marker", "LOW"),
+            "touch /tmp/kortty-test")).isTrue();
+
+        assertThat(JobSchedulerAiSupport.requiresAutoApprovalForServerChange(
+            new JobSchedulerAiSupport.AgentCommand("dnf install -y tmux", "Install package", "REQUIRES_CONFIRMATION"),
+            "dnf install -y tmux")).isTrue();
+    }
+
     /** Test double for providers that reject OpenAI JSON mode response_format. */
     private static final class ResponseFormatRejectingAiService implements AiPromptService {
         private final String fallbackResponse;

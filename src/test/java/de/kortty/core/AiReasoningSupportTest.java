@@ -60,4 +60,38 @@ class AiReasoningSupportTest {
         assertThat(AiReasoningSupport.normalizeForProfile(profile)).isEqualTo(AiReasoningEffort.DISABLED);
         assertThat(AiReasoningSupport.exportStatus(profile)).isEqualTo("Disabled");
     }
+
+    @Test
+    void availableEffortsUseDiscoveredOptionsWhenProfileKeyMatches() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.example.test/v1/chat/completions");
+        profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.HIGH));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+        profile.setReasoningEffort(AiReasoningEffort.HIGH);
+
+        assertThat(AiReasoningSupport.availableEfforts(profile))
+            .containsExactly(AiReasoningEffort.DISABLED, AiReasoningEffort.HIGH)
+            .inOrder();
+        assertThat(AiReasoningSupport.normalizeForProfile(profile)).isEqualTo(AiReasoningEffort.HIGH);
+    }
+
+    @Test
+    void availableEffortsIgnoreDiscoveredOptionsWhenProfileKeyChanges() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.example.test/v1/chat/completions");
+        profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.HIGH));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+
+        profile.setApiUrl("https://api.changed.example.test/v1/chat/completions");
+
+        assertThat(AiReasoningSupport.availableEfforts(profile)).isEqualTo(List.of(AiReasoningEffort.DISABLED));
+    }
+
+    @Test
+    void discoveryKeyHandlesProfileWithoutStoredModelSelectionMode() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.example.test/v1/chat/completions");
+
+        assertThat(AiReasoningSupport.discoveryKey(profile)).isNotEmpty();
+    }
 }
