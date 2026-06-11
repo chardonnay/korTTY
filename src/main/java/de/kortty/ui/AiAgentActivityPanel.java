@@ -127,6 +127,8 @@ public class AiAgentActivityPanel extends VBox {
     private boolean hasReportedTokens;
     private int historyIndex = -1;
     private boolean scrollToBottomPending;
+    private boolean autoScrollEnabled = true;
+    private boolean programmaticScroll;
     private double panelResizeStartY;
     private double panelResizeStartHeight;
     private double activityFontSize = DEFAULT_ACTIVITY_FONT_SIZE;
@@ -310,6 +312,24 @@ public class AiAgentActivityPanel extends VBox {
         scrollPane.viewportBoundsProperty().addListener((observable, oldBounds, newBounds) -> scrollToBottom());
         activityBox.heightProperty().addListener((observable, oldHeight, newHeight) -> scrollToBottom());
 
+        // Auto-scrolling pauses as soon as the user scrolls up or clicks into the activity list,
+        // and resumes once the user scrolls back down to the newest entry.
+        scrollPane.addEventFilter(javafx.scene.input.ScrollEvent.SCROLL, event -> {
+            if (event.getDeltaY() > 0 && isActivityListScrollable()) {
+                autoScrollEnabled = false;
+            }
+        });
+        scrollPane.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+            if (isActivityListScrollable()) {
+                autoScrollEnabled = false;
+            }
+        });
+        scrollPane.vvalueProperty().addListener((observable, oldValue, newValue) -> {
+            if (!programmaticScroll && newValue.doubleValue() >= scrollPane.getVmax() - 0.001) {
+                autoScrollEnabled = true;
+            }
+        });
+
         promptBox = new VBox(8);
         promptBox.getStyleClass().add("ai-agent-prompt-box");
         promptBox.setVisible(false);
@@ -355,6 +375,7 @@ public class AiAgentActivityPanel extends VBox {
             pendingInputStatusText = null;
             reportedTokens = 0L;
             hasReportedTokens = false;
+            autoScrollEnabled = true;
             clearExportStatus();
             rowsById.clear();
             accountedTokenActivityIds.clear();
@@ -1426,7 +1447,7 @@ public class AiAgentActivityPanel extends VBox {
             Platform.runLater(this::scrollToBottom);
             return;
         }
-        if (scrollToBottomPending) {
+        if (scrollToBottomPending || !autoScrollEnabled) {
             return;
         }
         scrollToBottomPending = true;
@@ -1438,11 +1459,23 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private void snapScrollToBottom() {
+        if (!autoScrollEnabled) {
+            return;
+        }
         scrollPane.applyCss();
         activityBox.applyCss();
         scrollPane.layout();
         activityBox.layout();
-        scrollPane.setVvalue(scrollPane.getVmax());
+        programmaticScroll = true;
+        try {
+            scrollPane.setVvalue(scrollPane.getVmax());
+        } finally {
+            programmaticScroll = false;
+        }
+    }
+
+    private boolean isActivityListScrollable() {
+        return activityBox.getHeight() > scrollPane.getViewportBounds().getHeight() + 1;
     }
 
     private TerminalAgentService.ApprovalDecision decisionForKey(KeyEvent event) {

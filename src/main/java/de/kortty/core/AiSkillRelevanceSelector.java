@@ -31,11 +31,26 @@ public final class AiSkillRelevanceSelector {
     private final boolean enabled;
     private final boolean autoDetectionEnabled;
     private final List<AiSkill> skills;
+    private final Set<String> pinnedSkillIds;
 
     public AiSkillRelevanceSelector(boolean enabled, boolean autoDetectionEnabled, List<AiSkill> skills) {
+        this(enabled, autoDetectionEnabled, skills, Set.of());
+    }
+
+    /**
+     * @param pinnedSkillIds ids of skills that are always part of the selection (when applicable),
+     *                       bypassing the relevance auto-detection — e.g. skills assigned to the
+     *                       active connection.
+     */
+    public AiSkillRelevanceSelector(
+        boolean enabled,
+        boolean autoDetectionEnabled,
+        List<AiSkill> skills,
+        Set<String> pinnedSkillIds) {
         this.enabled = enabled;
         this.autoDetectionEnabled = autoDetectionEnabled;
         this.skills = copySkills(skills);
+        this.pinnedSkillIds = pinnedSkillIds != null ? Set.copyOf(pinnedSkillIds) : Set.of();
     }
 
     public List<AiSkill> selectChatSkills(AiRequest request, AiSkillRelevanceClassifier classifier) {
@@ -65,19 +80,35 @@ public final class AiSkillRelevanceSelector {
 
         LocalSelection localSelection = selectLocal(context, candidates);
         if (!shouldUseHybrid(localSelection) || classifier == null) {
-            return localSelection.skills();
+            return withPinnedSkills(localSelection.skills(), candidates);
         }
 
         try {
             List<String> selectedIds = classifier.classify(context, metadataFor(candidates));
             List<AiSkill> hybridSelection = byClassifierIds(candidates, selectedIds);
             if (!hybridSelection.isEmpty()) {
-                return hybridSelection;
+                return withPinnedSkills(hybridSelection, candidates);
             }
         } catch (Exception ignored) {
             // Hybrid classification must not block the main AI request.
         }
-        return localSelection.skills();
+        return withPinnedSkills(localSelection.skills(), candidates);
+    }
+
+    /** Pinned skills (e.g. assigned to the active connection) always survive auto-detection. */
+    private List<AiSkill> withPinnedSkills(List<AiSkill> selected, List<AiSkill> candidates) {
+        if (pinnedSkillIds.isEmpty()) {
+            return selected;
+        }
+        List<AiSkill> result = new ArrayList<>(selected);
+        for (AiSkill candidate : candidates) {
+            if (candidate.getId() != null
+                && pinnedSkillIds.contains(candidate.getId())
+                && result.stream().noneMatch(skill -> candidate.getId().equals(skill.getId()))) {
+                result.add(candidate);
+            }
+        }
+        return List.copyOf(result);
     }
 
     public List<SkillMetadata> metadataForSelection(boolean chatTarget) {

@@ -29,10 +29,18 @@ public final class AiSkillPromptSupport {
     }
 
     public AiSkillPromptSupport(boolean enabled, boolean autoDetectionEnabled, List<AiSkill> skills) {
+        this(enabled, autoDetectionEnabled, skills, java.util.Set.of());
+    }
+
+    public AiSkillPromptSupport(
+        boolean enabled,
+        boolean autoDetectionEnabled,
+        List<AiSkill> skills,
+        java.util.Set<String> pinnedSkillIds) {
         this.enabled = enabled;
         this.autoDetectionEnabled = autoDetectionEnabled;
         this.skills = copySkills(skills);
-        this.selector = new AiSkillRelevanceSelector(enabled, autoDetectionEnabled, this.skills);
+        this.selector = new AiSkillRelevanceSelector(enabled, autoDetectionEnabled, this.skills, pinnedSkillIds);
     }
 
     public static AiSkillPromptSupport disabled() {
@@ -40,13 +48,54 @@ public final class AiSkillPromptSupport {
     }
 
     public static AiSkillPromptSupport fromSettings(GlobalSettings settings) {
+        return fromSettings(settings, null);
+    }
+
+    /**
+     * Creates skill support for one connection: skills with target CONNECTION are only included
+     * when their id is contained in {@code assignedConnectionSkillIds}; all assigned skills are
+     * pinned, i.e. they always survive the relevance auto-detection for this connection.
+     */
+    public static AiSkillPromptSupport fromSettings(
+        GlobalSettings settings,
+        java.util.Collection<String> assignedConnectionSkillIds) {
+
         if (settings == null) {
             return disabled();
         }
+        java.util.Set<String> pinnedSkillIds = assignedConnectionSkillIds != null
+            ? new java.util.HashSet<>(assignedConnectionSkillIds)
+            : java.util.Set.of();
         return new AiSkillPromptSupport(
             settings.isAiSkillsEnabled(),
             settings.isAiSkillAutoDetectionEnabled(),
-            settings.getAiSkills());
+            filterConnectionSkills(settings.getAiSkills(), assignedConnectionSkillIds),
+            pinnedSkillIds);
+    }
+
+    private static List<AiSkill> filterConnectionSkills(
+        List<AiSkill> skills,
+        java.util.Collection<String> assignedConnectionSkillIds) {
+
+        if (skills == null || skills.isEmpty()) {
+            return skills;
+        }
+        List<AiSkill> filtered = new ArrayList<>();
+        for (AiSkill skill : skills) {
+            if (skill == null) {
+                continue;
+            }
+            AiSkillTarget target = skill.getTarget();
+            if (target != null && target.requiresConnectionAssignment()) {
+                String skillId = skill.getId();
+                if (skillId == null || assignedConnectionSkillIds == null
+                    || !assignedConnectionSkillIds.contains(skillId)) {
+                    continue;
+                }
+            }
+            filtered.add(skill);
+        }
+        return filtered;
     }
 
     public String appendChatSkills(String systemPrompt) {

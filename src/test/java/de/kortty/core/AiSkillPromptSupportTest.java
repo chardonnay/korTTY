@@ -145,6 +145,67 @@ class AiSkillPromptSupportTest {
         assertThat(support.drainSkillUsages()).isEmpty();
     }
 
+    @Test
+    void connectionSkillsRequireAssignmentToTheConnection() {
+        AiSkill connectionSkill = skill("Conn Skill", true, AiSkillTarget.CONNECTION, "Connection rules.");
+        connectionSkill.setId("skill-conn");
+        AiSkill globalSkill = skill("Global Skill", true, AiSkillTarget.BOTH, "Global rules.");
+        globalSkill.setId("skill-global");
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.setAiSkillsEnabled(true);
+        settings.setAiSkillAutoDetectionEnabled(false);
+        settings.setAiSkills(new java.util.ArrayList<>(List.of(connectionSkill, globalSkill)));
+
+        String withoutAssignment = AiSkillPromptSupport.fromSettings(settings).appendChatSkills("base");
+        String otherAssignment = AiSkillPromptSupport.fromSettings(settings, List.of("other-skill")).appendChatSkills("base");
+        String withAssignment = AiSkillPromptSupport.fromSettings(settings, List.of("skill-conn")).appendChatSkills("base");
+
+        assertThat(withoutAssignment).doesNotContain("Connection rules.");
+        assertThat(withoutAssignment).contains("Global rules.");
+        assertThat(otherAssignment).doesNotContain("Connection rules.");
+        assertThat(withAssignment).contains("Connection rules.");
+        assertThat(withAssignment).contains("Global rules.");
+    }
+
+    @Test
+    void assignedSkillsBypassRelevanceAutoDetection() {
+        AiSkill assignedSkill = skill("poetry", true, AiSkillTarget.BOTH, "Write literary answers.");
+        assignedSkill.setId("skill-poetry");
+        assignedSkill.setTags(List.of("poetry", "novel"));
+        AiSkill unrelatedSkill = skill("cooking", true, AiSkillTarget.BOTH, "Share recipes.");
+        unrelatedSkill.setId("skill-cooking");
+        unrelatedSkill.setTags(List.of("cooking"));
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.setAiSkillsEnabled(true);
+        settings.setAiSkillAutoDetectionEnabled(true);
+        settings.setAiSkills(new java.util.ArrayList<>(List.of(assignedSkill, unrelatedSkill)));
+        AiRequest request = new AiRequest(AiAction.ASK, "kernel update on fedora", "host", "en", "how to update the kernel?");
+
+        String withAssignment = AiSkillPromptSupport.fromSettings(settings, List.of("skill-poetry"))
+            .appendChatSkills("base", request);
+        String withoutAssignment = AiSkillPromptSupport.fromSettings(settings)
+            .appendChatSkills("base", request);
+
+        assertThat(withAssignment).contains("Write literary answers.");
+        assertThat(withAssignment).doesNotContain("Share recipes.");
+        assertThat(withoutAssignment).doesNotContain("Write literary answers.");
+    }
+
+    @Test
+    void assignedConnectionSkillAppliesToChatAndAgent() {
+        AiSkill connectionSkill = skill("Conn Skill", true, AiSkillTarget.CONNECTION, "Connection rules.");
+        connectionSkill.setId("skill-conn");
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.setAiSkillsEnabled(true);
+        settings.setAiSkillAutoDetectionEnabled(false);
+        settings.setAiSkills(new java.util.ArrayList<>(List.of(connectionSkill)));
+
+        AiSkillPromptSupport support = AiSkillPromptSupport.fromSettings(settings, List.of("skill-conn"));
+
+        assertThat(support.appendChatSkills("base")).contains("Connection rules.");
+        assertThat(support.appendAgentSkills("base")).contains("Connection rules.");
+    }
+
     private AiSkill skill(String name, boolean enabled, AiSkillTarget target, String content) {
         AiSkill skill = new AiSkill();
         skill.setName(name);

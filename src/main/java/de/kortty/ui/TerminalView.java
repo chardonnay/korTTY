@@ -243,6 +243,8 @@ public class TerminalView extends BorderPane {
     private Runnable timestampToggleListener;
     private Runnable onReconnectRequested;
     private AiSelectionHandler aiSelectionHandler;
+    private java.util.function.BooleanSupplier menuBarHiddenSupplier;
+    private Runnable menuBarRestoreHandler;
     private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
     private TerminalAgentContextHandler aiAgentHandler;
     private TerminalAgentContextHandler aiAgentAskHandler;
@@ -357,6 +359,13 @@ public class TerminalView extends BorderPane {
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
         splitPane.setExtraMenuItemsFactory(widget -> {
             java.util.List<javafx.scene.control.MenuItem> items = new java.util.ArrayList<>();
+            if (menuBarRestoreHandler != null && menuBarHiddenSupplier != null && menuBarHiddenSupplier.getAsBoolean()) {
+                javafx.scene.control.MenuItem showMenuBarItem =
+                    new javafx.scene.control.MenuItem(I18n.get("menu.view.menuBar"));
+                showMenuBarItem.setOnAction(e -> Platform.runLater(menuBarRestoreHandler));
+                items.add(showMenuBarItem);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
             String selectedText = getSelectedText(widget);
             List<AiProfile> aiProfiles = getConfiguredAiProfiles();
             boolean hasSelectedText = selectedText != null && !selectedText.isBlank();
@@ -445,6 +454,12 @@ public class TerminalView extends BorderPane {
             if (event.isConsumed()) {
                 return;
             }
+            if (isEventTargetWithinAgentActivityPanel(event)) {
+                // Keys typed into the agent's own UI (e.g. the sudo password prompt) must reach that
+                // control's handlers instead of being swallowed by the terminal input lock below, so
+                // ENTER can confirm the password just like the OK button does.
+                return;
+            }
             SithTermFxWidget eventWidget = resolveWidgetForKeyEvent(event);
             if (handleTerminalAgentInputLock(eventWidget, event)) {
                 return;
@@ -497,6 +512,12 @@ public class TerminalView extends BorderPane {
 
     public void setAiSelectionHandler(@Nullable AiSelectionHandler aiSelectionHandler) {
         this.aiSelectionHandler = aiSelectionHandler;
+    }
+
+    /** Adds a "show menu bar" entry to the terminal context menu while the menu bar is hidden. */
+    public void setMenuBarRestoreHandler(java.util.function.BooleanSupplier menuBarHidden, Runnable restoreHandler) {
+        this.menuBarHiddenSupplier = menuBarHidden;
+        this.menuBarRestoreHandler = restoreHandler;
     }
 
     public void setTerminalTextFileLoadHandler(@Nullable TerminalTextFileLoadHandler terminalTextFileLoadHandler) {
@@ -2309,6 +2330,18 @@ public class TerminalView extends BorderPane {
                 return true;
             }
             current = current.getParent();
+        }
+        return false;
+    }
+
+    private boolean isEventTargetWithinAgentActivityPanel(@Nullable KeyEvent event) {
+        if (event == null || !(event.getTarget() instanceof Node targetNode)) {
+            return false;
+        }
+        for (AiAgentActivityPanel panel : terminalAgentActivityPanels.values()) {
+            if (isNodeWithin(targetNode, panel)) {
+                return true;
+            }
         }
         return false;
     }

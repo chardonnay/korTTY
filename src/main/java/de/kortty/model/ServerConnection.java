@@ -112,7 +112,16 @@ public class ServerConnection {
     /** Optional role from teamwork file: owner, maintainer, reader (for UI / protection). */
     @XmlElement
     private String teamworkRole;
-    
+
+    /** Fixed AI profile for this connection; null = use the default AI profile. */
+    @XmlElement
+    private String aiProfileId;
+
+    /** Connection-scoped AI skills (target CONNECTION) assigned to this connection. */
+    @XmlElementWrapper(name = "aiSkillIds")
+    @XmlElement(name = "skillId")
+    private java.util.List<String> aiSkillIds = new java.util.ArrayList<>();
+
     public ServerConnection() {
         this.id = UUID.randomUUID().toString();
         this.settings = new ConnectionSettings();
@@ -165,13 +174,34 @@ public class ServerConnection {
         c.teamworkSourceId = source.teamworkSourceId;
         c.teamworkVersionToken = source.teamworkVersionToken;
         c.teamworkRole = source.teamworkRole;
+        c.aiProfileId = source.aiProfileId;
+        c.aiSkillIds = source.aiSkillIds;
         return c;
     }
-    
+
     // Getters and Setters
-    
+
     public String getId() {
         return id;
+    }
+
+    public String getAiProfileId() {
+        return aiProfileId;
+    }
+
+    public void setAiProfileId(String aiProfileId) {
+        this.aiProfileId = aiProfileId;
+    }
+
+    public java.util.List<String> getAiSkillIds() {
+        if (aiSkillIds == null) {
+            aiSkillIds = new java.util.ArrayList<>();
+        }
+        return aiSkillIds;
+    }
+
+    public void setAiSkillIds(java.util.List<String> aiSkillIds) {
+        this.aiSkillIds = aiSkillIds != null ? new java.util.ArrayList<>(aiSkillIds) : new java.util.ArrayList<>();
     }
     
     public void setId(String id) {

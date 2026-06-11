@@ -15,13 +15,21 @@ public enum AiSkillTarget {
     AGENT,
 
     @XmlEnumValue("BOTH")
-    BOTH;
+    BOTH,
+
+    /** Only used for connections the skill has been assigned to; applies to chat and agent there. */
+    @XmlEnumValue("CONNECTION")
+    CONNECTION;
 
     public boolean appliesToChat() {
-        return this == CHAT || this == BOTH;
+        return this == CHAT || this == BOTH || this == CONNECTION;
     }
 
     public boolean appliesToAgent() {
-        return this == AGENT || this == BOTH;
+        return this == AGENT || this == BOTH || this == CONNECTION;
+    }
+
+    public boolean requiresConnectionAssignment() {
+        return this == CONNECTION;
     }
 }

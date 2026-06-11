@@ -45,6 +45,15 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     
     // Individual connection tab
     private ComboBox<ServerConnection> savedConnectionsCombo;
+    private ComboBox<AiProfileOption> aiProfileCombo;
+    private AiProfileOption aiProfileDefaultOption;
+    private AiProfileOption aiProfileMissingOption;
+    private java.util.Map<String, javafx.beans.property.BooleanProperty> aiSkillChecksById;
+    private java.util.List<String> unavailableAssignedAiSkillIds = java.util.List.of();
+
+    /** Combo entry for the per-connection AI profile; profileId == null means "use default". */
+    private record AiProfileOption(String profileId, String label) {
+    }
     private TextField hostField;
     private Spinner<Integer> portSpinner;
     private ComboBox<ConnectionProtocol> protocolCombo;
@@ -179,6 +188,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             
             if (dialogButton == connectButtonType) {
                 result = createIndividualResult();
+                if (result != null && result.connection() != null) {
+                    applyAiAssignments(result.connection());
+                }
             } else if (dialogButton == openGroupButtonType) {
                 String selectedGroup = groupListView.getSelectionModel().getSelectedItem();
                 if (selectedGroup != null) {
@@ -516,6 +528,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             ServerConnection selected = savedConnectionsCombo.getValue();
             if (selected != null) {
                 fillFormWithConnection(selected);
+                syncAiSkillChecks(selected);
+                syncAiProfileSelection(selected);
             }
         });
         
@@ -730,6 +744,65 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             grid.add(terminalEffectSpeedControls.root(), 1, row++);
         }
         
+        java.util.List<de.kortty.model.AiProfile> aiProfiles = loadAiProfilesSorted();
+        java.util.List<de.kortty.model.AiSkill> connectionAiSkills = loadConnectionTargetAiSkills();
+        aiSkillChecksById = new java.util.LinkedHashMap<>();
+        if (!aiProfiles.isEmpty() || !connectionAiSkills.isEmpty()) {
+            grid.add(new Separator(), 0, row++, 2, 1);
+            Label aiSectionLabel = new Label(I18n.get("connEdit.tab.ai"));
+            aiSectionLabel.setStyle("-fx-font-weight: bold;");
+            grid.add(aiSectionLabel, 0, row++, 2, 1);
+        }
+        if (!aiProfiles.isEmpty()) {
+            aiProfileCombo = new ComboBox<>();
+            aiProfileCombo.setPrefWidth(300);
+            aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
+                @Override
+                public String toString(AiProfileOption option) {
+                    return option != null ? option.label() : "";
+                }
+
+                @Override
+                public AiProfileOption fromString(String string) {
+                    return null;
+                }
+            });
+            aiProfileDefaultOption = new AiProfileOption(null, I18n.get("connEdit.ai.profile.default"));
+            aiProfileCombo.getItems().add(aiProfileDefaultOption);
+            for (de.kortty.model.AiProfile profile : aiProfiles) {
+                String name = profile.getName() != null && !profile.getName().isBlank()
+                    ? profile.getName().trim()
+                    : profile.getId();
+                aiProfileCombo.getItems().add(new AiProfileOption(profile.getId(), name));
+            }
+            aiProfileCombo.getSelectionModel().select(aiProfileDefaultOption);
+            grid.add(new Label(I18n.get("connEdit.ai.profile")), 0, row);
+            grid.add(aiProfileCombo, 1, row++);
+        }
+        if (!connectionAiSkills.isEmpty()) {
+            for (de.kortty.model.AiSkill skill : connectionAiSkills) {
+                aiSkillChecksById.put(skill.getId(), new javafx.beans.property.SimpleBooleanProperty(false));
+            }
+            grid.add(new Label(I18n.get("connEdit.ai.skills")), 0, row);
+            ListView<de.kortty.model.AiSkill> aiSkillsListView = new ListView<>(
+                javafx.collections.FXCollections.observableArrayList(connectionAiSkills));
+            aiSkillsListView.setPrefHeight(120);
+            aiSkillsListView.setCellFactory(javafx.scene.control.cell.CheckBoxListCell.forListView(
+                skill -> aiSkillChecksById.get(skill.getId()),
+                new javafx.util.StringConverter<>() {
+                    @Override
+                    public String toString(de.kortty.model.AiSkill skill) {
+                        return ConnectionEditDialog.aiSkillListLabel(skill);
+                    }
+
+                    @Override
+                    public de.kortty.model.AiSkill fromString(String string) {
+                        return null;
+                    }
+                }));
+            grid.add(aiSkillsListView, 1, row++);
+        }
+
         Button resetButton = new Button(I18n.get("quickConnect.resetToDefaults"));
         resetButton.setOnAction(e -> resetToDefaultSettings());
         HBox buttonBox = new HBox(10);
@@ -749,6 +822,123 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         return pane;
     }
     
+    private java.util.List<de.kortty.model.AiSkill> loadConnectionTargetAiSkills() {
+        java.util.List<de.kortty.model.AiSkill> connectionSkills = new java.util.ArrayList<>();
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings != null && settings.getAiSkills() != null) {
+                for (de.kortty.model.AiSkill skill : settings.getAiSkills()) {
+                    if (skill != null && skill.getId() != null) {
+                        connectionSkills.add(skill);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // No global settings available; skill assignment stays hidden.
+        }
+        connectionSkills.sort(java.util.Comparator
+            .comparing((de.kortty.model.AiSkill skill) ->
+                skill.getTarget() != de.kortty.model.AiSkillTarget.CONNECTION)
+            .thenComparing(skill -> skill.getName() != null ? skill.getName() : "", String.CASE_INSENSITIVE_ORDER));
+        return connectionSkills;
+    }
+
+    private java.util.List<de.kortty.model.AiProfile> loadAiProfilesSorted() {
+        java.util.List<de.kortty.model.AiProfile> profiles = new java.util.ArrayList<>();
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings != null && settings.getAiProfiles() != null) {
+                for (de.kortty.model.AiProfile profile : settings.getAiProfiles()) {
+                    if (profile != null && profile.getId() != null && !profile.getId().isBlank()) {
+                        profiles.add(profile);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // No global settings available; profile selection stays hidden.
+        }
+        profiles.sort((left, right) -> {
+            String leftName = left.getName() != null ? left.getName() : "";
+            String rightName = right.getName() != null ? right.getName() : "";
+            return leftName.compareToIgnoreCase(rightName);
+        });
+        return profiles;
+    }
+
+    /** Mirrors the fixed AI profile of a saved connection in the quick-connect combo. */
+    private void syncAiProfileSelection(ServerConnection source) {
+        if (aiProfileCombo == null) {
+            return;
+        }
+        if (aiProfileMissingOption != null) {
+            aiProfileCombo.getItems().remove(aiProfileMissingOption);
+            aiProfileMissingOption = null;
+        }
+        String storedProfileId = source != null ? source.getAiProfileId() : null;
+        if (storedProfileId == null || storedProfileId.isBlank()) {
+            aiProfileCombo.getSelectionModel().select(aiProfileDefaultOption);
+            return;
+        }
+        for (AiProfileOption option : aiProfileCombo.getItems()) {
+            if (storedProfileId.equals(option.profileId())) {
+                aiProfileCombo.getSelectionModel().select(option);
+                return;
+            }
+        }
+        // Keep the stored id so the fixed profile is used again once it is available;
+        // until then the default profile acts as fallback at runtime.
+        aiProfileMissingOption = new AiProfileOption(storedProfileId, I18n.get("connEdit.ai.profile.missing"));
+        aiProfileCombo.getItems().add(aiProfileMissingOption);
+        aiProfileCombo.getSelectionModel().select(aiProfileMissingOption);
+    }
+
+    /** Mirrors the assigned skills of a saved connection in the quick-connect checkboxes. */
+    private void syncAiSkillChecks(ServerConnection source) {
+        if (aiSkillChecksById == null) {
+            return;
+        }
+        java.util.Set<String> assigned = source != null
+            ? new java.util.LinkedHashSet<>(source.getAiSkillIds())
+            : java.util.Set.of();
+        aiSkillChecksById.forEach((skillId, checked) -> checked.set(assigned.contains(skillId)));
+        java.util.List<String> unavailable = new java.util.ArrayList<>(assigned);
+        unavailable.removeAll(aiSkillChecksById.keySet());
+        unavailableAssignedAiSkillIds = unavailable;
+    }
+
+    /**
+     * Applies AI profile and skill assignments to the connection the dialog returns. Only the
+     * runtime copy is touched: stored connections are never modified (and therefore never saved)
+     * by quick connect; persisting happens solely through the explicit "save connection" choice.
+     */
+    private void applyAiAssignments(ServerConnection target) {
+        ServerConnection selected = savedConnectionsCombo != null ? savedConnectionsCombo.getValue() : null;
+        if (target == selected) {
+            // Never mutate the stored connection object from quick connect.
+            return;
+        }
+        if (aiProfileCombo != null) {
+            AiProfileOption option = aiProfileCombo.getValue();
+            target.setAiProfileId(option != null ? option.profileId() : null);
+        } else if (selected != null && target.getAiProfileId() == null) {
+            // No profile selection UI (no profiles configured): inherit from the saved connection.
+            target.setAiProfileId(selected.getAiProfileId());
+        }
+        if (aiSkillChecksById == null || (aiSkillChecksById.isEmpty() && unavailableAssignedAiSkillIds.isEmpty())) {
+            return;
+        }
+        java.util.List<String> selectedSkillIds = new java.util.ArrayList<>();
+        aiSkillChecksById.forEach((skillId, checked) -> {
+            if (checked != null && checked.get()) {
+                selectedSkillIds.add(skillId);
+            }
+        });
+        selectedSkillIds.addAll(unavailableAssignedAiSkillIds);
+        target.setAiSkillIds(selectedSkillIds);
+    }
+
     private VBox createGroupSelectionPane() {
         VBox pane = new VBox(10);
         pane.setPadding(new Insets(15));

@@ -1,5 +1,8 @@
 package de.kortty.ui;
 
+import de.kortty.model.AiProfile;
+import de.kortty.model.AiSkill;
+import de.kortty.model.AiSkillTarget;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ConnectionProtocol;
 
@@ -46,6 +49,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final char[] masterPassword;
     private ComboBox<StoredCredential> savedCredentialsCombo;
     private ComboBox<SSHKey> savedSSHKeysCombo;
+    private ComboBox<AiProfileOption> aiProfileCombo;
+    private java.util.Map<String, javafx.beans.property.BooleanProperty> aiSkillChecksById;
+    private java.util.List<String> unavailableAssignedAiSkillIds = java.util.List.of();
 
     private final TextField nameField;
     private final TextField hostField;
@@ -443,8 +449,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         // Tab 6: Window Geometry
         Tab geometryTab = createGeometryTab();
-        
-        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab, loggingTab, geometryTab);
+
+        // Tab 7: AI profile and connection-scoped skills
+        Tab aiTab = createAiTab();
+
+        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab, loggingTab, geometryTab, aiTab);
         getDialogPane().setContent(tabPane);
         
         // Buttons
@@ -629,6 +638,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     connection.setWindowGeometry(null); // Use global settings
                 }
                 
+                // Save AI profile and connection-scoped skills
+                applyAiSelections();
+
                 // Teamwork connections must not persist inline secrets; only credentialId/sshKeyId
                 if (connection.isTeamworkConnection()) {
                     connection.setEncryptedPassword(null);
@@ -645,6 +657,170 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         });
     }
     
+    /** Combo entry for the per-connection AI profile; profileId == null means "use default". */
+    private record AiProfileOption(String profileId, String label) {
+    }
+
+    private Tab createAiTab() {
+        Tab tab = new Tab(I18n.get("connEdit.tab.ai"));
+        tab.setClosable(false);
+
+        GlobalSettings globalSettings = null;
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            globalSettings = gsm != null ? gsm.getSettings() : null;
+        } catch (Exception e) {
+            logger.debug("Could not load global settings for AI tab: {}", e.getMessage());
+        }
+
+        aiProfileCombo = new ComboBox<>();
+        aiProfileCombo.setPrefWidth(340);
+        aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiProfileOption option) {
+                return option != null ? option.label() : "";
+            }
+
+            @Override
+            public AiProfileOption fromString(String string) {
+                return null;
+            }
+        });
+        AiProfileOption defaultOption = new AiProfileOption(null, I18n.get("connEdit.ai.profile.default"));
+        aiProfileCombo.getItems().add(defaultOption);
+        if (globalSettings != null && globalSettings.getAiProfiles() != null) {
+            globalSettings.getAiProfiles().stream()
+                .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())
+                .sorted((left, right) -> aiProfileLabel(left).compareToIgnoreCase(aiProfileLabel(right)))
+                .forEach(profile -> aiProfileCombo.getItems().add(
+                    new AiProfileOption(profile.getId(), aiProfileLabel(profile))));
+        }
+        String storedProfileId = connection.getAiProfileId();
+        AiProfileOption selection = defaultOption;
+        if (storedProfileId != null && !storedProfileId.isBlank()) {
+            selection = aiProfileCombo.getItems().stream()
+                .filter(option -> storedProfileId.equals(option.profileId()))
+                .findFirst()
+                .orElse(null);
+            if (selection == null) {
+                // Keep the stored id so the fixed profile is used again once it is available;
+                // until then the default profile acts as fallback at runtime.
+                selection = new AiProfileOption(storedProfileId, I18n.get("connEdit.ai.profile.missing"));
+                aiProfileCombo.getItems().add(selection);
+            }
+        }
+        aiProfileCombo.getSelectionModel().select(selection);
+
+        Label profileHint = new Label(I18n.get("connEdit.ai.profile.hint"));
+        profileHint.setWrapText(true);
+        profileHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+
+        java.util.Set<String> assignedSkillIds = new java.util.LinkedHashSet<>(connection.getAiSkillIds());
+        java.util.List<AiSkill> connectionSkills = new java.util.ArrayList<>();
+        if (globalSettings != null && globalSettings.getAiSkills() != null) {
+            for (AiSkill skill : globalSettings.getAiSkills()) {
+                if (skill != null && skill.getId() != null) {
+                    connectionSkills.add(skill);
+                }
+            }
+        }
+        connectionSkills.sort(java.util.Comparator
+            .comparing((AiSkill skill) -> skill.getTarget() != AiSkillTarget.CONNECTION)
+            .thenComparing(ConnectionEditDialog::aiSkillLabel, String.CASE_INSENSITIVE_ORDER));
+
+        aiSkillChecksById = new java.util.LinkedHashMap<>();
+        for (AiSkill skill : connectionSkills) {
+            aiSkillChecksById.put(skill.getId(),
+                new javafx.beans.property.SimpleBooleanProperty(assignedSkillIds.contains(skill.getId())));
+        }
+        java.util.List<String> unavailableIds = new java.util.ArrayList<>(assignedSkillIds);
+        unavailableIds.removeAll(aiSkillChecksById.keySet());
+        unavailableAssignedAiSkillIds = unavailableIds;
+
+        Label skillsHint = new Label(I18n.get("connEdit.ai.skills.hint"));
+        skillsHint.setWrapText(true);
+        skillsHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.getChildren().addAll(
+            new Label(I18n.get("connEdit.ai.profile")),
+            aiProfileCombo,
+            profileHint,
+            new Label(I18n.get("connEdit.ai.skills")),
+            skillsHint);
+        if (connectionSkills.isEmpty()) {
+            Label noSkillsLabel = new Label(I18n.get("connEdit.ai.skills.none"));
+            noSkillsLabel.setWrapText(true);
+            content.getChildren().add(noSkillsLabel);
+        } else {
+            ListView<AiSkill> skillsListView = new ListView<>(
+                javafx.collections.FXCollections.observableArrayList(connectionSkills));
+            skillsListView.setPrefHeight(200);
+            skillsListView.setCellFactory(javafx.scene.control.cell.CheckBoxListCell.forListView(
+                skill -> aiSkillChecksById.get(skill.getId()),
+                new javafx.util.StringConverter<>() {
+                    @Override
+                    public String toString(AiSkill skill) {
+                        return aiSkillListLabel(skill);
+                    }
+
+                    @Override
+                    public AiSkill fromString(String string) {
+                        return null;
+                    }
+                }));
+            VBox.setVgrow(skillsListView, Priority.ALWAYS);
+            content.getChildren().add(skillsListView);
+        }
+
+        tab.setContent(content);
+        return tab;
+    }
+
+    private static String aiProfileLabel(AiProfile profile) {
+        if (profile == null) {
+            return "";
+        }
+        String name = profile.getName();
+        return name != null && !name.isBlank() ? name.trim() : profile.getId();
+    }
+
+    private static String aiSkillLabel(AiSkill skill) {
+        if (skill == null) {
+            return "";
+        }
+        String name = skill.getName();
+        return name != null && !name.isBlank() ? name.trim() : I18n.get("settings.aiSkills.defaultName");
+    }
+
+    static String aiSkillListLabel(AiSkill skill) {
+        if (skill == null) {
+            return "";
+        }
+        AiSkillTarget target = skill.getTarget() != null ? skill.getTarget() : AiSkillTarget.BOTH;
+        String targetLabel = I18n.get("settings.aiSkills.target." + target.name().toLowerCase(java.util.Locale.ROOT));
+        return aiSkillLabel(skill) + " (" + targetLabel + ")";
+    }
+
+    private void applyAiSelections() {
+        AiProfileOption selectedOption = aiProfileCombo != null ? aiProfileCombo.getValue() : null;
+        connection.setAiProfileId(selectedOption != null ? selectedOption.profileId() : null);
+        if (aiSkillChecksById == null) {
+            return;
+        }
+        java.util.List<String> selectedSkillIds = new java.util.ArrayList<>();
+        aiSkillChecksById.forEach((skillId, checked) -> {
+            if (checked != null && checked.get()) {
+                selectedSkillIds.add(skillId);
+            }
+        });
+        // Assignments to skills that are currently not stored (e.g. deleted and re-imported later)
+        // are preserved instead of being dropped silently.
+        selectedSkillIds.addAll(unavailableAssignedAiSkillIds);
+        connection.setAiSkillIds(selectedSkillIds);
+    }
+
     /**
      * Loads the passphrase for the currently selected SSH key into the passphrase field.
      * Tries key manager first, then connection's stored (encrypted) passphrase.

@@ -743,6 +743,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             copy.setTerminalEffectAnimationSpeed(selected.getTerminalEffectAnimationSpeed());
             copy.setTerminalEmulationType(selected.getTerminalEmulationType());
             copy.setGroup(selected.getGroup());
+            copy.setAiProfileId(selected.getAiProfileId());
+            copy.setAiSkillIds(selected.getAiSkillIds());
             
             if (selected.getSettings() != null) {
                 copy.setSettings(new de.kortty.model.ConnectionSettings(selected.getSettings()));

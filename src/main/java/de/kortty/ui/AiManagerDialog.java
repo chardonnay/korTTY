@@ -71,6 +71,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -288,6 +289,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
             defaultProfileId = newValue != null ? ensureProfileId(newValue) : null;
             profileListView.refresh();
+            persistDefaultProfileSelection();
         });
     }
 
@@ -535,7 +537,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         saveButton.disableProperty().bind(profileListView.getSelectionModel().selectedItemProperty().isNull());
         saveButton.setOnAction(event -> saveProfiles());
 
-        HBox actionBar = new HBox(8, addButton, testButton, deleteButton, refreshButton, saveButton);
+        Button aiSkillsButton = new Button(I18n.get("ai.manager.openSkills"));
+        aiSkillsButton.setOnAction(event -> ownerWindow.showAiSkillsSettings());
+
+        HBox actionBar = new HBox(8, addButton, testButton, deleteButton, refreshButton, saveButton, aiSkillsButton);
         actionBar.setAlignment(Pos.CENTER_LEFT);
 
         VBox root = new VBox(10, actionBar, content);
@@ -629,6 +634,39 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             ? app.getGlobalSettingsManager().getSettings()
             : null;
         return settings != null ? settings.getDefaultAiProfileId() : null;
+    }
+
+    private void persistDefaultProfileSelection() {
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        if (settings == null || Objects.equals(settings.getDefaultAiProfileId(), defaultProfileId)) {
+            return;
+        }
+        if (defaultProfileId != null && !isPersistedProfileId(settings, defaultProfileId)) {
+            // A brand-new profile is not in the stored settings yet; the default selection is
+            // persisted together with the profile by the explicit save.
+            return;
+        }
+        settings.setDefaultAiProfileId(defaultProfileId);
+        try {
+            app.getGlobalSettingsManager().save();
+            statusLabel.setText(I18n.get("settings.ai.defaultProfile.saved"));
+        } catch (Exception e) {
+            statusLabel.setText(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+        }
+    }
+
+    private boolean isPersistedProfileId(GlobalSettings settings, String profileId) {
+        if (settings.getAiProfiles() == null) {
+            return false;
+        }
+        for (AiProfile profile : settings.getAiProfiles()) {
+            if (profile != null && profileId.equals(profile.getId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void refreshDefaultProfileSelection(String preferredProfileId) {

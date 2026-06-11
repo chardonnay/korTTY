@@ -464,6 +464,18 @@ public class MainWindow {
         statusLabel.getStyleClass().add("status-label");
         statusBar.setStyle("-fx-padding: 5; -fx-background-color: #2d2d2d;");
         statusLabel.setStyle("-fx-text-fill: #cccccc;");
+
+        // While the menu bar is hidden, a right-click on the status bar offers to restore it.
+        ContextMenu statusBarContextMenu = new ContextMenu();
+        MenuItem statusBarShowMenuBarItem = new MenuItem(I18n.get("menu.view.menuBar"));
+        statusBarShowMenuBarItem.setOnAction(e -> toggleMenuBarVisibility(true));
+        statusBarContextMenu.getItems().add(statusBarShowMenuBarItem);
+        statusBar.setOnContextMenuRequested(e -> {
+            if (menuBar != null && !menuBar.isVisible()) {
+                statusBarContextMenu.show(statusBar, e.getScreenX(), e.getScreenY());
+                e.consume();
+            }
+        });
         
         // HBox for dashboard (fixed width) + tab pane (grows with window)
         mainContentBox.getChildren().add(tabPane);
@@ -686,7 +698,8 @@ public class MainWindow {
         } else {
             root.setTop(menuBar);
         }
-        applyMenuBarVisibility(isMenuBarVisiblePreference());
+        // The menu bar always starts visible; hiding it is session-only and never persisted.
+        applyMenuBarVisibility(true);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
         syncTimestampMenuItems(false);
         applyMainWindowThemeFromGlobalSettings();
@@ -1273,7 +1286,7 @@ public class MainWindow {
 
         CheckMenuItem menuBarItem = new CheckMenuItem(I18n.get("menu.view.menuBar"));
         menuBarItem.setAccelerator(MENU_BAR_TOGGLE_ACCELERATOR);
-        menuBarItem.setSelected(isMenuBarVisiblePreference());
+        menuBarItem.setSelected(menuBar == null || menuBar.isVisible());
         menuBarItem.setOnAction(e -> toggleMenuBarVisibility(menuBarItem.isSelected()));
         if (target == MenuBarTarget.WINDOW) {
             showMenuBarMenuItem = menuBarItem;
@@ -2075,16 +2088,27 @@ public class MainWindow {
     }
     
     private void showSettings() {
-        SettingsDialog dialog = new SettingsDialog(stage, app, app.getConfigManager(), 
+        showSettings(false);
+    }
+
+    /** Opens the settings dialog on the AI Skills tab (reachable from the AI Manager). */
+    void showAiSkillsSettings() {
+        showSettings(true);
+    }
+
+    private void showSettings(boolean selectAiSkillsTab) {
+        SettingsDialog dialog = new SettingsDialog(stage, app, app.getConfigManager(),
                 app.getGlobalSettingsManager().getSettings(),
                 app.getCredentialManager(), app.getGpgKeyManager());
-        
+        if (selectAiSkillsTab) {
+            dialog.selectAiSkillsTab();
+        }
+
         // Add listener to apply settings changes immediately to all open terminals
         dialog.addChangeListener(() -> {
             logger.info("Settings changed, updating all terminal views");
             Platform.runLater(() -> {
                 refreshAppDesignForOpenWindows();
-                applyMenuBarVisibility(isMenuBarVisiblePreference());
                 syncHideFullscreenScrollbarsMenuItems();
                 applyTerminalScrollbarVisibilityForOpenTabs();
                 syncAiFeaturesMenuItemsEnabled();
@@ -2612,11 +2636,6 @@ public class MainWindow {
         }
     }
 
-    private boolean isMenuBarVisiblePreference() {
-        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
-        return globalSettings == null || globalSettings.isShowMenuBar();
-    }
-
     private void applyMenuBarVisibility(boolean visible) {
         if (menuBar == null) {
             return;
@@ -2626,18 +2645,9 @@ public class MainWindow {
         syncMenuBarToggleMenuItems(visible);
     }
 
+    /** Session-only toggle: the hidden state is intentionally never persisted. */
     private void toggleMenuBarVisibility(boolean visible) {
         applyMenuBarVisibility(visible);
-
-        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
-        if (globalSettings != null) {
-            globalSettings.setShowMenuBar(visible);
-            try {
-                app.getGlobalSettingsManager().save();
-            } catch (Exception e) {
-                logger.warn("Could not persist menu bar visibility", e);
-            }
-        }
 
         if (visible) {
             updateStatus(I18n.get("menu.view.menuBar.shown"));
@@ -2682,7 +2692,7 @@ public class MainWindow {
     private void onFileBrowserPositionChanged(LocalFileBrowserManager.Position position) {
         // Lazy-create the file browser and divider when first shown
         if (position != LocalFileBrowserManager.Position.HIDDEN && localFileBrowser == null) {
-            localFileBrowser = new LocalFileBrowser();
+            localFileBrowser = new LocalFileBrowser(this);
             localFileBrowser.setMinWidth(FILE_BROWSER_MIN_WIDTH);
             localFileBrowser.setPrefWidth(FILE_BROWSER_DEFAULT_WIDTH);
             localFileBrowser.setMaxWidth(FILE_BROWSER_MAX_WIDTH);
@@ -3788,7 +3798,9 @@ public class MainWindow {
         if (selectedText == null || selectedText.trim().isEmpty()) {
             return;
         }
-        AiProfile effectiveProfile = profile != null ? profile : getDefaultAiProfile();
+        AiProfile effectiveProfile = profile != null
+            ? profile
+            : resolveAiProfileForConnection(terminalTab != null ? terminalTab.getConnection() : null);
         int maxSelectionChars = getMaxAiSelectionChars(effectiveProfile);
         if (selectedText.length() > maxSelectionChars) {
             showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
@@ -3802,7 +3814,7 @@ public class MainWindow {
             return;
         }
 
-        AiService aiService = createAiService(effectiveProfile);
+        AiService aiService = createAiService(effectiveProfile, terminalTab != null ? terminalTab.getConnection() : null);
         if (aiService == null) {
             showAiConfigurationDialog();
             return;
@@ -3901,6 +3913,10 @@ public class MainWindow {
     }
 
     private AiService createAiService(AiProfile profile) {
+        return createAiService(profile, null);
+    }
+
+    private AiService createAiService(AiProfile profile, ServerConnection connection) {
         if (profile == null) {
             return null;
         }
@@ -3914,7 +3930,9 @@ public class MainWindow {
                 profile,
                 apiKey,
                 buildInternetAccessConfiguration(profile),
-                AiSkillPromptSupport.fromSettings(app.getGlobalSettingsManager().getSettings()));
+                AiSkillPromptSupport.fromSettings(
+                    app.getGlobalSettingsManager().getSettings(),
+                    connection != null ? connection.getAiSkillIds() : null));
         } catch (IllegalStateException e) {
             return new FailingAiService(e.getMessage());
         }
@@ -4429,6 +4447,9 @@ public class MainWindow {
             requestAiPlanningForTab(terminalTab, null, null, runContext));
         terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
             handleTerminalAgentShortcut(terminalTab, rawCommand, runContext));
+        terminalTab.getTerminalView().setMenuBarRestoreHandler(
+            () -> menuBar != null && !menuBar.isVisible(),
+            () -> toggleMenuBarVisibility(true));
     }
 
     private String getAiActionLabel(AiAction action) {
@@ -4897,7 +4918,7 @@ public class MainWindow {
                 ? findAiProfileByLookup(requestedProfileName)
                 : null;
             if (resolvedProfile == null) {
-                resolvedProfile = getDefaultAiProfile();
+                resolvedProfile = resolveAiProfileForConnection(terminalTab.getConnection());
             }
             if (resolvedProfile == null) {
                 showAiManager();
@@ -4921,7 +4942,7 @@ public class MainWindow {
             return;
         }
 
-        List<AiProfile> orderedProfiles = reorderProfilesForLookup(profiles, requestedProfileName);
+        List<AiProfile> orderedProfiles = reorderProfilesForLookup(profiles, requestedProfileName, terminalTab.getConnection());
         AiAgentDialog dialog = new AiAgentDialog(
             stage,
             orderedProfiles,
@@ -4967,7 +4988,7 @@ public class MainWindow {
             showError(I18n.get("ai.plan.title"), I18n.get("settings.ai.error.noProfilesConfigured"));
             return;
         }
-        List<AiProfile> orderedProfiles = reorderProfilesForLookup(profiles, requestedProfileName);
+        List<AiProfile> orderedProfiles = reorderProfilesForLookup(profiles, requestedProfileName, terminalTab.getConnection());
         AiAgentPlanDialog dialog = new AiAgentPlanDialog(
             stage,
             orderedProfiles,
@@ -4983,11 +5004,18 @@ public class MainWindow {
         });
     }
 
-    private List<AiProfile> reorderProfilesForLookup(List<AiProfile> profiles, String requestedProfileName) {
+    private List<AiProfile> reorderProfilesForLookup(
+        List<AiProfile> profiles,
+        String requestedProfileName,
+        ServerConnection connection) {
+        String preferredProfileId = connection != null
+            && AiProfileSelectionSupport.findById(profiles, connection.getAiProfileId()) != null
+            ? connection.getAiProfileId()
+            : getDefaultAiProfileId();
         return AiProfileSelectionSupport.reorderByRequestedOrDefault(
             profiles,
             requestedProfileName,
-            getDefaultAiProfileId());
+            preferredProfileId);
     }
 
     private AiProfile findAiProfileByLookup(String lookup) {
@@ -5008,14 +5036,18 @@ public class MainWindow {
             return;
         }
         logger.info("Launching terminal AI agent with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
-        AiService service = createAiServiceForProfile(profile);
+        AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
         if (!(service instanceof AiPromptService aiService)) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.error.notConfigured"));
             return;
         }
 
         if (request.queryOnly()) {
-            openDirectAiAskTab(profile, request.userPrompt(), request.connectionDisplayName());
+            openDirectAiAskTab(
+                profile,
+                request.userPrompt(),
+                request.connectionDisplayName(),
+                terminalTab != null ? terminalTab.getConnection() : null);
             return;
         }
 
@@ -5038,7 +5070,7 @@ public class MainWindow {
         runTerminalAgentInTerminalWindow(terminalTab, profile, aiService, request, resolvedRunContext);
     }
 
-    private void openDirectAiAskTab(AiProfile profile, String prompt, String connectionDisplayName) {
+    private void openDirectAiAskTab(AiProfile profile, String prompt, String connectionDisplayName, ServerConnection connection) {
         if (prompt == null || prompt.isBlank()) {
             return;
         }
@@ -5056,7 +5088,7 @@ public class MainWindow {
         resultTab.appendUserMessage(prompt);
         insertTemporaryTab(resultTab);
 
-        AiService aiService = createAiServiceForProfile(profile);
+        AiService aiService = createAiServiceForProfile(profile, connection);
         Task<AiExecutionResult> task = new Task<>() {
             @Override
             protected AiExecutionResult call() throws Exception {
@@ -5303,7 +5335,7 @@ public class MainWindow {
             return;
         }
         logger.info("Launching terminal AI planning with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
-        AiService service = createAiServiceForProfile(profile);
+        AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
         if (!(service instanceof AiPromptService aiService)) {
             showError(I18n.get("ai.plan.title"), I18n.get("ai.error.notConfigured"));
             return;
@@ -5445,12 +5477,30 @@ public class MainWindow {
         return AiProfileSelectionSupport.defaultProfile(getAvailableAiProfiles(), getDefaultAiProfileId());
     }
 
+    /**
+     * Resolves the AI profile for a connection: the connection's fixed profile when it is
+     * available, otherwise the default profile (until the fixed profile is available again).
+     */
+    AiProfile resolveAiProfileForConnection(ServerConnection connection) {
+        if (connection != null) {
+            AiProfile fixedProfile = findAiProfileById(connection.getAiProfileId());
+            if (fixedProfile != null) {
+                return fixedProfile;
+            }
+        }
+        return getDefaultAiProfile();
+    }
+
     AiProfile findAiProfileById(String profileId) {
         return AiProfileSelectionSupport.findById(getAvailableAiProfiles(), profileId);
     }
 
     AiService createAiServiceForProfile(AiProfile profile) {
         return createAiService(profile);
+    }
+
+    AiService createAiServiceForProfile(AiProfile profile, ServerConnection connection) {
+        return createAiService(profile, connection);
     }
 
     void recordAiUsageForProfile(AiProfile profile, AiRequest request, AiExecutionResult result) {

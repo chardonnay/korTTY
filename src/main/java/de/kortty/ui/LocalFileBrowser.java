@@ -1,5 +1,12 @@
 package de.kortty.ui;
 
+import de.kortty.core.RemoteTextFileSelectionSupport;
+import de.kortty.core.SnippetLanguageSupport;
+import de.kortty.core.SnippetManager;
+import de.kortty.model.Snippet;
+import de.kortty.model.SnippetCategory;
+import de.kortty.model.SnippetDiagram;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -24,6 +31,7 @@ import javafx.scene.control.TreeView;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import javafx.stage.FileChooser;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -35,12 +43,14 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileOwnerAttributeView;
 import java.nio.file.attribute.GroupPrincipal;
 import java.nio.file.attribute.PosixFileAttributeView;
@@ -56,6 +66,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
  * Compact local file browser panel that can be docked to the left or right side
@@ -72,12 +84,16 @@ public class LocalFileBrowser extends VBox {
     private static final Path UNIX_PASSWD_FILE = Paths.get("/etc/passwd");
     private static final Path UNIX_GROUP_FILE = Paths.get("/etc/group");
 
+    /** Maximum size for files opened as text in the snippet editor. */
+    private static final long MAX_TEXT_FILE_SIZE_BYTES = 10L * 1024 * 1024;
+
     private final Path rootPath;
     private final TreeItem<FileNode> rootItem;
     private final TreeView<FileNode> treeView;
     private final Label statusLabel;
     private final ObservableList<FileNode> selectedItems = FXCollections.observableArrayList();
     private final ArrayList<File> clipboardFiles = new ArrayList<>();
+    private final MainWindow ownerWindow;
 
     private Path currentDirectory;
     private boolean showHiddenFiles = false;
@@ -85,6 +101,11 @@ public class LocalFileBrowser extends VBox {
     private CheckMenuItem showHiddenMenuItem;
 
     public LocalFileBrowser() {
+        this(null);
+    }
+
+    public LocalFileBrowser(MainWindow ownerWindow) {
+        this.ownerWindow = ownerWindow;
         rootPath = Paths.get(System.getProperty("user.home")).toAbsolutePath().normalize();
         currentDirectory = rootPath;
 
@@ -215,6 +236,9 @@ public class LocalFileBrowser extends VBox {
         MenuItem openItem = new MenuItem(I18n.get("filebrowser.context.open"));
         openItem.setOnAction(event -> openSelected());
 
+        MenuItem loadAsTextFileItem = new MenuItem(I18n.get("filebrowser.context.loadAsTextFile"));
+        loadAsTextFileItem.setOnAction(event -> loadSelectedFileAsTextFile());
+
         MenuItem copyItem = new MenuItem(I18n.get("filebrowser.context.copy"));
         copyItem.setOnAction(event -> copySelectedFiles(false));
 
@@ -260,6 +284,7 @@ public class LocalFileBrowser extends VBox {
 
         menu.getItems().addAll(
             openItem,
+            loadAsTextFileItem,
             new SeparatorMenuItem(),
             copyItem,
             cutItem,
@@ -274,6 +299,7 @@ public class LocalFileBrowser extends VBox {
             new SeparatorMenuItem(),
             showHiddenMenuItem,
             selectAllItem);
+        menu.setOnShowing(event -> loadAsTextFileItem.setDisable(getSingleSelectedFile() == null));
         return menu;
     }
 
@@ -305,6 +331,199 @@ public class LocalFileBrowser extends VBox {
                 openFile(node.file());
             }
         }
+    }
+
+    private FileNode getSingleSelectedFile() {
+        if (selectedItems.size() != 1) {
+            return null;
+        }
+        FileNode node = selectedItems.get(0);
+        return node != null && !node.placeholder() && !node.directory() ? node : null;
+    }
+
+    private void loadSelectedFileAsTextFile() {
+        FileNode node = getSingleSelectedFile();
+        if (node == null) {
+            return;
+        }
+        Path filePath = node.file().toPath();
+        if (node.size() > MAX_TEXT_FILE_SIZE_BYTES) {
+            showLoadAsTextAlert(Alert.AlertType.WARNING,
+                I18n.get("filebrowser.loadAsTextFile.tooLarge", MAX_TEXT_FILE_SIZE_BYTES / (1024 * 1024)));
+            return;
+        }
+        Thread loader = new Thread(() -> {
+            try {
+                byte[] bytes = Files.readAllBytes(filePath);
+                String content = RemoteTextFileSelectionSupport.decodeUtf8TextFile(bytes);
+                Platform.runLater(() -> openSnippetFileDialog(filePath, content));
+            } catch (RemoteTextFileSelectionSupport.BinaryOrNonTextFileException e) {
+                Platform.runLater(() -> showLoadAsTextAlert(Alert.AlertType.WARNING,
+                    I18n.get("filebrowser.loadAsTextFile.binary")));
+            } catch (Exception e) {
+                Platform.runLater(() -> showLoadAsTextAlert(Alert.AlertType.ERROR,
+                    I18n.get("sftp.snippetEditor.loadFailed",
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())));
+            }
+        }, "filebrowser-text-loader");
+        loader.setDaemon(true);
+        loader.start();
+    }
+
+    private void showLoadAsTextAlert(Alert.AlertType type, String message) {
+        Alert alert = new Alert(type, message);
+        alert.setTitle(I18n.get("filebrowser.context.loadAsTextFile"));
+        alert.setHeaderText(null);
+        DialogThemeHelper.applyTheme(alert);
+        if (getScene() != null && getScene().getWindow() != null) {
+            alert.initOwner(getScene().getWindow());
+        }
+        alert.showAndWait();
+    }
+
+    private void openSnippetFileDialog(Path filePath, String content) {
+        String fileName = filePath.getFileName() != null ? filePath.getFileName().toString() : filePath.toString();
+        Snippet snippet = new Snippet();
+        snippet.setName(fileName);
+        snippet.setContent(content);
+        snippet.setLanguage(SnippetLanguageSupport.detectFileLanguage(fileName, content));
+        snippet.setCategory("");
+        snippet.setDescription("");
+        snippet.setTagsFromString("");
+
+        SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
+            filePath.toString(),
+            I18n.get("sftp.snippetEditor.overwriteLocal"),
+            I18n.get("sftp.snippetEditor.saveAs"),
+            I18n.get("sftp.snippetEditor.saveSnippet"),
+            I18n.get("sftp.snippetEditor.savedFile"),
+            I18n.get("sftp.snippetEditor.savedFile"),
+            I18n.get("sftp.snippetEditor.savedSnippet"),
+            draft -> overwriteTextFile(filePath, draft),
+            draft -> saveTextFileAs(filePath, draft),
+            this::saveDraftAsSnippet);
+
+        List<String> categoryNames = List.of();
+        SnippetManager snippetManager = getSnippetManager();
+        if (snippetManager != null) {
+            categoryNames = snippetManager.getAllCategories().stream()
+                .map(SnippetCategory::getName)
+                .toList();
+        }
+        SnippetEditDialog.AiAssist aiAssist = SnippetAiAssistFactory.create(ownerWindow);
+        SnippetEditDialog dialog = new SnippetEditDialog(snippet, categoryNames, aiAssist, config);
+        if (getScene() != null && getScene().getWindow() != null) {
+            dialog.initOwner(getScene().getWindow());
+        }
+        dialog.showNonBlocking(null);
+    }
+
+    private SnippetManager getSnippetManager() {
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            return app != null ? app.getSnippetManager() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean overwriteTextFile(Path filePath, Snippet draft) throws IOException {
+        Files.writeString(
+            filePath,
+            draft.getContent(),
+            StandardCharsets.UTF_8,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING);
+        Platform.runLater(this::refresh);
+        return true;
+    }
+
+    private boolean saveTextFileAs(Path sourcePath, Snippet draft) throws Exception {
+        File targetFile = callOnFxThread(() -> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle(I18n.get("sftp.snippetEditor.saveAs"));
+            if (sourcePath.getParent() != null && Files.isDirectory(sourcePath.getParent())) {
+                chooser.setInitialDirectory(sourcePath.getParent().toFile());
+            }
+            if (sourcePath.getFileName() != null) {
+                chooser.setInitialFileName(sourcePath.getFileName().toString());
+            }
+            return chooser.showSaveDialog(getScene() != null ? getScene().getWindow() : null);
+        });
+        if (targetFile == null) {
+            return false;
+        }
+        Path targetPath = targetFile.toPath();
+        if (Files.exists(targetPath) && !confirmTextFileOverwrite(targetPath.toString())) {
+            return false;
+        }
+        Files.writeString(
+            targetPath,
+            draft.getContent(),
+            StandardCharsets.UTF_8,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING);
+        Platform.runLater(this::refresh);
+        return true;
+    }
+
+    private boolean confirmTextFileOverwrite(String targetPath) throws Exception {
+        return callOnFxThread(() -> {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle(I18n.get("sftp.snippetEditor.confirmOverwrite.title"));
+            alert.setHeaderText(I18n.get("sftp.snippetEditor.confirmOverwrite.header"));
+            alert.setContentText(I18n.get("sftp.snippetEditor.confirmOverwrite.content", targetPath));
+            DialogThemeHelper.applyTheme(alert);
+            if (getScene() != null && getScene().getWindow() != null) {
+                alert.initOwner(getScene().getWindow());
+            }
+            return alert.showAndWait().filter(button -> button == ButtonType.OK).isPresent();
+        });
+    }
+
+    private boolean saveDraftAsSnippet(Snippet draft) throws Exception {
+        SnippetManager snippetManager = getSnippetManager();
+        if (snippetManager == null) {
+            throw new IllegalStateException("Snippet manager not initialized");
+        }
+        Snippet snippet = new Snippet();
+        snippet.setName(draft.getName());
+        snippet.setContent(draft.getContent());
+        snippet.setLanguage(draft.getLanguage());
+        snippet.setCategory(draft.getCategory());
+        snippet.setDescription(draft.getDescription());
+        snippet.setTags(new ArrayList<>(draft.getTags()));
+        List<SnippetDiagram> diagramCopies = new ArrayList<>();
+        for (SnippetDiagram diagram : draft.getDiagrams()) {
+            if (diagram != null) {
+                diagramCopies.add(new SnippetDiagram(diagram));
+            }
+        }
+        snippet.setDiagrams(diagramCopies);
+        String categoryName = snippet.getCategory();
+        if (categoryName != null && !categoryName.isBlank()
+            && snippetManager.findCategoryByName(categoryName.trim()).isEmpty()) {
+            snippetManager.addCategory(new SnippetCategory(categoryName.trim()));
+        }
+        snippetManager.addSnippet(snippet);
+        snippetManager.save();
+        return true;
+    }
+
+    private <T> T callOnFxThread(Supplier<T> supplier) throws Exception {
+        if (Platform.isFxApplicationThread()) {
+            return supplier.get();
+        }
+        CompletableFuture<T> future = new CompletableFuture<>();
+        Platform.runLater(() -> {
+            try {
+                future.complete(supplier.get());
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future.get();
     }
 
     private TreeItem<FileNode> createTreeItem(Path path) {
