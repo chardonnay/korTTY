@@ -49,9 +49,62 @@ public final class AiCliProviderRegistry {
         "codex exec read-only stdin",
         CODEX_EXEC_READ_ONLY_STDIN_TEMPLATE);
 
+    // `lms chat <model> -p "<instruction>"` with the real prompt piped on stdin. The `-p` flag
+    // requires a value, so a fixed instruction is passed there and the conversation arrives via
+    // stdin (lms concatenates stdin to the -p value). Empirically verified against lms (the model
+    // is a positional argument; -p alone with no value errors out).
+    private static final String LMS_CHAT_STDIN_TEMPLATE = """
+        chat
+        {model}
+        -p
+        Use the conversation provided on standard input as the complete prompt. Follow its instructions exactly and reply with only the requested answer.
+        {stdinPrompt}
+        """;
+
+    private static final AiCliArgumentPreset LMS_CHAT_STDIN = new AiCliArgumentPreset(
+        "lms chat (stdin)",
+        LMS_CHAT_STDIN_TEMPLATE);
+
+    /** Provider id for the LM Studio CLI; the wizard offers a model picker for it. */
+    public static final String LM_STUDIO_PROVIDER_ID = "lm-studio-cli";
+
+    // Variant without {model}: lms chat uses whatever model is currently loaded in LM Studio at
+    // run time. Used when the user picks "use the currently loaded model".
+    private static final String LMS_CHAT_LOADED_TEMPLATE = """
+        chat
+        -p
+        Use the conversation provided on standard input as the complete prompt. Follow its instructions exactly and reply with only the requested answer.
+        {stdinPrompt}
+        """;
+
+    private static final AiCliArgumentPreset LMS_CHAT_LOADED = new AiCliArgumentPreset(
+        "lms chat (loaded model)",
+        LMS_CHAT_LOADED_TEMPLATE);
+
+    // `mmx text chat --message "<prompt>" --output text ...` — empirically verified against
+    // mmx-cli 1.0.15. The prompt must be the inline --message value (mmx has no raw-stdin form),
+    // so {prompt} is used; --output text suppresses the thinking/CoT block. The model defaults to
+    // MiniMax-M2.7, and auth comes from mmx's own config (mmx auth login / config.json).
+    private static final String MMX_TEXT_CHAT_TEMPLATE = """
+        text
+        chat
+        --message
+        {prompt}
+        --output
+        text
+        --no-color
+        --quiet
+        --non-interactive
+        """;
+
+    private static final AiCliArgumentPreset MMX_TEXT_CHAT = new AiCliArgumentPreset(
+        "mmx text chat",
+        MMX_TEXT_CHAT_TEMPLATE);
+
     private static final List<AiCliProviderDescriptor> PROVIDERS = List.of(
         provider("claude-code", "Claude Code", List.of("claude")),
         provider("codex-cli", "Codex CLI", List.of("codex"), List.of(CODEX_EXEC_READ_ONLY_STDIN)),
+        provider("lm-studio-cli", "LM Studio CLI (lms)", List.of("lms"), List.of(LMS_CHAT_STDIN, LMS_CHAT_LOADED)),
         provider("devin-terminal", "Devin for Terminal", List.of()),
         provider("gemini-cli", "Gemini CLI", List.of("gemini")),
         provider("opencode", "OpenCode", List.of("opencode")),
@@ -66,7 +119,7 @@ public final class AiCliProviderRegistry {
         provider("kilo", "Kilo", List.of()),
         provider("mistral-vibe-cli", "Mistral Vibe CLI", List.of()),
         provider("deepseek-tui", "DeepSeek TUI", List.of()),
-        provider("minimax", "MiniMAX", List.of()));
+        provider("minimax", "MiniMAX", List.of("mmx"), List.of(MMX_TEXT_CHAT)));
 
     private AiCliProviderRegistry() {
     }
@@ -91,6 +144,14 @@ public final class AiCliProviderRegistry {
 
     public static Optional<AiCliArgumentPreset> defaultArgumentPreset(String providerId) {
         return find(providerId).flatMap(provider -> provider.argumentPresets().stream().findFirst());
+    }
+
+    /**
+     * LM Studio CLI argument template. With {@code withModel} the model is pinned via {@code {model}};
+     * otherwise {@code lms chat} uses whatever model is currently loaded at run time.
+     */
+    public static String lmStudioCliArgumentsTemplate(boolean withModel) {
+        return withModel ? LMS_CHAT_STDIN_TEMPLATE : LMS_CHAT_LOADED_TEMPLATE;
     }
 
     public static boolean isDeprecatedDefaultArgumentTemplate(String providerId, String template) {
@@ -155,15 +216,25 @@ public final class AiCliProviderRegistry {
         if (candidate.contains("/") || candidate.contains("\\") || directPath.isAbsolute()) {
             return Files.isExecutable(directPath) ? Optional.of(directPath.toString()) : Optional.empty();
         }
-        String pathEnv = System.getenv("PATH");
-        if (pathEnv == null || pathEnv.isBlank()) {
-            return Optional.empty();
+        // Search the process PATH first, then common install locations. GUI apps launched from the
+        // desktop (especially macOS) often inherit a minimal PATH that omits Homebrew, npm, cargo,
+        // etc., so scanning the well-known directories lets korTTY still locate installed CLIs.
+        Optional<String> onKnownPaths = findInDirectories(candidate, executableSearchDirectories());
+        if (onKnownPaths.isPresent()) {
+            return onKnownPaths;
         }
+        // Fallback for Node.js CLIs (e.g. MiniMax 'mmx', package mmx-cli) installed via `npm -g`
+        // into a non-standard prefix such as an nvm-managed Node version. Resolved once and cached.
+        String npmBinDir = npmGlobalBinDirectory();
+        if (npmBinDir != null) {
+            return findInDirectories(candidate, List.of(npmBinDir));
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> findInDirectories(String candidate, List<String> directories) {
         List<String> extensions = executableExtensions();
-        for (String dir : pathEnv.split(java.io.File.pathSeparator)) {
-            if (dir == null || dir.isBlank()) {
-                continue;
-            }
+        for (String dir : directories) {
             for (String extension : extensions) {
                 Path path = Path.of(dir).resolve(candidate + extension);
                 if (Files.isExecutable(path)) {
@@ -172,6 +243,104 @@ public final class AiCliProviderRegistry {
             }
         }
         return Optional.empty();
+    }
+
+    private static volatile boolean npmBinResolved = false;
+    private static volatile String npmBinDirectory = null;
+
+    /** The npm global bin directory (or null), resolved at most once per run via `npm config get prefix`. */
+    private static String npmGlobalBinDirectory() {
+        if (npmBinResolved) {
+            return npmBinDirectory;
+        }
+        synchronized (AiCliProviderRegistry.class) {
+            if (!npmBinResolved) {
+                npmBinDirectory = resolveNpmGlobalBinDirectory();
+                npmBinResolved = true;
+            }
+            return npmBinDirectory;
+        }
+    }
+
+    private static String resolveNpmGlobalBinDirectory() {
+        // npm itself may not be on the GUI app's minimal PATH, so resolve it from the known dirs.
+        Optional<String> npm = findInDirectories("npm", executableSearchDirectories());
+        if (npm.isEmpty()) {
+            return null;
+        }
+        try {
+            Process process = new ProcessBuilder(npm.get(), "config", "get", "prefix")
+                .redirectErrorStream(false)
+                .start();
+            String output;
+            try (java.io.InputStream in = process.getInputStream()) {
+                output = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+            if (!process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return null;
+            }
+            if (process.exitValue() != 0) {
+                return null;
+            }
+            String prefix = output.lines()
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .reduce((first, second) -> second)
+                .orElse("");
+            if (prefix.isBlank()) {
+                return null;
+            }
+            String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+            // On Windows npm puts shims directly in the prefix; on Unix they live in <prefix>/bin.
+            Path binDir = osName.contains("win") ? Path.of(prefix) : Path.of(prefix).resolve("bin");
+            return Files.isDirectory(binDir) ? binDir.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Ordered, de-duplicated list of directories to search for CLI executables. */
+    private static List<String> executableSearchDirectories() {
+        java.util.LinkedHashSet<String> dirs = new java.util.LinkedHashSet<>();
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv != null && !pathEnv.isBlank()) {
+            for (String dir : pathEnv.split(java.io.File.pathSeparator)) {
+                if (dir != null && !dir.isBlank()) {
+                    dirs.add(dir);
+                }
+            }
+        }
+        String home = System.getProperty("user.home", "");
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (osName.contains("win")) {
+            addIfPresent(dirs, System.getenv("APPDATA"), "npm");
+            addIfPresent(dirs, System.getenv("LOCALAPPDATA"), "Programs");
+            addIfPresent(dirs, home, ".bun\\bin");
+            addIfPresent(dirs, home, ".cargo\\bin");
+            addIfPresent(dirs, home, ".lmstudio\\bin");
+        } else {
+            for (String fixed : List.of(
+                "/opt/homebrew/bin", "/opt/homebrew/sbin",
+                "/usr/local/bin", "/usr/local/sbin",
+                "/usr/bin", "/bin", "/usr/sbin", "/sbin",
+                "/opt/local/bin")) {
+                dirs.add(fixed);
+            }
+            for (String rel : List.of(
+                ".local/bin", "bin", ".npm-global/bin", ".bun/bin",
+                ".cargo/bin", ".deno/bin", "go/bin", ".volta/bin",
+                ".lmstudio/bin")) {
+                addIfPresent(dirs, home, rel);
+            }
+        }
+        return List.copyOf(dirs);
+    }
+
+    private static void addIfPresent(java.util.Set<String> dirs, String base, String child) {
+        if (base != null && !base.isBlank()) {
+            dirs.add(Path.of(base).resolve(child).toString());
+        }
     }
 
     static String normalizeId(String providerId) {

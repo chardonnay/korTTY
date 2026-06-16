@@ -1117,7 +1117,7 @@ tasks.named<JavaExec>("run") {
         "--add-opens=java.base/java.io=ALL-UNNAMED",
         "--add-opens=java.base/java.nio=ALL-UNNAMED",
         // Aktiviere native Zugriffe für JavaFX (verhindert Warnungen über System::load)
-        "--enable-native-access=javafx.graphics,ALL-UNNAMED",
+        "--enable-native-access=javafx.graphics,javafx.media,javafx.web,ALL-UNNAMED",
         // Unterdrücke Warnungen über sun.misc.Unsafe::allocateMemory (von JavaFX intern verwendet)
         // Diese Warnungen kommen von JavaFX's Marlin Renderer und sind harmlos
         "--sun-misc-unsafe-memory-access=allow",

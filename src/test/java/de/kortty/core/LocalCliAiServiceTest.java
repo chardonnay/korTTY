@@ -11,6 +11,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 class LocalCliAiServiceTest {
 
+    private static final String ESC = String.valueOf((char) 27);
+
     @Test
     void executesCliAndReturnsStdout() throws Exception {
         Path script = createScript("cat \"$1\"");
@@ -96,6 +98,27 @@ class LocalCliAiServiceTest {
     }
 
     @Test
+    void substitutesInlinePromptArgument() throws Exception {
+        // Print the value of the second argument (the one after --message).
+        Path script = createScript("printf '%s' \"$2\"");
+        LocalCliAiService service = new LocalCliAiService(
+            "test",
+            script.toString(),
+            "--message\n{prompt}",
+            "custom-model",
+            AiReasoningEffort.DISABLED,
+            AiSkillPromptSupport.disabled(),
+            Duration.ofSeconds(5));
+
+        AiExecutionResult result = service.executePrompt("system", "user");
+
+        assertThat(result.content()).contains("System prompt:");
+        assertThat(result.content()).contains("system");
+        assertThat(result.content()).contains("User prompt:");
+        assertThat(result.content()).contains("user");
+    }
+
+    @Test
     void timesOutLongRunningCli() throws Exception {
         Path script = createScript("sleep 2");
         LocalCliAiService service = new LocalCliAiService(
@@ -114,6 +137,39 @@ class LocalCliAiServiceTest {
             return;
         }
         throw new AssertionError("Expected AI CLI timeout to fail.");
+    }
+
+    @Test
+    void sanitizesAnsiAndThinkBlocksButKeepsNormalBrackets() {
+        String raw = ESC + "[?25h" + ESC + "[K<think>internal reasoning here</think>"
+            + "The answer is data[0] and config[key].\r\n";
+
+        String cleaned = LocalCliAiService.sanitizeCliOutput(raw);
+
+        assertThat(cleaned).isEqualTo("The answer is data[0] and config[key].");
+        assertThat(cleaned).doesNotContain("internal reasoning");
+        assertThat(cleaned).doesNotContain(ESC);
+        assertThat(cleaned).doesNotContain("\r");
+    }
+
+    @Test
+    void sanitizeKeepsPlainTextUnchanged() {
+        assertThat(LocalCliAiService.sanitizeCliOutput("plain answer")).isEqualTo("plain answer");
+        assertThat(LocalCliAiService.sanitizeCliOutput(null)).isEmpty();
+    }
+
+    @Test
+    void sanitizeStripsColorCodesAndThinkBlocksWithAttributes() {
+        // Each color code carries a real ESC prefix; the bare "list[2]" must survive.
+        String raw = ESC + "[31m" + "Error?" + ESC + "[0m" + " no: " + ESC + "[1m" + "fine" + ESC + "[0m"
+            + " <think class=\"r\">hidden chain of thought</think> result = list[2]";
+
+        String cleaned = LocalCliAiService.sanitizeCliOutput(raw);
+
+        assertThat(cleaned).doesNotContain(ESC);
+        assertThat(cleaned).doesNotContain("hidden chain of thought");
+        assertThat(cleaned).contains("list[2]");
+        assertThat(cleaned).contains("Error? no: fine");
     }
 
     private Path createScript(String body) throws Exception {

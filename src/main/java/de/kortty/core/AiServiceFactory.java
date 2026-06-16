@@ -6,6 +6,8 @@ import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
 
+import java.net.URI;
+
 /**
  * Builds the correct AI service implementation for a configured profile.
  */
@@ -85,6 +87,18 @@ public final class AiServiceFactory {
         String apiUrl = trimToNull(profile.getApiUrl());
         if (apiUrl == null) {
             return null;
+        }
+        if (isAnthropicMessagesEndpoint(apiUrl)) {
+            String anthropicModel = trimToNull(profile.getModel());
+            if (anthropicModel == null) {
+                throw new IllegalStateException(MISSING_MODEL_MESSAGE);
+            }
+            return new AnthropicAiService(
+                apiUrl,
+                anthropicModel,
+                apiKey,
+                effectiveReasoningEffort(profile, reasoningEffortOverride),
+                effectiveSkillSupport);
         }
         if (apiUrl.matches("^https?://[^/]+/?$") && !LocalLmModelResolver.isLocalLmStudioBaseUrl(apiUrl)) {
             return null;
@@ -168,6 +182,23 @@ public final class AiServiceFactory {
 
     private static String trimToNull(String value) {
         return value != null && !value.isBlank() ? value.trim() : null;
+    }
+
+    /** True for Anthropic's native Messages API endpoint (handled by {@link AnthropicAiService}). */
+    static boolean isAnthropicMessagesEndpoint(String apiUrl) {
+        if (apiUrl == null) {
+            return false;
+        }
+        String lower = apiUrl.trim().toLowerCase(java.util.Locale.ROOT);
+        try {
+            URI uri = URI.create(lower);
+            String host = uri.getHost();
+            String path = uri.getPath() != null ? uri.getPath() : "";
+            boolean anthropicHost = host != null && (host.equals("api.anthropic.com") || host.endsWith(".anthropic.com"));
+            return (anthropicHost && path.contains("/v1/messages")) || path.endsWith("/v1/messages");
+        } catch (Exception e) {
+            return lower.contains("anthropic.com") && lower.contains("/v1/messages");
+        }
     }
 
     private static String normalizeOpenAiCompatibleChatCompletionsUrl(String apiUrl) {

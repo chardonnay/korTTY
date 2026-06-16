@@ -15,6 +15,8 @@ public final class AiCliArgumentTemplate {
     public static final String SYSTEM_PROMPT_FILE = "{systemPromptFile}";
     public static final String USER_PROMPT_FILE = "{userPromptFile}";
     public static final String STDIN_PROMPT = "{stdinPrompt}";
+    /** Inline prompt text substituted directly as one argument (e.g. MiniMax `--message {prompt}`). */
+    public static final String PROMPT = "{prompt}";
 
     private final String source;
     private final List<String> arguments;
@@ -42,7 +44,8 @@ public final class AiCliArgumentTemplate {
         return source.contains(PROMPT_FILE)
             || source.contains(SYSTEM_PROMPT_FILE)
             || source.contains(USER_PROMPT_FILE)
-            || source.contains(STDIN_PROMPT);
+            || source.contains(STDIN_PROMPT)
+            || source.contains(PROMPT);
     }
 
     public boolean containsModelPlaceholder() {

@@ -60,6 +60,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.SVGPath;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -520,27 +521,37 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         Button addButton = new Button(I18n.get("settings.ai.profile.add"));
         addButton.setOnAction(event -> addProfile());
+        applyButtonIcon(addButton, ICON_ADD);
 
         Button testButton = new Button(I18n.get("settings.ai.testConnection"));
         testButton.disableProperty().bind(
                 profileListView.getSelectionModel().selectedItemProperty().isNull().or(profileTestRunning));
         testButton.setOnAction(event -> testSelectedProfile());
+        applyButtonIcon(testButton, ICON_TEST);
 
         Button deleteButton = new Button(I18n.get("ai.manager.delete"));
         deleteButton.disableProperty().bind(profileListView.getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelectedProfile());
+        applyButtonIcon(deleteButton, ICON_DELETE);
 
         Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
         refreshButton.setOnAction(event -> refreshAll());
+        applyButtonIcon(refreshButton, ICON_REFRESH);
 
         Button saveButton = new Button(I18n.get("settings.save"));
         saveButton.disableProperty().bind(profileListView.getSelectionModel().selectedItemProperty().isNull());
         saveButton.setOnAction(event -> saveProfiles());
+        applyButtonIcon(saveButton, ICON_SAVE);
 
         Button aiSkillsButton = new Button(I18n.get("ai.manager.openSkills"));
         aiSkillsButton.setOnAction(event -> ownerWindow.showAiSkillsSettings());
+        applyButtonIcon(aiSkillsButton, ICON_SKILLS);
 
-        HBox actionBar = new HBox(8, addButton, testButton, deleteButton, refreshButton, saveButton, aiSkillsButton);
+        Button wizardButton = new Button(I18n.get("ai.wizard.button"));
+        wizardButton.setOnAction(event -> openProfileWizard());
+        applyButtonIcon(wizardButton, ICON_WIZARD);
+
+        HBox actionBar = new HBox(8, wizardButton, addButton, testButton, deleteButton, refreshButton, saveButton, aiSkillsButton);
         actionBar.setAlignment(Pos.CENTER_LEFT);
 
         VBox root = new VBox(10, actionBar, content);
@@ -555,12 +566,16 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private Tab buildSavedChatsTab() {
         Button openButton = new Button(I18n.get("ai.manager.open"));
         openButton.setOnAction(event -> openSelectedChat());
+        applyButtonIcon(openButton, ICON_OPEN);
         Button renameButton = new Button(I18n.get("ai.manager.rename"));
         renameButton.setOnAction(event -> renameSelectedChat());
+        applyButtonIcon(renameButton, ICON_RENAME);
         Button deleteButton = new Button(I18n.get("ai.manager.delete"));
         deleteButton.setOnAction(event -> deleteSelectedChat());
+        applyButtonIcon(deleteButton, ICON_DELETE);
         Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
         refreshButton.setOnAction(event -> refreshChats());
+        applyButtonIcon(refreshButton, ICON_REFRESH);
 
         openButton.disableProperty().bind(chatTable.getSelectionModel().selectedItemProperty().isNull());
         renameButton.disableProperty().bind(chatTable.getSelectionModel().selectedItemProperty().isNull());
@@ -749,6 +764,53 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         if (ownerWindow.deleteSavedAiChat(selectedChat)) {
             refreshChats();
         }
+    }
+
+    // Inline SVG glyphs (24x24) for the action-bar buttons; filled with the theme text color.
+    private static final String ICON_WIZARD = "M12 2 L14 9 L21 11 L14 13 L12 20 L10 13 L3 11 L10 9 Z";
+    private static final String ICON_ADD = "M11 5 H13 V11 H19 V13 H13 V19 H11 V13 H5 V11 H11 Z";
+    private static final String ICON_TEST = "M13 2 L4 14 H10 L9 22 L20 10 H13 Z";
+    private static final String ICON_DELETE = "M7 8 H17 L16 21 H8 Z M9 4 H15 L16 6 H19 V8 H5 V6 H8 Z";
+    private static final String ICON_REFRESH =
+        "M17.65 6.35 C16.2 4.9 14.21 4 12 4 C7.58 4 4 7.58 4 12 C4 16.42 7.58 20 12 20 "
+        + "C15.73 20 18.84 17.45 19.73 14 H17.65 C16.83 16.33 14.61 18 12 18 C8.69 18 6 15.31 6 12 "
+        + "C6 8.69 8.69 6 12 6 C13.66 6 15.14 6.69 16.22 7.78 L13 11 H20 V4 Z";
+    private static final String ICON_SAVE = "M4 4 H17 L20 7 V20 H4 Z M7 4 H15 V10 H7 Z M8 13 H16 V20 H8 Z";
+    private static final String ICON_SKILLS =
+        "M9 21 H15 V22 H9 Z M8 18 H16 V20 H8 Z M12 2 C8.13 2 5 5.13 5 9 C5 11.38 6.19 13.47 8 14.74 "
+        + "V17 H16 V14.74 C17.81 13.47 19 11.38 19 9 C19 5.13 15.87 2 12 2 Z";
+    private static final String ICON_OPEN = "M4 4 H20 V16 H8 L4 20 Z";
+    private static final String ICON_RENAME =
+        "M3 17.25 V21 H6.75 L17.81 9.94 L14.06 6.19 Z "
+        + "M20.71 7.04 C21.1 6.65 21.1 6.02 20.71 5.63 L18.37 3.29 C17.98 2.9 17.35 2.9 16.96 3.29 "
+        + "L15.13 5.12 L18.88 8.87 Z";
+
+    private static void applyButtonIcon(Button button, String svgPathData) {
+        SVGPath icon = new SVGPath();
+        icon.setContent(svgPathData);
+        // Match the button text color (terminal.css .button) so icons stay visible on the dark theme.
+        icon.setStyle("-fx-fill: #cccccc;");
+        icon.setScaleX(0.6);
+        icon.setScaleY(0.6);
+        button.setGraphic(icon);
+        button.setGraphicTextGap(6);
+    }
+
+    private void openProfileWizard() {
+        AiProfileWizardDialog wizard = new AiProfileWizardDialog(ownerWindow);
+        wizard.initOwner(ownerWindow.getStage());
+        wizard.showAndWait().ifPresent(created -> {
+            refreshProfiles();
+            String createdId = created.getId();
+            if (createdId != null) {
+                for (AiProfile profile : profiles) {
+                    if (createdId.equals(profile.getId())) {
+                        profileListView.getSelectionModel().select(profile);
+                        break;
+                    }
+                }
+            }
+        });
     }
 
     private void addProfile() {

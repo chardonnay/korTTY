@@ -127,7 +127,7 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             if (result.exitCode() != 0) {
                 throw new IllegalStateException(buildExitMessage(result));
             }
-            return new AiExecutionResult(result.stdout().strip(), null);
+            return new AiExecutionResult(sanitizeCliOutput(result.stdout()), null);
         } finally {
             deleteRecursively(tempDir);
         }
@@ -144,7 +144,8 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             AiCliArgumentTemplate.REASONING, reasoningEffort.isApiEnabled() ? reasoningEffort.apiValue() : "",
             AiCliArgumentTemplate.PROMPT_FILE, promptFile.toString(),
             AiCliArgumentTemplate.SYSTEM_PROMPT_FILE, systemPromptFile.toString(),
-            AiCliArgumentTemplate.USER_PROMPT_FILE, userPromptFile.toString());
+            AiCliArgumentTemplate.USER_PROMPT_FILE, userPromptFile.toString(),
+            AiCliArgumentTemplate.PROMPT, combinedPrompt);
         AiCliArgumentTemplate.ExpandedArguments expanded = template.expandForExecution(values);
         List<String> command = new ArrayList<>();
         command.add(executable);
@@ -203,6 +204,29 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
                 output.write(stdin.getBytes(StandardCharsets.UTF_8));
             }
         }
+    }
+
+    /**
+     * Cleans captured CLI stdout for use as the assistant answer. Some CLIs (notably LM Studio's
+     * {@code lms chat} with reasoning models) emit ANSI control sequences, stray carriage returns,
+     * and {@code <think>...</think>} reasoning blocks that must not leak into the final text or the
+     * JSON the terminal agent parses.
+     */
+    static String sanitizeCliOutput(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String cleaned = raw
+            // Reasoning blocks emitted by some local models (e.g. gpt-oss via lms);
+            // tolerate attributes/whitespace such as <think type="...">.
+            .replaceAll("(?is)<think\\b[^>]*>.*?</think\\s*>", "")
+            // ANSI CSI sequences (cursor moves, erase-line, show/hide cursor, colors).
+            .replaceAll("\\[[0-9;?]*[ -/]*[@-~]", "")
+            // ANSI OSC sequences terminated by BEL.
+            .replaceAll("\\][^]*", "")
+            // Stray carriage returns used for in-place progress rendering.
+            .replace("\r", "");
+        return cleaned.strip();
     }
 
     private static String buildCombinedPrompt(String systemPrompt, String userPrompt) {

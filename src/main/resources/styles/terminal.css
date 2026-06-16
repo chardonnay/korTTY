@@ -344,6 +344,54 @@
     -fx-font-weight: bold;
 }
 
+/* AI profile setup wizard */
+.ai-wizard-scroll,
+.ai-wizard-scroll .viewport {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.ai-wizard-card {
+    -fx-background-color: #252b33;
+    -fx-border-color: #3a424d;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 12 14 12 14;
+}
+
+.ai-wizard-card:hover {
+    -fx-border-color: #4a90d9;
+}
+
+.ai-wizard-card:selected {
+    -fx-background-color: #2c3a4a;
+    -fx-border-color: #4a90d9;
+}
+
+.ai-wizard-card .ai-wizard-card-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: #e6e6e6;
+    -fx-font-size: 13px;
+}
+
+.ai-wizard-card .ai-wizard-card-desc {
+    -fx-text-fill: #a8b0ba;
+    -fx-font-size: 12px;
+}
+
+.ai-wizard-flow-chip {
+    -fx-background-color: #2c3a4a;
+    -fx-background-radius: 10;
+    -fx-padding: 3 9 3 9;
+    -fx-text-fill: #cfd6df;
+    -fx-font-size: 11px;
+}
+
+.ai-wizard-flow-arrow {
+    -fx-text-fill: #6b7682;
+    -fx-font-size: 12px;
+}
+
 .ai-agent-toggle-button {
     -fx-background-color: transparent;
     -fx-border-color: #2f6870;

@@ -45,6 +45,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     
     // Individual connection tab
     private ComboBox<ServerConnection> savedConnectionsCombo;
+    private TextField savedConnectionsSearchField;
     private ComboBox<AiProfileOption> aiProfileCombo;
     private AiProfileOption aiProfileDefaultOption;
     private AiProfileOption aiProfileMissingOption;
@@ -522,16 +523,25 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         if (savedConnections != null && !savedConnections.isEmpty()) {
             savedConnectionsCombo.getItems().addAll(savedConnections);
         }
-        
-        // When a saved connection is selected, fill in the fields
-        savedConnectionsCombo.setOnAction(e -> {
-            ServerConnection selected = savedConnectionsCombo.getValue();
-            if (selected != null) {
-                fillFormWithConnection(selected);
-                syncAiSkillChecks(selected);
-                syncAiProfileSelection(selected);
+
+        // Search field to filter the saved connections (supports '*' wildcards).
+        savedConnectionsSearchField = new TextField();
+        savedConnectionsSearchField.setPromptText(I18n.get("quickConnect.searchSaved"));
+        savedConnectionsSearchField.setPrefWidth(400);
+        savedConnectionsSearchField.textProperty().addListener((obs, oldVal, newVal) -> filterSavedConnections(newVal));
+        // ENTER in the search field loads the first (top) match immediately.
+        savedConnectionsSearchField.setOnAction(e -> {
+            java.util.List<ServerConnection> matches = savedConnectionsCombo.getItems();
+            if (!matches.isEmpty()) {
+                ServerConnection first = matches.get(0);
+                savedConnectionsCombo.setValue(first);
+                applySavedConnection(first);
+                savedConnectionsCombo.hide();
             }
         });
+
+        // When a saved connection is selected, fill in the fields
+        savedConnectionsCombo.setOnAction(e -> applySavedConnection(savedConnectionsCombo.getValue()));
         
         // Layout
         GridPane grid = new GridPane();
@@ -815,7 +825,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         // Add to pane
         if (savedConnections != null && !savedConnections.isEmpty()) {
             Label savedLabel = new Label(I18n.get("quickConnect.savedConnections"));
-            pane.getChildren().addAll(savedLabel, savedConnectionsCombo, new Separator());
+            pane.getChildren().addAll(savedLabel, savedConnectionsSearchField, savedConnectionsCombo, new Separator());
         }
         pane.getChildren().add(grid);
         
@@ -937,6 +947,79 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         });
         selectedSkillIds.addAll(unavailableAssignedAiSkillIds);
         target.setAiSkillIds(selectedSkillIds);
+    }
+
+    /**
+     * Filters the saved-connections dropdown by name, host, username or {@code user@host}. When the
+     * query contains '*' it is treated as an anchored glob (e.g. {@code prod*}, {@code *db*});
+     * otherwise it is a case-insensitive substring match. Matching mirrors the Connection Manager.
+     */
+    private void filterSavedConnections(String query) {
+        if (savedConnectionsCombo == null || savedConnections == null) {
+            return;
+        }
+        ServerConnection selected = savedConnectionsCombo.getValue();
+        String text = query != null ? query.trim() : "";
+        List<ServerConnection> filtered;
+        if (text.isEmpty()) {
+            filtered = new java.util.ArrayList<>(savedConnections);
+        } else {
+            java.util.function.Predicate<String> matcher = buildSavedConnectionMatcher(text);
+            filtered = savedConnections.stream()
+                .filter(connection -> matcher.test(connection.getName())
+                    || matcher.test(connection.getHost())
+                    || matcher.test(connection.getUsername())
+                    || matcher.test(savedConnectionLabel(connection)))
+                .collect(java.util.stream.Collectors.toList());
+        }
+        savedConnectionsCombo.getItems().setAll(filtered);
+        if (selected != null && filtered.contains(selected)) {
+            savedConnectionsCombo.setValue(selected);
+        }
+        // Live feedback: reveal the matching entries in the dropdown as the user types.
+        // Open it once when matches first appear; the popup's list is bound to the items,
+        // so it keeps updating live without re-opening (which would flicker on each keystroke).
+        if (!text.isEmpty() && !filtered.isEmpty()) {
+            if (!savedConnectionsCombo.isShowing()) {
+                savedConnectionsCombo.show();
+            }
+        } else {
+            savedConnectionsCombo.hide();
+        }
+    }
+
+    /** Loads the given saved connection into the form (shared by the dropdown and the search field). */
+    private void applySavedConnection(ServerConnection selected) {
+        if (selected != null) {
+            fillFormWithConnection(selected);
+            syncAiSkillChecks(selected);
+            syncAiProfileSelection(selected);
+        }
+    }
+
+    private static String savedConnectionLabel(ServerConnection connection) {
+        return (connection.getUsername() != null ? connection.getUsername() : "")
+            + "@" + (connection.getHost() != null ? connection.getHost() : "");
+    }
+
+    // Package-private for unit testing of the glob / case-insensitive matching behaviour.
+    static java.util.function.Predicate<String> buildSavedConnectionMatcher(String query) {
+        if (query.contains("*")) {
+            String regex = query
+                .replace("\\", "\\\\").replace(".", "\\.").replace("+", "\\+").replace("?", "\\?")
+                .replace("^", "\\^").replace("$", "\\$").replace("|", "\\|")
+                .replace("(", "\\(").replace(")", "\\)").replace("[", "\\[").replace("]", "\\]")
+                .replace("{", "\\{").replace("}", "\\}").replace("*", ".*");
+            try {
+                java.util.regex.Pattern pattern =
+                    java.util.regex.Pattern.compile(regex, java.util.regex.Pattern.CASE_INSENSITIVE);
+                return value -> value != null && pattern.matcher(value).matches();
+            } catch (java.util.regex.PatternSyntaxException ignored) {
+                // fall through to substring matching
+            }
+        }
+        String lower = query.toLowerCase(java.util.Locale.ROOT);
+        return value -> value != null && value.toLowerCase(java.util.Locale.ROOT).contains(lower);
     }
 
     private VBox createGroupSelectionPane() {

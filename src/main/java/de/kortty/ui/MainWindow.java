@@ -1336,9 +1336,13 @@ public class MainWindow {
         resetZoom.setAccelerator(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.ALT_DOWN));
         resetZoom.setOnAction(e -> resetTerminalZoom());
 
-        Menu terminalEffectMenu = createTerminalEffectMenu(null);
+        // The animation-speed slider is a CustomMenuItem; macOS refuses to render a native system
+        // menu bar that contains one, so it is omitted from the SYSTEM menu bar (it stays available
+        // in the in-window menu bar and the terminal context menu).
+        boolean includeEffectSpeedControl = target != MenuBarTarget.SYSTEM;
+        Menu terminalEffectMenu = createTerminalEffectMenu(null, includeEffectSpeedControl);
         terminalEffectMenu.setOnShowing(event ->
-                rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab()));
+                rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
@@ -1372,12 +1376,20 @@ public class MainWindow {
     }
 
     private Menu createTerminalEffectMenu(TerminalTab terminalTab) {
+        return createTerminalEffectMenu(terminalTab, true);
+    }
+
+    private Menu createTerminalEffectMenu(TerminalTab terminalTab, boolean includeSpeedControl) {
         Menu menu = new Menu(I18n.get("plugin.terminalEffect"));
-        rebuildTerminalEffectMenu(menu, terminalTab);
+        rebuildTerminalEffectMenu(menu, terminalTab, includeSpeedControl);
         return menu;
     }
 
     private void rebuildTerminalEffectMenu(Menu menu, TerminalTab terminalTab) {
+        rebuildTerminalEffectMenu(menu, terminalTab, true);
+    }
+
+    private void rebuildTerminalEffectMenu(Menu menu, TerminalTab terminalTab, boolean includeSpeedControl) {
         menu.getItems().clear();
         if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
             menu.setDisable(true);
@@ -1421,8 +1433,10 @@ public class MainWindow {
             });
             menu.getItems().add(pluginItem);
         }
-        menu.getItems().add(new SeparatorMenuItem());
-        menu.getItems().add(createTerminalEffectAnimationSpeedMenuItem(terminalTab, activePluginId != null));
+        if (includeSpeedControl) {
+            menu.getItems().add(new SeparatorMenuItem());
+            menu.getItems().add(createTerminalEffectAnimationSpeedMenuItem(terminalTab, activePluginId != null));
+        }
         menu.setDisable(false);
     }
 
@@ -4909,8 +4923,7 @@ public class MainWindow {
         }
         List<AiProfile> profiles = getAvailableAiProfiles();
         if (profiles.isEmpty()) {
-            showAiManager();
-            showError(I18n.get(queryOnly ? "ai.agent.ask.title" : "ai.agent.title"), I18n.get("settings.ai.error.noProfilesConfigured"));
+            suggestAiWizard(I18n.get(queryOnly ? "ai.agent.ask.title" : "ai.agent.title"));
             return;
         }
         if (!shouldShowTerminalAgentRunDialog() && initialPrompt != null && !initialPrompt.isBlank()) {
@@ -4984,8 +4997,7 @@ public class MainWindow {
         }
         List<AiProfile> profiles = getAvailableAiProfiles();
         if (profiles.isEmpty()) {
-            showAiManager();
-            showError(I18n.get("ai.plan.title"), I18n.get("settings.ai.error.noProfilesConfigured"));
+            suggestAiWizard(I18n.get("ai.plan.title"));
             return;
         }
         List<AiProfile> orderedProfiles = reorderProfilesForLookup(profiles, requestedProfileName, terminalTab.getConnection());
@@ -5038,7 +5050,7 @@ public class MainWindow {
         logger.info("Launching terminal AI agent with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
         AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
         if (!(service instanceof AiPromptService aiService)) {
-            showError(I18n.get("ai.agent.title"), I18n.get("ai.error.notConfigured"));
+            suggestAiWizard(I18n.get("ai.agent.title"));
             return;
         }
 
@@ -5337,7 +5349,7 @@ public class MainWindow {
         logger.info("Launching terminal AI planning with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
         AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
         if (!(service instanceof AiPromptService aiService)) {
-            showError(I18n.get("ai.plan.title"), I18n.get("ai.error.notConfigured"));
+            suggestAiWizard(I18n.get("ai.plan.title"));
             return;
         }
 
@@ -6005,6 +6017,39 @@ public class MainWindow {
         } catch (Exception e) {
             logger.error("Failed to open AI Manager", e);
             showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private void showAiWizard() {
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
+        try {
+            AiProfileWizardDialog dialog = new AiProfileWizardDialog(this);
+            dialog.initOwner(stage);
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to open AI setup wizard", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /**
+     * Offers the beginner setup wizard when no usable AI profile is available. Falls back to no
+     * action when the user dismisses the prompt.
+     */
+    private void suggestAiWizard(String contextTitle) {
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
+        ButtonType start = new ButtonType(I18n.get("ai.wizard.suggest.start"), ButtonBar.ButtonData.OK_DONE);
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, I18n.get("ai.wizard.suggest.message"), start, ButtonType.CANCEL);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(contextTitle != null ? contextTitle : I18n.get("ai.wizard.suggest.title"));
+        alert.setHeaderText(null);
+        alert.initOwner(stage);
+        if (alert.showAndWait().orElse(ButtonType.CANCEL) == start) {
+            showAiWizard();
         }
     }
     
