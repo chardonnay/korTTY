@@ -5164,11 +5164,23 @@ public class MainWindow {
             true,
             cancelRun,
             activityPanel::toggleThinkingDetails);
+        String localUser = System.getProperty("user.name");
+        ServerConnection runConnection = resolvedRunContext.connector() != null
+            ? resolvedRunContext.connector().getConnection()
+            : null;
+        if (runConnection == null) {
+            runConnection = terminalTab.getConnection();
+        }
+        String sshUser = runConnection != null ? runConnection.getUsername() : null;
+        String connectionName = runConnection != null ? runConnection.getDisplayName() : null;
         AiAgentActivityPanel.RunMetadata runMetadata = new AiAgentActivityPanel.RunMetadata(
             profile.getId(),
             profile.getName(),
             aiModelDisplayText(profile),
-            AiReasoningSupport.exportStatus(profile));
+            AiReasoningSupport.exportStatus(profile),
+            localUser,
+            sshUser,
+            connectionName);
         Platform.runLater(() -> {
             activityPanel.beginRun(scopedRequest.userPrompt(), cancelRun, reloadRun, runMetadata);
         });

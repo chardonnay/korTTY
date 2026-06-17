@@ -41,6 +41,31 @@ class AiAgentActivityPanelSizingTest {
     }
 
     @Test
+    void computeWorkSecondsExcludesPausedTime() {
+        // No start yet, or now before start → 0.
+        assertThat(AiAgentActivityPanel.computeWorkSeconds(0L, 5_000L, 0L, -1L)).isEqualTo(0L);
+        // 10s elapsed, nothing paused → 10s.
+        assertThat(AiAgentActivityPanel.computeWorkSeconds(1_000L, 11_000L, 0L, -1L)).isEqualTo(10L);
+        // 10s elapsed, 4s already paused → 6s.
+        assertThat(AiAgentActivityPanel.computeWorkSeconds(1_000L, 11_000L, 4_000L, -1L)).isEqualTo(6L);
+        // 10s elapsed, a pause started 3s ago and still open → 7s (frozen while paused).
+        assertThat(AiAgentActivityPanel.computeWorkSeconds(1_000L, 11_000L, 0L, 8_000L)).isEqualTo(7L);
+        // Accumulated 2s plus an ongoing 3s pause → 10 - 5 = 5s.
+        assertThat(AiAgentActivityPanel.computeWorkSeconds(1_000L, 11_000L, 2_000L, 8_000L)).isEqualTo(5L);
+        // Pause longer than elapsed never goes negative.
+        assertThat(AiAgentActivityPanel.computeWorkSeconds(1_000L, 11_000L, 50_000L, -1L)).isEqualTo(0L);
+    }
+
+    @Test
+    void formatsWorkTimeAsMinutesAndHours() {
+        assertThat(AiAgentActivityPanel.formatWorkTime(0L)).isEqualTo("0:00");
+        assertThat(AiAgentActivityPanel.formatWorkTime(5L)).isEqualTo("0:05");
+        assertThat(AiAgentActivityPanel.formatWorkTime(83L)).isEqualTo("1:23");
+        assertThat(AiAgentActivityPanel.formatWorkTime(3_723L)).isEqualTo("1:02:03");
+        assertThat(AiAgentActivityPanel.formatWorkTime(-5L)).isEqualTo("0:00");
+    }
+
+    @Test
     void formatsHeaderBusyTextWithFallbacks() {
         assertThat(AiAgentActivityPanel.formatHeaderBusyText(" laeuft ", " 4s ")).isEqualTo("laeuft - 4s");
         assertThat(AiAgentActivityPanel.formatHeaderBusyText("", "")).isEqualTo("running - 0s");

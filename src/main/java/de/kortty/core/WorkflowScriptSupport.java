@@ -1,0 +1,505 @@
+package de.kortty.core;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Pure, UI-free logic for turning a finished terminal-agent run into a single, self-contained,
+ * independently runnable script (Bash/Python/Perl/Ruby/PowerShell) or Ansible playbook.
+ *
+ * <p>All methods here are deterministic so they can be unit-tested without the JavaFX toolkit.
+ * It builds the system/user prompts, the per-language error-handling idioms, strips markdown code
+ * fences from the model output and injects a deterministic header as a safety net.
+ */
+public final class WorkflowScriptSupport {
+
+    private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final int MAX_HEADER_REQUEST_CHARS = 200;
+    private static final int HEADER_DETECTION_WINDOW = 1500;
+
+    private WorkflowScriptSupport() {
+    }
+
+    /** The supported target languages. Ansible is declarative YAML, not a shebang script. */
+    public enum ScriptLanguage {
+        BASH("bash", "Bash", ".sh", "#!/usr/bin/env bash", false),
+        PYTHON("python", "Python", ".py", "#!/usr/bin/env python3", false),
+        PERL("perl", "Perl", ".pl", "#!/usr/bin/env perl", false),
+        RUBY("ruby", "Ruby", ".rb", "#!/usr/bin/env ruby", false),
+        POWERSHELL("powershell", "PowerShell", ".ps1", "#!/usr/bin/env pwsh", false),
+        ANSIBLE("yaml", "Ansible-Playbook", ".yml", null, true);
+
+        private final String snippetLanguage;
+        private final String displayName;
+        private final String fileExtension;
+        private final String shebang;
+        private final boolean declarative;
+
+        ScriptLanguage(String snippetLanguage, String displayName, String fileExtension,
+                       String shebang, boolean declarative) {
+            this.snippetLanguage = snippetLanguage;
+            this.displayName = displayName;
+            this.fileExtension = fileExtension;
+            this.shebang = shebang;
+            this.declarative = declarative;
+        }
+
+        public String snippetLanguage() {
+            return snippetLanguage;
+        }
+
+        public String displayName() {
+            return displayName;
+        }
+
+        public String fileExtension() {
+            return fileExtension;
+        }
+
+        /** Shebang line for script languages; {@code null} for declarative Ansible playbooks. */
+        public String shebang() {
+            return shebang;
+        }
+
+        public boolean isDeclarative() {
+            return declarative;
+        }
+
+        /** Line-comment prefix; all six targets use {@code #}. */
+        public String commentPrefix() {
+            return "#";
+        }
+
+        public static ScriptLanguage fromId(String id) {
+            if (id == null) {
+                return BASH;
+            }
+            return switch (id.trim().toLowerCase(Locale.ROOT)) {
+                case "python", "py", "python3" -> PYTHON;
+                case "perl", "pl" -> PERL;
+                case "ruby", "rb" -> RUBY;
+                case "powershell", "pwsh", "ps1", "ps" -> POWERSHELL;
+                case "ansible", "ansible-playbook", "ansible_yaml", "yaml", "yml", "playbook" -> ANSIBLE;
+                default -> BASH;
+            };
+        }
+    }
+
+    /**
+     * Script-generation hardening features. The first group is always-on (pre-checked); the last
+     * four are opt-in toggles. Each maps to one bullet in the system prompt (Ansible-specific
+     * phrasing where the imperative idea differs).
+     */
+    public enum HardeningOption {
+        STRICT_MODE,
+        ERROR_TRAP_CLEANUP,
+        MEANINGFUL_EXIT_CODES,
+        LOGGING_VERBOSE,
+        CONFIG_BLOCK,
+        END_SUMMARY,
+        STYLE_GUIDE_CLEAN,
+        PRECONDITION_CHECKS,
+        IDEMPOTENCY,
+        SAFE_MODE,
+        HELP_USAGE;
+
+        /** Options enabled by default (all of them: always-on group + the four opt-in toggles). */
+        public static EnumSet<HardeningOption> defaults() {
+            return EnumSet.allOf(HardeningOption.class);
+        }
+
+        /** Always-on hardening that only documents/hardens without changing runtime behaviour. */
+        public static EnumSet<HardeningOption> alwaysOn() {
+            return EnumSet.of(STRICT_MODE, ERROR_TRAP_CLEANUP, MEANINGFUL_EXIT_CODES, LOGGING_VERBOSE,
+                CONFIG_BLOCK, END_SUMMARY, STYLE_GUIDE_CLEAN);
+        }
+
+        /** Opt-in options that change control flow or add interactivity/checks. */
+        public boolean isOptIn() {
+            return this == PRECONDITION_CHECKS || this == IDEMPOTENCY || this == SAFE_MODE || this == HELP_USAGE;
+        }
+    }
+
+    /** Authoritative header facts injected verbatim so the model cannot hallucinate them. */
+    public record HeaderFacts(String scriptName, String creatorUser, String sshUser,
+                              String connectionName, LocalDateTime generatedAt,
+                              String sourcePrompt, String aiProfileName) {
+    }
+
+    /** Compacted, token-budgeted reproduction context (built by {@link WorkflowContextBuilder}). */
+    public record WorkflowContext(String markdown, boolean truncated, int includedActions, int totalActions) {
+    }
+
+    // ------------------------------------------------------------------ prompt assembly
+
+    public static String buildSystemPrompt(ScriptLanguage lang, EnumSet<HardeningOption> opts) {
+        return buildSystemPrompt(lang, opts, false);
+    }
+
+    /**
+     * @param customHeader when true, the model is told NOT to add a header block (the caller prepends
+     *                     a user-defined header template instead of the deterministic auto-header).
+     */
+    public static String buildSystemPrompt(ScriptLanguage lang, EnumSet<HardeningOption> opts, boolean customHeader) {
+        EnumSet<HardeningOption> options = opts != null ? opts : HardeningOption.defaults();
+        String artefact = lang.isDeclarative() ? "Ansible playbook" : (lang.displayName() + " script");
+        String unit = lang.isDeclarative() ? "playbook" : "script";
+        StringBuilder sb = new StringBuilder();
+        sb.append("You are a senior ").append(lang.displayName()).append(" engineer.\n");
+        sb.append("Produce EXACTLY ONE self-contained, independently runnable ").append(artefact)
+            .append(" that reproduces the work described in the user message.\n\n");
+        sb.append("HARD REQUIREMENTS:\n");
+        sb.append("- Output ONLY the ").append(unit)
+            .append(". No prose, no explanations, no markdown code fences (never emit ``` lines).\n");
+        if (lang.isDeclarative()) {
+            sb.append("- Begin the file with '---'. It must be valid YAML, runnable with: ansible-playbook <file>.\n");
+        } else {
+            sb.append("- The first line MUST be the shebang: ").append(lang.shebang()).append("\n");
+        }
+        sb.append("- The ").append(unit).append(" must run standalone with no external project files.\n");
+        sb.append("- Comment richly: a header doc block, then a comment before each logical step explaining its intent.\n");
+        sb.append("- Robust error handling: never abort hard without a clear, actionable message")
+            .append(lang.isDeclarative()
+                ? " (failing tasks must carry descriptive messages).\n"
+                : " and a non-zero exit code.\n");
+        if (customHeader) {
+            sb.append("- Do NOT add a header/title comment block; a header will be prepended automatically.\n");
+        } else {
+            sb.append("- Include a header comment block with EXACTLY these fields, taken verbatim from the values in the"
+                + " user message: script name, author/creator, date/time, and the originating request.\n");
+        }
+        sb.append("- Do NOT invent secrets, hostnames, or credentials; use clearly-commented variables/placeholders.\n");
+        sb.append("\n").append(lang.displayName().toUpperCase(Locale.ROOT)).append(" IDIOMS:\n")
+            .append(languageIdioms(lang)).append("\n");
+        String rules = optionRules(lang, options);
+        if (!rules.isBlank()) {
+            sb.append("\nADDITIONAL REQUIREMENTS:\n").append(rules).append("\n");
+        }
+        return sb.toString().strip();
+    }
+
+    public static String buildUserPrompt(ScriptLanguage lang, HeaderFacts facts, WorkflowContext ctx,
+                                         EnumSet<HardeningOption> opts, String extraInstructions) {
+        return buildUserPrompt(lang, facts, ctx, opts, extraInstructions, false);
+    }
+
+    /**
+     * @param customHeader when true, a user-defined header is prepended separately, so the model is
+     *                     told NOT to emit a header and the header-facts block is omitted (the
+     *                     originating request is still provided as context).
+     */
+    public static String buildUserPrompt(ScriptLanguage lang, HeaderFacts facts, WorkflowContext ctx,
+                                         EnumSet<HardeningOption> opts, String extraInstructions, boolean customHeader) {
+        String artefact = lang.isDeclarative() ? "Ansible playbook" : (lang.displayName() + " script");
+        StringBuilder sb = new StringBuilder();
+        sb.append("Generate the ").append(artefact).append(" now.\n\n");
+        if (customHeader) {
+            sb.append("Do NOT emit any header/title comment block — a header is added separately.\n");
+            sb.append("Originating request (for context only): ").append(nz(facts.sourcePrompt())).append("\n\n");
+        } else {
+            sb.append("HEADER FACTS — use these EXACTLY in the header comment; do not alter or invent them:\n");
+            sb.append("- Script name: ").append(nz(facts.scriptName())).append("\n");
+            sb.append("- Creator: ").append(nz(facts.creatorUser())).append(" (local user)\n");
+            if (notBlank(facts.sshUser()) || notBlank(facts.connectionName())) {
+                sb.append("- Executed as: ").append(nz(facts.sshUser())).append("@").append(nz(facts.connectionName())).append("\n");
+            }
+            sb.append("- Date/time: ").append(TIMESTAMP.format(facts.generatedAt())).append("\n");
+            sb.append("- Generated by: KorTTY AI (").append(nz(facts.aiProfileName())).append(")\n");
+            sb.append("- Originating request: ").append(nz(facts.sourcePrompt())).append("\n\n");
+        }
+        sb.append("TARGET LANGUAGE: ").append(lang.displayName()).append("\n\n");
+        if (notBlank(extraInstructions)) {
+            sb.append("ADDITIONAL USER INSTRUCTIONS:\n").append(extraInstructions.strip()).append("\n\n");
+        }
+        sb.append("WORK TO REPRODUCE (executed commands and outcomes from the agent run):\n");
+        sb.append(ctx != null ? ctx.markdown() : "").append("\n");
+        if (ctx != null && ctx.truncated()) {
+            sb.append("\n(Note: the run was long; only the first ").append(ctx.includedActions())
+                .append(" of ").append(ctx.totalActions())
+                .append(" actions are shown in full — infer the remaining steps reasonably.)\n");
+        }
+        return sb.toString().strip();
+    }
+
+    /** Per-language strict-mode / error-handling idioms required by the generated artefact. */
+    public static String languageIdioms(ScriptLanguage lang) {
+        return switch (lang) {
+            case BASH -> String.join("\n",
+                "- Start the body with: set -euo pipefail",
+                "- Set IFS=$'\\n\\t'.",
+                "- Install an ERR trap that reports the failing line number and command, plus an EXIT trap for cleanup.",
+                "- Quote ALL variable expansions (\"$var\").",
+                "- Verify every required external command exists with: command -v <cmd>.",
+                "- Use functions; send diagnostics to stderr; return meaningful non-zero exit codes.");
+            case PYTHON -> String.join("\n",
+                "- Put the logic in a main() function and guard with: if __name__ == \"__main__\": sys.exit(main()).",
+                "- Use the logging module (to stderr) for diagnostics instead of bare print.",
+                "- Wrap risky operations in try/except, catch specific exceptions, and exit via sys.exit(code).",
+                "- Never let an unhandled traceback be the only error message.",
+                "- When shelling out use subprocess with check=True and handle CalledProcessError.");
+            case PERL -> String.join("\n",
+                "- Begin with: use strict; use warnings;  (add use autodie; where it helps).",
+                "- Wrap risky calls in eval { ... }; and inspect $@ for errors.",
+                "- Use die/warn with descriptive context; set explicit exit() codes.",
+                "- Check the return value of system()/open() calls.");
+            case RUBY -> String.join("\n",
+                "- Wrap the main flow in begin/rescue => e/ensure; rescue specific error classes.",
+                "- Send diagnostics to STDERR; use abort(msg) or exit(code) with meaningful codes.",
+                "- Verify the success of system() calls and external commands.");
+            case POWERSHELL -> String.join("\n",
+                "- Start with: Set-StrictMode -Version Latest  and  $ErrorActionPreference = 'Stop'.",
+                "- Use [CmdletBinding()] and a param() block for inputs.",
+                "- Wrap risky work in try/catch/finally and use throw for fatal errors (optionally a trap block).",
+                "- After native commands, check $LASTEXITCODE; exit with meaningful codes.",
+                "- Write diagnostics with Write-Error/Write-Verbose, not only Write-Host.");
+            case ANSIBLE -> String.join("\n",
+                "- A single self-contained playbook in valid YAML, runnable with: ansible-playbook <file>.",
+                "- Begin the file with '---'.",
+                "- Use block/rescue/always for error handling; use assert and failed_when to validate state.",
+                "- Prefer idempotent modules (apt, copy, template, service, ...) over command/shell; "
+                    + "when using command/shell add creates/removes.",
+                "- Set any_errors_fatal where appropriate; define a vars: section for all literals.",
+                "- Every task needs a descriptive 'name:'; the playbook must be re-runnable without side effects.");
+        };
+    }
+
+    private static String optionRules(ScriptLanguage lang, EnumSet<HardeningOption> opts) {
+        boolean ansible = lang.isDeclarative();
+        List<String> rules = new ArrayList<>();
+        if (opts.contains(HardeningOption.STRICT_MODE)) {
+            rules.add(ansible
+                ? "- Validate prerequisites with assert/failed_when so bad state fails the play immediately."
+                : "- Enable the language's strict / abort-on-error mode.");
+        }
+        if (opts.contains(HardeningOption.ERROR_TRAP_CLEANUP)) {
+            rules.add(ansible
+                ? "- Use block/rescue/always so failures are caught and cleanup always runs."
+                : "- Add an error trap / finally / ensure block that reports failures and cleans up temporary state.");
+        }
+        if (opts.contains(HardeningOption.MEANINGFUL_EXIT_CODES)) {
+            rules.add(ansible
+                ? "- Make failing tasks stop the play with a clear message (any_errors_fatal where sensible)."
+                : "- Use distinct, documented non-zero exit codes for distinct failure classes.");
+        }
+        if (opts.contains(HardeningOption.LOGGING_VERBOSE)) {
+            rules.add(ansible
+                ? "- Use the debug module for progress output (visible with -v)."
+                : "- Emit timestamped log messages to stderr and support a --verbose/-v flag.");
+        }
+        if (opts.contains(HardeningOption.CONFIG_BLOCK)) {
+            rules.add(ansible
+                ? "- Hoist all literals (paths, hosts, packages) into a vars: block at the top."
+                : "- Hoist all literals (paths, hosts, packages) into a clearly commented configuration block near the top.");
+        }
+        if (opts.contains(HardeningOption.END_SUMMARY)) {
+            rules.add(ansible
+                ? "- End with a debug summary of what changed."
+                : "- Print a final summary of what was done (with success/failure counts).");
+        }
+        if (opts.contains(HardeningOption.STYLE_GUIDE_CLEAN)) {
+            rules.add(ansible
+                ? "- Follow ansible-lint conventions and use fully-qualified module names."
+                : "- Follow the language style guide and keep it linter-clean (e.g. ShellCheck for bash).");
+        }
+        if (opts.contains(HardeningOption.PRECONDITION_CHECKS)) {
+            rules.add(ansible
+                ? "- Add pre_tasks/assert checks for required privileges, packages and connectivity before any change."
+                : "- Before doing work, verify required commands, privileges (root/sudo) and connectivity.");
+        }
+        if (opts.contains(HardeningOption.IDEMPOTENCY)) {
+            rules.add(ansible
+                ? "- Ensure the playbook is fully idempotent (safe to re-run; rely on module idempotency and creates/removes)."
+                : "- Detect already-completed steps and skip them so the script is safe to re-run.");
+        }
+        if (opts.contains(HardeningOption.SAFE_MODE)) {
+            rules.add(ansible
+                ? "- Support check mode (--check) and guard destructive tasks so a dry run makes no changes."
+                : "- Support a --dry-run flag that prints intended actions without executing, and confirm before "
+                    + "destructive operations (suppressible with --yes).");
+        }
+        if (opts.contains(HardeningOption.HELP_USAGE)) {
+            rules.add(ansible
+                ? "- Document all variables and how to override them via --extra-vars at the top of the file."
+                : "- Provide a --help/usage message and parse command-line arguments for the configurable values.");
+        }
+        return String.join("\n", rules);
+    }
+
+    // ------------------------------------------------------------------ output post-processing
+
+    /**
+     * Removes a wrapping markdown code fence (```lang … ```), if present, and normalizes line
+     * endings to LF. When the model appends prose after the closing fence, that closing fence line
+     * and everything after it is dropped, so the returned text is just the script body.
+     */
+    public static String stripCodeFences(String aiOutput) {
+        if (aiOutput == null) {
+            return "";
+        }
+        String text = aiOutput.replace("\r\n", "\n").replace("\r", "\n").strip();
+        if (!text.startsWith("```")) {
+            return text;
+        }
+        int firstNewline = text.indexOf('\n');
+        if (firstNewline < 0) {
+            return text;
+        }
+        String firstLine = text.substring(0, firstNewline).strip();
+        if (!firstLine.matches("```[A-Za-z0-9_+-]*")) {
+            return text;
+        }
+        String body = text.substring(firstNewline + 1);
+        StringBuilder kept = new StringBuilder();
+        for (String line : body.split("\n", -1)) {
+            if (line.strip().equals("```")) {
+                break; // closing fence reached — drop it and any trailing prose
+            }
+            kept.append(line).append("\n");
+        }
+        return kept.toString().strip();
+    }
+
+    /**
+     * Guarantees the required header (name/author/date) is present. If the model already produced
+     * one (date + creator visible near the top) the script is returned unchanged; otherwise a
+     * deterministic header comment block is injected right after the shebang / {@code ---} line.
+     */
+    public static String ensureHeaderInjected(String script, ScriptLanguage lang, HeaderFacts facts) {
+        String content = script == null ? "" : script.stripTrailing();
+        if (headerPresent(content, facts)) {
+            return content;
+        }
+        String header = buildHeaderComment(lang, facts);
+        int nl = content.indexOf('\n');
+        String firstLine = nl >= 0 ? content.substring(0, nl) : content;
+        String rest = nl >= 0 ? content.substring(nl + 1) : "";
+        if (lang.isDeclarative()) {
+            if (firstLine.strip().equals("---")) {
+                return firstLine + "\n" + header + "\n" + rest;
+            }
+            return "---\n" + header + "\n" + content;
+        }
+        if (firstLine.startsWith("#!")) {
+            return firstLine + "\n" + header + "\n" + rest;
+        }
+        String shebang = lang.shebang();
+        if (shebang != null) {
+            return shebang + "\n" + header + "\n" + content;
+        }
+        return header + "\n" + content;
+    }
+
+    /**
+     * Prepends a user-defined header template (already variable-substituted) after the shebang /
+     * {@code ---} line, replacing the auto-generated header. A blank header leaves the script as-is.
+     */
+    public static String injectHeaderOverride(String script, ScriptLanguage lang, String headerText) {
+        String content = script == null ? "" : script.stripTrailing();
+        String header = headerText == null ? "" : headerText.strip();
+        if (header.isEmpty()) {
+            return content;
+        }
+        int nl = content.indexOf('\n');
+        String firstLine = nl >= 0 ? content.substring(0, nl) : content;
+        String rest = nl >= 0 ? content.substring(nl + 1) : "";
+        if (lang.isDeclarative()) {
+            if (firstLine.strip().equals("---")) {
+                return firstLine + "\n" + header + "\n" + rest;
+            }
+            return "---\n" + header + "\n" + content;
+        }
+        if (firstLine.startsWith("#!")) {
+            return firstLine + "\n" + header + "\n" + rest;
+        }
+        String shebang = lang.shebang();
+        if (shebang != null) {
+            return shebang + "\n" + header + "\n" + content;
+        }
+        return header + "\n" + content;
+    }
+
+    /**
+     * Detects an already-present header. To avoid false positives (the creator/date also occur in
+     * ordinary commands such as {@code /home/<user>} paths or {@code user@host} targets), both the
+     * creator and the date must appear on comment lines near the top. When in doubt we return false
+     * so the deterministic header is injected — a duplicate header is far less harmful than none.
+     */
+    private static boolean headerPresent(String content, HeaderFacts facts) {
+        if (content == null || content.isBlank()) {
+            return false;
+        }
+        String creator = facts.creatorUser();
+        if (creator == null || creator.strip().length() < 2) {
+            return false;
+        }
+        String date = DATE.format(facts.generatedAt());
+        String head = content.length() > HEADER_DETECTION_WINDOW
+            ? content.substring(0, HEADER_DETECTION_WINDOW)
+            : content;
+        boolean creatorOnComment = false;
+        boolean dateOnComment = false;
+        for (String rawLine : head.split("\n", -1)) {
+            String line = rawLine.strip();
+            if (!line.startsWith("#")) {
+                continue;
+            }
+            if (line.contains(creator)) {
+                creatorOnComment = true;
+            }
+            if (line.contains(date)) {
+                dateOnComment = true;
+            }
+        }
+        return creatorOnComment && dateOnComment;
+    }
+
+    private static String buildHeaderComment(ScriptLanguage lang, HeaderFacts facts) {
+        String p = lang.commentPrefix();
+        String bar = p + " " + "=".repeat(60);
+        StringBuilder sb = new StringBuilder();
+        sb.append(bar).append("\n");
+        sb.append(p).append(" Script:  ").append(nz(facts.scriptName())).append("\n");
+        String author = nz(facts.creatorUser());
+        if (notBlank(facts.sshUser()) || notBlank(facts.connectionName())) {
+            author += " (local) — executed as " + nz(facts.sshUser()) + "@" + nz(facts.connectionName());
+        }
+        sb.append(p).append(" Author:  ").append(author).append("\n");
+        sb.append(p).append(" Created: ").append(TIMESTAMP.format(facts.generatedAt())).append("\n");
+        sb.append(p).append(" Source:  Generated by KorTTY AI (").append(nz(facts.aiProfileName())).append(")\n");
+        String request = nz(facts.sourcePrompt()).replaceAll("\\s+", " ");
+        if (request.length() > MAX_HEADER_REQUEST_CHARS) {
+            request = request.substring(0, MAX_HEADER_REQUEST_CHARS) + "…";
+        }
+        sb.append(p).append(" Request: ").append(request).append("\n");
+        sb.append(bar);
+        return sb.toString();
+    }
+
+    /** Builds a filesystem-friendly default script name from the originating request (underscores only). */
+    public static String defaultScriptName(String sourcePrompt, ScriptLanguage lang) {
+        String base = sourcePrompt == null ? "" : sourcePrompt.strip().toLowerCase(Locale.ROOT);
+        base = base.replaceAll("[^a-z0-9]+", "_").replaceAll("^_+", "").replaceAll("_+$", "");
+        if (base.length() > 40) {
+            base = base.substring(0, 40).replaceAll("_+$", "");
+        }
+        if (base.isBlank()) {
+            base = "workflow_script";
+        }
+        return base + lang.fileExtension();
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    private static String nz(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static boolean notBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+}

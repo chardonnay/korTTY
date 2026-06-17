@@ -198,26 +198,46 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 cd.getValue().getCategory() != null ? cd.getValue().getCategory() : ""));
         catCol.setPrefWidth(100);
         catCol.setMaxWidth(130);
-        
+
+        TableColumn<Snippet, String> osCol = new TableColumn<>(I18n.get("snippets.operatingSystem"));
+        osCol.setCellValueFactory(cd -> new SimpleStringProperty(
+                cd.getValue().getOperatingSystem() != null ? cd.getValue().getOperatingSystem() : ""));
+        osCol.setPrefWidth(95);
+        osCol.setMaxWidth(130);
+        osCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                Snippet rowSnippet = getTableRow() != null ? getTableRow().getItem() : null;
+                if (empty || rowSnippet == null) {
+                    setText(null);
+                    setContextMenu(null);
+                } else {
+                    setText(item != null ? item : "");
+                    setContextMenu(buildOperatingSystemCellMenu(rowSnippet));
+                }
+            }
+        });
+
         TableColumn<Snippet, Number> usedCol = new TableColumn<>(I18n.get("snippets.usageCount"));
         usedCol.setCellValueFactory(cd -> new SimpleIntegerProperty(cd.getValue().getUsageCount()));
         usedCol.setPrefWidth(55);
         usedCol.setMaxWidth(65);
         usedCol.setStyle("-fx-alignment: CENTER-RIGHT;");
-        
-        snippetTable.getColumns().addAll(java.util.List.of(favCol, nameCol, langCol, catCol, tagsCol, usedCol));
+
+        snippetTable.getColumns().addAll(java.util.List.of(favCol, nameCol, langCol, catCol, osCol, tagsCol, usedCol));
         installSnippetTableTooltipColumns(nameCol, langCol, catCol, tagsCol);
         snippetTable.setContextMenu(createTableContextMenu());
         
         // Data binding with search filter
-        snippetList = FXCollections.observableArrayList(snippetManager.getAllSnippets());
+        snippetList = FXCollections.observableArrayList(sortedSnippets());
         filteredList = new FilteredList<>(snippetList, s -> true);
         
-        // Default sort: favorites first, then by usage count desc
-        SortedList<Snippet> sortedList = new SortedList<>(filteredList, (a, b) -> {
-            if (a.isFavorite() != b.isFavorite()) return a.isFavorite() ? -1 : 1;
-            return Integer.compare(b.getUsageCount(), a.getUsageCount());
-        });
+        // Columns are sortable (ascending/descending) by clicking the header. The SortedList's
+        // comparator is bound to the table, so a header sort wins; when no column sort is active it
+        // falls back to the snippetList order (pre-sorted favorites-first, usage desc in refreshTable).
+        SortedList<Snippet> sortedList = new SortedList<>(filteredList);
+        sortedList.comparatorProperty().bind(snippetTable.comparatorProperty());
         snippetTable.setItems(sortedList);
 
         snippetTable.setRowFactory(tv -> {
@@ -1971,7 +1991,87 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
     
     private void refreshTable() {
-        snippetList.setAll(snippetManager.getAllSnippets());
+        snippetList.setAll(sortedSnippets());
+    }
+
+    /** Snippets in the default order (favorites first, then usage desc); column header clicks override this. */
+    private List<Snippet> sortedSnippets() {
+        List<Snippet> all = new ArrayList<>(snippetManager.getAllSnippets());
+        all.sort((a, b) -> {
+            if (a.isFavorite() != b.isFavorite()) {
+                return a.isFavorite() ? -1 : 1;
+            }
+            return Integer.compare(b.getUsageCount(), a.getUsageCount());
+        });
+        return all;
+    }
+
+    /** Right-click menu for an OS cell: pick an OS for the snippet, clear it, or edit the OS list. */
+    private ContextMenu buildOperatingSystemCellMenu(Snippet snippet) {
+        ContextMenu menu = new ContextMenu();
+        for (String os : snippetManager.getOperatingSystems()) {
+            MenuItem item = new MenuItem(os);
+            item.setOnAction(e -> {
+                snippet.setOperatingSystem(os);
+                snippetManager.updateSnippet(snippet);
+                saveAndRefresh();
+            });
+            menu.getItems().add(item);
+        }
+        MenuItem none = new MenuItem(I18n.get("snippets.os.none"));
+        none.setOnAction(e -> {
+            snippet.setOperatingSystem(null);
+            snippetManager.updateSnippet(snippet);
+            saveAndRefresh();
+        });
+        menu.getItems().addAll(new SeparatorMenuItem(), none, new SeparatorMenuItem());
+        MenuItem edit = new MenuItem(I18n.get("snippets.manageOperatingSystems"));
+        edit.setOnAction(e -> showManageOperatingSystemsDialog());
+        menu.getItems().add(edit);
+        return menu;
+    }
+
+    /** Small dialog to add/remove the operating systems offered in the System column. */
+    private void showManageOperatingSystemsDialog() {
+        Dialog<Void> dialog = new ThemeAwareDialog<>();
+        dialog.initOwner(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null);
+        dialog.setTitle(I18n.get("snippets.os.manage.title"));
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        ListView<String> list = new ListView<>(FXCollections.observableArrayList(snippetManager.getOperatingSystems()));
+        list.setPrefHeight(180);
+        TextField addField = new TextField();
+        addField.setPromptText(I18n.get("snippets.os.manage.prompt"));
+        Button addButton = new Button(I18n.get("snippets.os.manage.add"));
+        Runnable addAction = () -> {
+            String value = addField.getText() != null ? addField.getText().trim() : "";
+            if (!value.isEmpty()) {
+                snippetManager.addOperatingSystem(value);
+                saveQuietly();
+                list.setItems(FXCollections.observableArrayList(snippetManager.getOperatingSystems()));
+                addField.clear();
+                refreshTable();
+            }
+        };
+        addButton.setOnAction(e -> addAction.run());
+        addField.setOnAction(e -> addAction.run());
+        Button removeButton = new Button(I18n.get("snippets.os.manage.remove"));
+        removeButton.setOnAction(e -> {
+            String selected = list.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                snippetManager.removeOperatingSystem(selected);
+                saveQuietly();
+                list.setItems(FXCollections.observableArrayList(snippetManager.getOperatingSystems()));
+                refreshTable();
+            }
+        });
+        HBox addRow = new HBox(6, addField, addButton);
+        HBox.setHgrow(addField, Priority.ALWAYS);
+        VBox content = new VBox(8, list, addRow, removeButton);
+        content.setPadding(new Insets(12));
+        dialog.getDialogPane().setContent(content);
+        dialog.setResultConverter(b -> null);
+        dialog.showAndWait();
     }
     
     private void refreshCategoryFilter() {

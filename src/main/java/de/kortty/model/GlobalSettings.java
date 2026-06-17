@@ -442,6 +442,15 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
 
+    /** Last window geometry of the Generate Workflow Script dialog. */
+    @XmlElement
+    private WindowGeometry workflowScriptDialogGeometry;
+
+    /** Per-language default "Script-Header" snippet for the Generate Workflow Script dialog. */
+    @XmlElementWrapper(name = "workflowHeaderDefaults")
+    @XmlElement(name = "headerDefault")
+    private java.util.List<WorkflowHeaderDefault> workflowHeaderDefaults = new java.util.ArrayList<>();
+
     /** Last window geometry of the JobScheduler dialog. */
     @XmlElement
     private WindowGeometry jobSchedulerDialogGeometry;
@@ -1735,6 +1744,47 @@ public class GlobalSettings {
     public WindowGeometry getAlternativeSnippetSolutionsDialogGeometry() { return alternativeSnippetSolutionsDialogGeometry; }
     public void setAlternativeSnippetSolutionsDialogGeometry(WindowGeometry alternativeSnippetSolutionsDialogGeometry) {
         this.alternativeSnippetSolutionsDialogGeometry = alternativeSnippetSolutionsDialogGeometry;
+    }
+
+    public WindowGeometry getWorkflowScriptDialogGeometry() { return workflowScriptDialogGeometry; }
+    public void setWorkflowScriptDialogGeometry(WindowGeometry workflowScriptDialogGeometry) {
+        this.workflowScriptDialogGeometry = workflowScriptDialogGeometry;
+    }
+
+    public java.util.List<WorkflowHeaderDefault> getWorkflowHeaderDefaults() {
+        if (workflowHeaderDefaults == null) {
+            workflowHeaderDefaults = new java.util.ArrayList<>();
+        }
+        return workflowHeaderDefaults;
+    }
+
+    public void setWorkflowHeaderDefaults(java.util.List<WorkflowHeaderDefault> workflowHeaderDefaults) {
+        this.workflowHeaderDefaults = workflowHeaderDefaults != null ? workflowHeaderDefaults : new java.util.ArrayList<>();
+    }
+
+    /** Header-snippet id configured as default for the given language ({@code ScriptLanguage.name()}), or null. */
+    public String getWorkflowHeaderDefault(String language) {
+        if (language == null) {
+            return null;
+        }
+        for (WorkflowHeaderDefault entry : getWorkflowHeaderDefaults()) {
+            if (language.equals(entry.getLanguage())) {
+                return entry.getHeaderSnippetId();
+            }
+        }
+        return null;
+    }
+
+    /** Sets (or, when headerSnippetId is null, clears) the default header snippet for a language. */
+    public void setWorkflowHeaderDefault(String language, String headerSnippetId) {
+        if (language == null) {
+            return;
+        }
+        java.util.List<WorkflowHeaderDefault> list = getWorkflowHeaderDefaults();
+        list.removeIf(entry -> language.equals(entry.getLanguage()));
+        if (headerSnippetId != null && !headerSnippetId.isBlank()) {
+            list.add(new WorkflowHeaderDefault(language, headerSnippetId));
+        }
     }
 
     public WindowGeometry getJobSchedulerDialogGeometry() { return jobSchedulerDialogGeometry; }

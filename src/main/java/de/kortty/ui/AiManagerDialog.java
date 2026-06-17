@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiCliArgumentPreset;
@@ -82,6 +84,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
+    private static final Logger logger = LoggerFactory.getLogger(AiManagerDialog.class);
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
     private static final String AI_MODEL_DEFAULT_LABEL = I18n.get("ai.model.default");
     private static final String AI_MODEL_AUTO_LABEL = I18n.get("ai.model.auto");
@@ -194,6 +197,19 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         getDialogPane().setContent(root);
         getDialogPane().setPrefSize(980, 640);
         getDialogPane().setMinSize(760, 480);
+
+        // Persist pending profile edits (model, URL, …) when the dialog is closed, so changes are
+        // saved even when the user does not click the explicit "Save" button. saveProfiles() is
+        // silent on success and only surfaces genuine save failures (missing name, locked vault).
+        setOnHidden(event -> {
+            try {
+                if (app != null && app.getGlobalSettingsManager() != null) {
+                    saveProfiles(true); // quiet: no modal alerts while the dialog is closing
+                }
+            } catch (Exception ignored) {
+                // Best-effort persistence on close.
+            }
+        });
 
         refreshAll();
     }
@@ -1456,6 +1472,15 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private boolean saveProfiles() {
+        return saveProfiles(false);
+    }
+
+    /**
+     * Persists all profiles. When {@code quiet} (close-time autosave), failures are logged silently
+     * instead of shown as modal alerts, and the UI status/refresh is skipped — appropriate while the
+     * dialog is closing.
+     */
+    private boolean saveProfiles(boolean quiet) {
         GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
             ? app.getGlobalSettingsManager().getSettings()
             : null;
@@ -1475,7 +1500,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             AiProfile copy = new AiProfile(profile);
             String name = trimToNull(copy.getName());
             if (name == null) {
-                showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noProfileName"));
+                if (!quiet) {
+                    showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noProfileName"));
+                }
                 return false;
             }
             copy.setName(name);
@@ -1490,14 +1517,18 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             if (plainApiKey != null && !plainApiKey.isBlank()) {
                 char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
                 if (masterPassword == null) {
-                    showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.vaultLocked"));
+                    if (!quiet) {
+                        showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.vaultLocked"));
+                    }
                     return false;
                 }
                 try {
                     copy.setEncryptedApiKey(encryptionService.encryptPassword(plainApiKey, masterPassword));
                 } catch (Exception e) {
-                    showSimpleAlert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed") + ": "
-                        + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+                    if (!quiet) {
+                        showSimpleAlert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed") + ": "
+                            + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+                    }
                     return false;
                 }
             } else if (clearedApiKeysByProfileId.contains(copy.getId())) {
@@ -1512,11 +1543,17 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         try {
             app.getGlobalSettingsManager().save();
             defaultProfileId = effectiveDefaultProfileId;
-            statusLabel.setText(I18n.get("ai.manager.profile.saved"));
-            refreshProfiles();
+            if (!quiet) {
+                statusLabel.setText(I18n.get("ai.manager.profile.saved"));
+                refreshProfiles();
+            }
             return true;
         } catch (Exception e) {
-            statusLabel.setText(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+            if (!quiet) {
+                statusLabel.setText(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+            } else {
+                logger.warn("Quiet AI profile autosave on close failed", e);
+            }
             return false;
         }
     }

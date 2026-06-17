@@ -29,6 +29,9 @@ public class Snippet {
     private String category;
 
     @XmlElement
+    private String operatingSystem;
+
+    @XmlElement
     private String description;
     
     @XmlElementWrapper(name = "tags")
@@ -84,6 +87,9 @@ public class Snippet {
     
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+
+    public String getOperatingSystem() { return operatingSystem; }
+    public void setOperatingSystem(String operatingSystem) { this.operatingSystem = operatingSystem; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
