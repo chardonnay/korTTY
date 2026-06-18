@@ -260,6 +260,24 @@ class WorkflowScriptSupportTest {
     // ---------------------------------------------------------------- defaultScriptName
 
     @Test
+    void matchOperatingSystemMapsDistrosToConfiguredSystemEntries() {
+        java.util.List<String> list = java.util.List.of("Windows", "MacOS", "Linux");
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("Fedora Linux 44 (Workstation Edition)", list)).isEqualTo("Linux");
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("Ubuntu 22.04", list)).isEqualTo("Linux");
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("Red Hat Enterprise Linux 9", list)).isEqualTo("Linux");
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("openSUSE Leap 15", list)).isEqualTo("Linux");
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("Darwin", list)).isEqualTo("MacOS");
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("Windows 11 Pro", list)).isEqualTo("Windows");
+        // Returns the actual list entry verbatim (preserves casing).
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("ubuntu", java.util.List.of("linux"))).isEqualTo("linux");
+        // Only names present in the System list are used.
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("Ubuntu", java.util.List.of("Windows", "MacOS"))).isNull();
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("Plan 9", list)).isNull();
+        assertThat(WorkflowScriptSupport.matchOperatingSystem(null, list)).isNull();
+        assertThat(WorkflowScriptSupport.matchOperatingSystem("Linux", null)).isNull();
+    }
+
+    @Test
     void defaultScriptNameSlugifiesWithUnderscoresAndAddsExtension() {
         assertThat(WorkflowScriptSupport.defaultScriptName("Install & configure nginx!", ScriptLanguage.BASH))
             .isEqualTo("install_configure_nginx.sh");
@@ -275,5 +293,33 @@ class WorkflowScriptSupportTest {
             .isEqualTo("list_files.rb");
         assertThat(WorkflowScriptSupport.defaultScriptName("a-b-c", ScriptLanguage.BASH))
             .doesNotContain("-");
+    }
+
+    @Test
+    void defaultScriptNameStaysShortForLongPrompts() {
+        String name = WorkflowScriptSupport.defaultScriptName(
+            "show the most failures in file /var/log/messages and summarize them", ScriptLanguage.PERL);
+
+        // Filler words ("show", "the", "in") are dropped; only the first few meaningful words remain.
+        assertThat(name).isEqualTo("most_failures_file.pl");
+
+        String stem = WorkflowScriptSupport.buildShortScriptStem(
+            "show the most failures in file /var/log/messages and summarize them");
+        assertThat(stem.length()).isAtMost(28);
+        assertThat(stem.split("_")).hasLength(3);
+    }
+
+    @Test
+    void buildShortScriptStemDropsFillerWordsAndCaps() {
+        // German polite/article filler words are dropped too.
+        assertThat(WorkflowScriptSupport.buildShortScriptStem("Bitte zeige mir die Festplattenbelegung"))
+            .isEqualTo("festplattenbelegung");
+        // All-filler prompt falls back to the raw words rather than an empty stem.
+        assertThat(WorkflowScriptSupport.buildShortScriptStem("show me the")).isNotEmpty();
+        // A single very long word is hard-capped.
+        assertThat(WorkflowScriptSupport.buildShortScriptStem("supercalifragilisticexpialidocious_extra_long").length())
+            .isAtMost(28);
+        // Blank prompt falls back to the default stem.
+        assertThat(WorkflowScriptSupport.buildShortScriptStem("   ")).isEqualTo("workflow_script");
     }
 }

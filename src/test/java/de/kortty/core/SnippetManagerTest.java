@@ -93,6 +93,23 @@ class SnippetManagerTest {
     }
 
     @Test
+    void treatsNamesAsDuplicatesOnlyWhenBothStemAndExtensionMatch() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        manager.addSnippet(new Snippet("steuerung.pl", "print 1;", "perl"));
+
+        // Same stem but a different extension is NOT a duplicate.
+        assertThat(manager.hasSnippetName("steuerung.py", null)).isFalse();
+        manager.addSnippet(new Snippet("steuerung.py", "print(1)", "python"));
+        assertThat(manager.getAllSnippets()).hasSize(2);
+
+        // Same stem AND extension IS a duplicate.
+        assertThat(manager.hasSnippetName("steuerung.pl", null)).isTrue();
+        expectThrows(IllegalArgumentException.class,
+                () -> manager.addSnippet(new Snippet("steuerung.pl", "print 2;", "perl")));
+        assertThat(manager.getAllSnippets()).hasSize(2);
+    }
+
+    @Test
     void updateSnippetRejectsRenamingToExistingSnippetName() {
         SnippetManager manager = new SnippetManager(tempDir);
         Snippet first = new Snippet("deploy.sh", "echo first", "bash");

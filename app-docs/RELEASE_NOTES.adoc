@@ -1,5 +1,59 @@
 = Release Notes
 
+== Unreleased (v2.3.0)
+
+=== Terminal AI Agent Activity Panel and Concurrency
+
+* *Multiple concurrent runs per split*: Terminal AI Agent activity panels now support multiple concurrent runs shown as closable tabs (one tab per run), with a per-widget concurrency cap of 5 runs. Finished runs remain as tabs until explicitly closed.
+* *Typing unlocked during runs*: Normal terminal input is no longer locked while a run is active. You can continue typing and launch new `agent` commands concurrently; only run-control keys (*Esc*, *Ctrl+C*) and the toggle-thinking shortcut (*Ctrl+R*) are intercepted by the active run's tab.
+* *Per-run pause and resume*: Each run tab can be paused (⏸) to park the agent at a safe point between steps, allowing already-running commands to finish first. Resume (▶) restarts the paused run. Paused time is excluded from the run's work-time accounting.
+* *Activity row emoji indicators*: Activity rows now show static colored emoji icons chosen by the command action, replacing the old `↑` / `↓` / `?` / `!` / `x` / `i` markers. Icon set includes 💾 write/create file, 📖 read, ▶️ run/execute, 📁 directory, 📦 package, ⚙️ service, 🌐 network, 🔍 inspect, 💭 thinking, 💬 message, ✋ awaiting user input (sudo/approval), ❌ error/failed, 🚫 cancelled.
+* *Collapsed status bar and input-required signaling*: When collapsed, the activity panel shows a compact status bar (run prompt + state + pause/cancel buttons + expand button). With multiple runs it surfaces the most relevant one (awaiting input first, otherwise an actively-working run) and shows a run breakdown such as "1 running · 2 done" instead of a bare total run count, plus a spinner while the agent is actively working. User-input requirements (sudo password or command approval) are clearly signaled with a bold ✋ "input required" indicator. The panel auto-expands and selects the requesting run when input is needed, and the tab displays a ✋ badge. The collapsed pause/cancel controls act on exactly the run shown in the bar.
+* *Keep-collapsed preference*: A panel-level preference controls whether new runs start minimized to the status bar. This setting is remembered across sessions.
+* *Run cancellation on tab/split close*: Closing a terminal tab or split discards and cancels all agent runs associated with that widget.
+* *Agent final message in terminal*: The agent's final user-facing message now contains the actual answer or result (not just a meta summary) and is displayed in the terminal transcript.
+
+=== Terminal Tab Completion and Agent Prompt History
+
+* *Tab completion for agent commands*: At the shell prompt, typing the agent command name then pressing TAB offers completions for configured agent command variants (`agent` / `agent-ask` / `agent-plan`).
+* *Recent prompt history on TAB*: After typing an agent command and a space, pressing TAB offers a history of recent agent prompts. Each row shows the prompt on the left and the date/time it was last run on the right, deduplicated by prompt text, newest first. The popup is user-resizable (drag the bottom-right grip), remembers its size across restarts, and scrolls when the history is long. Entries can be pruned in place — a per-row ✕ button (or *Del* on keyboards with a forward-delete key) removes one prompt, and *Clear all* (two-step confirm) wipes the whole history; deletions persist immediately.
+* *Cleaner history capture*: Recorded prompts now come exclusively from the exact characters typed, so the history is never reconstructed from the wrapped terminal screen. This fixes long prompts being stored with stray mid-word spaces at line-wrap points (e.g. "nur" → "nu r", "ansible" → "ansibl e") and keeps shell tab-completion listings and "command not found" output out of the history; any such pre-existing junk entries are also filtered from the popup and can be removed with the per-row ✕ or *Clear all*.
+* *Configurable history size*: *Settings → AI* now includes a setting for terminal-agent input-history size (default 20, range 5–100).
+
+=== Generate Workflow Script (NEW)
+
+* *Turn agent runs into reproducible scripts*: After a finished agent run, a "Workflow" button opens a dialog to generate a self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook).
+* *Robust error handling and documentation*: Generated scripts include robust error handling, detailed comments explaining each step, and a header containing script name, creator, date/time, and an optional PlantUML diagram.
+* *AI Skills and language variants*: The dialog auto-loads matching AI Skills (e.g., language-quality skills), can produce multiple language variants as inline tabs, and supports selectable suggestions.
+* *Script header templates*: Script headers can be customized using templates from a fixed "Script-Header" snippet category.
+* *Snippet Manager auto-save*: Generated scripts are automatically saved into the Snippet Manager with a short auto-generated name, correct file extension, the "workflow" tag, and the System (OS) column set from the agent's probed operating system (any Linux distro → Linux).
+* *Internet access control*: Internet access is forced OFF during script generation to ensure self-contained output.
+* *Resizable, remembered dialog*: The workflow dialog is resizable and remembers its size and position across sessions.
+
+=== AI Profile Setup Wizard
+
+* *Guided profile creation*: A new AI profile setup wizard guides users through creating new profiles with clear choices for connection type and configuration.
+* *Connection type selection*: Choose between local LM Studio or a cloud provider integration.
+* *Cloud provider support*: Cloud provider selection includes native Anthropic (Claude) API support alongside existing OpenAI-compatible endpoints, with separate fields for API key, model, and optional reasoning configuration.
+* *LM Studio model selection*: Local LM Studio profiles can pick a specific loaded model or use Auto-discovery, which resolves again before each use.
+
+=== Snippet Manager and Editor Enhancements
+
+* *System (OS) column*: The Snippet Manager now includes a new "System" column for tracking which operating system(s) a script targets or is optimized for.
+* *Sortable columns*: Snippet Manager columns are now sortable by clicking the column header.
+* *Script-Header snippet category*: A new fixed non-deletable "Script-Header" category is automatically created for storing reusable header templates used by generated workflow scripts.
+
+=== Connection and Quick Connect Improvements
+
+* *Quick Connect live search*: A new live-search field in Quick Connect (case-insensitive, supports `*` glob patterns) filters the saved connections list in real time.
+
+=== Bug Fixes and Refinements
+
+* *macOS shortcut double-fire fix*: Keyboard shortcuts no longer fire twice on macOS.
+* *macOS fullscreen F11 warning*: The F11 function-key warning no longer appears in the macOS system menu bar.
+* *Agent model tolerance*: The terminal agent now tolerates models that omit `summary` or `userMessage` fields in responses by deriving the missing field.
+* *Here-doc script migrations*: The agent prefers full-file here-doc rewrites over fragile in-place `sed` commands when performing script migrations and file updates.
+
 == v2.2.0
 
 === Terminal Recording

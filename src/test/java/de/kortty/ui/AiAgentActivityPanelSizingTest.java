@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.TerminalAgentActivityExportService;
+import de.kortty.model.AgentActionCategory;
 import de.kortty.model.TerminalAgentModels;
 import org.testng.annotations.Test;
 
@@ -84,86 +85,56 @@ class AiAgentActivityPanelSizingTest {
     }
 
     @Test
-    void activityVisualMarksInputOutputQuestionsCancellationAndErrors() {
+    void activityVisualUsesStaticEmojisByTypeAndActionCategory() {
         TerminalAgentModels.AgentActivityTokenUsage tokens = TerminalAgentModels.AgentActivityTokenUsage.unknown();
 
-        assertThat(AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
-            "thinking-running",
+        // THINKING -> thought balloon
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
             TerminalAgentModels.AgentActivityType.THINKING,
-            TerminalAgentModels.AgentActivityStatus.RUNNING,
-            "Thinking",
-            "",
-            "",
-            tokens,
-            0L,
-            false,
-            true)).symbol()).isEqualTo("\u2191");
-        assertThat(AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
-            "action-running",
-            TerminalAgentModels.AgentActivityType.ACTION,
-            TerminalAgentModels.AgentActivityStatus.RUNNING,
-            "Run",
-            "",
-            "",
-            tokens,
-            0L,
-            false,
-            true)).styleClass()).isEqualTo("ai-agent-marker-input");
-        assertThat(AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
-            "action-completed",
-            TerminalAgentModels.AgentActivityType.ACTION,
-            TerminalAgentModels.AgentActivityStatus.COMPLETED,
-            "Run",
-            "",
-            "",
-            tokens,
-            0L,
-            false,
-            true)).symbol()).isEqualTo("\u2193");
-        assertThat(AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
-            "question",
+            TerminalAgentModels.AgentActivityStatus.RUNNING, null, tokens)).symbol()).isEqualTo("\ud83d\udcad");
+        // QUESTION -> raised hand (awaiting input), static \u2014 never the old blinking "?"
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
             TerminalAgentModels.AgentActivityType.QUESTION,
-            TerminalAgentModels.AgentActivityStatus.RUNNING,
-            "Approval",
-            "",
-            "",
-            tokens,
-            0L,
-            false,
-            true)).symbol()).isEqualTo("?");
-        assertThat(AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
-            "cancelled",
+            TerminalAgentModels.AgentActivityStatus.RUNNING, null, tokens)).symbol()).isEqualTo("\u270b");
+        // CANCELLED -> prohibited
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
             TerminalAgentModels.AgentActivityType.MESSAGE,
-            TerminalAgentModels.AgentActivityStatus.CANCELLED,
-            "Cancelled",
-            "",
-            "",
-            tokens,
-            0L,
-            false,
-            true)).symbol()).isEqualTo("x");
-        assertThat(AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
-            "failed",
+            TerminalAgentModels.AgentActivityStatus.CANCELLED, null, tokens)).symbol()).isEqualTo("\ud83d\udeab");
+        // FAILED / ERROR -> cross mark
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
             TerminalAgentModels.AgentActivityType.ACTION,
-            TerminalAgentModels.AgentActivityStatus.FAILED,
-            "Failed",
-            "",
-            "",
-            tokens,
-            0L,
-            false,
-            true)).symbol()).isEqualTo("!");
-        assertThat(AiAgentActivityPanel.activityVisual(new TerminalAgentModels.AgentActivity(
-            "error",
+            TerminalAgentModels.AgentActivityStatus.FAILED, null, tokens)).symbol()).isEqualTo("\u274c");
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
             TerminalAgentModels.AgentActivityType.ERROR,
-            TerminalAgentModels.AgentActivityStatus.COMPLETED,
-            "Error",
-            "",
-            "",
-            tokens,
-            0L,
-            false,
-            true)).styleClass()).isEqualTo("ai-agent-marker-error");
+            TerminalAgentModels.AgentActivityStatus.COMPLETED, null, tokens)).styleClass())
+            .isEqualTo("ai-agent-marker-error");
+        // MESSAGE -> speech balloon
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
+            TerminalAgentModels.AgentActivityType.MESSAGE,
+            TerminalAgentModels.AgentActivityStatus.COMPLETED, null, tokens)).symbol()).isEqualTo("\ud83d\udcac");
+        // ACTION -> emoji chosen by the command's action category
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
+            TerminalAgentModels.AgentActivityType.ACTION,
+            TerminalAgentModels.AgentActivityStatus.RUNNING, AgentActionCategory.WRITE, tokens)).symbol())
+            .isEqualTo(AgentActionCategory.WRITE.emoji());
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
+            TerminalAgentModels.AgentActivityType.ACTION,
+            TerminalAgentModels.AgentActivityStatus.COMPLETED, AgentActionCategory.READ, tokens)).symbol())
+            .isEqualTo(AgentActionCategory.READ.emoji());
+        // ACTION without a category -> GENERIC
+        assertThat(AiAgentActivityPanel.activityVisual(activity(
+            TerminalAgentModels.AgentActivityType.ACTION,
+            TerminalAgentModels.AgentActivityStatus.RUNNING, null, tokens)).symbol())
+            .isEqualTo(AgentActionCategory.GENERIC.emoji());
+    }
+
+    private static TerminalAgentModels.AgentActivity activity(
+            TerminalAgentModels.AgentActivityType type,
+            TerminalAgentModels.AgentActivityStatus status,
+            AgentActionCategory category,
+            TerminalAgentModels.AgentActivityTokenUsage tokens) {
+        return new TerminalAgentModels.AgentActivity(
+            type + "-" + status, type, status, "title", "", "", tokens, 0L, false, true, category);
     }
 
     @Test

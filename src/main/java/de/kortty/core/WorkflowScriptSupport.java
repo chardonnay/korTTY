@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Pure, UI-free logic for turning a finished terminal-agent run into a single, self-contained,
@@ -480,17 +481,116 @@ public final class WorkflowScriptSupport {
         return sb.toString();
     }
 
+    /**
+     * Maps a probed OS string (e.g. "Fedora Linux 44 (Workstation Edition)", "Ubuntu 22.04", "Darwin")
+     * to one of the user's configured System-list entries (any Linux distro collapses to "Linux").
+     * Returns the matching list entry verbatim, or {@code null} when no list entry applies — so only
+     * names actually present in the System list are ever used.
+     */
+    public static String matchOperatingSystem(String rawOs, java.util.List<String> systemList) {
+        if (rawOs == null || rawOs.isBlank() || systemList == null || systemList.isEmpty()) {
+            return null;
+        }
+        String lower = rawOs.toLowerCase(Locale.ROOT);
+        String canonical;
+        if (lower.contains("windows") || lower.contains("mingw") || lower.contains("msys") || lower.contains("cygwin")) {
+            canonical = "windows";
+        } else if (lower.contains("darwin") || lower.contains("mac os") || lower.contains("macos") || lower.contains("os x")) {
+            canonical = "macos";
+        } else if (lower.contains("linux") || lower.contains("ubuntu") || lower.contains("debian")
+                || lower.contains("fedora") || lower.contains("red hat") || lower.contains("redhat")
+                || lower.contains("rhel") || lower.contains("centos") || lower.contains("suse")
+                || lower.contains("arch") || lower.contains("alpine") || lower.contains("rocky")
+                || lower.contains("almalinux") || lower.contains("gentoo") || lower.contains("manjaro")
+                || lower.contains("mint")) {
+            canonical = "linux";
+        } else {
+            return null;
+        }
+        for (String entry : systemList) {
+            if (entry == null) {
+                continue;
+            }
+            String normalized = entry.toLowerCase(Locale.ROOT).replace(" ", "");
+            boolean matches = switch (canonical) {
+                case "windows" -> normalized.equals("windows");
+                case "macos" -> normalized.equals("macos") || normalized.equals("osx") || normalized.equals("mac");
+                case "linux" -> normalized.equals("linux");
+                default -> false;
+            };
+            if (matches) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
     /** Builds a filesystem-friendly default script name from the originating request (underscores only). */
+    /**
+     * Filler words (articles, prepositions, conjunctions, polite words and generic request verbs,
+     * English and German) dropped when deriving a short script name so the name starts with the
+     * meaningful part of the prompt.
+     */
+    private static final Set<String> SCRIPT_NAME_FILLER_WORDS = Set.of(
+        // English
+        "the", "a", "an", "of", "in", "on", "at", "to", "for", "and", "or", "with", "by", "from",
+        "please", "me", "my", "all", "show", "display", "get", "fetch", "find", "print", "output", "give",
+        // German
+        "die", "der", "das", "den", "dem", "ein", "eine", "einen", "im", "von", "auf", "und", "oder",
+        "mit", "bitte", "mir", "mein", "meine", "alle", "zeige", "zeig", "anzeigen", "gib", "finde", "hole");
+
+    private static final int SCRIPT_NAME_MAX_WORDS = 3;
+    private static final int SCRIPT_NAME_MAX_LENGTH = 28;
+
     public static String defaultScriptName(String sourcePrompt, ScriptLanguage lang) {
-        String base = sourcePrompt == null ? "" : sourcePrompt.strip().toLowerCase(Locale.ROOT);
-        base = base.replaceAll("[^a-z0-9]+", "_").replaceAll("^_+", "").replaceAll("_+$", "");
-        if (base.length() > 40) {
-            base = base.substring(0, 40).replaceAll("_+$", "");
+        return buildShortScriptStem(sourcePrompt) + lang.fileExtension();
+    }
+
+    /**
+     * Builds a short, file-name-safe stem (lowercase, underscores) from the prompt: it keeps only the
+     * first few meaningful words so the generated script name stays short rather than echoing the
+     * whole request. Falls back to {@code workflow_script} when nothing usable remains.
+     */
+    static String buildShortScriptStem(String sourcePrompt) {
+        String normalized = sourcePrompt == null ? "" : sourcePrompt.strip().toLowerCase(Locale.ROOT);
+        List<String> words = new ArrayList<>();
+        for (String token : normalized.split("[^a-z0-9]+")) {
+            if (!token.isEmpty()) {
+                words.add(token);
+            }
         }
-        if (base.isBlank()) {
-            base = "workflow_script";
+        List<String> meaningful = new ArrayList<>();
+        for (String word : words) {
+            if (!SCRIPT_NAME_FILLER_WORDS.contains(word)) {
+                meaningful.add(word);
+            }
         }
-        return base + lang.fileExtension();
+        // If filtering removed everything (prompt was all filler words), keep the raw words.
+        List<String> source = meaningful.isEmpty() ? words : meaningful;
+        StringBuilder stem = new StringBuilder();
+        int used = 0;
+        for (String word : source) {
+            if (used >= SCRIPT_NAME_MAX_WORDS) {
+                break;
+            }
+            int extra = stem.length() == 0 ? word.length() : word.length() + 1;
+            if (stem.length() > 0 && stem.length() + extra > SCRIPT_NAME_MAX_LENGTH) {
+                break;
+            }
+            if (stem.length() > 0) {
+                stem.append('_');
+            }
+            stem.append(word);
+            used++;
+        }
+        // Hard-cap a single very long first word and trim any trailing underscore from truncation.
+        if (stem.length() > SCRIPT_NAME_MAX_LENGTH) {
+            stem.setLength(SCRIPT_NAME_MAX_LENGTH);
+        }
+        while (stem.length() > 0 && stem.charAt(stem.length() - 1) == '_') {
+            stem.setLength(stem.length() - 1);
+        }
+        return stem.length() == 0 ? "workflow_script" : stem.toString();
     }
 
     // ------------------------------------------------------------------ helpers

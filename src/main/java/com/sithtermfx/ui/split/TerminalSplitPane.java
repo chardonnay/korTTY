@@ -91,6 +91,10 @@ public class TerminalSplitPane extends StackPane {
     // Optional supplier of extra menu items to add to the context menu (e.g. timestamp toggle)
     private Function<SithTermFxWidget, List<MenuItem>> extraMenuItemsFactory;
 
+    // Optional hook invoked when a widget is closed (split close or close-all) so owners can release
+    // per-widget resources such as terminal-agent runs/panels.
+    private Consumer<SithTermFxWidget> onWidgetClosed;
+
     /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
     private Runnable resetZoomCallback;
 
@@ -286,6 +290,21 @@ public class TerminalSplitPane extends StackPane {
         this.extraMenuItemsFactory = factory;
     }
 
+    /** Sets a hook invoked for each widget being closed (split close or close-all). */
+    public void setOnWidgetClosed(@Nullable Consumer<SithTermFxWidget> onWidgetClosed) {
+        this.onWidgetClosed = onWidgetClosed;
+    }
+
+    private void notifyWidgetClosed(@Nullable SithTermFxWidget widget) {
+        if (onWidgetClosed != null && widget != null) {
+            try {
+                onWidgetClosed.accept(widget);
+            } catch (Exception e) {
+                logger.debug("onWidgetClosed hook failed: {}", e.getMessage());
+            }
+        }
+    }
+
     /**
      * Sets a callback to run when the user chooses "Reset" font size in the context menu.
      * If set, this is used instead of the widget's default reset (so e.g. zoom can reset to connection/global font size).
@@ -474,6 +493,7 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private void closeSplit(@NotNull SithTermFxWidget widget) {
+        notifyWidgetClosed(widget);
         try {
             widget.close();
         } catch (Exception e) {
@@ -670,6 +690,9 @@ public class TerminalSplitPane extends StackPane {
     }
 
     public void closeAll() {
+        for (SithTermFxWidget widget : getAllWidgets()) {
+            notifyWidgetClosed(widget);
+        }
         if (rootCell != null) {
             rootCell.closeAll();
         }

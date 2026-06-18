@@ -28,7 +28,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Dashboard*: Overview of all open connections in the project
 * *SFTP Manager*: File transfer between local system and remote servers (User/Group columns, sortable by type with dot-prefix order), including local/remote file editing through the Snippet Editor
 * *SFTP Archive Exclude*: Archive dialogs support exclude patterns (one pattern per line) for files/directories
-* *Snippet Manager*: Create, search, favorite, and organize reusable snippets with Monaco-powered syntax highlighting, line numbers, save-edited-as-new support, one-liner export, optional one-liner script arguments, JSON/XML/YAML import/export, plain-text script export, and ZIP script archives with optional password or GPG encryption
+* *Snippet Manager*: Create, search, favorite, and organize reusable snippets with Monaco-powered syntax highlighting, line numbers, save-edited-as-new support, one-liner export, optional one-liner script arguments, JSON/XML/YAML import/export, plain-text script export, ZIP script archives with optional password or GPG encryption, a fixed non-deletable *Script-Header* category for reusable header templates, a *System* (operating system) column, and sortable columns
 * *Snippet Editor Profiles, Ruler, and Formatting*: Use IntelliJ-inspired built-in editor profiles or custom color/cursor profiles, zoom with toolbar buttons or Ctrl/Cmd +/- keys, track the current caret column in the fixed ruler label and live marker, set or remove a maximum line-length marker, preview line-width formatting before applying it, and use explicit AI-assisted fallback prompts when local formatting or syntax checking is unavailable
 * *AI-assisted Snippet Editing*: Generate snippet name/description/language from code, correct description text, transform selected comments and user-facing output text, create technical descriptions, request alternative implementations, use cursor-based AI completion, give direct right-click AI instructions at the cursor with full-script diff preview, run selected-code improvements and security checks with previews, and keep locally rendered PlantUML structure diagrams with snippets
 * *AI Skills*: Define reusable local instruction blocks for AI Chat/functions and/or AI Agent, enable or disable them globally or per skill, import/export Markdown skills, and optionally send only skills that match the current request
@@ -44,11 +44,12 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Multilanguage Support*: Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) plus *dynamic translation*: generate language files for any language via translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex) in Settings → Translation
 * *AI Terminal Actions*: Right-click selected terminal text and choose *Summarize*, *Solve Problem*, or *Ask* via OpenAI-compatible chat-completions APIs, including local tools such as *LM Studio*
 * *AI Profiles, Defaults, Reasoning, Internet Access, and Quotas*: Manage multiple named AI profiles with per-profile endpoint/model/API key, editable model selection, LM Studio local-model auto mode, optional reasoning effort where supported by the configured API/model, optional internet mode, default profile selection, tokenizer strategy, token budgets, warning thresholds, reset cycles, and code-text language defaults
+* *AI Profile Setup Wizard*: A guided wizard creates AI profiles — choose connection type (local LM Studio vs a cloud provider), pick a cloud provider with key/model/reasoning, or pick a loaded LM Studio model. Native Anthropic (Claude) API support is included alongside OpenAI-compatible endpoints.
 * *AI Result Tabs*: Continue with follow-up prompts, switch profile and response language per chat, retry or cancel requests, save named chats, save generated scripts as snippets, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables/columns/cells, and persist the AI tab font size across sessions
 * *AI Manager*: Reopen, rename, refresh, and delete saved AI chats, and manage AI profiles from *Tools → AI Manager* (shortcut: *Ctrl/Cmd+Shift+Y*)
 * *AI Agent & Planning*: Start AI Agent and AI Planning from *Tools*, the terminal context menu, or shell-style shortcut commands. The agent inspects the active SSH session, plans safe non-interactive commands, runs them with approvals when needed, writes final answers back into the terminal, and can use configured AI Skills and internet access when the task requires it
 * *Interactive AI Planning*: Start planning with `agent-plan <task>` or `agent -plan <task>`, answer clarifying questions, select or describe an approach, generate a final plan, and start implementation only after accepting it
-* *Split-local Terminal AI Activity*: Terminal-targeted agent runs use the activity panel attached to the current terminal split, support parallel runs in different splits, and provide semantic activity markers, task timing, collapsible details, row copy/snippet actions, persistent *Expand all* / *Keep collapsed* options, history navigation, rerun, resize, font controls, cancel, sudo password prompts, and run export to Markdown/Text/YAML/XML/JSON/PDF/Asciidoctor
+* *Split-local Terminal AI Activity*: Terminal-targeted agent runs use the activity panel attached to the current terminal split, support parallel runs in different splits and multiple concurrent runs per terminal via closable tabs (max 5 runs per widget), and provide static colored emoji activity icons by action, task timing, collapsible details, row copy/snippet actions, persistent *Expand all* / *Keep collapsed* options, pause/resume per run, rerun, resize, font controls, cancel, sudo password prompts (with auto-expand and selection when input required), and run export to Markdown/Text/YAML/XML/JSON/PDF/Asciidoctor
 * *Terminal AI Commands*: Intercept configurable local shortcut commands such as `agent`, `agent-ask`, `agent-plan`, and `agent -plan` directly at the shell prompt, including the active remote working directory for terminal-targeted tasks
 * *AI Internet Modes*: Per AI profile, choose `Disabled`, direct `KorTTY Tavily Tool`, `LM Studio Tavily MCP`, `Bright Data Web MCP`, `Brave Search MCP`, `SearXNG MCP`, or `LM Studio Toolpack`. Direct web tools use hard timeouts and return structured errors instead of silently inventing web facts
 * *Quick Connect*: Fast connection dialog with frequently used connections and group support
@@ -520,6 +521,19 @@ Useful for running the same commands on multiple servers at once.
 | Ctrl+K | Quick Connect
 |===
 
+The following shortcuts are specific to terminal AI features:
+
+[cols="1,2"]
+|===
+| Shortcut | Action
+| At shell prompt, `agent<TAB>` | Show agent command variants (`agent`, `agent-ask`, `agent-plan`)
+| At shell prompt, `agent <space><TAB>` | Show recent agent-prompt history (newest first)
+| Esc or Ctrl+C (during agent run) | Cancel the selected agent run's tab
+| Ctrl+R (during agent run) | Toggle thinking details for the selected run
+| ⏸ (activity panel) | Pause the selected run at a safe checkpoint
+| ▶️ (activity panel) | Resume a paused run
+|===
+
 == Configuration Files
 
 All configuration files are stored under `~/.kortty/`:
@@ -673,11 +687,12 @@ Configure backup settings in *Settings → Backup*:
 
 == Quick Connect
 
-KorTTY provides a quick connection dialog for fast access to your most frequently used connections:
+KorTTY provides a quick connection dialog with a live search field for fast access to your most frequently used connections:
 
 === Features
 
 * *Frequently Used Connections*: Shows top 10 most frequently used connections as quick-access buttons
+* *Live Search*: Case-insensitive search field with glob pattern support (`*`) filters saved connections in real time
 * *Individual Connection*: Connect to a single server with full configuration options
 * *Group Connection*: Open all connections in a selected group at once
 * *Connection History*: Tracks usage count and last used timestamp
@@ -928,6 +943,8 @@ agent -plan <task>
 
 The base command name is configurable. A separate setting can make the command name case-insensitive. KorTTY intercepts these shortcuts locally before they are sent to the remote shell as normal executables.
 
+At the shell prompt, typing the agent command name then *TAB* offers command variants (`agent`, `agent-ask`, `agent-plan`). Typing the command and a space then *TAB* offers recent agent-prompt history (each row shows the prompt and the date/time it was last run, de-duplicated by prompt text, newest first). Outside that context *TAB* remains normal shell completion. The history size is configurable in *Settings → AI* (default 20, range 5–100). Each history row shows the prompt on the left (shortened with an ellipsis when longer than 60 characters; the full prompt is still inserted when selected) and the date/time it was last run on the right. The popup is resizable — drag the bottom-right grip — and remembers its size across restarts, and it scrolls when the history is long. In the history popup, click a row's ✕ button (or press *Del* on keyboards with a forward-delete key) to remove a single prompt, or use *Clear all* (two-step confirm) to wipe the whole history.
+
 Use `agent <goal>` for tasks that may inspect the SSH session and run safe commands, for example:
 
 [source,text]
@@ -938,9 +955,9 @@ agent update groesste_xml.pl so -r searches subdirectories recursively
 
 Use `agent-ask <question>` for a non-executing answer about the current session context. Use `agent-plan <task>` or `agent -plan <task>` when you want a reviewed plan first. Planning asks clarifying questions, proposes approaches, creates a final report, and starts implementation only after *Implement* is clicked.
 
-For terminal-targeted agent runs, the inline activity panel at the bottom of the current terminal split shows the current task in a two-line scrollable field, token usage when reported by the endpoint, command/read actions, collapsible details, previous/next run navigation, rerun, close, collapse, resize, font controls, export controls, and a cancel button. Different splits can run their own terminal-agent tasks in parallel. While an agent is running, normal terminal input is locked for that split; *Esc*, *Ctrl+C*, or the panel cancel button aborts that run.
+For terminal-targeted agent runs, the inline activity panel at the bottom of the current terminal split shows one closable tab per run, with the current task in a two-line scrollable field, token usage when reported by the endpoint, command/read actions, collapsible details, rerun, pause/resume, collapse, resize, font controls, export controls, and a cancel button. Different splits can run their own terminal-agent tasks in parallel; multiple concurrent runs in the same split appear as separate tabs. Normal terminal input is no longer locked while an agent is running — you can keep typing and launch new `agent` commands (they open new tabs). Only run-control keys are intercepted: *Esc* or *Ctrl+C* cancel the selected run's tab; *Ctrl+R* toggles the selected run's thinking details.
 
-Activity rows use semantic markers: `↑` for request/input, `↓` for received output/result, `?` for required user input, `!` for errors, `x` for cancellation, and `i` for neutral information. Red styling is reserved for failed or error activities.
+Activity rows use static colored emoji icons chosen by the action: 💾 for write/create file, 📖 for read, ▶️ for run/execute, 📁 for directory, 📦 for package, ⚙️ for service, 🌐 for network, 🔍 for inspect, 💭 for thinking, 💬 for message, ✋ for awaiting user input (sudo/approval), ❌ for error/failed, and 🚫 for cancelled. Red styling is reserved for failed or error activities.
 
 Completed terminal-agent runs can be exported individually or as the full panel history. Export formats are Markdown, plain text, YAML, XML, JSON, PDF, and Asciidoctor. The export includes the AI profile, configured model/LLM, reasoning status, run timestamps, total runtime, per-activity runtimes, reported token usage when available, summaries, and expanded detail text. Activity quote markers (`>`) are removed from exported detail text.
 
@@ -951,6 +968,20 @@ Planning mode is advisory until implementation starts. It asks clarifying questi
 KorTTY tracks the current remote directory for the active SSH session. Agent commands then run relative to that directory, so generated files are created where the user is currently working on the server. If sudo is required, KorTTY asks for the password in the activity panel with a masked input field instead of echoing it in the terminal. The password prompt can be submitted with *Enter* or the button, can be cached for the current session, and allows up to three wrong-password retries.
 
 The agent is designed for non-interactive SSH automation. It may inspect files, list directories, run read-only checks, create or modify files after planning, and request confirmation for commands that change the system or require elevated privileges. It rejects interactive commands that would hang in a non-interactive SSH exec channel. Local file or script review tasks should be answered from SSH command output; web search is only offered when the user task clearly needs current or external information.
+
+=== Generate Workflow Script
+
+After a finished agent run, a *Workflow* button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook) with robust error handling, detailed comments, and a header (script name, creator, date/time). The generator:
+
+* Auto-loads matching AI Skills (e.g. a language-quality skill)
+* Can produce several language variants and multiple suggestions as inline tabs
+* Supports header templates from a fixed *Script-Header* snippet category
+* Optionally includes a PlantUML diagram
+* Saves into the Snippet Manager with a short auto-generated name + correct extension
+* De-duplicates by full name including extension
+* Tags the snippet "workflow" and auto-sets the System (OS) column from the agent's probed OS (any Linux distro → Linux)
+* Runs with internet access forced OFF
+* Resizable dialog that remembers size/position
 
 == SFTP Manager
 

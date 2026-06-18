@@ -259,6 +259,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<AiLanguageSupport.LanguageOption> aiCodeTextLanguageCombo;
     private final CheckBox aiSnippetEditorInstructionsCheck;
     private final Spinner<Integer> aiSnippetAlternativeSolutionCountSpinner;
+    private final Spinner<Integer> terminalAgentInputHistorySizeSpinner;
     private AiProfile selectedAiProfile;
 
     private TabPane mainTabPane;
@@ -1403,6 +1404,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Label(I18n.get("settings.ai.alternativeSolutionCount")),
             aiSnippetAlternativeSolutionCountSpinner);
         aiRoot.getChildren().add(aiSnippetAlternativeCountBox);
+
+        terminalAgentInputHistorySizeSpinner = new Spinner<>(5, 100,
+            globalSettings != null ? globalSettings.getTerminalAgentInputHistorySize() : 20);
+        terminalAgentInputHistorySizeSpinner.setEditable(true);
+        HBox terminalAgentInputHistoryBox = new HBox(10,
+            new Label(I18n.get("settings.ai.terminalAgentInputHistorySize")),
+            terminalAgentInputHistorySizeSpinner);
+        aiRoot.getChildren().add(terminalAgentInputHistoryBox);
 
         GridPane aiInternetGrid = new GridPane();
         aiInternetGrid.setHgap(10);
@@ -4402,6 +4411,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         AiLanguageSupport.LanguageOption selectedLanguage = aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem();
         globalSettings.setAiCodeTextDefaultLanguage(selectedLanguage != null ? selectedLanguage.code() : null);
         globalSettings.setAiSnippetAlternativeSolutionCount(aiSnippetAlternativeSolutionCountSpinner.getValue());
+        globalSettings.setTerminalAgentInputHistorySize(terminalAgentInputHistorySizeSpinner.getValue());
         if (!saveAiInternetToolSettings(encryptionService)) {
             return false;
         }

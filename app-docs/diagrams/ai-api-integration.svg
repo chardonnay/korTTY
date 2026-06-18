@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 700" role="img" aria-labelledby="title desc">
   <title id="title">KorTTY AI API integration</title>
-  <desc id="desc">AI request flow from terminal or snippet editor through local profile handling to OpenAI-compatible or LM Studio endpoints.</desc>
+  <desc id="desc">AI request flow from terminal or snippet editor through local profile handling to OpenAI-compatible, Anthropic, or LM Studio endpoints.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
     <style>
@@ -32,7 +32,7 @@
   <rect class="box sec" x="850" y="260" width="240" height="52"/><text x="884" y="292">Encrypted API keys</text>
   <rect class="box store" x="850" y="325" width="240" height="52"/><text x="885" y="357">Quotas + saved chats</text>
   <rect class="box store" x="850" y="390" width="240" height="52"/><text x="906" y="422">AI Skills</text>
-  <rect class="box ext" x="850" y="455" width="240" height="52"/><text x="874" y="487">OpenAI-compatible API</text>
+  <rect class="box ext" x="850" y="455" width="240" height="52"/><text x="874" y="487">OpenAI or Anthropic API</text>
 
   <path class="line" d="M305 222 H430"/>
   <path class="line" d="M305 302 H430"/>

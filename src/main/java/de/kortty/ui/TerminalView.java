@@ -23,6 +23,7 @@ import de.kortty.core.NativeMoshTtyConnector;
 import de.kortty.core.DisconnectListener;
 import de.kortty.core.TerminalEmulationSupport;
 import de.kortty.core.TerminalAgentCommandSupport;
+import de.kortty.core.TerminalAgentCompletionSupport;
 import de.kortty.core.TerminalRecordingScreenSnapshot;
 import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
@@ -173,15 +174,18 @@ public class TerminalView extends BorderPane {
     }
 
     private static final class TerminalAgentRunState {
+        private final String runId;
         private final TerminalAgentRunContext runContext;
         private final Runnable cancelHandler;
         private final Runnable toggleDetailsHandler;
         private Timeline shellKeepAliveTimeline;
 
         private TerminalAgentRunState(
+            String runId,
             TerminalAgentRunContext runContext,
             @Nullable Runnable cancelHandler,
             @Nullable Runnable toggleDetailsHandler) {
+            this.runId = runId;
             this.runContext = runContext;
             this.cancelHandler = cancelHandler;
             this.toggleDetailsHandler = toggleDetailsHandler;
@@ -250,8 +254,9 @@ public class TerminalView extends BorderPane {
     private TerminalAgentContextHandler aiAgentAskHandler;
     private TerminalAgentContextHandler aiPlanningHandler;
     private TerminalAgentShortcutHandler terminalAgentShortcutHandler;
-    private final Map<SithTermFxWidget, AiAgentActivityPanel> terminalAgentActivityPanels = new ConcurrentHashMap<>();
-    private final Map<SithTermFxWidget, TerminalAgentRunState> terminalAgentRunStates = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, AiAgentActivityTabsPanel> terminalAgentActivityPanels = new ConcurrentHashMap<>();
+    // One terminal/split widget can host several concurrent agent runs, keyed by runId.
+    private final Map<SithTermFxWidget, Map<String, TerminalAgentRunState>> terminalAgentRunStates = new ConcurrentHashMap<>();
     private SshTtyConnector.DataListener terminalLoggerDataListener;
     private final Map<SshTtyConnector, SshTtyConnector.DataListener> terminalAgentPromptDataListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> terminalRecordingModelListeners = new ConcurrentHashMap<>();
@@ -260,6 +265,7 @@ public class TerminalView extends BorderPane {
     private final StringBuilder agentShortcutPromptTail = new StringBuilder();
     private final Map<SshTtyConnector, StringBuilder> terminalAgentOscBuffers = new ConcurrentHashMap<>();
     private volatile boolean agentShortcutPromptReady;
+    private TerminalAgentCompletionPopup agentCompletionPopup;
     private volatile boolean timestampGuttersVisibleState;
     private volatile boolean terminalScrollbarsVisible = true;
     private double terminalEffectAnimationSpeed = TerminalEffectAnimationSpeed.DEFAULT;
@@ -354,6 +360,7 @@ public class TerminalView extends BorderPane {
             setupTimestampGutter(widget);
             applyTerminalScrollbarVisibility(widget);
         }, widget -> gutterMap.get(widget), this::createTerminalAgentActivityPanel, this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
+        splitPane.setOnWidgetClosed(this::discardTerminalAgentRunsForWidget); // Cancel + discard a widget's agent runs when its split closes
         splitPane.setResetZoomCallback(this::resetZoom); // Reset zoom to connection or global default (not hardcoded 14)
         
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
@@ -542,36 +549,37 @@ public class TerminalView extends BorderPane {
     }
 
     public void setTerminalAgentInputLocked(
-        boolean locked,
-        @Nullable Runnable cancelHandler,
-        @Nullable Runnable toggleDetailsHandler) {
-        setTerminalAgentInputLocked(captureTerminalAgentRunContext(), locked, cancelHandler, toggleDetailsHandler);
-    }
-
-    public void setTerminalAgentInputLocked(
         @Nullable TerminalAgentRunContext runContext,
+        String runId,
         boolean locked,
         @Nullable Runnable cancelHandler,
         @Nullable Runnable toggleDetailsHandler) {
         TerminalAgentRunContext resolvedContext = runContext != null ? runContext : captureTerminalAgentRunContext();
         SithTermFxWidget widget = resolvedContext != null ? resolvedContext.widget() : null;
-        TerminalAgentRunState previousState = widget != null ? terminalAgentRunStates.get(widget) : null;
+        if (runId == null || runId.isBlank()) {
+            return;
+        }
         if (locked && resolvedContext != null && widget != null) {
+            Map<String, TerminalAgentRunState> runs =
+                terminalAgentRunStates.computeIfAbsent(widget, ignored -> new ConcurrentHashMap<>());
+            TerminalAgentRunState previousState = runs.get(runId);
             stopTerminalAgentShellKeepAlive(previousState);
-            TerminalAgentRunState state = new TerminalAgentRunState(resolvedContext, cancelHandler, toggleDetailsHandler);
-            terminalAgentRunStates.put(widget, state);
+            TerminalAgentRunState state = new TerminalAgentRunState(runId, resolvedContext, cancelHandler, toggleDetailsHandler);
+            runs.put(runId, state);
             startTerminalAgentShellKeepAlive(state);
         } else if (!locked && widget != null) {
-            previousState = terminalAgentRunStates.remove(widget);
-            stopTerminalAgentShellKeepAlive(previousState);
-        }
-        Platform.runLater(() -> {
-            if (locked) {
-                setCursorVisible(widget, false);
-            } else {
-                setCursorVisible(widget, true);
+            Map<String, TerminalAgentRunState> runs = terminalAgentRunStates.get(widget);
+            if (runs != null) {
+                TerminalAgentRunState previousState = runs.remove(runId);
+                stopTerminalAgentShellKeepAlive(previousState);
+                if (runs.isEmpty()) {
+                    terminalAgentRunStates.remove(widget);
+                }
             }
-        });
+        }
+        // Keep the cursor visible even while locked: the user may keep typing the next command
+        // during an active run, so the terminal must not look frozen.
+        Platform.runLater(() -> setCursorVisible(widget, true));
     }
 
     public @Nullable TerminalAgentRunContext captureTerminalAgentRunContext() {
@@ -652,7 +660,7 @@ public class TerminalView extends BorderPane {
         return null;
     }
 
-    public @Nullable AiAgentActivityPanel getTerminalAgentActivityPanel(@Nullable TerminalAgentRunContext runContext) {
+    public @Nullable AiAgentActivityTabsPanel getTerminalAgentActivityPanel(@Nullable TerminalAgentRunContext runContext) {
         TerminalAgentRunContext resolvedContext = runContext != null ? runContext : captureTerminalAgentRunContext();
         SithTermFxWidget widget = resolvedContext != null ? resolvedContext.widget() : null;
         return widget != null ? terminalAgentActivityPanels.get(widget) : null;
@@ -661,7 +669,23 @@ public class TerminalView extends BorderPane {
     public boolean isTerminalAgentRunActive(@Nullable TerminalAgentRunContext runContext) {
         TerminalAgentRunContext resolvedContext = runContext != null ? runContext : captureTerminalAgentRunContext();
         SithTermFxWidget widget = resolvedContext != null ? resolvedContext.widget() : null;
-        return widget != null && terminalAgentRunStates.containsKey(widget);
+        return widget != null && hasTerminalAgentRuns(widget);
+    }
+
+    /** Number of active (locked) agent runs hosted by the widget for the given run context. */
+    public int terminalAgentRunCount(@Nullable SithTermFxWidget widget) {
+        Map<String, TerminalAgentRunState> runs = widget != null ? terminalAgentRunStates.get(widget) : null;
+        return runs != null ? runs.size() : 0;
+    }
+
+    private boolean hasTerminalAgentRuns(@Nullable SithTermFxWidget widget) {
+        Map<String, TerminalAgentRunState> runs = widget != null ? terminalAgentRunStates.get(widget) : null;
+        return runs != null && !runs.isEmpty();
+    }
+
+    /** Whether another concurrent terminal-agent run may start given the active count and cap. */
+    static boolean canStartTerminalAgentRun(int active, int max) {
+        return max > 0 && active < max;
     }
 
     public String buildTerminalAgentScopedSessionId(String sessionId, @Nullable TerminalAgentRunContext runContext) {
@@ -685,7 +709,7 @@ public class TerminalView extends BorderPane {
             terminalContainer.getStylesheets().add(stylesheetUrl);
             terminalAgentBusyStylesheetUrl = stylesheetUrl;
         }
-        for (AiAgentActivityPanel panel : terminalAgentActivityPanels.values()) {
+        for (AiAgentActivityTabsPanel panel : terminalAgentActivityPanels.values()) {
             if (panel != null) {
                 panel.applyTheme(theme);
             }
@@ -853,9 +877,49 @@ public class TerminalView extends BorderPane {
     }
 
     private Region createTerminalAgentActivityPanel(SithTermFxWidget widget) {
-        AiAgentActivityPanel panel = new AiAgentActivityPanel();
+        AiAgentActivityTabsPanel panel = new AiAgentActivityTabsPanel();
         terminalAgentActivityPanels.put(widget, panel);
         return panel;
+    }
+
+    /** Cancels and discards all agent runs (and the activity wrapper) hosted by the given widget. */
+    private void discardTerminalAgentRunsForWidget(@Nullable SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        Map<String, TerminalAgentRunState> runs = terminalAgentRunStates.remove(widget);
+        if (runs != null) {
+            for (TerminalAgentRunState state : runs.values()) {
+                stopTerminalAgentShellKeepAlive(state);
+                Runnable handler = state != null ? state.cancelHandler : null;
+                if (handler != null) {
+                    Platform.runLater(handler);
+                }
+            }
+        }
+        AiAgentActivityTabsPanel panel = terminalAgentActivityPanels.remove(widget);
+        if (panel != null) {
+            panel.cancelAllRuns();
+        }
+    }
+
+    /** Cancels every active agent run across all widgets (used during full cleanup). */
+    private void cancelAllTerminalAgentRuns() {
+        for (Map<String, TerminalAgentRunState> runs : terminalAgentRunStates.values()) {
+            if (runs == null) {
+                continue;
+            }
+            for (TerminalAgentRunState state : runs.values()) {
+                Runnable handler = state != null ? state.cancelHandler : null;
+                if (handler != null) {
+                    try {
+                        handler.run();
+                    } catch (Exception e) {
+                        logger.debug("Failed to cancel terminal agent run during cleanup: {}", e.getMessage());
+                    }
+                }
+            }
+        }
     }
 
     private void startTerminalAgentShellKeepAlive(TerminalAgentRunState state) {
@@ -879,8 +943,13 @@ public class TerminalView extends BorderPane {
     }
 
     private void stopAllTerminalAgentShellKeepAlives() {
-        for (TerminalAgentRunState state : terminalAgentRunStates.values()) {
-            stopTerminalAgentShellKeepAlive(state);
+        for (Map<String, TerminalAgentRunState> runs : terminalAgentRunStates.values()) {
+            if (runs == null) {
+                continue;
+            }
+            for (TerminalAgentRunState state : runs.values()) {
+                stopTerminalAgentShellKeepAlive(state);
+            }
         }
         terminalAgentRunStates.clear();
     }
@@ -2236,15 +2305,9 @@ public class TerminalView extends BorderPane {
         };
         keyEventTarget.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, keyPressedHandler);
 
-        javafx.event.EventHandler<KeyEvent> keyTypedHandler = event -> {
-            if (event.isConsumed()) {
-                return;
-            }
-            if (isTerminalAgentInputLockedFor(widget)) {
-                event.consume();
-            }
-        };
-        keyEventTarget.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, keyTypedHandler);
+        // While a terminal agent run is active the user may keep typing the next command; KEY_TYPED
+        // events are no longer swallowed here (only stray run-control characters are dropped in the
+        // canvas dispatcher), so the full command reaches the shell and the shortcut buffer.
 
         // Navigation keys (arrow, Tab, etc.) are handled at split-pane level so we run before the
         // terminal widget consumes them; see splitPane.addEventFilter(KeyEvent.KEY_PRESSED, ...) above.
@@ -2280,7 +2343,10 @@ public class TerminalView extends BorderPane {
                         return keyEvent;
                     }
                 } else if (keyEvent.getEventType() == KeyEvent.KEY_TYPED) {
-                    if (isTerminalAgentInputLockedFor(widget)) {
+                    if (isTerminalAgentInputLockedFor(widget)
+                        && isAgentRunControlCharacter(keyEvent.getCharacter())) {
+                        // Swallow stray run-control characters (Ctrl+C / Ctrl+R / Esc) so they do not
+                        // reach the shell; ordinary typed text is buffered and forwarded as usual.
                         keyEvent.consume();
                         return keyEvent;
                     }
@@ -2338,7 +2404,7 @@ public class TerminalView extends BorderPane {
         if (event == null || !(event.getTarget() instanceof Node targetNode)) {
             return false;
         }
-        for (AiAgentActivityPanel panel : terminalAgentActivityPanels.values()) {
+        for (AiAgentActivityTabsPanel panel : terminalAgentActivityPanels.values()) {
             if (isNodeWithin(targetNode, panel)) {
                 return true;
             }
@@ -2353,30 +2419,77 @@ public class TerminalView extends BorderPane {
         if (!isTerminalAgentInputLockedFor(widget)) {
             return false;
         }
-        TerminalAgentRunState state = widget != null ? terminalAgentRunStates.get(widget) : null;
-        if (event.getEventType() == KeyEvent.KEY_PRESSED) {
-            if (isAgentInputCancelShortcut(event.getCode(), event.isControlDown(), event.isAltDown(), event.isMetaDown())) {
-                Runnable handler = state != null ? state.cancelHandler : null;
-                if (handler != null) {
-                    Platform.runLater(handler);
-                }
-            } else if (event.getCode() == KeyCode.R && event.isControlDown() && !event.isAltDown() && !event.isMetaDown()) {
-                Runnable handler = state != null ? state.toggleDetailsHandler : null;
-                if (handler != null) {
-                    Platform.runLater(handler);
-                }
+        if (event.getEventType() != KeyEvent.KEY_PRESSED) {
+            return false;
+        }
+        if (!isAgentRunControlKey(event.getCode(), event.isControlDown(), event.isAltDown(), event.isMetaDown())) {
+            // A run is active, but the user may keep composing the next command. Only the run-control
+            // shortcuts are intercepted here; every other keystroke flows on to the shell and the
+            // shortcut buffer so nothing the user types is silently dropped.
+            return false;
+        }
+        TerminalAgentRunState state = resolveSelectedTerminalAgentRunState(widget);
+        if (state == null) {
+            // No run selected in the wrapper: nothing to control, let the key flow through.
+            return false;
+        }
+        if (isAgentInputCancelShortcut(event.getCode(), event.isControlDown(), event.isAltDown(), event.isMetaDown())) {
+            Runnable handler = state.cancelHandler;
+            if (handler != null) {
+                Platform.runLater(handler);
+            }
+        } else {
+            Runnable handler = state.toggleDetailsHandler;
+            if (handler != null) {
+                Platform.runLater(handler);
             }
         }
         event.consume();
         return true;
     }
 
+    /** Resolves the run state for the run currently selected in the widget's activity wrapper. */
+    private @Nullable TerminalAgentRunState resolveSelectedTerminalAgentRunState(@Nullable SithTermFxWidget widget) {
+        Map<String, TerminalAgentRunState> runs = widget != null ? terminalAgentRunStates.get(widget) : null;
+        if (runs == null || runs.isEmpty()) {
+            return null;
+        }
+        AiAgentActivityTabsPanel panel = terminalAgentActivityPanels.get(widget);
+        String selectedRunId = panel != null ? panel.selectedRunId() : null;
+        if (selectedRunId != null) {
+            TerminalAgentRunState selected = runs.get(selectedRunId);
+            if (selected != null) {
+                return selected;
+            }
+        }
+        return null;
+    }
+
     private boolean isTerminalAgentInputLockedFor(@Nullable SithTermFxWidget widget) {
-        return widget != null && terminalAgentRunStates.containsKey(widget);
+        return widget != null && hasTerminalAgentRuns(widget);
     }
 
     static boolean isAgentInputCancelShortcut(KeyCode code, boolean controlDown, boolean altDown, boolean metaDown) {
         return code == KeyCode.ESCAPE || (code == KeyCode.C && controlDown && !altDown && !metaDown);
+    }
+
+    /**
+     * Run-control keys recognised while a terminal agent run is active: cancel (Esc / Ctrl+C) and
+     * toggle-details (Ctrl+R). These are intercepted; every other key is passed through so the user
+     * can keep typing the next command during a run without losing keystrokes.
+     */
+    static boolean isAgentRunControlKey(KeyCode code, boolean controlDown, boolean altDown, boolean metaDown) {
+        return isAgentInputCancelShortcut(code, controlDown, altDown, metaDown)
+            || (code == KeyCode.R && controlDown && !altDown && !metaDown);
+    }
+
+    /** Control characters used for run control that must not leak to the shell while a run is active. */
+    static boolean isAgentRunControlCharacter(String character) {
+        if (character == null || character.isEmpty()) {
+            return false;
+        }
+        char c = character.charAt(0);
+        return c == 3 || c == 18 || c == 27; // Ctrl+C, Ctrl+R, Esc
     }
 
     private void handleAgentShortcutKeyPressed(SithTermFxWidget widget, KeyEvent event) {
@@ -2401,11 +2514,22 @@ public class TerminalView extends BorderPane {
             buffer.setLength(0);
             return;
         }
+        if (event.getCode() == KeyCode.TAB
+            && !event.isControlDown() && !event.isAltDown() && !event.isMetaDown() && !event.isShiftDown()) {
+            if (agentShortcutPromptReady && showAgentCompletion(widget, buffer)) {
+                event.consume();
+            }
+            return;
+        }
         if (event.getCode() != KeyCode.ENTER) {
             return;
         }
+        // Concurrent runs are supported: a new `agent ...` command must still be intercepted and
+        // launched as an additional run (a new tab) even while another run is active. The per-widget
+        // concurrency cap is enforced when the run is dispatched.
 
-        String rawCommand = resolveAgentShortcutCommand(widget, buffer.toString());
+        String typedCommand = buffer.toString();
+        String rawCommand = resolveAgentShortcutCommand(widget, typedCommand);
         buffer.setLength(0);
         agentShortcutPromptReady = false;
         String commandName = getTerminalAgentCommandName();
@@ -2433,6 +2557,7 @@ public class TerminalView extends BorderPane {
             logger.debug("Failed to clear terminal line before AI shortcut interception: {}", e.getMessage());
         }
         event.consume();
+        recordAgentInputHistory(typedCommand, commandName, caseInsensitiveCommandName);
         TerminalAgentRunContext runContext = createTerminalAgentRunContext(widget);
         Platform.runLater(() -> {
             TerminalAgentShortcutHandler handler = terminalAgentShortcutHandler;
@@ -2440,6 +2565,248 @@ public class TerminalView extends BorderPane {
                 handler.handle(rawCommand, runContext);
             }
         });
+    }
+
+    /** Records the prompt part of an intercepted agent command into the persistent input history. */
+    private void recordAgentInputHistory(String typedCommand, String commandName, boolean caseInsensitive) {
+        try {
+            // Record ONLY from the literally-typed buffer. The visible-screen reconstruction joins
+            // soft-wrapped terminal rows, and it cannot tell a wrap-at-space from a mid-word break, so
+            // it corrupted long prompts ("nur" -> "nu r", "ansible" -> "ansibl e"). The typed buffer is
+            // captured character-by-character and has no wrap artifacts. A command the buffer did not
+            // capture (e.g. pasted) is simply not added to history rather than stored corrupted.
+            String prompt = TerminalAgentCompletionSupport.promptFromRaw(typedCommand, commandName, caseInsensitive);
+            prompt = TerminalAgentCompletionSupport.sanitizeHistoryPrompt(prompt);
+            if (prompt == null || prompt.isBlank()) {
+                return;
+            }
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            if (gs == null) {
+                return;
+            }
+            gs.addTerminalAgentInput(prompt);
+            gsm.save();
+        } catch (Exception e) {
+            logger.debug("Could not record terminal agent input history: {}", e.getMessage());
+        }
+    }
+
+    /** Shows the TAB-completion popup (command variants or prompt history). Returns true if handled. */
+    private boolean showAgentCompletion(SithTermFxWidget widget, StringBuilder buffer) {
+        if (agentCompletionPopup != null && agentCompletionPopup.isShowing()) {
+            return true;
+        }
+        String commandName = getTerminalAgentCommandName();
+        boolean caseInsensitive = isTerminalAgentCommandNameCaseInsensitive();
+        String raw = buffer.toString();
+        TerminalAgentCompletionSupport.TabContext context =
+            TerminalAgentCompletionSupport.classify(raw, commandName, caseInsensitive);
+        if (context == TerminalAgentCompletionSupport.TabContext.NONE) {
+            return false;
+        }
+        TtyConnector connector = widget.getTtyConnector();
+        if (connector == null || !connector.isConnected()) {
+            return false;
+        }
+        Node canvas = widget.getTerminalPanel() != null ? widget.getTerminalPanel().getCanvas() : null;
+        if (canvas == null) {
+            return false;
+        }
+        boolean commandMode = context == TerminalAgentCompletionSupport.TabContext.COMMAND;
+        java.util.List<TerminalAgentCompletionPopup.CompletionEntry> items = commandMode
+            ? commandCompletionEntries(commandName)
+            : terminalAgentInputHistoryEntries();
+        if (items.isEmpty()) {
+            return true; // consume TAB even when there is nothing to offer yet
+        }
+        if (agentCompletionPopup == null) {
+            agentCompletionPopup = new TerminalAgentCompletionPopup();
+        }
+        if (!commandMode) {
+            // History mode is user-resizable; restore the persisted size and persist changes.
+            var gs = resolveGlobalSettings();
+            int width = gs != null ? gs.getTerminalAgentHistoryPopupWidth() : 460;
+            int height = gs != null ? gs.getTerminalAgentHistoryPopupHeight() : 260;
+            agentCompletionPopup.setHistoryGeometry(width, height, this::saveAgentHistoryPopupGeometry);
+        }
+        agentCompletionPopup.show(
+            canvas,
+            items,
+            selected -> applyAgentCompletion(widget, buffer, commandMode, raw, selected),
+            () -> Platform.runLater(canvas::requestFocus),
+            commandMode ? null : this::removeAgentInputHistoryEntry,
+            commandMode ? null : this::clearAgentInputHistory);
+        return true;
+    }
+
+    private static de.kortty.model.GlobalSettings resolveGlobalSettings() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            return gsm != null ? gsm.getSettings() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Persists a user-chosen TAB history popup size so it survives restarts. */
+    private void saveAgentHistoryPopupGeometry(double width, double height) {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            if (gs == null) {
+                return;
+            }
+            gs.setTerminalAgentHistoryPopupWidth((int) Math.round(width));
+            gs.setTerminalAgentHistoryPopupHeight((int) Math.round(height));
+            gsm.save();
+        } catch (Exception e) {
+            logger.debug("Could not persist terminal agent history popup geometry: {}", e.getMessage());
+        }
+    }
+
+    /** Removes a single prompt from the persistent terminal agent input history. */
+    private void removeAgentInputHistoryEntry(String prompt) {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            if (gs == null) {
+                return;
+            }
+            if (gs.removeTerminalAgentInput(prompt)) {
+                gsm.save();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not remove terminal agent input history entry: {}", e.getMessage());
+        }
+    }
+
+    /** Clears the entire persistent terminal agent input history. */
+    private void clearAgentInputHistory() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            if (gs == null) {
+                return;
+            }
+            gs.clearTerminalAgentInputHistory();
+            gsm.save();
+        } catch (Exception e) {
+            logger.debug("Could not clear terminal agent input history: {}", e.getMessage());
+        }
+    }
+
+    private void applyAgentCompletion(SithTermFxWidget widget, StringBuilder buffer,
+                                      boolean commandMode, String raw, String selected) {
+        if (selected == null) {
+            return;
+        }
+        TtyConnector connector = widget.getTtyConnector();
+        if (connector == null || !connector.isConnected()) {
+            return;
+        }
+        String toSend;
+        if (commandMode) {
+            String suffix = TerminalAgentCompletionSupport.completionSuffix(raw.strip(), selected);
+            toSend = suffix.isEmpty() ? " " : suffix;
+        } else {
+            toSend = selected;
+        }
+        try {
+            connector.write(toSend);
+            buffer.append(toSend);
+        } catch (Exception e) {
+            logger.debug("Failed to send AI completion to terminal: {}", e.getMessage());
+        }
+    }
+
+    private java.util.List<TerminalAgentCompletionPopup.CompletionEntry> commandCompletionEntries(String commandName) {
+        java.util.List<TerminalAgentCompletionPopup.CompletionEntry> entries = new java.util.ArrayList<>();
+        for (String option : TerminalAgentCompletionSupport.commandOptions(commandName)) {
+            entries.add(TerminalAgentCompletionPopup.CompletionEntry.of(option));
+        }
+        return entries;
+    }
+
+    private java.util.List<TerminalAgentCompletionPopup.CompletionEntry> terminalAgentInputHistoryEntries() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            if (gs == null) {
+                return java.util.List.of();
+            }
+            java.util.List<TerminalAgentCompletionPopup.CompletionEntry> entries = new java.util.ArrayList<>();
+            // Migrate the stored history in place: drop previously-captured shell noise (completion
+            // listings, "command not found" output), dedup by cleaned text, and persist the cleaned
+            // list once. Keeping storage == display means delete/dedup match the displayed value and
+            // any pre-existing junk is removed for good (not merely hidden).
+            java.util.List<de.kortty.model.TerminalAgentInputHistoryEntry> cleanedStore = new java.util.ArrayList<>();
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            boolean changed = false;
+            for (de.kortty.model.TerminalAgentInputHistoryEntry entry : gs.getTerminalAgentInputHistoryEntries()) {
+                if (entry == null || entry.getPrompt() == null) {
+                    changed = true;
+                    continue;
+                }
+                String clean = TerminalAgentCompletionSupport.sanitizeHistoryPrompt(entry.getPrompt());
+                if (clean == null || clean.isBlank() || !seen.add(clean)) {
+                    changed = true;
+                    continue;
+                }
+                if (!clean.equals(entry.getPrompt())) {
+                    changed = true;
+                }
+                cleanedStore.add(new de.kortty.model.TerminalAgentInputHistoryEntry(
+                    clean, entry.getLastUsedEpochMillis()));
+                entries.add(new TerminalAgentCompletionPopup.CompletionEntry(
+                    clean,                                  // value: the full prompt is inserted/run on selection
+                    shortenAgentHistoryDisplay(clean),      // primary: shortened so long prompts don't run off the row
+                    formatAgentHistoryTimestamp(entry.getLastUsedEpochMillis())));
+            }
+            if (changed) {
+                gs.setTerminalAgentInputHistory(cleanedStore);
+                try {
+                    gsm.save();
+                } catch (Exception ignored) {
+                    // best-effort migration; the cleaned list is still used for this popup
+                }
+            }
+            return entries;
+        } catch (Exception e) {
+            return java.util.List.of();
+        }
+    }
+
+    /** Max characters of a history prompt shown in the TAB popup before it is shortened with an ellipsis. */
+    static final int AGENT_HISTORY_DISPLAY_MAX_CHARS = 60;
+
+    /**
+     * Shortens a history prompt for display in the TAB popup: prompts longer than
+     * {@link #AGENT_HISTORY_DISPLAY_MAX_CHARS} characters are cut and an ellipsis is appended, so a row
+     * never runs off the popup. The full prompt is still stored and inserted on selection.
+     */
+    static String shortenAgentHistoryDisplay(String prompt) {
+        if (prompt == null) {
+            return "";
+        }
+        String text = prompt.strip();
+        if (text.length() <= AGENT_HISTORY_DISPLAY_MAX_CHARS) {
+            return text;
+        }
+        return text.substring(0, AGENT_HISTORY_DISPLAY_MAX_CHARS).stripTrailing() + "…";
+    }
+
+    private static final java.time.format.DateTimeFormatter AGENT_HISTORY_TIMESTAMP_FORMAT =
+        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    /** Formats a last-used epoch-millis timestamp for display next to a history entry, or "" if unset. */
+    static String formatAgentHistoryTimestamp(long epochMillis) {
+        if (epochMillis <= 0) {
+            return "";
+        }
+        return java.time.Instant.ofEpochMilli(epochMillis)
+            .atZone(java.time.ZoneId.systemDefault())
+            .format(AGENT_HISTORY_TIMESTAMP_FORMAT);
     }
 
     private String resolveAgentShortcutCommand(SithTermFxWidget widget, String bufferedCommand) {
@@ -2618,6 +2985,24 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /**
+     * Clears the local agent-shortcut input buffer for the widget owning {@code sourceConnector} once
+     * a bare shell prompt (no typed input) is on screen, so a stale "agent ..." entry from a finished
+     * command cannot make a later TAB falsely offer the prompt history.
+     */
+    private void clearAgentShortcutBufferForFreshPrompt(SshTtyConnector sourceConnector) {
+        SithTermFxWidget widget = findWidgetForConnector(sourceConnector);
+        if (widget == null) {
+            return;
+        }
+        Platform.runLater(() -> {
+            StringBuilder buffer = agentShortcutBuffers.get(widget);
+            if (buffer != null && !buffer.isEmpty()) {
+                buffer.setLength(0);
+            }
+        });
+    }
+
     private void recordAgentShortcutPromptSignal(SshTtyConnector sourceConnector, String data) {
         if (data == null || data.isEmpty()) {
             return;
@@ -2640,6 +3025,10 @@ public class TerminalView extends BorderPane {
             if (!lastLine.isBlank()) {
                 if (looksLikeShellPrompt(lastLine)) {
                     agentShortcutPromptReady = true;
+                    // A bare shell prompt with no typed input is showing: drop any stale local input
+                    // buffer so a TAB here cannot resurrect a previous "agent ..." line and wrongly
+                    // offer the history. The buffer refills as the user types the next command.
+                    clearAgentShortcutBufferForFreshPrompt(sourceConnector);
                 } else if (shouldResetPromptReady(lastLine, hasPendingAgentShortcutInput())) {
                     agentShortcutPromptReady = false;
                 }
@@ -3076,7 +3465,6 @@ public class TerminalView extends BorderPane {
     private final class AgentShortcutInputFilter {
         private static final char ESCAPE = '\u001B';
         private static final char CTRL_C = '\u0003';
-        private static final char CTRL_R = '\u0012';
         private static final char CTRL_U = '\u0015';
         private static final char DELETE = '\u007F';
 
@@ -3107,14 +3495,10 @@ public class TerminalView extends BorderPane {
         }
 
         private void processByte(int value, ByteArrayOutputStream outgoing, int[] currentLineStart) {
-            if (isTerminalAgentInputLockedFor(widget)) {
-                partialUtf8.reset();
-                if (value < 0x80) {
-                    handleLockedInput((char) value);
-                }
-                return;
-            }
-
+            // Note: input is no longer blocked while an agent run is active. The user may keep typing
+            // the next command and it flows to the shell as usual (run-control characters are handled
+            // at the key-event level). Agent re-dispatch while a run is active is suppressed in
+            // handleLineBreak so a second run is not launched.
             while (true) {
                 if (partialUtf8.size() > 0) {
                     if (isUtf8Continuation(value)) {
@@ -3184,6 +3568,8 @@ public class TerminalView extends BorderPane {
             byte[] originalBytes,
             ByteArrayOutputStream outgoing,
             int[] currentLineStart) {
+            // Concurrent runs are supported, so a new `agent ...` line is still intercepted and
+            // launched as an additional run even while another run is active on this widget.
             String rawCommand = resolveAgentShortcutCommand(widget, inputLine.toString());
             String commandName = getTerminalAgentCommandName();
             boolean caseInsensitiveCommandName = isTerminalAgentCommandNameCaseInsensitive();
@@ -3291,21 +3677,6 @@ public class TerminalView extends BorderPane {
                     handler.handle(command, runContext);
                 }
             });
-        }
-
-        private void handleLockedInput(char ch) {
-            TerminalAgentRunState state = terminalAgentRunStates.get(widget);
-            if (ch == ESCAPE || ch == CTRL_C) {
-                Runnable handler = state != null ? state.cancelHandler : null;
-                if (handler != null) {
-                    Platform.runLater(handler);
-                }
-            } else if (ch == CTRL_R) {
-                Runnable handler = state != null ? state.toggleDetailsHandler : null;
-                if (handler != null) {
-                    Platform.runLater(handler);
-                }
-            }
         }
 
         private boolean isLineBreak(char ch) {
@@ -4220,6 +4591,7 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
+        cancelAllTerminalAgentRuns();
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();
         stopLogger();

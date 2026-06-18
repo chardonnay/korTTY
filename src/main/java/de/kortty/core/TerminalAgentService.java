@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import de.kortty.model.AgentActionCategory;
 import de.kortty.model.AiProfile;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.ui.TerminalTab;
@@ -81,6 +82,14 @@ public class TerminalAgentService {
 
         default void recordTokenUsage(AiTokenUsage usage) {
         }
+
+        /**
+         * Cooperative pause hook. Called at the top of every agent turn (between commands, never
+         * mid-command) so the run can be "parked" until the user resumes. Implementations should
+         * block while paused and return once resumed or cancelled.
+         */
+        default void awaitIfPaused() throws InterruptedException {
+        }
     }
 
     public interface PlanProgressUi {
@@ -101,6 +110,17 @@ public class TerminalAgentService {
 
     public static boolean isCancellation(Throwable error) {
         return error instanceof AgentCancelledException;
+    }
+
+    /**
+     * Whether an activity id belongs to the given run. Activity ids are namespaced as
+     * {@code runId + ":" + suffix}, so a run owns exactly the activities prefixed with its id.
+     */
+    public static boolean belongsToRun(String runId, String activityId) {
+        if (runId == null || runId.isBlank() || activityId == null) {
+            return false;
+        }
+        return activityId.startsWith(runId + ":");
     }
 
     public record PlanningQuestions(
@@ -282,13 +302,26 @@ public class TerminalAgentService {
         AiPromptService aiService,
         TerminalAgentModels.Request request,
         RunUi ui) throws Exception {
+        runAgent(terminalTab, connector, profile, aiService, request, UUID.randomUUID().toString(), ui);
+    }
+
+    public void runAgent(
+        TerminalTab terminalTab,
+        SshTtyConnector connector,
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.Request request,
+        String requestedRunId,
+        RunUi ui) throws Exception {
         Objects.requireNonNull(terminalTab, "terminalTab");
         Objects.requireNonNull(profile, "profile");
         Objects.requireNonNull(aiService, "aiService");
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(ui, "ui");
 
-        String runId = UUID.randomUUID().toString();
+        String runId = requestedRunId != null && !requestedRunId.isBlank()
+            ? requestedRunId
+            : UUID.randomUUID().toString();
         String sessionId = request.sessionId();
         CachedSudoPassword cachedPassword = null;
         try {
@@ -303,6 +336,15 @@ public class TerminalAgentService {
             }
 
             for (int turn = 1; turn <= MAX_AGENT_TURNS; turn++) {
+                ensureNotCancelled(ui);
+                // Cooperative pause: park between turns while the user holds the run paused. A command
+                // already executing finishes first; we only block here at a safe turn boundary.
+                try {
+                    ui.awaitIfPaused();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                // Cancellation may have fired while parked, so re-check before planning the next turn.
                 ensureNotCancelled(ui);
                 ui.updateState(new TerminalAgentModels.RunState(
                     runId,
@@ -1172,8 +1214,16 @@ public class TerminalAgentService {
         if (decision == null || decision.status == null) {
             throw new JsonSyntaxException("Missing decision status");
         }
-        if (blank(decision.summary) || blank(decision.userMessage)) {
+        if (blank(decision.summary) && blank(decision.userMessage)) {
             throw new JsonSyntaxException("Missing summary or userMessage");
+        }
+        // Smaller models sometimes return only one of the two human-facing fields. Rather than
+        // failing the whole turn, derive the missing field from the other so the run can continue.
+        if (blank(decision.userMessage)) {
+            decision.userMessage = decision.summary;
+        }
+        if (blank(decision.summary)) {
+            decision.summary = firstLineOf(decision.userMessage);
         }
         if ((decision.status == AgentDecisionStatus.run_commands || decision.status == AgentDecisionStatus.needs_confirmation)
             && (decision.commands == null || decision.commands.isEmpty())) {
@@ -1691,14 +1741,97 @@ public class TerminalAgentService {
         return false;
     }
 
+    private static final Set<String> COMMAND_WRAPPER_TOKENS = Set.of(
+        "sudo", "doas", "env", "command", "builtin", "exec", "nohup", "time", "nice", "ionice", "stdbuf", "setsid");
+
     public static boolean isInteractiveCommand(String command) {
-        String normalized = " " + stripHereDocumentBodiesForCommandCheck(command).toLowerCase(Locale.ROOT) + " ";
-        for (String token : INTERACTIVE_COMMAND_TOKENS) {
-            if (normalized.contains(" " + token + " ")) {
+        // Inspect only the command word actually being invoked in each pipeline/sequence segment.
+        // Interactive tokens such as "top", "more", "less" or "man" are common English words and also
+        // appear inside quoted scripts (e.g. a sed expression "Show top 10 biggest files") or as plain
+        // arguments; matching them anywhere would wrongly reject valid commands.
+        String sanitized = stripQuotedSegmentsForCommandCheck(
+            stripHereDocumentBodiesForCommandCheck(command));
+        for (String segment : sanitized.split("[|;&\\n()]+")) {
+            String token = firstCommandToken(segment);
+            if (token != null && INTERACTIVE_COMMAND_TOKENS.contains(token.toLowerCase(Locale.ROOT))) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Returns the basename of the command invoked in a single pipeline segment, or null. */
+    private static String firstCommandToken(String segment) {
+        if (segment == null || segment.isBlank()) {
+            return null;
+        }
+        for (String word : segment.trim().split("\\s+")) {
+            if (word.isEmpty()) {
+                continue;
+            }
+            // Skip leading environment assignments (FOO=bar) that precede the command word.
+            int eq = word.indexOf('=');
+            if (eq > 0 && word.substring(0, eq).matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                continue;
+            }
+            // Skip option flags that belong to a preceding wrapper command (e.g. sudo -n).
+            if (word.startsWith("-")) {
+                continue;
+            }
+            String basename = word;
+            int slash = basename.lastIndexOf('/');
+            if (slash >= 0) {
+                basename = basename.substring(slash + 1);
+            }
+            // Look past wrapper commands so the actually-wrapped command is inspected.
+            if (COMMAND_WRAPPER_TOKENS.contains(basename.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            return basename;
+        }
+        return null;
+    }
+
+    /** Blanks out single- and double-quoted regions so a command-word scan ignores quoted text. */
+    static String stripQuotedSegmentsForCommandCheck(String command) {
+        if (command == null || command.isEmpty()) {
+            return command != null ? command : "";
+        }
+        StringBuilder out = new StringBuilder(command.length());
+        boolean inSingle = false;
+        boolean inDouble = false;
+        for (int i = 0; i < command.length(); i++) {
+            char c = command.charAt(i);
+            if (inSingle) {
+                if (c == '\'') {
+                    inSingle = false;
+                }
+                out.append(' ');
+                continue;
+            }
+            if (inDouble) {
+                if (c == '\\' && i + 1 < command.length()) {
+                    out.append("  ");
+                    i++;
+                    continue;
+                }
+                if (c == '"') {
+                    inDouble = false;
+                }
+                out.append(' ');
+                continue;
+            }
+            if (c == '\'') {
+                inSingle = true;
+                out.append(' ');
+            } else if (c == '"') {
+                inDouble = true;
+                out.append(' ');
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 
     static String stripHereDocumentBodiesForCommandCheck(String command) {
@@ -2130,6 +2263,18 @@ public class TerminalAgentService {
         String summary,
         String detail,
         long elapsedSeconds) {
+        publishAction(ui, id, status, title, summary, detail, elapsedSeconds, AgentActionCategory.INSPECT);
+    }
+
+    private void publishAction(
+        RunUi ui,
+        String id,
+        TerminalAgentModels.AgentActivityStatus status,
+        String title,
+        String summary,
+        String detail,
+        long elapsedSeconds,
+        AgentActionCategory category) {
         ui.publishActivity(new TerminalAgentModels.AgentActivity(
             id,
             TerminalAgentModels.AgentActivityType.ACTION,
@@ -2140,7 +2285,8 @@ public class TerminalAgentService {
             TerminalAgentModels.AgentActivityTokenUsage.unknown(),
             elapsedSeconds,
             !blank(detail),
-            status != TerminalAgentModels.AgentActivityStatus.RUNNING));
+            status != TerminalAgentModels.AgentActivityStatus.RUNNING,
+            category != null ? category : AgentActionCategory.GENERIC));
     }
 
     private void publishCommandActivity(
@@ -2158,7 +2304,8 @@ public class TerminalAgentService {
         String detail = status == TerminalAgentModels.AgentActivityStatus.RUNNING
             ? planned.purpose()
             : buildCommandDetail(planned, execResult);
-        publishAction(ui, id, status, title, summary, detail, elapsedSeconds);
+        publishAction(ui, id, status, title, summary, detail, elapsedSeconds,
+            AgentActionCategory.classify(planned.command()));
     }
 
     static String buildCommandActivityTitle(String verb, String command) {
@@ -2394,7 +2541,9 @@ public class TerminalAgentService {
                 "Never invent facts. Only use the provided probe snapshot and previous command results.",
                 "Do not return commands in query-only mode.",
                 "Allowed status values: `done`, `blocked`.",
-                "JSON schema: {\"status\":\"done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"short text for the user\",\"commands\":[],\"needsReprobe\":false}");
+                "Always include BOTH a non-empty `summary` (one short line) and a non-empty `userMessage` in every response.",
+                "When `status` is `done`, `userMessage` MUST be the complete answer to the user's question, including the concrete results/data (e.g. the requested counts, values, or list) — not a meta-description like 'Provided X'.",
+                "JSON schema: {\"status\":\"done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"complete answer for the user, including the actual results/data\",\"commands\":[],\"needsReprobe\":false}");
         }
         return String.join(" ",
             "You are the planner for a remote SSH terminal automation helper.",
@@ -2405,6 +2554,8 @@ public class TerminalAgentService {
             "All commands must be non-interactive and safe to run over SSH without user input.",
             "Each command runs in its own non-interactive SSH exec channel from the active terminal working directory in `probe.currentDir`; do not rely on `cd` persisting to later commands.",
             "When the user asks to create or save a file and does not specify an absolute path, create it in `probe.currentDir`.",
+            "To create, rewrite or migrate a file — especially structured files such as YAML, JSON, INI, or scripts — write the COMPLETE intended file contents in one command using a quoted here-document (`cat > 'path' <<'EOF'` ... newline ... `EOF`). Do NOT edit such files in place with `sed`/`awk` regex substitutions; in-place regex edits are fragile and easily corrupt indentation or structure. Use `sed`/`awk` only for reading or extracting text, never for rewriting structured files.",
+            "NEVER claim that a file was created, written, saved, or modified unless you actually issued the command that does so in THIS response. To create or modify a file you MUST put the writing command (e.g. the `cat > 'path' <<'EOF'` here-document) in `commands` with status `run_commands` or `needs_confirmation`. Do NOT set status `done` while only describing the intended file contents — that would report work that never happened.",
             "If sudo is needed, use `sudo -n ...` only. Never use `su`, `sudo su`, `sudo -S`, or commands that wait for a password.",
             "If the probe says `sudoAvailable` is true but `passwordlessSudo` is false, you may still plan `sudo -n ...` commands.",
             "If the runtime state says `sudoPasswordCached` is true, do not ask for the sudo password again.",
@@ -2415,7 +2566,10 @@ public class TerminalAgentService {
             "If commands would change the system or need privilege, use `needs_confirmation`.",
             "Allowed `status` values: `run_commands`, `needs_confirmation`, `done`, `blocked`.",
             "Allowed `risk` values for each command: `read_only`, `requires_confirmation`.",
-            "JSON schema: {\"status\":\"run_commands|needs_confirmation|done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"short text for the user\",\"commands\":[{\"command\":\"shell command\",\"purpose\":\"why this command is needed\",\"risk\":\"read_only|requires_confirmation\"}],\"needsReprobe\":false}");
+            "Always include BOTH a non-empty `summary` (one short line) and a non-empty `userMessage` in every response.",
+            "When `status` is `done`, `userMessage` MUST be the complete answer to the user's task, including the concrete results/data found (e.g. the requested counts, values, or list) copied from the command output — not a meta-description like 'Provided X'.",
+            "Exception: for tasks that create, modify, or migrate files, keep `userMessage` to a SHORT confirmation that names the resulting file path(s); do NOT paste the file's contents (or large blocks of text) into `userMessage` — the file on disk is the result, not its echoed contents.",
+            "JSON schema: {\"status\":\"run_commands|needs_confirmation|done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"complete answer for the user, including the actual results/data\",\"commands\":[{\"command\":\"shell command\",\"purpose\":\"why this command is needed\",\"risk\":\"read_only|requires_confirmation\"}],\"needsReprobe\":false}");
     }
 
     private String buildAgentUserPrompt(
@@ -2646,6 +2800,23 @@ public class TerminalAgentService {
 
     private boolean blank(String value) {
         return value == null || value.isBlank();
+    }
+
+    /** Returns the first non-empty line of {@code text}, trimmed and length-capped, for use as a short summary. */
+    static String firstLineOf(String text) {
+        if (text == null) {
+            return null;
+        }
+        String line = text.strip();
+        int newline = line.indexOf('\n');
+        if (newline >= 0) {
+            line = line.substring(0, newline).strip();
+        }
+        int maxLength = 160;
+        if (line.length() > maxLength) {
+            line = line.substring(0, maxLength).strip() + "…";
+        }
+        return line;
     }
 
     private String nonBlank(String value, String fallback) {

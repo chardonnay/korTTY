@@ -47,7 +47,7 @@ public final class WorkflowScriptGenerator {
 
     /** Immutable carrier for the finished run, decoupled from the panel's private snapshot. */
     public record RunExportData(String profileId, String profileName, String sourcePrompt,
-                                TerminalAgentActivityExportService.Run run) {
+                                TerminalAgentActivityExportService.Run run, String detectedOs) {
     }
 
     public record Request(ScriptLanguage language, EnumSet<WorkflowScriptSupport.HardeningOption> options,

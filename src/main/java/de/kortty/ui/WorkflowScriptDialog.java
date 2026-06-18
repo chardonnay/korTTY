@@ -463,7 +463,13 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         snippet.setContent(content);
         snippet.setLanguage(resultTab.language.snippetLanguage());
         snippet.setDescription(I18n.get("ai.workflow.snippet.description", safeSourcePrompt()));
-        snippet.setTagsFromString("workflow, ai-generated, " + resultTab.language.snippetLanguage());
+        snippet.setTagsFromString("workflow");
+        // Tag the snippet with the OS the agent ran on, mapped to a configured System-list entry
+        // (any Linux distro → "Linux"); only names present in the System list are used.
+        String os = WorkflowScriptSupport.matchOperatingSystem(runData.detectedOs(), snippetManager.getOperatingSystems());
+        if (os != null) {
+            snippet.setOperatingSystem(os);
+        }
         if (!resultTab.diagrams.isEmpty()) {
             snippet.setDiagrams(new ArrayList<>(resultTab.diagrams));
         }

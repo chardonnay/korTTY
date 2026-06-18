@@ -42,6 +42,18 @@ import static com.google.common.truth.Truth.assertThat;
 class OpenAiCompatibleAiServiceTest {
 
     @Test
+    void detectsLmStudioModelNotLoadedErrors() {
+        assertThat(OpenAiCompatibleAiService.isModelNotLoadedError(
+            "{\"error\":\"Model has not started loading/has been unloaded.\"}")).isTrue();
+        assertThat(OpenAiCompatibleAiService.isModelNotLoadedError(
+            "{\"error\":\"No models loaded\"}")).isTrue();
+        // A genuine different 400 must not be misclassified as not-loaded.
+        assertThat(OpenAiCompatibleAiService.isModelNotLoadedError(
+            "{\"error\":\"invalid temperature value\"}")).isFalse();
+        assertThat(OpenAiCompatibleAiService.isModelNotLoadedError(null)).isFalse();
+    }
+
+    @Test
     void buildHttpRequestUsesConfiguredEndpointHeadersAndModel() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "https://example.test/v1/chat/completions",

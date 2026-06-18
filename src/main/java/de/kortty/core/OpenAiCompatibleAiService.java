@@ -243,8 +243,15 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 false,
                 effectiveModel);
         }
-        HttpRequest httpRequest = buildHttpRequest(request, timeout, skillClassifier, effectiveModel);
-        return executeRequestWithClient(httpRequest, client);
+        try {
+            return executeRequestWithClient(buildHttpRequest(request, timeout, skillClassifier, effectiveModel), client);
+        } catch (ModelNotLoadedException e) {
+            String retryModel = reresolveForRetry(client);
+            if (retryModel == null || retryModel.equals(effectiveModel)) {
+                throw e;
+            }
+            return executeRequestWithClient(buildHttpRequest(request, timeout, skillClassifier, retryModel), client);
+        }
     }
 
     AiExecutionResult executePromptWithClient(String systemPrompt, String userPrompt, HttpClient client, Duration timeout) throws Exception {
@@ -293,7 +300,17 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             timeout,
             jsonResponseFormat,
             effectiveModel);
-        return executeRequestWithClient(httpRequest, client);
+        try {
+            return executeRequestWithClient(httpRequest, client);
+        } catch (ModelNotLoadedException e) {
+            String retryModel = reresolveForRetry(client);
+            if (retryModel == null || retryModel.equals(effectiveModel)) {
+                throw e;
+            }
+            return executeRequestWithClient(
+                buildPromptHttpRequest(effectiveSystemPrompt, userPrompt, timeout, jsonResponseFormat, retryModel),
+                client);
+        }
     }
 
     private static String normalizePrompt(String prompt) {
@@ -304,7 +321,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("AI API error " + response.statusCode() + ": " + extractErrorMessage(responseBody));
+            throw apiError(response.statusCode(), responseBody);
         }
         AiExecutionResult result = parseResponseBody(responseBody);
         String content = result != null ? result.content() : null;
@@ -327,7 +344,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
             String responseBody = readResponseBody(response.body());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IOException("AI API error " + response.statusCode() + ": " + extractErrorMessage(responseBody));
+                throw apiError(response.statusCode(), responseBody);
             }
             JsonObject root = parseResponseRoot(responseBody);
             if (root == null) {
@@ -386,7 +403,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("AI API error " + response.statusCode() + ": " + extractErrorMessage(responseBody));
+            throw apiError(response.statusCode(), responseBody);
         }
         JsonObject root = parseResponseRoot(responseBody);
         AiExecutionResult parsed;
@@ -549,6 +566,56 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
     private String resolveModelForRequest(HttpClient client) throws IOException, InterruptedException {
         return LocalLmModelResolver.resolve(apiUrl, model, modelSelectionMode, apiKey, client);
+    }
+
+    /** Thrown when the server reports the requested model is not loaded (e.g. LM Studio JIT off). */
+    private static final class ModelNotLoadedException extends IOException {
+        ModelNotLoadedException(String message) {
+            super(message);
+        }
+    }
+
+    /** Builds the exception for a non-2xx response, with an actionable hint for the not-loaded case. */
+    private IOException apiError(int status, String body) {
+        String detail = extractErrorMessage(body);
+        if (isModelNotLoadedError(body)) {
+            return new ModelNotLoadedException(modelNotLoadedMessage(detail));
+        }
+        return new IOException("AI API error " + status + ": " + detail);
+    }
+
+    static boolean isModelNotLoadedError(String body) {
+        if (body == null) {
+            return false;
+        }
+        String lower = body.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("has not started loading")
+            || lower.contains("has been unloaded")
+            || lower.contains("no models loaded");
+    }
+
+    private String modelNotLoadedMessage(String detail) {
+        String hint = modelSelectionMode == AiModelSelectionMode.AUTO
+            ? "Load a model in LM Studio (and keep one loaded), then retry."
+            : "Load the configured model in LM Studio, enable JIT model loading, or set the profile model to Auto.";
+        return "The AI model is not loaded in LM Studio: " + detail + " — " + hint;
+    }
+
+    /**
+     * For AUTO profiles on a resolvable LM Studio endpoint, re-resolves the currently loaded model so
+     * a request can be retried once after a "model not loaded" error (e.g. the model was unloaded
+     * between resolution and the call). Returns null when no different usable model can be resolved.
+     */
+    private String reresolveForRetry(HttpClient client) {
+        if (modelSelectionMode != AiModelSelectionMode.AUTO || !LocalLmModelResolver.canResolve(apiUrl)) {
+            return null;
+        }
+        try {
+            String resolved = resolveModelForRequest(client);
+            return resolved != null && !resolved.isBlank() ? resolved : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     @Override
@@ -866,7 +933,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IOException("AI API error " + response.statusCode() + ": " + extractErrorMessage(responseBody));
+            throw apiError(response.statusCode(), responseBody);
         }
         AiExecutionResult result = parseResponseBody(responseBody);
         String content = result != null ? result.content() : null;

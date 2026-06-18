@@ -73,6 +73,35 @@ class TerminalAgentSudoCommandTest {
     }
 
     @Test
+    void doesNotFlagInteractiveTokensInsideQuotedScripts() {
+        // Regression: "top" inside the single-quoted sed script must not be treated as the `top` command.
+        String command = "sed -i '/- name: Show top 10 biggest files/,/debug:/c\\    debug:' "
+            + "\"${PWD}/find_biggest_files.yml\"";
+        assertThat(TerminalAgentService.isInteractiveCommand(command)).isFalse();
+
+        assertThat(TerminalAgentService.isInteractiveCommand(
+            "awk '{print $1}' more.log | sort")).isFalse();
+        assertThat(TerminalAgentService.isInteractiveCommand(
+            "echo 'less is more' > notes.txt")).isFalse();
+    }
+
+    @Test
+    void doesNotFlagInteractiveTokensUsedAsArguments() {
+        assertThat(TerminalAgentService.isInteractiveCommand("grep top /var/log/messages")).isFalse();
+        assertThat(TerminalAgentService.isInteractiveCommand("ls -la less more top")).isFalse();
+        assertThat(TerminalAgentService.isInteractiveCommand("find . -name 'man*' -type f")).isFalse();
+    }
+
+    @Test
+    void stillFlagsRealInteractiveCommandsIncludingWrappedAndPiped() {
+        assertThat(TerminalAgentService.isInteractiveCommand("vi /etc/hosts")).isTrue();
+        assertThat(TerminalAgentService.isInteractiveCommand("cat /var/log/messages | less")).isTrue();
+        assertThat(TerminalAgentService.isInteractiveCommand("sudo vim /etc/fstab")).isTrue();
+        assertThat(TerminalAgentService.isInteractiveCommand("sudo -n nano /etc/hosts")).isTrue();
+        assertThat(TerminalAgentService.isInteractiveCommand("/usr/bin/top")).isTrue();
+    }
+
+    @Test
     void requiresConfirmationForFileCreatingHereDocument() {
         String command = """
             cat > /home/daniel/find_xml.pl << 'EOF'
