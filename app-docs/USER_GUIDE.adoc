@@ -139,17 +139,19 @@ image::diagrams/connection-flow.svg[Connection flow,align=center]
 
 Open with *File > Quick Connect* or press *Ctrl+K* (Cmd+K on macOS).
 
-The Quick Connect dialog has three sections:
+The Quick Connect dialog has four sections:
 
-1. *Frequently Used Connections* - The 10 last used connections appear as quick-access buttons at the top, ordered by last used (most recent first). Click one to connect immediately. Usage is tracked when you connect from Quick Connect or the Dashboard.
+1. *Search field* - A live search field (case-insensitive, supports `*` glob patterns) filters the saved connections in real time. For example, `prod*` matches all connections starting with "prod". Leave the field empty to see all connections.
 
-2. *Individual Connection* tab:
-* Select a saved connection from the dropdown, or enter host, port, and username manually.
+2. *Frequently Used Connections* - The 10 last used connections appear as quick-access buttons at the top (when the search field is empty), ordered by last used (most recent first). Click one to connect immediately. Usage is tracked when you connect from Quick Connect or the Dashboard.
+
+3. *Individual Connection* tab:
+* Select a saved connection from the filtered dropdown (filtered by the search field above), or enter host, port, and username manually.
 * Choose an authentication method (Password, SSH Key, or Temporary SSH Key).
 * Optionally customize terminal appearance (font, size, colors, terminal color-sequence handling), terminal effect plugin, and terminal-effect animation speed.
 * Check *Save Connection* to add the connection to your library.
 
-3. *Open Group* tab:
+4. *Open Group* tab:
 * Select a group from the list.
 * All connections in that group open simultaneously in separate tabs.
 
@@ -334,8 +336,27 @@ Selected terminal text is transmitted to the configured AI endpoint for analysis
 6. Click *Test AI Connection*.
 7. Optionally choose a *Default profile* for terminal AI actions and follow-up chats that do not explicitly select another profile.
 8. Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.
-9. Optionally configure the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, debug/runtime visibility, and activity-panel preferences for *AI Agent* and *AI Planning*.
+9. Optionally configure the terminal-agent input-history size (default 20, range 5–100), the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, debug/runtime visibility, and activity-panel preferences for *AI Agent* and *AI Planning*.
 10. Optionally disable the confirmation dialog for *Summarize* and *Solve Problem* if you want a faster workflow. *Ask* always opens the prompt dialog.
+
+==== AI Profile Setup Wizard
+
+A guided wizard creates AI profiles with support for both local and cloud-based language models.
+
+To open the wizard:
+
+* *Settings > AI*, click *Add Profile* or *Edit* an existing profile.
+* *Tools > AI Manager > Profiles*, click *Add*.
+
+The wizard guides you through:
+
+1. *Connection Type* - Choose local LM Studio or a cloud provider.
+2. *LM Studio Setup* - If local: pick a loaded LM Studio model from the list or use *Auto* mode.
+3. *Cloud Provider Setup* - If cloud: select the provider (Anthropic Claude API, OpenAI, or other OpenAI-compatible endpoint).
+4. *API Details* - Enter API Key, select or enter Model name, and optionally configure Reasoning effort (if the provider/model supports extended thinking).
+5. *Profile Name* - Enter a display name for the profile (e.g., "Claude Opus", "Local LM Studio").
+
+Native Anthropic (Claude) API support was added alongside existing OpenAI-compatible endpoints.
 
 ==== Local LM Studio model selection
 
@@ -477,10 +498,14 @@ KorTTY also supports agent-style workflows for an active terminal session.
 * *AI Agent* - Start from *Tools > AI Agent...*, from the terminal right-click menu, or with the terminal shortcut command. The agent can open in a dedicated chat tab or target the active terminal window, depending on *Settings > AI*.
 * *AI Planning* - Start from *Tools > AI Planning...*, from the terminal right-click menu, or with `agent-plan` / `agent -plan`. Planning mode asks clarifying questions, proposes one or more options, creates a final plan report, and lets you start the accepted plan.
 * *Split-local activity panel* - Terminal-targeted runs appear at the bottom of the terminal split where the run was started. Each split has its own panel, so different splits can run their own agent tasks in parallel.
-* *Panel content* - The panel shows the user prompt in a two-line scrollable field, agent messages, read/run actions, task timing, reported token usage, semantic activity markers, collapsible details, per-row copy/snippet actions, previous/next run navigation, rerun, close, collapse/expand, resize, font-size controls, and export controls.
-* *Input lock and cancel* - While the agent is active, normal terminal input is blocked for that terminal split. Press *Esc*, press *Ctrl+C*, or use the panel cancel button to abort the run.
+* *Concurrent runs as tabs* - Multiple concurrent runs per split are shown as closable tabs in the activity panel (one tab per run), with a per-widget concurrency cap of 5 runs. Finished runs stay as tabs until closed. This replaces the old "previous/next run navigation". The selected tab's run controls (cancel, pause/resume, Ctrl+R for thinking) operate on that tab only.
+* *Typing while agent is active* - Typing is no longer locked while a run is active. You can continue typing in the shell prompt and launch another `agent ...` command (it opens a new concurrent tab). Only run-control keys are intercepted: *Esc* or *Ctrl+C* cancel the SELECTED tab's run; *Ctrl+R* toggles that run's thinking details.
+* *Pause and Resume* - Each run tab shows pause (⏸) and cancel buttons. Pause parks the agent at a safe point between steps (a command already running finishes first); paused time is excluded from the run work-time. Drag the resize handle to change the panel height.
+* *Panel content* - The panel shows the user prompt in a two-line scrollable field, agent messages, read/run actions, task timing, reported token usage, semantic activity markers, collapsible details, per-row copy/snippet actions, rerun, close, collapse/expand, resize, font-size controls, and export controls.
 * *Current directory* - Terminal shortcut runs use KorTTY's tracked current remote directory. Commands and generated files are executed relative to that directory.
-* *Approvals and sudo* - The agent can request explicit approval before command execution and can ask for a sudo password in the activity panel. Password input is masked, can be submitted with *Enter*, and allows up to three wrong-password retries. If a password is cached, it is used only for the current agent/session context. After accepting a planning report, KorTTY checks sudo before starting implementation when the current SSH session requires a sudo password.
+* *Approvals and sudo* - The agent can request explicit approval before command execution and can ask for a sudo password in the activity panel. Password input is masked, can be submitted with *Enter*, and allows up to three wrong-password retries. If a password is cached, it is used only for the current agent/session context. When user input (sudo password / command approval) is required, the panel auto-expands and selects that run, and the tab shows a bold ✋ "input required" badge. After accepting a planning report, KorTTY checks sudo before starting implementation when the current SSH session requires a sudo password.
+* *Collapsed status bar* - When the panel is collapsed, it shows a compact status bar with the run prompt, state, pause/cancel buttons, and an expand button. With several runs it surfaces the most relevant one (a run awaiting input first, otherwise one that is still working) and shows a run breakdown such as "1 running · 2 done" instead of a bare total. A small spinner appears while the agent is actively working, and a bold ✋ marker signals when user input is required — both without opening the full panel.
+* *Keep collapsed preference* - Use *Keep collapsed* to make the panel start minimized to the status bar and stay collapsed when new activity, approval prompts, or sudo password prompts arrive. You can still expand the panel manually.
 * *Terminal output* - Final terminal-agent answers are written back to the terminal area so the shell transcript contains the answer, not only the activity panel state.
 * *Transcripts* - Dedicated agent and planning tabs can copy and save their transcript.
 * *Planning font size* - The planning tab supports *A-*, *A+*, and Ctrl/Cmd plus `+` / `-` shortcuts. The chosen planning font size is saved globally and restored after restart.
@@ -500,6 +525,19 @@ agent -plan <task>
 The base command name is configurable in *Settings > AI*. If you rename `agent`, KorTTY derives the matching `-ask` and `-plan` commands automatically. The same settings page can make the command name case-insensitive and can disable the per-run setup dialog; when the dialog is disabled, KorTTY uses the configured default profile.
 
 KorTTY intercepts these shortcuts locally before they are sent to the remote shell as normal executables. User-entered agent commands remain available in shell history.
+
+==== TAB completion and prompt history
+
+At the shell prompt, TAB completion is enhanced for agent commands:
+
+* Type the agent command name (e.g., `agent`) then press *TAB* to offer the command variants (`agent`, `agent-ask`, `agent-plan`).
+* Type the command + a space (e.g., `agent `) then press *TAB* to offer the recent agent-prompt history. Each row shows the prompt and the date/time it was last run, de-duplicated by prompt text (newest first).
+* Each history row shows the prompt on the left and the date/time it was last run on the right. Prompts longer than 60 characters are shortened with an ellipsis so rows stay readable; the full prompt is still inserted when the entry is selected.
+* The history popup is resizable — drag the grip in the bottom-right corner — and remembers its size across restarts. It shows a vertical scrollbar when the history is longer than the popup.
+* In the history popup, remove a single prompt by clicking the row's ✕ button (or pressing *Del* on keyboards with a forward-delete key), or remove the entire history with *Clear all* (a two-step confirm guards against accidental wipes). Deletions are saved immediately.
+* Outside this context, TAB is normal shell completion.
+
+History size is configurable in *Settings > AI* (default 20, range 5–100).
 
 ==== How the AI Agent works
 
@@ -548,38 +586,61 @@ KorTTY adds guardrails around agent execution:
 * Commands that change the system or require privilege can be routed through confirmation depending on settings and model decision.
 * Sudo uses `sudo -n` and activity-panel password prompts. KorTTY does not allow `sudo -S`, `su`, or commands that wait indefinitely for a terminal password prompt.
 * The current remote directory is tracked from shell hooks, terminal prompt context, and probe results. If a tracked directory no longer exists, KorTTY retries the probe from the SSH default directory and reports the issue.
-* While a terminal-targeted run is active, that split is input-locked so normal typing cannot interleave with agent execution.
+* While a terminal-targeted run is active, normal typing is still allowed; only run-control keys (*Esc*/*Ctrl+C* to cancel the selected run, *Ctrl+R* to toggle its thinking details) are intercepted, and new `agent` commands open additional run tabs.
 * Web-search failures, HTTP errors, authentication errors, empty results, and timeouts are surfaced as explicit tool errors.
 * If the AI response does not match the required JSON schema, KorTTY asks for a repair. If repair also fails, the run is blocked with an explanation.
 
 The terminal activity panel can be adjusted during use:
 
-* Use the arrow buttons to move through previous and next agent runs.
+* *Run tabs* - Multiple concurrent runs are shown as closable tabs. Click a tab to select it; only the selected tab's run is controlled by run-control keys and buttons.
 * Use the reload button to run the selected agent command again.
 * Use the copy action on an activity row to copy that row's text to the clipboard.
 * Use the snippet action on an activity row to open the row text in the Snippet Editor. Leading activity quote markers (`>`) are removed before the snippet draft is created.
 * Use the export format list and export menu to save the current run or all panel-history runs as Markdown, plain text, YAML, XML, JSON, PDF, or Asciidoctor. Exports include the AI profile, configured model/LLM, reasoning status, run timestamps, total runtime, per-activity runtimes, reported token usage when available, summaries, and expanded detail text. Leading activity quote markers (`>`) are removed from exported detail text.
 * Use *Expand all* to keep activity details open instead of compacting them. This option is saved globally and restored after restarting KorTTY.
-* Enable *Keep collapsed* if the panel should start collapsed and stay collapsed when new activity, approval prompts, or sudo password prompts arrive. You can still expand the panel manually.
 * Use *A-* and *A+* to change the activity font size.
 * Drag the resize handle to change the panel height.
 * Enable *Remember size* to persist panel height and activity font size across application restarts.
-* Use the collapse/expand button to hide or show the panel. If the panel is collapsed while the agent is waiting for sudo input, the status line still shows that input is required.
+* Use the collapse/expand button to hide or show the panel. When collapsed, the panel shows a compact status bar with the run prompt, state, pause/cancel buttons, and expand button. If the panel is collapsed while the agent is waiting for sudo input, the status bar shows "✋ input required" and the panel auto-expands when you interact with it.
 
-Activity rows use semantic markers:
+Activity rows use semantic emoji icons (static, non-blinking):
 
 [cols="1,3"]
 |===
-| Marker | Meaning
-| `↑` | Request or input sent to the agent/model
-| `↓` | Output, result, or completed action received
-| `?` | User input is required
-| `!` | Error or failed activity
-| `x` | Cancelled activity
-| `i` | Neutral information
+| Icon | Meaning
+| 💾 | Request or input: write/create file
+| 📖 | Action: read file/directory
+| ▶️ | Action: run/execute command
+| 📁 | Action: directory operation
+| 📦 | Context: package manager
+| ⚙️ | Context: service or system
+| 🌐 | Action: network operation
+| 🔍 | Action: inspect/analyze
+| 💭 | State: thinking/reasoning
+| 💬 | Output: message or result
+| ✋ | Required: awaiting user input (sudo/approval)
+| ❌ | State: error or failed activity
+| 🚫 | State: cancelled activity
 |===
 
 Red styling is reserved for error and failed states.
+
+==== Generate Workflow Script
+
+After a finished agent run completes successfully, a *Workflow* button turns the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook) with robust error handling, detailed comments, and a header (script name, creator, date/time).
+
+Script generation:
+
+* Auto-loads matching AI Skills (e.g., a language-quality skill for the target language).
+* Can produce several language variants and multiple suggestions as inline tabs.
+* Supports header templates from the fixed non-deletable *Script-Header* snippet category.
+* Optionally includes a PlantUML diagram for the script logic.
+* Saves into the Snippet Manager with a short auto-generated name + correct extension (de-duplicated by full name incl. extension).
+* Tags the snippet as `workflow` for easy filtering.
+* Auto-sets the *System* (OS) column from the agent's probed OS (any Linux distro → Linux).
+* Internet access is forced OFF during generation.
+
+The workflow dialog is resizable and remembers its size and position for future use.
 
 === 4.8 Terminal Logging
 
@@ -931,6 +992,12 @@ Both panels support *glob pattern search* using the `*` wildcard. For example, `
 
 The Snippet Manager lets you store, organize, and quickly insert reusable code snippets, scripts, and configuration templates.
 
+The Snippet Manager now includes:
+
+* *System (OS) column* - A new sortable operating system column for each snippet (Any, Linux, macOS, Windows). This is auto-set to the agent's probed OS when a snippet is created via *Generate Workflow Script*.
+* *Sortable columns* - All columns (Name, Language, Category, System, Tags, etc.) are now sortable.
+* *Script-Header category* - A fixed, non-deletable category containing reusable header templates. Use these templates when generating workflow scripts via *Generate Workflow Script*.
+
 === 9.1 Opening the Snippet Manager
 
 * *Menu:* Tools > Snippet Manager
@@ -942,7 +1009,8 @@ The Snippet Manager lets you store, organize, and quickly insert reusable code s
 2. Fill in the fields:
 * *Name* - A descriptive name.
 * *Language* - Select the programming language (Bash, Python, Java, JavaScript, SQL, XML, JSON, YAML, and more). This enables syntax highlighting.
-* *Category* - Select an existing category or type a new one.
+* *Category* - Select an existing category or type a new one. The fixed non-deletable *Script-Header* category contains reusable header templates for use in generated workflow scripts.
+* *System* - Optionally select a target operating system (Any, Linux, macOS, Windows). This column is auto-set when a snippet is created via *Generate Workflow Script* from an agent run, based on the agent's probed OS. You can manually override it for any snippet.
 * *Tags* - Comma-separated keywords for searching (e.g., `docker, deploy, backup`).
 * *Description* - Optional free-text description of the snippet.
 * *Content* - The snippet code. The editor provides live syntax highlighting based on the selected language.

@@ -87,7 +87,24 @@ public final class TerminalAgentModels {
         AgentActivityTokenUsage tokenUsage,
         long elapsedSeconds,
         boolean collapsible,
-        boolean collapsed) {
+        boolean collapsed,
+        AgentActionCategory actionCategory) {
+
+        /** Backward-compatible constructor for activities without an explicit action category. */
+        public AgentActivity(
+            String id,
+            AgentActivityType type,
+            AgentActivityStatus status,
+            String title,
+            String summary,
+            String detail,
+            AgentActivityTokenUsage tokenUsage,
+            long elapsedSeconds,
+            boolean collapsible,
+            boolean collapsed) {
+            this(id, type, status, title, summary, detail, tokenUsage, elapsedSeconds,
+                collapsible, collapsed, null);
+        }
     }
 
     public record Request(

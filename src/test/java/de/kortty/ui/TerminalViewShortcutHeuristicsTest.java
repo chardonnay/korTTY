@@ -268,12 +268,64 @@ class TerminalViewShortcutHeuristicsTest {
     }
 
     @Test
+    void shortensLongHistoryPromptsForDisplayKeepingShortOnesIntact() {
+        assertThat(TerminalView.shortenAgentHistoryDisplay("show me the 5 biggest files"))
+            .isEqualTo("show me the 5 biggest files");
+        assertThat(TerminalView.shortenAgentHistoryDisplay(null)).isEmpty();
+
+        // Exactly 60 characters is kept as-is; 61+ is shortened with a trailing ellipsis.
+        String exactly60 = "x".repeat(60);
+        assertThat(TerminalView.shortenAgentHistoryDisplay(exactly60)).isEqualTo(exactly60);
+
+        String longPrompt =
+            "migriere das script find_biggest_files.pl nach ansible-playbook mit ansible funktionen";
+        String shortened = TerminalView.shortenAgentHistoryDisplay(longPrompt);
+        assertThat(shortened).endsWith("…");
+        assertThat(shortened.length()).isAtMost(TerminalView.AGENT_HISTORY_DISPLAY_MAX_CHARS + 1);
+        assertThat(longPrompt).startsWith(shortened.substring(0, shortened.length() - 1));
+    }
+
+    @Test
     void recognizesAgentInputCancellationShortcuts() {
         assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.ESCAPE, false, false, false)).isTrue();
         assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.C, true, false, false)).isTrue();
         assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.C, false, false, false)).isFalse();
         assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.C, true, true, false)).isFalse();
         assertThat(TerminalView.isAgentInputCancelShortcut(KeyCode.R, true, false, false)).isFalse();
+    }
+
+    @Test
+    void onlyRunControlKeysAreInterceptedWhileAgentRunActive() {
+        // Cancel (Esc / Ctrl+C) and toggle-details (Ctrl+R) are intercepted while a run is active.
+        assertThat(TerminalView.isAgentRunControlKey(KeyCode.ESCAPE, false, false, false)).isTrue();
+        assertThat(TerminalView.isAgentRunControlKey(KeyCode.C, true, false, false)).isTrue();
+        assertThat(TerminalView.isAgentRunControlKey(KeyCode.R, true, false, false)).isTrue();
+        // Ordinary typing must NOT be intercepted, so it reaches the shell and the shortcut buffer.
+        assertThat(TerminalView.isAgentRunControlKey(KeyCode.S, false, false, false)).isFalse();
+        assertThat(TerminalView.isAgentRunControlKey(KeyCode.R, false, false, false)).isFalse(); // plain 'r'
+        assertThat(TerminalView.isAgentRunControlKey(KeyCode.SPACE, false, false, false)).isFalse();
+        assertThat(TerminalView.isAgentRunControlKey(KeyCode.ENTER, false, false, false)).isFalse();
+        assertThat(TerminalView.isAgentRunControlKey(KeyCode.R, true, true, false)).isFalse(); // Ctrl+Alt+R
+    }
+
+    @Test
+    void formatsAgentHistoryTimestampForDisplay() {
+        assertThat(TerminalView.formatAgentHistoryTimestamp(0)).isEmpty();
+        assertThat(TerminalView.formatAgentHistoryTimestamp(-5)).isEmpty();
+        // Timezone-independent shape check: "yyyy-MM-dd HH:mm".
+        assertThat(TerminalView.formatAgentHistoryTimestamp(1_718_000_000_000L))
+            .matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}");
+    }
+
+    @Test
+    void identifiesRunControlControlCharacters() {
+        assertThat(TerminalView.isAgentRunControlCharacter("\u0003")).isTrue(); // Ctrl+C
+        assertThat(TerminalView.isAgentRunControlCharacter("\u0012")).isTrue(); // Ctrl+R
+        assertThat(TerminalView.isAgentRunControlCharacter("\u001B")).isTrue(); // Esc
+        assertThat(TerminalView.isAgentRunControlCharacter("s")).isFalse();
+        assertThat(TerminalView.isAgentRunControlCharacter("\r")).isFalse();
+        assertThat(TerminalView.isAgentRunControlCharacter("")).isFalse();
+        assertThat(TerminalView.isAgentRunControlCharacter(null)).isFalse();
     }
 
     @Test
@@ -298,5 +350,19 @@ class TerminalViewShortcutHeuristicsTest {
             + "                  \n";
 
         assertThat(TerminalView.extractPromptForLocalRedisplay(screen, "agent")).isEqualTo("daniel@fedora:~$ ");
+    }
+
+    @Test
+    void allowsTerminalAgentRunBelowConcurrencyCap() {
+        assertThat(TerminalView.canStartTerminalAgentRun(0, 5)).isTrue();
+        assertThat(TerminalView.canStartTerminalAgentRun(4, 5)).isTrue();
+    }
+
+    @Test
+    void blocksTerminalAgentRunAtOrAboveConcurrencyCap() {
+        assertThat(TerminalView.canStartTerminalAgentRun(5, 5)).isFalse();
+        assertThat(TerminalView.canStartTerminalAgentRun(6, 5)).isFalse();
+        // A non-positive cap disables starting runs entirely.
+        assertThat(TerminalView.canStartTerminalAgentRun(0, 0)).isFalse();
     }
 }

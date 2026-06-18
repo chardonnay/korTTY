@@ -154,6 +154,7 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.F12);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
+    private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
     private static final int JOB_SCHEDULER_STATUS_LEFT_PADDING = 14;
     private static final String PROJECT_URL = "https://github.com/chardonnay/korTTY";
     private static final String JOB_SCHEDULER_STATUS_SPACED_TEXT_PROPERTY = "kortty.jobscheduler.status.spacedText";
@@ -690,6 +691,11 @@ public class MainWindow {
             systemMenuBar.setUseSystemMenuBar(true);
             systemMenuBar.setManaged(false);
             systemMenuBar.setVisible(false);
+            // The visible in-window menu bar already registers its accelerators in the scene. The
+            // native companion bar would register the SAME accelerators with the system menu, so
+            // every shortcut fired twice. Strip accelerators from the companion bar; the in-window
+            // bar remains the single owner (and still shows the shortcut labels).
+            clearMenuBarAccelerators(systemMenuBar);
             // Keep a hidden companion menu bar attached to the scene so macOS can
             // continue to show the application menu even when the in-window bar is hidden.
             VBox menuContainer = new VBox(systemMenuBar, menuBar);
@@ -705,6 +711,26 @@ public class MainWindow {
         applyMainWindowThemeFromGlobalSettings();
         syncAiFeaturesMenuItemsEnabled();
         startJobSchedulerStatusUpdates();
+    }
+
+    /** Removes all keyboard accelerators from a menu bar (used for the macOS companion system bar). */
+    private static void clearMenuBarAccelerators(MenuBar bar) {
+        if (bar == null) {
+            return;
+        }
+        for (Menu menu : bar.getMenus()) {
+            clearMenuAccelerators(menu);
+        }
+    }
+
+    private static void clearMenuAccelerators(Menu menu) {
+        for (MenuItem item : menu.getItems()) {
+            if (item instanceof Menu submenu) {
+                clearMenuAccelerators(submenu);
+            } else if (item != null) {
+                item.setAccelerator(null);
+            }
+        }
     }
 
     private void syncAiFeaturesMenuItemsEnabled() {
@@ -1345,6 +1371,9 @@ public class MainWindow {
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
+        // F11 lives on the in-window bar; the macOS companion system bar has all accelerators
+        // stripped (see setupMenuBar), which also avoids the Cocoa NSEventModifierFlagFunction
+        // warning for the F11 function key. F11 also works via the global key handler.
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
 
@@ -5132,22 +5161,26 @@ public class MainWindow {
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        java.util.concurrent.atomic.AtomicBoolean paused = new java.util.concurrent.atomic.AtomicBoolean(false);
         java.util.concurrent.atomic.AtomicReference<Thread> workerRef = new java.util.concurrent.atomic.AtomicReference<>();
+        final Object pauseLock = new Object();
         TerminalView.TerminalAgentRunContext resolvedRunContext = resolveTerminalAgentRunContext(terminalTab, runContext);
         applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
         if (resolvedRunContext == null || resolvedRunContext.connector() == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
             return;
         }
-        AiAgentActivityPanel activityPanel = terminalTab.getTerminalView().getTerminalAgentActivityPanel(resolvedRunContext);
+        AiAgentActivityTabsPanel activityPanel = terminalTab.getTerminalView().getTerminalAgentActivityPanel(resolvedRunContext);
         if (activityPanel == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
             return;
         }
-        if (terminalTab.getTerminalView().isTerminalAgentRunActive(resolvedRunContext) || activityPanel.isRunning()) {
-            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.terminalBusy"));
+        int activeRuns = terminalTab.getTerminalView().terminalAgentRunCount(resolvedRunContext.widget());
+        if (!TerminalView.canStartTerminalAgentRun(activeRuns, MAX_CONCURRENT_TERMINAL_AGENT_RUNS)) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.tooManyRuns"));
             return;
         }
+        final String runId = java.util.UUID.randomUUID().toString();
         TerminalAgentModels.Request scopedRequest = withTerminalAgentSessionId(
             request,
             terminalTab.getTerminalView().buildTerminalAgentScopedSessionId(request.sessionId(), resolvedRunContext));
@@ -5157,24 +5190,44 @@ public class MainWindow {
             if (workerThread != null) {
                 workerThread.interrupt();
             }
+            synchronized (pauseLock) {
+                pauseLock.notifyAll();
+            }
+        };
+        java.util.function.Consumer<Boolean> pauseToggle = value -> {
+            paused.set(Boolean.TRUE.equals(value));
+            synchronized (pauseLock) {
+                pauseLock.notifyAll();
+            }
         };
         Runnable reloadRun = () -> launchTerminalAgent(terminalTab, request, resolvedRunContext);
         terminalTab.getTerminalView().setTerminalAgentInputLocked(
             resolvedRunContext,
+            runId,
             true,
             cancelRun,
-            activityPanel::toggleThinkingDetails);
+            () -> activityPanel.toggleThinkingDetails(runId));
+        String localUser = System.getProperty("user.name");
+        ServerConnection runConnection = resolvedRunContext.connector() != null
+            ? resolvedRunContext.connector().getConnection()
+            : null;
+        if (runConnection == null) {
+            runConnection = terminalTab.getConnection();
+        }
+        String sshUser = runConnection != null ? runConnection.getUsername() : null;
+        String connectionName = runConnection != null ? runConnection.getDisplayName() : null;
         AiAgentActivityPanel.RunMetadata runMetadata = new AiAgentActivityPanel.RunMetadata(
             profile.getId(),
             profile.getName(),
             aiModelDisplayText(profile),
-            AiReasoningSupport.exportStatus(profile));
-        Platform.runLater(() -> {
-            activityPanel.beginRun(scopedRequest.userPrompt(), cancelRun, reloadRun, runMetadata);
-        });
+            AiReasoningSupport.exportStatus(profile),
+            localUser,
+            sshUser,
+            connectionName);
+        activityPanel.beginRun(runId, scopedRequest.userPrompt(), cancelRun, pauseToggle, reloadRun, runMetadata);
         Thread worker = new Thread(() -> {
             try {
-                terminalAgentService.runAgent(terminalTab, resolvedRunContext.connector(), profile, aiService, scopedRequest, new TerminalAgentService.RunUi() {
+                terminalAgentService.runAgent(terminalTab, resolvedRunContext.connector(), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
                         if (state != null && isTerminalAgentFinalPhase(state.phase())) {
@@ -5188,7 +5241,7 @@ public class MainWindow {
                     @Override
                     public void appendTranscript(String text) {
                         if (scopedRequest.showDebugMessages()) {
-                            activityPanel.publishActivity(new TerminalAgentModels.AgentActivity(
+                            activityPanel.publishActivity(runId, new TerminalAgentModels.AgentActivity(
                                 "debug-" + System.nanoTime(),
                                 TerminalAgentModels.AgentActivityType.MESSAGE,
                                 TerminalAgentModels.AgentActivityStatus.COMPLETED,
@@ -5204,7 +5257,7 @@ public class MainWindow {
 
                     @Override
                     public void publishActivity(TerminalAgentModels.AgentActivity activity) {
-                        activityPanel.publishActivity(activity);
+                        activityPanel.publishActivity(runId, activity);
                     }
 
                     @Override
@@ -5217,22 +5270,31 @@ public class MainWindow {
 
                     @Override
                     public TerminalAgentService.ApprovalDecision requestApproval(TerminalAgentModels.Approval approval) {
-                        return activityPanel.requestApproval(approval);
+                        return activityPanel.requestApproval(runId, approval);
                     }
 
                     @Override
                     public TerminalAgentModels.PasswordResponse requestPassword(TerminalAgentModels.PasswordRequest passwordRequest) {
-                        return activityPanel.requestPassword(passwordRequest);
+                        return activityPanel.requestPassword(runId, passwordRequest);
                     }
 
                     @Override
                     public boolean isCancelled() {
                         return cancelled.get();
                     }
+
+                    @Override
+                    public void awaitIfPaused() throws InterruptedException {
+                        synchronized (pauseLock) {
+                            while (paused.get() && !cancelled.get()) {
+                                pauseLock.wait();
+                            }
+                        }
+                    }
                 });
             } catch (Exception e) {
                 if (TerminalAgentService.isCancellation(e) || cancelled.get()) {
-                    activityPanel.publishActivity(new TerminalAgentModels.AgentActivity(
+                    activityPanel.publishActivity(runId, new TerminalAgentModels.AgentActivity(
                         "cancelled-" + System.nanoTime(),
                         TerminalAgentModels.AgentActivityType.MESSAGE,
                         TerminalAgentModels.AgentActivityStatus.CANCELLED,
@@ -5245,7 +5307,7 @@ public class MainWindow {
                         true));
                     terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, I18n.get("ai.agent.activity.cancelled"));
                 } else {
-                    activityPanel.publishActivity(new TerminalAgentModels.AgentActivity(
+                    activityPanel.publishActivity(runId, new TerminalAgentModels.AgentActivity(
                         "failed-" + System.nanoTime(),
                         TerminalAgentModels.AgentActivityType.ERROR,
                         TerminalAgentModels.AgentActivityStatus.FAILED,
@@ -5261,8 +5323,8 @@ public class MainWindow {
                 }
             } finally {
                 Platform.runLater(() -> {
-                    activityPanel.finishRun();
-                    terminalTab.getTerminalView().setTerminalAgentInputLocked(resolvedRunContext, false, null, null);
+                    activityPanel.finishRun(runId);
+                    terminalTab.getTerminalView().setTerminalAgentInputLocked(resolvedRunContext, runId, false, null, null);
                 });
             }
         }, "ai-agent-terminal");

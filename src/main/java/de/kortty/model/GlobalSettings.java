@@ -362,6 +362,21 @@ public class GlobalSettings {
     @XmlElementWrapper(name = "aiPromptHistory")
     @XmlElement(name = "prompt")
     private java.util.List<String> aiPromptHistory;
+
+    /** Recent terminal AI-agent prompts, offered via TAB after the agent command + space. */
+    @XmlElementWrapper(name = "terminalAgentInputHistory")
+    @XmlElement(name = "input")
+    private java.util.List<TerminalAgentInputHistoryEntry> terminalAgentInputHistory;
+
+    /** How many terminal agent prompts to remember (configurable in AI settings). */
+    @XmlElement
+    private Integer terminalAgentInputHistorySize = 20;
+
+    /** User-adjusted size of the terminal agent TAB history popup (persisted across restarts). */
+    @XmlElement
+    private Integer terminalAgentHistoryPopupWidth;
+    @XmlElement
+    private Integer terminalAgentHistoryPopupHeight;
     
     // SFTP Manager settings
     @XmlElement
@@ -441,6 +456,19 @@ public class GlobalSettings {
     /** Last window geometry of the alternative snippet solutions dialog. */
     @XmlElement
     private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
+
+    /** Last window geometry of the Generate Workflow Script dialog. */
+    @XmlElement
+    private WindowGeometry workflowScriptDialogGeometry;
+
+    /** Last window geometry of the snippet editor's "Custom AI improvement" instruction dialog. */
+    @XmlElement
+    private WindowGeometry customAiImprovementDialogGeometry;
+
+    /** Per-language default "Script-Header" snippet for the Generate Workflow Script dialog. */
+    @XmlElementWrapper(name = "workflowHeaderDefaults")
+    @XmlElement(name = "headerDefault")
+    private java.util.List<WorkflowHeaderDefault> workflowHeaderDefaults = new java.util.ArrayList<>();
 
     /** Last window geometry of the JobScheduler dialog. */
     @XmlElement
@@ -1512,7 +1540,122 @@ public class GlobalSettings {
     public void clearAiPromptHistory() {
         getAiPromptHistory().clear();
     }
-    
+
+    public int getTerminalAgentInputHistorySize() {
+        return terminalAgentInputHistorySize != null && terminalAgentInputHistorySize > 0
+            ? Math.max(5, Math.min(terminalAgentInputHistorySize, 100))
+            : 20;
+    }
+
+    public void setTerminalAgentInputHistorySize(Integer terminalAgentInputHistorySize) {
+        if (terminalAgentInputHistorySize == null) {
+            this.terminalAgentInputHistorySize = 20;
+            return;
+        }
+        this.terminalAgentInputHistorySize = Math.max(5, Math.min(terminalAgentInputHistorySize, 100));
+    }
+
+    /** Returns the remembered prompts, newest first (without timestamps). */
+    public java.util.List<String> getTerminalAgentInputHistory() {
+        java.util.List<String> prompts = new java.util.ArrayList<>();
+        for (TerminalAgentInputHistoryEntry entry : getTerminalAgentInputHistoryEntries()) {
+            if (entry != null && entry.getPrompt() != null) {
+                prompts.add(entry.getPrompt());
+            }
+        }
+        return prompts;
+    }
+
+    /** Returns the remembered prompt entries (prompt + last-used timestamp), newest first. */
+    public java.util.List<TerminalAgentInputHistoryEntry> getTerminalAgentInputHistoryEntries() {
+        if (terminalAgentInputHistory == null) {
+            terminalAgentInputHistory = new java.util.ArrayList<>();
+        }
+        return terminalAgentInputHistory;
+    }
+
+    public void setTerminalAgentInputHistory(java.util.List<TerminalAgentInputHistoryEntry> terminalAgentInputHistory) {
+        this.terminalAgentInputHistory = terminalAgentInputHistory;
+    }
+
+    /** Adds a terminal agent prompt to the front of the history (deduped), capped at the configured size. */
+    public void addTerminalAgentInput(String prompt) {
+        addTerminalAgentInput(prompt, System.currentTimeMillis());
+    }
+
+    /**
+     * Adds a terminal agent prompt to the front of the history, recording {@code whenMillis} as its
+     * last-used time. Entries are de-duplicated by prompt text only: running the same prompt again
+     * moves it to the front and refreshes its timestamp instead of creating a duplicate. The list is
+     * capped at the configured size.
+     */
+    public void addTerminalAgentInput(String prompt, long whenMillis) {
+        if (prompt == null || prompt.trim().isEmpty()) {
+            return;
+        }
+        String normalized = prompt.trim();
+        java.util.List<TerminalAgentInputHistoryEntry> history = getTerminalAgentInputHistoryEntries();
+        history.removeIf(entry -> entry == null || normalized.equals(promptKey(entry)));
+        history.add(0, new TerminalAgentInputHistoryEntry(normalized, whenMillis));
+        int max = getTerminalAgentInputHistorySize();
+        while (history.size() > max) {
+            history.remove(history.size() - 1);
+        }
+    }
+
+    /**
+     * Removes the terminal agent prompt-history entry whose prompt text matches {@code prompt}
+     * (compared trimmed). Returns {@code true} if an entry was removed.
+     */
+    public boolean removeTerminalAgentInput(String prompt) {
+        if (prompt == null) {
+            return false;
+        }
+        String normalized = prompt.trim();
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        return getTerminalAgentInputHistoryEntries()
+            .removeIf(entry -> entry == null || normalized.equals(promptKey(entry)));
+    }
+
+    /** Removes every remembered terminal agent prompt from the input history. */
+    public void clearTerminalAgentInputHistory() {
+        getTerminalAgentInputHistoryEntries().clear();
+    }
+
+    /** Persisted width of the TAB history popup, clamped to a sane range (default 460). */
+    public int getTerminalAgentHistoryPopupWidth() {
+        int v = terminalAgentHistoryPopupWidth != null ? terminalAgentHistoryPopupWidth : 460;
+        return Math.max(280, Math.min(v, 1400));
+    }
+
+    public void setTerminalAgentHistoryPopupWidth(Integer width) {
+        this.terminalAgentHistoryPopupWidth = width == null ? null : Math.max(280, Math.min(width, 1400));
+    }
+
+    /** Persisted height of the TAB history popup, clamped to a sane range (default 260). */
+    public int getTerminalAgentHistoryPopupHeight() {
+        int v = terminalAgentHistoryPopupHeight != null ? terminalAgentHistoryPopupHeight : 260;
+        return Math.max(120, Math.min(v, 900));
+    }
+
+    public void setTerminalAgentHistoryPopupHeight(Integer height) {
+        this.terminalAgentHistoryPopupHeight = height == null ? null : Math.max(120, Math.min(height, 900));
+    }
+
+    /**
+     * Dedup/match key for a history entry: the trimmed prompt text (or {@code null}). Comparing on the
+     * trimmed value keeps add and remove symmetric even for legacy/externally-edited entries whose
+     * stored prompt carries surrounding whitespace.
+     */
+    private static String promptKey(TerminalAgentInputHistoryEntry entry) {
+        if (entry == null || entry.getPrompt() == null) {
+            return null;
+        }
+        return entry.getPrompt().trim();
+    }
+
     /**
      * Gets the SFTP Manager auto-close timeout in minutes.
      * @return Timeout in minutes, or null/0 if disabled
@@ -1735,6 +1878,52 @@ public class GlobalSettings {
     public WindowGeometry getAlternativeSnippetSolutionsDialogGeometry() { return alternativeSnippetSolutionsDialogGeometry; }
     public void setAlternativeSnippetSolutionsDialogGeometry(WindowGeometry alternativeSnippetSolutionsDialogGeometry) {
         this.alternativeSnippetSolutionsDialogGeometry = alternativeSnippetSolutionsDialogGeometry;
+    }
+
+    public WindowGeometry getWorkflowScriptDialogGeometry() { return workflowScriptDialogGeometry; }
+    public void setWorkflowScriptDialogGeometry(WindowGeometry workflowScriptDialogGeometry) {
+        this.workflowScriptDialogGeometry = workflowScriptDialogGeometry;
+    }
+
+    public WindowGeometry getCustomAiImprovementDialogGeometry() { return customAiImprovementDialogGeometry; }
+    public void setCustomAiImprovementDialogGeometry(WindowGeometry customAiImprovementDialogGeometry) {
+        this.customAiImprovementDialogGeometry = customAiImprovementDialogGeometry;
+    }
+
+    public java.util.List<WorkflowHeaderDefault> getWorkflowHeaderDefaults() {
+        if (workflowHeaderDefaults == null) {
+            workflowHeaderDefaults = new java.util.ArrayList<>();
+        }
+        return workflowHeaderDefaults;
+    }
+
+    public void setWorkflowHeaderDefaults(java.util.List<WorkflowHeaderDefault> workflowHeaderDefaults) {
+        this.workflowHeaderDefaults = workflowHeaderDefaults != null ? workflowHeaderDefaults : new java.util.ArrayList<>();
+    }
+
+    /** Header-snippet id configured as default for the given language ({@code ScriptLanguage.name()}), or null. */
+    public String getWorkflowHeaderDefault(String language) {
+        if (language == null) {
+            return null;
+        }
+        for (WorkflowHeaderDefault entry : getWorkflowHeaderDefaults()) {
+            if (language.equals(entry.getLanguage())) {
+                return entry.getHeaderSnippetId();
+            }
+        }
+        return null;
+    }
+
+    /** Sets (or, when headerSnippetId is null, clears) the default header snippet for a language. */
+    public void setWorkflowHeaderDefault(String language, String headerSnippetId) {
+        if (language == null) {
+            return;
+        }
+        java.util.List<WorkflowHeaderDefault> list = getWorkflowHeaderDefaults();
+        list.removeIf(entry -> language.equals(entry.getLanguage()));
+        if (headerSnippetId != null && !headerSnippetId.isBlank()) {
+            list.add(new WorkflowHeaderDefault(language, headerSnippetId));
+        }
     }
 
     public WindowGeometry getJobSchedulerDialogGeometry() { return jobSchedulerDialogGeometry; }

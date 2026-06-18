@@ -189,6 +189,64 @@ class TerminalAgentDecisionRepairTest {
         assertThat(skillSummaries).containsExactly("Using AI skill: bash-quality");
     }
 
+    @Test
+    void derivesUserMessageWhenModelOmitsItInsteadOfFailing() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        AiServiceTestDouble aiService = new AiServiceTestDouble("""
+            {
+              "status": "done",
+              "summary": "Listed the top failures",
+              "commands": [],
+              "needsReprobe": false
+            }
+            """);
+
+        TerminalAgentService.AgentDecision decision = service.requestAgentDecision(
+            aiService,
+            request(),
+            probe(),
+            List.of(),
+            1,
+            false,
+            new RunUiTestDouble(),
+            "run-1");
+
+        assertThat(decision.status()).isEqualTo(TerminalAgentService.AgentDecisionStatus.done);
+        // userMessage is derived from summary so the run is not failed for a missing field.
+        assertThat(decision.userMessage()).isEqualTo("Listed the top failures");
+        // No repair round-trip was needed.
+        assertThat(aiService.userPrompts().size()).isEqualTo(1);
+    }
+
+    @Test
+    void derivesSummaryWhenModelOmitsItInsteadOfFailing() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        AiServiceTestDouble aiService = new AiServiceTestDouble("""
+            {
+              "status": "done",
+              "userMessage": "Top failures:\\n49 server-error-device-error\\n3 client-error-not-found",
+              "commands": [],
+              "needsReprobe": false
+            }
+            """);
+
+        TerminalAgentService.AgentDecision decision = service.requestAgentDecision(
+            aiService,
+            request(),
+            probe(),
+            List.of(),
+            1,
+            false,
+            new RunUiTestDouble(),
+            "run-1");
+
+        assertThat(decision.status()).isEqualTo(TerminalAgentService.AgentDecisionStatus.done);
+        // summary is derived from the first line of userMessage.
+        assertThat(decision.summary()).isEqualTo("Top failures:");
+        assertThat(decision.userMessage()).contains("49 server-error-device-error");
+        assertThat(aiService.userPrompts().size()).isEqualTo(1);
+    }
+
     private TerminalAgentModels.Request request() {
         return new TerminalAgentModels.Request(
             "session-1",

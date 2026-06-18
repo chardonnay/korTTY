@@ -10,6 +10,7 @@ import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import javafx.scene.input.Clipboard;
 import net.lingala.zip4j.ZipFile;
@@ -41,6 +42,10 @@ public class SnippetManager {
     
     private static final Logger logger = LoggerFactory.getLogger(SnippetManager.class);
     private static final String SNIPPETS_FILE = "snippets.xml";
+    /** Fixed, non-deletable category whose snippets serve as workflow-script headers. */
+    public static final String SCRIPT_HEADER_CATEGORY = "Script-Header";
+    /** Default operating systems offered for the snippet "System" column. */
+    private static final List<String> DEFAULT_OPERATING_SYSTEMS = List.of("Windows", "MacOS", "Linux");
     private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
     private static final Pattern UNSAFE_PLAIN_TEXT_FILENAME_CHARS = Pattern.compile("[\\\\/\\p{Cntrl}:*?\"<>|]");
     private static final Set<String> RESERVED_WINDOWS_FILE_NAMES = Set.of(
@@ -52,6 +57,7 @@ public class SnippetManager {
     private final Path configDir;
     private final List<Snippet> snippets = new ArrayList<>();
     private final List<SnippetCategory> categories = new ArrayList<>();
+    private final List<String> operatingSystems = new ArrayList<>();
     
     public SnippetManager(Path configDir) {
         this.configDir = configDir;
@@ -63,30 +69,47 @@ public class SnippetManager {
         Path file = configDir.resolve(SNIPPETS_FILE);
         if (!Files.exists(file)) {
             logger.info("No snippets file found, starting with empty list");
+            ensureDefaults();
             return;
         }
-        
+
         try {
             JAXBContext context = JAXBContext.newInstance(
                 SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class
             );
             Unmarshaller unmarshaller = context.createUnmarshaller();
             SnippetsWrapper wrapper = (SnippetsWrapper) unmarshaller.unmarshal(file.toFile());
-            
+
             snippets.clear();
             if (wrapper.getSnippets() != null) {
                 snippets.addAll(wrapper.getSnippets());
             }
-            
+
             categories.clear();
             if (wrapper.getCategories() != null) {
                 categories.addAll(wrapper.getCategories());
             }
-            
+
+            operatingSystems.clear();
+            if (wrapper.getOperatingSystems() != null) {
+                operatingSystems.addAll(wrapper.getOperatingSystems());
+            }
+            ensureDefaults();
+
             logger.info("Loaded {} snippets and {} categories from {}", snippets.size(), categories.size(), file);
         } catch (Exception e) {
             logger.error("Failed to load snippets from " + file, e);
             throw e;
+        }
+    }
+
+    /** Seeds the fixed Script-Header category and the default operating-system list when missing. */
+    private void ensureDefaults() {
+        if (findCategoryByName(SCRIPT_HEADER_CATEGORY).isEmpty()) {
+            categories.add(new SnippetCategory(SCRIPT_HEADER_CATEGORY));
+        }
+        if (operatingSystems.isEmpty()) {
+            operatingSystems.addAll(DEFAULT_OPERATING_SYSTEMS);
         }
     }
     
@@ -97,6 +120,7 @@ public class SnippetManager {
             SnippetsWrapper wrapper = new SnippetsWrapper();
             wrapper.setSnippets(new ArrayList<>(snippets));
             wrapper.setCategories(new ArrayList<>(categories));
+            wrapper.setOperatingSystems(new ArrayList<>(operatingSystems));
             
             JAXBContext context = JAXBContext.newInstance(
                 SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class
@@ -183,8 +207,55 @@ public class SnippetManager {
     }
     
     public void removeCategory(SnippetCategory category) {
+        if (category != null && SCRIPT_HEADER_CATEGORY.equalsIgnoreCase(category.getName())) {
+            logger.info("Refusing to remove the fixed Script-Header category");
+            return;
+        }
         categories.remove(category);
-        logger.info("Removed snippet category: {}", category.getName());
+        logger.info("Removed snippet category: {}", category != null ? category.getName() : null);
+    }
+
+    /** True for the fixed, non-deletable Script-Header category. */
+    public static boolean isFixedCategory(String categoryName) {
+        return SCRIPT_HEADER_CATEGORY.equalsIgnoreCase(categoryName != null ? categoryName.trim() : null);
+    }
+
+    /** Snippets in the Script-Header category, usable as workflow-script headers. */
+    public List<Snippet> getScriptHeaderSnippets() {
+        return snippets.stream()
+                .filter(s -> SCRIPT_HEADER_CATEGORY.equalsIgnoreCase(s.getCategory()))
+                .sorted(java.util.Comparator.comparing(s -> s.getName() != null ? s.getName() : "",
+                        String.CASE_INSENSITIVE_ORDER))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    // ---- Operating systems (for the snippet "System" column) ----
+
+    public List<String> getOperatingSystems() {
+        return new ArrayList<>(operatingSystems);
+    }
+
+    public void setOperatingSystems(List<String> values) {
+        operatingSystems.clear();
+        if (values != null) {
+            for (String value : values) {
+                String trimmed = value != null ? value.trim() : "";
+                if (!trimmed.isEmpty() && operatingSystems.stream().noneMatch(trimmed::equalsIgnoreCase)) {
+                    operatingSystems.add(trimmed);
+                }
+            }
+        }
+    }
+
+    public void addOperatingSystem(String name) {
+        String trimmed = name != null ? name.trim() : "";
+        if (!trimmed.isEmpty() && operatingSystems.stream().noneMatch(trimmed::equalsIgnoreCase)) {
+            operatingSystems.add(trimmed);
+        }
+    }
+
+    public void removeOperatingSystem(String name) {
+        operatingSystems.removeIf(os -> os.equalsIgnoreCase(name));
     }
     
     public void updateCategory(SnippetCategory category) {
@@ -1159,11 +1230,18 @@ public class SnippetManager {
         
         @XmlElement(name = "category")
         private List<SnippetCategory> categories;
-        
+
+        @XmlElementWrapper(name = "operatingSystems")
+        @XmlElement(name = "os")
+        private List<String> operatingSystems;
+
         public List<Snippet> getSnippets() { return snippets; }
         public void setSnippets(List<Snippet> snippets) { this.snippets = snippets; }
-        
+
         public List<SnippetCategory> getCategories() { return categories; }
         public void setCategories(List<SnippetCategory> categories) { this.categories = categories; }
+
+        public List<String> getOperatingSystems() { return operatingSystems; }
+        public void setOperatingSystems(List<String> operatingSystems) { this.operatingSystems = operatingSystems; }
     }
 }

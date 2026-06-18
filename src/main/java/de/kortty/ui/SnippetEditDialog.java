@@ -934,7 +934,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 new Separator(), zoomOutButton, fontSizeLabel, zoomInButton, editorProfileMenu, backgroundBrightnessMenu,
                 new Separator(), markupPreviewToggleButton, wordWrapCheckBox, lineNumbersCheckBox);
         contentHeader.setAlignment(Pos.CENTER_LEFT);
-        formGrid.add(contentHeader, 0, 5, 2, 1);
+        // Wrap the wide toolbar in a min-width-0 horizontal scroll pane so it cannot force the whole
+        // dialog wider than the window. Otherwise the editor's right-edge scrollbar and the action
+        // buttons get pushed off-screen when the window is narrowed; this lets the content shrink to
+        // the window width (the toolbar scrolls horizontally only when there is not enough room).
+        ScrollPane contentHeaderScroll = new ScrollPane(contentHeader);
+        contentHeaderScroll.setFitToHeight(true);
+        contentHeaderScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        contentHeaderScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        contentHeaderScroll.setMinWidth(0);
+        contentHeaderScroll.setMaxWidth(Double.MAX_VALUE);
+        contentHeaderScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0;");
+        formGrid.add(contentHeaderScroll, 0, 5, 2, 1);
 
         formGrid.add(aiAdditionalInstructionsBox, 0, 6, 2, 1);
 
@@ -1146,7 +1157,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         
         // Restore saved geometry
         restoreGeometry();
-        
+        enforceMinimumWindowSize();
+
         // Result converter (also saves geometry)
         setResultConverter(buttonType -> {
             saveGeometry();
@@ -1665,6 +1677,31 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
         }
         return copy;
+    }
+
+    /**
+     * Stops the user from shrinking the editor window so narrow that the editor scrollbar gets clipped
+     * on the right edge or the dialog's action buttons (Save / Save as new / OK / Cancel) overflow the
+     * button bar and become unreachable. Width is generous so the longest localized button row fits.
+     */
+    private static final double MIN_DIALOG_WIDTH = 660;
+    private static final double MIN_DIALOG_HEIGHT = 440;
+
+    private void enforceMinimumWindowSize() {
+        setOnShown(event -> {
+            javafx.stage.Window window = getDialogPane().getScene() != null
+                ? getDialogPane().getScene().getWindow() : null;
+            if (window instanceof javafx.stage.Stage stage) {
+                stage.setMinWidth(MIN_DIALOG_WIDTH);
+                stage.setMinHeight(MIN_DIALOG_HEIGHT);
+                if (stage.getWidth() < MIN_DIALOG_WIDTH) {
+                    stage.setWidth(MIN_DIALOG_WIDTH);
+                }
+                if (stage.getHeight() < MIN_DIALOG_HEIGHT) {
+                    stage.setHeight(MIN_DIALOG_HEIGHT);
+                }
+            }
+        });
     }
 
     private void restoreGeometry() {
@@ -2847,17 +2884,74 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runCustomCodeImprovement() {
-        TextInputDialog dialog = new TextInputDialog();
+        ThemeAwareDialog<String> dialog = new ThemeAwareDialog<>();
         dialog.setTitle(I18n.get("snippets.ai.code.improve.custom.title"));
         dialog.setHeaderText(I18n.get("snippets.ai.code.improve.custom.header"));
-        dialog.setContentText(I18n.get("snippets.ai.code.improve.custom.prompt"));
+        dialog.setResizable(true);
         if (getDialogPane().getScene() != null) {
             dialog.initOwner(getDialogPane().getScene().getWindow());
         }
+        DialogPane pane = dialog.getDialogPane();
+        pane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        Label promptLabel = new Label(I18n.get("snippets.ai.code.improve.custom.prompt"));
+        promptLabel.setWrapText(true);
+        TextArea instructionArea = new TextArea();
+        instructionArea.setWrapText(true);
+        instructionArea.setPrefRowCount(6);
+        VBox.setVgrow(instructionArea, Priority.ALWAYS);
+        VBox box = new VBox(8, promptLabel, instructionArea);
+        box.setPrefSize(520, 260);
+        pane.setContent(box);
+
+        Button okButton = (Button) pane.lookupButton(ButtonType.OK);
+        okButton.disableProperty().bind(instructionArea.textProperty().isEmpty());
+
+        restoreCustomImprovementGeometry(dialog);
+        dialog.setOnShown(e -> instructionArea.requestFocus());
+        dialog.setOnHidden(e -> saveCustomImprovementGeometry(dialog));
+        dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK ? instructionArea.getText() : null);
+
         dialog.showAndWait()
             .map(String::trim)
             .filter(value -> !value.isBlank())
             .ifPresent(this::runCodeImprovement);
+    }
+
+    private void restoreCustomImprovementGeometry(ThemeAwareDialog<String> dialog) {
+        try {
+            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            WindowGeometry geo = gs.getCustomAiImprovementDialogGeometry();
+            if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
+                DialogPane pane = dialog.getDialogPane();
+                pane.setPrefWidth(geo.getWidth());
+                pane.setPrefHeight(geo.getHeight());
+                dialog.setOnShowing(event -> {
+                    javafx.stage.Window window = pane.getScene() != null ? pane.getScene().getWindow() : null;
+                    if (window instanceof javafx.stage.Stage stage) {
+                        stage.setWidth(geo.getWidth());
+                        stage.setHeight(geo.getHeight());
+                    }
+                });
+            }
+        } catch (Exception ignored) {
+            // Non-critical: fall back to default size.
+        }
+    }
+
+    private void saveCustomImprovementGeometry(ThemeAwareDialog<String> dialog) {
+        try {
+            javafx.stage.Window window = dialog.getDialogPane().getScene() != null
+                ? dialog.getDialogPane().getScene().getWindow() : null;
+            if (window instanceof javafx.stage.Stage stage && stage.getWidth() > 0 && stage.getHeight() > 0) {
+                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+                gs.setCustomAiImprovementDialogGeometry(new WindowGeometry(
+                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()));
+                KorTTYApplication.getInstance().getGlobalSettingsManager().save();
+            }
+        } catch (Exception ignored) {
+            // Non-critical.
+        }
     }
 
     private void runCodeImprovement(String theme) {

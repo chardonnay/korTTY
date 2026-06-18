@@ -334,6 +334,10 @@
     -fx-background-color: #e36a4d;
 }
 
+.ai-workflow-error {
+    -fx-text-fill: #e36a4d;
+}
+
 .ai-agent-dot-running {
     -fx-effect: dropshadow(gaussian, #18c26e, 8, 0.45, 0, 0);
 }

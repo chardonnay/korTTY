@@ -1144,6 +1144,14 @@ tasks.register<JavaExec>("monacoWebViewSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("agentCompletionPopupSmoke") {
+    group = "verification"
+    description = "Shows the terminal AI-agent TAB history popup to verify it renders without throwing."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalAgentCompletionPopupSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.jar {
     val implementationTitle = project.name
     val implementationVersion = project.version

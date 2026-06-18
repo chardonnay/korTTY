@@ -6,6 +6,8 @@ import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.TerminalAgentActivityExportService;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.core.WorkflowScriptSupport;
+import de.kortty.model.AgentActionCategory;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
@@ -89,6 +91,7 @@ public class AiAgentActivityPanel extends VBox {
     private final Region headerBusyDot;
     private final Label headerBusyLabel;
     private final Label tokenLabel;
+    private final Label workTimeLabel;
     private final Button previousRunButton;
     private final Button nextRunButton;
     private final Button reloadRunButton;
@@ -96,12 +99,14 @@ public class AiAgentActivityPanel extends VBox {
     private final MenuButton exportButton;
     private final MenuItem exportCurrentRunItem;
     private final MenuItem exportAllRunsItem;
+    private final Button workflowButton;
     private final Button decreaseFontButton;
     private final Button increaseFontButton;
     private final CheckBox expandAllCheckBox;
     private final CheckBox keepCollapsedCheckBox;
     private final CheckBox rememberLayoutCheckBox;
     private final Button cancelRunButton;
+    private final Button pauseRunButton;
     private final Button collapseButton;
     private final Button closeButton;
     private final Region resizeHandle;
@@ -117,6 +122,9 @@ public class AiAgentActivityPanel extends VBox {
     private volatile CompletableFuture<TerminalAgentModels.PasswordResponse> pendingPassword;
     private volatile boolean pendingApprovalAllowsAlways;
     private volatile boolean running;
+    private boolean embedded;
+    private boolean paused;
+    private java.util.function.Consumer<Boolean> pauseHandler;
     private Runnable cancelCallback;
     private RunSnapshot activeRunSnapshot;
     private ActivityRow lastThinkingRow;
@@ -136,13 +144,16 @@ public class AiAgentActivityPanel extends VBox {
     private Timeline exportStatusClearTimer;
     private FadeTransition headerBusyPulseTransition;
     private long runStartedAtMillis = -1L;
+    private long totalPausedMillis;
+    private long pauseStartedMillis = -1L;
     private boolean panelCollapsed;
     private boolean exportInProgress;
     private double expandedPanelHeight = DEFAULT_PANEL_HEIGHT;
     private String exportStatusText;
     private String activeThemeStylesheetUrl;
 
-    public record RunMetadata(String profileId, String profileName, String modelName, String reasoningStatus) {
+    public record RunMetadata(String profileId, String profileName, String modelName, String reasoningStatus,
+                              String creatorUser, String sshUser, String connectionName) {
     }
 
     record ActivityVisual(String symbol, String styleClass) {
@@ -204,6 +215,8 @@ public class AiAgentActivityPanel extends VBox {
         headerBusyLabel.setManaged(false);
         tokenLabel = new Label(formatReportedTokens());
         tokenLabel.getStyleClass().add("ai-agent-activity-meta");
+        workTimeLabel = new Label(I18n.get("ai.agent.activity.workTime", formatWorkTime(0L)));
+        workTimeLabel.getStyleClass().add("ai-agent-activity-meta");
         previousRunButton = buildControlButton("\u25C0", I18n.get("ai.agent.control.previousRun"));
         previousRunButton.setOnAction(event -> showPreviousRun());
         nextRunButton = buildControlButton("\u25B6", I18n.get("ai.agent.control.nextRun"));
@@ -234,6 +247,11 @@ public class AiAgentActivityPanel extends VBox {
         exportButton.getStyleClass().add("ai-agent-font-button");
         exportButton.setFocusTraversable(false);
         exportButton.getItems().addAll(exportCurrentRunItem, exportAllRunsItem);
+        workflowButton = new Button(I18n.get("ai.workflow.button"));
+        workflowButton.getStyleClass().add("ai-agent-font-button");
+        workflowButton.setFocusTraversable(false);
+        workflowButton.setTooltip(new Tooltip(I18n.get("ai.workflow.tooltip")));
+        workflowButton.setOnAction(event -> openWorkflowDialog());
         decreaseFontButton = new Button("A-");
         decreaseFontButton.getStyleClass().add("ai-agent-font-button");
         decreaseFontButton.setFocusTraversable(false);
@@ -259,6 +277,11 @@ public class AiAgentActivityPanel extends VBox {
         cancelRunButton.setOnAction(event -> requestCancel());
         cancelRunButton.setVisible(false);
         cancelRunButton.setManaged(false);
+        pauseRunButton = buildControlButton("\u23F8", I18n.get("ai.agent.control.pauseRun"));
+        pauseRunButton.getStyleClass().add("ai-agent-pause-button");
+        pauseRunButton.setOnAction(event -> togglePaused());
+        pauseRunButton.setVisible(false);
+        pauseRunButton.setManaged(false);
         collapseButton = buildControlButton("\u25BC", I18n.get("ai.agent.control.collapsePanel"));
         collapseButton.getStyleClass().add("ai-agent-collapse-button");
         collapseButton.setMinWidth(30);
@@ -271,12 +294,14 @@ public class AiAgentActivityPanel extends VBox {
         closeButton.setTooltip(new Tooltip(I18n.get("dialog.close")));
         closeButton.setOnAction(event -> hideIfIdle());
 
-        HBox centerStatus = new HBox(8, headerBusyDot, headerBusyLabel, cancelRunButton);
+        HBox centerStatus = new HBox(8, headerBusyDot, headerBusyLabel, pauseRunButton, cancelRunButton);
         centerStatus.getStyleClass().add("ai-agent-header-status");
         centerStatus.setAlignment(Pos.CENTER);
         centerStatus.setMinWidth(Region.USE_PREF_SIZE);
 
-        HBox rightControls = new HBox(8, tokenLabel, collapseButton, closeButton);
+        VBox metaBox = new VBox(0, tokenLabel, workTimeLabel);
+        metaBox.setAlignment(Pos.CENTER_RIGHT);
+        HBox rightControls = new HBox(8, metaBox, collapseButton, closeButton);
         rightControls.getStyleClass().add("ai-agent-header-actions");
         rightControls.setAlignment(Pos.CENTER_RIGHT);
         rightControls.setMinWidth(Region.USE_PREF_SIZE);
@@ -293,6 +318,7 @@ public class AiAgentActivityPanel extends VBox {
             reloadRunButton,
             exportFormatComboBox,
             exportButton,
+            workflowButton,
             decreaseFontButton,
             increaseFontButton,
             expandAllCheckBox,
@@ -366,7 +392,10 @@ public class AiAgentActivityPanel extends VBox {
             LocalDateTime startedAt = LocalDateTime.now();
             this.cancelCallback = cancelCallback;
             running = true;
+            paused = false;
             runStartedAtMillis = System.currentTimeMillis();
+            totalPausedMillis = 0L;
+            pauseStartedMillis = -1L;
             pendingApproval = null;
             pendingApprovalAllowsAlways = false;
             pendingPassword = null;
@@ -389,13 +418,17 @@ public class AiAgentActivityPanel extends VBox {
             promptBox.setManaged(false);
             promptTextArea.setText(title);
             tokenLabel.setText(formatReportedTokens());
+            setWorkTimeLabel(0L);
             setVisible(true);
             setManaged(true);
-            if (keepCollapsedCheckBox.isSelected()) {
+            if (!embedded && keepCollapsedCheckBox.isSelected()) {
+                // When embedded, collapse is owned by the tabs wrapper; never self-collapse.
                 panelCollapsed = true;
             }
             startRunningActivityTimer();
             updateHeaderBusyState();
+            updatePauseButton();
+            updatePauseButtonAvailability();
             applyCollapsedState();
             updateHistoryButtons();
         };
@@ -405,17 +438,25 @@ public class AiAgentActivityPanel extends VBox {
     public void finishRun() {
         running = false;
         Runnable task = () -> {
+            paused = false;
+            updatePauseButton();
             completePassword(null);
             clearPendingPrompt();
             stopRunningIndicators();
             stopRunningActivityTimer();
             stopHeaderBusyAnimation();
+            endInputPause();
+            long finalWorkSeconds = currentWorkSeconds();
             runStartedAtMillis = -1L;
             updateHeaderBusyState();
             syncActiveSnapshotFromCurrentView();
-            if (activeRunSnapshot != null && activeRunSnapshot.finishedAt == null) {
-                activeRunSnapshot.finishedAt = LocalDateTime.now();
+            if (activeRunSnapshot != null) {
+                activeRunSnapshot.workSeconds = finalWorkSeconds;
+                if (activeRunSnapshot.finishedAt == null) {
+                    activeRunSnapshot.finishedAt = LocalDateTime.now();
+                }
             }
+            setWorkTimeLabel(finalWorkSeconds);
             activeRunSnapshot = null;
             updateHistoryButtons();
         };
@@ -451,6 +492,63 @@ public class AiAgentActivityPanel extends VBox {
 
     public boolean isRunning() {
         return running;
+    }
+
+    /**
+     * When embedded, the panel is hosted inside a tabbed wrapper that owns the overlay chrome
+     * (resize handle, collapse/close buttons, run navigation). The panel hides that chrome and
+     * fills its tab so the wrapper controls visibility and sizing.
+     */
+    public void setEmbedded(boolean embedded) {
+        this.embedded = embedded;
+        runOnFx(() -> {
+            if (embedded) {
+                hideChromeNode(resizeHandle);
+                hideChromeNode(collapseButton);
+                hideChromeNode(closeButton);
+                hideChromeNode(previousRunButton);
+                hideChromeNode(nextRunButton);
+                // The wrapper owns collapse; the embedded panel is always fully expanded so its
+                // content stays visible (the persisted "keep collapsed" flag may have collapsed it
+                // during construction).
+                panelCollapsed = false;
+                setMinHeight(0);
+                setPrefHeight(Region.USE_COMPUTED_SIZE);
+                setMaxHeight(Double.MAX_VALUE);
+                setVisible(true);
+                setManaged(true);
+                applyCollapsedState();
+            }
+        });
+    }
+
+    private static void hideChromeNode(Node node) {
+        if (node != null) {
+            node.setVisible(false);
+            node.setManaged(false);
+        }
+    }
+
+    public void setPauseHandler(java.util.function.Consumer<Boolean> pauseHandler) {
+        this.pauseHandler = pauseHandler;
+    }
+
+    public boolean isPaused() {
+        return paused;
+    }
+
+    /** True while this run is blocked waiting for the user (a sudo password or a command approval). */
+    public boolean isAwaitingInput() {
+        return pendingApproval != null || pendingPassword != null;
+    }
+
+    /** Toggles the run's paused state (used by the collapsed tabs-panel status bar). */
+    public void togglePause() {
+        runOnFx(() -> {
+            if (running) {
+                togglePaused();
+            }
+        });
     }
 
     public boolean handleTerminalKeyPressed(KeyEvent event) {
@@ -540,6 +638,32 @@ public class AiAgentActivityPanel extends VBox {
         runOnFx(this::toggleLastThinkingDetails);
     }
 
+    private void togglePaused() {
+        paused = !paused;
+        updatePauseButton();
+        // Reuse the work-time pause accounting so the paused stretch is excluded from work time.
+        if (paused) {
+            beginInputPause();
+        } else {
+            endInputPause();
+        }
+        if (pauseHandler != null) {
+            pauseHandler.accept(paused);
+        }
+    }
+
+    private void updatePauseButton() {
+        pauseRunButton.setText(paused ? "▶" : "⏸");
+        pauseRunButton.setTooltip(new Tooltip(
+            paused ? I18n.get("ai.agent.control.resumeRun") : I18n.get("ai.agent.control.pauseRun")));
+    }
+
+    /** Disables the pause control while a blocking approval/password prompt is awaiting input. */
+    private void updatePauseButtonAvailability() {
+        boolean blockedByPrompt = pendingApproval != null || pendingPassword != null;
+        pauseRunButton.setDisable(blockedByPrompt);
+    }
+
     private double currentPanelHeight() {
         double height = getHeight();
         if (height > 0.0) {
@@ -612,6 +736,7 @@ public class AiAgentActivityPanel extends VBox {
         applyFontSize(keepCollapsedCheckBox, activityFontSize - 2.0);
         applyFontSize(rememberLayoutCheckBox, activityFontSize - 2.0);
         applyFontSize(cancelRunButton, activityFontSize - 2.0);
+        applyFontSize(pauseRunButton, activityFontSize - 2.0);
         applyFontSize(collapseButton, activityFontSize + 3.0);
         applyFontSize(closeButton, activityFontSize - 2.0);
         for (ActivityRow row : rowsById.values()) {
@@ -675,6 +800,19 @@ public class AiAgentActivityPanel extends VBox {
         if (snippetContent.isBlank()) {
             return;
         }
+        Snippet snippet = new Snippet();
+        snippet.setName(buildSnippetName(activity, snippetContent));
+        snippet.setContent(snippetContent);
+        snippet.setLanguage(SnippetLanguageSupport.detectSnippetLanguage("", snippetContent));
+        snippet.setDescription(nonBlank(activity != null ? activity.summary() : null, ""));
+        openSnippetEditorWithDraft(snippet);
+    }
+
+    /** Opens the snippet editor pre-filled with a ready draft and persists it on save. */
+    void openSnippetEditorWithDraft(Snippet snippet) {
+        if (snippet == null || snippet.getContent() == null || snippet.getContent().isBlank()) {
+            return;
+        }
         KorTTYApplication application = KorTTYApplication.getInstance();
         var snippetManager = application != null ? application.getSnippetManager() : null;
         if (snippetManager == null) {
@@ -684,12 +822,6 @@ public class AiAgentActivityPanel extends VBox {
                 "Snippet Manager not initialized");
             return;
         }
-
-        Snippet snippet = new Snippet();
-        snippet.setName(buildSnippetName(activity, snippetContent));
-        snippet.setContent(snippetContent);
-        snippet.setLanguage(SnippetLanguageSupport.detectSnippetLanguage("", snippetContent));
-        snippet.setDescription(nonBlank(activity != null ? activity.summary() : null, ""));
 
         List<String> categoryNames = snippetManager.getAllCategories().stream()
             .map(SnippetCategory::getName)
@@ -716,6 +848,97 @@ public class AiAgentActivityPanel extends VBox {
                         e.getMessage() != null ? e.getMessage() : e.toString()));
             }
         });
+    }
+
+    /** Opens the Workflow dialog for the currently shown finished run. */
+    private void openWorkflowDialog() {
+        if (running) {
+            return;
+        }
+        RunSnapshot snapshot = currentSnapshot();
+        if (snapshot == null || !currentSnapshotHasReproducibleWork()) {
+            showPanelMessage(
+                Alert.AlertType.INFORMATION,
+                I18n.get("ai.workflow.title"),
+                I18n.get("ai.workflow.error.noWork"));
+            return;
+        }
+        KorTTYApplication application = KorTTYApplication.getInstance();
+        if (application == null) {
+            showPanelMessage(Alert.AlertType.ERROR, I18n.get("ai.workflow.title"), I18n.get("ai.workflow.error.noProfile"));
+            return;
+        }
+        WorkflowScriptGenerator.RunExportData runData = new WorkflowScriptGenerator.RunExportData(
+            snapshot.profileId, snapshot.profileName, snapshot.prompt, toExportRun(snapshot),
+            detectedOperatingSystem(snapshot));
+        WorkflowScriptSupport.HeaderFacts baseFacts = new WorkflowScriptSupport.HeaderFacts(
+            WorkflowScriptSupport.defaultScriptName(snapshot.prompt, WorkflowScriptSupport.ScriptLanguage.BASH),
+            nonBlank(snapshot.creatorUser, System.getProperty("user.name")),
+            snapshot.sshUser,
+            snapshot.connectionName,
+            LocalDateTime.now(),
+            snapshot.prompt,
+            snapshot.profileName);
+        WorkflowScriptGenerator generator = new WorkflowScriptGenerator(application);
+        Window owner = getScene() != null ? getScene().getWindow() : null;
+        WorkflowScriptDialog dialog = new WorkflowScriptDialog(owner, generator, runData, baseFacts);
+        dialog.showAndWait();
+    }
+
+    private RunSnapshot currentSnapshot() {
+        if (historyIndex < 0 || historyIndex >= runHistory.size()) {
+            return null;
+        }
+        return runHistory.get(historyIndex);
+    }
+
+    /**
+     * Extracts the probed server OS from the run's activities. The "Inspect" probe activity carries a
+     * detail/summary of the form "{osRelease} | user {user} | cwd {dir} | {sudo}"; we return the
+     * {@code osRelease} prefix (before the first " | "), or null when not found.
+     */
+    private String detectedOperatingSystem(RunSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        for (TerminalAgentModels.AgentActivity activity : snapshot.activities) {
+            String os = extractProbeOs(activity.detail());
+            if (os != null) {
+                return os;
+            }
+            os = extractProbeOs(activity.summary());
+            if (os != null) {
+                return os;
+            }
+        }
+        return null;
+    }
+
+    private static String extractProbeOs(String text) {
+        if (text == null) {
+            return null;
+        }
+        // Only treat it as a probe summary when it carries the probe signature fields.
+        if (!text.contains(" | user ") || !text.contains(" | cwd ")) {
+            return null;
+        }
+        int bar = text.indexOf(" | ");
+        String os = (bar > 0 ? text.substring(0, bar) : text).strip();
+        return os.isEmpty() ? null : os;
+    }
+
+    private boolean currentSnapshotHasReproducibleWork() {
+        RunSnapshot snapshot = currentSnapshot();
+        if (snapshot == null) {
+            return false;
+        }
+        for (TerminalAgentModels.AgentActivity activity : snapshot.activities) {
+            if (activity.type() == TerminalAgentModels.AgentActivityType.ACTION
+                || activity.type() == TerminalAgentModels.AgentActivityType.ERROR) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void ensureSnippetCategoryExists(String categoryName) {
@@ -1003,6 +1226,7 @@ public class AiAgentActivityPanel extends VBox {
         hasReportedTokens = snapshot.hasReportedTokens;
         promptTextArea.setText(snapshot.title);
         tokenLabel.setText(formatReportedTokens());
+        setWorkTimeLabel(snapshot.workSeconds);
         for (TerminalAgentModels.AgentActivity activity : snapshot.activities) {
             ActivityRow row = new ActivityRow(activity);
             rowsById.put(activity.id(), row);
@@ -1047,12 +1271,16 @@ public class AiAgentActivityPanel extends VBox {
         cancelRunButton.setDisable(!running);
         cancelRunButton.setVisible(running);
         cancelRunButton.setManaged(running);
+        pauseRunButton.setVisible(running);
+        pauseRunButton.setManaged(running);
+        updatePauseButtonAvailability();
         closeButton.setDisable(running || exportInProgress);
         boolean hasHistory = !runHistory.isEmpty();
         exportFormatComboBox.setDisable(!idle || !hasHistory);
         exportButton.setDisable(!idle || !hasHistory);
         exportCurrentRunItem.setDisable(!canExportCurrentRun(!idle, runHistory.size(), historyIndex));
         exportAllRunsItem.setDisable(!canExportAllRuns(!idle, runHistory.size()));
+        workflowButton.setDisable(!idle || !currentSnapshotHasReproducibleWork());
     }
 
     static boolean canExportCurrentRun(boolean running, int historySize, int selectedIndex) {
@@ -1127,6 +1355,17 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private void applyCollapsedState() {
+        if (embedded) {
+            // Embedded in the tabs wrapper: always fully expanded — the wrapper owns collapse and
+            // sizing. The panel must never hide its own controls/activity list, otherwise expanding
+            // the wrapper would reveal an empty panel (the per-panel collapse toggle is hidden here).
+            controls.setVisible(true);
+            controls.setManaged(true);
+            scrollPane.setVisible(true);
+            scrollPane.setManaged(true);
+            updatePromptVisibility();
+            return;
+        }
         boolean expanded = !panelCollapsed;
         resizeHandle.setVisible(expanded);
         resizeHandle.setManaged(expanded);
@@ -1203,7 +1442,9 @@ public class AiAgentActivityPanel extends VBox {
             manager.getSettings().setTerminalAgentPanelKeepCollapsed(keepCollapsedCheckBox.isSelected());
             saveGlobalSettings(manager);
         }
-        if (keepCollapsedCheckBox.isSelected()) {
+        // When embedded the wrapper owns collapse and honors this persisted flag on the next run;
+        // self-collapsing here would hide the panel content with no way to expand it.
+        if (!embedded && keepCollapsedCheckBox.isSelected()) {
             setPanelCollapsed(true);
         }
     }
@@ -1274,6 +1515,7 @@ public class AiAgentActivityPanel extends VBox {
         pendingApproval = future;
         pendingApprovalAllowsAlways = approval != null && approval.allowAlways();
         pendingInputStatusText = I18n.get("ai.agent.activity.inputRequired");
+        beginInputPause();
         promptBox.getChildren().clear();
         Label label = new Label(approval != null && approval.userMessage() != null && !approval.userMessage().isBlank()
             ? approval.userMessage()
@@ -1304,6 +1546,7 @@ public class AiAgentActivityPanel extends VBox {
         promptBox.getChildren().add(buttons);
         updatePromptVisibility();
         updateHeaderBusyState();
+        updatePauseButtonAvailability();
         applyFontSizeRecursively(promptBox);
         requestFocus();
         scrollToBottom();
@@ -1316,6 +1559,7 @@ public class AiAgentActivityPanel extends VBox {
         pendingInputStatusText = request != null && request.summary() != null && !request.summary().isBlank()
             ? request.summary().trim()
             : I18n.get("ai.agent.activity.passwordRequired");
+        beginInputPause();
         promptBox.getChildren().clear();
 
         Label label = new Label(request != null && request.userMessage() != null && !request.userMessage().isBlank()
@@ -1369,6 +1613,7 @@ public class AiAgentActivityPanel extends VBox {
 
         updatePromptVisibility();
         updateHeaderBusyState();
+        updatePauseButtonAvailability();
         applyFontSizeRecursively(promptBox);
         Platform.runLater(passwordField::requestFocus);
         scrollToBottom();
@@ -1389,13 +1634,26 @@ public class AiAgentActivityPanel extends VBox {
         return commandBox;
     }
 
+    /**
+     * Completes any pending approval/password prompt as cancelled so a worker thread blocked on the
+     * prompt's future unblocks promptly (used when the run's tab is closed while a prompt is showing).
+     */
+    public void cancelPendingPrompts() {
+        runOnFx(() -> {
+            completeApproval(TerminalAgentService.ApprovalDecision.CANCEL);
+            completePassword(null);
+        });
+    }
+
     private void completeApproval(TerminalAgentService.ApprovalDecision decision) {
         CompletableFuture<TerminalAgentService.ApprovalDecision> future = pendingApproval;
         pendingApproval = null;
         pendingApprovalAllowsAlways = false;
         pendingInputStatusText = null;
+        endInputPause();
         clearPendingPrompt();
         updateHeaderBusyState();
+        updatePauseButtonAvailability();
         if (future != null && !future.isDone()) {
             future.complete(decision);
         }
@@ -1429,8 +1687,10 @@ public class AiAgentActivityPanel extends VBox {
         pendingPasswordField = null;
         pendingPasswordCacheCheckBox = null;
         pendingInputStatusText = null;
+        endInputPause();
         clearPendingPrompt();
         updateHeaderBusyState();
+        updatePauseButtonAvailability();
         if (future != null && !future.isDone()) {
             future.complete(passwordResponse);
         }
@@ -1529,6 +1789,7 @@ public class AiAgentActivityPanel extends VBox {
     private void refreshRunningActivityRows() {
         if (running) {
             updateHeaderBusyText();
+            setWorkTimeLabel(currentWorkSeconds());
         }
         boolean updated = false;
         for (ActivityRow row : rowsById.values()) {
@@ -1567,6 +1828,59 @@ public class AiAgentActivityPanel extends VBox {
         return Math.max(0L, (nowMillis - startedAtMillis) / 1_000L);
     }
 
+    /** Begins a pause while the agent waits for user input (approval/password). */
+    private void beginInputPause() {
+        if (pauseStartedMillis <= 0L) {
+            pauseStartedMillis = System.currentTimeMillis();
+        }
+    }
+
+    /** Ends the input pause, accumulating its duration into the total paused time. */
+    private void endInputPause() {
+        if (pauseStartedMillis > 0L) {
+            long now = System.currentTimeMillis();
+            if (now > pauseStartedMillis) {
+                totalPausedMillis += now - pauseStartedMillis;
+            }
+            pauseStartedMillis = -1L;
+        }
+    }
+
+    private long currentWorkSeconds() {
+        return computeWorkSeconds(runStartedAtMillis, System.currentTimeMillis(), totalPausedMillis, pauseStartedMillis);
+    }
+
+    /**
+     * Working seconds since the run started, excluding time spent paused waiting for user input
+     * (both already-accumulated pauses and any pause currently in progress).
+     */
+    static long computeWorkSeconds(long startMillis, long nowMillis, long totalPausedMillis, long pauseStartedMillis) {
+        if (startMillis <= 0L || nowMillis <= startMillis) {
+            return 0L;
+        }
+        long paused = Math.max(0L, totalPausedMillis);
+        if (pauseStartedMillis > 0L && nowMillis > pauseStartedMillis) {
+            paused += nowMillis - pauseStartedMillis;
+        }
+        long workMillis = (nowMillis - startMillis) - paused;
+        return Math.max(0L, workMillis / 1_000L);
+    }
+
+    /** Formats a duration in seconds as {@code m:ss} (or {@code h:mm:ss} past an hour). */
+    static String formatWorkTime(long seconds) {
+        long total = Math.max(0L, seconds);
+        long hours = total / 3600L;
+        long minutes = (total % 3600L) / 60L;
+        long secs = total % 60L;
+        return hours > 0
+            ? String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, secs)
+            : String.format(Locale.ROOT, "%d:%02d", minutes, secs);
+    }
+
+    private void setWorkTimeLabel(long seconds) {
+        workTimeLabel.setText(I18n.get("ai.agent.activity.workTime", formatWorkTime(seconds)));
+    }
+
     private String formatReportedTokens() {
         return hasReportedTokens
             ? I18n.get("ai.agent.activity.tokens.reported", AiTokenUsageManager.formatCompact(reportedTokens))
@@ -1590,27 +1904,29 @@ public class AiAgentActivityPanel extends VBox {
 
     static ActivityVisual activityVisual(TerminalAgentModels.AgentActivity activity) {
         if (activity == null) {
-            return new ActivityVisual("i", "ai-agent-marker-info");
+            return new ActivityVisual("\ud83d\udcac", "ai-agent-marker-info"); // speech balloon
         }
         if (activity.type() == TerminalAgentModels.AgentActivityType.ERROR
             || activity.status() == TerminalAgentModels.AgentActivityStatus.FAILED) {
-            return new ActivityVisual("!", "ai-agent-marker-error");
+            return new ActivityVisual("\u274c", "ai-agent-marker-error"); // cross mark
         }
         if (activity.status() == TerminalAgentModels.AgentActivityStatus.CANCELLED) {
-            return new ActivityVisual("x", "ai-agent-marker-cancelled");
+            return new ActivityVisual("\ud83d\udeab", "ai-agent-marker-cancelled"); // prohibited
         }
         if (activity.type() == TerminalAgentModels.AgentActivityType.QUESTION) {
-            return new ActivityVisual("?", "ai-agent-marker-question");
+            // Genuine pending user input (approval / password): a static "raised hand", never blinking.
+            return new ActivityVisual("\u270b", "ai-agent-marker-question"); // raised hand
         }
-        if (activity.type() == TerminalAgentModels.AgentActivityType.THINKING
-            || activity.type() == TerminalAgentModels.AgentActivityType.ACTION) {
-            String symbol = activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING ? "\u2191" : "\u2193";
-            String styleClass = activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING
-                ? "ai-agent-marker-input"
-                : "ai-agent-marker-output";
-            return new ActivityVisual(symbol, styleClass);
+        if (activity.type() == TerminalAgentModels.AgentActivityType.THINKING) {
+            return new ActivityVisual("\ud83d\udcad", "ai-agent-marker-input"); // thought balloon
         }
-        return new ActivityVisual("i", "ai-agent-marker-info");
+        if (activity.type() == TerminalAgentModels.AgentActivityType.ACTION) {
+            AgentActionCategory category = activity.actionCategory() != null
+                ? activity.actionCategory()
+                : AgentActionCategory.GENERIC;
+            return new ActivityVisual(category.emoji(), "ai-agent-marker-output");
+        }
+        return new ActivityVisual("\ud83d\udcac", "ai-agent-marker-info"); // speech balloon (MESSAGE)
     }
 
     static String copyTextForActivity(TerminalAgentModels.AgentActivity activity) {
@@ -1760,10 +2076,8 @@ public class AiAgentActivityPanel extends VBox {
             ActivityVisual visual = activityVisual(activity);
             indicator.setText(visual.symbol());
             indicator.getStyleClass().add(visual.styleClass());
-            if (activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING) {
-                indicator.getStyleClass().add("ai-agent-marker-running");
-                startPulseTransition();
-            }
+            // Static icons only: no blinking/pulse on running rows (the header spinner already
+            // signals an active run). The row's symbol + summary convey running vs. completed.
         }
 
         private String formatActivityText(TerminalAgentModels.AgentActivity activity) {
@@ -1865,15 +2179,6 @@ public class AiAgentActivityPanel extends VBox {
             toggleButton.setText(detailsVisible ? "-" : "+");
         }
 
-        private void startPulseTransition() {
-            pulseTransition = new FadeTransition(Duration.seconds(0.7), indicator);
-            pulseTransition.setFromValue(1.0);
-            pulseTransition.setToValue(0.35);
-            pulseTransition.setAutoReverse(true);
-            pulseTransition.setCycleCount(Animation.INDEFINITE);
-            pulseTransition.play();
-        }
-
         private void stopIndicator() {
             stopPulseTransition();
         }
@@ -1895,11 +2200,15 @@ public class AiAgentActivityPanel extends VBox {
         private final String profileName;
         private final String modelName;
         private final String reasoningStatus;
+        private final String creatorUser;
+        private final String sshUser;
+        private final String connectionName;
         private final LocalDateTime startedAt;
         private final List<TerminalAgentModels.AgentActivity> activities = new ArrayList<>();
         private LocalDateTime finishedAt;
         private long reportedTokens;
         private boolean hasReportedTokens;
+        private long workSeconds;
 
         private RunSnapshot(
             String title,
@@ -1922,6 +2231,15 @@ public class AiAgentActivityPanel extends VBox {
                 : null;
             this.reasoningStatus = metadata != null && metadata.reasoningStatus() != null && !metadata.reasoningStatus().isBlank()
                 ? metadata.reasoningStatus().trim()
+                : null;
+            this.creatorUser = metadata != null && metadata.creatorUser() != null && !metadata.creatorUser().isBlank()
+                ? metadata.creatorUser().trim()
+                : null;
+            this.sshUser = metadata != null && metadata.sshUser() != null && !metadata.sshUser().isBlank()
+                ? metadata.sshUser().trim()
+                : null;
+            this.connectionName = metadata != null && metadata.connectionName() != null && !metadata.connectionName().isBlank()
+                ? metadata.connectionName().trim()
                 : null;
             this.startedAt = startedAt != null ? startedAt : LocalDateTime.now();
         }
