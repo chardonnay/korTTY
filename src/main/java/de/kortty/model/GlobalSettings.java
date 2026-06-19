@@ -315,6 +315,14 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalAgentPanelKeepCollapsed = false;
 
+    /** Where the AI-agent activity panel is shown: BOTTOM (default), LEFT or RIGHT (docked side panel). */
+    @XmlElement
+    private String aiAgentPanelPlacement = "BOTTOM";
+
+    /** Persisted width of the docked AI-agent side panel (null = default). */
+    @XmlElement
+    private Double aiAgentPanelSideWidth;
+
     /** Persisted state of the inline terminal-agent "Expand all" activity detail option. */
     @XmlElement
     private boolean terminalAgentPanelExpandAll = false;
@@ -1273,6 +1281,34 @@ public class GlobalSettings {
 
     public void setTerminalAgentPanelKeepCollapsed(boolean terminalAgentPanelKeepCollapsed) {
         this.terminalAgentPanelKeepCollapsed = terminalAgentPanelKeepCollapsed;
+    }
+
+    /** Placement of the AI-agent activity panel: "BOTTOM" (default), "LEFT" or "RIGHT". */
+    public String getAiAgentPanelPlacement() {
+        return aiAgentPanelPlacement != null ? aiAgentPanelPlacement : "BOTTOM";
+    }
+
+    public void setAiAgentPanelPlacement(String aiAgentPanelPlacement) {
+        this.aiAgentPanelPlacement = aiAgentPanelPlacement;
+    }
+
+    /**
+     * Allowed range and default for the docked AI-agent side-panel width. This is the single source
+     * of truth for the bounds; {@code AiAgentPanelDockManager} derives its constants from these so the
+     * two cannot drift apart.
+     */
+    public static final double AI_AGENT_PANEL_MIN_WIDTH = 200.0;
+    public static final double AI_AGENT_PANEL_MAX_WIDTH = 600.0;
+    public static final double AI_AGENT_PANEL_DEFAULT_WIDTH = 320.0;
+
+    /** Docked AI-agent side-panel width, clamped to the allowed range (default 320). */
+    public double getAiAgentPanelSideWidth() {
+        double value = aiAgentPanelSideWidth != null ? aiAgentPanelSideWidth : AI_AGENT_PANEL_DEFAULT_WIDTH;
+        return Math.max(AI_AGENT_PANEL_MIN_WIDTH, Math.min(value, AI_AGENT_PANEL_MAX_WIDTH));
+    }
+
+    public void setAiAgentPanelSideWidth(double width) {
+        this.aiAgentPanelSideWidth = Math.max(AI_AGENT_PANEL_MIN_WIDTH, Math.min(width, AI_AGENT_PANEL_MAX_WIDTH));
     }
 
     public boolean isTerminalAgentPanelExpandAll() {

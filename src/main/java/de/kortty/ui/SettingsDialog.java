@@ -2222,7 +2222,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         tabPane.setPrefSize(defaultContentWidth, defaultContentHeight);
         tabPane.setMinSize(minimumContentWidth, minimumContentHeight);
-        getDialogPane().setContent(tabPane);
+        getDialogPane().setContent(buildSectionNavigationContent(tabPane));
         getDialogPane().setPrefWidth(1120);
         getDialogPane().setMinWidth(1000);
         getDialogPane().setPrefHeight(defaultDialogHeight);
@@ -2598,7 +2598,55 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private void updatePreviewFont(Label previewLabel) {
         previewLabel.setFont(Font.font(fontFamilyCombo.getValue(), fontSizeSpinner.getValue()));
     }
-    
+
+    /**
+     * Wraps the section {@link TabPane} with a slim top navigation bar holding previous/next arrow
+     * buttons and a "current / total" position label, so the user can step through the configuration
+     * sections without having to click the tab headers. The arrows disable at the first/last section
+     * and the label stays in sync with the selected tab.
+     */
+    private static Region buildSectionNavigationContent(TabPane tabPane) {
+        Button previousButton = new Button("◀");
+        previousButton.setTooltip(new Tooltip(I18n.get("settings.nav.previous")));
+        previousButton.setAccessibleText(I18n.get("settings.nav.previous"));
+        previousButton.getStyleClass().add("settings-section-nav-button");
+        Button nextButton = new Button("▶");
+        nextButton.setTooltip(new Tooltip(I18n.get("settings.nav.next")));
+        nextButton.setAccessibleText(I18n.get("settings.nav.next"));
+        nextButton.getStyleClass().add("settings-section-nav-button");
+
+        Label positionLabel = new Label();
+        positionLabel.getStyleClass().add("settings-section-nav-label");
+
+        Runnable update = () -> {
+            int index = tabPane.getSelectionModel().getSelectedIndex();
+            int count = tabPane.getTabs().size();
+            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            String title = selected != null ? selected.getText() : "";
+            positionLabel.setText(SettingsSectionNavigation.positionLabel(title, index, count));
+            previousButton.setDisable(!SettingsSectionNavigation.canGoPrevious(index));
+            nextButton.setDisable(!SettingsSectionNavigation.canGoNext(index, count));
+        };
+
+        previousButton.setOnAction(e -> tabPane.getSelectionModel()
+            .select(SettingsSectionNavigation.previous(tabPane.getSelectionModel().getSelectedIndex())));
+        nextButton.setOnAction(e -> tabPane.getSelectionModel()
+            .select(SettingsSectionNavigation.next(tabPane.getSelectionModel().getSelectedIndex(),
+                tabPane.getTabs().size())));
+        tabPane.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) -> update.run());
+        tabPane.getTabs().addListener((javafx.collections.ListChangeListener<Tab>) change -> update.run());
+        update.run();
+
+        HBox navBar = new HBox(8, previousButton, positionLabel, nextButton);
+        navBar.setAlignment(Pos.CENTER);
+        navBar.setPadding(new Insets(2, 8, 8, 8));
+        navBar.getStyleClass().add("settings-section-nav-bar");
+
+        BorderPane content = new BorderPane(tabPane);
+        content.setTop(navBar);
+        return content;
+    }
+
     private Tab createThemesTab(Stage owner) {
         Tab tab = new Tab(I18n.get("settings.tab.themes"));
         tab.setClosable(false);

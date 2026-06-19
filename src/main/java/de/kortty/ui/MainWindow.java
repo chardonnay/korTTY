@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.ui.I18n;
+import de.kortty.core.AgentDashboardStatus;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiExecutionResult;
@@ -183,6 +184,19 @@ public class MainWindow {
     private CheckMenuItem systemShowFileBrowserLeftMenuItem;
     private CheckMenuItem systemShowFileBrowserRightMenuItem;
     private ResizableDivider fileBrowserDivider;
+    // AI-agent activity panel docking (bottom by default, or docked left/right like the file browser).
+    private AiAgentSidePanel aiAgentSidePanel;
+    private AiAgentPanelDockManager aiAgentDockManager;
+    private ResizableDivider aiAgentSideDivider;
+    private java.util.function.Consumer<AiAgentPanelDockManager.Placement> aiAgentPlacementListener;
+    private CheckMenuItem showAiAgentBottomMenuItem;
+    private CheckMenuItem showAiAgentLeftMenuItem;
+    private CheckMenuItem showAiAgentRightMenuItem;
+    private CheckMenuItem systemShowAiAgentBottomMenuItem;
+    private CheckMenuItem systemShowAiAgentLeftMenuItem;
+    private CheckMenuItem systemShowAiAgentRightMenuItem;
+    // 1s tick that refreshes the per-tab AI-agent status badge (✋/⚡/⏸/✓) in tab titles.
+    private javafx.animation.Timeline agentStatusIndicatorTimer;
     private CheckMenuItem systemShowDashboardMenuItem;
     private MenuItem cutMenuItem;
     private MenuItem systemCutMenuItem;
@@ -236,6 +250,10 @@ public class MainWindow {
     private boolean terminalOnlyPreviousDashboardVisible = false;
     private LocalFileBrowserManager.Position terminalOnlyPreviousFileBrowserPosition =
         LocalFileBrowserManager.Position.HIDDEN;
+    private AiAgentPanelDockManager.Placement terminalOnlyPreviousAiAgentPlacement =
+        AiAgentPanelDockManager.Placement.BOTTOM;
+    // Suppresses persistence while temporarily forcing BOTTOM during terminal-only fullscreen.
+    private boolean suppressAiAgentDockPersist = false;
     /** Consumer reference for file browser position listener, stored so it can be removed on close. */
     private Consumer<LocalFileBrowserManager.Position> fileBrowserPositionListener;
     
@@ -297,6 +315,8 @@ public class MainWindow {
                 Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
             }
             updateEditMenuItemsForSelection();
+            // When the agent panel is docked to the side, swap it to show only the now-active tab.
+            Platform.runLater(this::rebindAiAgentSidePanelToActiveTab);
         });
         
         // Listen for tab removals to update dashboard and clear per-terminal AI state.
@@ -654,11 +674,17 @@ public class MainWindow {
                 e.consume();
             } else {
                 stopJobSchedulerStatusUpdates();
+                stopAgentStatusIndicatorTimer();
                 closeAllTabs();
                 // Deregister file browser manager listener to prevent memory leaks and stale callbacks
                 if (fileBrowserManager != null && fileBrowserPositionListener != null) {
                     fileBrowserManager.removePositionListener(fileBrowserPositionListener);
                     fileBrowserPositionListener = null;
+                }
+                // Deregister the AI-agent placement listener (per-window manager dies with the window).
+                if (aiAgentDockManager != null && aiAgentPlacementListener != null) {
+                    aiAgentDockManager.removePlacementListener(aiAgentPlacementListener);
+                    aiAgentPlacementListener = null;
                 }
                 openWindows.remove(this);
 
@@ -1052,8 +1078,10 @@ public class MainWindow {
             createFileMenu(),
             createEditMenu(target),
             createConnectionsMenu(),
-            createManagementMenu(),
+            createConfigurationMenu(),
             createToolsMenu(),
+            createAiMenu(),
+            createTeamworkMenu(),
             createPluginsMenu(),
             createViewMenu(target),
             createHelpMenu(),
@@ -1136,11 +1164,7 @@ public class MainWindow {
         find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
         find.setOnAction(e -> findInCurrentTab());
 
-        MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
-        settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
-        settings.setOnAction(e -> showSettings());
-
-        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, new SeparatorMenuItem(), settings);
+        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find);
         return editMenu;
     }
 
@@ -1161,43 +1185,45 @@ public class MainWindow {
         MenuItem exportConnections = new MenuItem(I18n.get("menu.connections.export"));
         exportConnections.setOnAction(e -> exportConnections());
 
+        MenuItem sftpClient = new MenuItem(I18n.get("menu.connections.sftpClient"));
+        sftpClient.setAccelerator(new KeyCodeCombination(KeyCode.U, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        sftpClient.setOnAction(e -> showSFTPManager());
+
         connectionsMenu.getItems().addAll(quickConnect, manageConnections,
-            new SeparatorMenuItem(), importConnections, exportConnections);
+            new SeparatorMenuItem(), importConnections, exportConnections,
+            new SeparatorMenuItem(), sftpClient);
         return connectionsMenu;
     }
 
-    private Menu createManagementMenu() {
-        Menu managementMenu = new Menu(I18n.get("menu.management"));
+    private Menu createConfigurationMenu() {
+        Menu configurationMenu = new Menu(I18n.get("menu.configuration"));
 
-        MenuItem manageCredentials = new MenuItem(I18n.get("menu.management.credentials"));
+        Menu securityMenu = new Menu(I18n.get("menu.security"));
+
+        MenuItem manageCredentials = new MenuItem(I18n.get("menu.security.credentials"));
         manageCredentials.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageCredentials.setOnAction(e -> showCredentialManagement());
 
-        MenuItem manageGPGKeys = new MenuItem(I18n.get("menu.management.gpgKeys"));
+        MenuItem manageGPGKeys = new MenuItem(I18n.get("menu.security.gpgKeys"));
         manageGPGKeys.setAccelerator(new KeyCodeCombination(KeyCode.G, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageGPGKeys.setOnAction(e -> showGPGKeyManagement());
 
-        MenuItem manageSSHKeys = new MenuItem(I18n.get("menu.management.sshKeys"));
+        MenuItem manageSSHKeys = new MenuItem(I18n.get("menu.security.sshKeys"));
         manageSSHKeys.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
 
-        MenuItem teamworkSettings = new MenuItem(I18n.get("menu.management.teamwork"));
-        teamworkSettings.setOnAction(e -> showTeamworkSettings());
+        securityMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys);
 
-        managementMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys, new SeparatorMenuItem(), teamworkSettings);
-        return managementMenu;
+        MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
+        settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
+        settings.setOnAction(e -> showSettings());
+
+        configurationMenu.getItems().addAll(securityMenu, new SeparatorMenuItem(), settings);
+        return configurationMenu;
     }
 
     private Menu createToolsMenu() {
         Menu toolsMenu = new Menu(I18n.get("menu.tools"));
-
-        MenuItem openSFTPManager = new MenuItem(I18n.get("menu.tools.sftpManager"));
-        openSFTPManager.setAccelerator(new KeyCodeCombination(KeyCode.U, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-        openSFTPManager.setOnAction(e -> showSFTPManager());
-
-        MenuItem asciiArtBanner = new MenuItem(I18n.get("menu.tools.asciiArtBanner"));
-        asciiArtBanner.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-        asciiArtBanner.setOnAction(e -> showAsciiArtBanner());
 
         MenuItem snippetManager = new MenuItem(I18n.get("menu.tools.snippets"));
         snippetManager.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
@@ -1214,6 +1240,25 @@ public class MainWindow {
         MenuItem toggleRecording = new MenuItem(I18n.get("menu.tools.toggleRecording"));
         toggleRecording.setAccelerator(RECORDING_TOGGLE_ACCELERATOR);
         toggleRecording.setOnAction(e -> toggleTerminalRecording());
+
+        MenuItem asciiArt = new MenuItem(I18n.get("menu.tools.asciiArt"));
+        asciiArt.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        asciiArt.setOnAction(e -> showAsciiArtBanner());
+
+        toolsMenu.getItems().addAll(
+            snippetManager,
+            new SeparatorMenuItem(),
+            jobScheduler,
+            new SeparatorMenuItem(),
+            videoManager,
+            toggleRecording,
+            new SeparatorMenuItem(),
+            asciiArt);
+        return toolsMenu;
+    }
+
+    private Menu createAiMenu() {
+        Menu aiMenu = new Menu(I18n.get("menu.ai"));
 
         MenuItem aiManager = new MenuItem(I18n.get("menu.tools.aiManager"));
         aiManager.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
@@ -1232,22 +1277,18 @@ public class MainWindow {
         toolsAiMenuItems.add(aiPlanning);
         toolsAiAgentExecutionMenuItems.add(aiAgent);
 
-        toolsMenu.getItems().addAll(
-            openSFTPManager,
-            new SeparatorMenuItem(),
-            asciiArtBanner,
-            new SeparatorMenuItem(),
-            snippetManager,
-            new SeparatorMenuItem(),
-            jobScheduler,
-            new SeparatorMenuItem(),
-            videoManager,
-            toggleRecording,
-            new SeparatorMenuItem(),
-            aiManager,
-            aiAgent,
-            aiPlanning);
-        return toolsMenu;
+        aiMenu.getItems().addAll(aiManager, aiAgent, aiPlanning);
+        return aiMenu;
+    }
+
+    private Menu createTeamworkMenu() {
+        Menu teamworkMenu = new Menu(I18n.get("menu.teamwork"));
+
+        MenuItem teamworkSettings = new MenuItem(I18n.get("menu.teamwork.settings"));
+        teamworkSettings.setOnAction(e -> showTeamworkSettings());
+
+        teamworkMenu.getItems().add(teamworkSettings);
+        return teamworkMenu;
     }
 
     private Menu createPluginsMenu() {
@@ -1350,6 +1391,35 @@ public class MainWindow {
         }
         fileBrowserMenu.getItems().addAll(fileBrowserLeftItem, fileBrowserRightItem);
 
+        // AI Agent Panel placement: at the bottom of the terminal split (default), or docked left/right.
+        Menu aiAgentPanelMenu = new Menu(I18n.get("menu.view.aiAgentPanel"));
+        CheckMenuItem aiAgentBottomItem = new CheckMenuItem(I18n.get("menu.view.aiAgentPanel.bottom"));
+        aiAgentBottomItem.setSelected(true);
+        aiAgentBottomItem.setOnAction(e -> {
+            setAiAgentPlacement(AiAgentPanelDockManager.Placement.BOTTOM);
+            syncAiAgentMenuItems(aiAgentDockManager.getPlacement());
+        });
+        CheckMenuItem aiAgentLeftItem = new CheckMenuItem(I18n.get("menu.view.aiAgentPanel.left"));
+        aiAgentLeftItem.setOnAction(e -> {
+            setAiAgentPlacement(AiAgentPanelDockManager.Placement.LEFT);
+            syncAiAgentMenuItems(aiAgentDockManager.getPlacement());
+        });
+        CheckMenuItem aiAgentRightItem = new CheckMenuItem(I18n.get("menu.view.aiAgentPanel.right"));
+        aiAgentRightItem.setOnAction(e -> {
+            setAiAgentPlacement(AiAgentPanelDockManager.Placement.RIGHT);
+            syncAiAgentMenuItems(aiAgentDockManager.getPlacement());
+        });
+        if (target == MenuBarTarget.WINDOW) {
+            showAiAgentBottomMenuItem = aiAgentBottomItem;
+            showAiAgentLeftMenuItem = aiAgentLeftItem;
+            showAiAgentRightMenuItem = aiAgentRightItem;
+        } else {
+            systemShowAiAgentBottomMenuItem = aiAgentBottomItem;
+            systemShowAiAgentLeftMenuItem = aiAgentLeftItem;
+            systemShowAiAgentRightMenuItem = aiAgentRightItem;
+        }
+        aiAgentPanelMenu.getItems().addAll(aiAgentBottomItem, aiAgentLeftItem, aiAgentRightItem);
+
         MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
@@ -1398,7 +1468,8 @@ public class MainWindow {
             systemHideFullscreenScrollbarsMenuItem = hideFullscreenScrollbars;
         }
 
-        viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
+            new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(),
             fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
@@ -1627,7 +1698,11 @@ public class MainWindow {
         }
         
         stage.show();
-        
+
+        // Restore the persisted AI-agent panel placement (bottom/left/right) once the window is shown.
+        applyPersistedAiAgentPlacement();
+        startAgentStatusIndicatorTimer();
+
         // Mark startup as complete after a short delay to allow UI to settle
         Platform.runLater(() -> {
             Platform.runLater(() -> {
@@ -1736,6 +1811,7 @@ public class MainWindow {
             // Create terminal tab with SithTermFX
             // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
             TerminalTab terminalTab = new TerminalTab(connection, password, keyToUse);
+            registerTerminalTabForAiAgentDock(terminalTab);
             if (terminalEffectAnimationSpeed != null) {
                 terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(terminalEffectAnimationSpeed);
             }
@@ -2807,6 +2883,211 @@ public class MainWindow {
         }
     }
 
+    // ---------------------------------------------------------------- AI-agent panel docking
+
+    private void ensureAiAgentDockManager() {
+        if (aiAgentDockManager == null) {
+            // Per-window (not a singleton): each window docks independently and is GC'd with its manager.
+            aiAgentDockManager = new AiAgentPanelDockManager();
+            aiAgentPlacementListener = placement -> onAiAgentPlacementChanged(placement);
+            aiAgentDockManager.addPlacementListener(aiAgentPlacementListener);
+        }
+    }
+
+    private void setAiAgentPlacement(AiAgentPanelDockManager.Placement placement) {
+        ensureAiAgentDockManager();
+        aiAgentDockManager.setPlacement(placement);
+    }
+
+    private TerminalTab activeTerminalTab() {
+        Tab selected = tabPane.getSelectionModel().getSelectedItem();
+        return selected instanceof TerminalTab terminalTab ? terminalTab : null;
+    }
+
+    private java.util.List<TerminalTab> terminalTabs() {
+        java.util.List<TerminalTab> tabs = new java.util.ArrayList<>();
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                tabs.add(terminalTab);
+            }
+        }
+        return tabs;
+    }
+
+    private void onAiAgentPlacementChanged(AiAgentPanelDockManager.Placement placement) {
+        ensureAiAgentDockManager();
+        // Lazily create the side panel + resizable divider on first dock.
+        if (placement != AiAgentPanelDockManager.Placement.BOTTOM && aiAgentSidePanel == null) {
+            aiAgentSidePanel = new AiAgentSidePanel();
+            aiAgentSidePanel.setMinWidth(AiAgentPanelDockManager.MIN_WIDTH);
+            aiAgentSidePanel.setPrefWidth(aiAgentDockManager.getPreferredWidth());
+            aiAgentSidePanel.setMaxWidth(AiAgentPanelDockManager.MAX_WIDTH);
+            aiAgentSideDivider = new ResizableDivider(Orientation.VERTICAL);
+            aiAgentSideDivider.setResizeListener(delta -> {
+                double current = aiAgentSidePanel.getPrefWidth();
+                double directional =
+                    aiAgentDockManager.getPlacement() == AiAgentPanelDockManager.Placement.RIGHT ? -delta : delta;
+                double newWidth = AiAgentPanelDockManager.clampWidth(current + directional);
+                aiAgentSidePanel.setPrefWidth(newWidth);
+                aiAgentDockManager.setPreferredWidth(newWidth);
+                persistAiAgentDockSettings();
+                return newWidth;
+            });
+        }
+        // Remove the side panel + divider from the layout if currently present.
+        if (aiAgentSidePanel != null) {
+            mainContentBox.getChildren().remove(aiAgentSidePanel);
+        }
+        if (aiAgentSideDivider != null) {
+            mainContentBox.getChildren().remove(aiAgentSideDivider);
+        }
+
+        if (placement == AiAgentPanelDockManager.Placement.BOTTOM) {
+            if (aiAgentSidePanel != null) {
+                aiAgentSidePanel.unbind(); // re-attaches the bound tab's panels to their split bottoms
+            }
+            // Make sure no tab is left detached.
+            for (TerminalTab tab : terminalTabs()) {
+                if (tab.getTerminalView() != null) {
+                    tab.getTerminalView().setBottomPanelsDetached(false);
+                }
+            }
+            syncAiAgentMenuItems(placement);
+        } else {
+            double width = AiAgentPanelDockManager.clampWidth(aiAgentDockManager.getPreferredWidth());
+            aiAgentSidePanel.setPrefWidth(width);
+            // Dock immediately adjacent to the terminal tabPane, computing the index relative to it so
+            // the layout is independent of action order and of whether the file browser is docked.
+            int tabIndex = Math.max(0, mainContentBox.getChildren().indexOf(tabPane));
+            if (placement == AiAgentPanelDockManager.Placement.LEFT) {
+                // Result order: [ ... ][ panel ][ divider ][ tabPane ][ ... ]
+                mainContentBox.getChildren().add(tabIndex, aiAgentSideDivider);
+                mainContentBox.getChildren().add(tabIndex, aiAgentSidePanel);
+            } else {
+                // Result order: [ ... ][ tabPane ][ divider ][ panel ][ ... ]
+                mainContentBox.getChildren().add(tabIndex + 1, aiAgentSideDivider);
+                mainContentBox.getChildren().add(tabIndex + 2, aiAgentSidePanel);
+            }
+            aiAgentSidePanel.bindToTerminalTab(activeTerminalTab());
+            syncAiAgentMenuItems(placement);
+            applyMainWindowThemeFromGlobalSettings();
+        }
+        persistAiAgentDockSettings();
+    }
+
+    /** Wires a freshly created terminal tab so split open/close rebuilds its side-dock outer tabs. */
+    private void registerTerminalTabForAiAgentDock(TerminalTab terminalTab) {
+        if (terminalTab == null || terminalTab.getTerminalView() == null) {
+            return;
+        }
+        terminalTab.getTerminalView().setOnWidgetSetChanged(() -> onTerminalWidgetSetChanged(terminalTab));
+    }
+
+    /** Updates each terminal tab's title badge to reflect its aggregated AI-agent status. */
+    private void refreshAgentStatusIndicators() {
+        for (TerminalTab tab : terminalTabs()) {
+            TerminalView view = tab.getTerminalView();
+            String badge = view != null
+                ? AgentDashboardStatus.icon(view.aggregateTerminalAgentRunCounts())
+                : "";
+            tab.setAgentStatusBadge(badge);
+        }
+    }
+
+    private void startAgentStatusIndicatorTimer() {
+        if (agentStatusIndicatorTimer != null) {
+            return;
+        }
+        agentStatusIndicatorTimer = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1),
+                e -> refreshAgentStatusIndicators()));
+        agentStatusIndicatorTimer.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        agentStatusIndicatorTimer.play();
+    }
+
+    private void stopAgentStatusIndicatorTimer() {
+        if (agentStatusIndicatorTimer != null) {
+            agentStatusIndicatorTimer.stop();
+            agentStatusIndicatorTimer = null;
+        }
+    }
+
+    private void onTerminalWidgetSetChanged(TerminalTab terminalTab) {
+        if (aiAgentDockManager != null && aiAgentDockManager.isDocked()
+            && aiAgentSidePanel != null && aiAgentSidePanel.getBoundTab() == terminalTab) {
+            aiAgentSidePanel.refreshBinding();
+        }
+    }
+
+    /** Re-binds the docked side panel to the currently active terminal tab (spotlight model). */
+    private void rebindAiAgentSidePanelToActiveTab() {
+        if (aiAgentDockManager != null && aiAgentDockManager.isDocked() && aiAgentSidePanel != null) {
+            aiAgentSidePanel.bindToTerminalTab(activeTerminalTab());
+        }
+    }
+
+    private void syncAiAgentMenuItems(AiAgentPanelDockManager.Placement placement) {
+        boolean bottom = placement == AiAgentPanelDockManager.Placement.BOTTOM;
+        boolean left = placement == AiAgentPanelDockManager.Placement.LEFT;
+        boolean right = placement == AiAgentPanelDockManager.Placement.RIGHT;
+        if (showAiAgentBottomMenuItem != null) {
+            showAiAgentBottomMenuItem.setSelected(bottom);
+        }
+        if (showAiAgentLeftMenuItem != null) {
+            showAiAgentLeftMenuItem.setSelected(left);
+        }
+        if (showAiAgentRightMenuItem != null) {
+            showAiAgentRightMenuItem.setSelected(right);
+        }
+        if (systemShowAiAgentBottomMenuItem != null) {
+            systemShowAiAgentBottomMenuItem.setSelected(bottom);
+        }
+        if (systemShowAiAgentLeftMenuItem != null) {
+            systemShowAiAgentLeftMenuItem.setSelected(left);
+        }
+        if (systemShowAiAgentRightMenuItem != null) {
+            systemShowAiAgentRightMenuItem.setSelected(right);
+        }
+    }
+
+    private void applyPersistedAiAgentPlacement() {
+        try {
+            ensureAiAgentDockManager();
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            if (settings == null) {
+                return;
+            }
+            aiAgentDockManager.setPreferredWidth(settings.getAiAgentPanelSideWidth());
+            AiAgentPanelDockManager.Placement placement =
+                AiAgentPanelDockManager.parsePlacement(settings.getAiAgentPanelPlacement());
+            if (placement == AiAgentPanelDockManager.Placement.BOTTOM) {
+                syncAiAgentMenuItems(AiAgentPanelDockManager.Placement.BOTTOM);
+            } else {
+                aiAgentDockManager.setPlacement(placement); // fires onAiAgentPlacementChanged → docks
+            }
+        } catch (Exception e) {
+            logger.debug("Could not apply persisted AI agent placement: {}", e.getMessage());
+        }
+    }
+
+    private void persistAiAgentDockSettings() {
+        if (suppressAiAgentDockPersist) {
+            return;
+        }
+        try {
+            var gsm = app.getGlobalSettingsManager();
+            GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings == null || aiAgentDockManager == null) {
+                return;
+            }
+            settings.setAiAgentPanelPlacement(aiAgentDockManager.getPlacement().name());
+            settings.setAiAgentPanelSideWidth(aiAgentDockManager.getPreferredWidth());
+            gsm.save();
+        } catch (Exception e) {
+            logger.debug("Could not persist AI agent dock settings: {}", e.getMessage());
+        }
+    }
+
     private void syncTimestampMenuItems(boolean visible) {
         if (showTimestampsMenuItem != null && showTimestampsMenuItem.isSelected() != visible) {
             showTimestampsMenuItem.setSelected(visible);
@@ -2899,6 +3180,18 @@ public class MainWindow {
             if (fileBrowserManager != null) {
                 fileBrowserManager.hide();
             }
+            // Force the agent panel back to the bottom for distraction-free fullscreen (restored on exit).
+            terminalOnlyPreviousAiAgentPlacement = aiAgentDockManager != null
+                ? aiAgentDockManager.getPlacement()
+                : AiAgentPanelDockManager.Placement.BOTTOM;
+            if (aiAgentDockManager != null && aiAgentDockManager.isDocked()) {
+                suppressAiAgentDockPersist = true;
+                try {
+                    aiAgentDockManager.setPlacement(AiAgentPanelDockManager.Placement.BOTTOM);
+                } finally {
+                    suppressAiAgentDockPersist = false;
+                }
+            }
             applyTerminalTabsChromeVisibility(false);
             applyTerminalOnlyTabHeaderVisibility(false);
         } else {
@@ -2911,6 +3204,15 @@ public class MainWindow {
                 toggleDashboard(true);
             }
             restoreTerminalOnlyFileBrowserPosition();
+            if (terminalOnlyPreviousAiAgentPlacement != AiAgentPanelDockManager.Placement.BOTTOM
+                && aiAgentDockManager != null) {
+                suppressAiAgentDockPersist = true;
+                try {
+                    aiAgentDockManager.setPlacement(terminalOnlyPreviousAiAgentPlacement);
+                } finally {
+                    suppressAiAgentDockPersist = false;
+                }
+            }
             stage.setFullScreen(terminalOnlyPreviousFullScreen);
         }
 
@@ -5860,6 +6162,7 @@ public class MainWindow {
             
             // Open tab
             TerminalTab tab = new TerminalTab(conn, password);
+            registerTerminalTabForAiAgentDock(tab);
             if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                 tab.getTerminalView().setTerminalEffectAnimationSpeed(
                         conn.getTerminalEffectAnimationSpeed() != null
@@ -6467,6 +6770,7 @@ public class MainWindow {
             
             // Create new tab with the same connection
             TerminalTab newTab = new TerminalTab(connection, password);
+            registerTerminalTabForAiAgentDock(newTab);
             installAiSelectionHandler(newTab);
             newTab.setTimestampToggleListener(() -> Platform.runLater(() -> {
                 Tab activeTab = tabPane.getSelectionModel().getSelectedItem();
