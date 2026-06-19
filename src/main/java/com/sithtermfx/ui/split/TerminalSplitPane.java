@@ -83,6 +83,10 @@ public class TerminalSplitPane extends StackPane {
     // Optional left-side panels (e.g. timestamp gutters) per widget
     private final Map<SithTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
     private final Map<SithTermFxWidget, Region> widgetBottomPanels = new HashMap<>();
+    // Per-widget VBox that hosts the bottom panel; kept so the panel can be detached/re-attached at
+    // runtime when the AI-agent panel is docked to the side instead of the bottom.
+    private final Map<SithTermFxWidget, VBox> widgetBottomHosts = new HashMap<>();
+    private boolean bottomPanelsDetached = false;
     private final Map<SithTermFxWidget, Button> widgetCloseButtons = new HashMap<>();
 
     // Track the currently showing context menu so we can hide it properly
@@ -501,6 +505,7 @@ public class TerminalSplitPane extends StackPane {
         }
         widgetLeftPanels.remove(widget);
         widgetBottomPanels.remove(widget);
+        widgetBottomHosts.remove(widget);
         widgetCloseButtons.remove(widget);
         SplitCell replacement = rootCell.removeWidget(widget);
         if (replacement != rootCell) {
@@ -689,6 +694,46 @@ public class TerminalSplitPane extends StackPane {
         widgetBottomPanels.remove(widget);
     }
 
+    /**
+     * Detaches (true) or re-attaches (false) every widget's bottom panel. While detached, new split
+     * cells also skip embedding the bottom panel, so the AI-agent panel can be hosted in a side dock.
+     */
+    public void setBottomPanelsDetached(boolean detached) {
+        if (this.bottomPanelsDetached == detached) {
+            return;
+        }
+        this.bottomPanelsDetached = detached;
+        for (SithTermFxWidget widget : getAllWidgets()) {
+            if (detached) {
+                detachBottomPanel(widget);
+            } else {
+                reattachBottomPanel(widget, widgetBottomPanels.get(widget));
+            }
+        }
+    }
+
+    public boolean isBottomPanelsDetached() {
+        return bottomPanelsDetached;
+    }
+
+    /** Removes a widget's bottom panel from its split cell so it can be hosted elsewhere (side dock). */
+    public void detachBottomPanel(@NotNull SithTermFxWidget widget) {
+        Region panel = widgetBottomPanels.get(widget);
+        VBox host = widgetBottomHosts.get(widget);
+        if (panel != null && host != null) {
+            host.getChildren().remove(panel);
+        }
+    }
+
+    /** Re-inserts a widget's bottom panel into its split cell (no-op if already there or unknown). */
+    public void reattachBottomPanel(@NotNull SithTermFxWidget widget, @Nullable Region panel) {
+        Region target = panel != null ? panel : widgetBottomPanels.get(widget);
+        VBox host = widgetBottomHosts.get(widget);
+        if (target != null && host != null && !host.getChildren().contains(target)) {
+            host.getChildren().add(target);
+        }
+    }
+
     public void closeAll() {
         for (SithTermFxWidget widget : getAllWidgets()) {
             notifyWidgetClosed(widget);
@@ -698,6 +743,7 @@ public class TerminalSplitPane extends StackPane {
         }
         widgetLeftPanels.clear();
         widgetBottomPanels.clear();
+        widgetBottomHosts.clear();
         widgetCloseButtons.clear();
     }
 
@@ -741,7 +787,6 @@ public class TerminalSplitPane extends StackPane {
             this.rightCell = null;
             Region leftPanel = widgetLeftPanels.get(widget);
             Region bottomPanel = widgetBottomPanels.get(widget);
-            Region wrapperContent;
             Region terminalContent;
             if (leftPanel != null) {
                 HBox hbox = new HBox(leftPanel, widget.getPane());
@@ -752,15 +797,18 @@ public class TerminalSplitPane extends StackPane {
             } else {
                 terminalContent = widget.getPane();
             }
-            if (bottomPanel != null) {
-                VBox vbox = new VBox(terminalContent, bottomPanel);
-                VBox.setVgrow(terminalContent, Priority.ALWAYS);
-                vbox.setMinSize(0, 0);
-                vbox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-                wrapperContent = vbox;
-            } else {
-                wrapperContent = terminalContent;
+            // Always wrap in a VBox host so the bottom panel can be detached/re-attached at runtime
+            // (the AI-agent panel can be docked to the side instead of the bottom). The bottom panel is
+            // only embedded here when not currently detached.
+            VBox bottomHost = new VBox(terminalContent);
+            VBox.setVgrow(terminalContent, Priority.ALWAYS);
+            bottomHost.setMinSize(0, 0);
+            bottomHost.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            if (bottomPanel != null && !bottomPanelsDetached) {
+                bottomHost.getChildren().add(bottomPanel);
             }
+            widgetBottomHosts.put(widget, bottomHost);
+            Region wrapperContent = bottomHost;
             StackPane wrapper = new StackPane(wrapperContent);
             wrapper.setMinSize(0, 0);
             wrapper.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);

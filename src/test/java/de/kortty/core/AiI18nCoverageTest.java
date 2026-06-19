@@ -302,6 +302,14 @@ class AiI18nCoverageTest {
         "ai.agent.completion.clearAll.confirm",
         "ai.agent.completion.hint",
         "ai.agent.completion.resize",
+<<<<<<< HEAD
+=======
+        "ai.agent.side.tabTitle",
+        "menu.view.aiAgentPanel",
+        "menu.view.aiAgentPanel.bottom",
+        "menu.view.aiAgentPanel.left",
+        "menu.view.aiAgentPanel.right",
+>>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
         "ai.agent.control.pauseRun",
         "ai.agent.control.resumeRun",
         "ai.agent.collapsed.idle",

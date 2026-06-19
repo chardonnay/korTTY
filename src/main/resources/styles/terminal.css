@@ -755,3 +755,21 @@
     -fx-text-fill: #cccccc;
     -fx-background-radius: 3;
 }
+
+/* Settings dialog section navigation (previous/next arrows). The arrow buttons inherit each
+   theme's .button styling; only the label colour and a faint separator need neutral defaults. */
+.settings-section-nav-bar {
+    -fx-border-color: transparent transparent rgba(255, 255, 255, 0.08) transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.settings-section-nav-button {
+    -fx-min-width: 32;
+    -fx-padding: 3 12 3 12;
+    -fx-font-size: 13px;
+}
+
+.settings-section-nav-label {
+    -fx-text-fill: #aaaaaa;
+    -fx-font-size: 12px;
+}

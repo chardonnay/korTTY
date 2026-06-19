@@ -1,10 +1,15 @@
 package de.kortty.ui;
 
+import de.kortty.core.AgentDashboardStatus;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
 import java.util.HashMap;
 import java.util.List;
@@ -23,6 +28,8 @@ public class DashboardView extends VBox {
     private final Button refreshButton;
     /** Current theme foreground color for tree cells (e.g. from Settings → Themes). */
     private volatile String themeTextColor = "#cccccc";
+    // Lightweight 1s tick that re-renders cells so AI-agent badges stay current while the dashboard shows.
+    private Timeline agentStatusTimer;
     
     public enum DashboardAction {
         RECONNECT,
@@ -60,6 +67,10 @@ public class DashboardView extends VBox {
         // Custom cell factory with context menu
         treeView.setCellFactory(tv -> {
             TreeCell<DashboardItem> cell = new TreeCell<>() {
+                // The item this cell's context menu was built for; avoids rebuilding it on every 1s
+                // badge-refresh tick (treeView.refresh() re-runs updateItem on the same item).
+                private DashboardItem builtMenuForItem;
+
                 @Override
                 protected void updateItem(DashboardItem item, boolean empty) {
                     super.updateItem(item, empty);
@@ -68,49 +79,60 @@ public class DashboardView extends VBox {
                         setGraphic(null);
                         setStyle("-fx-background-color: transparent;");
                         setContextMenu(null);
+                        builtMenuForItem = null;
                     } else {
                         String statusIcon = item.isConnected() ? "●" : "○";
                         String statusText = item.isConnected() ? I18n.get("dashboard.status.active") : I18n.get("dashboard.status.ended");
-                        setText(statusIcon + " " + item.getDisplayName() + " (" + statusText + ")");
+                        String text = statusIcon + " " + item.getDisplayName() + " (" + statusText + ")";
+                        // Prefix an AI-agent status badge (✋/⚡/⏸/✓) when this terminal has agent runs.
+                        String agentBadge = agentBadgeFor(item.getTerminalTab());
+                        if (!agentBadge.isEmpty()) {
+                            text = agentBadge + " " + text;
+                        }
+                        setText(text);
                         String fg = (themeTextColor != null && !themeTextColor.isEmpty()) ? themeTextColor : "#cccccc";
                         setStyle("-fx-text-fill: " + fg + "; -fx-background-color: transparent;");
                         
-                        // Context menu for terminal tabs only (not for window nodes)
-                        if (item.getTerminalTab() != null) {
-                            ContextMenu contextMenu = new ContextMenu();
-                            
-                            MenuItem duplicateItem = new MenuItem("Duplizieren");
-                            duplicateItem.setOnAction(e -> {
-                                actionHandler.accept(item.getTerminalTab(), DashboardAction.DUPLICATE);
-                            });
-                            contextMenu.getItems().add(duplicateItem);
-                            
-                            MenuItem reconnectItem = new MenuItem(I18n.get("dashboard.reconnect"));
-                            reconnectItem.setOnAction(e -> {
-                                actionHandler.accept(item.getTerminalTab(), DashboardAction.RECONNECT);
-                            });
-                            contextMenu.getItems().add(reconnectItem);
-                            
-                            contextMenu.getItems().add(new SeparatorMenuItem());
-                            
-                            if (item.isConnected()) {
-                                MenuItem sftpItem = new MenuItem(I18n.get("menu.tools.sftpManager"));
-                                sftpItem.setOnAction(e -> {
-                                    actionHandler.accept(item.getTerminalTab(), DashboardAction.SFTP_MANAGER);
+                        // Context menu for terminal tabs only (not for window nodes). Rebuilt only when
+                        // the row's item changes, so the 1s badge-refresh tick stays cheap.
+                        if (item != builtMenuForItem) {
+                            if (item.getTerminalTab() != null) {
+                                ContextMenu contextMenu = new ContextMenu();
+
+                                MenuItem duplicateItem = new MenuItem("Duplizieren");
+                                duplicateItem.setOnAction(e -> {
+                                    actionHandler.accept(item.getTerminalTab(), DashboardAction.DUPLICATE);
                                 });
-                                contextMenu.getItems().add(sftpItem);
+                                contextMenu.getItems().add(duplicateItem);
+
+                                MenuItem reconnectItem = new MenuItem(I18n.get("dashboard.reconnect"));
+                                reconnectItem.setOnAction(e -> {
+                                    actionHandler.accept(item.getTerminalTab(), DashboardAction.RECONNECT);
+                                });
+                                contextMenu.getItems().add(reconnectItem);
+
                                 contextMenu.getItems().add(new SeparatorMenuItem());
+
+                                if (item.isConnected()) {
+                                    MenuItem sftpItem = new MenuItem(I18n.get("menu.connections.sftpClient"));
+                                    sftpItem.setOnAction(e -> {
+                                        actionHandler.accept(item.getTerminalTab(), DashboardAction.SFTP_MANAGER);
+                                    });
+                                    contextMenu.getItems().add(sftpItem);
+                                    contextMenu.getItems().add(new SeparatorMenuItem());
+                                }
+
+                                MenuItem closeItem = new MenuItem(I18n.get("dialog.close"));
+                                closeItem.setOnAction(e -> {
+                                    actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
+                                });
+                                contextMenu.getItems().add(closeItem);
+
+                                setContextMenu(contextMenu);
+                            } else {
+                                setContextMenu(null);
                             }
-                            
-                            MenuItem closeItem = new MenuItem(I18n.get("dialog.close"));
-                            closeItem.setOnAction(e -> {
-                                actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
-                            });
-                            contextMenu.getItems().add(closeItem);
-                            
-                            setContextMenu(contextMenu);
-                        } else {
-                            setContextMenu(null);
+                            builtMenuForItem = item;
                         }
                     }
                 }
@@ -129,8 +151,31 @@ public class DashboardView extends VBox {
         VBox.setVgrow(treeView, javafx.scene.layout.Priority.ALWAYS);
         
         getChildren().addAll(titleBox, treeView);
-        
+
+        // Run the badge refresh tick only while the dashboard is actually shown (in a scene).
+        agentStatusTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> treeView.refresh()));
+        agentStatusTimer.setCycleCount(Animation.INDEFINITE);
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                agentStatusTimer.playFromStart();
+            } else {
+                agentStatusTimer.stop();
+            }
+        });
+
         refresh();
+    }
+
+    /** AI-agent status badge (✋/⚡/⏸/✓ or "") aggregated across a terminal tab's widgets. */
+    private String agentBadgeFor(TerminalTab tab) {
+        if (tab == null || tab.getTerminalView() == null) {
+            return "";
+        }
+        try {
+            return AgentDashboardStatus.icon(tab.getTerminalView().aggregateTerminalAgentRunCounts());
+        } catch (Exception e) {
+            return "";
+        }
     }
     
     /**

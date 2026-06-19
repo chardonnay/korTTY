@@ -255,6 +255,11 @@ public class TerminalView extends BorderPane {
     private TerminalAgentContextHandler aiPlanningHandler;
     private TerminalAgentShortcutHandler terminalAgentShortcutHandler;
     private final Map<SithTermFxWidget, AiAgentActivityTabsPanel> terminalAgentActivityPanels = new ConcurrentHashMap<>();
+<<<<<<< HEAD
+=======
+    // Fired when the set of terminal widgets changes (split opened/closed) so a side dock can rebuild.
+    private Runnable onWidgetSetChanged;
+>>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
     // One terminal/split widget can host several concurrent agent runs, keyed by runId.
     private final Map<SithTermFxWidget, Map<String, TerminalAgentRunState>> terminalAgentRunStates = new ConcurrentHashMap<>();
     private SshTtyConnector.DataListener terminalLoggerDataListener;
@@ -672,6 +677,63 @@ public class TerminalView extends BorderPane {
         return widget != null && hasTerminalAgentRuns(widget);
     }
 
+<<<<<<< HEAD
+=======
+    /** All terminal widgets of this view in split order (base terminal + any splits). */
+    public java.util.List<SithTermFxWidget> getOrderedWidgets() {
+        if (splitPane != null) {
+            return splitPane.getAllWidgets();
+        }
+        return terminalWidget != null ? java.util.List.of(terminalWidget) : java.util.List.of();
+    }
+
+    /** The agent activity panel hosted by the given widget, or null. */
+    public @Nullable AiAgentActivityTabsPanel getAgentPanelForWidget(@Nullable SithTermFxWidget widget) {
+        return widget != null ? terminalAgentActivityPanels.get(widget) : null;
+    }
+
+    /** Detaches (true) / re-attaches (false) all bottom agent panels so they can be docked elsewhere. */
+    public void setBottomPanelsDetached(boolean detached) {
+        if (splitPane != null) {
+            splitPane.setBottomPanelsDetached(detached);
+        }
+    }
+
+    /** Re-inserts a widget's agent panel into its split's bottom slot (used when leaving side-dock). */
+    public void reattachAgentBottomPanel(@Nullable SithTermFxWidget widget) {
+        if (splitPane != null && widget != null) {
+            splitPane.reattachBottomPanel(widget, terminalAgentActivityPanels.get(widget));
+        }
+    }
+
+    /** Aggregated run-state counts [awaitingInput, working, paused, done] across all widgets' panels. */
+    public int[] aggregateTerminalAgentRunCounts() {
+        int[] total = new int[4];
+        for (AiAgentActivityTabsPanel panel : terminalAgentActivityPanels.values()) {
+            if (panel == null) {
+                continue;
+            }
+            int[] counts = panel.runCounts();
+            for (int i = 0; i < total.length && i < counts.length; i++) {
+                total[i] += counts[i];
+            }
+        }
+        return total;
+    }
+
+    /** Registers a callback fired (on the FX thread) when the set of terminal widgets changes. */
+    public void setOnWidgetSetChanged(@Nullable Runnable onWidgetSetChanged) {
+        this.onWidgetSetChanged = onWidgetSetChanged;
+    }
+
+    private void fireWidgetSetChanged() {
+        Runnable callback = onWidgetSetChanged;
+        if (callback != null) {
+            Platform.runLater(callback);
+        }
+    }
+
+>>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
     /** Number of active (locked) agent runs hosted by the widget for the given run context. */
     public int terminalAgentRunCount(@Nullable SithTermFxWidget widget) {
         Map<String, TerminalAgentRunState> runs = widget != null ? terminalAgentRunStates.get(widget) : null;
@@ -879,6 +941,7 @@ public class TerminalView extends BorderPane {
     private Region createTerminalAgentActivityPanel(SithTermFxWidget widget) {
         AiAgentActivityTabsPanel panel = new AiAgentActivityTabsPanel();
         terminalAgentActivityPanels.put(widget, panel);
+        fireWidgetSetChanged();
         return panel;
     }
 
@@ -901,6 +964,10 @@ public class TerminalView extends BorderPane {
         if (panel != null) {
             panel.cancelAllRuns();
         }
+<<<<<<< HEAD
+=======
+        fireWidgetSetChanged();
+>>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
     }
 
     /** Cancels every active agent run across all widgets (used during full cleanup). */
@@ -2735,6 +2802,7 @@ public class TerminalView extends BorderPane {
             if (gs == null) {
                 return java.util.List.of();
             }
+<<<<<<< HEAD
             java.util.List<TerminalAgentCompletionPopup.CompletionEntry> entries = new java.util.ArrayList<>();
             // Migrate the stored history in place: drop previously-captured shell noise (completion
             // listings, "command not found" output), dedup by cleaned text, and persist the cleaned
@@ -2765,12 +2833,35 @@ public class TerminalView extends BorderPane {
             }
             if (changed) {
                 gs.setTerminalAgentInputHistory(cleanedStore);
+=======
+            // Migrate the stored history in place: sanitize each prompt (dropping shell noise) and
+            // collapse whitespace-only duplicates into the cleanest variant. This removes terminal
+            // line-wrap corruption ("nur" stored as "nu r") whenever a clean copy exists, and is
+            // self-healing once the command is re-run cleanly. Persist the cleaned list once so the
+            // stored value matches what is displayed/inserted and junk is gone for good.
+            java.util.List<de.kortty.model.TerminalAgentInputHistoryEntry> stored =
+                gs.getTerminalAgentInputHistoryEntries();
+            java.util.List<de.kortty.model.TerminalAgentInputHistoryEntry> cleaned =
+                TerminalAgentCompletionSupport.dedupHistoryEntries(stored);
+            if (!TerminalAgentCompletionSupport.sameHistoryEntries(stored, cleaned)) {
+                gs.setTerminalAgentInputHistory(cleaned);
+>>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
                 try {
                     gsm.save();
                 } catch (Exception ignored) {
                     // best-effort migration; the cleaned list is still used for this popup
                 }
             }
+<<<<<<< HEAD
+=======
+            java.util.List<TerminalAgentCompletionPopup.CompletionEntry> entries = new java.util.ArrayList<>();
+            for (de.kortty.model.TerminalAgentInputHistoryEntry entry : cleaned) {
+                entries.add(new TerminalAgentCompletionPopup.CompletionEntry(
+                    entry.getPrompt(),                                  // value: full prompt inserted/run on selection
+                    shortenAgentHistoryDisplay(entry.getPrompt()),      // primary: shortened for the row
+                    formatAgentHistoryTimestamp(entry.getLastUsedEpochMillis())));
+            }
+>>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
             return entries;
         } catch (Exception e) {
             return java.util.List.of();
