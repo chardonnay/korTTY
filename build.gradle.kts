@@ -1152,6 +1152,14 @@ tasks.register<JavaExec>("agentCompletionPopupSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
+    group = "verification"
+    description = "Re-parents an AI-agent panel between bottom tabs and a side stacked dock to verify it."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiAgentSidePanelSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.jar {
     val implementationTitle = project.name
     val implementationVersion = project.version

@@ -18,6 +18,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Tooltip;
@@ -51,10 +52,18 @@ public class AiAgentActivityTabsPanel extends VBox {
     private static final double DEFAULT_MAX_PANEL_HEIGHT = 720.0;
     private static final int TAB_TITLE_MAX_CHARS = 24;
 
+    /** How concurrent runs are presented: as inner tabs (bottom dock) or stacked sections (side dock). */
+    public enum LayoutMode { BOTTOM_TABS, SIDE_STACKED }
+
     private final Region resizeHandle;
     private final Button collapseButton;
     private final Button closeButton;
     private final TabPane tabPane;
+    // Stacked container used in SIDE_STACKED mode (one section per run, vertically scrollable).
+    private final ScrollPane stackedScroll;
+    private final VBox stackedBox;
+    private LayoutMode layoutMode = LayoutMode.BOTTOM_TABS;
+    private boolean sideDocked = false;
     // Compact status bar shown while the panel is collapsed, so the run stays visible and controllable.
     private final Label collapsedStatusLabel;
     private final ProgressIndicator collapsedWorkingIndicator;
@@ -68,6 +77,10 @@ public class AiAgentActivityTabsPanel extends VBox {
     private final Map<String, Tab> runTabs = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, Runnable> runCancels = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, String> runPrompts = new java.util.concurrent.ConcurrentHashMap<>();
+    // SIDE_STACKED only (FX thread): the section container + its title label per run, and run order.
+    private final Map<String, VBox> runSections = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, Label> runSectionTitles = new java.util.concurrent.ConcurrentHashMap<>();
+    private final List<String> runOrder = new ArrayList<>();
 
     private Theme currentTheme;
     private boolean panelCollapsed;
@@ -163,13 +176,26 @@ public class AiAgentActivityTabsPanel extends VBox {
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
         VBox.setVgrow(tabPane, Priority.ALWAYS);
 
+        // Stacked container for SIDE_STACKED mode: each run is a vertical section in a scroll pane.
+        stackedBox = new VBox(6);
+        stackedBox.getStyleClass().add("ai-agent-stacked-box");
+        stackedBox.setFillWidth(true);
+        stackedBox.setPadding(new Insets(2));
+        stackedScroll = new ScrollPane(stackedBox);
+        stackedScroll.getStyleClass().add("ai-agent-stacked-scroll");
+        stackedScroll.setFitToWidth(true);
+        stackedScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        stackedScroll.setVisible(false);
+        stackedScroll.setManaged(false);
+        VBox.setVgrow(stackedScroll, Priority.ALWAYS);
+
         statusRefreshTimer = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshRunStatus()));
         statusRefreshTimer.setCycleCount(Animation.INDEFINITE);
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> refreshRunStatus());
 
         // The collapsed status bar is its own row (shown only when collapsed); the chrome row keeps
         // its original collapse/close layout untouched.
-        getChildren().addAll(resizeHandle, chrome, collapsedStatusBar, tabPane);
+        getChildren().addAll(resizeHandle, chrome, collapsedStatusBar, tabPane, stackedScroll);
         loadPersistedLayoutSettings();
         applyCollapsedState();
     }
@@ -193,20 +219,15 @@ public class AiAgentActivityTabsPanel extends VBox {
             panel.setPauseHandler(pause);
             panel.beginRun(prompt, cancel, reload, metadata);
 
-            Tab tab = new Tab(truncateTabTitle(prompt));
-            tab.setTooltip(new Tooltip(prompt != null && !prompt.isBlank() ? prompt : I18n.get("ai.agent.title")));
-            tab.setContent(panel);
-            tab.setClosable(true);
-            tab.setOnCloseRequest(event -> handleTabCloseRequest(runId, event));
-
             runPanels.put(runId, panel);
-            runTabs.put(runId, tab);
             runPrompts.put(runId, prompt != null ? prompt : "");
             if (cancel != null) {
                 runCancels.put(runId, cancel);
             }
-            tabPane.getTabs().add(tab);
-            tabPane.getSelectionModel().select(tab);
+            if (!runOrder.contains(runId)) {
+                runOrder.add(runId);
+            }
+            addRunToContainer(runId, prompt, panel);
             if (statusRefreshTimer.getStatus() != Animation.Status.RUNNING) {
                 statusRefreshTimer.playFromStart();
             }
@@ -251,7 +272,7 @@ public class AiAgentActivityTabsPanel extends VBox {
     /** Brings a run that needs user input into view: select its tab and expand the panel if collapsed. */
     private void surfaceRunNeedingInput(String runId) {
         selectTab(runId);
-        if (panelCollapsed) {
+        if (!sideDocked && panelCollapsed) {
             setPanelCollapsed(false);
         }
         refreshRunStatus();
@@ -330,6 +351,10 @@ public class AiAgentActivityTabsPanel extends VBox {
     }
 
     private void selectTab(String runId) {
+        if (layoutMode == LayoutMode.SIDE_STACKED) {
+            scrollToSection(runId);
+            return;
+        }
         Tab tab = runTabs.get(runId);
         if (tab != null) {
             tabPane.getSelectionModel().select(tab);
@@ -385,16 +410,155 @@ public class AiAgentActivityTabsPanel extends VBox {
         runPanels.remove(runId);
         runCancels.remove(runId);
         runPrompts.remove(runId);
-        Tab tab = runTabs.remove(runId);
-        if (tab != null) {
-            tabPane.getTabs().remove(tab);
-        }
-        if (tabPane.getTabs().isEmpty()) {
+        runOrder.remove(runId);
+        removeRunFromContainer(runId);
+        // When docked to the side the (possibly empty) panel stays visible as its terminal's tab.
+        if (runPanels.isEmpty() && !sideDocked) {
             setVisible(false);
             setManaged(false);
         }
         stopStatusTimerIfIdle();
         refreshRunStatus();
+    }
+
+    private void removeRunFromContainer(String runId) {
+        Tab tab = runTabs.remove(runId);
+        if (tab != null) {
+            tab.setContent(null);
+            tabPane.getTabs().remove(tab);
+        }
+        VBox section = runSections.remove(runId);
+        runSectionTitles.remove(runId);
+        if (section != null) {
+            section.getChildren().clear();
+            stackedBox.getChildren().remove(section);
+        }
+    }
+
+    // ----------------------------------------------------------------- layout mode (tabs vs stacked)
+
+    /** Switches between inner-tabs and stacked-sections presentation, migrating existing runs. */
+    public void setLayoutMode(LayoutMode mode) {
+        runOnFx(() -> {
+            if (mode == null || mode == layoutMode) {
+                return;
+            }
+            // Detach all runs from the current container, switch mode, then re-add to the new one.
+            List<String> order = new ArrayList<>(runOrder);
+            for (String runId : order) {
+                removeRunFromContainer(runId);
+            }
+            layoutMode = mode;
+            for (String runId : order) {
+                AiAgentActivityPanel panel = runPanels.get(runId);
+                if (panel != null) {
+                    addRunToContainer(runId, runPrompts.get(runId), panel);
+                }
+            }
+            refreshRunStatus();
+        });
+    }
+
+    /**
+     * Docks (true) the panel into a side container: stacked layout, no bottom-style chrome/collapse,
+     * always expanded and grown to fill. Undocking (false) restores the bottom tabs presentation.
+     */
+    public void setSideDocked(boolean docked) {
+        runOnFx(() -> {
+            this.sideDocked = docked;
+            setLayoutMode(docked ? LayoutMode.SIDE_STACKED : LayoutMode.BOTTOM_TABS);
+            if (docked) {
+                panelCollapsed = false;
+                setVisible(true);
+                setManaged(true);
+            }
+            applyCollapsedState();
+        });
+    }
+
+    private void addRunToContainer(String runId, String prompt, AiAgentActivityPanel panel) {
+        if (layoutMode == LayoutMode.SIDE_STACKED) {
+            addRunSection(runId, prompt, panel);
+            scrollToSection(runId);
+        } else {
+            Tab tab = createRunTab(runId, prompt, panel);
+            runTabs.put(runId, tab);
+            tabPane.getTabs().add(tab);
+            tabPane.getSelectionModel().select(tab);
+        }
+    }
+
+    private Tab createRunTab(String runId, String prompt, AiAgentActivityPanel panel) {
+        // Leaving stacked mode: clear any stacked-section sizing so the panel fills the tab again.
+        panel.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        panel.setMinHeight(Region.USE_COMPUTED_SIZE);
+        Tab tab = new Tab(truncateTabTitle(prompt));
+        tab.setTooltip(new Tooltip(prompt != null && !prompt.isBlank() ? prompt : I18n.get("ai.agent.title")));
+        tab.setContent(panel);
+        tab.setClosable(true);
+        tab.setOnCloseRequest(event -> handleTabCloseRequest(runId, event));
+        return tab;
+    }
+
+    private void addRunSection(String runId, String prompt, AiAgentActivityPanel panel) {
+        Label title = new Label(truncateTabTitle(prompt));
+        title.getStyleClass().add("ai-agent-stacked-title");
+        title.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(title, Priority.ALWAYS);
+        Button close = new Button("\u2715");
+        close.getStyleClass().add("ai-agent-stacked-close");
+        close.setFocusTraversable(false);
+        close.setTooltip(new Tooltip(I18n.get("dialog.close")));
+        close.setOnAction(event -> {
+            event.consume();
+            handleRunCloseRequest(runId);
+        });
+        HBox header = new HBox(6, title, close);
+        header.getStyleClass().add("ai-agent-stacked-header");
+        header.setAlignment(Pos.CENTER_LEFT);
+        // A bounded panel height lets several runs stack; each panel scrolls its own feed internally.
+        panel.setPrefHeight(240);
+        panel.setMinHeight(140);
+        VBox section = new VBox(2, header, panel);
+        section.getStyleClass().add("ai-agent-stacked-section");
+        VBox.setVgrow(panel, Priority.ALWAYS);
+        runSections.put(runId, section);
+        runSectionTitles.put(runId, title);
+        stackedBox.getChildren().add(section);
+    }
+
+    private void scrollToSection(String runId) {
+        VBox section = runSections.get(runId);
+        if (section == null) {
+            return;
+        }
+        Platform.runLater(() -> {
+            double contentHeight = stackedBox.getHeight();
+            double viewportHeight = stackedScroll.getViewportBounds() != null
+                ? stackedScroll.getViewportBounds().getHeight() : 0;
+            if (contentHeight > viewportHeight && contentHeight - viewportHeight > 0) {
+                double y = section.getBoundsInParent().getMinY();
+                stackedScroll.setVvalue(Math.max(0, Math.min(1, y / (contentHeight - viewportHeight))));
+            }
+        });
+    }
+
+    private void handleRunCloseRequest(String runId) {
+        AiAgentActivityPanel panel = runPanels.get(runId);
+        if (panel != null && panel.isRunning()) {
+            if (!confirmCloseRunningRun()) {
+                return;
+            }
+            Runnable cancel = runCancels.get(runId);
+            if (cancel != null) {
+                try {
+                    cancel.run();
+                } catch (Exception e) {
+                    logger.debug("Failed to cancel terminal agent run on section close: {}", e.getMessage());
+                }
+            }
+        }
+        removeRun(runId);
     }
 
     private void showWrapper() {
@@ -475,6 +639,28 @@ public class AiAgentActivityTabsPanel extends VBox {
     }
 
     private void applyCollapsedState() {
+        if (sideDocked) {
+            // Docked to the side: always expanded, stacked container fills, no bottom-style chrome.
+            resizeHandle.setVisible(false);
+            resizeHandle.setManaged(false);
+            collapseButton.setVisible(false);
+            collapseButton.setManaged(false);
+            collapsedStatusBar.setVisible(false);
+            collapsedStatusBar.setManaged(false);
+            tabPane.setVisible(false);
+            tabPane.setManaged(false);
+            stackedScroll.setVisible(true);
+            stackedScroll.setManaged(true);
+            setMinHeight(0);
+            setPrefHeight(Region.USE_COMPUTED_SIZE);
+            setMaxHeight(Double.MAX_VALUE);
+            refreshRunStatus();
+            return;
+        }
+        collapseButton.setVisible(true);
+        collapseButton.setManaged(true);
+        stackedScroll.setVisible(false);
+        stackedScroll.setManaged(false);
         boolean expanded = !panelCollapsed;
         resizeHandle.setVisible(expanded);
         resizeHandle.setManaged(expanded);
@@ -503,13 +689,19 @@ public class AiAgentActivityTabsPanel extends VBox {
 
     /** Refreshes the collapsed status bar and decorates every tab title with its run's current state. */
     private void refreshRunStatus() {
-        // Decorate each tab so input-needed (✋) and paused (⏸) runs are obvious even in the background.
-        for (Map.Entry<String, Tab> entry : runTabs.entrySet()) {
-            String runId = entry.getKey();
-            Tab tab = entry.getValue();
+        // Decorate each run's tab (bottom) or section title (side) so input-needed (✋) and paused (⏸)
+        // runs are obvious even in the background.
+        for (String runId : runPanels.keySet()) {
             AiAgentActivityPanel panel = runPanels.get(runId);
-            String prefix = statePrefix(panel);
-            tab.setText(prefix + truncateTabTitle(runPrompts.get(runId)));
+            String label = statePrefix(panel) + truncateTabTitle(runPrompts.get(runId));
+            Tab tab = runTabs.get(runId);
+            if (tab != null) {
+                tab.setText(label);
+            }
+            Label sectionTitle = runSectionTitles.get(runId);
+            if (sectionTitle != null) {
+                sectionTitle.setText(label);
+            }
         }
         // Collapsed bar focuses the same run its controls act on (see focusedRunId): awaiting-input
         // first, then any actively-working run (so ongoing work is obvious even if the selected tab is
@@ -554,7 +746,7 @@ public class AiAgentActivityTabsPanel extends VBox {
         } else {
             state = I18n.get("ai.agent.collapsed.done");
         }
-        if (runTabs.size() > 1) {
+        if (runPanels.size() > 1) {
             // Multi-run: show the focused run's state + prompt, plus how many are active vs finished.
             int[] c = runCounts();
             return I18n.get("ai.agent.collapsed.statusMulti", state, prompt,
@@ -564,7 +756,7 @@ public class AiAgentActivityTabsPanel extends VBox {
     }
 
     /** Counts of runs by state: [awaitingInput, working, paused, done]. */
-    private int[] runCounts() {
+    public int[] runCounts() {
         int input = 0;
         int working = 0;
         int paused = 0;

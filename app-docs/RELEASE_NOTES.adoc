@@ -2,6 +2,14 @@
 
 == Unreleased (v2.3.0)
 
+=== AI Agent Panel Placement and Status Indicators
+
+* *Choose where the agent panel lives*: *View → AI Agent Panel* now offers *At Bottom* (default, unchanged), *Dock Left*, or *Dock Right*. Docked mode shows the activity panel as a resizable side panel attached to the main window, exactly like the local file browser. The chosen placement and side width are remembered across restarts.
+* *One tab per terminal, runs stacked*: In side mode the dock shows one outer tab per terminal widget of the active terminal tab (e.g. a base terminal plus two splits = three tabs); within each tab the individual agent runs are listed stacked vertically.
+* *Spotlight on the active tab*: Switching to another terminal tab swaps the dock to show only that tab's terminals; panels of other tabs are hidden until you switch back. Runs keep executing across the switch. Splitting/closing terminals updates the dock's tabs live.
+* *Dashboard status badge*: Each connection in the Dashboard shows an AI-agent status icon — ✋ awaiting input, ⚡ working, ⏸ paused, ✓ finished — aggregated across that terminal's runs and refreshed about once a second.
+* *Terminal tab status badge*: The same ✋/⚡/⏸/✓ indicator is prefixed to the terminal's tab title, so an agent's state is visible even without the Dashboard.
+
 === Terminal AI Agent Activity Panel and Concurrency
 
 * *Multiple concurrent runs per split*: Terminal AI Agent activity panels now support multiple concurrent runs shown as closable tabs (one tab per run), with a per-widget concurrency cap of 5 runs. Finished runs remain as tabs until explicitly closed.

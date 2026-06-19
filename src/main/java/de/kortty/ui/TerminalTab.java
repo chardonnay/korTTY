@@ -78,6 +78,10 @@ public class TerminalTab extends Tab {
     
     // Tab group (independent from connection group)
     private String tabGroup = null;
+    // AI-agent status badge prefix (✋/⚡/⏸/✓ or "") and the last connection-status suffix, so the
+    // title can be re-rendered with the badge without losing the suffix.
+    private volatile String agentStatusBadge = "";
+    private volatile String lastTitleSuffix = "";
     
     public TerminalTab(ServerConnection connection, String password) {
         this(connection, password, null);
@@ -890,19 +894,32 @@ public class TerminalTab extends Tab {
      * @param suffix Additional suffix to append (e.g., " (DISCONNECT)")
      */
     private void updateTabTitle(String suffix) {
+        String effectiveSuffix = suffix != null ? suffix : "";
+        lastTitleSuffix = effectiveSuffix;
         Platform.runLater(() -> {
             String displayName = connection.getDisplayName();
             if (displayName == null || displayName.trim().isEmpty()) {
                 displayName = connection.getUsername() + "@" + connection.getHost();
             }
-            
+
+            String prefix = agentStatusBadge.isEmpty() ? "" : agentStatusBadge + " ";
             String group = tabGroup; // Use tab group, not connection group
             if (group != null && !group.trim().isEmpty()) {
-                setText("[" + group + "] " + displayName + suffix);
+                setText(prefix + "[" + group + "] " + displayName + effectiveSuffix);
             } else {
-                setText(displayName + suffix);
+                setText(prefix + displayName + effectiveSuffix);
             }
         });
+    }
+
+    /** Sets the AI-agent status badge (✋/⚡/⏸/✓ or "") shown as a prefix on the tab title. */
+    public void setAgentStatusBadge(String badge) {
+        String normalized = badge != null ? badge : "";
+        if (normalized.equals(agentStatusBadge)) {
+            return;
+        }
+        agentStatusBadge = normalized;
+        updateTabTitle(lastTitleSuffix);
     }
     
     /**

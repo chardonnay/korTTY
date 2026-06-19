@@ -58,6 +58,40 @@ class TerminalAgentCompletionSupportTest {
     }
 
     @Test
+    void dedupHistoryCollapsesWhitespaceVariantsKeepingCleanest() {
+        var clean = new de.kortty.model.TerminalAgentInputHistoryEntry(
+            "migrate find_biggest_files.pl to ansible using nur ansible funcs", 2000L);
+        var corrupt = new de.kortty.model.TerminalAgentInputHistoryEntry(
+            "migrate find_biggest_files.pl to ansible using nu r ansibl e funcs", 1000L);
+        var other = new de.kortty.model.TerminalAgentInputHistoryEntry("show the 5 biggest files", 3000L);
+
+        var result = TerminalAgentCompletionSupport.dedupHistoryEntries(
+            java.util.List.of(other, clean, corrupt));
+
+        // The two whitespace-variant copies collapse into one; the unrelated prompt is kept; order
+        // (newest-first appearance) is preserved.
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getPrompt()).isEqualTo("show the 5 biggest files");
+        // Collapsed entry keeps the least-spaced (clean) text and the newest timestamp of the group.
+        assertThat(result.get(1).getPrompt())
+            .isEqualTo("migrate find_biggest_files.pl to ansible using nur ansible funcs");
+        assertThat(result.get(1).getLastUsedEpochMillis()).isEqualTo(2000L);
+    }
+
+    @Test
+    void dedupHistoryDropsJunkAndKeepsLoneEntries() {
+        var junk = new de.kortty.model.TerminalAgentInputHistoryEntry(
+            ".ansible/ .bashrc .config/ .npm/ Scripts/ .viminfo", 1L);
+        var lone = new de.kortty.model.TerminalAgentInputHistoryEntry("only corrupted nu r copy exists", 2L);
+
+        var result = TerminalAgentCompletionSupport.dedupHistoryEntries(java.util.List.of(junk, lone));
+
+        // Captured shell completion listing is dropped; a lone entry with no clean twin is left as-is.
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getPrompt()).isEqualTo("only corrupted nu r copy exists");
+    }
+
+    @Test
     void commandOptionsListsTheThreeVariants() {
         assertThat(TerminalAgentCompletionSupport.commandOptions("agent"))
             .containsExactly("agent", "agent-ask", "agent-plan").inOrder();

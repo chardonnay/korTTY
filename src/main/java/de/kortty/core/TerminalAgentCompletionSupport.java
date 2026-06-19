@@ -1,6 +1,11 @@
 package de.kortty.core;
 
+import de.kortty.model.TerminalAgentInputHistoryEntry;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Pure helpers for terminal AI-agent TAB completion: decide whether a TAB at the prompt should offer
@@ -124,6 +129,79 @@ public final class TerminalAgentCompletionSupport {
             }
         }
         return pathLike >= 5 && pathLike * 10 >= tokens.length * 8;
+    }
+
+    /**
+     * Cleans up the stored agent input history: sanitizes each prompt (dropping shell noise / blanks)
+     * and collapses entries that are identical except for whitespace into one, keeping the variant with
+     * the fewest whitespace characters (the least-corrupted) and the newest timestamp. This removes
+     * terminal line-wrap corruption (e.g. "nur" stored as "nu r") when a clean copy of the same prompt
+     * exists, and is self-healing: re-running a command cleanly creates a clean entry that absorbs any
+     * corrupted twin on the next load. Newest-first order of first appearance is preserved.
+     */
+    public static List<TerminalAgentInputHistoryEntry> dedupHistoryEntries(
+        List<TerminalAgentInputHistoryEntry> stored) {
+        List<TerminalAgentInputHistoryEntry> result = new ArrayList<>();
+        if (stored == null) {
+            return result;
+        }
+        Map<String, Integer> indexByKey = new HashMap<>();
+        for (TerminalAgentInputHistoryEntry entry : stored) {
+            if (entry == null || entry.getPrompt() == null) {
+                continue;
+            }
+            String clean = sanitizeHistoryPrompt(entry.getPrompt());
+            if (clean == null || clean.isBlank()) {
+                continue;
+            }
+            String key = clean.replaceAll("\\s+", "");
+            if (key.isEmpty()) {
+                continue;
+            }
+            long timestamp = entry.getLastUsedEpochMillis();
+            Integer existingIndex = indexByKey.get(key);
+            if (existingIndex == null) {
+                indexByKey.put(key, result.size());
+                result.add(new TerminalAgentInputHistoryEntry(clean, timestamp));
+            } else {
+                TerminalAgentInputHistoryEntry existing = result.get(existingIndex);
+                String bestText = countWhitespace(clean) < countWhitespace(existing.getPrompt())
+                    ? clean : existing.getPrompt();
+                long bestTimestamp = Math.max(timestamp, existing.getLastUsedEpochMillis());
+                result.set(existingIndex, new TerminalAgentInputHistoryEntry(bestText, bestTimestamp));
+            }
+        }
+        return result;
+    }
+
+    /** True when two history lists are identical in size, prompt text, and timestamps (in order). */
+    public static boolean sameHistoryEntries(
+        List<TerminalAgentInputHistoryEntry> a, List<TerminalAgentInputHistoryEntry> b) {
+        if (a == null || b == null || a.size() != b.size()) {
+            return false;
+        }
+        for (int i = 0; i < a.size(); i++) {
+            TerminalAgentInputHistoryEntry x = a.get(i);
+            TerminalAgentInputHistoryEntry y = b.get(i);
+            if (x == null || y == null) {
+                return false;
+            }
+            if (!java.util.Objects.equals(x.getPrompt(), y.getPrompt())
+                || x.getLastUsedEpochMillis() != y.getLastUsedEpochMillis()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int countWhitespace(String value) {
+        int count = 0;
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isWhitespace(value.charAt(i))) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static int firstWhitespace(String value) {
