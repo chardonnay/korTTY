@@ -100,14 +100,18 @@ class WorkflowScriptSupportTest {
     }
 
     @Test
-    void userPromptEmbedsHeaderFactsAndLanguageNameAndContext() {
+    void userPromptEmbedsRequestLanguageAndContextButNotMetadata() {
         WorkflowContext ctx = new WorkflowContext("apt-get install nginx", false, 2, 2);
         String user = WorkflowScriptSupport.buildUserPrompt(
             ScriptLanguage.PYTHON, facts(ScriptLanguage.PYTHON), ctx, HardeningOption.defaults(), "Keep it short");
-        assertThat(user).contains("daniel");
-        assertThat(user).contains("root@web-prod");
-        assertThat(user).contains("2026-06-16 14:30:00");
+        // Metadata is injected deterministically by the app, so it must NOT be fed to the model.
+        assertThat(user).doesNotContain("daniel");
+        assertThat(user).doesNotContain("root@web-prod");
+        assertThat(user).doesNotContain("2026-06-16 14:30:00");
+        assertThat(user).doesNotContain("HEADER FACTS");
+        // The originating request is still supplied as context for the functional description.
         assertThat(user).contains("Install and configure nginx");
+        assertThat(user).ignoringCase().contains("description");
         assertThat(user).contains("Python");                 // language name steers skill selection
         assertThat(user).contains("Keep it short");          // extra instructions
         assertThat(user).contains("apt-get install nginx");  // reproduction context
@@ -229,24 +233,43 @@ class WorkflowScriptSupportTest {
     }
 
     @Test
-    void systemPromptWithCustomHeaderTellsModelNotToAddHeader() {
-        String sys = WorkflowScriptSupport.buildSystemPrompt(ScriptLanguage.BASH, HardeningOption.defaults(), true);
-        assertThat(sys).ignoringCase().contains("do not add a header");
-        assertThat(sys).doesNotContain("Include a header comment block");
+    void systemPromptForbidsMetadataHeaderInEveryMode() {
+        for (WorkflowScriptSupport.HeaderMode mode : WorkflowScriptSupport.HeaderMode.values()) {
+            String sys = WorkflowScriptSupport.buildSystemPrompt(ScriptLanguage.BASH, HardeningOption.defaults(), mode);
+            assertThat(sys).ignoringCase().contains("do not emit any metadata header");
+            assertThat(sys).doesNotContain("Include a header comment block");
+        }
     }
 
     @Test
-    void userPromptWithCustomHeaderOmitsHeaderFactsBlock() {
+    void systemPromptRequestsDescriptionExceptForNoneMode() {
+        String auto = WorkflowScriptSupport.buildSystemPrompt(
+            ScriptLanguage.BASH, HardeningOption.defaults(), WorkflowScriptSupport.HeaderMode.AUTO);
+        String custom = WorkflowScriptSupport.buildSystemPrompt(
+            ScriptLanguage.BASH, HardeningOption.defaults(), WorkflowScriptSupport.HeaderMode.CUSTOM);
+        String none = WorkflowScriptSupport.buildSystemPrompt(
+            ScriptLanguage.BASH, HardeningOption.defaults(), WorkflowScriptSupport.HeaderMode.NONE);
+        assertThat(auto).contains("concise description block");
+        assertThat(custom).contains("concise description block");
+        assertThat(none).doesNotContain("concise description block");
+    }
+
+    @Test
+    void userPromptNeverEmitsHeaderFactsBlockAndRequestsDescription() {
         WorkflowContext ctx = new WorkflowContext("apt-get install nginx", false, 1, 1);
-        String user = WorkflowScriptSupport.buildUserPrompt(
-            ScriptLanguage.BASH, facts(ScriptLanguage.BASH), ctx, HardeningOption.defaults(), null, true);
-        assertThat(user).doesNotContain("use these EXACTLY in the header comment");
-        assertThat(user).ignoringCase().contains("do not emit any header");
-        assertThat(user).contains("apt-get install nginx"); // reproduction context still present
-        // Without custom header the facts block is present (sanity contrast).
-        String plain = WorkflowScriptSupport.buildUserPrompt(
-            ScriptLanguage.BASH, facts(ScriptLanguage.BASH), ctx, HardeningOption.defaults(), null, false);
-        assertThat(plain).contains("HEADER FACTS");
+        String custom = WorkflowScriptSupport.buildUserPrompt(
+            ScriptLanguage.BASH, facts(ScriptLanguage.BASH), ctx, HardeningOption.defaults(), null,
+            WorkflowScriptSupport.HeaderMode.CUSTOM);
+        assertThat(custom).doesNotContain("HEADER FACTS");
+        assertThat(custom).ignoringCase().contains("do not emit any metadata header");
+        assertThat(custom).ignoringCase().contains("description");
+        assertThat(custom).contains("apt-get install nginx"); // reproduction context still present
+        // NONE omits the description request; AUTO/CUSTOM include it. Neither emits HEADER FACTS.
+        String none = WorkflowScriptSupport.buildUserPrompt(
+            ScriptLanguage.BASH, facts(ScriptLanguage.BASH), ctx, HardeningOption.defaults(), null,
+            WorkflowScriptSupport.HeaderMode.NONE);
+        assertThat(none).doesNotContain("HEADER FACTS");
+        assertThat(none).doesNotContain("Begin with a short functional description");
     }
 
     @Test
