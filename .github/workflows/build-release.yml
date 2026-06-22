@@ -32,7 +32,7 @@ jobs:
         run: ./scripts/validate-doc-svg.sh
 
       - name: Upload diagram SVGs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: docs-diagrams
           path: app-docs/diagrams/*.svg
@@ -575,7 +575,7 @@ jobs:
 
       - name: Upload macOS artifacts
         if: matrix.platform == 'macos'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: korTTY-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: |
@@ -585,7 +585,7 @@ jobs:
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'windows'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: korTTY-Windows-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: |
@@ -595,7 +595,7 @@ jobs:
 
       - name: Upload Linux artifacts
         if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: korTTY-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: |
@@ -612,7 +612,7 @@ jobs:
 
       - name: Upload Java artifacts
         if: matrix.platform == 'linux' && matrix.arch == 'x86_64'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: korTTY-Java-${{ steps.version.outputs.version }}
           path: |
@@ -726,7 +726,7 @@ jobs:
             --detach-sign "$pkg_file"
 
       - name: Upload pacman artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: KorTTY-Arch-${{ steps.version.outputs.version }}-x86_64
           path: |
