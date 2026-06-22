@@ -18,10 +18,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
-<<<<<<< HEAD
-=======
 import javafx.scene.control.ScrollPane;
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Tooltip;
@@ -55,24 +52,18 @@ public class AiAgentActivityTabsPanel extends VBox {
     private static final double DEFAULT_MAX_PANEL_HEIGHT = 720.0;
     private static final int TAB_TITLE_MAX_CHARS = 24;
 
-<<<<<<< HEAD
-=======
     /** How concurrent runs are presented: as inner tabs (bottom dock) or stacked sections (side dock). */
     public enum LayoutMode { BOTTOM_TABS, SIDE_STACKED }
 
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
     private final Region resizeHandle;
     private final Button collapseButton;
     private final Button closeButton;
     private final TabPane tabPane;
-<<<<<<< HEAD
-=======
     // Stacked container used in SIDE_STACKED mode (one section per run, vertically scrollable).
     private final ScrollPane stackedScroll;
     private final VBox stackedBox;
     private LayoutMode layoutMode = LayoutMode.BOTTOM_TABS;
     private boolean sideDocked = false;
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
     // Compact status bar shown while the panel is collapsed, so the run stays visible and controllable.
     private final Label collapsedStatusLabel;
     private final ProgressIndicator collapsedWorkingIndicator;
@@ -86,13 +77,10 @@ public class AiAgentActivityTabsPanel extends VBox {
     private final Map<String, Tab> runTabs = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, Runnable> runCancels = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, String> runPrompts = new java.util.concurrent.ConcurrentHashMap<>();
-<<<<<<< HEAD
-=======
     // SIDE_STACKED only (FX thread): the section container + its title label per run, and run order.
     private final Map<String, VBox> runSections = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, Label> runSectionTitles = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<String> runOrder = new ArrayList<>();
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
 
     private Theme currentTheme;
     private boolean panelCollapsed;
@@ -188,8 +176,6 @@ public class AiAgentActivityTabsPanel extends VBox {
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
         VBox.setVgrow(tabPane, Priority.ALWAYS);
 
-<<<<<<< HEAD
-=======
         // Stacked container for SIDE_STACKED mode: each run is a vertical section in a scroll pane.
         stackedBox = new VBox(6);
         stackedBox.getStyleClass().add("ai-agent-stacked-box");
@@ -203,18 +189,13 @@ public class AiAgentActivityTabsPanel extends VBox {
         stackedScroll.setManaged(false);
         VBox.setVgrow(stackedScroll, Priority.ALWAYS);
 
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
         statusRefreshTimer = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshRunStatus()));
         statusRefreshTimer.setCycleCount(Animation.INDEFINITE);
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> refreshRunStatus());
 
         // The collapsed status bar is its own row (shown only when collapsed); the chrome row keeps
         // its original collapse/close layout untouched.
-<<<<<<< HEAD
-        getChildren().addAll(resizeHandle, chrome, collapsedStatusBar, tabPane);
-=======
         getChildren().addAll(resizeHandle, chrome, collapsedStatusBar, tabPane, stackedScroll);
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
         loadPersistedLayoutSettings();
         applyCollapsedState();
     }
@@ -238,31 +219,15 @@ public class AiAgentActivityTabsPanel extends VBox {
             panel.setPauseHandler(pause);
             panel.beginRun(prompt, cancel, reload, metadata);
 
-<<<<<<< HEAD
-            Tab tab = new Tab(truncateTabTitle(prompt));
-            tab.setTooltip(new Tooltip(prompt != null && !prompt.isBlank() ? prompt : I18n.get("ai.agent.title")));
-            tab.setContent(panel);
-            tab.setClosable(true);
-            tab.setOnCloseRequest(event -> handleTabCloseRequest(runId, event));
-
             runPanels.put(runId, panel);
-            runTabs.put(runId, tab);
-=======
-            runPanels.put(runId, panel);
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
             runPrompts.put(runId, prompt != null ? prompt : "");
             if (cancel != null) {
                 runCancels.put(runId, cancel);
             }
-<<<<<<< HEAD
-            tabPane.getTabs().add(tab);
-            tabPane.getSelectionModel().select(tab);
-=======
             if (!runOrder.contains(runId)) {
                 runOrder.add(runId);
             }
             addRunToContainer(runId, prompt, panel);
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
             if (statusRefreshTimer.getStatus() != Animation.Status.RUNNING) {
                 statusRefreshTimer.playFromStart();
             }
@@ -307,11 +272,7 @@ public class AiAgentActivityTabsPanel extends VBox {
     /** Brings a run that needs user input into view: select its tab and expand the panel if collapsed. */
     private void surfaceRunNeedingInput(String runId) {
         selectTab(runId);
-<<<<<<< HEAD
-        if (panelCollapsed) {
-=======
         if (!sideDocked && panelCollapsed) {
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
             setPanelCollapsed(false);
         }
         refreshRunStatus();
@@ -390,13 +351,10 @@ public class AiAgentActivityTabsPanel extends VBox {
     }
 
     private void selectTab(String runId) {
-<<<<<<< HEAD
-=======
         if (layoutMode == LayoutMode.SIDE_STACKED) {
             scrollToSection(runId);
             return;
         }
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
         Tab tab = runTabs.get(runId);
         if (tab != null) {
             tabPane.getSelectionModel().select(tab);
@@ -452,18 +410,10 @@ public class AiAgentActivityTabsPanel extends VBox {
         runPanels.remove(runId);
         runCancels.remove(runId);
         runPrompts.remove(runId);
-<<<<<<< HEAD
-        Tab tab = runTabs.remove(runId);
-        if (tab != null) {
-            tabPane.getTabs().remove(tab);
-        }
-        if (tabPane.getTabs().isEmpty()) {
-=======
         runOrder.remove(runId);
         removeRunFromContainer(runId);
         // When docked to the side the (possibly empty) panel stays visible as its terminal's tab.
         if (runPanels.isEmpty() && !sideDocked) {
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
             setVisible(false);
             setManaged(false);
         }
@@ -471,8 +421,6 @@ public class AiAgentActivityTabsPanel extends VBox {
         refreshRunStatus();
     }
 
-<<<<<<< HEAD
-=======
     private void removeRunFromContainer(String runId) {
         Tab tab = runTabs.remove(runId);
         if (tab != null) {
@@ -613,7 +561,6 @@ public class AiAgentActivityTabsPanel extends VBox {
         removeRun(runId);
     }
 
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
     private void showWrapper() {
         setVisible(true);
         setManaged(true);
@@ -692,8 +639,6 @@ public class AiAgentActivityTabsPanel extends VBox {
     }
 
     private void applyCollapsedState() {
-<<<<<<< HEAD
-=======
         if (sideDocked) {
             // Docked to the side: always expanded, stacked container fills, no bottom-style chrome.
             resizeHandle.setVisible(false);
@@ -716,7 +661,6 @@ public class AiAgentActivityTabsPanel extends VBox {
         collapseButton.setManaged(true);
         stackedScroll.setVisible(false);
         stackedScroll.setManaged(false);
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
         boolean expanded = !panelCollapsed;
         resizeHandle.setVisible(expanded);
         resizeHandle.setManaged(expanded);
@@ -745,15 +689,6 @@ public class AiAgentActivityTabsPanel extends VBox {
 
     /** Refreshes the collapsed status bar and decorates every tab title with its run's current state. */
     private void refreshRunStatus() {
-<<<<<<< HEAD
-        // Decorate each tab so input-needed (✋) and paused (⏸) runs are obvious even in the background.
-        for (Map.Entry<String, Tab> entry : runTabs.entrySet()) {
-            String runId = entry.getKey();
-            Tab tab = entry.getValue();
-            AiAgentActivityPanel panel = runPanels.get(runId);
-            String prefix = statePrefix(panel);
-            tab.setText(prefix + truncateTabTitle(runPrompts.get(runId)));
-=======
         // Decorate each run's tab (bottom) or section title (side) so input-needed (✋) and paused (⏸)
         // runs are obvious even in the background.
         for (String runId : runPanels.keySet()) {
@@ -767,7 +702,6 @@ public class AiAgentActivityTabsPanel extends VBox {
             if (sectionTitle != null) {
                 sectionTitle.setText(label);
             }
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
         }
         // Collapsed bar focuses the same run its controls act on (see focusedRunId): awaiting-input
         // first, then any actively-working run (so ongoing work is obvious even if the selected tab is
@@ -812,11 +746,7 @@ public class AiAgentActivityTabsPanel extends VBox {
         } else {
             state = I18n.get("ai.agent.collapsed.done");
         }
-<<<<<<< HEAD
-        if (runTabs.size() > 1) {
-=======
         if (runPanels.size() > 1) {
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
             // Multi-run: show the focused run's state + prompt, plus how many are active vs finished.
             int[] c = runCounts();
             return I18n.get("ai.agent.collapsed.statusMulti", state, prompt,
@@ -826,11 +756,7 @@ public class AiAgentActivityTabsPanel extends VBox {
     }
 
     /** Counts of runs by state: [awaitingInput, working, paused, done]. */
-<<<<<<< HEAD
-    private int[] runCounts() {
-=======
     public int[] runCounts() {
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
         int input = 0;
         int working = 0;
         int paused = 0;

@@ -1,15 +1,11 @@
 package de.kortty.core;
 
-<<<<<<< HEAD
-import java.util.List;
-=======
 import de.kortty.model.TerminalAgentInputHistoryEntry;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
 
 /**
  * Pure helpers for terminal AI-agent TAB completion: decide whether a TAB at the prompt should offer
@@ -135,8 +131,6 @@ public final class TerminalAgentCompletionSupport {
         return pathLike >= 5 && pathLike * 10 >= tokens.length * 8;
     }
 
-<<<<<<< HEAD
-=======
     /**
      * Cleans up the stored agent input history: sanitizes each prompt (dropping shell noise / blanks)
      * and collapses entries that are identical except for whitespace into one, keeping the variant with
@@ -210,7 +204,6 @@ public final class TerminalAgentCompletionSupport {
         return count;
     }
 
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
     private static int firstWhitespace(String value) {
         for (int i = 0; i < value.length(); i++) {
             if (Character.isWhitespace(value.charAt(i))) {

@@ -58,8 +58,6 @@ class TerminalAgentCompletionSupportTest {
     }
 
     @Test
-<<<<<<< HEAD
-=======
     void dedupHistoryCollapsesWhitespaceVariantsKeepingCleanest() {
         var clean = new de.kortty.model.TerminalAgentInputHistoryEntry(
             "migrate find_biggest_files.pl to ansible using nur ansible funcs", 2000L);
@@ -94,7 +92,6 @@ class TerminalAgentCompletionSupportTest {
     }
 
     @Test
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
     void commandOptionsListsTheThreeVariants() {
         assertThat(TerminalAgentCompletionSupport.commandOptions("agent"))
             .containsExactly("agent", "agent-ask", "agent-plan").inOrder();

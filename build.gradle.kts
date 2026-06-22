@@ -1152,8 +1152,6 @@ tasks.register<JavaExec>("agentCompletionPopupSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
-<<<<<<< HEAD
-=======
 tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
     group = "verification"
     description = "Re-parents an AI-agent panel between bottom tabs and a side stacked dock to verify it."
@@ -1162,7 +1160,6 @@ tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
->>>>>>> 4dd85dbfeb5be070d89796c0d57ef9c10b930525
 tasks.jar {
     val implementationTitle = project.name
     val implementationVersion = project.version
