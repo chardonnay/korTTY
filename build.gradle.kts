@@ -11,11 +11,14 @@ import java.security.MessageDigest
 group = "de.kortty"
 version = "2.2.0"
 
+// Resolved JDK major for this build. CI pins JDK 21 on the Windows ARM runner
+// (-Pkortty.javaVersion=21); everywhere else this defaults to 25. Hoisted to
+// top level so the jdk.jsobject wiring below can branch on it.
+val korttyJavaVersion = (findProperty("kortty.javaVersion") as String?)?.toIntOrNull() ?: 25
+
 java {
-    // Allows CI to pin a compatible toolchain per runner when needed.
-    val toolchainVersion = (findProperty("kortty.javaVersion") as String?)?.toIntOrNull() ?: 25
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(toolchainVersion))
+        languageVersion.set(JavaLanguageVersion.of(korttyJavaVersion))
         // Explicitly avoid IBM_SEMERU which is not supported in Gradle 9.2.1
         vendor.set(JvmVendorSpec.ADOPTIUM)
     }
@@ -126,10 +129,16 @@ dependencies {
     implementation("org.apache.pdfbox:pdfbox:3.0.6")
     implementation("com.google.googlejavaformat:google-java-format:1.35.0")
 
-    // JavaFX provides jdk.jsobject from JavaFX 24 onward; the JDK module is deprecated for removal on JDK 25.
-    val javaFxJsObjectDependency = "org.openjfx:jdk-jsobject:$javaFxJsObjectVersion:$javaFxPlatform"
-    compileOnly(javaFxJsObjectDependency)
-    javaFxJsObject(javaFxJsObjectDependency)
+    // The JDK's built-in jdk.jsobject module is deprecated for removal on JDK 25,
+    // so on JDK 25+ we supply it externally via the JavaFX artifact. On JDK 21
+    // (Windows ARM runner) the module is still built in AND that runner's javac
+    // cannot read the 25.x module-info (Java 23 bytecode, class version 67.0) —
+    // so we must NOT put the external artifact on the compile path there.
+    if (korttyJavaVersion >= 24) {
+        val javaFxJsObjectDependency = "org.openjfx:jdk-jsobject:$javaFxJsObjectVersion:$javaFxPlatform"
+        compileOnly(javaFxJsObjectDependency)
+        javaFxJsObject(javaFxJsObjectDependency)
+    }
 
     // PTY support for native Mosh client
     implementation("org.jetbrains.pty4j:pty4j:0.12.25")
@@ -222,7 +231,11 @@ tasks.named("compileJava") {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.addAll(listOf("--upgrade-module-path", javaFxJsObject.asPath))
+    // Only upgrade the module path when the external jdk.jsobject artifact is
+    // present (JDK 25+); on JDK 21 the config is empty and the JDK module is used.
+    if (!javaFxJsObject.isEmpty) {
+        options.compilerArgs.addAll(listOf("--upgrade-module-path", javaFxJsObject.asPath))
+    }
 }
 
 // ==================== jpackage Konfiguration ====================
