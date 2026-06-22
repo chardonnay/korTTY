@@ -135,8 +135,8 @@ dependencies {
     implementation("org.jetbrains.pty4j:pty4j:0.12.25")
 
     // Logging
-    implementation("org.slf4j:slf4j-api:2.0.9")
-    implementation("ch.qos.logback:logback-classic:1.4.14")
+    implementation("org.slf4j:slf4j-api:2.0.18")
+    implementation("ch.qos.logback:logback-classic:1.5.34")
     
     // Testing
     testImplementation("com.google.truth:truth:1.4.5")
