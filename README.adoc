@@ -132,7 +132,7 @@ SithTermFX is built from source during the build (no GitHub token required). You
 ./gradlew build
 ----
 
-On first run, Gradle will clone link:https://github.com/chardonnay/SithTermFX[SithTermFX] at tag `v1.1.0` into `vendor/sithtermfx`, build it with Maven, and install it to your local Maven repo. Subsequent builds reuse the clone unless you remove `vendor/sithtermfx`.
+On first run, Gradle will clone link:https://github.com/chardonnay/SithTermFX[SithTermFX] at tag `v1.2.0` into `vendor/sithtermfx`, build it with Maven, and install it to your local Maven repo. Subsequent builds reuse the clone unless you remove `vendor/sithtermfx`.
 
 == Run
 
@@ -168,10 +168,11 @@ To *manually trigger* a release build (e.g. after moving the tag without creatin
 
 == SithTermFX Integration
 
-KorTTY uses *SithTermFX 1.1.0*, built from source. No GitHub token required (local or CI).
+KorTTY uses *SithTermFX 1.2.0*, built from source. No GitHub token required (local or CI).
 
-* *Local build:* The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the link:https://github.com/chardonnay/SithTermFX[SithTermFX] repo at tag `v1.1.0` into `vendor/sithtermfx`, then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: *Git* and *Maven* on your PATH.
-* *CI (GitHub Actions):* The workflow clones SithTermFX at tag `v1.1.0` into `vendor/sithtermfx`, installs Maven, then Gradle runs the same `installSithtermfxLocal` task. No GitHub token required.
+* *Local build:* The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the link:https://github.com/chardonnay/SithTermFX[SithTermFX] repo at tag `v1.2.0` into `vendor/sithtermfx`, then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: *Git* and *Maven* on your PATH.
+* *CI (GitHub Actions):* The workflow clones SithTermFX at tag `v1.2.0` into `vendor/sithtermfx`, installs Maven, then Gradle runs the same `installSithtermfxLocal` task. No GitHub token required.
+* *OSC 8 hyperlinks:* Starting with SithTermFX 1.2.0, the terminal supports OSC 8 explicit hyperlinks — clickable links emitted by programs such as `ls --hyperlink` or `eza`. Links open on explicit click and are restricted to a safe URI-scheme allowlist (`http`, `https`, `mailto`, `ftp`, `ftps`, `news`); `file://` links are limited to the local host.
 
 == Terminal Effect Plugins
 
@@ -209,7 +210,7 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 | *Java Platform* | JavaFX (controls, fxml, graphics, swing) | 21
 | *SSH & Crypto* | Apache SSHD (core, common, sftp) | 2.12.0
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0
-| *Terminal* | SithTermFX (core, ui) | 1.1.0
+| *Terminal* | SithTermFX (core, ui) | 1.2.0
 | | Lanterna | 3.1.2
 | | pty4j (JetBrains) | 0.12.25
 | *Data & Serialization* | Jakarta XML Bind (JAXB) / jaxb-runtime | 4.0

@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           rm -rf vendor/sithtermfx
-          git clone --depth 1 --branch v1.1.0 https://github.com/chardonnay/SithTermFX.git vendor/sithtermfx
+          git clone --depth 1 --branch v1.2.0 https://github.com/chardonnay/SithTermFX.git vendor/sithtermfx
 
       - name: Patch SithTermFX Maven config for CI
         shell: bash
