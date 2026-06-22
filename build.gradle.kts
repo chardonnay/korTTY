@@ -114,7 +114,7 @@ dependencies {
     implementation("net.lingala.zip4j:zip4j:2.11.6")
     
     // Archive support (TAR.BZ2, 7z)
-    implementation("org.apache.commons:commons-compress:1.25.0")
+    implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.tukaani:xz:1.12")
     
     // jfiglet - ASCII art banners (FIGfonts)
