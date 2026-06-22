@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.nio.file.Files;
@@ -56,6 +57,10 @@ class SnippetCodeFormatterTest {
 
     @Test
     void prefersBundledFormatterOverExternalFallback() throws Exception {
+        // The stub shfmt binary is a /bin/sh script; Windows cannot execute it.
+        if (isWindows()) {
+            throw new SkipException("Bundled-formatter execution test uses a /bin/sh stub binary; not applicable on Windows.");
+        }
         String previous = System.getProperty("kortty.formatters.dir");
         Path root = Files.createTempDirectory("kortty-formatters-test");
         Path bin = Files.createDirectories(root.resolve("bin"));
@@ -129,6 +134,10 @@ class SnippetCodeFormatterTest {
 
     @Test
     void lineWidthFormattingAddsPrettierPrintWidth() throws Exception {
+        // The stub node binary is a /bin/sh script; Windows cannot execute it.
+        if (isWindows()) {
+            throw new SkipException("Prettier width test uses a /bin/sh stub node binary; not applicable on Windows.");
+        }
         String previous = System.getProperty("kortty.formatters.dir");
         Path root = Files.createTempDirectory("kortty-prettier-width-test");
         Path argsFile = root.resolve("args.txt");

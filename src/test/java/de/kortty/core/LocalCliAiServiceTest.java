@@ -1,11 +1,13 @@
 package de.kortty.core;
 
 import de.kortty.model.AiReasoningEffort;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Locale;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -173,6 +175,12 @@ class LocalCliAiServiceTest {
     }
 
     private Path createScript(String body) throws Exception {
+        // These tests drive the service with a POSIX /bin/sh stub script. Windows
+        // cannot execute a shebang .sh file, so skip them there (the service itself
+        // runs whatever real CLI the user configures and is covered on Unix CI).
+        if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("windows")) {
+            throw new SkipException("CLI execution tests use a POSIX /bin/sh stub; not applicable on Windows.");
+        }
         Path script = Files.createTempFile("kortty-ai-cli-test", ".sh");
         Files.writeString(script, "#!/bin/sh\n" + body + "\n");
         script.toFile().setExecutable(true);
