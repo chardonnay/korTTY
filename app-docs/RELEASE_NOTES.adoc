@@ -1,6 +1,6 @@
 = Release Notes
 
-== Unreleased (v2.3.0)
+== v2.2.0
 
 === Terminal Engine and Hyperlinks
 
@@ -75,8 +75,16 @@
 * *macOS fullscreen F11 warning*: The F11 function-key warning no longer appears in the macOS system menu bar.
 * *Agent model tolerance*: The terminal agent now tolerates models that omit `summary` or `userMessage` fields in responses by deriving the missing field.
 * *Here-doc script migrations*: The agent prefers full-file here-doc rewrites over fragile in-place `sed` commands when performing script migrations and file updates.
+* *Workflow script header*: The "Generate Workflow Script" dialog no longer produces a duplicate metadata header block. The application injects one deterministic header; the model writes only a short functional description of the script.
+* *JobScheduler log verbosity*: Saves with zero active jobs are no longer logged at INFO level — those saves are demoted to DEBUG, keeping logs quiet when no jobs are scheduled.
 
-== v2.2.0
+=== Automated Security Pipeline
+
+* *Dependabot*: Weekly automated pull requests for outdated Gradle graph dependencies and GitHub Actions; SSH/crypto dependencies are grouped for joint review.
+* *CodeQL static analysis*: Java source is scanned on every push to `main`, on every pull request, and weekly. Results appear under *Security → Code scanning* in the repository. Uses `build-mode: none` to avoid the heavy SithTermFX/mosh4j build during scans.
+* *CodeRabbit AI review*: Every pull request — including Dependabot security updates — is reviewed by CodeRabbit with Gitleaks (committed-secret detection), Semgrep (SAST), and OSV Scanner (dependency vulnerability scan). Security-specific review instructions are applied to SSH/crypto code paths, `build.gradle.kts`, and workflow files.
+* *Pinned-artifact freshness monitoring*: A weekly job compares URL-pinned artifacts that Dependabot cannot track (mosh4j, bundled BouncyCastle/protobuf, Node.js formatter runtime, Monaco Editor, SithTermFX) against their upstream latest versions and opens a tracking issue when any artifact is behind.
+* *Automated security patch releases*: When a pull request labeled `security` is merged to `main`, the release pipeline automatically computes the next patch version and creates a GitHub Release, which triggers the existing multi-platform build and signing workflow.
 
 === Terminal Recording
 
@@ -226,7 +234,9 @@
 
 * README, User Guide, and Release Notes now describe terminal recording, JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, LM Studio model auto-selection, AI Skills, Terminal AI Agent usage, terminal-only fullscreen and fullscreen scrollbar hiding, terminal color-sequence controls, app-wide designs, refreshed branding, SFTP-to-Snippet-Editor file editing, terminal-effect plugins, the Monaco-based Snippet Editor ruler, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
 * Added `app-docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
+* Added `.github/SECURITY-PIPELINE-SETUP.md` documenting the required repository settings (labels, Dependabot toggles, secrets, branch-protection rules) for the automated security pipeline.
 * Updated and re-rendered the architecture, module overview, AI API integration, snippet editor workflow, connection flow, session lifecycle, and terminal-effect plugin lifecycle diagrams.
+* README Security section updated to describe the automated dependency scanning, CodeQL, and CodeRabbit pipeline.
 
 ---
 

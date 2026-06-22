@@ -985,7 +985,7 @@ The agent is designed for non-interactive SSH automation. It may inspect files, 
 
 === Generate Workflow Script
 
-After a finished agent run, a *Workflow* button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook) with robust error handling, detailed comments, and a header (script name, creator, date/time). The generator:
+After a finished agent run, a *Workflow* button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time) injected by the application. The generator:
 
 * Auto-loads matching AI Skills (e.g. a language-quality skill)
 * Can produce several language variants and multiple suggestions as inline tabs
@@ -1039,6 +1039,7 @@ For distraction-free terminal work, *F12* toggles *View → Terminal-only Fullsc
 * JobScheduler unattended SSH/SFTP/Rsync execution requires pinned host keys by default
 * Passwords are never stored in plain text
 * SSH keys can optionally be copied to user directory (included in backups)
+* *Automated security scanning*: Dependabot, CodeQL, and CodeRabbit (with Gitleaks, Semgrep, and OSV Scanner) automatically surface dependency vulnerabilities and security issues in every pull request; merged security-labeled fixes trigger automated patch releases
 
 == Documentation SVG Diagrams
 
