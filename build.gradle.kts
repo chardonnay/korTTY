@@ -491,7 +491,13 @@ tasks.register("prepareMonacoWorkspace") {
             cachedTarball,
             monacoEditorSha256
         )
-        val monacoTarballUri = cachedTarball.toURI().toASCIIString()
+        // Depend on the tarball via a RELATIVE file: spec resolved against the
+        // workspace. Java's File.toURI() yields "file:/C:/..." on Windows, which
+        // npm cannot parse as a path (it only worked on Unix because the path was
+        // "/home/..."). Copy the SHA-verified tarball into the workspace and depend
+        // on it by bare filename so npm resolves it natively on every OS.
+        val localMonacoTarballName = "monaco-editor-$monacoEditorVersion.tgz"
+        cachedTarball.copyTo(workspace.resolve(localMonacoTarballName), overwrite = true)
         workspace.resolve("package.json").writeText(
             """
             {
@@ -502,7 +508,7 @@ tasks.register("prepareMonacoWorkspace") {
               },
               "dependencies": {
                 "esbuild": "${monacoEsbuildVersion}",
-                "monaco-editor": "${monacoTarballUri}"
+                "monaco-editor": "file:$localMonacoTarballName"
               }
             }
             """.trimIndent()
