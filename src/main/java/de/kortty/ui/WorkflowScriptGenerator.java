@@ -104,10 +104,15 @@ public final class WorkflowScriptGenerator {
 
         WorkflowContext context = WorkflowContextBuilder.build(
             data.run(), WorkflowContextBuilder.DEFAULT_MAX_CONTEXT_CHARS);
-        boolean customHeader = request.headerOverride() != null;
-        String systemPrompt = WorkflowScriptSupport.buildSystemPrompt(request.language(), request.options(), customHeader);
+        // null override -> AUTO (deterministic header); blank -> NONE (no header); text -> CUSTOM snippet.
+        String override = request.headerOverride();
+        WorkflowScriptSupport.HeaderMode headerMode = override == null
+            ? WorkflowScriptSupport.HeaderMode.AUTO
+            : override.isBlank() ? WorkflowScriptSupport.HeaderMode.NONE
+            : WorkflowScriptSupport.HeaderMode.CUSTOM;
+        String systemPrompt = WorkflowScriptSupport.buildSystemPrompt(request.language(), request.options(), headerMode);
         String userPrompt = WorkflowScriptSupport.buildUserPrompt(
-            request.language(), request.headerFacts(), context, request.options(), request.extraInstructions(), customHeader);
+            request.language(), request.headerFacts(), context, request.options(), request.extraInstructions(), headerMode);
 
         // Inject relevant agent skills ourselves (language name in the prompt steers the selection),
         // and create the service with skills disabled so they are not appended a second time.
@@ -140,9 +145,11 @@ public final class WorkflowScriptGenerator {
             throw new GenerationException(FailureKind.AI_ERROR, "The AI returned an empty response");
         }
         String stripped = WorkflowScriptSupport.stripCodeFences(result.content());
-        String script = customHeader
-            ? WorkflowScriptSupport.injectHeaderOverride(stripped, request.language(), request.headerOverride())
-            : WorkflowScriptSupport.ensureHeaderInjected(stripped, request.language(), request.headerFacts());
+        String script = switch (headerMode) {
+            case AUTO -> WorkflowScriptSupport.ensureHeaderInjected(stripped, request.language(), request.headerFacts());
+            case CUSTOM -> WorkflowScriptSupport.injectHeaderOverride(stripped, request.language(), override);
+            case NONE -> stripped;
+        };
 
         List<String> loadedSkills = skills.drainSkillUsages().stream()
             .map(AiSkillPromptSupport.SkillUsage::name)
