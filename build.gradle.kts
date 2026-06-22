@@ -101,7 +101,7 @@ dependencies {
     implementation("com.sithtermfx:sithtermfx-ui:1.2.0")
     
     // Lanterna - Text-based terminal emulator with better zoom support
-    implementation("com.googlecode.lanterna:lanterna:3.1.2")
+    implementation("com.googlecode.lanterna:lanterna:3.1.5")
     
     // XML Binding (JAXB)
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
