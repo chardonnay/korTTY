@@ -1,0 +1,60 @@
+# Dependabot — dependency vulnerability + version updates.
+#
+# Covers what lives in the Gradle dependency graph (the implementation("...")
+# declarations in build.gradle.kts) and the GitHub Actions used in workflows.
+#
+# KNOWN GAP (handled elsewhere, by pinned-artifact-freshness.yml): Dependabot
+# does NOT see artifacts that are fetched via hardcoded URLs rather than
+# declared as dependencies — mosh4j, the BUNDLED BouncyCastle 1.84 / protobuf
+# 4.35.1 copies, Node, Monaco, esbuild — nor SithTermFX (built from a git tag).
+version: 2
+updates:
+  # ---- Gradle: the pinned implementation("group:artifact:version") deps ----
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      # Group routine minor/patch bumps of the crypto/SSH stack into one PR.
+      # (Security advisories still open their own dedicated PRs.)
+      ssh-crypto:
+        patterns:
+          - "org.apache.sshd:*"
+          - "org.bouncycastle:*"
+          - "net.i2p.crypto:*"
+        update-types:
+          - "minor"
+          - "patch"
+      logging:
+        patterns:
+          - "org.slf4j:*"
+          - "ch.qos.logback:*"
+    ignore:
+      # SithTermFX is built from source at a git tag and installed to the local
+      # Maven repo — it is not a resolvable registry artifact.
+      - dependency-name: "com.sithtermfx:*"
+
+  # ---- GitHub Actions: keep workflow actions current AND SHA-pinnable ----
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci"

@@ -1,0 +1,75 @@
+# CodeRabbit configuration (consumed by the CodeRabbit GitHub App — there is
+# no workflow to run). Security-tuned for a high-security SSH/terminal client.
+#
+# IMPORTANT: dependabot[bot] is deliberately NOT in ignore_usernames, so
+# CodeRabbit reviews Dependabot's security-bump PRs as well.
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "assertive" # prefer thorough over "chill" for a security project
+  request_changes_workflow: true # complements — does NOT replace — the human merge gate
+  high_level_summary: true
+  review_status: true
+  poem: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "^main$"
+    # Do NOT add dependabot[bot] here — we want its security PRs reviewed.
+    ignore_usernames: []
+
+  path_filters:
+    - "src/main/java/**"
+    - "build.gradle.kts"
+    - "settings.gradle.kts"
+    - ".github/**"
+    - ".coderabbit.yaml"
+    - "!vendor/**" # SithTermFX is upstream source built from a git tag
+    - "!build/**"
+    - "!**/*.min.js"
+    - "!app-docs/**"
+    - "!package/**"
+
+  path_instructions:
+    - path: "src/main/java/de/kortty/security/**"
+      instructions: >
+        This is the security package of a high-security SSH/terminal client.
+        Scrutinize cryptographic usage (BouncyCastle, EdDSA), key handling,
+        credential storage, secret logging, randomness sources, and SSH/TLS
+        trust decisions. Flag hardcoded secrets, weak algorithms, and
+        non-constant-time comparisons of secrets.
+    - path: "build.gradle.kts"
+      instructions: >
+        Dependencies and bundled artifacts are intentionally version-pinned;
+        mosh4j, the bundled BouncyCastle/protobuf, Node, Monaco and esbuild are
+        fetched from hardcoded URLs with SHA-256 pinning. When a version or URL
+        changes, verify the SHA-256 pin is updated together, and flag any
+        unpinned or downgraded artifact — especially crypto libraries.
+    - path: ".github/workflows/**"
+      instructions: >
+        Flag third-party actions not pinned to a commit SHA, overly broad
+        'permissions:' blocks, and any exposure of signing/notarization secrets
+        to PR-triggered (pull_request / pull_request_target) workflows.
+
+  tools:
+    gitleaks:
+      enabled: true # committed-secret detection
+    semgrep:
+      enabled: true # SAST over the Java source
+    osvScanner:
+      enabled: true # dependency-vuln scan on the PR diff (complements Dependabot)
+    checkov:
+      enabled: false # no Terraform/K8s/IaC in this repo
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+
+chat:
+  auto_reply: true

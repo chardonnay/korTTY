@@ -1,0 +1,172 @@
+name: Auto Security Release
+
+# When a SECURITY fix is merged to main, cut the next patch release on the
+# current version line (vMAJOR.MINOR.PATCH, patch++). Publishing the release
+# fires the existing build-release.yml (on: release: published), which builds,
+# signs and uploads the binaries. THIS WORKFLOW BUILDS NOTHING.
+#
+# The version line is the NEWER of {build.gradle.kts version, highest vX.Y.Z
+# git tag}. So when you publish a new major/minor (e.g. v3.0.0), automation
+# follows to 3.x with no edit here. See the plan's "Versions-Lifecycle" note.
+#
+# CRITICAL: the release is created with a GitHub App token (or a PAT), NOT the
+# default GITHUB_TOKEN. Releases created with GITHUB_TOKEN do NOT trigger other
+# workflows, so build-release.yml would never run.
+
+on:
+  # PRIMARY: a merged, security-labeled PR into main.
+  pull_request:
+    types: [closed]
+  # ESCAPE HATCH: cut a release by hand (label forgotten, or retry after failure).
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why are you cutting this release manually?"
+        required: false
+        default: "manual security release"
+      bump_gradle:
+        description: "Commit the version bump back to build.gradle.kts on main? (true/false)"
+        required: false
+        default: "true"
+
+# Least privilege for the default GITHUB_TOKEN; the release/bump use the App token below.
+permissions:
+  contents: write
+  pull-requests: read
+
+# Serialize runs so two security merges can't race on the same patch number.
+concurrency:
+  group: auto-security-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    # GATE: proceed only for (a) a merged, security-labeled PR into main,
+    #       or (b) a manual dispatch.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.pull_request.merged == true &&
+        github.event.pull_request.base.ref == 'main' &&
+        contains(github.event.pull_request.labels.*.name, 'security')
+      )
+
+    steps:
+      # --- Mint a non-default token (REQUIRED so the release triggers build-release.yml) ---
+      # App route (recommended). PAT alternative: delete this step and reference
+      # ${{ secrets.RELEASE_PAT }} everywhere ${{ steps.app-token.outputs.token }} is used.
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout main (full history + tags)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ steps.app-token.outputs.token }} # so the optional bump push is authorized
+
+      - name: Record the commit we are releasing
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Compute next version
+        id: ver
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet || true
+
+          # (1) Line from build.gradle.kts  (2.2.0 -> 2.2)
+          GRADLE_VERSION="$(grep -E '^version[[:space:]]*=' build.gradle.kts | head -n1 \
+            | sed -E 's/^version[[:space:]]*=[[:space:]]*["'\'']([^"'\'']+)["'\''].*/\1/')"
+          if [[ ! "$GRADLE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Could not parse MAJOR.MINOR.PATCH from build.gradle.kts (got '$GRADLE_VERSION')"
+            exit 1
+          fi
+          G_LINE="${GRADLE_VERSION%.*}"
+
+          # (2) Highest release line from tags, repo-wide (highest vX.Y.Z -> X.Y).
+          #     Anchored regex excludes legacy non-v tags and pre-release suffixes.
+          T_LINE="$(git tag --list 'v*' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sed -E 's/^v//' | sort -V | tail -n1 | sed -E 's/\.[0-9]+$//' || true)"
+
+          # (3) The NEWER line wins -> a move to 3.x is picked up automatically.
+          LINE="$(printf '%s\n%s\n' "$G_LINE" "${T_LINE:-0.0}" | sort -V | tail -n1)"
+          MAJOR="${LINE%%.*}"
+          MINOR="${LINE#*.}"
+
+          # (4) Patch = highest tag on THIS line + 1 (else .0).
+          HIGHEST="$(git tag --list "v${MAJOR}.${MINOR}.*" \
+            | grep -E "^v${MAJOR}\.${MINOR}\.[0-9]+$" \
+            | sed -E 's/^v//' | sort -V | tail -n1 || true)"
+          if [[ -z "$HIGHEST" ]]; then
+            NEXT_PATCH=0
+          else
+            NEXT_PATCH=$(( ${HIGHEST##*.} + 1 ))
+          fi
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          NEW_TAG="v${NEW_VERSION}"
+
+          # Never reuse an existing tag (race / divergence guard).
+          if git rev-parse -q --verify "refs/tags/${NEW_TAG}" >/dev/null; then
+            echo "::error::Computed tag ${NEW_TAG} already exists — aborting."
+            exit 1
+          fi
+
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved ${NEW_TAG} on line ${MAJOR}.${MINOR}.x"
+
+      - name: Create GitHub Release (triggers build-release.yml)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # NOT secrets.GITHUB_TOKEN
+          NEW_TAG: ${{ steps.ver.outputs.tag }}
+          RELEASE_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TRIGGER="security PR #${{ github.event.pull_request.number }}"
+          else
+            TRIGGER="manual dispatch: ${{ github.event.inputs.reason }}"
+          fi
+          gh release create "$NEW_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "$NEW_TAG" \
+            --generate-notes \
+            --notes "Automated security release. Trigger: ${TRIGGER}."
+
+      - name: Bump build.gradle.kts on main (optional, loop-safe)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.bump_gradle != 'false' }}
+        continue-on-error: true # a protected-branch rejection must not fail an already-published release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          NEW_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          sed -i.bak "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" build.gradle.kts
+          rm -f build.gradle.kts.bak
+          if git diff --quiet -- build.gradle.kts; then
+            echo "build.gradle.kts already at ${NEW_VERSION}; nothing to commit."
+            exit 0
+          fi
+          git config user.name "kortty-release-bot[bot]"
+          git config user.email "kortty-release-bot[bot]@users.noreply.github.com"
+          git add build.gradle.kts
+          git commit -m "chore(release): set version to ${NEW_VERSION} [skip ci]"
+          git push origin HEAD:main
+
+      - name: Summary
+        run: |
+          {
+            echo "### Cut ${{ steps.ver.outputs.tag }}"
+            echo "build-release.yml will now build + sign + upload the binaries."
+          } >> "$GITHUB_STEP_SUMMARY"
