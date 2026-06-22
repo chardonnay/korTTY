@@ -1,0 +1,56 @@
+name: CodeQL
+
+# Static security analysis of the Java source. Uses build-mode: none, which
+# does NOT compile the project — it sidesteps the heavy SithTermFX (Maven) +
+# mosh4j/Node/Monaco vendoring that build-release.yml performs. korTTY has no
+# .kt source files (Kotlin appears only in the Gradle DSL), so the "Kotlin is
+# skipped under build-mode none" caveat does not apply here.
+#
+# Results land in: Security -> Code scanning alerts.
+# This workflow has NO access to signing/notarization secrets.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "17 4 * * 1" # weekly, Monday 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write # upload SARIF to the code-scanning tab
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: none
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          submodules: false # build-mode none needs no compile -> no SithTermFX clone
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+        with:
+          category: "/language:${{ matrix.language }}"
