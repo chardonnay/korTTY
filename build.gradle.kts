@@ -126,7 +126,7 @@ dependencies {
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.14.0")
     implementation("com.knuddels:jtokkit:1.1.0")
-    implementation("org.apache.pdfbox:pdfbox:3.0.6")
+    implementation("org.apache.pdfbox:pdfbox:3.0.7")
     implementation("com.google.googlejavaformat:google-java-format:1.35.0")
 
     // The JDK's built-in jdk.jsobject module is deprecated for removal on JDK 25,
