@@ -63,7 +63,15 @@ public class JobSchedulerRepository {
         try (OutputStream out = Files.newOutputStream(file)) {
             marshaller.marshal(data, out);
         }
-        logger.info("Saved {} scheduled jobs to {}", data.getJobs().size(), file);
+        // The scheduler ticks frequently and saves each time. Only surface this at INFO when there is
+        // at least one active (enabled) job; otherwise it just clutters the log ("Saved 0 scheduled
+        // jobs ..."). The empty/disabled case stays available at DEBUG for troubleshooting.
+        long active = data.getJobs().stream().filter(ScheduledJob::isEnabled).count();
+        if (active > 0) {
+            logger.info("Saved {} scheduled jobs to {} ({} active)", data.getJobs().size(), file, active);
+        } else {
+            logger.debug("Saved {} scheduled jobs to {} (no active jobs)", data.getJobs().size(), file);
+        }
     }
 
     public synchronized List<ScheduledJob> getJobs() {
