@@ -108,7 +108,7 @@ dependencies {
     
     // XML Binding (JAXB)
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
-    runtimeOnly("org.glassfish.jaxb:jaxb-runtime:4.0.4")
+    runtimeOnly("org.glassfish.jaxb:jaxb-runtime:4.0.9")
     
     // ZIP encryption
     implementation("net.lingala.zip4j:zip4j:2.11.6")
