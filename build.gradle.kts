@@ -108,7 +108,7 @@ dependencies {
     runtimeOnly("org.glassfish.jaxb:jaxb-runtime:4.0.4")
     
     // ZIP encryption
-    implementation("net.lingala.zip4j:zip4j:2.11.5")
+    implementation("net.lingala.zip4j:zip4j:2.11.6")
     
     // Archive support (TAR.BZ2, 7z)
     implementation("org.apache.commons:commons-compress:1.25.0")
