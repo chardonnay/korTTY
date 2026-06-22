@@ -146,7 +146,7 @@ dependencies {
     // which fails Apple notarization ("Archive contains critical validation
     // errors") in build-release.yml. 0.13.12 carried no CVE/security fix, so the
     // bump (Dependabot #43) has no benefit that justifies breaking macOS releases.
-    implementation("org.jetbrains.pty4j:pty4j:0.12.25")
+    implementation("org.jetbrains.pty4j:pty4j:0.13.12")
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.18")
