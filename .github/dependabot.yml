@@ -43,6 +43,13 @@ updates:
       # SithTermFX is built from source at a git tag and installed to the local
       # Maven repo — it is not a resolvable registry artifact.
       - dependency-name: "com.sithtermfx:*"
+      # pty4j 0.13.x bundles an UNSIGNED native macOS helper
+      # (pty4j-unix-spawn-helper) that fails Apple notarization in
+      # build-release.yml. Stay on 0.12.x until pty4j ships signed darwin
+      # binaries (or the macOS signing step is taught to sign jar-internal
+      # natives). 0.13.12 carried no security fix. See reverted Dependabot #43.
+      - dependency-name: "org.jetbrains.pty4j:pty4j"
+        versions: ["0.13.x"]
 
   # ---- GitHub Actions: keep workflow actions current AND SHA-pinnable ----
   - package-ecosystem: "github-actions"

@@ -140,8 +140,13 @@ dependencies {
         javaFxJsObject(javaFxJsObjectDependency)
     }
 
-    // PTY support for native Mosh client
-    implementation("org.jetbrains.pty4j:pty4j:0.13.12")
+    // PTY support for native Mosh client.
+    // Pinned to 0.12.25: pty4j 0.13.12 bundles an UNSIGNED native macOS helper
+    // (resources/com/pty4j/native/darwin/pty4j-unix-spawn-helper) inside its jar,
+    // which fails Apple notarization ("Archive contains critical validation
+    // errors") in build-release.yml. 0.13.12 carried no CVE/security fix, so the
+    // bump (Dependabot #43) has no benefit that justifies breaking macOS releases.
+    implementation("org.jetbrains.pty4j:pty4j:0.12.25")
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.18")
