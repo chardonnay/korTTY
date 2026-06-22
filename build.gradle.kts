@@ -90,8 +90,8 @@ dependencies {
     implementation("org.apache.sshd:sshd-core:2.12.0")
     implementation("org.apache.sshd:sshd-common:2.12.0")
     implementation("org.apache.sshd:sshd-sftp:2.12.0")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
     
     // ED25519 (EdDSA) key support for SSH
     implementation("net.i2p.crypto:eddsa:0.3.0")
@@ -677,8 +677,11 @@ tasks.register<Copy>("copyJar") {
     into(jpackageInput.map { it.dir("libs") })
 }
 
-// mosh4j release to bundle (must match Mosh4jTtyConnector.MOSH4J_RELEASE_TAG)
-val mosh4jReleaseTag = "2.0.0"
+// mosh4j release to bundle.
+// mosh4jVersion must match Mosh4jTtyConnector.MOSH4J_VERSION (artifact/file-name version, no "v").
+// mosh4jReleaseTag must match Mosh4jTtyConnector.MOSH4J_RELEASE_TAG (GitHub tag; carries a leading "v" since 2.0.1).
+val mosh4jVersion = "2.0.2"
+val mosh4jReleaseTag = "v$mosh4jVersion"
 val mosh4jReleaseUrl = "https://github.com/chardonnay/mosh4j/releases/download/$mosh4jReleaseTag"
 val mosh4jModules = listOf("protocol", "crypto", "transport", "terminal", "core")
 
@@ -693,22 +696,22 @@ tasks.register("copyMosh4jBundled") {
         }
         val libsDir = layout.buildDirectory.get().asFile.resolve("jpackage-input").resolve("libs")
         val mosh4jBase = libsDir.resolve("mosh4j")
-        val releaseDir = mosh4jBase.resolve("release-$mosh4jReleaseTag-$arch")
+        val releaseDir = mosh4jBase.resolve("release-$mosh4jVersion-$arch")
         val depsDir = mosh4jBase.resolve("deps")
         releaseDir.mkdirs()
         depsDir.mkdirs()
         val urls = mutableListOf<Pair<String, java.io.File>>()
         for (module in mosh4jModules) {
-            val jar = "mosh4j-$module-$mosh4jReleaseTag-$arch.jar"
+            val jar = "mosh4j-$module-$mosh4jVersion-$arch.jar"
             urls.add("$mosh4jReleaseUrl/$jar" to releaseDir.resolve(jar))
         }
         urls.add(
-            "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.jar"
-                to depsDir.resolve("bcprov-jdk18on-1.78.1.jar")
+            "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.84/bcprov-jdk18on-1.84.jar"
+                to depsDir.resolve("bcprov-jdk18on-1.84.jar")
         )
         urls.add(
-            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/4.28.2/protobuf-java-4.28.2.jar"
-                to depsDir.resolve("protobuf-java-4.28.2.jar")
+            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/4.35.1/protobuf-java-4.35.1.jar"
+                to depsDir.resolve("protobuf-java-4.35.1.jar")
         )
         for ((url, file) in urls) {
             if (file.exists()) continue

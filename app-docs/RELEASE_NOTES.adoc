@@ -7,6 +7,15 @@
 * *SithTermFX 1.2.0*: Upgraded the embedded terminal engine to SithTermFX 1.2.0 (built from source, no GitHub token required).
 * *OSC 8 clickable hyperlinks*: The terminal now supports OSC 8 explicit hyperlinks — clickable links emitted by programs such as `ls --hyperlink` or `eza`. Links open on explicit user click and are restricted to a safe URI-scheme allowlist (`http`, `https`, `mailto`, `ftp`, `ftps`, `news`); `file://` links are limited to the local host.
 
+=== Mosh (mosh4j) 2.0.2 Upgrade and Security Hardening
+
+* *mosh4j 2.0.0 → 2.0.2*: The dynamically loaded Mosh backend was upgraded to mosh4j `2.0.2`. The release JARs are bundled in native builds (no first-run download) and otherwise fetched on demand via the GitHub CLI (`gh`) or `KORTTY_MOSH4J_RELEASE_DIR`. No reconnect or protocol migration is required — the Mosh wire protocol is unchanged (still version `2`), so existing Mosh connections behave exactly as before.
+* *Inherited security hardening*: mosh4j `2.0.2` adds per-direction replay/freshness protection, decompression-bomb limits on reassembled/zlib data, and a server-side protocol-version check. These harden the Mosh datagram path against malformed or replayed traffic.
+* *Bouncy Castle `1.78.1 → 1.84`*: The Bouncy Castle provider was upgraded to `1.84` (fixes CVE-2026-5598, HIGH, and CVE-2026-0636, MODERATE). The bump was applied both to the mosh4j runtime classpath and to korTTY's own SSH crypto dependencies (`bcprov-jdk18on`, `bcpkix-jdk18on`), so no known-vulnerable provider remains on either path. SSH key compatibility and connector behavior were re-verified after the upgrade.
+* *protobuf-java `4.28.2 → 4.35.1`*: mosh4j `2.0.2` compiles its generated Protobuf DTOs against protobuf-java `4.35.1` (they reference `com.google.protobuf.GeneratedFile`, which does not exist in `4.28.2`). The bundled/auto-downloaded protobuf dependency on the dynamically loaded Mosh classpath was bumped accordingly, fixing a `NoClassDefFoundError` that would otherwise occur on the first Mosh connect.
+* *Release tag vs. artifact version*: Since mosh4j `2.0.1` the GitHub release tag carries a leading `v` (`v2.0.2`) while the artifact file names stay versioned `2.0.2`. korTTY now tracks the tag and the artifact version separately so release downloads, cache directories, and bundled layouts all resolve correctly.
+* *Integration test*: A new self-skipping integration test verifies that the pinned mosh4j `2.0.2` artifacts still expose every constructor and method korTTY loads reflectively (`MoshKey.fromBase64`, `MoshClientSession`, `MoshTerminalFrontend`), guarding future mosh4j upgrades against silent API drift.
+
 === AI Agent Panel Placement and Status Indicators
 
 * *Choose where the agent panel lives*: *View → AI Agent Panel* now offers *At Bottom* (default, unchanged), *Dock Left*, or *Dock Right*. Docked mode shows the activity panel as a resizable side panel attached to the main window, exactly like the local file browser. The chosen placement and side width are remembered across restarts.
