@@ -115,7 +115,7 @@ dependencies {
     
     // Archive support (TAR.BZ2, 7z)
     implementation("org.apache.commons:commons-compress:1.25.0")
-    implementation("org.tukaani:xz:1.9")
+    implementation("org.tukaani:xz:1.12")
     
     // jfiglet - ASCII art banners (FIGfonts)
     implementation("com.github.lalyos:jfiglet:0.0.9")
