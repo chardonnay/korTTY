@@ -2,6 +2,11 @@
 
 == Unreleased (v2.3.0)
 
+=== Terminal Engine and Hyperlinks
+
+* *SithTermFX 1.2.0*: Upgraded the embedded terminal engine to SithTermFX 1.2.0 (built from source, no GitHub token required).
+* *OSC 8 clickable hyperlinks*: The terminal now supports OSC 8 explicit hyperlinks — clickable links emitted by programs such as `ls --hyperlink` or `eza`. Links open on explicit user click and are restricted to a safe URI-scheme allowlist (`http`, `https`, `mailto`, `ftp`, `ftps`, `news`); `file://` links are limited to the local host.
+
 === AI Agent Panel Placement and Status Indicators
 
 * *Choose where the agent panel lives*: *View → AI Agent Panel* now offers *At Bottom* (default, unchanged), *Dock Left*, or *Dock Right*. Docked mode shows the activity panel as a resizable side panel attached to the main window, exactly like the local file browser. The chosen placement and side width are remembered across restarts.

@@ -97,8 +97,8 @@ dependencies {
     implementation("net.i2p.crypto:eddsa:0.3.0")
     
     // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
-    implementation("com.sithtermfx:sithtermfx-core:1.1.0")
-    implementation("com.sithtermfx:sithtermfx-ui:1.1.0")
+    implementation("com.sithtermfx:sithtermfx-core:1.2.0")
+    implementation("com.sithtermfx:sithtermfx-ui:1.2.0")
     
     // Lanterna - Text-based terminal emulator with better zoom support
     implementation("com.googlecode.lanterna:lanterna:3.1.2")
@@ -164,7 +164,7 @@ tasks.named<JavaExec>("run") {
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
 
-val sithtermfxVersion = "1.1.0"
+val sithtermfxVersion = "1.2.0"
 val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
 
 tasks.register("cloneSithtermfx") {
@@ -197,7 +197,7 @@ tasks.register("cloneSithtermfx") {
     }
 }
 
-val mavenLocalSithtermfxCore = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-core/1.1.0/sithtermfx-core-1.1.0.jar")
+val mavenLocalSithtermfxCore = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-core/1.2.0/sithtermfx-core-1.2.0.jar")
 
 tasks.register<Exec>("installSithtermfxLocal") {
     group = "build"
