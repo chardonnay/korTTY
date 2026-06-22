@@ -90,9 +90,9 @@ tasks.named<ProcessResources>("processResources") {
 
 dependencies {
     // SSH
-    implementation("org.apache.sshd:sshd-core:2.12.0")
-    implementation("org.apache.sshd:sshd-common:2.12.0")
-    implementation("org.apache.sshd:sshd-sftp:2.12.0")
+    implementation("org.apache.sshd:sshd-core:2.18.0")
+    implementation("org.apache.sshd:sshd-common:2.18.0")
+    implementation("org.apache.sshd:sshd-sftp:2.18.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.84")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
     
