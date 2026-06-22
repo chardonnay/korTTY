@@ -1933,7 +1933,7 @@ public class TerminalView extends BorderPane {
                 return connector;
             }
             throw new IllegalStateException(
-                    I18n.get("mosh.mosh4j.releaseUnavailable", de.kortty.core.Mosh4jTtyConnector.getMosh4jReleaseTag()));
+                    I18n.get("mosh.mosh4j.releaseUnavailable", de.kortty.core.Mosh4jTtyConnector.getMosh4jVersion()));
         } else if (targetConnection.getProtocol() == ConnectionProtocol.MOSH_CLIENT) {
             if (!NativeMoshTtyConnector.isNativeMoshAvailable()) {
                 throw new IllegalStateException(I18n.get("mosh.native.binaryMissingInstallHint"));

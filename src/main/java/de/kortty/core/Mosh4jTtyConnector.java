@@ -40,17 +40,33 @@ public class Mosh4jTtyConnector implements TtyConnector {
     private static final Pattern MOSH_CONNECT_PATTERN =
             Pattern.compile("MOSH CONNECT\\s+(\\d+)\\s+([A-Za-z0-9+/=]+)");
 
-    private static final String MOSH4J_RELEASE_TAG = "2.0.0";
+    /** Artifact version used in JAR file names and cache directories (e.g. mosh4j-core-2.0.2-arm64.jar). */
+    private static final String MOSH4J_VERSION = "2.0.2";
+    /**
+     * GitHub release/git tag used for {@code gh release download} and the release download URL.
+     * Note: since 2.0.1 the tag carries a leading "v" while the artifact version does not, so the
+     * two are tracked separately (the 2.0.0 tag had no "v").
+     */
+    private static final String MOSH4J_RELEASE_TAG = "v" + MOSH4J_VERSION;
 
-    /** Returns the mosh4j release version (e.g. for i18n messages). */
-    public static String getMosh4jReleaseTag() {
-        return MOSH4J_RELEASE_TAG;
+    /** Returns the mosh4j artifact version (e.g. for i18n messages). */
+    public static String getMosh4jVersion() {
+        return MOSH4J_VERSION;
     }
 
+    private static final String DEP_BCPROV_VERSION = "1.84";
+    private static final String DEP_BCPROV_JAR = "bcprov-jdk18on-" + DEP_BCPROV_VERSION + ".jar";
     private static final String DEP_BCPROV_URL =
-            "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.jar";
+            "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/"
+                    + DEP_BCPROV_VERSION + "/" + DEP_BCPROV_JAR;
+    // mosh4j 2.0.2's mosh4j-protocol generated DTOs are compiled against protobuf-java 4.35.1
+    // (they reference com.google.protobuf.GeneratedFile, absent in 4.28.2). Must match the
+    // <protobuf.version> in mosh4j's mosh4j-protocol pom for the artifact version being loaded.
+    private static final String DEP_PROTOBUF_VERSION = "4.35.1";
+    private static final String DEP_PROTOBUF_JAR = "protobuf-java-" + DEP_PROTOBUF_VERSION + ".jar";
     private static final String DEP_PROTOBUF_URL =
-            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/4.28.2/protobuf-java-4.28.2.jar";
+            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/"
+                    + DEP_PROTOBUF_VERSION + "/" + DEP_PROTOBUF_JAR;
 
     private static final int PIPE_BUFFER_CHARS = 1_048_576;
     private static final boolean DEBUG = Boolean.parseBoolean(System.getenv("KORTTY_MOSH_DEBUG"));
@@ -147,7 +163,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     public static boolean isReleaseSupported() {
         String arch = mapArchSuffix(System.getProperty("os.arch"));
-        Path releaseDir = resolveReleaseBaseDir().resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
+        Path releaseDir = resolveReleaseBaseDir().resolve("release-" + MOSH4J_VERSION + "-" + arch);
         return hasRequiredReleaseJars(releaseDir, arch) || commandExists("gh");
     }
 
@@ -179,13 +195,13 @@ public class Mosh4jTtyConnector implements TtyConnector {
             lastUserInputAtMs = -1L;
             logoutRequestedAtMs = -1L;
             startOutputDrainLoop();
-            logger.info("mosh4j {} session started for {}", MOSH4J_RELEASE_TAG, connection.getDisplayName());
+            logger.info("mosh4j {} session started for {}", MOSH4J_VERSION, connection.getDisplayName());
             return true;
         } catch (SshTtyConnector.AuthenticationException e) {
             close();
             throw e;
         } catch (Exception e) {
-            logger.error("Failed to start mosh4j {} session for {}: {}", MOSH4J_RELEASE_TAG, connection.getDisplayName(), e.getMessage(), e);
+            logger.error("Failed to start mosh4j {} session for {}: {}", MOSH4J_VERSION, connection.getDisplayName(), e.getMessage(), e);
             close();
             return false;
         }
@@ -332,7 +348,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
         Path cacheBase = resolveReleaseBaseDir();
         Files.createDirectories(cacheBase);
 
-        Path releaseDir = cacheBase.resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
+        Path releaseDir = cacheBase.resolve("release-" + MOSH4J_VERSION + "-" + arch);
         if (!hasRequiredReleaseJars(releaseDir, arch)) {
             downloadRelease(cacheBase, arch);
         }
@@ -342,17 +358,17 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
         Path depDir = cacheBase.resolve("deps");
         Files.createDirectories(depDir);
-        Path bcprovJar = depDir.resolve("bcprov-jdk18on-1.78.1.jar");
-        Path protobufJar = depDir.resolve("protobuf-java-4.28.2.jar");
+        Path bcprovJar = depDir.resolve(DEP_BCPROV_JAR);
+        Path protobufJar = depDir.resolve(DEP_PROTOBUF_JAR);
         downloadIfMissing(bcprovJar, DEP_BCPROV_URL);
         downloadIfMissing(protobufJar, DEP_PROTOBUF_URL);
 
         List<Path> classpath = new ArrayList<>();
-        classpath.add(releaseDir.resolve("mosh4j-protocol-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
-        classpath.add(releaseDir.resolve("mosh4j-crypto-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
-        classpath.add(releaseDir.resolve("mosh4j-transport-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
-        classpath.add(releaseDir.resolve("mosh4j-terminal-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
-        classpath.add(releaseDir.resolve("mosh4j-core-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-protocol-" + MOSH4J_VERSION + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-crypto-" + MOSH4J_VERSION + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-transport-" + MOSH4J_VERSION + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-terminal-" + MOSH4J_VERSION + "-" + arch + ".jar"));
+        classpath.add(releaseDir.resolve("mosh4j-core-" + MOSH4J_VERSION + "-" + arch + ".jar"));
         classpath.add(bcprovJar);
         classpath.add(protobufJar);
         return classpath;
@@ -363,8 +379,8 @@ public class Mosh4jTtyConnector implements TtyConnector {
         Files.createDirectories(cacheBase);
         Path depDir = cacheBase.resolve("deps");
         Files.createDirectories(depDir);
-        Path bcprovJar = depDir.resolve("bcprov-jdk18on-1.78.1.jar");
-        Path protobufJar = depDir.resolve("protobuf-java-4.28.2.jar");
+        Path bcprovJar = depDir.resolve(DEP_BCPROV_JAR);
+        Path protobufJar = depDir.resolve(DEP_PROTOBUF_JAR);
         downloadIfMissing(bcprovJar, DEP_BCPROV_URL);
         downloadIfMissing(protobufJar, DEP_PROTOBUF_URL);
 
@@ -430,7 +446,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
                 if (appLibDir != null && Files.isDirectory(appLibDir)) {
                     Path mosh4jBase = appLibDir.resolve("mosh4j");
                     String arch = mapArchSuffix(System.getProperty("os.arch"));
-                    Path releaseDir = mosh4jBase.resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
+                    Path releaseDir = mosh4jBase.resolve("release-" + MOSH4J_VERSION + "-" + arch);
                     if (hasRequiredReleaseJars(releaseDir, arch)) {
                         return mosh4jBase;
                     }
@@ -452,15 +468,15 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     private static boolean hasRequiredReleaseJars(Path releaseDir, String arch) {
         if (releaseDir == null) return false;
-        return Files.isRegularFile(releaseDir.resolve("mosh4j-core-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"))
-                && Files.isRegularFile(releaseDir.resolve("mosh4j-crypto-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"))
-                && Files.isRegularFile(releaseDir.resolve("mosh4j-protocol-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"))
-                && Files.isRegularFile(releaseDir.resolve("mosh4j-terminal-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"))
-                && Files.isRegularFile(releaseDir.resolve("mosh4j-transport-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"));
+        return Files.isRegularFile(releaseDir.resolve("mosh4j-core-" + MOSH4J_VERSION + "-" + arch + ".jar"))
+                && Files.isRegularFile(releaseDir.resolve("mosh4j-crypto-" + MOSH4J_VERSION + "-" + arch + ".jar"))
+                && Files.isRegularFile(releaseDir.resolve("mosh4j-protocol-" + MOSH4J_VERSION + "-" + arch + ".jar"))
+                && Files.isRegularFile(releaseDir.resolve("mosh4j-terminal-" + MOSH4J_VERSION + "-" + arch + ".jar"))
+                && Files.isRegularFile(releaseDir.resolve("mosh4j-transport-" + MOSH4J_VERSION + "-" + arch + ".jar"));
     }
 
     private static void downloadRelease(Path cacheBase, String arch) throws Exception {
-        Path releaseDir = cacheBase.resolve("release-" + MOSH4J_RELEASE_TAG + "-" + arch);
+        Path releaseDir = cacheBase.resolve("release-" + MOSH4J_VERSION + "-" + arch);
         Files.createDirectories(releaseDir);
         if (!commandExists("gh")) {
             throw new IOException(i18n("mosh.mosh4j.ghNotFound"));
@@ -469,7 +485,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
                 "gh", "release", "download", MOSH4J_RELEASE_TAG,
                 "-R", "chardonnay/mosh4j",
                 "--dir", releaseDir.toString(),
-                "--pattern", "mosh4j-*-" + MOSH4J_RELEASE_TAG + "-" + arch + ".jar"
+                "--pattern", "mosh4j-*-" + MOSH4J_VERSION + "-" + arch + ".jar"
         )
                 .redirectErrorStream(true)
                 .start();
@@ -487,7 +503,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     private static Path resolveLocalModuleJar(Path repoRoot, String module) {
         Path targetDir = repoRoot.resolve("mosh4j-" + module).resolve("target");
-        Path releaseJar = targetDir.resolve("mosh4j-" + module + "-" + MOSH4J_RELEASE_TAG + ".jar");
+        Path releaseJar = targetDir.resolve("mosh4j-" + module + "-" + MOSH4J_VERSION + ".jar");
         if (Files.isRegularFile(releaseJar)) {
             return releaseJar;
         }
@@ -758,7 +774,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     @Override
     public String getName() {
-        return connection.getDisplayName() + " [" + i18n("mosh.mosh4j.nameSuffix", MOSH4J_RELEASE_TAG) + "]";
+        return connection.getDisplayName() + " [" + i18n("mosh.mosh4j.nameSuffix", MOSH4J_VERSION) + "]";
     }
 
     @Override

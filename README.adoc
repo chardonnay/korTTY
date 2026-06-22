@@ -224,12 +224,12 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 | | zxcvbn (password strength) | 1.9.0
 | *Snippet Diagrams* | PlantUML renderer used by the Snippet Editor diagram feature | 1.2026.2
 | *Logging* | SLF4J / Logback | 2.0.9 / 1.4.14
-| *Optional (runtime)* | mosh4j (Mosh support, loaded dynamically) | 2.0.0
+| *Optional (runtime)* | mosh4j (Mosh support, loaded dynamically) | 2.0.2
 | *Optional system tools* | rsync + ssh for JobScheduler Rsync jobs | external
 | | Graphviz `dot` for local PlantUML rendering | external
 |===
 
-SithTermFX is built from source (see <<#sithtermfx-integration,SithTermFX Integration>>). mosh4j JARs are bundled in release builds so Mosh works without a first-run download.
+SithTermFX is built from source (see <<#sithtermfx-integration,SithTermFX Integration>>). mosh4j JARs are bundled in release builds so Mosh works without a first-run download. mosh4j `2.0.2` is a security-hardened release (replay/freshness protection, decompression limits). Its dynamically loaded classpath ships with Bouncy Castle `bcprov-jdk18on` `1.84` and `protobuf-java` `4.35.1` (the version mosh4j's generated DTOs are compiled against). The GitHub release tag is `v2.0.2` while the artifact files remain versioned `2.0.2`.
 
 == Create Native Release
 
