@@ -405,24 +405,41 @@ fun monacoNodeExecutable(): File {
 }
 
 fun monacoNpmCliScript(): File {
-    return monacoBuildNodeDir.get().asFile.resolve("lib/node_modules/npm/bin/npm-cli.js")
+    // The Windows Node .zip ships npm at <root>/node_modules/npm, while the Unix
+    // tarballs ship it at <root>/lib/node_modules/npm. Resolve per-OS, otherwise
+    // node.exe is handed a non-existent script path on Windows and npm never runs.
+    val root = monacoBuildNodeDir.get().asFile
+    return if (isWindows) {
+        root.resolve("node_modules/npm/bin/npm-cli.js")
+    } else {
+        root.resolve("lib/node_modules/npm/bin/npm-cli.js")
+    }
 }
 
 fun runBundledNodeCommand(workingDirectory: File, vararg command: String) {
     val nodeBinDir = File(command.first()).parentFile.absolutePath
     val builder = ProcessBuilder(command.toList())
         .directory(workingDirectory)
-        .inheritIO()
+        .redirectErrorStream(true) // merge stderr into stdout so npm errors are visible
     val environment = builder.environment()
-    val path = environment["PATH"]
-    environment["PATH"] = if (path.isNullOrBlank()) {
+    val pathVar = environment["PATH"]
+    environment["PATH"] = if (pathVar.isNullOrBlank()) {
         nodeBinDir
     } else {
-        "$nodeBinDir${File.pathSeparator}$path"
+        "$nodeBinDir${File.pathSeparator}$pathVar"
     }
-    val exitCode = builder.start().waitFor()
+    // Capture+echo the output. Relying on inheritIO() produced NO visible output
+    // for failures in CI, which made Windows npm failures undiagnosable.
+    val process = builder.start()
+    val output = process.inputStream.bufferedReader().use { it.readText() }
+    val exitCode = process.waitFor()
+    if (output.isNotBlank()) {
+        println(output)
+    }
     if (exitCode != 0) {
-        throw GradleException("Command failed with exit code $exitCode: ${command.joinToString(" ")}")
+        throw GradleException(
+            "Command failed with exit code $exitCode: ${command.joinToString(" ")}\n$output"
+        )
     }
 }
 
