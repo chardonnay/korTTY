@@ -47,7 +47,7 @@ The GitHub App is already installed. Keep its repo scope minimal (no admin). `.c
 
 ## Versioning behavior
 `auto-security-release` derives the version **line** from the newer of {`build.gradle.kts` version, highest `vX.Y.Z` tag} and increments the patch. So:
-- **Current baseline:** `build.gradle.kts` is `2.2.1` and the highest tag is `v2.2.0`. Once you publish the `v2.2.1` release yourself, the first automated security release is **`v2.2.2`**, then `v2.2.3`, … (each driven by a merged `security`-labeled PR).
+- **Current baseline:** `build.gradle.kts` is `2.2.2` and the highest tag is `v2.2.1`. Once you publish the `v2.2.2` release yourself, the first automated security release is **`v2.2.3`**, then `v2.2.4`, … (each driven by a merged `security`-labeled PR).
 - **Moving to a new minor/major (e.g. 3.x):** publish `v3.0.0` (and set `version` in `build.gradle.kts` to `3.0.0`, which you do anyway) → the next automated release is `v3.0.1`. The old line is dropped automatically; **no workflow edit needed.** Scanning always targets `main`, so old releases are never re-scanned.
 
 ## Honest scope of "auto-fix"

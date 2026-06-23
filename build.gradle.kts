@@ -9,7 +9,7 @@ import java.net.URI
 import java.security.MessageDigest
 
 group = "de.kortty"
-version = "2.2.1"
+version = "2.2.2"
 
 // Resolved JDK major for this build. CI pins JDK 21 on the Windows ARM runner
 // (-Pkortty.javaVersion=21); everywhere else this defaults to 25. Hoisted to

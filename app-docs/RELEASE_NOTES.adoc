@@ -1,5 +1,11 @@
 = Release Notes
 
+== v2.2.2
+
+=== Critical Fix: Crash Opening Monaco Editors
+
+* *Fixed a hard crash (no on-screen error) when opening the Snippet Manager, the Snippet editor, or the Settings AI-skill editor in the packaged builds*: the bundled runtime was missing the `jdk.jsobject` module, so `netscape.javascript.JSObject` was unavailable at runtime. When the embedded Monaco editor's WebView marshalled a JavaScript object back to Java, JavaFX WebKit's native class lookup returned `NULL` and the JVM crashed in JNI `get_method_id` (`SIGSEGV`). `jdk.jsobject` is now bundled in the packaged runtime, so the Monaco-based editors open correctly. This release supersedes v2.2.0 and v2.2.1, whose binaries are affected by this crash.
+
 == v2.2.1
 
 === Stability Fixes
