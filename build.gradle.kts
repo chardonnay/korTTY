@@ -821,7 +821,12 @@ if (isMac) {
     val macSigningKeychain = (findProperty("kortty.macos.signingKeychain") as String?)?.trim()
     val macNativeJarPatterns = listOf(
         Regex("""^jna-[\w.\-]+\.jar$"""),
-        Regex("""^pty4j-[\w.\-]+\.jar$""")
+        Regex("""^pty4j-[\w.\-]+\.jar$"""),
+        // JavaFX ships native dylibs INSIDE its jars (javafx-graphics/media/web), where jpackage's
+        // deep-sign can't reach them. Gluon's own signatures are not accepted by Apple's notary on
+        // newer patches (21.0.11: "not signed with a valid Developer ID" / "no secure timestamp"),
+        // so re-sign them here with our identity. Jars without dylibs (base/controls/fxml) no-op.
+        Regex("""^javafx-[\w.\-]+\.jar$""")
     )
 
     // Icon-Funktion für macOS: Versuche .icns, sonst verwende PNG
