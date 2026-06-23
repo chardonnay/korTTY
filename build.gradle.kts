@@ -38,11 +38,14 @@ val isWindows = osName.contains("windows")
 val isMac = osName.contains("mac")
 val isLinux = osName.contains("linux")
 
-// Pin the latest JavaFX 21 LTS patch (not the bare "21" GA, which ships the oldest WebKit and is
-// missing every macOS WebView fix from the 21.0.x line). Stays on major 21 so it runs on both the
-// JDK 25 macOS build and the JDK 21 Windows-ARM runner. NOTE: this changes the bundled native dylibs
-// — validate notarization via a build-release.yml dispatch, since `gradle test` skips jpackage.
-val javaFxVersion = "21.0.11"
+// Pinned to bare "21" (GA 21.0.0). Do NOT bump without solving the macOS signing trap below:
+// JavaFX ships its native dylibs INSIDE the jars. Gluon's adhoc/linker signatures on patches >= 21.0.1
+// are rejected by Apple's notary, so they'd need re-signing with our Developer ID — BUT re-signing
+// libjfxwebkit.dylib with `codesign --options runtime` sets the hardened-runtime flag, which kills
+// JavaScriptCore's JIT at runtime (the WebView boots, then the app is SIGKILLed the instant JS runs,
+// with NO crash report). 21.0.0's Gluon signatures notarize as-is, so the GA stays un-re-signed and
+// WebKit keeps working. A future bump must re-sign the javafx dylibs WITHOUT `--options runtime`.
+val javaFxVersion = "21"
 val javaFxJsObjectVersion = "25.0.2"
 val javaFxPlatform = when {
     isWindows -> "win"
@@ -821,12 +824,11 @@ if (isMac) {
     val macSigningKeychain = (findProperty("kortty.macos.signingKeychain") as String?)?.trim()
     val macNativeJarPatterns = listOf(
         Regex("""^jna-[\w.\-]+\.jar$"""),
-        Regex("""^pty4j-[\w.\-]+\.jar$"""),
-        // JavaFX ships native dylibs INSIDE its jars (javafx-graphics/media/web), where jpackage's
-        // deep-sign can't reach them. Gluon's own signatures are not accepted by Apple's notary on
-        // newer patches (21.0.11: "not signed with a valid Developer ID" / "no secure timestamp"),
-        // so re-sign them here with our identity. Jars without dylibs (base/controls/fxml) no-op.
-        Regex("""^javafx-[\w.\-]+\.jar$""")
+        Regex("""^pty4j-[\w.\-]+\.jar$""")
+        // Do NOT add javafx-*.jar here: this task signs with `--options runtime`, and the resulting
+        // hardened-runtime flag on libjfxwebkit.dylib kills JavaScriptCore's JIT (WebView dies the
+        // instant JS executes, no crash report). JavaFX 21.0.0's Gluon signatures notarize as-is.
+        // If a JavaFX bump ever forces re-signing, do it WITHOUT `--options runtime`. See javaFxVersion.
     )
 
     // Icon-Funktion für macOS: Versuche .icns, sonst verwende PNG
