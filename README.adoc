@@ -432,7 +432,7 @@ sudo rpm -i build/jpackage/korTTY-2.2.1.rpm
 
 *Translation target language list is short in release binary:*
 * Current release builds include `jdk.localedata` in the packaged runtime.
-* If you use an older binary, rebuild or update to `v2.2.0+` to get the full target language list in *Settings → Translation*.
+* If you use an older binary, rebuild or update to `v2.2.1+` to get the full target language list in *Settings → Translation*.
 
 *JobScheduler job is blocked:*
 * Open *Tools → JobScheduler... → Journal* and inspect the selected entry's detail text.
