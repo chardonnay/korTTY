@@ -807,7 +807,11 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--dest", outputDir,
         // Keep a complete base runtime for classpath apps and include extended locale data.
         // Without java.xml, logback initialization can fail at startup (org.xml.sax.InputSource).
-        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.localedata,jdk.unsupported",
+        // jdk.jsobject provides netscape.javascript.JSObject, which JavaFX WebView's native WebKit
+        // resolves via FindClass to marshal JS->Java. The compile-time jdk-jsobject artifact does NOT
+        // bundle it, and jlink drops it by default, so without this every Monaco editor that returns
+        // a JSObject crashes the JVM in JNI get_method_id (NULL class / NoClassDefFoundError) on macOS.
+        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.unsupported",
         "--java-options", "-Djava.awt.headless=false",
         "--java-options", "--enable-native-access=ALL-UNNAMED"
     )
