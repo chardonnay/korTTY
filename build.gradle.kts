@@ -141,12 +141,15 @@ dependencies {
     }
 
     // PTY support for native Mosh client.
-    // Pinned to 0.12.25: pty4j 0.13.12 bundles an UNSIGNED native macOS helper
-    // (resources/com/pty4j/native/darwin/pty4j-unix-spawn-helper) inside its jar,
-    // which fails Apple notarization ("Archive contains critical validation
-    // errors") in build-release.yml. 0.13.12 carried no CVE/security fix, so the
-    // bump (Dependabot #43) has no benefit that justifies breaking macOS releases.
-    implementation("org.jetbrains.pty4j:pty4j:0.12.35")
+    // PINNED to 0.12.25 — the last release that ships ONLY libpty.dylib. Every
+    // release from 0.12.26 onward (verified: 0.12.35) AND all 0.13.x additionally
+    // bundle resources/com/pty4j/native/darwin/pty4j-unix-spawn-helper, an
+    // UNSIGNED native macOS binary. jpackage embeds the jar verbatim and that
+    // helper is never code-signed, so Apple notarization fails with "Archive
+    // contains critical validation errors" in build-release.yml. 0.12.25 notarizes
+    // cleanly. Do NOT bump until pty4j ships a notarization-friendly helper, or
+    // until the macOS signing step is taught to sign jar-internal natives.
+    implementation("org.jetbrains.pty4j:pty4j:0.12.25")
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.18")

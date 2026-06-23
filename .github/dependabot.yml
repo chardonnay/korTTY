@@ -48,14 +48,15 @@ updates:
       # build-release.yml. Stay on 0.12.x until pty4j ships signed darwin
       # binaries (or the macOS signing step is taught to sign jar-internal
       # natives). 0.13.12 carried no security fix. See reverted Dependabot #43.
-      # NOTE: a bare versions: ["0.13.x"] entry did NOT hold for Gradle/Maven —
-      # Dependabot re-opened the bump (PR #47) and it was merged again. Block by
-      # update-type instead: pin to the 0.12.x line (patch updates only), so any
-      # 0.13+ minor/major is suppressed until pty4j ships signed darwin binaries.
+      # pty4j is FULLY pinned to 0.12.25. Every release from 0.12.26 onward
+      # (incl. the semver-PATCH 0.12.35, Dependabot #50) and all 0.13.x bundle an
+      # unsigned native macOS helper (pty4j-unix-spawn-helper) that fails Apple
+      # notarization in build-release.yml. Earlier narrower ignores (versions:
+      # ["0.13.x"], then update-types minor/major) were both insufficient. A bare
+      # dependency-name with no versions/update-types ignores EVERY update — keep
+      # it until pty4j ships a notarization-friendly helper, or the macOS signing
+      # step signs jar-internal natives.
       - dependency-name: "org.jetbrains.pty4j:pty4j"
-        update-types:
-          - "version-update:semver-minor"
-          - "version-update:semver-major"
 
   # ---- GitHub Actions: keep workflow actions current AND SHA-pinnable ----
   - package-ecosystem: "github-actions"
