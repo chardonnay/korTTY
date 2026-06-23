@@ -28,6 +28,7 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaException;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
@@ -752,6 +753,11 @@ public class MasterPasswordDialog {
         }
 
         boolean loginScene = width == LOGIN_DIALOG_WIDTH && height == LOGIN_DIALOG_HEIGHT;
+        if (loginScene) {
+            // Login window: the animated logo fills the whole window full-bleed. Only the setup
+            // dialog (loginScene == false) keeps the split form / brand-panel layout below.
+            return createFullBleedLoginScene(content, width, height);
+        }
         double brandPanelWidth = loginScene ? LOGIN_BRAND_PANEL_WIDTH : SETUP_BRAND_PANEL_WIDTH;
         double logoWidth = loginScene ? LOGIN_LOGO_WIDTH : SETUP_LOGO_WIDTH;
 
@@ -774,6 +780,56 @@ public class MasterPasswordDialog {
         Scene scene = loginScene
             ? createLoginSceneWithTopLeftVersion(brandedRoot, width, height)
             : new Scene(brandedRoot, width, height);
+        AppDesignStyleSupport.applyToScene(scene);
+        return scene;
+    }
+
+    /**
+     * Login scene where the animated logo video fills the entire window as a full-bleed background.
+     * The password form is overlaid in a translucent card on the left, so the logo stays visible on
+     * the right. The video is scaled to cover the window (preserving aspect ratio) and the shell is
+     * clipped to the window bounds so the overflow is cropped instead of letterboxed.
+     */
+    private Scene createFullBleedLoginScene(VBox content, double width, double height) {
+        StackPane shell = new StackPane();
+        shell.setPrefSize(width, height);
+        shell.setMinSize(width, height);
+        shell.setMaxSize(width, height);
+        shell.getStyleClass().add("master-password-root");
+        if (!isCustomAppDesign()) {
+            shell.setStyle("-fx-background-color: #000000;");
+        }
+
+        // Full-bleed animated logo background (covers the window; vertical overflow is clipped).
+        Node logo = createLoginLogoNode(width);
+        if (logo != null) {
+            logo.setMouseTransparent(true);
+            shell.getChildren().add(logo);
+        }
+
+        // Foreground: the existing password form, capped to a compact card and given a translucent
+        // backdrop for legibility, aligned to the left so the looping logo remains visible.
+        content.setMaxWidth(360);
+        content.setMaxHeight(Region.USE_PREF_SIZE);
+        content.setStyle(
+            "-fx-background-color: rgba(3, 12, 14, 0.62);"
+                + " -fx-background-radius: 16;"
+                + " -fx-border-color: rgba(120, 220, 220, 0.18);"
+                + " -fx-border-width: 1;"
+                + " -fx-border-radius: 16;");
+        StackPane.setAlignment(content, Pos.CENTER_LEFT);
+        StackPane.setMargin(content, new Insets(0, 0, 0, 56));
+        shell.getChildren().add(content);
+
+        Label versionLabel = createLoginWindowVersionLabel();
+        StackPane.setAlignment(versionLabel, Pos.TOP_LEFT);
+        StackPane.setMargin(versionLabel, new Insets(14, 0, 0, 18));
+        shell.getChildren().add(versionLabel);
+
+        // Crop the covering video to the window instead of letting it spill past the bounds.
+        shell.setClip(new Rectangle(width, height));
+
+        Scene scene = new Scene(shell, width, height);
         AppDesignStyleSupport.applyToScene(scene);
         return scene;
     }
