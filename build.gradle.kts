@@ -107,7 +107,7 @@ dependencies {
     implementation("com.googlecode.lanterna:lanterna:3.1.5")
     
     // XML Binding (JAXB)
-    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
+    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.5")
     runtimeOnly("org.glassfish.jaxb:jaxb-runtime:4.0.9")
     
     // ZIP encryption
