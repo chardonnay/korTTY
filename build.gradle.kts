@@ -38,7 +38,11 @@ val isWindows = osName.contains("windows")
 val isMac = osName.contains("mac")
 val isLinux = osName.contains("linux")
 
-val javaFxVersion = "21"
+// Pin the latest JavaFX 21 LTS patch (not the bare "21" GA, which ships the oldest WebKit and is
+// missing every macOS WebView fix from the 21.0.x line). Stays on major 21 so it runs on both the
+// JDK 25 macOS build and the JDK 21 Windows-ARM runner. NOTE: this changes the bundled native dylibs
+// — validate notarization via a build-release.yml dispatch, since `gradle test` skips jpackage.
+val javaFxVersion = "21.0.11"
 val javaFxJsObjectVersion = "25.0.2"
 val javaFxPlatform = when {
     isWindows -> "win"

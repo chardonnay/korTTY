@@ -1168,7 +1168,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return null;
         });
 
-        setOnHidden(event -> cancelAiTasks());
+        setOnHidden(event -> {
+            cancelAiTasks();
+            // Tear down the Monaco WebView (page, JS bridge, boot retries) on close instead of leaking it.
+            contentArea.dispose();
+        });
         if (aiAssist != null
             && aiAssist.metadataProvider() != null
             && contentArea.getText() != null

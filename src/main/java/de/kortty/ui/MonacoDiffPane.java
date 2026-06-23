@@ -14,6 +14,7 @@ import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Objects;
@@ -32,8 +33,13 @@ public class MonacoDiffPane extends StackPane {
 
     private final WebView webView = new WebView();
     private final String editorId = "kortty-diff-" + UUID.randomUUID();
+    // Strong reference required: JavaFX WebEngine holds setMember objects only via weak references,
+    // so a GC'd bridge turns subsequent JS->Java up-calls into a native jni_GetMethodID crash.
+    private final Bridge javaBridge = new Bridge(this);
     private final BooleanProperty ready = new SimpleBooleanProperty(false);
     private final StringBuilder pendingScript = new StringBuilder();
+    private boolean disposed;
+    private PauseTransition pendingBootRetry;
 
     private String originalText = "";
     private String modifiedText = "";
@@ -101,9 +107,28 @@ public class MonacoDiffPane extends StackPane {
     }
 
     public void dispose() {
-        if (ready.get()) {
-            executeScript("window.korttyMonacoDiff.dispose();");
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(this::dispose);
+            return;
         }
+        if (disposed) {
+            return;
+        }
+        disposed = true;
+        if (pendingBootRetry != null) {
+            pendingBootRetry.stop();
+            pendingBootRetry = null;
+        }
+        WebEngine engine = webView.getEngine();
+        try {
+            if (ready.get()) {
+                engine.executeScript("window.korttyMonacoDiff.dispose();");
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Monaco diff dispose cleanup failed", e);
+        }
+        // Replacing the page drops the JS-side javaBridge member and the Monaco web workers.
+        engine.loadContent("");
     }
 
     private void loadEditor() {
@@ -114,6 +139,9 @@ public class MonacoDiffPane extends StackPane {
         }
         WebEngine engine = webView.getEngine();
         engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (disposed) {
+                return;
+            }
             if (newState == Worker.State.SUCCEEDED) {
                 installBridge(engine);
                 bootWhenHostReady(HOST_READY_RETRY_COUNT);
@@ -129,13 +157,16 @@ public class MonacoDiffPane extends StackPane {
         try {
             Object window = engine.executeScript("window");
             Method setMember = window.getClass().getMethod("setMember", String.class, Object.class);
-            setMember.invoke(window, "javaBridge", new Bridge());
+            setMember.invoke(window, "javaBridge", javaBridge);
         } catch (ReflectiveOperationException | RuntimeException e) {
             logger.error("Could not install Monaco diff Java bridge", e);
         }
     }
 
     private void bootWhenHostReady(int remainingAttempts) {
+        if (disposed) {
+            return;
+        }
         Object hostReady = executeScript(
             "typeof window.korttyMonacoDiff === 'object' && typeof window.korttyMonacoDiff.boot === 'function'"
         );
@@ -150,6 +181,7 @@ public class MonacoDiffPane extends StackPane {
         }
         PauseTransition retry = new PauseTransition(HOST_READY_RETRY_DELAY);
         retry.setOnFinished(event -> bootWhenHostReady(remainingAttempts - 1));
+        pendingBootRetry = retry;
         retry.play();
     }
 
@@ -188,6 +220,9 @@ public class MonacoDiffPane extends StackPane {
     }
 
     private Object executeScript(String script) {
+        if (disposed) {
+            return null;
+        }
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater(() -> executeScript(script));
             return null;
@@ -217,26 +252,49 @@ public class MonacoDiffPane extends StackPane {
         return value != null && !value.isBlank() ? value.trim() : fallback;
     }
 
-    public final class Bridge {
+    /**
+     * Static, holding the pane only weakly, so the native WebKit page cannot pin the enclosing pane
+     * (and its dialog) alive. Public for JavaFX's reflective JS&rarr;Java dispatch; kept strongly
+     * reachable for the WebView's lifetime via the {@code javaBridge} field.
+     */
+    public static final class Bridge {
+        private final WeakReference<MonacoDiffPane> paneRef;
+
+        Bridge(MonacoDiffPane pane) {
+            this.paneRef = new WeakReference<>(pane);
+        }
+
         public void onReady() {
+            MonacoDiffPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
             Platform.runLater(() -> {
-                ready.set(true);
-                flushPendingScripts();
+                pane.ready.set(true);
+                pane.flushPendingScripts();
             });
         }
 
         public void onWorkerReady(String label) {
+            MonacoDiffPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
             logger.debug("Monaco diff worker ready: {}", label);
-            Consumer<String> handler = workerReadyHandler;
+            Consumer<String> handler = pane.workerReadyHandler;
             if (handler != null) {
                 Platform.runLater(() -> handler.accept(label));
             }
         }
 
         public void onWorkerFailed(String label, String message) {
+            MonacoDiffPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
             String detail = label + ": " + message;
             logger.error("Monaco diff worker failed: {}", detail);
-            Consumer<String> handler = workerFailureHandler;
+            Consumer<String> handler = pane.workerFailureHandler;
             if (handler != null) {
                 Platform.runLater(() -> handler.accept(detail));
             }
