@@ -143,8 +143,15 @@ public class MonacoDiffPane extends StackPane {
                 return;
             }
             if (newState == Worker.State.SUCCEEDED) {
-                installBridge(engine);
-                bootWhenHostReady(HOST_READY_RETRY_COUNT);
+                // Defer off the load-worker callback to avoid re-entering WebKit while it is still
+                // inside its native load-finished dispatch (crashes in JNI get_method_id on macOS).
+                Platform.runLater(() -> {
+                    if (disposed) {
+                        return;
+                    }
+                    installBridge(engine);
+                    bootWhenHostReady(HOST_READY_RETRY_COUNT);
+                });
             } else if (newState == Worker.State.FAILED) {
                 Throwable failure = engine.getLoadWorker().getException();
                 logger.error("Could not load Monaco diff editor WebView", failure);

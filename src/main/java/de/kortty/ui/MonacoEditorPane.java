@@ -469,9 +469,18 @@ public class MonacoEditorPane extends StackPane {
                 return;
             }
             if (newState == Worker.State.SUCCEEDED) {
-                JSObject window = (JSObject) engine.executeScript("window");
-                window.setMember("javaBridge", javaBridge);
-                bootWhenHostReady(HOST_READY_RETRY_COUNT);
+                // Defer off the load-worker callback: this listener fires while WebKit is still inside
+                // its native load-finished dispatch (fwkFireLoadEvent), so calling executeScript here
+                // re-enters WebKit re-entrantly and intermittently crashes in JNI get_method_id on
+                // macOS. runLater lets WebKit unwind first, then we wire up the bridge on a clean stack.
+                Platform.runLater(() -> {
+                    if (disposed) {
+                        return;
+                    }
+                    JSObject window = (JSObject) engine.executeScript("window");
+                    window.setMember("javaBridge", javaBridge);
+                    bootWhenHostReady(HOST_READY_RETRY_COUNT);
+                });
             } else if (newState == Worker.State.FAILED) {
                 Throwable failure = engine.getLoadWorker().getException();
                 logger.error("Could not load Monaco editor WebView", failure);
