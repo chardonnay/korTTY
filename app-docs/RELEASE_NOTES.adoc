@@ -1,5 +1,17 @@
 = Release Notes
 
+== v2.2.1
+
+=== Stability Fixes
+
+* *Settings / Snippet Manager crash fixed*: Opening *Global Settings* or the *Snippet Manager* could abort the app with no on-screen error. The embedded Monaco editor binds a JavaScript→Java bridge through `JSObject.setMember`, which JavaFX keeps only via a weak reference; under the bundled runtime's garbage collector the bridge could be collected while still in use, so the next JavaScript→Java callback dereferenced a freed object and the process crashed natively. The bridge is now held by a strong reference for the editor's lifetime (and made static with a weak back-reference so a closed dialog no longer pins the whole window graph).
+* *WebView lifecycle hardening*: Monaco editors are now disposed when their dialog closes (Settings, Snippet editor) — the boot-retry timer is cancelled, the JavaScript bridge is detached, and the page is dropped — instead of leaking a WebView on every open, and late timer/load callbacks after close are ignored. The Settings *AI Skills* editor now loads lazily on first use instead of on every Settings open.
+
+=== Master-Password Login Window
+
+* *Full-bleed animated logo*: In the standard app design, the master-password login window now shows the animated korTTY logo edge-to-edge as a full-window background, with the password form overlaid in a translucent card, instead of confining the logo to a side panel.
+* *Cleaner branding*: Removed a stray watermark from the animated login logo.
+
 == v2.2.0
 
 === Terminal Engine and Hyperlinks
