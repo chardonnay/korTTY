@@ -2149,7 +2149,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
 
-        aiSkillContentArea = new MonacoEditorPane();
+        aiSkillContentArea = new MonacoEditorPane(false);
         aiSkillContentArea.setPrefHeight(420);
         aiSkillContentArea.setWrapText(true);
         EditorSettingsHelper.Settings skillEditorSettings = EditorSettingsHelper.loadSnippetSettings();
@@ -2196,6 +2196,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         VBox.setVgrow(aiSkillsContent, Priority.ALWAYS);
         aiSkillsRoot.getChildren().add(aiSkillsContent);
         aiSkillsTab.setContent(aiSkillsRoot);
+        // Defer the Monaco WebView boot (native WebKit + JS bridge + web workers) until the AI Skills
+        // tab is actually shown, so merely opening Settings on another tab never spins up that path.
+        // activate() is idempotent and a no-op after dispose(); the editor boots with the current
+        // text mirror, so the selected skill's content shows correctly on first activation.
+        aiSkillsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (Boolean.TRUE.equals(isSelected)) {
+                aiSkillContentArea.activate();
+            }
+        });
 
         aiSkillListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             snapshotSelectedAiSkillEditorState();
@@ -2223,6 +2232,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         tabPane.setPrefSize(defaultContentWidth, defaultContentHeight);
         tabPane.setMinSize(minimumContentWidth, minimumContentHeight);
         getDialogPane().setContent(buildSectionNavigationContent(tabPane));
+        // Tear down the AI-skill editor's WebView when the dialog closes so its WebKit page, JS bridge
+        // and any in-flight boot retries are released instead of leaking until GC. No-op if the AI
+        // Skills tab was never opened (the WebView was never loaded).
+        setOnHidden(event -> {
+            if (aiSkillContentArea != null) {
+                aiSkillContentArea.dispose();
+            }
+        });
         getDialogPane().setPrefWidth(1120);
         getDialogPane().setMinWidth(1000);
         getDialogPane().setPrefHeight(defaultDialogHeight);

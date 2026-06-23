@@ -38,6 +38,13 @@ val isWindows = osName.contains("windows")
 val isMac = osName.contains("mac")
 val isLinux = osName.contains("linux")
 
+// Pinned to bare "21" (GA 21.0.0). Do NOT bump without solving the macOS signing trap below:
+// JavaFX ships its native dylibs INSIDE the jars. Gluon's adhoc/linker signatures on patches >= 21.0.1
+// are rejected by Apple's notary, so they'd need re-signing with our Developer ID — BUT re-signing
+// libjfxwebkit.dylib with `codesign --options runtime` sets the hardened-runtime flag, which kills
+// JavaScriptCore's JIT at runtime (the WebView boots, then the app is SIGKILLed the instant JS runs,
+// with NO crash report). 21.0.0's Gluon signatures notarize as-is, so the GA stays un-re-signed and
+// WebKit keeps working. A future bump must re-sign the javafx dylibs WITHOUT `--options runtime`.
 val javaFxVersion = "21"
 val javaFxJsObjectVersion = "25.0.2"
 val javaFxPlatform = when {
@@ -818,6 +825,10 @@ if (isMac) {
     val macNativeJarPatterns = listOf(
         Regex("""^jna-[\w.\-]+\.jar$"""),
         Regex("""^pty4j-[\w.\-]+\.jar$""")
+        // Do NOT add javafx-*.jar here: this task signs with `--options runtime`, and the resulting
+        // hardened-runtime flag on libjfxwebkit.dylib kills JavaScriptCore's JIT (WebView dies the
+        // instant JS executes, no crash report). JavaFX 21.0.0's Gluon signatures notarize as-is.
+        // If a JavaFX bump ever forces re-signing, do it WITHOUT `--options runtime`. See javaFxVersion.
     )
 
     // Icon-Funktion für macOS: Versuche .icns, sonst verwende PNG

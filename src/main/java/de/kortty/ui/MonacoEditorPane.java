@@ -31,6 +31,7 @@ import netscape.javascript.JSObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.util.Objects;
 import java.util.Optional;
@@ -66,10 +67,18 @@ public class MonacoEditorPane extends StackPane {
     private final DoubleProperty editorScrollLeft = new SimpleDoubleProperty(0);
     private final StringBuilder pendingScript = new StringBuilder();
     private final UndoManager undoManager = new UndoManager();
+    // JavaFX WebEngine binds objects passed to JSObject.setMember via WEAK references, so the bridge
+    // must be kept strongly reachable for the life of the WebView. Otherwise the JVM (notably the
+    // bundled JDK 25 GC) can collect it, and the next JS->Java up-call crashes natively inside
+    // jni_GetMethodID (twkExecuteScript). See WebEngine Javadoc and the AI-skill editor crash.
+    private final Bridge javaBridge = new Bridge(this);
 
     private ContextMenu contextMenu;
     private boolean editable = true;
     private boolean internalTextUpdate;
+    private boolean disposed;
+    private boolean loadRequested;
+    private PauseTransition pendingBootRetry;
     private String language = "plaintext";
     private String fontFamily = "Monospaced";
     private int fontSize = 14;
@@ -83,6 +92,16 @@ public class MonacoEditorPane extends StackPane {
     private Consumer<String> workerFailureHandler;
 
     public MonacoEditorPane() {
+        this(true);
+    }
+
+    /**
+     * @param autoLoad when {@code false}, the WebView page (and with it the JS&rarr;Java bridge and
+     *                 Monaco web workers) is not loaded until {@link #activate()} is called. This lets
+     *                 callers defer the costly, native-heavy WebView boot until the editor is actually
+     *                 shown, instead of paying it (and arming the native WebKit path) on construction.
+     */
+    public MonacoEditorPane(boolean autoLoad) {
         getStyleClass().add("monaco-editor-pane");
         webView.setContextMenuEnabled(false);
         webView.getEngine().setJavaScriptEnabled(true);
@@ -96,6 +115,20 @@ public class MonacoEditorPane extends StackPane {
 
         installInputGuards();
         installContextMenuHandling();
+        if (autoLoad) {
+            activate();
+        }
+    }
+
+    /**
+     * Loads the WebView page on first call. Idempotent, and a no-op after {@link #dispose()}.
+     * The editor boots with whatever text the Java-side mirror currently holds.
+     */
+    public void activate() {
+        if (disposed || loadRequested) {
+            return;
+        }
+        loadRequested = true;
         loadEditor();
     }
 
@@ -390,9 +423,38 @@ public class MonacoEditorPane extends StackPane {
     }
 
     public void dispose() {
-        if (ready.get()) {
-            executeScript("window.korttyMonaco.dispose();");
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(this::dispose);
+            return;
         }
+        if (disposed) {
+            return;
+        }
+        // Mark disposed FIRST so any in-flight boot retry / load-worker callback / queued
+        // executeScript becomes a no-op and cannot touch a tearing-down WebKit page.
+        disposed = true;
+        if (pendingBootRetry != null) {
+            pendingBootRetry.stop();
+            pendingBootRetry = null;
+        }
+        if (!loadRequested) {
+            return;
+        }
+        WebEngine engine = webView.getEngine();
+        try {
+            if (ready.get()) {
+                engine.executeScript("window.korttyMonaco.dispose();");
+            }
+            // Detach the Java bridge from the page so no further JS->Java up-calls are possible.
+            Object window = engine.executeScript("window");
+            if (window instanceof JSObject jsWindow) {
+                jsWindow.removeMember("javaBridge");
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Monaco editor dispose cleanup failed", e);
+        }
+        // Drop the page (and its web workers) so the native WebKit context is released promptly.
+        engine.loadContent("");
     }
 
     private void loadEditor() {
@@ -403,9 +465,12 @@ public class MonacoEditorPane extends StackPane {
         }
         WebEngine engine = webView.getEngine();
         engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (disposed) {
+                return;
+            }
             if (newState == Worker.State.SUCCEEDED) {
                 JSObject window = (JSObject) engine.executeScript("window");
-                window.setMember("javaBridge", new Bridge());
+                window.setMember("javaBridge", javaBridge);
                 bootWhenHostReady(HOST_READY_RETRY_COUNT);
             } else if (newState == Worker.State.FAILED) {
                 Throwable failure = engine.getLoadWorker().getException();
@@ -416,6 +481,9 @@ public class MonacoEditorPane extends StackPane {
     }
 
     private void bootWhenHostReady(int remainingAttempts) {
+        if (disposed) {
+            return;
+        }
         Object hostReady = executeScript(
             "typeof window.korttyMonaco === 'object' && typeof window.korttyMonaco.boot === 'function'"
         );
@@ -430,6 +498,7 @@ public class MonacoEditorPane extends StackPane {
         }
         PauseTransition retry = new PauseTransition(HOST_READY_RETRY_DELAY);
         retry.setOnFinished(event -> bootWhenHostReady(remainingAttempts - 1));
+        pendingBootRetry = retry;
         retry.play();
     }
 
@@ -491,6 +560,9 @@ public class MonacoEditorPane extends StackPane {
     }
 
     private Object executeScript(String script) {
+        if (disposed) {
+            return null;
+        }
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater(() -> executeScript(script));
             return null;
@@ -584,46 +656,83 @@ public class MonacoEditorPane extends StackPane {
         }
     }
 
-    public final class Bridge {
+    /**
+     * Static and holding the pane only via a {@link WeakReference} so the native WebKit page never
+     * pins the enclosing pane (and the whole dialog graph) alive; once the pane is otherwise
+     * unreachable, up-calls degrade to no-ops. Kept {@code public} for JavaFX's reflective JS&rarr;Java
+     * dispatch. The pane retains a strong reference to this instance (see {@code javaBridge}), which
+     * is what keeps it from being GC'd while the WebView is live.
+     */
+    public static final class Bridge {
+        private final WeakReference<MonacoEditorPane> paneRef;
+
+        Bridge(MonacoEditorPane pane) {
+            this.paneRef = new WeakReference<>(pane);
+        }
+
         public void onReady() {
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
             Platform.runLater(() -> {
-                ready.set(true);
-                flushPendingScripts();
+                pane.ready.set(true);
+                pane.flushPendingScripts();
             });
         }
 
         public void onTextChanged(String value, boolean undoAvailable, boolean redoAvailable) {
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
             Platform.runLater(() -> {
-                updateTextMirror(value);
-                canUndo.set(undoAvailable);
-                canRedo.set(redoAvailable);
+                pane.updateTextMirror(value);
+                pane.canUndo.set(undoAvailable);
+                pane.canRedo.set(redoAvailable);
             });
         }
 
         public void onSelectionChanged(double start, double end, double caret, double column, double visualX) {
-            Platform.runLater(() -> updateSelectionMirror(start, end, caret, column, visualX));
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
+            Platform.runLater(() -> pane.updateSelectionMirror(start, end, caret, column, visualX));
         }
 
         public void onLayoutChanged(double contentLeft, double characterWidth, double scrollLeft) {
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
             Platform.runLater(() -> {
-                editorContentLeft.set(Math.max(0, contentLeft));
-                editorCharacterWidth.set(Math.max(1, characterWidth));
-                editorScrollLeft.set(Math.max(0, scrollLeft));
+                pane.editorContentLeft.set(Math.max(0, contentLeft));
+                pane.editorCharacterWidth.set(Math.max(1, characterWidth));
+                pane.editorScrollLeft.set(Math.max(0, scrollLeft));
             });
         }
 
         public void onWorkerReady(String label) {
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
             logger.debug("Monaco worker ready: {}", label);
-            Consumer<String> handler = workerReadyHandler;
+            Consumer<String> handler = pane.workerReadyHandler;
             if (handler != null) {
                 Platform.runLater(() -> handler.accept(label));
             }
         }
 
         public void onWorkerFailed(String label, String message) {
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
             String detail = label + ": " + message;
             logger.error("Monaco worker failed: {}", detail);
-            Consumer<String> handler = workerFailureHandler;
+            Consumer<String> handler = pane.workerFailureHandler;
             if (handler != null) {
                 Platform.runLater(() -> handler.accept(detail));
             }
