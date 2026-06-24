@@ -2442,6 +2442,34 @@ public class MainWindow {
         return openWindows.get(openWindows.size() - 1);
     }
 
+    /** Actions invokable from the macOS Dock icon menu (see {@link MacDockMenu}). */
+    public enum DockAction { NEW_WINDOW, NEW_TAB, CONNECTION_MANAGER, OPEN_PROJECT, GUIDE, ABOUT }
+
+    /**
+     * Runs a Dock-menu action against the focused (or last) window, marshalling
+     * onto the JavaFX thread. Opens a window first if none is currently open.
+     */
+    public static void runDockAction(DockAction action) {
+        Platform.runLater(() -> {
+            MainWindow window = getFocusedOrLastOpenWindow();
+            if (window == null) {
+                reopenOrCreateWindow();
+                window = getFocusedOrLastOpenWindow();
+                if (window == null || action == DockAction.NEW_WINDOW) {
+                    return; // just opened a fresh window — that satisfies "New Window"
+                }
+            }
+            switch (action) {
+                case NEW_WINDOW -> window.openNewWindow();
+                case NEW_TAB -> window.showQuickConnect();
+                case CONNECTION_MANAGER -> window.showConnectionManager();
+                case OPEN_PROJECT -> window.openProject();
+                case GUIDE -> window.openGuide();
+                case ABOUT -> window.showAbout();
+            }
+        });
+    }
+
     private static void clearApplicationQuitState() {
         applicationQuitRequested = false;
         applicationQuitApprovedWindows.clear();

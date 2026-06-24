@@ -252,6 +252,9 @@ public class KorTTYApplication extends Application {
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
             registerMacDesktopHandlers();
+            if (isMacOs()) {
+                de.kortty.ui.MacDockMenu.install();
+            }
             startUpdateCheckService();
             
             logger.info("{} started successfully", APP_NAME);

@@ -31,6 +31,19 @@ korTTY's main window has these regions:
     chrome and show only the terminal. **View → Hide terminal scrollbars in
     fullscreen** removes the scrollbars too. Press ++f12++ again to restore.
 
+## macOS Dock menu
+
+On macOS, right-click (or Control-click) the korTTY icon in the Dock for quick
+actions without switching to the app — they apply to the current (focused)
+window, opening one first if none is open:
+
+- **New Window**
+- **New Tab in Current Window**
+- **Manage Connections…** (Connection Manager)
+- **Open Project…**
+- **Manual** (the in-app guide)
+- **About korTTY**
+
 See the [menu reference](../reference/menu.md) for every menu item and the
 [keyboard-shortcuts reference](../reference/keyboard-shortcuts.md) for the full
 list of accelerators.

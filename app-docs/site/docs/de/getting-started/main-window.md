@@ -31,6 +31,19 @@ Drücken Sie ++f12++ (oder **Ansicht → Nur Terminal-Vollbild**), um alle Fenst
 Chrome und zeigen nur das Terminal. **Ansicht → Terminal-Bildlaufleisten ausblenden
 Vollbild** entfernt auch die Bildlaufleisten. Drücken Sie erneut ++f12++, um die Wiederherstellung durchzuführen.
 
+## macOS Dock-Menü
+
+Klicken Sie unter macOS schnell mit der rechten Maustaste (oder bei gedrückter Ctrl-Taste) auf das korTTY-Symbol im Dock
+Aktionen ohne Wechsel zur App – sie gelten für die aktuelle (fokussierte)
+Fenster, öffnet zuerst eines, wenn keines geöffnet ist:
+
+- **Neues Fenster**
+- **Neuer Tab im aktuellen Fenster**
+- **Verbindungen verwalten…** (Verbindungsmanager)
+- **Projekt öffnen…**
+- **Anleitung** (die In-App-Anleitung)
+- **Über korTTY**
+
 Siehe die [Menüreferenz](../reference/menu.md) für jeden Menüpunkt und die
 [Tastaturkürzel-Referenz ](../reference/keyboard-shortcuts.md) für die vollständige Beschreibung
 Liste der Beschleuniger.
