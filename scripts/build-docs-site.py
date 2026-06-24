@@ -41,6 +41,9 @@ UNPKG_SHIM_TAG = '<script src="https://unpkg.com/iframe-worker/shim"></script>'
 # Hosts allowed to appear as canonical/social LINKS (metadata, not fetched).
 LANGS = ["en", "de"]
 
+# Strip ANSI color codes from captured mkdocs output before filtering/printing.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
 
 def gradle_version() -> str:
     text = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
@@ -89,7 +92,19 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
     if strict:
         cmd.append("--strict")
     print(f"\n=== mkdocs build [{lang}] (version {version}) ===")
-    subprocess.run(cmd, check=True, cwd=SITE_DIR, env=env)
+    # Capture mkdocs output so we can drop the Material-for-MkDocs "MkDocs 2.0"
+    # advocacy banner (a box-drawn block printed on every build) — it is not a
+    # problem with this project and only clutters the Gradle/app build log. Real
+    # INFO/WARNING/ERROR lines are kept.
+    proc = subprocess.run(cmd, cwd=SITE_DIR, env=env, capture_output=True, text=True)
+    for raw in (proc.stdout + proc.stderr).splitlines():
+        clean = _ANSI_RE.sub("", raw)
+        if "│" in clean or "Material for MkDocs" in clean or "MkDocs 2.0" in clean \
+                or "squidfunk.github.io" in clean:
+            continue
+        print(clean)
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
     out = BUILD_OUT / lang
     inline_shim(out)
     assert_offline(out)
