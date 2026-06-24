@@ -181,4 +181,5 @@ pages:
     owns_i18n: [menu.connections.]
     owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
+    screenshots: [sftp/sftp-manager.png]
     last_synced_ref: "93470d6"

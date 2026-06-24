@@ -50,6 +50,17 @@ The connection editor has these tabs:
 
 ![Jump server flow](../assets/diagrams/jump-server-flow.svg)
 
+## SFTP file manager
+
+**Connections → SFTP-Client…** opens a dual-panel SFTP file manager: your
+**local** file system on the left and the **remote** server on the right. Each
+panel has a path bar, a search field, and sortable columns (name, type, size,
+date, owner, group, permissions). The toolbar provides refresh, delete,
+permission editing, upload, download, archive and edit operations; the Snippet
+Editor can be launched to edit local or remote files in place.
+
+![SFTP dual-panel file manager](../assets/screenshots/sftp/sftp-manager.png)
+
 ## Import from other clients
 
 **Connections → Import…** reads connection files from **MTPuTTY**, **MobaXterm**
