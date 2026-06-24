@@ -6,6 +6,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8765", "--directory", "build/guide/en"],
       "port": 8765
+    },
+    {
+      "name": "kortty-guide",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8766", "--directory", "build/guide"],
+      "port": 8766
     }
   ]
 }
