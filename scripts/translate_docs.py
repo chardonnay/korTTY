@@ -61,7 +61,7 @@ def mask(text: str):
 
     def repl(m):
         store.append(m.group(0))
-        return f"{len(store)-1}"
+        return f"KTPH{len(store) - 1:03d}"
 
     for pat in INLINE_PATTERNS:
         text = pat.sub(repl, text)
@@ -70,7 +70,7 @@ def mask(text: str):
 
 def unmask(text: str, store: list[str]) -> str:
     for i, frag in enumerate(store):
-        text = text.replace(f"{i}", frag)
+        text = text.replace(f"KTPH{i:03d}", frag)
     return text
 
 
@@ -114,21 +114,63 @@ def translatable_lines(md: str) -> tuple[list[str], list[tuple[int, str, list[st
     return lines, jobs
 
 
+# Normalize German renderings of "guide/manual" to the product's canonical term
+# ("Anleitung", matching the app's menu.help.guide=Anleitung) so the DE site never
+# drifts to Handbuch/Leitfaden/Manual. Applied after translation.
+GLOSSARY_DE = [
+    ("korTTY Guide", "korTTY Anleitung"),
+    ("Bedienungsanleitung", "Anleitung"),
+    ("Benutzerhandbuch", "Anleitung"),
+    ("Handbuch", "Anleitung"),
+    ("handbuch", "Anleitung"),
+    ("Leitfaden", "Anleitung"),
+    ("→ Manual", "→ Anleitung"),
+    ("Help → Anleitung", "Hilfe → Anleitung"),
+    ("Hilfe → Manual", "Hilfe → Anleitung"),
+    ("das Anleitung", "die Anleitung"),
+    ("Das Anleitung", "Die Anleitung"),
+    ("dieses Anleitung", "diese Anleitung"),
+    ("Dieses Anleitung", "Diese Anleitung"),
+    ("ein Anleitung", "eine Anleitung"),
+    ("des Anleitung", "der Anleitung"),
+    ("dem Anleitung", "der Anleitung"),
+]
+
+
+def apply_glossary(text: str) -> str:
+    for a, b in GLOSSARY_DE:
+        text = text.replace(a, b)
+    return text
+
+
 def translate_md(md: str, translator) -> str:
     lines, jobs = translatable_lines(md)
     if not jobs:
-        return md
+        return apply_glossary(md)
     texts = [j[1] for j in jobs]
     out: list[str] = []
     B = 20
     for k in range(0, len(texts), B):
         chunk = texts[k:k + B]
+        res = None
         try:
             res = translator.translate_batch(chunk)
-        except (BaseError, RequestError, TooManyRequests) as e:
-            sys.exit(f"translation error: {e}")
-        if not isinstance(res, (list, tuple)) or len(res) != len(chunk):
-            sys.exit("translate_batch returned a mismatched result count")
+            if not isinstance(res, (list, tuple)) or len(res) != len(chunk):
+                res = None
+        except (BaseError, RequestError, TooManyRequests, Exception):  # noqa: BLE001
+            res = None
+        if res is None:
+            # A single untranslatable string aborts the whole batch — fall back to
+            # per-item translation, keeping the English original where Google fails
+            # (better an English phrase than a missing page).
+            res = []
+            for item in chunk:
+                try:
+                    r = translator.translate(item)
+                    res.append(r if r else item)
+                except Exception:  # noqa: BLE001
+                    res.append(item)
+                time.sleep(0.2)
         out.extend(res)
         if k + B < len(texts):
             time.sleep(0.4)
@@ -138,7 +180,7 @@ def translate_md(md: str, translator) -> str:
             lines[idx] = f'title: {translated}'
         else:
             lines[idx] = translated
-    return "\n".join(lines)
+    return apply_glossary("\n".join(lines))
 
 
 def load_cache() -> dict[str, str]:

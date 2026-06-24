@@ -24,7 +24,7 @@ Thumbs.db
 .venv-docs/
 
 # Documentation incremental-translation cache
-app-docs/site/.docs-translate-cache/
+app-docs/site/.docs-translate-cache
 
 # Diagrams/screenshots are copied into the MkDocs tree at build time from the
 # canonical app-docs/diagrams and app-docs/screenshots — don't track the copies.
