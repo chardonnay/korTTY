@@ -171,10 +171,20 @@ body,
     linear-gradient(180deg, var(--kt-bg-2), var(--kt-bg));
   margin-bottom: 1.5rem;
 }
-.kt-hero img {
-  width: 96px;
-  height: 96px;
-  filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.45));
+.kt-hero-video {
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  border: 1px solid var(--kt-line);
+  background: #000;
+  object-fit: cover;
+  box-shadow: 0 0 44px rgba(56, 189, 248, 0.28), 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.kt-hero-video img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .kt-hero h1 {
   margin: 0.6rem 0 0.2rem;

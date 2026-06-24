@@ -7,7 +7,10 @@ hide:
 
 <div class="kt-hero" markdown>
 
-![korTTY](assets/images/kortty-logo.png){ .off-glb }
+<video class="kt-hero-video" autoplay loop muted playsinline poster="assets/images/kortty-logo.png">
+  <source src="assets/images/kortty-logo.mp4" type="video/mp4">
+  <img src="assets/images/kortty-logo.png" alt="korTTY">
+</video>
 
 # korTTY Guide
 
