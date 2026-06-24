@@ -1,0 +1,77 @@
+# Builds the bilingual offline korTTY guide and publishes it to GitHub Pages.
+# Free for this public MIT repo. The same build output is bundled into the app
+# (Help -> Anleitung) by Gradle's buildDocsSite task.
+name: Docs site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app-docs/site/**"
+      - "app-docs/diagrams/**"
+      - "app-docs/screenshots/**"
+      - "build.gradle.kts"
+      - "scripts/build-docs-site.py"
+      - ".github/workflows/docs-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one concurrent deployment; let an in-progress run finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils librsvg2-bin
+          python -m pip install --quiet -r app-docs/site/requirements.txt
+
+      - name: Validate SVG diagrams
+        run: ./scripts/validate-doc-svg.sh
+
+      - name: Build the guide (EN + DE, offline-checked)
+        run: |
+          KORTTY_VERSION="$(grep -E '^version' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
+          export KORTTY_VERSION
+          echo "Building korTTY guide v$KORTTY_VERSION"
+          python scripts/build-docs-site.py
+
+      - name: Add root language redirect
+        run: |
+          mkdir -p build/guide
+          cat > build/guide/index.html <<'HTML'
+          <!doctype html><html lang="en"><head><meta charset="utf-8">
+          <title>korTTY Guide</title>
+          <meta http-equiv="refresh" content="0; url=./en/index.html">
+          <link rel="canonical" href="./en/index.html">
+          </head><body>Redirecting to the <a href="./en/index.html">korTTY Guide</a>…</body></html>
+          HTML
+          touch build/guide/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/guide
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

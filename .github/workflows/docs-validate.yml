@@ -1,0 +1,62 @@
+# Validates the korTTY documentation: version sync, manifest/asset integrity,
+# SVG diagram validity, and settings/menu coverage. See AGENTS.md + the
+# scripts/doc-*.py + sync-version.py validators.
+name: Docs validate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app-docs/**"
+      - "README.adoc"
+      - "src/main/resources/i18n/**"
+      - "build.gradle.kts"
+      - "scripts/doc-*.py"
+      - "scripts/sync-version.py"
+      - "scripts/validate-doc-svg.sh"
+      - ".github/workflows/docs-validate.yml"
+  pull_request:
+    paths:
+      - "app-docs/**"
+      - "README.adoc"
+      - "src/main/resources/i18n/**"
+      - "build.gradle.kts"
+      - "scripts/doc-*.py"
+      - "scripts/sync-version.py"
+      - "scripts/validate-doc-svg.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      # SHA-pinned, matching the repo convention (actions/checkout@v7).
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install validator deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils librsvg2-bin
+          python -m pip install --quiet pyyaml
+
+      - name: SVG diagrams valid
+        run: ./scripts/validate-doc-svg.sh
+
+      - name: Version in sync
+        run: python scripts/sync-version.py --check
+
+      - name: Manifest + asset integrity
+        run: python scripts/doc-links.py
+
+      # Coverage is reported on every run. It is NOT yet a hard gate because the
+      # reference content is still being authored; flip to `--strict` (below)
+      # once doc-coverage reports 100% so undocumented settings/menu keys break CI.
+      - name: Settings/menu coverage (report)
+        run: python scripts/doc-coverage.py
+      # - name: Settings/menu coverage (gate)
+      #   run: python scripts/doc-coverage.py --strict
