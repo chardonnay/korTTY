@@ -52,6 +52,15 @@ extra:
   # via the theme (config.extra.kortty_version) — never hard-typed in prose.
   kortty_version: !ENV [KORTTY_VERSION, "dev"]
   generator: false
+  # Truthy so Material renders the header language selector (overrides/partials/
+  # alternate.html computes the per-page EN<->DE counterpart link).
+  alternate:
+    - name: English
+      link: en
+      lang: en
+    - name: Deutsch
+      link: de
+      lang: de
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/chardonnay/korTTY

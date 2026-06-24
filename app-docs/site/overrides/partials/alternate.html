@@ -1,0 +1,16 @@
+{#-
+  Per-page language switcher for the korTTY guide. EN and DE are built as sibling
+  sites (guide/en, guide/de); this links the SAME page in the other language.
+  base_url -> current-language site root; ../<other>/ -> other-language root;
+  page.url -> the same page path. Rendered in the header because mkdocs.yml sets
+  a (truthy) extra.alternate.
+-#}
+{% set other = "de" if config.theme.language == "en" else "en" %}
+{% set other_name = "Deutsch" if other == "de" else "English" %}
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="{{ base_url }}../{{ other }}/{{ page.url }}"
+     title="{{ other_name }}" hreflang="{{ other }}">
+    <span class="kt-lang-code">{{ other | upper }}</span>
+  </a>
+</div>

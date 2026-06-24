@@ -221,6 +221,27 @@ body,
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
+/* Header language switcher (EN <-> DE) */
+.kt-lang-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  padding: 0 0.5rem;
+  border: 1px solid var(--kt-line-strong);
+  border-radius: 999px;
+  color: var(--kt-accent) !important;
+}
+.kt-lang-switch:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+.kt-lang-code {
+  font-family: var(--kt-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
 /* Footer version chip */
 .md-copyright__highlight strong {
   color: var(--kt-accent);

@@ -31,6 +31,10 @@ app-docs/site/.docs-translate-cache/
 app-docs/site/docs/*/assets/diagrams/
 app-docs/site/docs/*/assets/screenshots/
 
+# docs/de is generated from docs/en (scripts/translate_docs.py): only the
+# translated *.md are committed; its assets are staged by build-docs-site.py.
+app-docs/site/docs/de/assets/
+
 # SithTermFX source (cloned at build time, not a submodule)
 vendor/sithtermfx/
 
