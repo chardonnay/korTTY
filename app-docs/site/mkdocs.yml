@@ -1,0 +1,103 @@
+# Shared MkDocs config for the korTTY Guide.
+# Per-language entrypoints (mkdocs.en.yml / mkdocs.de.yml) INHERIT this file and
+# override docs_dir, site_dir, theme.language and the plugins list (search lang).
+#
+# Built into a fully OFFLINE, self-contained site that loads from a jar:/file:
+# base URL inside korTTY's WebView (Help -> Anleitung) AND on GitHub Pages.
+
+site_name: korTTY Guide
+site_description: >-
+  Complete reference for korTTY — every feature, setting and tool of the
+  cross-platform JavaFX SSH client, explained in detail.
+site_author: korTTY
+copyright: MIT-licensed · korTTY documentation
+
+# CRITICAL for offline: emit real page.html files with RELATIVE links/assets so
+# the site resolves under a jar:/file: origin (no leading-"/" absolute roots).
+use_directory_urls: false
+
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+  logo: assets/images/kortty-logo.png
+  favicon: assets/images/favicon.png
+  font: false # CRITICAL offline: no Google Fonts CDN — fonts are self-hosted via kortty.css
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    # Dark "terminal" scheme matching the SVG diagram palette (#07111d / #38bdf8 / #67e8f9).
+    scheme: slate
+    primary: black
+    accent: cyan
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+extra_css:
+  - assets/stylesheets/kortty.css
+
+extra:
+  # Single source of truth = build.gradle.kts:12, injected at build time.
+  # Falls back to 'dev' for ad-hoc local builds. Rendered in the footer/hero
+  # via the theme (config.extra.kortty_version) — never hard-typed in prose.
+  kortty_version: !ENV [KORTTY_VERSION, "dev"]
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/chardonnay/korTTY
+      name: korTTY on GitHub
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
+  - pymdownx.snippets
+  - pymdownx.smartsymbols
+  # Inline Material/Octicons/FontAwesome icons as SVG (offline-safe, no CDN).
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+# Nav is shared: both docs/en and docs/de mirror the same file layout.
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/installation.md
+      - getting-started/first-launch.md
+      - getting-started/main-window.md
+  - Reference:
+      - reference/menu.md
+      - reference/keyboard-shortcuts.md
+      - Settings:
+          - reference/settings/index.md
+  - Features:
+      - features/connections.md
+  - About:
+      - about/release-notes.md

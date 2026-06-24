@@ -9,12 +9,27 @@ build/
 .vscode/
 *.swp
 
+# Claude Code local (machine-specific) settings
+.claude/settings.local.json
+
 # OS
 .DS_Store
 Thumbs.db
 
 # Temporary venv for icon generation
 .venv-icon/
+
+# Temporary venvs for translation / documentation tooling
+.venv_translate/
+.venv-docs/
+
+# Documentation incremental-translation cache
+app-docs/site/.docs-translate-cache/
+
+# Diagrams/screenshots are copied into the MkDocs tree at build time from the
+# canonical app-docs/diagrams and app-docs/screenshots — don't track the copies.
+app-docs/site/docs/*/assets/diagrams/
+app-docs/site/docs/*/assets/screenshots/
 
 # SithTermFX source (cloned at build time, not a submodule)
 vendor/sithtermfx/

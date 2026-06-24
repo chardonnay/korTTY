@@ -1,0 +1,14 @@
+{#-
+  Footer copyright + live version. The korTTY version is injected at build time
+  (config.extra.kortty_version from build.gradle.kts via KORTTY_VERSION), so the
+  version is shown site-wide without ever being hard-typed in any Markdown page.
+  Self-contained markup so it does not depend on Material's internal partial.
+-#}
+<div class="md-copyright">
+  {% if config.copyright %}
+    <div class="md-copyright__highlight">{{ config.copyright }}</div>
+  {% endif %}
+  <div class="md-copyright__highlight">
+    korTTY <strong>v{{ config.extra.kortty_version }}</strong>
+  </div>
+</div>

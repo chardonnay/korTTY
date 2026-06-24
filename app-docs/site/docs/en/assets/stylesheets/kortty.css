@@ -1,0 +1,218 @@
+/* ===========================================================================
+   korTTY Guide theme — dark "terminal" aesthetic.
+   Palette matches the app-docs SVG diagrams so site + diagrams read as one
+   design system:
+     bg #07111d · surface #0d1b2a / #102132 · primary #38bdf8 · accent #67e8f9
+     hairlines rgba(103,232,249,.18) · text #e6f3ff / muted #b9c8da
+   All fonts self-hosted-free (system stacks) so the site stays 100% offline
+   inside korTTY's WebView (theme.font:false → no Google Fonts).
+   =========================================================================== */
+
+:root {
+  --kt-bg: #07111d;
+  --kt-bg-2: #0a1726;
+  --kt-surface: #0d1b2a;
+  --kt-surface-2: #102132;
+  --kt-primary: #38bdf8;
+  --kt-accent: #67e8f9;
+  --kt-text: #e6f3ff;
+  --kt-muted: #b9c8da;
+  --kt-line: rgba(103, 232, 249, 0.18);
+  --kt-line-strong: rgba(103, 232, 249, 0.32);
+  --kt-mono: ui-monospace, "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", Menlo, Consolas, monospace;
+  --kt-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Map korTTY palette onto Material's slate scheme variables. */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: var(--kt-bg);
+  --md-default-fg-color: var(--kt-text);
+  --md-default-fg-color--light: var(--kt-muted);
+  --md-default-fg-color--lighter: rgba(185, 200, 218, 0.6);
+  --md-primary-fg-color: var(--kt-bg);
+  --md-primary-bg-color: var(--kt-text);
+  --md-accent-fg-color: var(--kt-accent);
+  --md-typeset-a-color: var(--kt-primary);
+  --md-code-bg-color: #061320;
+  --md-code-fg-color: #d7ecff;
+  --md-footer-bg-color: #050d16;
+  --md-footer-bg-color--dark: #040a11;
+}
+
+body,
+.md-typeset {
+  font-family: var(--kt-sans);
+}
+
+/* Subtle radial glow behind the content, echoing the diagrams' dark canvas. */
+.md-main {
+  background:
+    radial-gradient(1200px 480px at 80% -10%, rgba(56, 189, 248, 0.07), transparent 60%),
+    radial-gradient(900px 420px at 0% 0%, rgba(103, 232, 249, 0.05), transparent 55%),
+    var(--kt-bg);
+}
+
+/* Header / nav accents */
+.md-header {
+  background: linear-gradient(180deg, #08141f, #07111d);
+  border-bottom: 1px solid var(--kt-line);
+}
+.md-tabs {
+  background: transparent;
+  border-bottom: 1px solid var(--kt-line);
+}
+.md-nav__link--active,
+.md-nav__link:focus,
+.md-nav__link:hover {
+  color: var(--kt-accent);
+}
+
+/* Links: cyan with a glow on hover. */
+.md-typeset a {
+  color: var(--kt-primary);
+  text-decoration-color: var(--kt-line-strong);
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+.md-typeset a:hover {
+  color: var(--kt-accent);
+  text-shadow: 0 0 10px rgba(103, 232, 249, 0.35);
+}
+
+/* Headings */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  color: #f3fbff;
+  letter-spacing: 0.2px;
+}
+.md-typeset h2 {
+  border-bottom: 1px solid var(--kt-line);
+  padding-bottom: 0.3em;
+}
+
+/* ---- Tables (the settings/menu references lean on these heavily) ---------- */
+.md-typeset table:not([class]) {
+  background: var(--kt-surface);
+  border: 1px solid var(--kt-line);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 0.78rem;
+}
+.md-typeset table:not([class]) th {
+  background: var(--kt-surface-2);
+  color: var(--kt-accent);
+  font-weight: 700;
+  border-bottom: 1px solid var(--kt-line-strong);
+}
+.md-typeset table:not([class]) tr:hover {
+  background: rgba(56, 189, 248, 0.06);
+}
+
+/* ---- Code & "terminal window" fenced blocks ------------------------------ */
+.md-typeset code,
+.md-typeset pre > code {
+  font-family: var(--kt-mono);
+}
+.md-typeset pre > code {
+  border: 1px solid var(--kt-line);
+  border-radius: 10px;
+}
+/* Give shell/bash/console blocks a terminal-window chrome (title dots). */
+.md-typeset .highlight:has(> pre > code.language-bash),
+.md-typeset .highlight:has(> pre > code.language-shell),
+.md-typeset .highlight:has(> pre > code.language-console),
+.md-typeset .highlight:has(> pre > code.language-sh) {
+  position: relative;
+  border-radius: 12px;
+  padding-top: 1.6rem;
+  background: #061320;
+  border: 1px solid var(--kt-line);
+  box-shadow: 0 0 0 1px rgba(7, 17, 29, 0.6), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.md-typeset .highlight:has(> pre > code.language-bash)::before,
+.md-typeset .highlight:has(> pre > code.language-shell)::before,
+.md-typeset .highlight:has(> pre > code.language-console)::before,
+.md-typeset .highlight:has(> pre > code.language-sh)::before {
+  content: "● ● ●";
+  position: absolute;
+  top: 0.35rem;
+  left: 0.75rem;
+  letter-spacing: 0.25rem;
+  font-size: 0.7rem;
+  color: #2a4a63;
+}
+
+/* ---- Admonitions: cyan glow left border ---------------------------------- */
+.md-typeset .admonition,
+.md-typeset details {
+  background: var(--kt-surface);
+  border: 1px solid var(--kt-line);
+  border-left-width: 0.25rem;
+  border-radius: 8px;
+}
+
+/* ---- Diagrams: frame the embedded SVGs ----------------------------------- */
+.md-typeset img[src*="assets/diagrams/"],
+.md-typeset img[src*="assets/screenshots/"] {
+  border: 1px solid var(--kt-line);
+  border-radius: 10px;
+  background: var(--kt-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- Hero landing -------------------------------------------------------- */
+.kt-hero {
+  text-align: center;
+  padding: 2.5rem 1rem 1.5rem;
+  border: 1px solid var(--kt-line);
+  border-radius: 16px;
+  background:
+    radial-gradient(700px 260px at 50% -20%, rgba(56, 189, 248, 0.12), transparent 60%),
+    linear-gradient(180deg, var(--kt-bg-2), var(--kt-bg));
+  margin-bottom: 1.5rem;
+}
+.kt-hero img {
+  width: 96px;
+  height: 96px;
+  filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.45));
+}
+.kt-hero h1 {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 2.1rem;
+}
+.kt-hero .kt-tagline {
+  color: var(--kt-muted);
+  font-size: 1rem;
+  max-width: 46rem;
+  margin: 0.2rem auto 0.8rem;
+}
+.kt-badge {
+  display: inline-block;
+  font-family: var(--kt-mono);
+  font-size: 0.8rem;
+  color: var(--kt-accent);
+  border: 1px solid var(--kt-line-strong);
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  background: rgba(56, 189, 248, 0.08);
+}
+
+/* Material "grid cards" recolored to the korTTY surface. */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card {
+  border: 1px solid var(--kt-line);
+  border-radius: 12px;
+  background: var(--kt-surface);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--kt-line-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+/* Footer version chip */
+.md-copyright__highlight strong {
+  color: var(--kt-accent);
+  font-family: var(--kt-mono);
+}
