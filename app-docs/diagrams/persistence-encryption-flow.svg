@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+  <title id="title">Persistence &amp; encryption</title>
+  <desc id="desc">How korTTY serializes config and encrypts secrets at rest.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
+    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}.title{font-size:28px;font-weight:700;fill:#f8fafc}.subtitle{font-size:14px;fill:#b9c8da}.small{font-size:13px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:7 7;fill:none}.secure{stroke:#f59e0b}.state{stroke:#34d399}.service{stroke:#60a5fa}.boxtitle{font-size:17px;font-weight:700;fill:#f8fafc}</style>
+  </defs>
+  <rect class="bg" width="1200" height="640"/>
+  <text class="title" x="40" y="52">Persistence &amp; Encryption</text>
+  <text class="subtitle" x="40" y="80">korTTY serializes its config model to XML, then writes plaintext config straight to disk and routes secrets through AES-256-GCM encryption.</text>
+
+  <rect class="box service" x="40" y="250" width="220" height="96"/>
+  <text class="boxtitle" x="78" y="290">In-Memory Model</text>
+  <text class="small" x="78" y="316">Live config &amp; secrets</text>
+  <text class="small" x="78" y="334">held in the app</text>
+
+  <rect class="box service" x="350" y="220" width="240" height="156"/>
+  <text class="boxtitle" x="388" y="256">Serialize to XML</text>
+  <text class="small" x="388" y="280">connections.xml</text>
+  <text class="small" x="388" y="298">credentials.xml · ssh-keys.xml</text>
+  <text class="small" x="388" y="316">gpg-keys.xml</text>
+  <text class="small" x="388" y="334">global-settings.xml</text>
+  <text class="small" x="388" y="352">job-scheduler.xml</text>
+
+  <rect class="box state" x="700" y="140" width="240" height="96"/>
+  <text class="boxtitle" x="738" y="180">Plaintext Config</text>
+  <text class="small" x="738" y="206">Non-secret settings</text>
+  <text class="small" x="738" y="224">written as-is</text>
+
+  <rect class="box secure" x="700" y="360" width="240" height="116"/>
+  <text class="boxtitle" x="738" y="398">Encrypt</text>
+  <text class="small" x="738" y="424">Master-password-derived key</text>
+  <text class="small" x="738" y="446">AES-256-GCM</text>
+
+  <rect class="box secure" x="700" y="520" width="240" height="78"/>
+  <text class="boxtitle" x="738" y="556">Master Password</text>
+  <text class="small" x="738" y="580">User-supplied key input</text>
+
+  <rect class="box state" x="1010" y="250" width="150" height="96"/>
+  <text class="boxtitle" x="1042" y="290">Disk</text>
+  <text class="small" x="1042" y="316">~/.kortty</text>
+  <text class="small" x="1042" y="334">at rest</text>
+
+  <path class="line" d="M260 298 H350"/>
+  <text class="small" x="272" y="288">1. flush</text>
+
+  <path class="line" d="M590 280 C640 240 660 188 700 188"/>
+  <text class="small" x="600" y="212">2. config</text>
+
+  <path class="line" d="M590 320 C640 360 660 418 700 418"/>
+  <text class="small" x="600" y="392">3. secrets</text>
+
+  <path class="line" d="M820 520 V476"/>
+  <text class="small" x="828" y="504">derive key</text>
+
+  <path class="line" d="M940 188 C985 188 985 270 1010 285"/>
+  <text class="small" x="955" y="200">4. write</text>
+
+  <path class="line" d="M940 418 C985 418 985 326 1010 311"/>
+  <text class="small" x="950" y="392">5. write</text>
+
+  <path class="dash" d="M150 346 C150 560 700 600 940 560"/>
+  <text class="small" x="300" y="586">On startup the flow reverses: XML is read from ~/.kortty and secrets are decrypted back into the in-memory model.</text>
+</svg>

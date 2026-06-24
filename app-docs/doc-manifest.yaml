@@ -65,7 +65,7 @@ pages:
   - path: app-docs/site/docs/en/getting-started/main-window.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
-    diagrams: [architecture.svg]
+    diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png]
     last_synced_ref: "93470d6"
 
@@ -181,5 +181,91 @@ pages:
     owns_i18n: [menu.connections.]
     owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
-    screenshots: [sftp/sftp-manager.png]
     last_synced_ref: "93470d6"
+  - path: app-docs/site/docs/en/features/terminal.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui/TerminalView.java]
+    diagrams: [session-lifecycle.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/tunnels.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/model]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/jump-server.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core]
+    diagrams: [jump-server-flow.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/sftp.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui/sftp]
+    screenshots: [sftp/sftp-manager.png]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/snippets.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/SnippetManager.java]
+    diagrams: [snippet-editor-workflow.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/jobscheduler.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/jobscheduler]
+    diagrams: [jobscheduler-execution.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/projects.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/model]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/teamwork.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/teamwork]
+    diagrams: [teamwork-sync-flow.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/ai-assistant.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core]
+    diagrams: [ai-api-integration.svg]
+    screenshots: [ai/ai-manager.png]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/ai-tools.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
+    diagrams: [ai-agent-execution-loop.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/security.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/security]
+    diagrams: [credential-flow.svg, persistence-encryption-flow.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/backup.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/BackupManager.java]
+    diagrams: [backup-restore.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/recording.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/ascii-art.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java]
+    screenshots: [tools/ascii-art.png]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/terminal-effect-plugins.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/plugin]
+    diagrams: [terminal-effect-plugin-flow.svg]
+    screenshots: [plugins/terminal-effects.png]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/i18n.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/LanguageManager.java]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/reference/architecture.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty]
+    diagrams: [architecture.svg, modules-overview.svg, app-startup-manager-init.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/reference/config-files.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/persistence]
+    last_synced_ref: "e7f0df8"

@@ -1,0 +1,355 @@
+---
+title: Configuration files
+---
+
+# Configuration files
+
+KorTTY stores all application data and configuration under the `~/.kortty/` directory in your home folder. This guide documents every file and subdirectory, their purpose, and how they are used.
+
+## Directory structure
+
+```
+~/.kortty/
+├── connections.xml                    # Saved SSH connections
+├── credentials.xml                    # Stored credentials (encrypted)
+├── ssh-keys.xml                       # SSH key management
+├── gpg-keys.xml                       # GPG keys for backup encryption
+├── global-settings.xml                # Global application settings
+├── ai-chats.xml                       # Saved AI conversations
+├── snippets.xml                       # Code snippets and scripts
+├── snippet-variables.xml              # Snippet variable storage
+├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+├── master-password-hash               # Hashed master password (PBKDF2)
+├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+├── kortty.log                         # Application log file
+├── history/                           # Terminal session history (compressed)
+├── plugins/                           # Imported terminal-effect plugin JARs
+├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
+├── projects/                          # Project files (.kortty)
+├── i18n/                              # Generated language files (messages_*.properties)
+└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+```
+
+## Core configuration files
+
+### connections.xml
+Contains all saved SSH connections with their settings.
+
+**Includes:**
+- Connection name, host, port, username
+- Authentication method (password, SSH key, temporary SSH key)
+- Terminal appearance overrides (font, colors, size)
+- SSH tunnels and jump server configuration
+- Terminal effect plugins and animation speed
+- Connection-specific terminal logging settings
+- Window geometry preferences
+- Group/folder organization
+
+**Security:** Connection passwords are encrypted with AES-256-GCM using the master password.
+
+!!! note
+    If a connection password is encrypted, it is stored in a hashed/encrypted format and cannot be viewed as plain text. When you open a saved connection, the password is automatically decrypted using your master password.
+
+### credentials.xml
+Centralized credential storage for username/password pairs.
+
+**Includes:**
+- Credential name, username, password
+- Environment (Production, Development, Test, Staging)
+- Server pattern (glob patterns like `*.example.com` or `10.0.0.*`)
+- Auto-assignment to connections matching the pattern
+
+**Security:** All passwords are encrypted with AES-256-GCM.
+
+### ssh-keys.xml
+Manages centralized SSH key storage.
+
+**Includes:**
+- SSH key path
+- Key passphrase (if the key is protected)
+- Optional description
+- Key fingerprint
+
+**Security:** Key passphrases are encrypted with AES-256-GCM using the master password.
+
+!!! tip
+    SSH keys referenced in this file can be kept in their original location or copied to `~/.kortty/ssh-keys/` for easy backup and migration via the *Copy to User Directory* action in SSH key management.
+
+### gpg-keys.xml
+Stores GPG key information for backup encryption.
+
+**Includes:**
+- GPG key ID
+- Key email address
+- Optional fingerprint
+- Import source (system keyring or manual entry)
+
+### global-settings.xml
+Global application preferences and defaults.
+
+**Contains:**
+- UI theme and appearance settings
+- Font family and default size
+- Terminal color configuration
+- Window geometry and state (position, size, maximized status)
+- Dashboard visibility state
+- Menu bar visibility preference
+- AI profile defaults and configuration
+- Translation API settings
+- Video/recording preferences
+- Terminal logging defaults
+- SSH keep-alive settings
+- JobScheduler status display preference
+- Terminal effect plugin defaults
+- Backup encryption method and retention settings
+- Connection timeout and retry defaults
+
+### job-scheduler.xml
+All JobScheduler jobs and related data.
+
+**Contains:**
+- Job name, enabled status, action type (COMMAND, SNIPPET_SCRIPT, AI_AGENT, SFTP, RSYNC_SYNC)
+- Schedule configuration (weekdays, times, intervals, date ranges)
+- Target servers or groups
+- Host-key pins (OpenSSH public-key material for unattended execution)
+- Sudo passwords for servers and groups (encrypted)
+- Journal entries with timestamps, exit codes, and redacted output
+- Journal retention settings (auto-delete entries older than 14 days by default)
+
+**Security:**
+- Host-key pinning is required by default for unattended SSH/SFTP/Rsync execution
+- Sudo passwords are encrypted with the master password
+- Journal entries are stored with KorTTY-managed secrets redacted before persistence
+- Archive passwords and backup encryption credentials are stored encrypted
+
+!!! warning
+    If the master password is locked and a job needs SSH, sudo, API, or archive secrets, the job is blocked and a journal entry is created explaining the issue.
+
+### ai-chats.xml
+Saved AI conversations and chat history.
+
+**Includes:**
+- Chat title and creation timestamp
+- Conversation messages and responses
+- Associated AI profile used for the chat
+- Follow-up prompt history (for context)
+
+**Note:** AI result tabs are not automatically saved. You must explicitly save them from the AI tab using the *Save* button to add them to this file.
+
+### snippets.xml
+Code snippets, scripts, and templates.
+
+**Includes:**
+- Snippet name, description, language
+- Code content with syntax highlighting metadata
+- Category/folder organization
+- Tags and metadata
+- Target system (Operating System column: Linux, macOS, Windows, etc.)
+- Import/export history
+
+**Features:**
+- Support for JSON/XML/YAML import/export
+- Plain-text script export
+- ZIP archives with optional password or GPG encryption
+- Local syntax highlighting with Monaco editor
+- AI-assisted editing and code generation
+- PlantUML diagram support
+- One-liner export with optional script arguments
+
+### snippet-variables.xml
+Stores variable definitions for use within snippets.
+
+**Includes:**
+- Variable name, value, type
+- Scope (local or shared)
+- Default values and validation rules
+
+### master-password-hash
+Binary file containing the hashed master password.
+
+**Format:** PBKDF2 hash with 310,000 iterations
+
+**Security:** This file does not contain the actual master password—only a cryptographic hash used to verify the password you enter on startup. If this file is lost or corrupted, you must restart KorTTY and set a new master password (though you will lose access to previously stored encrypted credentials and SSH key passphrases).
+
+!!! warning
+    If you forget your master password, delete `master-password-hash` and `credentials.xml`, restart KorTTY, set a new master password, and re-enter your passwords. There is no recovery mechanism for the lost password.
+
+### terminal-effect-plugins.disabled
+Text file listing disabled terminal-effect plugin IDs (one per line).
+
+**Purpose:** When you disable a terminal-effect plugin via *Plugins > Terminal Effects*, its ID is written to this file so it remains disabled after restart.
+
+### kortty.log
+Application log file.
+
+**Contains:**
+- Startup messages
+- Connection attempts and results
+- Terminal session events
+- Configuration changes
+- Errors and warnings
+- Performance metrics (on request via JMX)
+
+**Rotation:** The log file grows throughout the application session. Old logs are not automatically rotated (the log file persists until KorTTY exits or you manually delete it).
+
+!!! tip
+    Check this file when troubleshooting connection issues, plugin loading problems, or unexpected behavior. Common issues logged here include SSH errors, encryption failures, and import/export problems.
+
+## Directories
+
+### history/
+Compressed terminal session history.
+
+**Format:** GZIP-compressed text files, one per terminal session
+
+**Naming:** `{session-id}_{timestamp}.history.gz` (for session history from terminal logging)
+
+**Purpose:** Stores terminal command history and output when terminal logging is enabled for a connection.
+
+**Access:** Terminal history is loaded automatically when you open a saved connection and displayed in the terminal history search feature.
+
+!!! note
+    This directory only stores history if you explicitly enable *Terminal Logging* for a connection in the *Terminal Logging* tab when creating or editing a connection.
+
+### plugins/
+User-imported terminal-effect plugin JARs.
+
+**Purpose:** External terminal-effect plugins that you import via *Plugins > Terminal Effects > Import*.
+
+**Security:** Imported plugins are trusted Java code and are not sandboxed. Only import JARs from sources you trust.
+
+**Cleanup:** If you delete a plugin from this directory, it will no longer be available in KorTTY. Disabled plugins remain in this directory but are listed in `terminal-effect-plugins.disabled`.
+
+!!! warning
+    Plugin dependencies must be shaded into the plugin JAR. Adjacent dependency JARs are not loaded automatically. See [Terminal effect plugins](../features/terminal-effect-plugins.md) for packaging guidelines.
+
+### bundled-plugins/
+Runtime copies of bundled exportable terminal-effect plugin JARs.
+
+**Purpose:** Backup and working copies of built-in plugins that can be exported to external users.
+
+**Contents:** The MU/TH/UR 6000 effect plugin and any other exportable bundled plugins.
+
+**Auto-management:** KorTTY automatically manages this directory. Users should not edit it manually.
+
+### projects/
+Project files for saving and loading connection sets.
+
+**Format:** KorTTY XML-based project format (`.kortty` files)
+
+**Naming:** User-defined project names with `.kortty` extension (e.g., `production.kortty`, `development.kortty`)
+
+**Contains:**
+- List of open connections/tabs at project save time
+- Window state (tabs, sizes, active tab)
+- Dashboard state
+- Project metadata and creation timestamp
+
+**Purpose:** Quickly open a pre-configured set of connections for a specific project or workflow.
+
+**Usage:** Save a project via *File > Save Project*, restore via *File > Open Project* or the project history menu.
+
+### i18n/
+Dynamically generated language translation files.
+
+**Format:** Java properties files (`.properties`)
+
+**Naming:** `messages_{language-code}.properties` (e.g., `messages_de.properties` for German, `messages_fr.properties` for French)
+
+**Purpose:** Stores translations generated by translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex) when you choose to generate language files via *Settings > Translation*.
+
+**Auto-refresh:** When you upgrade KorTTY to a new version, generated language files are marked as outdated. Use *Settings > Translation > Regenerate outdated* to refresh them with any new or changed UI keys.
+
+!!! note
+    Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) are shipped with the application and do not use this directory. This directory is only used for dynamically generated translations.
+
+### ssh-keys/
+Optional directory for copied SSH keys.
+
+**Purpose:** Stores copies of SSH keys for easy backup and migration.
+
+**How to use:**
+1. Open *Management > Manage SSH Keys...*
+2. Select an SSH key and click *Copy to User Directory*
+3. The key is copied to `~/.kortty/ssh-keys/`
+
+**Backup:** SSH keys in this directory are included when you create a backup via *Edit > Create Backup*.
+
+**Benefits:**
+- Centralized location for all SSH keys
+- Easy migration to new machines
+- Included in encrypted backups
+
+## Security summary
+
+| Item | Security Method |
+|------|-----------------|
+| Master password | PBKDF2 hashing with 310,000 iterations |
+| Connection passwords | AES-256-GCM encryption |
+| SSH key passphrases | AES-256-GCM encryption |
+| Credentials (username/password) | AES-256-GCM encryption |
+| JobScheduler sudo passwords | AES-256-GCM encryption |
+| JobScheduler journal entries | Redacted secrets before persistence |
+| Backup files | Password-protected ZIP or GPG encryption |
+| API keys (AI profiles) | AES-256-GCM encryption with master password |
+| Terminal effect plugins | Not encrypted; trusted local code, not sandboxed |
+
+## File locations by platform
+
+All files are stored in the same `~/.kortty/` directory across platforms:
+
+- **macOS:** `/Users/{username}/.kortty/`
+- **Windows:** `C:\Users\{username}\.kortty\` (or `%USERPROFILE%\.kortty\`)
+- **Linux:** `/home/{username}/.kortty/` (or `$HOME/.kortty/`)
+
+## Backup and recovery
+
+When you create a backup via *Edit > Create Backup*, the following files and directories are included:
+
+- All `.xml` configuration files
+- `master-password-hash`
+- `history/` directory
+- `projects/` directory
+- `i18n/` directory (generated language files)
+- `ssh-keys/` directory (if present)
+- `snippets.xml` and related snippet data
+
+The backup is encrypted (password-protected ZIP or GPG) and saved to a location you specify.
+
+!!! tip
+    Backups are the recommended way to migrate KorTTY to a new machine or to recover from data loss. Create a backup regularly and store it in a safe location.
+
+## Accessing configuration files
+
+You can edit KorTTY configuration directly by:
+
+1. Closing KorTTY completely
+2. Opening `~/.kortty/` in your file manager or terminal
+3. Editing the XML files with a text editor
+4. Restarting KorTTY to load the changes
+
+!!! warning
+    Editing XML files directly can corrupt your data if not done carefully. Always create a backup before manual editing. For most configuration tasks, use the KorTTY UI instead—it handles encryption, validation, and file format correctly.
+
+## Troubleshooting
+
+**Configuration file not found:**
+- KorTTY creates the `~/.kortty/` directory and all necessary subdirectories on first launch.
+- If a configuration file is missing, KorTTY uses sensible defaults and creates the file on next save.
+
+**Encryption errors:**
+- If you forget your master password, you must delete `master-password-hash` and set a new password. Previously encrypted data will be inaccessible.
+
+**Corrupted XML files:**
+- If a `.xml` file becomes corrupted, restore from a backup or delete the file. KorTTY will recreate it with defaults on next save.
+
+**Plugin loading issues:**
+- Check `kortty.log` for error messages related to plugin loading (e.g., duplicate IDs, missing services, class loading errors).
+- Ensure the plugin JAR is in `~/.kortty/plugins/` and contains `META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin`.
+- Use *Plugins > Terminal Effects > Reload* to refresh the plugin list.
+
+**Log file size:**
+- `kortty.log` grows during the application session. It is not automatically rotated. You can safely delete it while KorTTY is closed.
+
+**Master password recovery:**
+- There is no recovery for a forgotten master password. If you lose it, delete `master-password-hash` and `credentials.xml`, restart KorTTY, and set a new password.

@@ -95,6 +95,8 @@ nav:
   - Reference:
       - reference/menu.md
       - reference/keyboard-shortcuts.md
+      - reference/architecture.md
+      - reference/config-files.md
       - Settings:
           - reference/settings/index.md
           - reference/settings/appearance.md
@@ -112,5 +114,21 @@ nav:
           - reference/settings/ai-skills.md
   - Features:
       - features/connections.md
+      - features/terminal.md
+      - features/tunnels.md
+      - features/jump-server.md
+      - features/sftp.md
+      - features/snippets.md
+      - features/jobscheduler.md
+      - features/projects.md
+      - features/teamwork.md
+      - features/ai-assistant.md
+      - features/ai-tools.md
+      - features/security.md
+      - features/backup.md
+      - features/recording.md
+      - features/ascii-art.md
+      - features/terminal-effect-plugins.md
+      - features/i18n.md
   - About:
       - about/release-notes.md

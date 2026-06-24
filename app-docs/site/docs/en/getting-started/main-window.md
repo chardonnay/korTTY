@@ -2,6 +2,8 @@
 
 ![korTTY main window](../assets/screenshots/main/main-window.png)
 
+![Main window layout](../assets/diagrams/mainwindow-layout.svg)
+
 A fresh korTTY window: the menu bar, the terminal area (where session tabs and
 the optional dashboard appear once you connect), and the status bar. The
 following diagram maps the same regions:
