@@ -81,6 +81,11 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | AI Agent… | Open the terminal AI agent |
 | AI Planning… | Open the AI planning workflow |
 
+**AI Manager** lists your AI profiles (each with connection mode, model,
+reasoning effort, internet access and token budget) and your saved chats:
+
+![AI Manager](../assets/screenshots/ai/ai-manager.png)
+
 ## Plugins
 
 | Item | Description |

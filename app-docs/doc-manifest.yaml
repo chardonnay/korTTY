@@ -66,6 +66,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
     diagrams: [architecture.svg]
+    screenshots: [main/main-window.png]
     last_synced_ref: "93470d6"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
@@ -75,6 +76,7 @@ pages:
     screenshots:
       - main/menu-tools.png
       - main/menu-ai.png
+      - ai/ai-manager.png
     last_synced_ref: "93470d6"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
