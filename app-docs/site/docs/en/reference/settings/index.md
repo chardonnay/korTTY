@@ -38,3 +38,31 @@ Each per-tab page lists settings as a table:
     The per-tab pages enumerate every individual setting. Coverage is verified
     automatically against the application's setting keys, so no setting is left
     undocumented.
+
+## Visual reference
+
+A few of the configuration tabs (the per-tab pages show each in detail):
+
+<div class="grid" markdown>
+
+**Colors** — terminal palette, cursor and ANSI colors
+{ .grid-caption }
+
+![Colors settings tab](../../assets/screenshots/settings/colors.png)
+
+**Terminal** — scrollback, encoding, keep-alive, retries
+{ .grid-caption }
+
+![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
+
+**Backup** — max backups, ZIP-password or GPG encryption
+{ .grid-caption }
+
+![Backup settings tab](../../assets/screenshots/settings/backup.png)
+
+**AI** — agent execution, profiles, internet tools
+{ .grid-caption }
+
+![AI settings tab](../../assets/screenshots/settings/ai.png)
+
+</div>

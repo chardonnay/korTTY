@@ -84,6 +84,11 @@ pages:
   - path: app-docs/site/docs/en/reference/settings/index.md
     owns_i18n: [settings.preview., settings.nav.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots:
+      - settings/colors.png
+      - settings/terminal.png
+      - settings/backup.png
+      - settings/ai.png
     last_synced_ref: "93470d6"
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font.]
