@@ -67,7 +67,7 @@ Every feature, setting and tool, explained in detail.
 </div>
 
 !!! info "About this guide"
-    This guide is bundled inside korTTY (**Help → Anleitung**, shortcut ++f1++)
+    This guide is bundled inside korTTY (**Help → Manual**, shortcut ++f1++)
     and published online. It is available in **English** and **German**, and is
     kept in sync with the code automatically. The korTTY version this guide was
     built for is shown in the footer.

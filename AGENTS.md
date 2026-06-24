@@ -35,7 +35,7 @@ authored in **English Markdown** (`docs/en/**`, the source of truth). German
 | `README.adoc` | Stays AsciiDoc — the GitHub repo landing page |
 
 The same built site is **bundled into the app** (`/guide/**`, opened via
-**Help → Anleitung**, `GuideViewer`) and **published to GitHub Pages**.
+**Help → Manual**, `GuideViewer`) and **published to GitHub Pages**.
 
 ### Build & preview
 

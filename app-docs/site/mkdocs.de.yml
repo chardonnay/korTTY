@@ -3,6 +3,7 @@
 #   mkdocs build -f app-docs/site/mkdocs.de.yml --strict
 INHERIT: mkdocs.yml
 
+site_name: korTTY Anleitung
 docs_dir: docs/de
 site_dir: ../../build/guide/de
 site_url: https://chardonnay.github.io/korTTY/de/

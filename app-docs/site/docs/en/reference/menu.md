@@ -117,5 +117,5 @@ reasoning effort, internet access and token budget) and your saved chats:
 
 | Item | Shortcut | Description |
 | --- | --- | --- |
-| Anleitung (Guide) | ++f1++ | Open this documentation inside korTTY |
+| Manual | ++f1++ | Open this documentation inside korTTY |
 | About korTTY | | Version and project information |
