@@ -53,10 +53,8 @@ jobs:
       - name: Manifest + asset integrity
         run: python scripts/doc-links.py
 
-      # Coverage is reported on every run. It is NOT yet a hard gate because the
-      # reference content is still being authored; flip to `--strict` (below)
-      # once doc-coverage reports 100% so undocumented settings/menu keys break CI.
-      - name: Settings/menu coverage (report)
-        run: python scripts/doc-coverage.py
-      # - name: Settings/menu coverage (gate)
-      #   run: python scripts/doc-coverage.py --strict
+      # Hard gate: every user-facing settings.* / menu.* key must be documented
+      # (owned by an existing reference page). Coverage reached 100% once the
+      # settings reference pages were authored.
+      - name: Settings/menu coverage (gate)
+        run: python scripts/doc-coverage.py --strict

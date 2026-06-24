@@ -72,6 +72,9 @@ pages:
   - path: app-docs/site/docs/en/reference/menu.md
     owns_i18n: ["menu."]
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
+    screenshots:
+      - main/menu-tools.png
+      - main/menu-ai.png
     last_synced_ref: "93470d6"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
@@ -82,7 +85,7 @@ pages:
   # NOTE: these pages are being authored in the content build-out. Until a page
   # file exists, doc-coverage.py reports its settings.* keys as undocumented.
   - path: app-docs/site/docs/en/reference/settings/index.md
-    owns_i18n: [settings.preview., settings.nav.]
+    owns_i18n: [settings.preview., settings.nav., settings.tab.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
     screenshots:
       - settings/colors.png
@@ -93,46 +96,84 @@ pages:
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java]
+    screenshots:
+      - settings/appearance.png
+      - settings/themes.png
+      - settings/font.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/colors.md
     owns_i18n: [settings.colors.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    screenshots:
+      - settings/colors.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/terminal.md
     owns_i18n: [settings.terminal.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
-  - path: app-docs/site/docs/en/reference/settings/tab.md
-    owns_i18n: [settings.tab.]
-    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    screenshots:
+      - settings/terminal.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/window.md
     owns_i18n: [settings.window.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    screenshots:
+      - settings/window.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/logging.md
     owns_i18n: [settings.logging.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    screenshots:
+      - settings/logging.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/backup.md
     owns_i18n: [settings.backup.]
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]
+    screenshots:
+      - settings/backup.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/updates.md
     owns_i18n: [settings.updates.]
     owns_code: [src/main/java/de/kortty/update/UpdateCheckService.java]
+    screenshots:
+      - settings/updates.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/security.md
     owns_i18n: [settings.security.]
     owns_code: [src/main/java/de/kortty/security]
+    screenshots:
+      - settings/security.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/language.md
     owns_i18n: [settings.language.]
     owns_code: [src/main/java/de/kortty/core/LanguageManager.java]
+    screenshots:
+      - settings/language.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/translation.md
     owns_i18n: [settings.translation.]
     owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java]
+    screenshots:
+      - settings/translation.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/video.md
     owns_i18n: [settings.video.]
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
+    screenshots:
+      - settings/video.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/ai.md
     owns_i18n: [settings.ai.]
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
+    screenshots:
+      - settings/ai.png
+    last_synced_ref: "8250396"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/core]
 
+    screenshots:
+      - settings/ai-skills.png
+    last_synced_ref: "8250396"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections.]

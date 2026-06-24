@@ -18,21 +18,21 @@ Each per-tab page lists settings as a table:
 
 | Tab | What it controls |
 | --- | --- |
-| Appearance | App design (Normal, Matrix, Holographic, Klingon, Elegant Dark), theme |
-| Font | Terminal font family and size |
-| Colors | ANSI palette, cursor color and blink, selection colors |
-| Terminal | Scrollback, emulation, keep-alive, timeout/retry, bell |
-| Tab | Tab title format, close behavior, ordering |
-| Window | Window geometry restore, multi-window behavior |
-| Logging | Terminal logging format (plain/XML/JSON) and rotation |
-| Backup | Encryption type (password / GPG), max backup count |
-| Updates | Update check interval, channel, suppression |
-| Security | Master-password prompt, temporary SSH keys |
-| Language | UI language selection (8 built-in) |
-| Translation | Dynamic translation provider, API key, target language |
-| Video | `ffmpeg` path, export defaults |
-| AI | AI profiles, providers, internet access, reasoning effort, token quota |
-| AI Skills | Skill definitions, relevance classification, editor |
+| [Appearance, themes & font](appearance.md) | App design (Normal, Matrix, Holographic, Klingon, Elegant Dark), terminal themes, font family & size |
+| [Colors](colors.md) | Color profile, text/background/cursor/selection colors, cursor blink, the 16-color ANSI palette |
+| [Terminal](terminal.md) | Columns/rows, scrollback, encoding, SSH keep-alive, connection retries, drag-drop, timestamps |
+| [Window](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
+| [Logging](logging.md) | Terminal log directory, retention and format |
+| [Backup](backup.md) | Encryption type (ZIP-password / GPG), max backup count |
+| [Updates](updates.md) | Automatic update checking and interval |
+| [Security](security.md) | Master-password prompt, change master password, temporary SSH keys |
+| [Language](language.md) | UI language selection (8 built-in) + auto-detect |
+| [Translation](translation.md) | Dynamic-translation provider, API key, target language, generate language file |
+| [Video](video.md) | Terminal recording / `ffmpeg` video export |
+| [AI](ai.md) | AI features, agent execution, profiles, reasoning effort, token quota, internet tools |
+| [AI Skills](ai-skills.md) | Skill definitions, auto-detection, import/export |
+
+The settings dialog also exposes **SFTP Manager**, **Editor** and **Snippet Editor** tabs, which set file-manager and Monaco-editor defaults (font, colors, cursor) for those tools.
 
 !!! info "Completeness"
     The per-tab pages enumerate every individual setting. Coverage is verified

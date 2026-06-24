@@ -97,6 +97,19 @@ nav:
       - reference/keyboard-shortcuts.md
       - Settings:
           - reference/settings/index.md
+          - reference/settings/appearance.md
+          - reference/settings/colors.md
+          - reference/settings/terminal.md
+          - reference/settings/window.md
+          - reference/settings/logging.md
+          - reference/settings/backup.md
+          - reference/settings/updates.md
+          - reference/settings/security.md
+          - reference/settings/language.md
+          - reference/settings/translation.md
+          - reference/settings/video.md
+          - reference/settings/ai.md
+          - reference/settings/ai-skills.md
   - Features:
       - features/connections.md
   - About:

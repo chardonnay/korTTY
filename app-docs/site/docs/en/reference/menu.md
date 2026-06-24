@@ -61,15 +61,25 @@ See the [Settings reference](settings/index.md) for every individual setting.
 
 ## Tools
 
-| Item | Shortcut | Description |
-| --- | --- | --- |
-| ASCII Art… | | FIGlet banner generator (11+ font styles) |
-| Snippets… | | Snippet Manager (create, edit, organize, send, export) |
-| AI Agent | ++ctrl+alt+a++ | Open the terminal AI agent |
-| AI Manager | ++ctrl+shift+y++ | Manage AI profiles and saved chats |
-| AI Planning | ++ctrl+alt+p++ | Open the AI planning workflow |
-| Toggle Recording | ++ctrl+shift+e++ | Start/stop terminal recording |
-| Video Manager | | Manage recordings and export to WebM/MKV via `ffmpeg` |
+![Tools menu](../assets/screenshots/main/menu-tools.png)
+
+| Item | Description |
+| --- | --- |
+| Snippet Manager… | Create, edit, organize, send and export command snippets |
+| JobScheduler… | Schedule background command / snippet / AI-agent / SFTP / Rsync jobs |
+| Video Manager… | Manage terminal recordings and export to WebM/MKV via `ffmpeg` |
+| Start/Stop Terminal Recording | Toggle recording of the active terminal (++ctrl+shift+e++) |
+| ASCII Art… | FIGlet banner generator with multiple font styles |
+
+## AI
+
+![AI menu](../assets/screenshots/main/menu-ai.png)
+
+| Item | Description |
+| --- | --- |
+| AI Manager… | Manage AI profiles and saved chats |
+| AI Agent… | Open the terminal AI agent |
+| AI Planning… | Open the AI planning workflow |
 
 ## Plugins
 
