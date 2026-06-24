@@ -481,7 +481,11 @@ public class GlobalSettings {
     /** Last window geometry of the JobScheduler dialog. */
     @XmlElement
     private WindowGeometry jobSchedulerDialogGeometry;
-    
+
+    /** Last window geometry of the in-app guide viewer ("Anleitung"). */
+    @XmlElement
+    private WindowGeometry guideViewerGeometry;
+
     // Teamwork: shared connection sources (Git or shared file)
     @XmlElementWrapper(name = "teamworkSources")
     @XmlElement(name = "source")
@@ -1966,7 +1970,12 @@ public class GlobalSettings {
     public void setJobSchedulerDialogGeometry(WindowGeometry jobSchedulerDialogGeometry) {
         this.jobSchedulerDialogGeometry = jobSchedulerDialogGeometry;
     }
-    
+
+    public WindowGeometry getGuideViewerGeometry() { return guideViewerGeometry; }
+    public void setGuideViewerGeometry(WindowGeometry guideViewerGeometry) {
+        this.guideViewerGeometry = guideViewerGeometry;
+    }
+
     // ---- Teamwork ----
     
     public java.util.List<TeamworkSourceConfig> getTeamworkSources() {

@@ -1643,10 +1643,22 @@ public class MainWindow {
 
     private Menu createHelpMenu() {
         Menu helpMenu = new Menu(I18n.get("menu.help"));
+        MenuItem guide = new MenuItem(I18n.get("menu.help.guide"));
+        guide.setAccelerator(new KeyCodeCombination(KeyCode.F1));
+        guide.setOnAction(e -> openGuide());
         MenuItem about = new MenuItem(I18n.get("menu.help.about") + " " + KorTTYApplication.getAppName());
         about.setOnAction(e -> showAbout());
-        helpMenu.getItems().add(about);
+        helpMenu.getItems().addAll(guide, new SeparatorMenuItem(), about);
         return helpMenu;
+    }
+
+    private void openGuide() {
+        try {
+            GuideViewer.show(app, stage);
+        } catch (Exception e) {
+            logger.warn("Could not open the guide viewer", e);
+            showError(I18n.get("error.title"), I18n.get("menu.help.guide"));
+        }
     }
 
     private boolean isMacOs() {
