@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
-import java.net.URL;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -28,7 +27,10 @@ public class MonacoDiffPane extends StackPane {
 
     private static final Logger logger = LoggerFactory.getLogger(MonacoDiffPane.class);
     private static final Gson GSON = new Gson();
-    private static final int HOST_READY_RETRY_COUNT = 200;
+    // ~20 s boot-ready budget: a cold packaged-app WebView parses the bundled Monaco diff script
+    // slower than under `./gradlew run`; the old 5 s budget could time out before the diff host
+    // became ready, leaving an empty diff view. See MonacoEditorPane for the full rationale.
+    private static final int HOST_READY_RETRY_COUNT = 800;
     private static final Duration HOST_READY_RETRY_DELAY = Duration.millis(25);
 
     private final WebView webView = new WebView();
@@ -132,9 +134,13 @@ public class MonacoDiffPane extends StackPane {
     }
 
     private void loadEditor() {
-        URL resource = MonacoDiffPane.class.getResource("/monaco/monaco-diff-editor.html");
-        if (resource == null) {
-            logger.error("Missing bundled Monaco diff editor resource");
+        // Load from a file: URL (resources extracted to a temp dir), NOT the jar: URL that
+        // getResource() returns in the packaged app: a jar:-origin page's CSP blocks its relative
+        // monaco-diff-host.js/.css siblings, so the diff editor never boots. See MonacoResourceBundle.
+        String pageUrl = MonacoResourceBundle.diffEditorHtmlUrl();
+        if (pageUrl == null) {
+            logger.error("Bundled Monaco diff editor resources could not be prepared");
+            notifyHostUnavailable("monaco diff resources could not be extracted");
             return;
         }
         WebEngine engine = webView.getEngine();
@@ -155,9 +161,18 @@ public class MonacoDiffPane extends StackPane {
             } else if (newState == Worker.State.FAILED) {
                 Throwable failure = engine.getLoadWorker().getException();
                 logger.error("Could not load Monaco diff editor WebView", failure);
+                notifyHostUnavailable("page load failed: " + failure);
             }
         });
-        engine.load(resource.toExternalForm());
+        engine.load(pageUrl);
+    }
+
+    // Surface a boot/load failure instead of leaving a silently-empty WebView.
+    private void notifyHostUnavailable(String detail) {
+        Consumer<String> handler = workerFailureHandler;
+        if (handler != null) {
+            Platform.runLater(() -> handler.accept("host: " + detail));
+        }
     }
 
     private void installBridge(WebEngine engine) {
@@ -184,6 +199,7 @@ public class MonacoDiffPane extends StackPane {
         if (remainingAttempts <= 0) {
             Object startupErrors = executeScript("JSON.stringify(window.korttyStartupErrors || [])");
             logger.error("Monaco diff host script did not become ready. Startup errors: {}", startupErrors);
+            notifyHostUnavailable("diff host script not ready; startupErrors=" + startupErrors);
             return;
         }
         PauseTransition retry = new PauseTransition(HOST_READY_RETRY_DELAY);

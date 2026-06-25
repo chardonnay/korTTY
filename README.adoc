@@ -1,6 +1,6 @@
 = KorTTY - SSH Client
 
-*v2.2.2* — A modern SSH client with JavaFX interface, tabbed terminals, SFTP tooling, background job scheduling, and OpenAI-compatible AI assistance.
+*v2.2.3* — A modern SSH client with JavaFX interface, tabbed terminals, SFTP tooling, background job scheduling, and OpenAI-compatible AI assistance.
 
 == Architecture Overview
 
