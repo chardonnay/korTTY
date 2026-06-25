@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.ref.WeakReference;
-import java.net.URL;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,7 +46,14 @@ public class MonacoEditorPane extends StackPane {
 
     private static final Logger logger = LoggerFactory.getLogger(MonacoEditorPane.class);
     private static final Gson GSON = new Gson();
-    private static final int HOST_READY_RETRY_COUNT = 200;
+    // Boot-ready budget = HOST_READY_RETRY_COUNT * HOST_READY_RETRY_DELAY. This must comfortably
+    // exceed the time the WebView needs to parse + execute the bundled Monaco script and define
+    // window.korttyMonaco. In the notarized/packaged app a cold WebView parses the (now minified)
+    // bundle noticeably slower than under `./gradlew run`; the previous 5 s budget timed out before
+    // korttyMonaco was defined, leaving the editor permanently empty (no caret/typing/paste). The
+    // poll is a cheap one-line executeScript, so a generous ~20 s budget costs nothing on success
+    // and only delays the give-up log on a genuine failure.
+    private static final int HOST_READY_RETRY_COUNT = 800;
     private static final Duration HOST_READY_RETRY_DELAY = Duration.millis(25);
     private static final double UNKNOWN_CARET_X = -1000000000.0;
 
@@ -458,9 +464,14 @@ public class MonacoEditorPane extends StackPane {
     }
 
     private void loadEditor() {
-        URL resource = MonacoEditorPane.class.getResource("/monaco/monaco-editor.html");
-        if (resource == null) {
-            logger.error("Missing bundled Monaco editor resource");
+        // Load from a file: URL (resources extracted to a temp dir), NOT the jar: URL that
+        // getResource() returns in the packaged app: a jar:-origin page's CSP `script-src 'self'`
+        // silently blocks the relative monaco-host.js/.css siblings, so the editor never boots.
+        // See MonacoResourceBundle for the full diagnosis.
+        String pageUrl = MonacoResourceBundle.editorHtmlUrl();
+        if (pageUrl == null) {
+            logger.error("Bundled Monaco editor resources could not be prepared");
+            notifyHostUnavailable("monaco resources could not be extracted");
             return;
         }
         WebEngine engine = webView.getEngine();
@@ -484,9 +495,19 @@ public class MonacoEditorPane extends StackPane {
             } else if (newState == Worker.State.FAILED) {
                 Throwable failure = engine.getLoadWorker().getException();
                 logger.error("Could not load Monaco editor WebView", failure);
+                notifyHostUnavailable("page load failed: " + failure);
             }
         });
-        engine.load(resource.toExternalForm());
+        engine.load(pageUrl);
+    }
+
+    // Surface a boot/load failure instead of leaving a silently-empty WebView. Reuses the existing
+    // worker-failure channel so callers that registered a handler can show an error to the user.
+    private void notifyHostUnavailable(String detail) {
+        Consumer<String> handler = workerFailureHandler;
+        if (handler != null) {
+            Platform.runLater(() -> handler.accept("host: " + detail));
+        }
     }
 
     private void bootWhenHostReady(int remainingAttempts) {
@@ -503,6 +524,7 @@ public class MonacoEditorPane extends StackPane {
         if (remainingAttempts <= 0) {
             Object startupErrors = executeScript("JSON.stringify(window.korttyStartupErrors || [])");
             logger.error("Monaco host script did not become ready. Startup errors: {}", startupErrors);
+            notifyHostUnavailable("host script not ready; startupErrors=" + startupErrors);
             return;
         }
         PauseTransition retry = new PauseTransition(HOST_READY_RETRY_DELAY);
