@@ -1,5 +1,11 @@
 = Release Notes
 
+== v2.2.3
+
+=== Critical Fix: Monaco Editors Failed to Load in the Packaged App
+
+The Monaco-based editors (snippet, file, AI, diff, settings, guide) could open to an empty pane in the packaged/notarized macOS app — no caret, no typing, no paste — because the unminified (~27 MB) editor bundle did not finish initializing within the WebView boot-ready timeout. The bundles are now minified and the boot-ready budget was raised, so the editor initializes reliably.
+
 == v2.2.2
 
 === Critical Fix: Crash Opening Monaco Editors

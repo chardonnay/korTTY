@@ -32,6 +32,12 @@ for (const [name, relativeEntry] of Object.entries(workerEntries)) {
     format: "iife",
     platform: "browser",
     target: ["safari15"],
+    // Minify: the unminified Monaco bundle is ~27 MB and the packaged-app WebView cannot parse
+    // it within MonacoEditorPane's boot-ready timeout, so the editor never initializes
+    // (window.korttyMonaco stays undefined → no caret/typing/paste). Minified it is ~1/4 the
+    // size and parses well inside the window. Monaco is designed to ship minified.
+    minify: true,
+    legalComments: "none",
     logLevel: "silent"
   });
   workerSources[name] = await fs.readFile(outfile, "utf8");
@@ -54,6 +60,10 @@ await build({
   loader: {
     ".ttf": "dataurl"
   },
+  // Minify: see the worker build above — the unminified host bundle is ~27 MB and exceeds the
+  // WebView boot-ready timeout in the packaged app, leaving the editor dead (no caret/typing).
+  minify: true,
+  legalComments: "none",
   logLevel: "info"
 });
 
@@ -67,5 +77,9 @@ await build({
   loader: {
     ".ttf": "dataurl"
   },
+  // Minify: see the worker build above — keeps the diff editor's bundle small enough to boot
+  // inside the WebView timeout in the packaged app.
+  minify: true,
+  legalComments: "none",
   logLevel: "info"
 });

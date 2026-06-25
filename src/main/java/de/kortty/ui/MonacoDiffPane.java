@@ -28,7 +28,10 @@ public class MonacoDiffPane extends StackPane {
 
     private static final Logger logger = LoggerFactory.getLogger(MonacoDiffPane.class);
     private static final Gson GSON = new Gson();
-    private static final int HOST_READY_RETRY_COUNT = 200;
+    // ~20 s boot-ready budget: a cold packaged-app WebView parses the bundled Monaco diff script
+    // slower than under `./gradlew run`; the old 5 s budget could time out before the diff host
+    // became ready, leaving an empty diff view. See MonacoEditorPane for the full rationale.
+    private static final int HOST_READY_RETRY_COUNT = 800;
     private static final Duration HOST_READY_RETRY_DELAY = Duration.millis(25);
 
     private final WebView webView = new WebView();

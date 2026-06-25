@@ -47,7 +47,14 @@ public class MonacoEditorPane extends StackPane {
 
     private static final Logger logger = LoggerFactory.getLogger(MonacoEditorPane.class);
     private static final Gson GSON = new Gson();
-    private static final int HOST_READY_RETRY_COUNT = 200;
+    // Boot-ready budget = HOST_READY_RETRY_COUNT * HOST_READY_RETRY_DELAY. This must comfortably
+    // exceed the time the WebView needs to parse + execute the bundled Monaco script and define
+    // window.korttyMonaco. In the notarized/packaged app a cold WebView parses the (now minified)
+    // bundle noticeably slower than under `./gradlew run`; the previous 5 s budget timed out before
+    // korttyMonaco was defined, leaving the editor permanently empty (no caret/typing/paste). The
+    // poll is a cheap one-line executeScript, so a generous ~20 s budget costs nothing on success
+    // and only delays the give-up log on a genuine failure.
+    private static final int HOST_READY_RETRY_COUNT = 800;
     private static final Duration HOST_READY_RETRY_DELAY = Duration.millis(25);
     private static final double UNKNOWN_CARET_X = -1000000000.0;
 
