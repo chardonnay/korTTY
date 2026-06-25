@@ -16,6 +16,10 @@ build/
 .DS_Store
 Thumbs.db
 
+# Python bytecode cache (scripts/ tooling)
+__pycache__/
+*.py[cod]
+
 # Temporary venv for icon generation
 .venv-icon/
 
