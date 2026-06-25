@@ -3,6 +3,22 @@
 Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.
 
+## v2.2.3
+
+### Kritischer Fix: Monaco-Editoren luden im gepackten App nicht
+
+- **Behoben: die Monaco-Editoren (Snippet, Datei, KI, Diff) öffneten sich im
+  gepackten/notarisierten macOS-App als leere Fläche** – kein Cursor, keine
+  Eingabe, kein Einfügen. Im gepackten App lud die WebView ihre Seite aus einer
+  `jar:`-URL, und die Content-Security-Policy der Seite (`script-src 'self'`)
+  blockierte daraufhin die zugehörigen `monaco-host.js`/`.css`, weil ein Dokument
+  mit `jar:`-Origin seine `jar:`-Geschwister nicht autorisiert. Die
+  Monaco-Ressourcen werden jetzt in ein temporäres Verzeichnis entpackt und über
+  eine `file:`-URL geladen, die die CSP erlaubt. Ein fehlgeschlagener
+  Editor-Ladevorgang meldet jetzt außerdem einen Fehler statt einer stummen
+  leeren Fläche, und das Editor-Bundle ist zusätzlich minifiziert mit
+  großzügigerem Boot-Budget.
+
 ## v2.2.2
 
 ### Kritischer Fix: Absturz beim Öffnen der Monaco-Editoren

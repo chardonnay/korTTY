@@ -3,6 +3,20 @@
 The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.
 
+## v2.2.3
+
+### Critical fix: Monaco editors failed to load in the packaged app
+
+- **Fixed the Monaco-based editors (snippet, file, AI, diff) opening to an empty
+  pane in the packaged/notarized macOS app** — no caret, no typing, no paste. In
+  the packaged app the WebView loaded its page from a `jar:` URL, and the page's
+  Content-Security-Policy (`script-src 'self'`) then blocked the editor's own
+  `monaco-host.js`/`.css`, because a `jar:`-origin document does not authorize its
+  `jar:` siblings. The Monaco resources are now extracted to a temp directory and
+  loaded from a `file:` URL, which the CSP allows. A failed editor load now also
+  surfaces an error instead of a silently empty pane, and the editor bundle is
+  additionally minified with a more generous boot budget.
+
 ## v2.2.2
 
 ### Critical fix: crash opening Monaco editors
