@@ -27,7 +27,6 @@ import de.kortty.ui.MasterPasswordDialog;
 import java.awt.Desktop;
 import java.awt.desktop.AppForegroundListener;
 import java.awt.desktop.AppReopenedListener;
-import java.awt.desktop.QuitHandler;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -80,6 +79,7 @@ public class KorTTYApplication extends Application {
     private ScheduledExecutorService logMaintenanceExecutor;
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
+    private volatile boolean shuttingDown = false;
     
     public static void main(String[] args) {
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
@@ -252,11 +252,18 @@ public class KorTTYApplication extends Application {
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
             registerMacDesktopHandlers();
-            if (isMacOs()) {
+            // The AWT Taskbar Dock menu only attaches to a real .app bundle's Dock
+            // tile (not a `./gradlew run` JVM), and initializing AWT there would also
+            // keep a non-daemon thread alive — so restrict it to the packaged app.
+            if (isMacOs() && isPackagedMacApplication()) {
                 de.kortty.ui.MacDockMenu.install();
+                // Always-available control surface for the background (JobScheduler)
+                // app: open a window or quit even when no window is showing and the
+                // native macOS Quit is broken (JDK-8332656).
+                de.kortty.ui.MacMenuBarIcon.install();
             }
             startUpdateCheckService();
-            
+
             logger.info("{} started successfully", APP_NAME);
             
         } catch (Exception e) {
@@ -268,8 +275,39 @@ public class KorTTYApplication extends Application {
     
     @Override
     public void stop() throws Exception {
+        shutdownAndExit();
+    }
+
+    /**
+     * Runs the shutdown cleanup and force-terminates the JVM. Called both from
+     * JavaFX's {@link #stop()} and directly from the quit paths — with
+     * {@code Platform.setImplicitExit(false)} (the packaged macOS keep-alive),
+     * {@code Platform.exit()} does not reliably reach {@code stop()}/the JVM exit,
+     * so the quit handlers call this directly to guarantee the app actually quits.
+     * Idempotent via {@link #shuttingDown}.
+     */
+    public void shutdownAndExit() {
+        performShutdown();
+        // Hard-halt instead of System.exit(0). Once AWT is loaded (the Dock menu &
+        // menu-bar icon pull in the lwawt toolkit), the normal JVM exit sequence runs
+        // the JavaFX + AWT shutdown hooks, which dispose native peers via
+        // LWCToolkit.invokeAndWait on the AppKit *main* thread. JavaFX Glass owns that
+        // thread and never pumps AWT's invocation, so the quit thread blocks forever —
+        // this is the 10-15s "hang" macOS reports when quitting from the Dock/tray menu
+        // (and why the menu-bar Quit appeared to do nothing). performShutdown() has
+        // already flushed all state synchronously, so it is safe to skip the hooks and
+        // terminate the process immediately.
+        Runtime.getRuntime().halt(0);
+    }
+
+    private synchronized void performShutdown() {
+        if (shuttingDown) {
+            return;
+        }
+        shuttingDown = true;
         logger.info("Shutting down {}...", APP_NAME);
-        
+        de.kortty.ui.MacMenuBarIcon.remove();
+
         // Close all SSH sessions first.
         if (sessionManager != null) {
             try {
@@ -333,10 +371,6 @@ public class KorTTYApplication extends Application {
         }
         
         logger.info("{} shutdown complete", APP_NAME);
-        
-        // Force exit to ensure all threads (including non-daemon threads from Apache SSHD) terminate
-        // This prevents the application from hanging after Platform.exit()
-        System.exit(0);
     }
 
     public boolean shouldKeepRunningAfterLastWindowClosed() {
@@ -438,8 +472,14 @@ public class KorTTYApplication extends Application {
             return;
         }
 
+        // Keep the packaged macOS app alive after the last window is closed so the
+        // JobScheduler keeps running scheduled background jobs. Quit is handled
+        // explicitly by korTTY (Cmd+Q scene accelerator, File->Quit, and the Dock
+        // menu's Quit item) ending in System.exit — see shutdownAndExit(). We do NOT
+        // rely on JavaFX/AWT's native Quit: on JavaFX 21.0.2+ (JDK-8332656) Glass owns
+        // the macOS app delegate and the AWT Desktop quit handler never fires.
         Platform.setImplicitExit(false);
-        logger.info("Configured JavaFX implicit exit to keep the packaged macOS app alive after the last window closes");
+        logger.info("Configured JavaFX implicit exit to keep the packaged macOS app alive after the last window closes (JobScheduler keeps running)");
     }
 
     private void registerMacDesktopHandlers() {
@@ -474,18 +514,14 @@ public class KorTTYApplication extends Application {
                     reopenWindowIfNeeded();
                 })
             );
-            desktop.setQuitHandler((QuitHandler) (event, response) -> {
-                logger.info("Received macOS Desktop quit request");
-                boolean hasOpenWindows = MainWindow.hasOpenWindows();
-                if (hasOpenWindows) {
-                    Platform.runLater(MainWindow::requestApplicationQuit);
-                    response.cancelQuit();
-                    return;
-                }
-
-                Platform.runLater(Platform::exit);
-                response.performQuit();
-            });
+            // NOTE: we deliberately do NOT register an AWT Desktop quit handler.
+            // On macOS, JavaFX Glass owns the NSApplication delegate; if an eawt
+            // quit handler is also registered, Glass *defers* the system Quit to it,
+            // but macOS still calls Glass's delegate — so the Quit falls through the
+            // gap and the app cannot be quit (the v2.2.2 Dock-stuck bug). With NO eawt
+            // quit handler and implicit exit enabled, Glass handles Cmd+Q / "Quit
+            // korTTY" itself: it fires each window's close request (so confirmClose()
+            // still runs) and then calls Platform.exit() -> stop() -> shutdownAndExit().
             macDesktopHandlersRegistered = true;
         } catch (UnsupportedOperationException | SecurityException e) {
             logger.warn("Could not configure macOS application lifecycle integration", e);

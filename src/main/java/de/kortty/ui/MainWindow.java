@@ -694,7 +694,7 @@ public class MainWindow {
                     if (applicationQuitRequested) {
                         logger.info("Application quit requested, exiting");
                         clearApplicationQuitState();
-                        Platform.exit();
+                        app.shutdownAndExit();
                         return;
                     }
 
@@ -704,7 +704,7 @@ public class MainWindow {
                     }
 
                     logger.info("Last window closed, exiting application");
-                    Platform.exit();
+                    app.shutdownAndExit();
                 }
             }
         });
@@ -2400,7 +2400,7 @@ public class MainWindow {
         List<MainWindow> windowsToClose = new ArrayList<>(openWindows);
         if (windowsToClose.isEmpty()) {
             applicationQuitRequested = true;
-            Platform.exit();
+            KorTTYApplication.getInstance().shutdownAndExit();
             return;
         }
 
@@ -2443,7 +2443,7 @@ public class MainWindow {
     }
 
     /** Actions invokable from the macOS Dock icon menu (see {@link MacDockMenu}). */
-    public enum DockAction { NEW_WINDOW, NEW_TAB, CONNECTION_MANAGER, OPEN_PROJECT, GUIDE, ABOUT }
+    public enum DockAction { NEW_WINDOW, NEW_TAB, CONNECTION_MANAGER, OPEN_PROJECT, GUIDE, ABOUT, QUIT }
 
     /**
      * Runs a Dock-menu action against the focused (or last) window, marshalling
@@ -2451,6 +2451,13 @@ public class MainWindow {
      */
     public static void runDockAction(DockAction action) {
         Platform.runLater(() -> {
+            // Quit must work even when no window is open (the packaged app keeps
+            // running in the background for the JobScheduler); don't reopen a window
+            // just to quit it.
+            if (action == DockAction.QUIT) {
+                requestApplicationQuit();
+                return;
+            }
             MainWindow window = getFocusedOrLastOpenWindow();
             if (window == null) {
                 reopenOrCreateWindow();

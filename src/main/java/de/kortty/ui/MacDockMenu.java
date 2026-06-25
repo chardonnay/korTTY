@@ -42,6 +42,12 @@ public final class MacDockMenu {
             menu.add(item(I18n.get("menu.help.guide"), MainWindow.DockAction.GUIDE));
             menu.add(item(I18n.get("menu.help.about") + " " + KorTTYApplication.getAppName(),
                     MainWindow.DockAction.ABOUT));
+            menu.addSeparator();
+            // A reliable Quit is essential here: the app keeps running in the
+            // background for the JobScheduler after all windows close, and the native
+            // macOS "Quit korTTY" is broken on JavaFX 21.0.2+ (JDK-8332656). This item
+            // quits korTTY even when no window is open.
+            menu.add(item(I18n.get("menu.file.quit"), MainWindow.DockAction.QUIT));
             taskbar.setMenu(menu);
             logger.info("Installed macOS Dock menu");
         } catch (Throwable t) {
