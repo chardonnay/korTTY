@@ -306,7 +306,7 @@ public class KorTTYApplication extends Application {
         }
         shuttingDown = true;
         logger.info("Shutting down {}...", APP_NAME);
-        de.kortty.ui.MacMenuBarIcon.remove();
+        shutdownStep("remove macOS menu-bar icon", de.kortty.ui.MacMenuBarIcon::remove);
 
         // Close all SSH sessions first.
         if (sessionManager != null) {
