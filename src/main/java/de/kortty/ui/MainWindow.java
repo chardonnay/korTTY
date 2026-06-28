@@ -29,6 +29,8 @@ import de.kortty.core.SessionManager;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SshTtyConnector;
+import de.kortty.core.agent.AgentCommandRunner;
+import de.kortty.core.agent.AgentCommandRunners;
 import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.jobscheduler.ActiveJobSummary;
@@ -1965,7 +1967,8 @@ public class MainWindow {
             
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
+            if (!result.connection().isLocalShell()
+                    && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return; // User cancelled password prompt or no valid password available
             }
@@ -2044,7 +2047,8 @@ public class MainWindow {
             
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
+            if (!result.connection().isLocalShell()
+                    && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return null;
             }
@@ -2086,7 +2090,9 @@ public class MainWindow {
     }
 
     private String ensurePasswordForConnection(ServerConnection connection, String candidatePassword) {
-        if (connection == null || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+        // Local shells run a local process with no authentication; never prompt for a password.
+        if (connection == null || connection.isLocalShell()
+                || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
             return candidatePassword;
         }
 
@@ -2157,12 +2163,18 @@ public class MainWindow {
                 return;
             }
             
+            // Local shells run a local process with no authentication - connect directly.
+            if (conn.isLocalShell()) {
+                openConnection(conn, null);
+                return;
+            }
+
             // SSH key auth does not require a password - connect directly
             if (conn.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
                 openConnection(conn, null);
                 return;
             }
-            
+
             // Non-key connection: ask for password if needed
             String password = getConnectionPassword(conn);
             if (password == null) {
@@ -4883,14 +4895,13 @@ public class MainWindow {
             ? runContext
             : terminalTab.getTerminalView().captureTerminalAgentRunContext();
         if (resolvedContext == null
-            || resolvedContext.connector() == null
-            || !resolvedContext.connector().isConnected()
-            || resolvedContext.connector().getSession() == null) {
+            || !(resolvedContext.connector() instanceof SshTtyConnector connector)
+            || !connector.isConnected()
+            || connector.getSession() == null) {
             showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
             return;
         }
 
-        SshTtyConnector connector = resolvedContext.connector();
         String workingDirectory = resolvedContext.workingDirectory() != null && !resolvedContext.workingDirectory().isBlank()
             ? resolvedContext.workingDirectory()
             : connector.getCurrentRemoteDirectory();
@@ -5452,7 +5463,7 @@ public class MainWindow {
                 terminalTab,
                 profile,
                 aiService,
-                resolvedRunContext != null ? resolvedRunContext.connector() : null,
+                agentRunnerFor(resolvedRunContext),
                 request);
             return;
         }
@@ -5576,7 +5587,7 @@ public class MainWindow {
         activityPanel.beginRun(runId, scopedRequest.userPrompt(), cancelRun, pauseToggle, reloadRun, runMetadata);
         Thread worker = new Thread(() -> {
             try {
-                terminalAgentService.runAgent(terminalTab, resolvedRunContext.connector(), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
+                terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
                         if (state != null && isTerminalAgentFinalPhase(state.phase())) {
@@ -5682,6 +5693,13 @@ public class MainWindow {
         worker.start();
     }
 
+    private AgentCommandRunner agentRunnerFor(TerminalView.TerminalAgentRunContext runContext) {
+        if (runContext == null || runContext.connector() == null) {
+            return null;
+        }
+        return AgentCommandRunners.forConnector(runContext.connector());
+    }
+
     private TerminalView.TerminalAgentRunContext resolveTerminalAgentRunContext(
         TerminalTab terminalTab,
         TerminalView.TerminalAgentRunContext runContext) {
@@ -5780,7 +5798,7 @@ public class MainWindow {
             profile,
             aiService,
             request,
-            planRunContext != null ? planRunContext.connector() : null,
+            agentRunnerFor(planRunContext),
             () -> resolveTerminalAgentPreflightSessionId(terminalTab, request.sessionId(), planRunContext),
             (planRequest, report) -> startAcceptedPlanExecution(terminalTab, profile, planRequest, report, planRunContext));
         insertTemporaryTab(planTab);
@@ -6129,6 +6147,7 @@ public class MainWindow {
         return switch (protocol) {
             case MOSH -> I18n.get("protocol.mosh");
             case MOSH_CLIENT -> I18n.get("protocol.moshClient");
+            case LOCAL_SHELL -> I18n.get("protocol.localShell");
             case SSH_TCP -> I18n.get("protocol.sshTcp");
         };
     }

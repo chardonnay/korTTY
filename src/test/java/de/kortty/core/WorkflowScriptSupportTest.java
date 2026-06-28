@@ -73,6 +73,66 @@ class WorkflowScriptSupportTest {
         assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.POWERSHELL)).contains("$ErrorActionPreference");
         assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.ANSIBLE)).contains("block/rescue/always");
         assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.ANSIBLE)).contains("assert");
+        assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.WINDOWS_CMD)).contains("@echo off");
+        assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.WINDOWS_CMD)).contains("errorlevel");
+        assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.APPLESCRIPT)).contains("on error");
+        assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.APPLESCRIPT)).contains("do shell script");
+    }
+
+    // ---------------------------------------------------------------- Windows-CMD / AppleScript
+
+    @Test
+    void newLanguagesMapAndExposeExpectedTraits() {
+        assertThat(ScriptLanguage.fromId("cmd")).isEqualTo(ScriptLanguage.WINDOWS_CMD);
+        assertThat(ScriptLanguage.fromId("bat")).isEqualTo(ScriptLanguage.WINDOWS_CMD);
+        assertThat(ScriptLanguage.fromId("windows-cmd")).isEqualTo(ScriptLanguage.WINDOWS_CMD);
+        assertThat(ScriptLanguage.fromId("applescript")).isEqualTo(ScriptLanguage.APPLESCRIPT);
+        assertThat(ScriptLanguage.fromId("osascript")).isEqualTo(ScriptLanguage.APPLESCRIPT);
+
+        assertThat(ScriptLanguage.WINDOWS_CMD.fileExtension()).isEqualTo(".cmd");
+        assertThat(ScriptLanguage.WINDOWS_CMD.shebang()).isNull();
+        assertThat(ScriptLanguage.WINDOWS_CMD.leadLine()).isEqualTo("@echo off");
+        assertThat(ScriptLanguage.WINDOWS_CMD.commentPrefix()).isEqualTo("REM");
+
+        assertThat(ScriptLanguage.APPLESCRIPT.fileExtension()).isEqualTo(".applescript");
+        assertThat(ScriptLanguage.APPLESCRIPT.shebang()).isEqualTo("#!/usr/bin/osascript");
+        assertThat(ScriptLanguage.APPLESCRIPT.commentPrefix()).isEqualTo("--");
+    }
+
+    @Test
+    void windowsCmdHeaderGoesAfterEchoOffWithRemComments() {
+        String script = "@echo off\necho hello\n";
+        String out = WorkflowScriptSupport.ensureHeaderInjected(script, ScriptLanguage.WINDOWS_CMD, facts(ScriptLanguage.WINDOWS_CMD));
+        assertThat(out).startsWith("@echo off\n");
+        assertThat(out).contains("REM Script:");
+        assertThat(out).contains("REM Author:");
+        // header sits between @echo off and the body, not echoed to the console
+        assertThat(out.indexOf("REM Script:")).isGreaterThan(out.indexOf("@echo off"));
+        assertThat(out.indexOf("REM Script:")).isLessThan(out.indexOf("echo hello"));
+    }
+
+    @Test
+    void windowsCmdHeaderPrependsEchoOffWhenMissing() {
+        String out = WorkflowScriptSupport.ensureHeaderInjected("dir\n", ScriptLanguage.WINDOWS_CMD, facts(ScriptLanguage.WINDOWS_CMD));
+        assertThat(out).startsWith("@echo off\n");
+        assertThat(out).contains("REM Script:");
+    }
+
+    @Test
+    void appleScriptHeaderUsesDashCommentsAfterShebang() {
+        String script = "#!/usr/bin/osascript\nlog \"hi\"\n";
+        String out = WorkflowScriptSupport.ensureHeaderInjected(script, ScriptLanguage.APPLESCRIPT, facts(ScriptLanguage.APPLESCRIPT));
+        assertThat(out).startsWith("#!/usr/bin/osascript\n");
+        assertThat(out).contains("-- Script:");
+        assertThat(out).contains("-- Author:");
+    }
+
+    @Test
+    void systemPromptForWindowsCmdDemandsEchoOffNotShebang() {
+        String sys = WorkflowScriptSupport.buildSystemPrompt(ScriptLanguage.WINDOWS_CMD, HardeningOption.defaults());
+        assertThat(sys).contains("@echo off");
+        assertThat(sys).doesNotContain("#!/usr/bin/env");
+        assertThat(sys).contains("errorlevel");
     }
 
     // ---------------------------------------------------------------- system / user prompts

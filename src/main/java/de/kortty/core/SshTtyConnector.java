@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
  * TtyConnector implementation for SSH connections using Apache MINA SSHD.
  * This connector integrates with SithTermFX for terminal emulation.
  */
-public class SshTtyConnector implements TtyConnector {
+public class SshTtyConnector implements ObservableTtyConnector {
     
     private static final Logger logger = LoggerFactory.getLogger(SshTtyConnector.class);
     public static final String SHELL_STARTUP_CLEANUP_MARKER = "\u001B]777;korTTY-startup-cleanup\u0007";
@@ -1595,26 +1595,4 @@ public class SshTtyConnector implements TtyConnector {
     }
 
     
-    /**
-     * Listener for data received from the SSH connection.
-     */
-    public interface DataListener {
-        void onData(String data);
-    }
-
-    /**
-     * Listener for outbound terminal input activity. It deliberately receives only a byte count
-     * so features can react to activity without persisting user input text.
-     */
-    public interface InputActivityListener {
-        void onInputActivity(int byteCount);
-    }
-
-    /**
-     * Intercepts outbound terminal input before it is written to the SSH channel.
-     */
-    @FunctionalInterface
-    public interface InputInterceptor {
-        byte[] intercept(byte[] bytes) throws IOException;
-    }
 }

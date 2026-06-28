@@ -19,6 +19,10 @@ import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.ConnectionSettingsSupport;
 import de.kortty.core.Mosh4jTtyConnector;
 import de.kortty.core.SshTtyConnector;
+import de.kortty.core.ObservableTtyConnector;
+import de.kortty.core.LocalShellTtyConnector;
+import de.kortty.core.agent.AgentCommandRunner;
+import de.kortty.core.agent.AgentCommandRunners;
 import de.kortty.core.NativeMoshTtyConnector;
 import de.kortty.core.DisconnectListener;
 import de.kortty.core.TerminalEmulationSupport;
@@ -165,10 +169,10 @@ public class TerminalView extends BorderPane {
 
     public record TerminalAgentRunContext(
         @Nullable SithTermFxWidget widget,
-        SshTtyConnector connector,
+        ObservableTtyConnector connector,
         @Nullable String workingDirectory) {
 
-        public TerminalAgentRunContext(@Nullable SithTermFxWidget widget, SshTtyConnector connector) {
+        public TerminalAgentRunContext(@Nullable SithTermFxWidget widget, ObservableTtyConnector connector) {
             this(widget, connector, null);
         }
     }
@@ -257,12 +261,14 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, AiAgentActivityTabsPanel> terminalAgentActivityPanels = new ConcurrentHashMap<>();
     // Fired when the set of terminal widgets changes (split opened/closed) so a side dock can rebuild.
     private Runnable onWidgetSetChanged;
+    // Fired when the user requests closing the tab from within the terminal (e.g. Ctrl+D on a local cmd/PowerShell).
+    private Runnable onCloseTabRequest;
     // One terminal/split widget can host several concurrent agent runs, keyed by runId.
     private final Map<SithTermFxWidget, Map<String, TerminalAgentRunState>> terminalAgentRunStates = new ConcurrentHashMap<>();
-    private SshTtyConnector.DataListener terminalLoggerDataListener;
-    private final Map<SshTtyConnector, SshTtyConnector.DataListener> terminalAgentPromptDataListeners = new ConcurrentHashMap<>();
+    private ObservableTtyConnector.DataListener terminalLoggerDataListener;
+    private final Map<SshTtyConnector, ObservableTtyConnector.DataListener> terminalAgentPromptDataListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> terminalRecordingModelListeners = new ConcurrentHashMap<>();
-    private final Map<SshTtyConnector, SshTtyConnector.InputActivityListener> terminalRecordingInputListeners = new ConcurrentHashMap<>();
+    private final Map<ObservableTtyConnector, ObservableTtyConnector.InputActivityListener> terminalRecordingInputListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
     private final StringBuilder agentShortcutPromptTail = new StringBuilder();
     private final Map<SshTtyConnector, StringBuilder> terminalAgentOscBuffers = new ConcurrentHashMap<>();
@@ -479,6 +485,20 @@ public class TerminalView extends BorderPane {
                     return;
                 }
             }
+            // Ctrl+D closes the tab for local cmd.exe/PowerShell shells, which (unlike bash and SSH)
+            // do not exit on EOF. Elsewhere Ctrl+D stays EOF so it reaches the shell/program normally.
+            if (event.getCode() == KeyCode.D && event.isControlDown()
+                && !event.isAltDown() && !event.isShiftDown() && !event.isMetaDown()) {
+                SithTermFxWidget focused = eventWidget != null ? eventWidget : splitPane.getFocusedWidget();
+                TtyConnector focusedConnector = focused != null ? focused.getTtyConnector() : null;
+                if (ctrlDShouldCloseTab(focusedConnector)) {
+                    event.consume();
+                    if (onCloseTabRequest != null) {
+                        onCloseTabRequest.run();
+                    }
+                    return;
+                }
+            }
             String sequence = keyCodeToControlSequence(event.getCode());
             if (sequence != null) {
                 SithTermFxWidget focused = eventWidget != null ? eventWidget : splitPane.getFocusedWidget();
@@ -504,7 +524,26 @@ public class TerminalView extends BorderPane {
                 e.consume();
             }
         });
-        
+
+        // Ctrl + mouse wheel (Cmd on macOS) zooms the terminal font instead of scrolling the buffer.
+        // Filter runs before the terminal panel's own scroll handling, so we consume to suppress scrollback.
+        splitPane.addEventFilter(javafx.scene.input.ScrollEvent.SCROLL, e -> {
+            if (!(e.isControlDown() || e.isShortcutDown())) {
+                return;
+            }
+            double dy = e.getDeltaY();
+            if (dy == 0) {
+                dy = e.getDeltaX();
+            }
+            if (dy > 0) {
+                zoom(1);
+                e.consume();
+            } else if (dy < 0) {
+                zoom(-1);
+                e.consume();
+            }
+        });
+
         terminalContainer = new StackPane(splitPane);
         setCenter(terminalContainer);
 
@@ -594,17 +633,17 @@ public class TerminalView extends BorderPane {
             return null;
         }
         TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
-        if (connector instanceof SshTtyConnector sshConnector && sshConnector.isConnected()) {
-            return createTerminalAgentRunContext(widget, sshConnector, null);
+        if (connector instanceof ObservableTtyConnector agentConnector && agentConnector.isConnected()) {
+            return createTerminalAgentRunContext(widget, agentConnector, null);
         }
         return null;
     }
 
-    private @Nullable TerminalAgentRunContext createTerminalAgentRunContext(SshTtyConnector connector) {
+    private @Nullable TerminalAgentRunContext createTerminalAgentRunContext(ObservableTtyConnector connector) {
         return createTerminalAgentRunContext(connector, null);
     }
 
-    private @Nullable TerminalAgentRunContext createTerminalAgentRunContext(SshTtyConnector connector, @Nullable String workingDirectory) {
+    private @Nullable TerminalAgentRunContext createTerminalAgentRunContext(ObservableTtyConnector connector, @Nullable String workingDirectory) {
         if (connector == null || !connector.isConnected()) {
             return null;
         }
@@ -613,7 +652,7 @@ public class TerminalView extends BorderPane {
 
     private TerminalAgentRunContext createTerminalAgentRunContext(
         @Nullable SithTermFxWidget widget,
-        SshTtyConnector connector,
+        ObservableTtyConnector connector,
         @Nullable String workingDirectory) {
 
         String promptDirectory = resolveWorkingDirectoryFromPrompt(widget, connector);
@@ -624,7 +663,7 @@ public class TerminalView extends BorderPane {
         return new TerminalAgentRunContext(widget, connector, directory);
     }
 
-    private @Nullable String resolveWorkingDirectoryFromPrompt(@Nullable SithTermFxWidget widget, SshTtyConnector connector) {
+    private @Nullable String resolveWorkingDirectoryFromPrompt(@Nullable SithTermFxWidget widget, ObservableTtyConnector connector) {
         try {
             String screenLines = widget != null && widget.getTerminalTextBuffer() != null
                 ? widget.getTerminalTextBuffer().getScreenLines()
@@ -650,7 +689,7 @@ public class TerminalView extends BorderPane {
         return candidates.length > 0 ? candidates[candidates.length - 1] : null;
     }
 
-    private @Nullable SithTermFxWidget findWidgetForConnector(SshTtyConnector connector) {
+    private @Nullable SithTermFxWidget findWidgetForConnector(TtyConnector connector) {
         if (connector == null || splitPane == null) {
             return null;
         }
@@ -746,7 +785,7 @@ public class TerminalView extends BorderPane {
 
     public String buildTerminalAgentScopedSessionId(String sessionId, @Nullable TerminalAgentRunContext runContext) {
         String baseSessionId = sessionId != null && !sessionId.isBlank() ? sessionId : "terminal-agent";
-        SshTtyConnector connector = runContext != null ? runContext.connector() : null;
+        ObservableTtyConnector connector = runContext != null ? runContext.connector() : null;
         return connector != null
             ? baseSessionId + ":" + Integer.toHexString(System.identityHashCode(connector))
             : baseSessionId;
@@ -1013,8 +1052,13 @@ public class TerminalView extends BorderPane {
     }
 
     private void sendTerminalAgentShellKeepAlive(TerminalAgentRunState state) {
-        SshTtyConnector sshConnector = state != null && state.runContext != null ? state.runContext.connector() : null;
-        if (sshConnector == null) {
+        ObservableTtyConnector agentConnector = state != null && state.runContext != null ? state.runContext.connector() : null;
+        if (agentConnector == null) {
+            stopTerminalAgentShellKeepAlive(state);
+            return;
+        }
+        // Shell keep-alive only applies to SSH channels; local shells need none.
+        if (!(agentConnector instanceof SshTtyConnector sshConnector)) {
             stopTerminalAgentShellKeepAlive(state);
             return;
         }
@@ -1239,6 +1283,51 @@ public class TerminalView extends BorderPane {
         return ttyConnector instanceof SshTtyConnector sshConnector ? sshConnector : null;
     }
 
+    /**
+     * The active connector usable by the AI agent (SSH or local shell). Unlike
+     * {@link #getActiveSshConnector()} this also returns local-shell connectors.
+     */
+    public ObservableTtyConnector getActiveAgentConnector() {
+        TtyConnector focusedConnector = getFocusedConnector();
+        if (focusedConnector instanceof ObservableTtyConnector agentConnector) {
+            return agentConnector;
+        }
+        return ttyConnector instanceof ObservableTtyConnector agentConnector ? agentConnector : null;
+    }
+
+    /** Builds an {@link AgentCommandRunner} for the active connector (SSH or local), or null. */
+    public AgentCommandRunner createActiveAgentRunner() {
+        return AgentCommandRunners.forConnector(getActiveAgentConnector());
+    }
+
+    /** Sets the handler invoked when the terminal requests its tab be closed (e.g. Ctrl+D on cmd/PowerShell). */
+    public void setOnCloseTabRequest(Runnable onCloseTabRequest) {
+        this.onCloseTabRequest = onCloseTabRequest;
+    }
+
+    /**
+     * True when Ctrl+D should close the tab instead of sending EOF: only for local cmd.exe/PowerShell
+     * shells, which do not exit on EOF. Bash-family local shells (Git Bash/Cygwin/WSL), $SHELL, custom
+     * commands, and SSH/Mosh keep Ctrl+D as the normal EOF control character.
+     */
+    private boolean ctrlDShouldCloseTab(TtyConnector connector) {
+        TtyConnector base = unwrapTerminalEffectConnector(connector);
+        if (!(base instanceof LocalShellTtyConnector local) || !local.isConnected()) {
+            return false;
+        }
+        String command = local.getConnection() != null ? local.getConnection().getLocalShellCommand() : null;
+        String exe;
+        if (command == null || command.isBlank()) {
+            // Default local shell: PowerShell on Windows, $SHELL (EOF-honoring) elsewhere.
+            exe = LocalShellTtyConnector.isWindows() ? "powershell.exe" : "";
+        } else {
+            java.util.List<String> tokens = de.kortty.model.ServerConnection.tokenizeLocalShellCommand(command);
+            exe = tokens.isEmpty() ? "" : tokens.get(0)
+                .replace('\\', '/').replaceAll(".*/", "").toLowerCase(java.util.Locale.ROOT);
+        }
+        return exe.contains("cmd") || exe.contains("powershell") || exe.contains("pwsh");
+    }
+
     public int getRecordingWidgetCount() {
         if (splitPane != null) {
             return splitPane.getWidgetCount();
@@ -1272,7 +1361,7 @@ public class TerminalView extends BorderPane {
             }
         }
         terminalRecordingModelListeners.clear();
-        for (Map.Entry<SshTtyConnector, SshTtyConnector.InputActivityListener> entry : terminalRecordingInputListeners.entrySet()) {
+        for (Map.Entry<ObservableTtyConnector, ObservableTtyConnector.InputActivityListener> entry : terminalRecordingInputListeners.entrySet()) {
             entry.getKey().removeInputActivityListener(entry.getValue());
         }
         terminalRecordingInputListeners.clear();
@@ -1306,14 +1395,14 @@ public class TerminalView extends BorderPane {
     private void installTerminalRecordingInputListener(TtyConnector connector) {
         TerminalRecordingSession session = terminalRecordingSession;
         TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
-        if (session == null || !(baseConnector instanceof SshTtyConnector sshConnector)) {
+        if (session == null || !(baseConnector instanceof ObservableTtyConnector observableConnector)) {
             return;
         }
-        if (!isTerminalRecordingConnectorInScope(sshConnector)) {
+        if (!isTerminalRecordingConnectorInScope(observableConnector)) {
             return;
         }
-        terminalRecordingInputListeners.computeIfAbsent(sshConnector, key -> {
-            SshTtyConnector.InputActivityListener listener = byteCount -> {
+        terminalRecordingInputListeners.computeIfAbsent(observableConnector, key -> {
+            ObservableTtyConnector.InputActivityListener listener = byteCount -> {
                 if (terminalRecordingSession == session && isTerminalRecordingConnectorInScope(key)) {
                     session.recordUserInputActivity();
                 }
@@ -1331,7 +1420,7 @@ public class TerminalView extends BorderPane {
             || terminalRecordingTargetWidgets.contains(widget);
     }
 
-    private boolean isTerminalRecordingConnectorInScope(SshTtyConnector connector) {
+    private boolean isTerminalRecordingConnectorInScope(ObservableTtyConnector connector) {
         if (connector == null || terminalRecordingSession == null) {
             return false;
         }
@@ -1591,7 +1680,7 @@ public class TerminalView extends BorderPane {
         logger.debug("Installed terminal AI SSH input interceptor (widgetBound={})", widget != null);
     }
 
-    private SshTtyConnector.DataListener getTerminalAgentPromptDataListener(SshTtyConnector connector) {
+    private ObservableTtyConnector.DataListener getTerminalAgentPromptDataListener(SshTtyConnector connector) {
         return terminalAgentPromptDataListeners.computeIfAbsent(
             connector,
             sourceConnector -> data -> recordAgentShortcutPromptSignal(sourceConnector, data));
@@ -1947,6 +2036,8 @@ public class TerminalView extends BorderPane {
                 );
             }
             connector = nativeMosh;
+        } else if (targetConnection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
+            connector = new LocalShellTtyConnector(targetConnection);
         } else {
             SshTtyConnector sshConnector = new SshTtyConnector(targetConnection, targetPassword);
             if (targetConnection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
@@ -1971,6 +2062,9 @@ public class TerminalView extends BorderPane {
         if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
             return nativeMoshConnector.connect();
         }
+        if (connector instanceof LocalShellTtyConnector localShellConnector) {
+            return localShellConnector.connect();
+        }
         if (connector instanceof SshTtyConnector sshConnector) {
             return sshConnector.connect();
         }
@@ -1992,6 +2086,10 @@ public class TerminalView extends BorderPane {
         }
         if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
             nativeMoshConnector.setDisconnectListener(listener);
+            return;
+        }
+        if (connector instanceof LocalShellTtyConnector localShellConnector) {
+            localShellConnector.setDisconnectListener(listener);
             return;
         }
         if (connector instanceof SshTtyConnector sshConnector) {
@@ -4423,14 +4521,14 @@ public class TerminalView extends BorderPane {
             terminalLogger = new de.kortty.core.TerminalLogger(logConfig, connection.getDisplayName());
             terminalLogger.start();
             
-            // Register data listener to capture terminal output
-            if (ttyConnector instanceof SshTtyConnector sshConnector) {
+            // Register data listener to capture terminal output (SSH or local shell)
+            if (ttyConnector instanceof ObservableTtyConnector observableConnector) {
                 terminalLoggerDataListener = data -> {
                     if (terminalLogger != null) {
                         terminalLogger.log(data);
                     }
                 };
-                sshConnector.addDataListener(terminalLoggerDataListener);
+                observableConnector.addDataListener(terminalLoggerDataListener);
             }
             
             logger.info("Terminal logging started for {}", connection.getDisplayName());
@@ -4449,9 +4547,9 @@ public class TerminalView extends BorderPane {
             terminalLogger = null;
             logger.info("Terminal logging stopped for {}", connection.getDisplayName());
         }
-        if (ttyConnector instanceof SshTtyConnector sshConnector) {
+        if (ttyConnector instanceof ObservableTtyConnector observableConnector) {
             if (terminalLoggerDataListener != null) {
-                sshConnector.removeDataListener(terminalLoggerDataListener);
+                observableConnector.removeDataListener(terminalLoggerDataListener);
                 terminalLoggerDataListener = null;
             }
         }

@@ -334,6 +334,16 @@ public class MonacoEditorPane extends StackPane {
         executeWhenReady("window.korttyMonaco.setFont(" + jsString(this.fontFamily) + "," + this.fontSize + ");");
     }
 
+    /** Current editor font size in points. */
+    public int getFontSize() {
+        return fontSize;
+    }
+
+    /** Sets the editor font size (keeps the current font family). */
+    public void setFontSize(int fontSize) {
+        setFont(this.fontFamily, fontSize);
+    }
+
     public void setThemeColors(String foregroundColor, String backgroundColor) {
         this.foregroundColor = normalizeColor(foregroundColor, "#d4d4d4");
         this.backgroundColor = normalizeColor(backgroundColor, "#1e1e1e");

@@ -1,8 +1,8 @@
 package de.kortty.ui;
 
 import de.kortty.core.AiPromptService;
-import de.kortty.core.SshTtyConnector;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.model.TerminalAgentModels;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -102,7 +102,7 @@ public class AiAgentRunTab extends Tab {
         TerminalTab terminalTab,
         de.kortty.model.AiProfile profile,
         AiPromptService aiService,
-        SshTtyConnector connector,
+        AgentCommandRunner runner,
         TerminalAgentModels.Request request) {
         startedAt = Instant.now();
         elapsedTimeline.playFromStart();
@@ -111,7 +111,7 @@ public class AiAgentRunTab extends Tab {
 
         workerThread = new Thread(() -> {
             try {
-                service.runAgent(terminalTab, connector, profile, aiService, request, new TabRunUi());
+                service.runAgent(terminalTab, runner, profile, aiService, request, new TabRunUi());
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     if (cancelled.get() || TerminalAgentService.isCancellation(e)) {

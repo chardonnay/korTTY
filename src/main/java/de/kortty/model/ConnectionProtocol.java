@@ -6,5 +6,7 @@ package de.kortty.model;
 public enum ConnectionProtocol {
     SSH_TCP,
     MOSH,
-    MOSH_CLIENT
+    MOSH_CLIENT,
+    /** Local shell (no network): spawns a PTY-backed cmd.exe/PowerShell or $SHELL. */
+    LOCAL_SHELL
 }

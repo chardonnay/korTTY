@@ -1,6 +1,6 @@
 = KorTTY - SSH Client
 
-*v2.2.3* — A modern SSH client with JavaFX interface, tabbed terminals, SFTP tooling, background job scheduling, and OpenAI-compatible AI assistance.
+*v2.2.3* — A modern SSH client with JavaFX interface, tabbed terminals, local-shell sessions (Windows cmd/PowerShell or your `$SHELL`), SFTP tooling, background job scheduling, and OpenAI-compatible AI assistance.
 
 == Architecture Overview
 
@@ -12,7 +12,8 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 
 * *GUI-based*: Modern JavaFX interface with refreshed KorTTY logo, dark login screen, and selectable app-wide designs
 * *Tab Support*: Multiple SSH connections in one window
-* *Font Size Adjustment*: Zoom in/out in running terminal (Alt+Plus, Alt+Minus; on macOS also Cmd). Reset (Alt+0) restores the connection's font size and family (or the font at tab open).
+* *Local Shell*: Open the local machine's shell in a terminal tab (no network) — Windows PowerShell or `cmd.exe`, or your `$SHELL` on macOS/Linux, plus a free-form command for `pwsh.exe`, `wsl.exe`, Git Bash, etc. Selectable as a protocol in Quick Connect and the Connection Manager; the AI Agent, AI Planning, AI selection actions, terminal logging, and recording all work for local shells too
+* *Font Size Adjustment*: Zoom in/out in running terminal (Alt+Plus, Alt+Minus; on macOS also Cmd) or with *Ctrl + mouse wheel* (Cmd + wheel on macOS). Reset (Alt+0) restores the connection's font size and family (or the font at tab open).
 * *Split-Screen with Broadcast*: Split terminal view and broadcast input to all panes
 * *Multi-Window*: Open multiple windows for different projects; drag tabs between windows to move sessions (including split terminals)
 * *Encrypted Passwords*: AES-256-GCM encryption with master password
@@ -229,7 +230,7 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 | | Graphviz `dot` for local PlantUML rendering | external
 |===
 
-SithTermFX is built from source (see <<#sithtermfx-integration,SithTermFX Integration>>). mosh4j JARs are bundled in release builds so Mosh works without a first-run download. mosh4j `2.0.2` is a security-hardened release (replay/freshness protection, decompression limits). Its dynamically loaded classpath ships with Bouncy Castle `bcprov-jdk18on` `1.84` and `protobuf-java` `4.35.1` (the version mosh4j's generated DTOs are compiled against). The GitHub release tag is `v2.0.2` while the artifact files remain versioned `2.0.2`.
+SithTermFX is built from source (see <<#sithtermfx-integration,SithTermFX Integration>>). pty4j backs both the native Mosh client and the <<#local-shell,Local Shell>> feature (spawning `cmd.exe`/PowerShell or `$SHELL` in a local PTY). mosh4j JARs are bundled in release builds so Mosh works without a first-run download. mosh4j `2.0.2` is a security-hardened release (replay/freshness protection, decompression limits). Its dynamically loaded classpath ships with Bouncy Castle `bcprov-jdk18on` `1.84` and `protobuf-java` `4.35.1` (the version mosh4j's generated DTOs are compiled against). The GitHub release tag is `v2.0.2` while the artifact files remain versioned `2.0.2`.
 
 == Create Native Release
 
@@ -490,6 +491,7 @@ Adjust the font size of the active terminal without reconnecting:
 
 * *Alt+Plus* (or *Ctrl+Plus* on some systems): Zoom in (increase font size)
 * *Alt+Minus* (or *Ctrl+Minus*): Zoom out (decrease font size)
+* *Ctrl + mouse wheel* (Cmd + wheel on macOS): Zoom in (wheel up) / out (wheel down) over the terminal instead of scrolling the buffer
 * *Alt+0* (or *Ctrl+0*): Reset zoom to the connection's saved font size and family (or the font that was active when you opened the tab)
 
 The zoom level applies to the currently focused terminal tab. The same reset is available via the terminal context menu (*Font size → Reset*).
@@ -515,6 +517,7 @@ Useful for running the same commands on multiple servers at once.
 | Ctrl+T | New Tab
 | Ctrl+Shift+N | New Window
 | Ctrl+W | Close Tab
+| Ctrl+D | EOF (closes EOF-aware shells); closes a local cmd.exe/PowerShell tab
 | Ctrl+Tab | Next Tab
 | Ctrl+Shift+Tab | Previous Tab
 | Ctrl+O | Open Project
@@ -574,9 +577,31 @@ All configuration files are stored under `~/.kortty/`:
 
 == Connection Flow
 
-The following sequence diagram shows how a connection is established (SSH or Mosh).
+The following sequence diagram shows how a connection is established (SSH, Mosh, or a local shell). A local shell skips host resolution, authentication, and transport handshake — KorTTY spawns a local PTY process directly and feeds its stream into the same terminal pipeline.
 
 image::app-docs/diagrams/connection-flow.svg[Connection flow,align=center]
+
+== Local Shell
+
+In addition to SSH and Mosh, KorTTY can open the *local machine's shell* directly in a terminal tab — no network connection is made. This is handy for quick local commands without leaving the app.
+
+=== Features
+
+* *No network*: KorTTY spawns the shell in a local pseudo-terminal (PTY) via pty4j; there is no host, port, or authentication.
+* *Shell choice*: On Windows, choose *PowerShell* (default), *cmd.exe*, and — when detected on the machine — *Git Bash*, *Cygwin*, and *WSL* (Windows Subsystem for Linux, listed only when at least one distribution is installed); on macOS/Linux the default is your `$SHELL` (falling back to `/bin/zsh` or `/bin/bash`). A free-form *Custom command* field accepts any executable with arguments, e.g. `pwsh.exe`, `wsl.exe -d Ubuntu`, or a full path (quote paths that contain spaces).
+* *Start directory*: Optionally set a working directory for the shell; otherwise the process default / home directory is used.
+* *Full terminal features*: Resize, colors, terminal effects, terminal logging, and terminal recording all work the same as for remote sessions.
+* *AI for local shells*: The AI selection actions (Summarize/Solve/Ask), the *AI Agent*, and *AI Planning* all work in local shells. The agent runs its commands locally in the connection's shell — PowerShell or `cmd.exe` on Windows, your `$SHELL` on macOS/Linux — and is told the platform so it generates native commands.
+* *Saved or ad-hoc*: Use it as a one-off from Quick Connect, or save it in the Connection Manager like any other connection.
+
+=== Usage
+
+1. *Quick Connect* (`Ctrl/Cmd+K`) or *Connections → Manage Connections → New*.
+2. Set *Protocol* to *Local Shell*. The host/port/username/authentication fields are disabled because they do not apply.
+3. Choose the *Shell* (PowerShell, cmd.exe, and — when installed — *Git Bash*, *Cygwin*, *WSL*, or *Custom command…*) and, if custom, enter the command. Optionally set a *Start directory*.
+4. Connect. The shell opens in a new terminal tab; closing the shell (e.g. `exit`) ends the session.
+
+NOTE: Local-shell AI Agent limitations: there is no `sudo`/administrator elevation on Windows (admin-only commands will fail), and the agent runs in the connection's start directory without live working-directory tracking (Windows shells emit no OSC 7). The JobScheduler's headless AI-agent action remains SSH-only.
 
 == Import from Other Programs
 
@@ -708,6 +733,7 @@ KorTTY provides a quick connection dialog with a live search field for fast acce
 * *Frequently Used Connections*: Shows top 10 most frequently used connections as quick-access buttons
 * *Live Search*: Case-insensitive search field with glob pattern support (`*`) filters saved connections in real time
 * *Individual Connection*: Connect to a single server with full configuration options
+* *Local Shell*: Pick *Local Shell* as the protocol to open the local machine's shell instead of a remote host; choose PowerShell, `cmd.exe`, or a custom command and an optional start directory (host/port/authentication are not required)
 * *Group Connection*: Open all connections in a selected group at once
 * *Connection History*: Tracks usage count and last used timestamp
 * *Save New Connections*: Option to save new connections directly from the dialog
@@ -985,7 +1011,7 @@ The agent is designed for non-interactive SSH automation. It may inspect files, 
 
 === Generate Workflow Script
 
-After a finished agent run, a *Workflow* button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time) injected by the application. The generator:
+After a finished agent run, a *Workflow* button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Windows-CMD, AppleScript, Ansible playbook) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time) injected by the application. The generator:
 
 * Auto-loads matching AI Skills (e.g. a language-quality skill)
 * Can produce several language variants and multiple suggestions as inline tabs

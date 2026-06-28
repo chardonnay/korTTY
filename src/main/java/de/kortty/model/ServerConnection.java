@@ -40,7 +40,19 @@ public class ServerConnection {
 
     @XmlElement
     private ConnectionProtocol protocol = ConnectionProtocol.SSH_TCP;
-    
+
+    /**
+     * For LOCAL_SHELL connections: the shell executable/command to run
+     * (e.g. "powershell.exe", "cmd.exe", "pwsh.exe", or a full path with arguments).
+     * Null = auto-pick the OS default shell.
+     */
+    @XmlElement
+    private String localShellCommand;
+
+    /** For LOCAL_SHELL connections: optional starting directory. Null = process default / home. */
+    @XmlElement
+    private String localShellWorkingDirectory;
+
     @XmlElement
     private ConnectionSettings settings;
     
@@ -279,7 +291,28 @@ public class ServerConnection {
     public void setProtocol(ConnectionProtocol protocol) {
         this.protocol = protocol != null ? protocol : ConnectionProtocol.SSH_TCP;
     }
-    
+
+    /** True when this connection runs a local shell (no network) instead of SSH/Mosh. */
+    public boolean isLocalShell() {
+        return getProtocol() == ConnectionProtocol.LOCAL_SHELL;
+    }
+
+    public String getLocalShellCommand() {
+        return localShellCommand;
+    }
+
+    public void setLocalShellCommand(String localShellCommand) {
+        this.localShellCommand = localShellCommand;
+    }
+
+    public String getLocalShellWorkingDirectory() {
+        return localShellWorkingDirectory;
+    }
+
+    public void setLocalShellWorkingDirectory(String localShellWorkingDirectory) {
+        this.localShellWorkingDirectory = localShellWorkingDirectory;
+    }
+
     public ConnectionSettings getSettings() {
         return settings;
     }
@@ -334,7 +367,48 @@ public class ServerConnection {
         if (name != null && !name.isBlank()) {
             return name;
         }
+        if (isLocalShell()) {
+            return localShellDisplayLabel();
+        }
         return username + "@" + host;
+    }
+
+    /**
+     * Human-readable label for a local-shell connection with no explicit name:
+     * the configured shell's base name, or a generic fallback.
+     */
+    public String localShellDisplayLabel() {
+        java.util.List<String> tokens = tokenizeLocalShellCommand(localShellCommand);
+        if (!tokens.isEmpty()) {
+            String baseName = tokens.get(0)
+                .replace('\\', '/')
+                .replaceAll(".*/", "");
+            if (!baseName.isBlank()) {
+                return baseName;
+            }
+        }
+        return "Local Shell";
+    }
+
+    /**
+     * Splits a local-shell command line into program + arguments, honoring double quotes so that
+     * executable paths containing spaces (e.g. {@code "C:\Program Files\Git\bin\bash.exe" --login -i})
+     * are kept intact. Unquoted runs of non-space characters become individual tokens.
+     */
+    public static java.util.List<String> tokenizeLocalShellCommand(String command) {
+        java.util.List<String> tokens = new java.util.ArrayList<>();
+        if (command == null || command.isBlank()) {
+            return tokens;
+        }
+        java.util.regex.Matcher matcher =
+            java.util.regex.Pattern.compile("\"([^\"]*)\"|(\\S+)").matcher(command.trim());
+        while (matcher.find()) {
+            String token = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            if (token != null && !token.isEmpty()) {
+                tokens.add(token);
+            }
+        }
+        return tokens;
     }
     
     /**
