@@ -326,51 +326,67 @@ public class KorTTYApplication extends Application {
             logger.error("Failed to save configuration", e);
         }
         
-        // Save GPG keys and credentials
-        try {
-            if (gpgKeyManager != null) {
-                gpgKeyManager.save();
-            }
-            if (credentialManager != null) {
-                credentialManager.save();
-            }
-            if (sshKeyManager != null) {
-                sshKeyManager.save();
-            }
-            if (snippetManager != null) {
-                snippetManager.save();
-            }
-            if (snippetVariableManager != null) {
-                snippetVariableManager.save();
-            }
-            if (aiChatManager != null) {
-                aiChatManager.save();
-            }
-            if (globalSettingsManager != null) {
-                globalSettingsManager.save();
-            }
-            if (teamworkRecycleBinService != null) {
-                teamworkRecycleBinService.save();
-            }
-            if (teamworkSyncService != null) {
-                teamworkSyncService.stop();
-            }
-            if (jobSchedulerService != null) {
-                jobSchedulerService.shutdownSchedulerThreads();
-            }
-            if (updateCheckService != null) {
-                updateCheckService.stop();
-                updateCheckService = null;
-            }
-            if (logMaintenanceExecutor != null) {
-                logMaintenanceExecutor.shutdownNow();
-                logMaintenanceExecutor = null;
-            }
-        } catch (Exception e) {
-            logger.error("Failed to save GPG keys or credentials", e);
+        // Save remaining state and stop background services. Each step is
+        // independent and individually guarded: Runtime.halt(0) (in shutdownAndExit)
+        // skips the JVM shutdown hooks, so this is the only chance to flush state —
+        // one manager failing must not skip the remaining saves/stops.
+        if (gpgKeyManager != null) {
+            shutdownStep("save GPG keys", gpgKeyManager::save);
         }
-        
+        if (credentialManager != null) {
+            shutdownStep("save credentials", credentialManager::save);
+        }
+        if (sshKeyManager != null) {
+            shutdownStep("save SSH keys", sshKeyManager::save);
+        }
+        if (snippetManager != null) {
+            shutdownStep("save snippets", snippetManager::save);
+        }
+        if (snippetVariableManager != null) {
+            shutdownStep("save snippet variables", snippetVariableManager::save);
+        }
+        if (aiChatManager != null) {
+            shutdownStep("save AI chats", aiChatManager::save);
+        }
+        if (globalSettingsManager != null) {
+            shutdownStep("save global settings", globalSettingsManager::save);
+        }
+        if (teamworkRecycleBinService != null) {
+            shutdownStep("save teamwork recycle bin", teamworkRecycleBinService::save);
+        }
+        if (teamworkSyncService != null) {
+            shutdownStep("stop teamwork sync", teamworkSyncService::stop);
+        }
+        if (jobSchedulerService != null) {
+            shutdownStep("stop job scheduler", jobSchedulerService::shutdownSchedulerThreads);
+        }
+        if (updateCheckService != null) {
+            shutdownStep("stop update check", updateCheckService::stop);
+            updateCheckService = null;
+        }
+        if (logMaintenanceExecutor != null) {
+            shutdownStep("stop log maintenance", logMaintenanceExecutor::shutdownNow);
+            logMaintenanceExecutor = null;
+        }
+
         logger.info("{} shutdown complete", APP_NAME);
+    }
+
+    /**
+     * Runs one independent shutdown step, swallowing and logging any failure so the
+     * remaining steps still run before {@link #shutdownAndExit()} hard-halts the JVM.
+     */
+    private void shutdownStep(String description, ShutdownAction action) {
+        try {
+            action.run();
+        } catch (Exception e) {
+            logger.error("Shutdown step failed: {}", description, e);
+        }
+    }
+
+    @FunctionalInterface
+    private interface ShutdownAction {
+        void run() throws Exception;
     }
 
     public boolean shouldKeepRunningAfterLastWindowClosed() {
