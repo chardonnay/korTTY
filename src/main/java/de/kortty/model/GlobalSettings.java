@@ -251,6 +251,10 @@ public class GlobalSettings {
     @XmlElement
     private Integer aiResultFontSize = 13;
 
+    /** Font size used in the Workflow script-generation window's editors. */
+    @XmlElement
+    private Integer workflowScriptFontSize = 14;
+
     /** When false, AI menu entries and terminal AI context actions are disabled. Default: enabled. */
     @XmlElement
     private boolean aiFeaturesEnabled = true;
@@ -1129,6 +1133,14 @@ public class GlobalSettings {
 
     public void setAiResultFontSize(Integer aiResultFontSize) {
         this.aiResultFontSize = aiResultFontSize;
+    }
+
+    public Integer getWorkflowScriptFontSize() {
+        return workflowScriptFontSize;
+    }
+
+    public void setWorkflowScriptFontSize(Integer workflowScriptFontSize) {
+        this.workflowScriptFontSize = workflowScriptFontSize;
     }
 
     public String getAiCodeTextDefaultLanguage() {

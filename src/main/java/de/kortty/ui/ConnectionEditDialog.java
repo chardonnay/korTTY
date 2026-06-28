@@ -71,6 +71,21 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private TextArea temporaryKeyArea;
     private Spinner<Integer> temporaryKeyExpirationSpinner;
     private CheckBox temporaryKeyPermanentCheck;
+
+    // Local shell (LOCAL_SHELL protocol) controls
+    private static final String SHELL_POWERSHELL = "powershell.exe";
+    private static final String SHELL_CMD = "cmd.exe";
+    private static final String SHELL_GIT_BASH = "__gitbash__";
+    private static final String SHELL_CYGWIN = "__cygwin__";
+    private static final String SHELL_WSL = "__wsl__";
+    private static final String SHELL_CUSTOM = "__custom__";
+    /** Resolved launch commands for optional Windows shells, or null when not on Windows / not installed. */
+    private final String gitBashCommand = de.kortty.core.LocalShellTtyConnector.findWindowsGitBashCommand();
+    private final String cygwinCommand = de.kortty.core.LocalShellTtyConnector.findWindowsCygwinCommand();
+    private final String wslCommand = de.kortty.core.LocalShellTtyConnector.findWindowsWslCommand();
+    private ComboBox<String> shellPresetCombo;
+    private TextField customShellCommandField;
+    private TextField shellWorkingDirField;
     
     // Connection-specific settings
     private CheckBox useCustomSettingsCheck;
@@ -172,7 +187,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         portSpinner.setPrefWidth(80);
 
         protocolCombo = new ComboBox<>();
-        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT);
+        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT, ConnectionProtocol.LOCAL_SHELL);
         protocolCombo.setValue(connection.getProtocol());
         protocolCombo.setCellFactory(lv -> new ListCell<>() {
             @Override
@@ -363,6 +378,36 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         connectionGrid.add(new Label(I18n.get("connEdit.protocol")), 0, row);
         connectionGrid.add(protocolCombo, 1, row++);
 
+        // Local shell controls (only relevant for LOCAL_SHELL protocol)
+        shellPresetCombo = new ComboBox<>();
+        shellPresetCombo.getItems().add(SHELL_POWERSHELL);
+        shellPresetCombo.getItems().add(SHELL_CMD);
+        if (gitBashCommand != null) {
+            shellPresetCombo.getItems().add(SHELL_GIT_BASH);
+        }
+        if (cygwinCommand != null) {
+            shellPresetCombo.getItems().add(SHELL_CYGWIN);
+        }
+        if (wslCommand != null) {
+            shellPresetCombo.getItems().add(SHELL_WSL);
+        }
+        shellPresetCombo.getItems().add(SHELL_CUSTOM);
+        shellPresetCombo.setButtonCell(shellPresetListCell());
+        shellPresetCombo.setCellFactory(lv -> shellPresetListCell());
+        customShellCommandField = new TextField();
+        customShellCommandField.setPromptText(I18n.get("connEdit.shellCommandPrompt"));
+        shellWorkingDirField = new TextField();
+        shellWorkingDirField.setPromptText(I18n.get("connEdit.shellWorkingDirPrompt"));
+        loadLocalShellSelection();
+        shellPresetCombo.valueProperty().addListener((obs, oldVal, newVal) -> updateLocalShellFields());
+
+        connectionGrid.add(new Label(I18n.get("connEdit.shell")), 0, row);
+        connectionGrid.add(shellPresetCombo, 1, row++);
+        connectionGrid.add(new Label(I18n.get("connEdit.shellCommand")), 0, row);
+        connectionGrid.add(customShellCommandField, 1, row++);
+        connectionGrid.add(new Label(I18n.get("connEdit.shellWorkingDir")), 0, row);
+        connectionGrid.add(shellWorkingDirField, 1, row++);
+
         connectionGrid.add(new Label(I18n.get("connEdit.terminalEmulation")), 0, row);
         connectionGrid.add(terminalEmulationCombo, 1, row++);
         
@@ -475,6 +520,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (keyAuthRadio != null) keyAuthRadio.selectedProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
         if (temporaryKeyAuthRadio != null) temporaryKeyAuthRadio.selectedProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
         if (temporaryKeyArea != null) temporaryKeyArea.textProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
+        protocolCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            updateLocalShellFields();
+            validateForm(saveButton);
+        });
+        updateLocalShellFields();
         validateForm(saveButton);
         
         // Result converter
@@ -491,6 +541,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 connection.setPort(portSpinner.getValue());
                 connection.setUsername(getUsernameText.isEmpty() ? "root" : getUsernameText);
                 connection.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : ConnectionProtocol.SSH_TCP);
+                if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
+                    connection.setLocalShellCommand(effectiveShellCommand());
+                    String workingDir = shellWorkingDirField.getText() != null ? shellWorkingDirField.getText().trim() : "";
+                    connection.setLocalShellWorkingDirectory(workingDir.isEmpty() ? null : workingDir);
+                }
                 connection.setTerminalEmulationType(TerminalEmulationSupport.storedValue(
                     TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo)));
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
@@ -895,9 +950,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     }
     
     private void validateForm(Button saveButton) {
+        boolean localShell = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
         String hostText = hostField.getText();
-        boolean valid = hostText != null && !hostText.trim().isEmpty();
-        if (valid && connection.isTeamworkConnection()) {
+        // Local shells have no host; everything else requires a non-empty host.
+        boolean valid = localShell || (hostText != null && !hostText.trim().isEmpty());
+        if (valid && !localShell && connection.isTeamworkConnection()) {
             boolean hasCred = passwordAuthRadio != null && passwordAuthRadio.isSelected()
                 && savedCredentialsCombo != null && savedCredentialsCombo.getValue() != null;
             boolean hasKey = keyAuthRadio != null && keyAuthRadio.isSelected() && savedSSHKeysCombo != null && savedSSHKeysCombo.getValue() != null;
@@ -1445,7 +1502,150 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (protocol == ConnectionProtocol.MOSH_CLIENT) {
             return I18n.get("protocol.moshClient");
         }
+        if (protocol == ConnectionProtocol.LOCAL_SHELL) {
+            return I18n.get("protocol.localShell");
+        }
         return I18n.get("protocol.sshTcp");
+    }
+
+    /** Renders a shell-preset item: friendly labels for the presets, i18n label for "custom". */
+    private ListCell<String> shellPresetListCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else if (SHELL_CUSTOM.equals(item)) {
+                    setText(I18n.get("connEdit.shell.custom"));
+                } else if (SHELL_POWERSHELL.equals(item)) {
+                    setText(I18n.get("connEdit.shell.powershell"));
+                } else if (SHELL_CMD.equals(item)) {
+                    setText(I18n.get("connEdit.shell.cmd"));
+                } else if (SHELL_GIT_BASH.equals(item)) {
+                    setText(I18n.get("connEdit.shell.gitbash"));
+                } else if (SHELL_CYGWIN.equals(item)) {
+                    setText(I18n.get("connEdit.shell.cygwin"));
+                } else if (SHELL_WSL.equals(item)) {
+                    setText(I18n.get("connEdit.shell.wsl"));
+                } else {
+                    setText(item);
+                }
+            }
+        };
+    }
+
+    /** Initializes the shell controls from the connection's stored localShellCommand. */
+    private void loadLocalShellSelection() {
+        String command = connection.getLocalShellCommand();
+        if (command == null || command.isBlank()) {
+            shellPresetCombo.setValue(SHELL_POWERSHELL);
+        } else if (SHELL_POWERSHELL.equalsIgnoreCase(command.trim())) {
+            shellPresetCombo.setValue(SHELL_POWERSHELL);
+        } else if (SHELL_CMD.equalsIgnoreCase(command.trim())) {
+            shellPresetCombo.setValue(SHELL_CMD);
+        } else if (gitBashCommand != null && isGitBashCommand(command)) {
+            shellPresetCombo.setValue(SHELL_GIT_BASH);
+        } else if (cygwinCommand != null && isCygwinCommand(command)) {
+            shellPresetCombo.setValue(SHELL_CYGWIN);
+        } else if (wslCommand != null && isWslCommand(command)) {
+            shellPresetCombo.setValue(SHELL_WSL);
+        } else {
+            shellPresetCombo.setValue(SHELL_CUSTOM);
+            customShellCommandField.setText(command);
+        }
+        if (connection.getLocalShellWorkingDirectory() != null) {
+            shellWorkingDirField.setText(connection.getLocalShellWorkingDirectory());
+        }
+    }
+
+    /** True if the stored command is a Git Bash launch (matches the detected one or a git bash.exe path). */
+    private boolean isGitBashCommand(String command) {
+        if (command == null) {
+            return false;
+        }
+        String trimmed = command.trim();
+        if (gitBashCommand != null && gitBashCommand.equalsIgnoreCase(trimmed)) {
+            return true;
+        }
+        String lower = trimmed.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("bash.exe") && (lower.contains("\\git\\") || lower.contains("/git/"));
+    }
+
+    /** True if the stored command is a Cygwin launch (matches the detected one or a cygwin bash.exe path). */
+    private boolean isCygwinCommand(String command) {
+        if (command == null) {
+            return false;
+        }
+        String trimmed = command.trim();
+        if (cygwinCommand != null && cygwinCommand.equalsIgnoreCase(trimmed)) {
+            return true;
+        }
+        String lower = trimmed.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("cygwin") && lower.contains("bash.exe");
+    }
+
+    /** True if the stored command launches {@code wsl.exe}. */
+    private boolean isWslCommand(String command) {
+        java.util.List<String> tokens = de.kortty.model.ServerConnection.tokenizeLocalShellCommand(command);
+        if (tokens.isEmpty()) {
+            return false;
+        }
+        String exe = tokens.get(0).replace('\\', '/').replaceAll(".*/", "").toLowerCase(java.util.Locale.ROOT);
+        return exe.equals("wsl.exe") || exe.equals("wsl");
+    }
+
+    /** The shell command to persist: the selected preset, or the custom field when "custom". */
+    private String effectiveShellCommand() {
+        String preset = shellPresetCombo.getValue();
+        if (SHELL_CUSTOM.equals(preset)) {
+            String custom = customShellCommandField.getText() != null ? customShellCommandField.getText().trim() : "";
+            return custom.isEmpty() ? null : custom;
+        }
+        if (SHELL_GIT_BASH.equals(preset)) {
+            return gitBashCommand;
+        }
+        if (SHELL_CYGWIN.equals(preset)) {
+            return cygwinCommand;
+        }
+        if (SHELL_WSL.equals(preset)) {
+            return wslCommand;
+        }
+        return preset;
+    }
+
+    /** Enables shell fields and disables SSH fields for LOCAL_SHELL, and vice-versa. */
+    private void updateLocalShellFields() {
+        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+
+        shellPresetCombo.setDisable(!local);
+        shellWorkingDirField.setDisable(!local);
+        customShellCommandField.setDisable(!local || !SHELL_CUSTOM.equals(shellPresetCombo.getValue()));
+
+        hostField.setDisable(local);
+        portSpinner.setDisable(local);
+        usernameField.setDisable(local);
+        passwordAuthRadio.setDisable(local);
+        keyAuthRadio.setDisable(local);
+        if (temporaryKeyAuthRadio != null) {
+            temporaryKeyAuthRadio.setDisable(local);
+        }
+        if (local) {
+            passwordField.setDisable(true);
+            savedCredentialsCombo.setDisable(true);
+            savedSSHKeysCombo.setDisable(true);
+            keyPathField.setDisable(true);
+            browseKeyButton.setDisable(true);
+            keyPassphraseField.setDisable(true);
+            if (temporaryKeyArea != null) {
+                temporaryKeyArea.setDisable(true);
+                temporaryKeyExpirationSpinner.setDisable(true);
+                temporaryKeyPermanentCheck.setDisable(true);
+            }
+        } else {
+            // Restore auth-driven enablement of the credential/key fields.
+            updateAuthFields();
+        }
     }
     
     private Tab createGeometryTab() {

@@ -9,10 +9,11 @@ import com.google.gson.JsonSyntaxException;
 import de.kortty.model.AgentActionCategory;
 import de.kortty.model.AiProfile;
 import de.kortty.model.TerminalAgentModels;
+import de.kortty.core.agent.AgentCommandRunner;
+import de.kortty.core.agent.AgentCommandRunner.ExecResult;
+import de.kortty.core.agent.AgentCommandRunner.ShellKind;
 import de.kortty.ui.TerminalTab;
 import de.kortty.ui.TerminalView;
-import org.apache.sshd.client.channel.ChannelExec;
-import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,28 +148,27 @@ public class TerminalAgentService {
 
     public TerminalAgentModels.ProbeSnapshot probeTerminalSession(
         TerminalTab terminalTab,
-        SshTtyConnector connector) throws Exception {
-        return probeTerminalSession(terminalTab, connector, null);
+        AgentCommandRunner runner) throws Exception {
+        return probeTerminalSession(terminalTab, runner, null);
     }
 
     private TerminalAgentModels.ProbeSnapshot probeTerminalSession(
         TerminalTab terminalTab,
-        SshTtyConnector connector,
+        AgentCommandRunner runner,
         BooleanSupplier cancellationSupplier) throws Exception {
-        SshTtyConnector resolvedConnector = requireConnector(terminalTab, connector);
-        ExecResult result = execInternal(terminalTab, resolvedConnector, buildProbeCommand(), null, null, cancellationSupplier, true);
-        if (result.exitCode() != 0 && isMissingTrackedWorkingDirectory(result.stderr(), resolvedConnector.getCurrentRemoteDirectory())) {
+        AgentCommandRunner resolvedRunner = requireRunner(terminalTab, runner);
+        ExecResult result = resolvedRunner.runProbe(true, cancellationSupplier);
+        if (result.exitCode() != 0 && resolvedRunner.indicatesMissingTrackedWorkingDirectory(result.stderr())) {
             logger.warn(
-                "Tracked terminal working directory '{}' is not available for the probe; retrying from the SSH default directory.",
-                resolvedConnector.getCurrentRemoteDirectory());
-            result = execInternal(terminalTab, resolvedConnector, buildProbeCommand(), null, null, cancellationSupplier, false);
+                "Tracked terminal working directory '{}' is not available for the probe; retrying from the default directory.",
+                resolvedRunner.currentWorkingDirectory());
+            result = resolvedRunner.runProbe(false, cancellationSupplier);
         }
         if (result.exitCode() != 0) {
             throw new IllegalStateException("Terminal probe failed: " + trimToSingleLine(result.stderr()));
         }
         TerminalAgentModels.ProbeSnapshot probe = parseProbeOutput(result.stdout());
-        resolvedConnector.updateHomeRemoteDirectoryHint(probe.homeDir());
-        resolvedConnector.updateCurrentRemoteDirectoryHint(probe.currentDir());
+        resolvedRunner.updateDirectoryHints(probe.homeDir(), probe.currentDir());
         return probe;
     }
 
@@ -297,17 +297,17 @@ public class TerminalAgentService {
 
     public void runAgent(
         TerminalTab terminalTab,
-        SshTtyConnector connector,
+        AgentCommandRunner runner,
         AiProfile profile,
         AiPromptService aiService,
         TerminalAgentModels.Request request,
         RunUi ui) throws Exception {
-        runAgent(terminalTab, connector, profile, aiService, request, UUID.randomUUID().toString(), ui);
+        runAgent(terminalTab, runner, profile, aiService, request, UUID.randomUUID().toString(), ui);
     }
 
     public void runAgent(
         TerminalTab terminalTab,
-        SshTtyConnector connector,
+        AgentCommandRunner runner,
         AiProfile profile,
         AiPromptService aiService,
         TerminalAgentModels.Request request,
@@ -325,13 +325,13 @@ public class TerminalAgentService {
         String sessionId = request.sessionId();
         CachedSudoPassword cachedPassword = null;
         try {
-            TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, connector);
+            TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, runner);
             List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
             boolean confirmMutatingCommandSets = request.confirmMutatingCommandSets();
             boolean approvalBypass = !confirmMutatingCommandSets && request.autoApproveRootCommands();
             cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
 
-            if (tryRunFileTypeCountRequest(terminalTab, connector, request, probe, ui, runId)) {
+            if (tryRunFileTypeCountRequest(terminalTab, runner, request, probe, ui, runId)) {
                 return;
             }
 
@@ -478,7 +478,7 @@ public class TerminalAgentService {
                                 commandActivityStarted = true;
                             }
 
-                            execResult = exec(terminalTab, connector, commandToRun, stdin, chunk -> {
+                            execResult = exec(terminalTab, runner, commandToRun, stdin, chunk -> {
                                 if (chunk == null || chunk.isEmpty()) {
                                     return;
                                 }
@@ -521,7 +521,7 @@ public class TerminalAgentService {
                     if (decision.needsReprobe()) {
                         String reprobeId = runId + ":reprobe:" + turn;
                         publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Refreshing server state.", null, 0L);
-                        probe = probeTerminalSession(terminalTab, connector, ui::isCancelled);
+                        probe = probeTerminalSession(terminalTab, runner, ui::isCancelled);
                         publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.COMPLETED, "Inspect(SSH session)", "Server state refreshed.", summarizeProbe(probe), 0L);
                     }
                 }
@@ -597,7 +597,7 @@ public class TerminalAgentService {
 
     private boolean tryRunFileTypeCountRequest(
         TerminalTab terminalTab,
-        SshTtyConnector connector,
+        AgentCommandRunner runner,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
         RunUi ui,
@@ -633,7 +633,7 @@ public class TerminalAgentService {
         publishCommandActivity(ui, activityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
         ui.appendTranscript("\n$ " + planned.command() + "\n");
 
-        ExecResult execResult = exec(terminalTab, connector, command, null, chunk -> {
+        ExecResult execResult = exec(terminalTab, runner, command, null, chunk -> {
             if (chunk == null || chunk.isEmpty()) {
                 return;
             }
@@ -877,7 +877,7 @@ public class TerminalAgentService {
 
     public boolean verifyAndCacheSudoPassword(
         TerminalTab terminalTab,
-        SshTtyConnector connector,
+        AgentCommandRunner runner,
         String sessionId,
         TerminalAgentModels.PasswordResponse passwordResponse,
         BooleanSupplier cancellationSupplier) throws Exception {
@@ -897,7 +897,7 @@ public class TerminalAgentService {
         byte[] stdin = cachedPassword.toUtf8Line();
         boolean stored = false;
         try {
-            ExecResult result = exec(terminalTab, connector, "sudo -S -p '' -v", stdin, null, cancellationSupplier);
+            ExecResult result = exec(terminalTab, runner, "sudo -S -p '' -v", stdin, null, cancellationSupplier);
             if (result.exitCode() == 0) {
                 CachedSudoPassword previous = cachedSudoPasswordBySessionId.put(sessionId, cachedPassword);
                 stored = true;
@@ -937,7 +937,7 @@ public class TerminalAgentService {
         String runId,
         TerminalAgentModels.Request request,
         TerminalTab terminalTab,
-        SshTtyConnector connector) throws Exception {
+        AgentCommandRunner runner) throws Exception {
         ui.updateState(new TerminalAgentModels.RunState(
             runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.STARTING,
             "Starting terminal agent run.", request.userPrompt(), null, null, null, 0));
@@ -947,7 +947,7 @@ public class TerminalAgentService {
             "Inspecting the connected server.", "Collecting the current server state.", null, null, null, 0));
         String probeId = runId + ":probe";
         publishAction(ui, probeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Collecting the current server state.", null, 0L);
-        TerminalAgentModels.ProbeSnapshot probe = probeTerminalSession(terminalTab, connector, ui::isCancelled);
+        TerminalAgentModels.ProbeSnapshot probe = probeTerminalSession(terminalTab, runner, ui::isCancelled);
         publishAction(ui, probeId, TerminalAgentModels.AgentActivityStatus.COMPLETED, "Inspect(SSH session)", "Collected the current server state.", summarizeProbe(probe), 0L);
         return probe;
     }
@@ -961,7 +961,7 @@ public class TerminalAgentService {
         boolean sudoPasswordCached,
         RunUi ui,
         String runId) throws Exception {
-        String systemPrompt = buildAgentSystemPrompt(request.queryOnly());
+        String systemPrompt = buildAgentSystemPrompt(request.queryOnly(), probe);
         String userPrompt = buildAgentUserPrompt(request, probe, history, turn, sudoPasswordCached);
         String thinkingId = runId + ":thinking:" + turn;
         long startedAtNanos = System.nanoTime();
@@ -2062,126 +2062,36 @@ public class TerminalAgentService {
     }
 
     private ExecResult exec(TerminalTab terminalTab, String command, byte[] stdin) throws Exception {
-        return exec(terminalTab, command, stdin, null, null);
+        return exec(terminalTab, (AgentCommandRunner) null, command, stdin, null, null);
     }
 
     private ExecResult exec(TerminalTab terminalTab, String command, byte[] stdin, java.util.function.Consumer<String> outputConsumer) throws Exception {
-        return exec(terminalTab, command, stdin, outputConsumer, null);
+        return exec(terminalTab, (AgentCommandRunner) null, command, stdin, outputConsumer, null);
     }
 
     private ExecResult exec(
         TerminalTab terminalTab,
-        SshTtyConnector connector,
+        AgentCommandRunner runner,
         String command,
         byte[] stdin,
         java.util.function.Consumer<String> outputConsumer,
         BooleanSupplier cancellationSupplier) throws Exception {
-        return execInternal(terminalTab, connector, command, stdin, outputConsumer, cancellationSupplier);
+        return requireRunner(terminalTab, runner).exec(command, stdin, outputConsumer, cancellationSupplier, true);
     }
 
-    private ExecResult exec(
-        TerminalTab terminalTab,
-        String command,
-        byte[] stdin,
-        java.util.function.Consumer<String> outputConsumer,
-        BooleanSupplier cancellationSupplier) throws Exception {
-        return execInternal(terminalTab, null, command, stdin, outputConsumer, cancellationSupplier);
-    }
-
-    private ExecResult execInternal(
-        TerminalTab terminalTab,
-        SshTtyConnector connector,
-        String command,
-        byte[] stdin,
-        java.util.function.Consumer<String> outputConsumer,
-        BooleanSupplier cancellationSupplier) throws Exception {
-        return execInternal(terminalTab, connector, command, stdin, outputConsumer, cancellationSupplier, true);
-    }
-
-    private ExecResult execInternal(
-        TerminalTab terminalTab,
-        SshTtyConnector connector,
-        String command,
-        byte[] stdin,
-        java.util.function.Consumer<String> outputConsumer,
-        BooleanSupplier cancellationSupplier,
-        boolean useTrackedWorkingDirectory) throws Exception {
-        connector = requireConnector(terminalTab, connector);
-        String commandToExecute = useTrackedWorkingDirectory
-            ? wrapCommandForWorkingDirectory(command, connector.getCurrentRemoteDirectory())
-            : command;
-        try (ChannelExec channel = connector.getSession().createExecChannel(commandToExecute)) {
-            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-            channel.setOut(stdout);
-            channel.setErr(stderr);
-            if (stdin != null && stdin.length > 0) {
-                channel.setIn(new ByteArrayInputStream(stdin));
-                channel.open().verify(COMMAND_OPEN_TIMEOUT);
-            } else {
-                channel.open().verify(COMMAND_OPEN_TIMEOUT);
-            }
-            boolean timedOut = waitForCommand(channel, cancellationSupplier);
-            String stdoutText = stdout.toString(StandardCharsets.UTF_8);
-            String stderrText = stderr.toString(StandardCharsets.UTF_8);
-            if (outputConsumer != null) {
-                if (!stdoutText.isBlank()) {
-                    outputConsumer.accept(stdoutText);
-                    if (!stdoutText.endsWith("\n")) {
-                        outputConsumer.accept("\n");
-                    }
-                }
-                if (!stderrText.isBlank()) {
-                    outputConsumer.accept(stderrText);
-                    if (!stderrText.endsWith("\n")) {
-                        outputConsumer.accept("\n");
-                    }
-                }
-            }
-            Integer exitStatus = channel.getExitStatus();
-            return new ExecResult(stdoutText, stderrText, exitStatus != null ? exitStatus : -1, false, timedOut);
-        }
-    }
-
-    private boolean waitForCommand(ChannelExec channel, BooleanSupplier cancellationSupplier) throws Exception {
-        long deadlineNanos = System.nanoTime() + COMMAND_WAIT_TIMEOUT.toNanos();
-        while (true) {
-            if ((cancellationSupplier != null && cancellationSupplier.getAsBoolean()) || Thread.currentThread().isInterrupted()) {
-                channel.close(false);
-                throw new AgentCancelledException("Terminal agent run cancelled");
-            }
-            long remainingNanos = deadlineNanos - System.nanoTime();
-            if (remainingNanos <= 0L) {
-                channel.close(false);
-                return true;
-            }
-            long waitMillis = Math.min(250L, Math.max(1L, TimeUnit.NANOSECONDS.toMillis(remainingNanos)));
-            Set<ClientChannelEvent> events = channel.waitFor(EnumSet.of(ClientChannelEvent.CLOSED), waitMillis);
-            if (events.contains(ClientChannelEvent.CLOSED)) {
-                return false;
-            }
-        }
-    }
-
-    private SshTtyConnector requireConnector(TerminalTab terminalTab) {
-        return requireConnector(terminalTab, null);
-    }
-
-    private SshTtyConnector requireConnector(TerminalTab terminalTab, SshTtyConnector connector) {
-        TerminalView terminalView = terminalTab.getTerminalView();
+    private AgentCommandRunner requireRunner(TerminalTab terminalTab, AgentCommandRunner runner) {
+        TerminalView terminalView = terminalTab != null ? terminalTab.getTerminalView() : null;
         if (terminalView == null) {
-            throw new IllegalStateException("The selected SSH session is not connected.");
+            throw new IllegalStateException("No connected terminal is active.");
         }
-        if (connector == null) {
-            connector = terminalView.getActiveSshConnector();
+        AgentCommandRunner resolved = runner != null ? runner : terminalView.createActiveAgentRunner();
+        if (resolved == null || !resolved.isConnected()) {
+            throw new IllegalStateException("No connected terminal is active.");
         }
-        if (connector == null || connector.getSession() == null) {
-            throw new IllegalStateException("The selected SSH session is not connected.");
-        }
-        return connector;
+        return resolved;
     }
 
-    static String wrapCommandForWorkingDirectory(String command, String workingDirectory) {
+    public static String wrapCommandForWorkingDirectory(String command, String workingDirectory) {
         if (command == null || command.isBlank()) {
             return command;
         }
@@ -2201,7 +2111,7 @@ public class TerminalAgentService {
         return "cd " + shellSingleQuote(normalizedDirectory) + " && " + command;
     }
 
-    static boolean isMissingTrackedWorkingDirectory(String stderr, String workingDirectory) {
+    public static boolean isMissingTrackedWorkingDirectory(String stderr, String workingDirectory) {
         if (stderr == null || stderr.isBlank() || workingDirectory == null || workingDirectory.isBlank()) {
             return false;
         }
@@ -2532,10 +2442,20 @@ public class TerminalAgentService {
             """;
     }
 
-    private String buildAgentSystemPrompt(boolean queryOnly) {
+    private static boolean isWindowsProbe(TerminalAgentModels.ProbeSnapshot probe) {
+        if (probe == null) {
+            return false;
+        }
+        String os = probe.osRelease() != null ? probe.osRelease().toLowerCase(Locale.ROOT) : "";
+        String shell = probe.shell() != null ? probe.shell().toLowerCase(Locale.ROOT) : "";
+        return os.contains("windows") || shell.contains("powershell") || shell.contains("cmd");
+    }
+
+    private String buildAgentSystemPrompt(boolean queryOnly, TerminalAgentModels.ProbeSnapshot probe) {
+        boolean windows = isWindowsProbe(probe);
         if (queryOnly) {
             return String.join(" ",
-                "You are KorTTY's non-executing SSH helper.",
+                "You are KorTTY's non-executing terminal helper.",
                 "Reply with exactly one JSON object and nothing else.",
                 "Do not use Markdown, code fences, comments, or explanations outside the JSON object.",
                 "Never invent facts. Only use the provided probe snapshot and previous command results.",
@@ -2545,14 +2465,45 @@ public class TerminalAgentService {
                 "When `status` is `done`, `userMessage` MUST be the complete answer to the user's question, including the concrete results/data (e.g. the requested counts, values, or list) — not a meta-description like 'Provided X'.",
                 "JSON schema: {\"status\":\"done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"complete answer for the user, including the actual results/data\",\"commands\":[],\"needsReprobe\":false}");
         }
+        if (windows) {
+            boolean cmd = probe != null && probe.shell() != null
+                && probe.shell().toLowerCase(Locale.ROOT).contains("cmd");
+            String shellName = cmd ? "Windows cmd.exe" : "Windows PowerShell";
+            String writeGuidance = cmd
+                ? "To create or rewrite a file, write its COMPLETE intended contents in one command (e.g. redirect with `>` or use `echo`/`type`); do not perform fragile in-place edits."
+                : "To create or rewrite a file — especially structured files such as YAML, JSON, INI, or scripts — write the COMPLETE intended contents in one command using `Set-Content`/`Out-File` with a single-quoted here-string (`@'` ... newline ... `'@`). Do NOT perform fragile in-place regex edits of structured files.";
+            return String.join(" ",
+                "You are the planner for a LOCAL " + shellName + " automation helper on the user's own machine.",
+                "Reply with exactly one JSON object and nothing else.",
+                "Do not use Markdown, code fences, comments, or explanations outside the JSON object.",
+                "Never invent facts. Only use the provided probe snapshot and command results.",
+                "You may suggest at most 3 commands.",
+                "All commands must be valid, non-interactive " + shellName + " commands that never wait for user input.",
+                "Each command runs in its own fresh non-interactive shell starting from the working directory in `probe.currentDir`; do not rely on `cd`/`Set-Location` persisting to later commands.",
+                "When the user asks to create or save a file and does not specify an absolute path, create it in `probe.currentDir`.",
+                writeGuidance,
+                "NEVER claim that a file was created, written, saved, or modified unless you actually issued the command that does so in THIS response.",
+                "There is NO sudo/root/administrator elevation available. Never use `sudo`, `su`, or `runas`. If a task requires administrator rights, set `status` to `blocked` and explain why.",
+                "If the task is complete, set `status` to `done`.",
+                "If previous command results already answer the user task, set `status` to `done` instead of planning more commands.",
+                "For read-only inventory, counting, or classification tasks, prefer one aggregate command and finish once its output contains the requested data.",
+                "If the task cannot be completed with the known facts or needs unavailable privileges, set `status` to `blocked`.",
+                "If commands would change the system, use `needs_confirmation`.",
+                "Allowed `status` values: `run_commands`, `needs_confirmation`, `done`, `blocked`.",
+                "Allowed `risk` values for each command: `read_only`, `requires_confirmation`.",
+                "Always include BOTH a non-empty `summary` (one short line) and a non-empty `userMessage` in every response.",
+                "When `status` is `done`, `userMessage` MUST be the complete answer to the user's task, including the concrete results/data found copied from the command output — not a meta-description like 'Provided X'.",
+                "Exception: for tasks that create, modify, or migrate files, keep `userMessage` to a SHORT confirmation that names the resulting file path(s); do NOT paste the file's contents into `userMessage`.",
+                "JSON schema: {\"status\":\"run_commands|needs_confirmation|done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"complete answer for the user, including the actual results/data\",\"commands\":[{\"command\":\"shell command\",\"purpose\":\"why this command is needed\",\"risk\":\"read_only|requires_confirmation\"}],\"needsReprobe\":false}");
+        }
         return String.join(" ",
-            "You are the planner for a remote SSH terminal automation helper.",
+            "You are the planner for a terminal automation helper.",
             "Reply with exactly one JSON object and nothing else.",
             "Do not use Markdown, code fences, comments, or explanations outside the JSON object.",
             "Never invent facts. Only use the provided probe snapshot and command results.",
             "You may suggest at most 3 commands.",
-            "All commands must be non-interactive and safe to run over SSH without user input.",
-            "Each command runs in its own non-interactive SSH exec channel from the active terminal working directory in `probe.currentDir`; do not rely on `cd` persisting to later commands.",
+            "All commands must be non-interactive and safe to run without user input.",
+            "Each command runs in its own non-interactive shell from the working directory in `probe.currentDir`; do not rely on `cd` persisting to later commands.",
             "When the user asks to create or save a file and does not specify an absolute path, create it in `probe.currentDir`.",
             "To create, rewrite or migrate a file — especially structured files such as YAML, JSON, INI, or scripts — write the COMPLETE intended file contents in one command using a quoted here-document (`cat > 'path' <<'EOF'` ... newline ... `EOF`). Do NOT edit such files in place with `sed`/`awk` regex substitutions; in-place regex edits are fragile and easily corrupt indentation or structure. Use `sed`/`awk` only for reading or extracting text, never for rewriting structured files.",
             "NEVER claim that a file was created, written, saved, or modified unless you actually issued the command that does so in THIS response. To create or modify a file you MUST put the writing command (e.g. the `cat > 'path' <<'EOF'` here-document) in `commands` with status `run_commands` or `needs_confirmation`. Do NOT set status `done` while only describing the intended file contents — that would report work that never happened.",
@@ -2833,8 +2784,6 @@ public class TerminalAgentService {
     record FileTypeCounts(long total, long plainText, long binaryOrNonText) {
     }
 
-    private record ExecResult(String stdout, String stderr, int exitCode, boolean cancelled, boolean timedOut) {
-    }
 
     private static final class CachedSudoPassword {
         private char[] value;

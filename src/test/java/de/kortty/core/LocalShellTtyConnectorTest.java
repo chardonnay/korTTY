@@ -1,0 +1,113 @@
+package de.kortty.core;
+
+import de.kortty.model.ConnectionProtocol;
+import org.testng.annotations.Test;
+
+import java.util.List;
+import java.util.Locale;
+
+import static com.google.common.truth.Truth.assertThat;
+
+class LocalShellTtyConnectorTest {
+
+    @Test
+    void resolveShellCommandUsesConfiguredCommandWhenPresent() {
+        assertThat(LocalShellTtyConnector.resolveShellCommand("powershell.exe"))
+            .containsExactly("powershell.exe");
+        assertThat(LocalShellTtyConnector.resolveShellCommand("cmd.exe"))
+            .containsExactly("cmd.exe");
+    }
+
+    @Test
+    void resolveShellCommandSplitsArgumentsOnWhitespace() {
+        assertThat(LocalShellTtyConnector.resolveShellCommand("wsl.exe -d Ubuntu"))
+            .containsExactly("wsl.exe", "-d", "Ubuntu")
+            .inOrder();
+    }
+
+    @Test
+    void resolveShellCommandKeepsQuotedPathWithSpacesIntact() {
+        // Git Bash lives at a path with spaces; the quoted path must stay one token, args separate.
+        assertThat(LocalShellTtyConnector.resolveShellCommand("\"C:\\Program Files\\Git\\bin\\bash.exe\" --login -i"))
+            .containsExactly("C:\\Program Files\\Git\\bin\\bash.exe", "--login", "-i")
+            .inOrder();
+    }
+
+    @Test
+    void resolveShellCommandFallsBackToOsDefaultWhenBlank() {
+        List<String> fromNull = LocalShellTtyConnector.resolveShellCommand(null);
+        List<String> fromBlank = LocalShellTtyConnector.resolveShellCommand("   ");
+        assertThat(fromNull).isNotEmpty();
+        assertThat(fromBlank).isEqualTo(fromNull);
+        assertThat(fromNull).isEqualTo(LocalShellTtyConnector.defaultShellCommand());
+    }
+
+    @Test
+    void defaultShellCommandIsPowerShellOnWindows() {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        if (windows) {
+            assertThat(LocalShellTtyConnector.defaultShellCommand()).containsExactly("powershell.exe");
+        } else {
+            // On non-Windows the default must still be a single, non-blank command token.
+            assertThat(LocalShellTtyConnector.defaultShellCommand()).hasSize(1);
+            assertThat(LocalShellTtyConnector.defaultShellCommand().get(0)).isNotEmpty();
+        }
+    }
+
+    @Test
+    void connectRejectsNonLocalShellProtocol() {
+        de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
+        connection.setProtocol(ConnectionProtocol.SSH_TCP);
+        LocalShellTtyConnector connector = new LocalShellTtyConnector(connection);
+        try {
+            connector.connect();
+            org.testng.Assert.fail("Expected IllegalStateException for non-local-shell protocol");
+        } catch (IllegalStateException expected) {
+            // expected
+        } catch (Exception other) {
+            org.testng.Assert.fail("Unexpected exception type: " + other);
+        }
+    }
+
+    /**
+     * Regression guard: closing a local shell while a terminal reader thread is blocked in read()
+     * must not deadlock (previously the window/tab close froze the whole app). The test runs close()
+     * on a watchdog thread with a bounded join so a regression FAILS the test instead of hanging it.
+     */
+    @Test(timeOut = 30_000)
+    void closeDoesNotHangWhenAReaderIsBlockedInRead() throws Exception {
+        de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
+        connection.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        connection.setLocalShellCommand(windows ? "cmd.exe" : "/bin/sh");
+
+        LocalShellTtyConnector connector = new LocalShellTtyConnector(connection);
+        assertThat(connector.connect()).isTrue();
+
+        java.util.concurrent.atomic.AtomicBoolean readerExited = new java.util.concurrent.atomic.AtomicBoolean(false);
+        Thread reader = new Thread(() -> {
+            char[] buf = new char[4096];
+            try {
+                while (connector.read(buf, 0, buf.length) >= 0) {
+                    // consume, mirroring the terminal emulator's blocking read loop
+                }
+            } catch (Exception ignored) {
+            }
+            readerExited.set(true);
+        }, "test-emulator-reader");
+        reader.setDaemon(true);
+        reader.start();
+
+        // Let the reader settle into a blocking read() with no shell output pending.
+        Thread.sleep(1200);
+
+        Thread closer = new Thread(connector::close, "test-closer");
+        closer.setDaemon(true);
+        closer.start();
+        closer.join(10_000);
+
+        assertThat(closer.isAlive()).isFalse(); // close() returned (did not deadlock)
+        reader.join(5_000);
+        assertThat(readerExited.get()).isTrue(); // the blocked reader was unblocked by close()
+    }
+}

@@ -61,6 +61,21 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private ComboBox<EmulationType> terminalEmulationCombo;
     private TextField usernameField;
     private PasswordField passwordField;
+
+    // Local shell (LOCAL_SHELL protocol) controls
+    private static final String SHELL_POWERSHELL = "powershell.exe";
+    private static final String SHELL_CMD = "cmd.exe";
+    private static final String SHELL_GIT_BASH = "__gitbash__";
+    private static final String SHELL_CYGWIN = "__cygwin__";
+    private static final String SHELL_WSL = "__wsl__";
+    private static final String SHELL_CUSTOM = "__custom__";
+    /** Resolved launch commands for optional Windows shells, or null when not on Windows / not installed. */
+    private final String gitBashCommand = de.kortty.core.LocalShellTtyConnector.findWindowsGitBashCommand();
+    private final String cygwinCommand = de.kortty.core.LocalShellTtyConnector.findWindowsCygwinCommand();
+    private final String wslCommand = de.kortty.core.LocalShellTtyConnector.findWindowsWslCommand();
+    private ComboBox<String> shellPresetCombo;
+    private TextField customShellCommandField;
+    private TextField shellWorkingDirField;
     private ComboBox<StoredCredential> savedCredentialsCombo;
     private ToggleGroup authMethodGroup;
     private RadioButton passwordAuthRadio;
@@ -171,11 +186,19 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         openGroupButton.setVisible(false);
         openGroupButton.setManaged(false);
         
-        // Enable/disable connect button
+        // Enable/disable connect button: needs a host, EXCEPT for local shells which have none.
         connectButton.setDisable(true);
-        hostField.textProperty().addListener((obs, old, newVal) -> {
-            connectButton.setDisable(newVal.trim().isEmpty());
+        Runnable updateConnectButton = () -> {
+            boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+            connectButton.setDisable(!local && hostField.getText().trim().isEmpty());
+        };
+        hostField.textProperty().addListener((obs, old, newVal) -> updateConnectButton.run());
+        protocolCombo.valueProperty().addListener((obs, old, newVal) -> {
+            updateLocalShellFields();
+            updateConnectButton.run();
         });
+        updateLocalShellFields();
+        updateConnectButton.run();
         
         // Enable/disable group button
         openGroupButton.setDisable(true);
@@ -300,7 +323,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         portSpinner.setPrefWidth(80);
 
         protocolCombo = new ComboBox<>();
-        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT);
+        protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT, ConnectionProtocol.LOCAL_SHELL);
         protocolCombo.setValue(ConnectionProtocol.SSH_TCP);
         protocolCombo.setPrefWidth(180);
         protocolCombo.setCellFactory(lv -> new ListCell<>() {
@@ -325,6 +348,29 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 }
             }
         });
+
+        // Local shell controls (only relevant for LOCAL_SHELL protocol)
+        shellPresetCombo = new ComboBox<>();
+        shellPresetCombo.getItems().add(SHELL_POWERSHELL);
+        shellPresetCombo.getItems().add(SHELL_CMD);
+        if (gitBashCommand != null) {
+            shellPresetCombo.getItems().add(SHELL_GIT_BASH);
+        }
+        if (cygwinCommand != null) {
+            shellPresetCombo.getItems().add(SHELL_CYGWIN);
+        }
+        if (wslCommand != null) {
+            shellPresetCombo.getItems().add(SHELL_WSL);
+        }
+        shellPresetCombo.getItems().add(SHELL_CUSTOM);
+        shellPresetCombo.setValue(SHELL_POWERSHELL);
+        shellPresetCombo.setButtonCell(shellPresetListCell());
+        shellPresetCombo.setCellFactory(lv -> shellPresetListCell());
+        customShellCommandField = new TextField();
+        customShellCommandField.setPromptText(I18n.get("connEdit.shellCommandPrompt"));
+        shellWorkingDirField = new TextField();
+        shellWorkingDirField.setPromptText(I18n.get("connEdit.shellWorkingDirPrompt"));
+        shellPresetCombo.valueProperty().addListener((obs, oldVal, newVal) -> updateLocalShellFields());
 
         terminalEmulationCombo = new ComboBox<>();
         TerminalEmulationComboBoxSupport.configureComboBox(terminalEmulationCombo);
@@ -435,21 +481,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         }
         
         // Update field states based on auth method
-        authMethodGroup.selectedToggleProperty().addListener((obs, old, newVal) -> {
-            boolean useKey = keyAuthRadio.isSelected();
-            boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
-            passwordField.setDisable(useKey || useTemporaryKey);
-            savedCredentialsCombo.setDisable(useKey || useTemporaryKey);
-            savedSSHKeysCombo.setDisable(!useKey || useTemporaryKey);
-            if (temporaryKeyArea != null) {
-                temporaryKeyArea.setDisable(!useTemporaryKey);
-                expirationMinutesSpinner.setDisable(!useTemporaryKey);
-                remainingTimeLabel.setDisable(!useTemporaryKey);
-                if (useTemporaryKey && temporaryKeyArea.getText().isEmpty() && currentTemporaryKey == null) {
-                    temporaryKeyArea.requestFocus();
-                }
-            }
-        });
+        authMethodGroup.selectedToggleProperty().addListener((obs, old, newVal) -> applyAuthFieldStates());
         
         if (temporaryKeyArea != null) {
             temporaryKeyArea.textProperty().addListener((obs, old, newVal) -> {
@@ -638,7 +670,15 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             grid.add(tempKeyBox, 1, row);
             row++;
         }
-        
+
+        // Local shell controls (only relevant for LOCAL_SHELL protocol)
+        grid.add(new Label(I18n.get("connEdit.shell")), 0, row);
+        grid.add(shellPresetCombo, 1, row++);
+        grid.add(new Label(I18n.get("connEdit.shellCommand")), 0, row);
+        grid.add(customShellCommandField, 1, row++);
+        grid.add(new Label(I18n.get("connEdit.shellWorkingDir")), 0, row);
+        grid.add(shellWorkingDirField, 1, row++);
+
         grid.add(saveConnectionCheck, 1, row++);
         
         grid.add(new Label(I18n.get("quickConnect.connectionName")), 0, row);
@@ -1417,6 +1457,11 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         connection.setPort(portSpinner.getValue());
         connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
         connection.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : ConnectionProtocol.SSH_TCP);
+        if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
+            connection.setLocalShellCommand(effectiveShellCommand());
+            String workingDir = shellWorkingDirField.getText() != null ? shellWorkingDirField.getText().trim() : "";
+            connection.setLocalShellWorkingDirectory(workingDir.isEmpty() ? null : workingDir);
+        }
         applySelectedTerminalEmulation(connection, null);
         connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
         connection.setRetryCount(retrySpinner.getValue());
@@ -1458,7 +1503,13 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         
         if (saveConnectionCheck.isSelected()) {
             String name = connectionNameField.getText().trim();
-            connection.setName(name.isEmpty() ? connection.getUsername() + "@" + connection.getHost() : name);
+            if (!name.isEmpty()) {
+                connection.setName(name);
+            } else if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
+                connection.setName(connection.localShellDisplayLabel());
+            } else {
+                connection.setName(connection.getUsername() + "@" + connection.getHost());
+            }
         }
         
         // Apply terminal settings from the dialog
@@ -1504,7 +1555,101 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         if (protocol == ConnectionProtocol.MOSH_CLIENT) {
             return I18n.get("protocol.moshClient");
         }
+        if (protocol == ConnectionProtocol.LOCAL_SHELL) {
+            return I18n.get("protocol.localShell");
+        }
         return I18n.get("protocol.sshTcp");
+    }
+
+    /** Renders a shell-preset item: friendly labels for the presets, i18n label for "custom". */
+    private ListCell<String> shellPresetListCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else if (SHELL_CUSTOM.equals(item)) {
+                    setText(I18n.get("connEdit.shell.custom"));
+                } else if (SHELL_POWERSHELL.equals(item)) {
+                    setText(I18n.get("connEdit.shell.powershell"));
+                } else if (SHELL_CMD.equals(item)) {
+                    setText(I18n.get("connEdit.shell.cmd"));
+                } else if (SHELL_GIT_BASH.equals(item)) {
+                    setText(I18n.get("connEdit.shell.gitbash"));
+                } else if (SHELL_CYGWIN.equals(item)) {
+                    setText(I18n.get("connEdit.shell.cygwin"));
+                } else if (SHELL_WSL.equals(item)) {
+                    setText(I18n.get("connEdit.shell.wsl"));
+                } else {
+                    setText(item);
+                }
+            }
+        };
+    }
+
+    /** The shell command for the result: the selected preset, or the custom field when "custom". */
+    private String effectiveShellCommand() {
+        String preset = shellPresetCombo.getValue();
+        if (SHELL_CUSTOM.equals(preset)) {
+            String custom = customShellCommandField.getText() != null ? customShellCommandField.getText().trim() : "";
+            return custom.isEmpty() ? null : custom;
+        }
+        if (SHELL_GIT_BASH.equals(preset)) {
+            return gitBashCommand;
+        }
+        if (SHELL_CYGWIN.equals(preset)) {
+            return cygwinCommand;
+        }
+        if (SHELL_WSL.equals(preset)) {
+            return wslCommand;
+        }
+        return preset;
+    }
+
+    /** Applies the credential/key field enablement implied by the selected auth method. */
+    private void applyAuthFieldStates() {
+        boolean useKey = keyAuthRadio.isSelected();
+        boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
+        passwordField.setDisable(useKey || useTemporaryKey);
+        savedCredentialsCombo.setDisable(useKey || useTemporaryKey);
+        savedSSHKeysCombo.setDisable(!useKey || useTemporaryKey);
+        if (temporaryKeyArea != null) {
+            temporaryKeyArea.setDisable(!useTemporaryKey);
+            expirationMinutesSpinner.setDisable(!useTemporaryKey);
+            remainingTimeLabel.setDisable(!useTemporaryKey);
+            if (useTemporaryKey && temporaryKeyArea.getText().isEmpty() && currentTemporaryKey == null) {
+                temporaryKeyArea.requestFocus();
+            }
+        }
+    }
+
+    /** Enables shell fields and disables SSH fields for LOCAL_SHELL, and vice-versa. */
+    private void updateLocalShellFields() {
+        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+
+        shellPresetCombo.setDisable(!local);
+        shellWorkingDirField.setDisable(!local);
+        customShellCommandField.setDisable(!local || !SHELL_CUSTOM.equals(shellPresetCombo.getValue()));
+
+        hostField.setDisable(local);
+        portSpinner.setDisable(local);
+        usernameField.setDisable(local);
+        if (passwordAuthRadio != null) passwordAuthRadio.setDisable(local);
+        if (keyAuthRadio != null) keyAuthRadio.setDisable(local);
+        if (temporaryKeyAuthRadio != null) temporaryKeyAuthRadio.setDisable(local);
+        if (local) {
+            passwordField.setDisable(true);
+            if (savedCredentialsCombo != null) savedCredentialsCombo.setDisable(true);
+            if (savedSSHKeysCombo != null) savedSSHKeysCombo.setDisable(true);
+            if (temporaryKeyArea != null) {
+                temporaryKeyArea.setDisable(true);
+                expirationMinutesSpinner.setDisable(true);
+            }
+        } else {
+            // Restore auth-driven enablement of the credential/key fields.
+            applyAuthFieldStates();
+        }
     }
 
     private void applySelectedTerminalEmulation(ServerConnection target, ServerConnection fallback) {

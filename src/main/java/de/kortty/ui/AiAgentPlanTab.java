@@ -3,8 +3,8 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.GlobalSettingsManager;
-import de.kortty.core.SshTtyConnector;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.TerminalAgentModels;
@@ -64,7 +64,7 @@ public class AiAgentPlanTab extends Tab {
     private final AiProfile profile;
     private final AiPromptService aiService;
     private final TerminalTab terminalTab;
-    private final SshTtyConnector runConnector;
+    private final AgentCommandRunner runConnector;
     private final Supplier<String> sudoCacheSessionIdSupplier;
     private final ExecutionStarter executionStarter;
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -104,7 +104,7 @@ public class AiAgentPlanTab extends Tab {
         AiProfile profile,
         AiPromptService aiService,
         TerminalAgentModels.PlanRequest request,
-        SshTtyConnector runConnector,
+        AgentCommandRunner runConnector,
         Supplier<String> sudoCacheSessionIdSupplier,
         ExecutionStarter executionStarter) {
         this.ownerWindow = ownerWindow;

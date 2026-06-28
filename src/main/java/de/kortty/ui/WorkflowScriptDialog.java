@@ -29,6 +29,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -43,6 +44,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -74,6 +76,11 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
     private final TabPane resultTabs = new TabPane();
 
     private boolean generating;
+
+    private static final int MIN_SCRIPT_FONT_SIZE = 8;
+    private static final int MAX_SCRIPT_FONT_SIZE = 48;
+    private final List<ResultTab> resultTabList = new ArrayList<>();
+    private int scriptFontSize = loadInitialScriptFontSize();
 
     /** A header choice in the combo: the per-language Default, no header, or a specific Script-Header snippet. */
     private static final class HeaderChoice {
@@ -383,6 +390,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         List<ScriptLanguage> languages = generationLanguages();
         int count = suggestionsSpinner.getValue() != null ? suggestionsSpinner.getValue() : 1;
         resultTabs.getTabs().clear();
+        resultTabList.clear();
 
         generating = true;
         generateButton.setDisable(true);
@@ -397,6 +405,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
             for (int index = 1; index <= count; index++) {
                 ResultTab resultTab = new ResultTab(language, tabTitle(language, index, count));
                 resultTabs.getTabs().add(resultTab.tab);
+                resultTabList.add(resultTab);
                 WorkflowScriptGenerator.Request request = new WorkflowScriptGenerator.Request(
                     language, selectedOptions(), variantInstructions(extraInstructionsArea.getText(), index, count),
                     factsFor(language), headerOverride);
@@ -545,10 +554,17 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
             ? existing.getCustomInstructions() : "";
         setStatus(I18n.get("ai.workflow.diagram.generating"), false);
         resultTab.diagram.setDisable(true);
+        // Show the working spinner so it is clear the AI connection is actively generating the diagram.
+        progress.setVisible(true);
+        progress.setManaged(true);
         CompletableFuture
             .supplyAsync(() -> generator.generateDiagram(runData, content, language, instructions, existing))
             .whenComplete((diagram, error) -> Platform.runLater(() -> {
                 resultTab.diagram.setDisable(false);
+                if (!generating) {
+                    progress.setVisible(false);
+                    progress.setManaged(false);
+                }
                 if (error != null) {
                     setStatus(describeFailure(error), true);
                     return;
@@ -572,6 +588,46 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
 
     // ---------------------------------------------------------------- status helpers
 
+    // ---------------------------------------------------------------- font size
+
+    private static int clampScriptFontSize(int size) {
+        return Math.max(MIN_SCRIPT_FONT_SIZE, Math.min(MAX_SCRIPT_FONT_SIZE, size));
+    }
+
+    private static int loadInitialScriptFontSize() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        Integer stored = app != null && app.getGlobalSettingsManager() != null
+            && app.getGlobalSettingsManager().getSettings() != null
+            ? app.getGlobalSettingsManager().getSettings().getWorkflowScriptFontSize()
+            : null;
+        return clampScriptFontSize(stored != null ? stored : 14);
+    }
+
+    private void adjustScriptFontSize(int delta) {
+        setScriptFontSize(scriptFontSize + delta);
+    }
+
+    private void setScriptFontSize(int size) {
+        int clamped = clampScriptFontSize(size);
+        if (clamped == scriptFontSize) {
+            return;
+        }
+        scriptFontSize = clamped;
+        for (ResultTab resultTab : resultTabList) {
+            resultTab.applyFont(scriptFontSize);
+        }
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        if (app != null && app.getGlobalSettingsManager() != null
+            && app.getGlobalSettingsManager().getSettings() != null) {
+            app.getGlobalSettingsManager().getSettings().setWorkflowScriptFontSize(scriptFontSize);
+            try {
+                app.getGlobalSettingsManager().save();
+            } catch (Exception ignored) {
+                // Non-critical: the font size persists best-effort.
+            }
+        }
+    }
+
     private void setStatus(String message) {
         setStatus(message, false);
     }
@@ -591,11 +647,40 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
                 case NO_PROFILE -> I18n.get("ai.workflow.error.noProfile");
                 case VAULT_LOCKED -> I18n.get("ai.workflow.error.vaultLocked");
                 case NOT_PROMPT_SERVICE -> I18n.get("ai.workflow.error.notPromptService");
-                case AI_ERROR -> I18n.get("ai.workflow.error.aiFailed",
-                    cause.getMessage() != null ? cause.getMessage() : "");
+                case AI_ERROR -> describeAiError(cause.getMessage());
             };
         }
-        return I18n.get("ai.workflow.error.aiFailed", cause.getMessage() != null ? cause.getMessage() : cause.toString());
+        return describeAiError(cause.getMessage() != null ? cause.getMessage() : cause.toString());
+    }
+
+    /**
+     * Turns a raw AI/backend error into a concise, user-friendly message. Backend out-of-memory /
+     * resource-limit failures (e.g. LM Studio/MLX "Resource limit exceeded", "metal::malloc",
+     * "fatal exception in the backend scheduler") get a dedicated hint instead of dumping the raw
+     * multi-line stack trace into the dialog.
+     */
+    private String describeAiError(String rawMessage) {
+        String message = rawMessage != null ? rawMessage : "";
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (lower.contains("resource limit")
+            || lower.contains("metal::malloc")
+            || lower.contains("out of memory")
+            || lower.contains("insufficient memory")
+            || lower.contains("fatal exception in the backend")
+            || lower.contains("[metal::")) {
+            return I18n.get("ai.workflow.error.modelOverloaded");
+        }
+        return I18n.get("ai.workflow.error.aiFailed", firstLine(message));
+    }
+
+    /** Collapses a possibly multi-line backend error to a single, length-capped line for the status label. */
+    private static String firstLine(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        String oneLine = text.replace("\r", " ").replace("\n", " ").replaceAll("\\s+", " ").strip();
+        int max = 300;
+        return oneLine.length() > max ? oneLine.substring(0, max) + "…" : oneLine;
     }
 
     private String safeSourcePrompt() {
@@ -613,6 +698,8 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         private final Button save = new Button(I18n.get("ai.workflow.save"));
         private final Button copy = new Button(I18n.get("ai.workflow.copy"));
         private final Button diagram = new Button(I18n.get("ai.workflow.diagram"));
+        private final Button fontSmaller = new Button("A-");
+        private final Button fontBigger = new Button("A+");
         private final List<SnippetDiagram> diagrams = new ArrayList<>();
 
         ResultTab(ScriptLanguage language, String title) {
@@ -622,8 +709,22 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
 
             editor.setEditable(false);
             editor.setLanguage(language.snippetLanguage());
+            editor.setFontSize(scriptFontSize);
             editor.setPrefHeight(320);
             VBox.setVgrow(editor, Priority.ALWAYS);
+            // Ctrl + mouse wheel (Cmd on macOS) zooms the script font instead of scrolling.
+            editor.addEventFilter(ScrollEvent.SCROLL, e -> {
+                if (!(e.isControlDown() || e.isShortcutDown())) {
+                    return;
+                }
+                if (e.getDeltaY() > 0) {
+                    adjustScriptFontSize(1);
+                    e.consume();
+                } else if (e.getDeltaY() < 0) {
+                    adjustScriptFontSize(-1);
+                    e.consume();
+                }
+            });
 
             edit.setTooltip(new Tooltip(I18n.get("ai.workflow.edit.tooltip")));
             edit.selectedProperty().addListener((o, ov, nv) -> editor.setEditable(nv));
@@ -631,13 +732,23 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
             save.setOnAction(e -> saveTab(this));
             copy.setOnAction(e -> copyTab(this));
             diagram.setOnAction(e -> openDiagram(this));
+            fontSmaller.setTooltip(new Tooltip(I18n.get("ai.workflow.font.smaller")));
+            fontBigger.setTooltip(new Tooltip(I18n.get("ai.workflow.font.bigger")));
+            fontSmaller.setFocusTraversable(false);
+            fontBigger.setFocusTraversable(false);
+            fontSmaller.setOnAction(e -> adjustScriptFontSize(-1));
+            fontBigger.setOnAction(e -> adjustScriptFontSize(1));
             setBusy(true);
 
-            HBox toolbar = new HBox(8, edit, save, copy, diagram);
+            HBox toolbar = new HBox(8, edit, save, copy, diagram, spacer(), fontSmaller, fontBigger);
             toolbar.setAlignment(Pos.CENTER_LEFT);
             VBox box = new VBox(6, toolbar, editor);
             box.setPadding(new Insets(6));
             tab.setContent(box);
+        }
+
+        void applyFont(int size) {
+            editor.setFontSize(size);
         }
 
         private void setBusy(boolean busy) {
