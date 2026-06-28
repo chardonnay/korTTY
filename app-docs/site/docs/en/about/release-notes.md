@@ -3,6 +3,74 @@
 The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.
 
+## Unreleased
+
+### Local Shell connections
+
+- **Open the local machine's shell in a terminal tab (no network)** — a new
+  **Local Shell** protocol spawns a local pseudo-terminal (PTY) via pty4j instead
+  of connecting to a remote host. On Windows you can choose **PowerShell**
+  (default) or **cmd.exe**; on macOS/Linux it defaults to your `$SHELL` (falling
+  back to `/bin/zsh` or `/bin/bash`). A free-form **Custom command** field accepts
+  any executable with arguments (e.g. `pwsh.exe`, `wsl.exe -d Ubuntu`, Git Bash),
+  and an optional start directory can be set. Local Shell is selectable in both
+  Quick Connect and the Connection Manager; for these connections
+  host/port/username/authentication are not required and are disabled in the
+  dialogs.
+- **Git Bash / Cygwin / WSL presets** on Windows — each offered only when actually
+  installed (Git Bash/Cygwin via their usual install locations / `PATH`; WSL only
+  when `wsl.exe` is present and at least one distribution is installed). The
+  command parser is quote-aware, so shell paths containing spaces (like
+  `"C:\Program Files\Git\bin\bash.exe"`) launch correctly.
+- **Shared connector hooks** — terminal recording/logging and the AI input/data
+  hooks were lifted onto a shared `ObservableTtyConnector` interface, so they also
+  work for local shells. SSH-channel-only features stay SSH-only.
+- **AI Agent & Planning in local shells** — the agent's command-execution engine
+  was decoupled from SSH behind an `AgentCommandRunner` abstraction (SSH exec
+  channel and local process backends). The **AI Agent** and **AI Planning** now
+  run in local shells on Windows, macOS and Linux: commands execute in the
+  connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`),
+  the environment probe and system prompt are platform-aware, and the existing
+  approval flow applies. Limitations on local shells: no `sudo`/administrator
+  elevation on Windows, and no live working-directory tracking. The JobScheduler's
+  headless AI-agent action stays SSH-only.
+
+### Terminal usability
+
+- **Ctrl + mouse-wheel zoom** — holding **Ctrl** (or **Cmd** on macOS) and
+  scrolling the mouse wheel over the terminal now changes the font size instead of
+  scrolling the buffer. This complements the existing Alt+Plus / Alt+Minus / Alt+0
+  shortcuts.
+- **Ctrl+D closes a local cmd.exe/PowerShell tab** — those Windows shells do not
+  exit on EOF, so Ctrl+D had no effect there. For bash-family shells
+  (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, Ctrl+D keeps its normal EOF meaning.
+
+### Workflow Script Generator
+
+- **Two new target languages** — the agent run → **Workflow** script generator can
+  now produce **Windows-CMD** (`.cmd` batch) and **AppleScript** (`.applescript`)
+  in addition to Bash, Python, Perl, Ruby, PowerShell and Ansible.
+- **Adjustable script font size** — each generated-script editor has **A−** /
+  **A+** buttons and supports **Ctrl + mouse wheel** (Cmd on macOS); the chosen
+  size is remembered across sessions.
+- **Visible progress while a diagram is generated** — generating a PlantUML
+  diagram from a script now shows the working spinner.
+- **Clearer AI backend errors** — out-of-memory / resource-limit errors from the
+  AI server (e.g. LM Studio/MLX "Resource limit exceeded", "metal::malloc") show a
+  short, actionable hint instead of the raw stack trace; all other AI errors are
+  collapsed to a single line.
+
+### Fixes
+
+- **Closing a local shell no longer freezes korTTY** — the PTY process is now
+  destroyed before its streams are closed, releasing a terminal reader thread
+  blocked in a pty `read()` instead of deadlocking the close on the JavaFX thread.
+- **Correct wording for local shells when closing** — the close-confirmation no
+  longer says "End SSH connection?" for a local shell, and the window-close prompt
+  is now transport-neutral ("Active sessions").
+- **No password prompt for local shells** — opening a local shell no longer shows
+  an irrelevant password dialog (local shells use no authentication).
+
 ## v2.2.3
 
 ### Critical fix: Monaco editors failed to load in the packaged app

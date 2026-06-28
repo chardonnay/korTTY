@@ -42,8 +42,18 @@ Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die
 | ++alt+plus++ | Vergrößern (Schriftgröße vergrößern) |
 | ++alt+minus++ | Verkleinern (Schriftgröße verringern) |
 | ++alt+0++ | Zoom auf gespeicherte/Standardschriftart zurücksetzen |
+| ++ctrl++ + Mausrad | Über dem Terminal hinein-/herauszoomen (Cmd + Mausrad auf macOS) |
+
+Wenn Sie ++ctrl++ (oder ++cmd++ auf macOS) gedrückt halten und mit dem Mausrad über dem Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, nach unten verkleinert – statt den Puffer zu scrollen. Dies ergänzt die Tastenkürzel ++alt+plus++ / ++alt+minus++ / ++alt+0++.
 
 **Zoom zurücksetzen** stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → **Schriftgröße** → **Zurücksetzen**. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.
+
+## Lokale-Shell-Registerkarten
+
+Neben SSH und Mosh kann eine Terminal-Registerkarte auch eine **lokale Shell** beherbergen – die eigene Shell des lokalen Rechners, geöffnet über ein Pseudo-Terminal (siehe [Lokale Shell](connections.md#lokale-shell)). Einige Terminalverhalten sind lokale-Shell-bewusst:
+
+- **++ctrl+d++ schließt die Registerkarte bei lokalen cmd.exe-/PowerShell-Sitzungen.** Diese Windows-Shells beenden sich nicht bei EOF, sodass ++ctrl+d++ dort sonst keine Wirkung hätte. Bei Bash-Familien-Shells (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält ++ctrl+d++ seine normale EOF-Bedeutung – die Shell beendet sich, und die lokale Registerkarte schließt sich daraufhin automatisch.
+- **Die Schließbestätigung** verwendet eine lokale-Shell-Formulierung statt „SSH-Verbindung beenden?“, und die Fenster-Schließabfrage ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und lokale-Shell-Registerkarten mischen kann.
 
 ## Geteilter Bildschirm mit Übertragung
 

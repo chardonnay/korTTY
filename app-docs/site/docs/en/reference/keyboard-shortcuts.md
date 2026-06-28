@@ -23,6 +23,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++alt+plus++ | Zoom In |
 | ++alt+minus++ | Zoom Out |
 | ++alt+0++ | Reset Zoom |
+| ++ctrl++ + mouse wheel | Zoom the terminal font in/out (Cmd + wheel on macOS) |
+| ++ctrl+d++ | Close a local cmd.exe/PowerShell tab (EOF for bash-family shells and SSH) |
 | ++f1++ | Open the manual (**Help → Manual**) |
 | ++f11++ | Toggle Fullscreen |
 | ++f12++ | Toggle Terminal-only Fullscreen |

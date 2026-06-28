@@ -167,6 +167,21 @@ Verwenden Sie **Einstellungen > AI** für die globalen Standardeinstellungen und
 
 korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
 
+!!! note „SSH und lokale Shells“
+    Die Befehlsausführungs-Engine des Agenten wurde hinter einer
+    `AgentCommandRunner`-Abstraktion mit zwei Backends von SSH entkoppelt –
+    **SSH** (Exec-Kanal) und **lokal** (ein frischer lokaler Prozess). Der
+    **KI-Agent** und die **KI-Planung** laufen daher sowohl in SSH-Sitzungen als
+    auch in [lokalen Shells](connections.md#lokale-shell) unter Windows, macOS und
+    Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über
+    `-EncodedCommand`, `cmd.exe` oder `$SHELL`), die Umgebungs-Probe und der
+    System-Prompt sind plattformbewusst, sodass das Modell native Befehle erzeugt,
+    und derselbe Genehmigungsablauf gilt. **Einschränkungen bei lokalen Shells:**
+    keine `sudo`-/Administrator-Erhöhung unter Windows und keine
+    Live-Arbeitsverzeichnis-Verfolgung (der Agent verwendet das Startverzeichnis
+    der Verbindung). Die headless KI-Agent-Aktion des JobSchedulers bleibt
+    SSH-exklusiv.
+
 ### Starten des Agenten
 
 * **AI Agent** – Starten Sie über **Tools > AI Agent...**, über das Kontextmenü des Terminals oder mit dem Terminal-Verknüpfungsbefehl. Der Agent kann je nach **Einstellungen > AI** einen speziellen Chat-Tab öffnen oder auf das aktive Terminalfenster zielen.
@@ -293,17 +308,28 @@ korTTY fügt Leitplanken für die Agentenausführung hinzu:
 
 ## Workflow-Skript generieren
 
-Nachdem die Ausführung eines fertigen Agenten erfolgreich abgeschlossen wurde, verwandelt eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem Header (Skriptname, Ersteller, Datum/Uhrzeit).
+Nachdem die Ausführung eines fertigen Agenten erfolgreich abgeschlossen wurde, verwandelt eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem Header (Skriptname, Ersteller, Datum/Uhrzeit).
 
 Skripterstellung:
 
 * Lädt automatisch passende KI-Fähigkeiten (z. B. eine Sprachqualitätsfähigkeit für die Zielsprache).
 * Kann mehrere Sprachvarianten und mehrere Vorschläge als Inline-Tabs erstellen.
 * Unterstützt Header-Vorlagen aus der festen, nicht löschbaren Snippet-Kategorie **Script-Header**.
-* Enthält optional ein PlantUML-Diagramm für die Skriptlogik.
+* Enthält optional ein PlantUML-Diagramm für die Skriptlogik. Während das Diagramm generiert wird, erscheint ein Arbeits-Spinner, sodass erkennbar ist, dass die KI-Verbindung beschäftigt ist.
 * Wird im Snippet-Manager mit einem kurzen, automatisch generierten Namen und der korrekten Erweiterung gespeichert (dedupliziert durch den vollständigen Namen einschließlich Erweiterung).
 * Kennzeichnen Sie das Snippet zur einfachen Filterung als `workflow`.
 * Setzt die Spalte **System** (Betriebssystem) automatisch auf das geprüfte Betriebssystem des Agenten (jede Linux-Distribution wird zu Linux).
 * Der Internetzugang wird während der Generierung zwangsweise ausgeschaltet.
 
+**Zielsprachen:** Bash, Python, Perl, Ruby, PowerShell, Ansible, sowie **Windows-CMD** (`.cmd`-Batch – `@echo off`-Startzeile, `REM`-Header-Kommentare, `errorlevel`-Prüfungen) und **AppleScript** (`.applescript` – `osascript`-Shebang, `--`-Kommentare, `try`/`on error`-Behandlung).
+
+Jeder Editor für generierte Skripte verfügt über **A−**- / **A+**-Schaltflächen und unterstützt ++ctrl++ + Mausrad (Cmd auf macOS) zum Ändern der Schriftgröße; die gewählte Größe wird über Sitzungen hinweg gespeichert.
+
 Die Größe des Workflow-Dialogfelds kann geändert werden und seine Größe und Position werden für die zukünftige Verwendung gespeichert.
+
+!!! tip „Klarere KI-Backend-Fehler“
+    Wenn dem KI-Server der Speicher ausgeht oder ein Ressourcenlimit erreicht
+    wird (z. B. LM Studio/MLX „Resource limit exceeded“, „metal::malloc“), zeigt
+    der Dialog einen kurzen, umsetzbaren Hinweis statt des rohen mehrzeiligen
+    Backend-Stacktraces; alle anderen KI-Fehler werden auf eine einzige Zeile
+    reduziert.

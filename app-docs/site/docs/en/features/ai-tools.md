@@ -4,7 +4,10 @@ title: Terminal AI agent & tools
 
 # Terminal AI agent & tools
 
-korTTY's Terminal AI Agent is a controlled SSH automation workflow that enables safe, intelligent command execution on remote servers. Unlike naive automation, the agent probes the session state, reasons about each step, and waits for human approval before executing system-changing commands.
+korTTY's Terminal AI Agent is a controlled automation workflow that enables safe, intelligent command execution on remote servers — and, since the execution engine was decoupled behind an `AgentCommandRunner` abstraction (SSH exec-channel and local-process backends), in [local shells](connections.md#local-shell) on Windows, macOS and Linux too. Unlike naive automation, the agent probes the session state, reasons about each step, and waits for human approval before executing system-changing commands.
+
+!!! note "SSH vs. local shells"
+    In local shells, commands run in the connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`) and the environment probe and system prompt are platform-aware. Local-shell limitations: no `sudo`/administrator elevation on Windows, and no live working-directory tracking (the agent uses the connection's start directory). The JobScheduler's headless AI-agent action stays SSH-only.
 
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
@@ -65,7 +68,7 @@ The Terminal AI Agent follows a strict, safe execution loop:
 2. **Send context to the model** — KorTTY sends the user task, probe snapshot, previous command results, active AI Skills, and optionally web-tool availability to the selected AI profile.
 3. **Model returns a JSON decision** — The model must return a strict JSON response: run commands, ask for confirmation, finish, or block.
 4. **Validate the decision** — KorTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported decisions are rejected.
-5. **Execute approved commands** — KorTTY runs approved commands through SSH exec channels. Each command starts in the tracked active terminal directory. A `cd` inside one command does not persist to the next.
+5. **Execute approved commands** — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory (the connection's start directory for local shells). A `cd` inside one command does not persist to the next.
 6. **Iterate or conclude** — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).
 
 ### Suitable tasks
@@ -188,14 +191,16 @@ KorTTY enforces multiple guardrails around agent execution:
 
 ## Generate Workflow Script
 
-After a finished agent run completes successfully, a **Workflow** button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, or Ansible playbook) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time).
+After a finished agent run completes successfully, a **Workflow** button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook, **Windows-CMD** batch, or **AppleScript**) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time).
 
 ### Script generation capabilities
 
 - **Auto-load matching AI Skills** — Skills like language-quality guidelines for the target language are automatically included.
+- **Eight target languages** — Bash, Python, Perl, Ruby, PowerShell, Ansible, plus **Windows-CMD** (`.cmd` batch — `@echo off`, `REM` headers, `errorlevel` checks) and **AppleScript** (`.applescript` — `osascript` shebang, `--` comments, `try`/`on error`).
 - **Multiple language variants** — Generate several language variants and suggestions as inline tabs within the workflow dialog.
+- **Adjustable font size** — Each generated-script editor has **A−** / **A+** buttons and supports ++ctrl++ + mouse wheel (Cmd on macOS); the chosen size is remembered across sessions.
 - **Header templates** — Use reusable headers from the fixed non-deletable **Script-Header** snippet category.
-- **PlantUML diagram** — Optionally include a PlantUML diagram depicting the script logic.
+- **PlantUML diagram** — Optionally include a PlantUML diagram depicting the script logic. A working spinner is shown while the diagram is generated.
 - **Snippet Manager** — Save the generated script into the Snippet Manager with a short auto-generated name and correct file extension. Scripts are de-duplicated by full name including extension.
 - **Workflow tagging** — The snippet is tagged as `workflow` for easy filtering.
 - **OS detection** — The **System** (OS) column is auto-set from the agent's probed OS (any Linux distro → Linux).

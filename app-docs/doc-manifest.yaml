@@ -81,7 +81,7 @@ pages:
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
-    last_synced_ref: "93470d6"
+    last_synced_ref: "4184473"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
   # NOTE: these pages are being authored in the content build-out. Until a page
@@ -181,12 +181,12 @@ pages:
     owns_i18n: [menu.connections.]
     owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
-    last_synced_ref: "93470d6"
+    last_synced_ref: "4184473"
   - path: app-docs/site/docs/en/features/terminal.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "e7f0df8"
+    last_synced_ref: "4184473"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/model]
@@ -225,12 +225,12 @@ pages:
     owns_code: [src/main/java/de/kortty/core]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/ai-manager.png]
-    last_synced_ref: "e7f0df8"
+    last_synced_ref: "4184473"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "e7f0df8"
+    last_synced_ref: "4184473"
   - path: app-docs/site/docs/en/features/security.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/security]

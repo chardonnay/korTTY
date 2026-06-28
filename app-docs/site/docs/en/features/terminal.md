@@ -42,8 +42,18 @@ Adjust the font size of the active terminal on the fly without reconnecting:
 | ++alt+plus++ | Zoom in (increase font size) |
 | ++alt+minus++ | Zoom out (decrease font size) |
 | ++alt+0++ | Reset zoom to saved/default font |
+| ++ctrl++ + mouse wheel | Zoom in/out over the terminal (Cmd + wheel on macOS) |
+
+Holding ++ctrl++ (or ++cmd++ on macOS) and scrolling the mouse wheel over the terminal changes the font size — wheel up enlarges, wheel down shrinks — instead of scrolling the buffer. This complements the ++alt+plus++ / ++alt+minus++ / ++alt+0++ shortcuts.
 
 **Reset zoom** restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right-click → **Font size** → **Reset**. The zoom level applies only to the currently focused terminal.
+
+## Local shell tabs
+
+Besides SSH and Mosh, a terminal tab can host a **Local Shell** — the local machine's own shell, opened via a pseudo-terminal (see [Local Shell](connections.md#local-shell)). A few terminal behaviors are local-shell aware:
+
+- **++ctrl+d++ closes the tab for local cmd.exe/PowerShell sessions.** Those Windows shells do not exit on EOF, so ++ctrl+d++ would otherwise have no effect. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, ++ctrl+d++ keeps its normal EOF meaning — the shell exits and the local tab then auto-closes.
+- **Close confirmation** uses local-shell wording rather than "End SSH connection?", and the window-close prompt is transport-neutral ("Active sessions"), since one window can mix SSH, Mosh and local-shell tabs.
 
 ## Split-screen with broadcast
 

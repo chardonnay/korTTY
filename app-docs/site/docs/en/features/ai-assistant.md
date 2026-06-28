@@ -167,6 +167,19 @@ Use **Settings > AI** for the global defaults and behavior switches, and **AI Ma
 
 korTTY supports agent-style workflows for an active terminal session.
 
+!!! note "SSH and local shells"
+    The agent's command-execution engine is decoupled from SSH behind an
+    `AgentCommandRunner` abstraction with two backends — **SSH** (exec channel)
+    and **local** (a fresh local process). The **AI Agent** and **AI Planning**
+    therefore run both in SSH sessions and in [local shells](connections.md#local-shell)
+    on Windows, macOS and Linux: commands execute in the connection's shell
+    (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`), the environment
+    probe and system prompt are platform-aware so the model generates native
+    commands, and the same approval flow applies. **Local-shell limitations:** no
+    `sudo`/administrator elevation on Windows, and no live working-directory
+    tracking (the agent uses the connection's start directory). The JobScheduler's
+    headless AI-agent action stays SSH-only.
+
 ### Starting the agent
 
 * **AI Agent** - Start from **Tools > AI Agent...**, from the terminal right-click menu, or with the terminal shortcut command. The agent can open in a dedicated chat tab or target the active terminal window, depending on **Settings > AI**.
@@ -293,17 +306,27 @@ korTTY adds guardrails around agent execution:
 
 ## Generate Workflow Script
 
-After a finished agent run completes successfully, a **Workflow** button turns the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook) with robust error handling, detailed comments, and a header (script name, creator, date/time).
+After a finished agent run completes successfully, a **Workflow** button turns the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook, **Windows-CMD** batch, or **AppleScript**) with robust error handling, detailed comments, and a header (script name, creator, date/time).
 
 Script generation:
 
 * Auto-loads matching AI Skills (e.g., a language-quality skill for the target language).
 * Can produce several language variants and multiple suggestions as inline tabs.
 * Supports header templates from the fixed non-deletable **Script-Header** snippet category.
-* Optionally includes a PlantUML diagram for the script logic.
+* Optionally includes a PlantUML diagram for the script logic. A working spinner is shown while the diagram is generated, so it is clear the AI connection is busy.
 * Saves into the Snippet Manager with a short auto-generated name plus correct extension (de-duplicated by full name including extension).
 * Tags the snippet as `workflow` for easy filtering.
 * Auto-sets the **System** (OS) column from the agent's probed OS (any Linux distro becomes Linux).
 * Internet access is forced OFF during generation.
 
+**Target languages:** Bash, Python, Perl, Ruby, PowerShell, Ansible, plus **Windows-CMD** (`.cmd` batch — `@echo off` lead line, `REM` header comments, `errorlevel` checks) and **AppleScript** (`.applescript` — `osascript` shebang, `--` comments, `try`/`on error` handling).
+
+Each generated-script editor has **A−** / **A+** buttons and supports ++ctrl++ + mouse wheel (Cmd on macOS) to change the font size; the chosen size is remembered across sessions.
+
 The workflow dialog is resizable and remembers its size and position for future use.
+
+!!! tip "Clearer AI backend errors"
+    When the AI server runs out of memory or hits a resource limit (e.g. LM
+    Studio/MLX "Resource limit exceeded", "metal::malloc"), the dialog shows a
+    short, actionable hint instead of the raw multi-line backend stack trace; all
+    other AI errors are collapsed to a single line.
