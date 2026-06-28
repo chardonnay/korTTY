@@ -721,6 +721,27 @@ public class TerminalView extends BorderPane {
         return terminalWidget != null ? java.util.List.of(terminalWidget) : java.util.List.of();
     }
 
+    /**
+     * All agent-capable connectors across this view's split widgets (terminal-effect wrappers
+     * unwrapped). Used by the AI swarm to enumerate every open server in this tab.
+     */
+    public java.util.List<ObservableTtyConnector> getAllAgentConnectors() {
+        java.util.List<ObservableTtyConnector> result = new java.util.ArrayList<>();
+        for (SithTermFxWidget widget : getOrderedWidgets()) {
+            if (widget == null) {
+                continue;
+            }
+            TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+            if (base instanceof ObservableTtyConnector agentConnector) {
+                result.add(agentConnector);
+            }
+        }
+        if (result.isEmpty() && ttyConnector instanceof ObservableTtyConnector agentConnector) {
+            result.add(agentConnector);
+        }
+        return result;
+    }
+
     /** The agent activity panel hosted by the given widget, or null. */
     public @Nullable AiAgentActivityTabsPanel getAgentPanelForWidget(@Nullable SithTermFxWidget widget) {
         return widget != null ? terminalAgentActivityPanels.get(widget) : null;

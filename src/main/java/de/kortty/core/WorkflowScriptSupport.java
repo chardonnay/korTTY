@@ -388,6 +388,148 @@ public final class WorkflowScriptSupport {
         return String.join("\n", rules);
     }
 
+    // ------------------------------------------------------------------ multi-host (swarm) assembly
+
+    /** Non-secret host facts fed into a multi-host workflow script. Carries no passwords/key contents. */
+    public record SwarmHost(String name, String host, int port, String user, String group,
+                            String authMethod, String keyPath, String jumpHostSpec) {
+    }
+
+    /** Multi-host orchestration options for swarm workflow scripts (separate from {@link HardeningOption}). */
+    public enum SwarmScriptOption {
+        HOST_LIST_EMBEDDED,
+        EXTERNAL_HOST_FILE,
+        PARALLEL_FANOUT,
+        MAX_PARALLELISM,
+        PER_HOST_TIMEOUT,
+        CONTINUE_ON_ERROR,
+        PER_HOST_RESULT_COLLECTION,
+        AGGREGATED_REPORT,
+        RETRY_BACKOFF,
+        SSH_OPTIONS,
+        JUMP_HOST,
+        DRY_RUN,
+        SUDO_ESCALATION;
+
+        /** A safe default set: embed hosts, sane SSH options, per-host timeout, keep going, collect + report. */
+        public static EnumSet<SwarmScriptOption> defaults() {
+            return EnumSet.of(HOST_LIST_EMBEDDED, SSH_OPTIONS, PER_HOST_TIMEOUT,
+                CONTINUE_ON_ERROR, PER_HOST_RESULT_COLLECTION, AGGREGATED_REPORT);
+        }
+    }
+
+    public static String buildSwarmSystemPrompt(ScriptLanguage lang, EnumSet<HardeningOption> hardening,
+                                                EnumSet<SwarmScriptOption> swarmOpts, HeaderMode headerMode) {
+        EnumSet<SwarmScriptOption> options = swarmOpts != null ? swarmOpts : SwarmScriptOption.defaults();
+        StringBuilder sb = new StringBuilder(buildSystemPrompt(lang, hardening, headerMode));
+        sb.append("\n\nMULTI-HOST ORCHESTRATION:\n");
+        if (lang.isDeclarative()) {
+            sb.append("- Target multiple hosts: define them in the play's hosts/inventory and run the per-host tasks on each.\n");
+        } else {
+            sb.append("- The ").append(lang.displayName())
+                .append(" artefact must iterate a list of hosts and run the per-host work on EACH host over SSH.\n");
+        }
+        sb.append("- NEVER embed passwords or private-key contents. Use key files, ssh-agent, or a vault/--extra-vars variable.\n");
+        String rules = swarmOptionRules(lang, options);
+        if (!rules.isBlank()) {
+            sb.append(rules).append("\n");
+        }
+        return sb.toString().strip();
+    }
+
+    public static String buildSwarmUserPrompt(ScriptLanguage lang, HeaderFacts facts, WorkflowContext perHostWork,
+                                              List<SwarmHost> hosts, EnumSet<SwarmScriptOption> swarmOpts,
+                                              String extraInstructions, HeaderMode headerMode) {
+        StringBuilder sb = new StringBuilder(
+            buildUserPrompt(lang, facts, perHostWork, null, extraInstructions, headerMode));
+        sb.append("\n\nTARGET HOSTS (non-secret facts; reference key files / ssh-agent, never embed secrets):\n");
+        if (hosts == null || hosts.isEmpty()) {
+            sb.append("(no hosts provided — read the host list from a file or --extra-vars)\n");
+        } else {
+            for (SwarmHost host : hosts) {
+                sb.append("- ").append(nz(host.name())).append(": ")
+                    .append(nz(host.user())).append("@").append(nz(host.host())).append(":").append(host.port());
+                if (notBlank(host.group())) {
+                    sb.append("  group=").append(host.group());
+                }
+                if (notBlank(host.authMethod())) {
+                    sb.append("  auth=").append(host.authMethod());
+                }
+                if (notBlank(host.keyPath())) {
+                    sb.append("  key=").append(host.keyPath());
+                }
+                if (notBlank(host.jumpHostSpec())) {
+                    sb.append("  jump=").append(host.jumpHostSpec());
+                }
+                sb.append("\n");
+            }
+        }
+        return sb.toString().strip();
+    }
+
+    private static String swarmOptionRules(ScriptLanguage lang, EnumSet<SwarmScriptOption> opts) {
+        boolean ansible = lang.isDeclarative();
+        List<String> rules = new ArrayList<>();
+        if (opts.contains(SwarmScriptOption.HOST_LIST_EMBEDDED)) {
+            rules.add(ansible
+                ? "- Define the inventory/hosts inline in the playbook (a vars host list or inventory block)."
+                : "- Embed the host list as an array in the configuration block at the top.");
+        }
+        if (opts.contains(SwarmScriptOption.EXTERNAL_HOST_FILE)) {
+            rules.add(ansible
+                ? "- Read hosts from an external inventory file passed with -i."
+                : "- Read the host list from an external file (one host per line / CSV) given as an argument.");
+        }
+        if (opts.contains(SwarmScriptOption.PARALLEL_FANOUT)) {
+            rules.add(ansible
+                ? "- Increase parallelism via forks so hosts are processed concurrently."
+                : "- Process hosts in parallel (e.g. xargs -P / GNU parallel / a thread pool).");
+        }
+        if (opts.contains(SwarmScriptOption.MAX_PARALLELISM)) {
+            rules.add("- Cap concurrency to a configurable maximum number of simultaneous hosts.");
+        }
+        if (opts.contains(SwarmScriptOption.PER_HOST_TIMEOUT)) {
+            rules.add(ansible
+                ? "- Apply a connection/task timeout per host."
+                : "- Wrap each host's work in a timeout and an SSH ConnectTimeout.");
+        }
+        if (opts.contains(SwarmScriptOption.CONTINUE_ON_ERROR)) {
+            rules.add(ansible
+                ? "- Continue to the remaining hosts when one fails (ignore_errors / max_fail_percentage)."
+                : "- Continue to the next host when one fails; record the failure rather than aborting the whole run.");
+        }
+        if (opts.contains(SwarmScriptOption.PER_HOST_RESULT_COLLECTION)) {
+            rules.add("- Collect each host's status/output into a structured result (table or CSV).");
+        }
+        if (opts.contains(SwarmScriptOption.AGGREGATED_REPORT)) {
+            rules.add("- Print an aggregated end-of-run report (OK / FAILED / UNREACHABLE counts and per-host lines).");
+        }
+        if (opts.contains(SwarmScriptOption.RETRY_BACKOFF)) {
+            rules.add("- Retry each host a few times with exponential backoff before marking it failed.");
+        }
+        if (opts.contains(SwarmScriptOption.SSH_OPTIONS)) {
+            rules.add(ansible
+                ? "- Use key/agent auth; set ansible_ssh_common_args for BatchMode and ConnectTimeout."
+                : "- Centralize SSH options: key file / ssh-agent, BatchMode=yes, ConnectTimeout, and a StrictHostKeyChecking policy.");
+        }
+        if (opts.contains(SwarmScriptOption.JUMP_HOST)) {
+            rules.add(ansible
+                ? "- Route through a bastion via ansible_ssh_common_args ProxyJump."
+                : "- Support routing through a jump/bastion host (ssh -J / ProxyJump).");
+        }
+        if (opts.contains(SwarmScriptOption.DRY_RUN)) {
+            rules.add(ansible
+                ? "- Support --check so a dry run makes no changes."
+                : "- Support a --dry-run flag that prints intended per-host actions without connecting.");
+        }
+        if (opts.contains(SwarmScriptOption.SUDO_ESCALATION)) {
+            rules.add(ansible
+                ? "- Use become for privilege escalation where needed."
+                : "- Support optional privilege escalation per host (sudo -n) where needed.");
+        }
+        return String.join("\n", rules);
+    }
+
     // ------------------------------------------------------------------ output post-processing
 
     /**

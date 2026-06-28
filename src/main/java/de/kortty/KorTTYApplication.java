@@ -14,6 +14,7 @@ import de.kortty.core.ThemeManager;
 import de.kortty.core.TerminalEffectPluginManager;
 import de.kortty.core.BackupManager;
 import de.kortty.core.AiChatManager;
+import de.kortty.core.SwarmChatManager;
 import de.kortty.teamwork.TeamworkSyncService;
 import de.kortty.teamwork.TeamworkRecycleBinService;
 import de.kortty.jobscheduler.JobSchedulerService;
@@ -73,6 +74,7 @@ public class KorTTYApplication extends Application {
     private TerminalEffectPluginManager terminalEffectPluginManager;
     private BackupManager backupManager;
     private AiChatManager aiChatManager;
+    private SwarmChatManager swarmChatManager;
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
     private JobSchedulerService jobSchedulerService;
@@ -119,7 +121,8 @@ public class KorTTYApplication extends Application {
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
         aiChatManager = new AiChatManager(configDir);
-        
+        swarmChatManager = new SwarmChatManager(configDir);
+
         // Register JMX MBean
         registerJMXBean();
     }
@@ -198,6 +201,7 @@ public class KorTTYApplication extends Application {
                 snippetManager.load();
                 snippetVariableManager.load();
                 aiChatManager.load();
+                swarmChatManager.load();
                 // Reload global settings to ensure we have the latest version
                 // Note: This reload should preserve the language setting from the file
                 globalSettingsManager.load();
@@ -304,6 +308,9 @@ public class KorTTYApplication extends Application {
             }
             if (aiChatManager != null) {
                 aiChatManager.save();
+            }
+            if (swarmChatManager != null) {
+                swarmChatManager.save();
             }
             if (globalSettingsManager != null) {
                 globalSettingsManager.save();
@@ -576,6 +583,10 @@ public class KorTTYApplication extends Application {
 
     public AiChatManager getAiChatManager() {
         return aiChatManager;
+    }
+
+    public SwarmChatManager getSwarmChatManager() {
+        return swarmChatManager;
     }
     
     public BackupManager getBackupManager() {

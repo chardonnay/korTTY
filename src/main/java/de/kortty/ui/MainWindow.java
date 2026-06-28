@@ -9,6 +9,10 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiPromptService;
+import de.kortty.core.swarm.SwarmCallback;
+import de.kortty.core.swarm.SwarmModels;
+import de.kortty.core.swarm.SwarmOrchestrator;
+import de.kortty.core.swarm.SwarmTarget;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiService;
 import de.kortty.core.AiServiceFactory;
@@ -242,6 +246,7 @@ public class MainWindow {
     private enum MenuBarTarget { WINDOW, SYSTEM }
 
     private final Map<String, AiResultTab> openSavedAiChatTabs = new HashMap<>();
+    private final Map<String, SwarmAgentTab> openSavedSwarmChatTabs = new HashMap<>();
 
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
@@ -1274,12 +1279,16 @@ public class MainWindow {
         aiPlanning.setAccelerator(AI_PLANNING_ACCELERATOR);
         aiPlanning.setOnAction(e -> showAiPlanning());
 
+        MenuItem aiSwarm = new MenuItem(I18n.get("menu.tools.aiSwarm"));
+        aiSwarm.setOnAction(e -> showAiSwarm());
+
         toolsAiMenuItems.add(aiManager);
         toolsAiMenuItems.add(aiAgent);
         toolsAiMenuItems.add(aiPlanning);
+        toolsAiMenuItems.add(aiSwarm);
         toolsAiAgentExecutionMenuItems.add(aiAgent);
 
-        aiMenu.getItems().addAll(aiManager, aiAgent, aiPlanning);
+        aiMenu.getItems().addAll(aiManager, aiAgent, aiPlanning, aiSwarm);
         return aiMenu;
     }
 
@@ -2924,6 +2933,11 @@ public class MainWindow {
             }
         }
         return tabs;
+    }
+
+    /** Open terminal tabs in this window (used by the AI swarm target collector). */
+    public java.util.List<TerminalTab> getOpenTerminalTabs() {
+        return terminalTabs();
     }
 
     private void onAiAgentPlacementChanged(AiAgentPanelDockManager.Placement placement) {
@@ -5893,6 +5907,114 @@ public class MainWindow {
         return createAiService(profile);
     }
 
+    /** A factory that builds a fresh {@link AiPromptService} per call (one per swarm agent thread). */
+    public java.util.function.Supplier<AiPromptService> aiPromptServiceFactory(AiProfile profile) {
+        return () -> {
+            AiService service = createAiServiceForProfile(profile);
+            return service instanceof AiPromptService promptService ? promptService : null;
+        };
+    }
+
+    /**
+     * Starts an AI swarm on a dedicated daemon coordinator thread (reusing the shared
+     * {@link TerminalAgentService}). Returns the coordinator thread.
+     */
+    public Thread startSwarm(
+        SwarmModels.SwarmRequest request,
+        java.util.List<SwarmTarget> targets,
+        AiProfile profile,
+        SwarmCallback callback) {
+        SwarmOrchestrator orchestrator = new SwarmOrchestrator(terminalAgentService);
+        java.util.function.Supplier<AiPromptService> factory = aiPromptServiceFactory(profile);
+        Thread thread = new Thread(
+            () -> orchestrator.run(request, targets, profile, factory, callback),
+            "ai-swarm-coordinator");
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
+    /**
+     * Sequentially opens the given not-yet-open connections for a swarm and reports each, once its
+     * session is established, as a connected {@link SwarmTarget}. Sequential so per-host auth/host-key
+     * dialogs queue cleanly instead of stacking.
+     */
+    public void connectSwarmTargets(
+        java.util.List<ServerConnection> connections,
+        boolean includeLocalShell,
+        java.util.function.Consumer<SwarmTarget> onConnected,
+        Runnable onComplete) {
+        java.util.List<ServerConnection> toOpen = new java.util.ArrayList<>();
+        if (connections != null) {
+            for (ServerConnection connection : connections) {
+                if (connection != null && (includeLocalShell || !connection.isLocalShell())) {
+                    toOpen.add(connection);
+                }
+            }
+        }
+        connectSwarmNext(toOpen.iterator(), onConnected, onComplete);
+    }
+
+    private void connectSwarmNext(
+        java.util.Iterator<ServerConnection> iterator,
+        java.util.function.Consumer<SwarmTarget> onConnected,
+        Runnable onComplete) {
+        if (!iterator.hasNext()) {
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return;
+        }
+        ServerConnection connection = iterator.next();
+        TerminalTab tab;
+        try {
+            String password = ensurePasswordForConnection(connection, null);
+            tab = openConnectionAndReturnTab(connection, password, null, null);
+        } catch (Exception e) {
+            logger.warn("Swarm could not open connection {}", connection.getDisplayName(), e);
+            connectSwarmNext(iterator, onConnected, onComplete);
+            return;
+        }
+        final TerminalTab openedTab = tab;
+        final long deadline = System.currentTimeMillis() + 30_000L;
+        Thread poller = new Thread(() -> {
+            AgentCommandRunner runner = null;
+            while (System.currentTimeMillis() < deadline) {
+                var connector = openedTab != null && openedTab.getTerminalView() != null
+                    ? openedTab.getTerminalView().getActiveAgentConnector()
+                    : null;
+                AgentCommandRunner candidate = connector != null
+                    ? AgentCommandRunners.forConnector(connector)
+                    : null;
+                if (candidate != null && candidate.isConnected()) {
+                    runner = candidate;
+                    break;
+                }
+                try {
+                    Thread.sleep(300L);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            final AgentCommandRunner connectedRunner = runner;
+            Platform.runLater(() -> {
+                if (connectedRunner != null && onConnected != null) {
+                    onConnected.accept(new SwarmTarget(
+                        "swarm-" + java.util.UUID.randomUUID(),
+                        connection,
+                        connectedRunner,
+                        openedTab,
+                        "swarm-" + java.util.UUID.randomUUID(),
+                        SwarmTargetCollector.displayName(connection)));
+                }
+                connectSwarmNext(iterator, onConnected, onComplete);
+            });
+        }, "ai-swarm-connect");
+        poller.setDaemon(true);
+        poller.start();
+    }
+
     AiService createAiServiceForProfile(AiProfile profile, ServerConnection connection) {
         return createAiService(profile, connection);
     }
@@ -5917,6 +6039,53 @@ public class MainWindow {
             return;
         }
         openSavedAiChatTabs.remove(chatId);
+    }
+
+    void registerSavedSwarmChatTab(SwarmAgentTab tab) {
+        if (tab == null || tab.getSavedChatId() == null || tab.getSavedChatId().isBlank()) {
+            return;
+        }
+        openSavedSwarmChatTabs.put(tab.getSavedChatId(), tab);
+    }
+
+    void unregisterSavedSwarmChatTab(String chatId) {
+        if (chatId == null || chatId.isBlank()) {
+            return;
+        }
+        openSavedSwarmChatTabs.remove(chatId);
+    }
+
+    /** Opens a fresh AI swarm window. */
+    private void showAiSwarm() {
+        AiProfile profile = getDefaultAiProfile();
+        String languageCode = LanguageManager.getInstance().getCurrentLanguageCode();
+        SwarmAgentTab tab = new SwarmAgentTab(this, I18n.get("ai.swarm.tab.title"), profile, languageCode, null, false);
+        insertTemporaryTab(tab);
+    }
+
+    /** Reopens a saved swarm chat (or focuses it if already open). */
+    public void openSavedSwarmChat(de.kortty.model.SavedSwarmChat chat) {
+        if (chat == null) {
+            return;
+        }
+        SwarmAgentTab existing = openSavedSwarmChatTabs.get(chat.getId());
+        if (existing != null && tabPane.getTabs().contains(existing)) {
+            tabPane.getSelectionModel().select(existing);
+            return;
+        }
+        openSavedSwarmChatTabs.remove(chat.getId());
+        AiProfile profile = chat.getActiveAiProfileId() != null
+            ? findAiProfileById(chat.getActiveAiProfileId())
+            : getDefaultAiProfile();
+        String languageCode = chat.getResponseLanguageCode() != null
+            ? chat.getResponseLanguageCode()
+            : LanguageManager.getInstance().getCurrentLanguageCode();
+        String title = chat.getTitle() != null && !chat.getTitle().isBlank()
+            ? chat.getTitle()
+            : I18n.get("ai.swarm.tab.title");
+        SwarmAgentTab tab = new SwarmAgentTab(this, title, profile, languageCode, chat, false);
+        insertTemporaryTab(tab);
+        registerSavedSwarmChatTab(tab);
     }
 
     AiResultTab findOpenSavedChatTab(String chatId) {

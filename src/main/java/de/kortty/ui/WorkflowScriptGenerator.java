@@ -160,6 +160,96 @@ public final class WorkflowScriptGenerator {
         return new Outcome(script, loadedSkills);
     }
 
+    /** Immutable carrier for a multi-server (swarm) workflow generation. */
+    public record SwarmRunExportData(String profileId, String profileName, String userQuery,
+                                     List<WorkflowScriptSupport.SwarmHost> hosts,
+                                     TerminalAgentActivityExportService.Run representativeRun,
+                                     String detectedOs) {
+    }
+
+    public record SwarmRequest(ScriptLanguage language,
+                               EnumSet<WorkflowScriptSupport.HardeningOption> hardening,
+                               EnumSet<WorkflowScriptSupport.SwarmScriptOption> swarmOptions,
+                               String extraInstructions, HeaderFacts headerFacts, String headerOverride) {
+    }
+
+    /** Generates a multi-host workflow script that runs the per-host work across all target hosts. */
+    public Outcome generateSwarm(SwarmRunExportData data, SwarmRequest request) {
+        Objects.requireNonNull(data, "data");
+        Objects.requireNonNull(request, "request");
+
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        if (settings == null) {
+            throw new GenerationException(FailureKind.NO_PROFILE, "Settings unavailable");
+        }
+        AiProfile profile = resolveProfile(settings, data.profileId());
+        if (profile == null) {
+            throw new GenerationException(FailureKind.NO_PROFILE, "No AI profile available");
+        }
+        AiProfile generationProfile = new AiProfile(profile);
+        generationProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        String apiKey = resolveApiKey(generationProfile);
+
+        WorkflowContext context = data.representativeRun() != null
+            ? WorkflowContextBuilder.build(data.representativeRun(), WorkflowContextBuilder.DEFAULT_MAX_CONTEXT_CHARS)
+            : new WorkflowContext(
+                "(no recorded per-host commands — infer the per-host steps from the originating request)",
+                false, 0, 0);
+
+        String override = request.headerOverride();
+        WorkflowScriptSupport.HeaderMode headerMode = override == null
+            ? WorkflowScriptSupport.HeaderMode.AUTO
+            : override.isBlank() ? WorkflowScriptSupport.HeaderMode.NONE
+            : WorkflowScriptSupport.HeaderMode.CUSTOM;
+
+        String systemPrompt = WorkflowScriptSupport.buildSwarmSystemPrompt(
+            request.language(), request.hardening(), request.swarmOptions(), headerMode);
+        String userPrompt = WorkflowScriptSupport.buildSwarmUserPrompt(
+            request.language(), request.headerFacts(), context, data.hosts(),
+            request.swarmOptions(), request.extraInstructions(), headerMode);
+
+        AiSkillPromptSupport skills = AiSkillPromptSupport.fromSettings(settings, null);
+        String systemWithSkills = skills.appendAgentSkills(systemPrompt, userPrompt);
+
+        AiService service = AiServiceFactory.create(
+            generationProfile, apiKey, AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
+        if (service == null) {
+            throw new GenerationException(FailureKind.NO_PROFILE, "AI service could not be created");
+        }
+        if (service instanceof FailingAiService failing) {
+            throw new GenerationException(FailureKind.AI_ERROR, failing.message());
+        }
+        if (!(service instanceof AiPromptService promptService)) {
+            throw new GenerationException(FailureKind.NOT_PROMPT_SERVICE, "The selected AI profile cannot run prompts");
+        }
+
+        AiExecutionResult result;
+        try {
+            result = promptService.executePrompt(systemWithSkills, userPrompt);
+        } catch (Exception e) {
+            logger.warn("Swarm workflow script generation failed", e);
+            throw new GenerationException(FailureKind.AI_ERROR,
+                e.getMessage() != null && !e.getMessage().isBlank() ? e.getMessage() : e.toString());
+        }
+        if (result == null || result.content() == null || result.content().isBlank()) {
+            throw new GenerationException(FailureKind.AI_ERROR, "The AI returned an empty response");
+        }
+        String stripped = WorkflowScriptSupport.stripCodeFences(result.content());
+        String script = switch (headerMode) {
+            case AUTO -> WorkflowScriptSupport.ensureHeaderInjected(stripped, request.language(), request.headerFacts());
+            case CUSTOM -> WorkflowScriptSupport.injectHeaderOverride(stripped, request.language(), override);
+            case NONE -> stripped;
+        };
+        List<String> loadedSkills = skills.drainSkillUsages().stream()
+            .map(AiSkillPromptSupport.SkillUsage::name)
+            .filter(name -> name != null && !name.isBlank())
+            .distinct()
+            .toList();
+        return new Outcome(script, loadedSkills);
+    }
+
     /**
      * Generates a PlantUML logical-structure diagram for a generated script, reusing the snippet
      * diagram pipeline. Internet access is forced off (same as script generation).

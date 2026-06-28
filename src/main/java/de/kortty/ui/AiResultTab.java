@@ -19,7 +19,12 @@ import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.LanguageManager;
+import de.kortty.core.TerminalAgentService;
+import de.kortty.core.swarm.SwarmCallback;
+import de.kortty.core.swarm.SwarmModels;
+import de.kortty.core.swarm.SwarmTarget;
 import de.kortty.model.AiProfile;
+import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedAiChatMessage;
@@ -34,6 +39,8 @@ import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
@@ -77,6 +84,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AI chat tab that supports follow-up questions, saving, sharing, and reopening.
@@ -121,6 +130,11 @@ public class AiResultTab extends Tab {
     private String activeProfileId;
     private String activeProfileName;
     private String baseTitle;
+    private final ComboBox<BroadcastTarget> targetComboBox = new ComboBox<>();
+    private AtomicBoolean broadcastCancelled;
+
+    /** Where a chat query is sent: only the active connection, or every open terminal (deduped per server). */
+    public enum BroadcastTarget { ACTIVE_CONNECTION, ALL_OPEN_TERMINALS }
 
     private record AiLanguageOption(String code, String label) {
         @Override
@@ -274,7 +288,26 @@ public class AiResultTab extends Tab {
 
         Label profileLabel = new Label(I18n.get("ai.result.profile"));
         Label languageLabel = new Label(I18n.get("ai.result.language"));
-        HBox profileRow = new HBox(8, profileLabel, profileComboBox, languageLabel, languageComboBox);
+        Label targetLabel = new Label(I18n.get("ai.swarm.broadcast.target"));
+        targetComboBox.getItems().setAll(BroadcastTarget.ACTIVE_CONNECTION, BroadcastTarget.ALL_OPEN_TERMINALS);
+        targetComboBox.setValue(BroadcastTarget.ACTIVE_CONNECTION);
+        targetComboBox.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(BroadcastTarget target) {
+                if (target == null) {
+                    return "";
+                }
+                return I18n.get(target == BroadcastTarget.ALL_OPEN_TERMINALS
+                    ? "ai.swarm.broadcast.targetMode.allOpen"
+                    : "ai.swarm.broadcast.targetMode.active");
+            }
+
+            @Override
+            public BroadcastTarget fromString(String value) {
+                return null;
+            }
+        });
+        HBox profileRow = new HBox(8, profileLabel, profileComboBox, languageLabel, languageComboBox, targetLabel, targetComboBox);
         profileRow.setAlignment(Pos.CENTER_LEFT);
 
         Label composerLabel = new Label(I18n.get("ai.result.followup.label"));
@@ -636,6 +669,11 @@ public class AiResultTab extends Tab {
             return;
         }
 
+        if (targetComboBox.getValue() == BroadcastTarget.ALL_OPEN_TERMINALS) {
+            sendBroadcast(prompt, selectedProfile);
+            return;
+        }
+
         AiService aiService = ownerWindow.createAiServiceForProfile(selectedProfile);
         if (aiService == null) {
             showErrorAlert(I18n.get("ai.error.title"), I18n.get("ai.error.notConfigured"));
@@ -695,6 +733,133 @@ public class AiResultTab extends Tab {
         thread.start();
     }
 
+    /**
+     * Surface A: fan the prompt out to every open terminal (deduped per server) and append the
+     * bundled answer as one assistant message (a markdown table is rendered by the existing pipeline).
+     */
+    private void sendBroadcast(String prompt, AiProfile profile) {
+        SwarmTargetCollector.CollectResult collected = SwarmTargetCollector.collectOpenTerminals(ownerWindow, false);
+        List<SwarmTarget> targets = collected.targets();
+        if (targets.isEmpty()) {
+            showErrorAlert(I18n.get("ai.error.title"), I18n.get("ai.swarm.error.noOpenTerminals"));
+            return;
+        }
+        appendUserMessage(prompt);
+        promptInputArea.clear();
+
+        broadcastCancelled = new AtomicBoolean(false);
+        AtomicBoolean cancelled = broadcastCancelled;
+        SwarmModels.SwarmRequest request = new SwarmModels.SwarmRequest(
+            prompt,
+            profile.getId(),
+            SwarmModels.SwarmSource.OPEN_TERMINALS,
+            false,
+            false,
+            4,
+            SwarmModels.BatchApprovalPolicy.ONE_APPROVAL_FOR_ALL);
+
+        busy = true;
+        statusLabel.setText(I18n.get("ai.swarm.progress.preparing"));
+        updateSendAvailability();
+
+        SwarmCallback callback = new SwarmCallback() {
+            @Override
+            public void onSwarmState(SwarmModels.SwarmRunState state) {
+                Platform.runLater(() -> updateBroadcastProgress(state));
+            }
+
+            @Override
+            public void onAgentStatus(SwarmModels.SwarmAgentStatus status) {
+            }
+
+            @Override
+            public void onAgentTranscript(String agentId, String chunk) {
+            }
+
+            @Override
+            public void onAggregationResult(SwarmModels.SwarmAggregationResult result) {
+                Platform.runLater(() -> {
+                    stopWaiting();
+                    if (result != null && result.markdown() != null && !result.markdown().isBlank()) {
+                        appendAssistantMessage(result.markdown());
+                    }
+                    statusLabel.setText(I18n.get("ai.result.ready"));
+                    updateSendAvailability();
+                });
+            }
+
+            @Override
+            public TerminalAgentService.ApprovalDecision requestBatchApproval(
+                TerminalAgentModels.Approval approval, String agentId) {
+                return requestSwarmApprovalBlocking(approval);
+            }
+
+            @Override
+            public TerminalAgentModels.PasswordResponse requestPassword(
+                TerminalAgentModels.PasswordRequest passwordRequest, String agentId) {
+                return null;
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return cancelled.get();
+            }
+        };
+        ownerWindow.startSwarm(request, targets, profile, callback);
+    }
+
+    private void updateBroadcastProgress(SwarmModels.SwarmRunState state) {
+        if (state == null) {
+            return;
+        }
+        switch (state.phase()) {
+            case PREPARING, CONNECTING -> statusLabel.setText(I18n.get("ai.swarm.progress.preparing"));
+            case AGGREGATING -> statusLabel.setText(I18n.get("ai.swarm.progress.aggregating"));
+            default -> {
+                long seconds = Math.max(0L, state.elapsedSeconds());
+                String elapsed = String.format(Locale.ROOT, "%02d:%02d", seconds / 60L, seconds % 60L);
+                statusLabel.setText(I18n.get("ai.swarm.progress",
+                    state.running(), state.done(), state.failed(), elapsed));
+            }
+        }
+    }
+
+    private TerminalAgentService.ApprovalDecision requestSwarmApprovalBlocking(TerminalAgentModels.Approval approval) {
+        CompletableFuture<TerminalAgentService.ApprovalDecision> future = new CompletableFuture<>();
+        Runnable show = () -> {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle(I18n.get("ai.swarm.approve.title"));
+            alert.setHeaderText(null);
+            StringBuilder commands = new StringBuilder();
+            if (approval != null && approval.commands() != null) {
+                for (TerminalAgentModels.PlannedCommand command : approval.commands()) {
+                    if (command != null && command.command() != null) {
+                        commands.append(command.command()).append('\n');
+                    }
+                }
+            }
+            alert.setContentText(I18n.get("ai.swarm.approve.message",
+                I18n.get("ai.swarm.broadcast.targetMode.allOpen"), commands.toString().trim()));
+            ButtonType approveAll = new ButtonType(I18n.get("ai.swarm.approve.approveAll"), ButtonBar.ButtonData.OK_DONE);
+            ButtonType cancel = new ButtonType(I18n.get("ai.swarm.approve.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+            alert.getButtonTypes().setAll(approveAll, cancel);
+            var choice = alert.showAndWait();
+            future.complete(choice.isPresent() && choice.get() == approveAll
+                ? TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS
+                : TerminalAgentService.ApprovalDecision.CANCEL);
+        };
+        if (Platform.isFxApplicationThread()) {
+            show.run();
+        } else {
+            Platform.runLater(show);
+        }
+        try {
+            return future.get();
+        } catch (Exception e) {
+            return TerminalAgentService.ApprovalDecision.CANCEL;
+        }
+    }
+
     private void updateSendAvailability() {
         boolean hasPrompt = promptInputArea.getText() != null && !promptInputArea.getText().trim().isEmpty();
         boolean hasProfile = profileComboBox.getSelectionModel().getSelectedItem() != null;
@@ -736,6 +901,9 @@ public class AiResultTab extends Tab {
     }
 
     private void cancelActiveRequest() {
+        if (broadcastCancelled != null) {
+            broadcastCancelled.set(true);
+        }
         Task<?> task = activeTask;
         Thread thread = activeThread;
         if (task != null) {
