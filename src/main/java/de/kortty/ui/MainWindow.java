@@ -6790,9 +6790,10 @@ public class MainWindow {
      */
     private void duplicateTab(TerminalTab sourceTab) {
         ServerConnection connection = sourceTab.getConnection();
-        
-        // SSH key auth does not require a password - duplicate directly
-        if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+
+        // Local shells run a local process with no authentication, and SSH key auth needs no
+        // password - duplicate directly without prompting.
+        if (connection.isLocalShell() || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
             createDuplicateTab(sourceTab, connection, null);
             return;
         }
