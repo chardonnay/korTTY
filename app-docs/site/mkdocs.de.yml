@@ -1,0 +1,17 @@
+# German build entrypoint. docs/de is GENERATED from docs/en by
+# scripts/translate_docs.py — do not hand-edit German pages.
+#   mkdocs build -f app-docs/site/mkdocs.de.yml --strict
+INHERIT: mkdocs.yml
+
+site_name: korTTY Anleitung
+docs_dir: docs/de
+site_dir: ../../build/guide/de
+site_url: https://chardonnay.github.io/korTTY/de/
+
+theme:
+  language: de
+
+plugins:
+  - search:
+      lang: de # German stemmer/stopwords for correct offline search
+  - offline

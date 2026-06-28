@@ -1,0 +1,15 @@
+# English build entrypoint. EN is the authored source of truth.
+#   mkdocs build -f app-docs/site/mkdocs.en.yml --strict
+INHERIT: mkdocs.yml
+
+docs_dir: docs/en
+site_dir: ../../build/guide/en
+site_url: https://chardonnay.github.io/korTTY/en/
+
+theme:
+  language: en
+
+plugins:
+  - search:
+      lang: en
+  - offline # CRITICAL: makes search + assets work from file:// / jar://

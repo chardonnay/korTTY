@@ -1,0 +1,16 @@
+{#-
+  Footer: license + developer credit + live version. The korTTY version is
+  injected at build time (config.extra.kortty_version from build.gradle.kts via
+  KORTTY_VERSION), so the version is shown site-wide without being hard-typed in
+  any Markdown page. The license/credit line is rendered per build language.
+  Self-contained markup so it does not depend on Material's internal partial.
+-#}
+{% set _lang = config.theme.language %}
+{% set _license = "MIT-lizenziert" if _lang == "de" else "MIT-licensed" %}
+{% set _credit = "Entwickelt von Daniel Mengel" if _lang == "de" else "Developed by Daniel Mengel" %}
+<div class="md-copyright">
+  <div class="md-copyright__highlight">{{ _license }} · {{ _credit }}</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v{{ config.extra.kortty_version }}</strong>
+  </div>
+</div>

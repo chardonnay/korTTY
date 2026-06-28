@@ -600,6 +600,107 @@ tasks.named<ProcessResources>("processResources") {
     }
 }
 
+// ---- Documentation guide site (MkDocs Material) -------------------------------
+// Builds the bilingual, fully-offline guide into build/guide and bundles it into
+// the app under /guide/** so Help -> Anleitung (GuideViewer) loads it from the
+// classpath, exactly like the bundled Monaco editor. The same output is published
+// to GitHub Pages by .github/workflows/docs-site.yml.
+
+val docsVenvDir = layout.projectDirectory.dir(".venv-docs")
+val guideSiteOutputDir = layout.buildDirectory.dir("guide")
+
+/** Resolves the docs venv Python (Scripts/python.exe on Windows, bin/python elsewhere), or "python3" if the venv is absent. */
+fun docsPythonExecutable(): String {
+    val isWindows = System.getProperty("os.name", "").lowercase().contains("win")
+    val venvPython = docsVenvDir.asFile.resolve(if (isWindows) "Scripts/python.exe" else "bin/python")
+    return if (venvPython.exists()) venvPython.absolutePath else "python3"
+}
+
+/** Runs a docs-build command in [workingDirectory] with [extraEnv] applied, streaming its merged output; returns the exit code. */
+fun runDocsCommand(workingDirectory: File, extraEnv: Map<String, String>, vararg command: String): Int {
+    val builder = ProcessBuilder(command.toList())
+        .directory(workingDirectory)
+        .redirectErrorStream(true)
+    builder.environment().putAll(extraEnv)
+    val process = builder.start()
+    val output = process.inputStream.bufferedReader().use { it.readText() }
+    val exitCode = process.waitFor()
+    if (output.isNotBlank()) println(output)
+    return exitCode
+}
+
+tasks.register("setupDocsVenv") {
+    group = "documentation"
+    description = "Creates .venv-docs and installs the pinned MkDocs Material toolchain (needs network)."
+    val requirements = layout.projectDirectory.file("app-docs/site/requirements.txt").asFile
+    inputs.file(requirements)
+    outputs.dir(docsVenvDir)
+    doLast {
+        val venv = docsVenvDir.asFile
+        // Resolve the venv interpreter the same way docsPythonExecutable() does so the
+        // bootstrap works on Windows (Scripts/python.exe) as well as Unix (bin/python).
+        val isWindows = System.getProperty("os.name", "").lowercase().contains("win")
+        val py = venv.resolve(if (isWindows) "Scripts/python.exe" else "bin/python")
+        if (!py.exists()) {
+            val bootstrapPython = if (isWindows) "py" else "python3"
+            val rc = runDocsCommand(rootDir, emptyMap(), bootstrapPython, "-m", "venv", venv.absolutePath)
+            if (rc != 0) throw GradleException("Could not create .venv-docs (python -m venv failed, exit $rc)")
+        }
+        var rc = runDocsCommand(rootDir, emptyMap(), py.absolutePath, "-m", "pip", "install", "--quiet", "--upgrade", "pip")
+        if (rc != 0) throw GradleException("pip upgrade failed (exit $rc)")
+        rc = runDocsCommand(rootDir, emptyMap(), py.absolutePath, "-m", "pip", "install", "--quiet", "-r", requirements.absolutePath)
+        if (rc != 0) throw GradleException("pip install of the MkDocs toolchain failed (exit $rc)")
+    }
+}
+
+tasks.register("buildDocsSite") {
+    group = "documentation"
+    description = "Builds the bilingual offline guide site into build/guide for bundling and Pages."
+    inputs.dir("app-docs/site/docs")
+    inputs.dir("app-docs/site/overrides")
+    inputs.dir("app-docs/site/vendor")
+    inputs.dir("app-docs/screenshots")
+    inputs.file("app-docs/site/mkdocs.yml")
+    inputs.file("app-docs/site/mkdocs.en.yml")
+    inputs.file("app-docs/site/mkdocs.de.yml")
+    inputs.dir("app-docs/diagrams")
+    inputs.file("scripts/build-docs-site.py")
+    inputs.property("version", project.version.toString())
+    outputs.dir(guideSiteOutputDir)
+    doLast {
+        val outDir = guideSiteOutputDir.get().asFile
+        delete(outDir)
+        val builderScript = rootDir.resolve("scripts/build-docs-site.py")
+        val rc = runDocsCommand(
+            rootDir,
+            mapOf("KORTTY_VERSION" to project.version.toString()),
+            docsPythonExecutable(), builderScript.absolutePath
+        )
+        if (rc != 0) {
+            logger.warn(
+                "buildDocsSite: guide build failed or MkDocs unavailable (exit {}). Bundling a placeholder. " +
+                    "Run ':setupDocsVenv' then ':buildDocsSite' to bundle the full guide.", rc
+            )
+            val placeholder = outDir.resolve("en/index.html")
+            placeholder.parentFile.mkdirs()
+            placeholder.writeText(
+                "<!doctype html><html><head><meta charset=\"utf-8\"><title>korTTY Guide</title></head>" +
+                    "<body style=\"background:#07111d;color:#e6f3ff;font-family:sans-serif;padding:2rem\">" +
+                    "<h1>korTTY Guide</h1><p>The bundled guide was not built in this environment.</p>" +
+                    "<p><a style=\"color:#38bdf8\" href=\"https://chardonnay.github.io/korTTY/\">Open the online guide</a></p>" +
+                    "</body></html>"
+            )
+        }
+    }
+}
+
+tasks.named<ProcessResources>("processResources") {
+    dependsOn("buildDocsSite")
+    from(guideSiteOutputDir) {
+        into("guide")
+    }
+}
+
 tasks.register("copyBundledPrettier") {
     group = "build"
     description = "Downloads pinned Prettier and copies it into the jpackage formatter directory."

@@ -1,0 +1,271 @@
+# korTTY documentation manifest — the machine-checkable map between doc pages and
+# the code/i18n/visuals they describe. Maintained by the `update-docs` skill
+# (.claude/skills/update-docs) and validated in CI by scripts/doc-coverage.py and
+# scripts/doc-links.py. See /AGENTS.md for the doc house style.
+#
+# Coverage model: every user-facing settings.* / menu.* i18n key (minus chrome
+# suffixes) must be "owned" by exactly one EXISTING page via an `owns_i18n`
+# prefix. doc-coverage.py reports any key with no owning page (undocumented) and
+# any owned prefix that matches no key (stale).
+schema_version: 1
+
+# Mirrored from build.gradle.kts:12 by scripts/sync-version.py.
+version: "2.2.3"
+
+coverage:
+  i18n_source: src/main/resources/i18n/messages_en.properties
+  required_prefixes: ["settings.", "menu."]
+  # Suffixes that mark chrome/strings, not documentable features.
+  ignore_suffixes:
+    - .tooltip
+    - .title
+    - .save
+    - .cancel
+    - .header
+    - .ok
+    - .close
+    - .hint
+    - .placeholder
+    - .prompt
+    - .description
+    - .desc
+    - .info
+    - .note
+    - .help
+    - .label
+    - .column
+    - .tab
+  # Individual non-feature keys with no documentation home.
+  ignore_keys:
+    - settings.nav.back
+    - settings.nav.forward
+    - menu.settings.title
+    - menu.configuration
+
+# Each page maps to the code/i18n it documents. `owns_i18n` are i18n key prefixes
+# this page is the authoritative home for. `path` is relative to the repo root.
+# `last_synced_ref` is the git commit the page was last reconciled against.
+pages:
+  # ---- Getting started -------------------------------------------------------
+  - path: app-docs/site/docs/en/index.md
+    owns_i18n: []
+    owns_code: []
+    diagrams: []
+    screenshots: []
+    last_synced_ref: "93470d6"
+  - path: app-docs/site/docs/en/getting-started/installation.md
+    owns_i18n: []
+    owns_code: [build.gradle.kts]
+    last_synced_ref: "93470d6"
+  - path: app-docs/site/docs/en/getting-started/first-launch.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/MasterPasswordManager.java]
+    diagrams: [credential-flow.svg]
+    last_synced_ref: "93470d6"
+  - path: app-docs/site/docs/en/getting-started/main-window.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
+    diagrams: [architecture.svg, mainwindow-layout.svg]
+    screenshots: [main/main-window.png]
+    last_synced_ref: "93470d6"
+
+  # ---- Reference: menus & shortcuts ------------------------------------------
+  - path: app-docs/site/docs/en/reference/menu.md
+    owns_i18n: ["menu."]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
+    screenshots:
+      - main/menu-tools.png
+      - main/menu-ai.png
+      - ai/ai-manager.png
+    last_synced_ref: "7c55a4a"
+  - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
+    last_synced_ref: "4184473"
+
+  # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
+  # NOTE: these pages are being authored in the content build-out. Until a page
+  # file exists, doc-coverage.py reports its settings.* keys as undocumented.
+  - path: app-docs/site/docs/en/reference/settings/index.md
+    owns_i18n: [settings.preview., settings.nav., settings.tab.]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots:
+      - settings/colors.png
+      - settings/terminal.png
+      - settings/backup.png
+      - settings/ai.png
+    last_synced_ref: "93470d6"
+  - path: app-docs/site/docs/en/reference/settings/appearance.md
+    owns_i18n: [settings.appearance., settings.font.]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java]
+    screenshots:
+      - settings/appearance.png
+      - settings/themes.png
+      - settings/font.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/colors.md
+    owns_i18n: [settings.colors.]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    screenshots:
+      - settings/colors.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/terminal.md
+    owns_i18n: [settings.terminal.]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots:
+      - settings/terminal.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/window.md
+    owns_i18n: [settings.window.]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    screenshots:
+      - settings/window.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/logging.md
+    owns_i18n: [settings.logging.]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    screenshots:
+      - settings/logging.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/backup.md
+    owns_i18n: [settings.backup.]
+    owns_code: [src/main/java/de/kortty/core/BackupManager.java]
+    screenshots:
+      - settings/backup.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/updates.md
+    owns_i18n: [settings.updates.]
+    owns_code: [src/main/java/de/kortty/update/UpdateCheckService.java]
+    screenshots:
+      - settings/updates.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/security.md
+    owns_i18n: [settings.security.]
+    owns_code: [src/main/java/de/kortty/security]
+    screenshots:
+      - settings/security.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/language.md
+    owns_i18n: [settings.language.]
+    owns_code: [src/main/java/de/kortty/core/LanguageManager.java]
+    screenshots:
+      - settings/language.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/translation.md
+    owns_i18n: [settings.translation.]
+    owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java]
+    screenshots:
+      - settings/translation.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/video.md
+    owns_i18n: [settings.video.]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
+    screenshots:
+      - settings/video.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/ai.md
+    owns_i18n: [settings.ai.]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
+    screenshots:
+      - settings/ai.png
+    last_synced_ref: "8250396"
+  - path: app-docs/site/docs/en/reference/settings/ai-skills.md
+    owns_i18n: [settings.aiSkills.]
+    owns_code: [src/main/java/de/kortty/core]
+
+    screenshots:
+      - settings/ai-skills.png
+    last_synced_ref: "8250396"
+  # ---- Features --------------------------------------------------------------
+  - path: app-docs/site/docs/en/features/connections.md
+    owns_i18n: [menu.connections.]
+    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java]
+    diagrams: [connection-flow.svg, jump-server-flow.svg]
+    last_synced_ref: "4184473"
+  - path: app-docs/site/docs/en/features/terminal.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui/TerminalView.java]
+    diagrams: [session-lifecycle.svg]
+    last_synced_ref: "4184473"
+  - path: app-docs/site/docs/en/features/tunnels.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/model]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/jump-server.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core]
+    diagrams: [jump-server-flow.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/sftp.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui/sftp]
+    screenshots: [sftp/sftp-manager.png]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/snippets.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/SnippetManager.java]
+    diagrams: [snippet-editor-workflow.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/jobscheduler.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/jobscheduler]
+    diagrams: [jobscheduler-execution.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/projects.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/model]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/teamwork.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/teamwork]
+    diagrams: [teamwork-sync-flow.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/ai-assistant.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core]
+    diagrams: [ai-api-integration.svg]
+    screenshots: [ai/ai-manager.png]
+    last_synced_ref: "4184473"
+  - path: app-docs/site/docs/en/features/ai-tools.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
+    diagrams: [ai-agent-execution-loop.svg]
+    last_synced_ref: "4184473"
+  - path: app-docs/site/docs/en/features/security.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/security]
+    diagrams: [credential-flow.svg, persistence-encryption-flow.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/backup.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/BackupManager.java]
+    diagrams: [backup-restore.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/recording.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/ascii-art.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java]
+    screenshots: [tools/ascii-art.png]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/terminal-effect-plugins.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/plugin]
+    diagrams: [terminal-effect-plugin-flow.svg]
+    screenshots: [plugins/terminal-effects.png]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/features/i18n.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/LanguageManager.java]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/reference/architecture.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty]
+    diagrams: [architecture.svg, modules-overview.svg, app-startup-manager-init.svg]
+    last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/reference/config-files.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/persistence]
+    last_synced_ref: "e7f0df8"

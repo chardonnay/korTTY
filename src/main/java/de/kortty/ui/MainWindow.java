@@ -701,7 +701,7 @@ public class MainWindow {
                     if (applicationQuitRequested) {
                         logger.info("Application quit requested, exiting");
                         clearApplicationQuitState();
-                        Platform.exit();
+                        app.shutdownAndExit();
                         return;
                     }
 
@@ -711,7 +711,7 @@ public class MainWindow {
                     }
 
                     logger.info("Last window closed, exiting application");
-                    Platform.exit();
+                    app.shutdownAndExit();
                 }
             }
         });
@@ -1654,10 +1654,23 @@ public class MainWindow {
 
     private Menu createHelpMenu() {
         Menu helpMenu = new Menu(I18n.get("menu.help"));
+        MenuItem guide = new MenuItem(I18n.get("menu.help.guide"));
+        guide.setAccelerator(new KeyCodeCombination(KeyCode.F1));
+        guide.setOnAction(e -> openGuide());
         MenuItem about = new MenuItem(I18n.get("menu.help.about") + " " + KorTTYApplication.getAppName());
         about.setOnAction(e -> showAbout());
-        helpMenu.getItems().add(about);
+        helpMenu.getItems().addAll(guide, new SeparatorMenuItem(), about);
         return helpMenu;
+    }
+
+    /** Opens (or focuses) the in-app guide viewer; shows an error dialog if it cannot be opened. */
+    private void openGuide() {
+        try {
+            GuideViewer.show(app, stage);
+        } catch (Exception e) {
+            logger.warn("Could not open the guide viewer", e);
+            showError(I18n.get("error.title"), I18n.get("error.guideOpenFailed", e.getMessage()));
+        }
     }
 
     private boolean isMacOs() {
@@ -2409,7 +2422,7 @@ public class MainWindow {
         List<MainWindow> windowsToClose = new ArrayList<>(openWindows);
         if (windowsToClose.isEmpty()) {
             applicationQuitRequested = true;
-            Platform.exit();
+            KorTTYApplication.getInstance().shutdownAndExit();
             return;
         }
 
@@ -2449,6 +2462,41 @@ public class MainWindow {
         }
 
         return openWindows.get(openWindows.size() - 1);
+    }
+
+    /** Actions invokable from the macOS Dock icon menu (see {@link MacDockMenu}). */
+    public enum DockAction { NEW_WINDOW, NEW_TAB, CONNECTION_MANAGER, OPEN_PROJECT, GUIDE, ABOUT, QUIT }
+
+    /**
+     * Runs a Dock-menu action against the focused (or last) window, marshalling
+     * onto the JavaFX thread. Opens a window first if none is currently open.
+     */
+    public static void runDockAction(DockAction action) {
+        Platform.runLater(() -> {
+            // Quit must work even when no window is open (the packaged app keeps
+            // running in the background for the JobScheduler); don't reopen a window
+            // just to quit it.
+            if (action == DockAction.QUIT) {
+                requestApplicationQuit();
+                return;
+            }
+            MainWindow window = getFocusedOrLastOpenWindow();
+            if (window == null) {
+                reopenOrCreateWindow();
+                window = getFocusedOrLastOpenWindow();
+                if (window == null || action == DockAction.NEW_WINDOW) {
+                    return; // just opened a fresh window — that satisfies "New Window"
+                }
+            }
+            switch (action) {
+                case NEW_WINDOW -> window.openNewWindow();
+                case NEW_TAB -> window.showQuickConnect();
+                case CONNECTION_MANAGER -> window.showConnectionManager();
+                case OPEN_PROJECT -> window.openProject();
+                case GUIDE -> window.openGuide();
+                case ABOUT -> window.showAbout();
+            }
+        });
     }
 
     private static void clearApplicationQuitState() {
