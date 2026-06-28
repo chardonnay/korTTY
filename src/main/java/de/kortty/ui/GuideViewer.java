@@ -14,6 +14,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
@@ -194,7 +195,7 @@ public final class GuideViewer {
 
     // ---- Geometry persistence (mirrors JobSchedulerDialog, adapted for a Stage) ----
 
-    /** Restores the saved window position/size, or centers on screen when no valid geometry is stored. */
+    /** Restores the saved window position/size, or centers on screen when the stored geometry is missing, too small, or off-screen. */
     private void restoreGeometry() {
         try {
             WindowGeometry geometry = settings() != null ? settings().getGuideViewerGeometry() : null;
@@ -202,10 +203,20 @@ public final class GuideViewer {
                 stage.centerOnScreen();
                 return;
             }
-            stage.setX(geometry.getX());
-            stage.setY(geometry.getY());
-            stage.setWidth(geometry.getWidth());
-            stage.setHeight(geometry.getHeight());
+            double x = geometry.getX();
+            double y = geometry.getY();
+            double w = geometry.getWidth();
+            double h = geometry.getHeight();
+            stage.setWidth(w);
+            stage.setHeight(h);
+            // Guard against a saved position on a now-disconnected monitor: if the
+            // rectangle is on no current screen, keep the size but re-center on screen.
+            if (Screen.getScreensForRectangle(x, y, w, h).isEmpty()) {
+                stage.centerOnScreen();
+                return;
+            }
+            stage.setX(x);
+            stage.setY(y);
             stage.setMaximized(geometry.isMaximized());
         } catch (Exception e) {
             logger.debug("Could not restore guide viewer geometry", e);

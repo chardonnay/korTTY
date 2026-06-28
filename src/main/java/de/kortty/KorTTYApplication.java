@@ -273,6 +273,7 @@ public class KorTTYApplication extends Application {
         }
     }
     
+    /** JavaFX lifecycle stop hook; routes to {@link #shutdownAndExit()}. */
     @Override
     public void stop() throws Exception {
         shutdownAndExit();
@@ -395,6 +396,7 @@ public class KorTTYApplication extends Application {
         void run() throws Exception;
     }
 
+    /** True only for the packaged macOS app, where korTTY stays alive after the last window closes. */
     public boolean shouldKeepRunningAfterLastWindowClosed() {
         return isMacOs() && isPackagedMacApplication();
     }
@@ -489,6 +491,7 @@ public class KorTTYApplication extends Application {
         }
     }
 
+    /** On the packaged macOS app, disables JavaFX implicit exit so korTTY keeps running (JobScheduler) after the last window closes. */
     private void prepareMacApplicationLifecycle() {
         if (!shouldKeepRunningAfterLastWindowClosed()) {
             return;
@@ -506,6 +509,7 @@ public class KorTTYApplication extends Application {
         logger.info("Configured JavaFX implicit exit to keep the packaged macOS app alive after the last window closes (JobScheduler keeps running)");
     }
 
+    /** Registers the macOS Desktop reopen handler (re-show a window when the Dock icon is clicked); deliberately registers no quit handler. */
     private void registerMacDesktopHandlers() {
         if (!shouldKeepRunningAfterLastWindowClosed() || macDesktopHandlersRegistered) {
             return;
