@@ -1955,7 +1955,8 @@ public class MainWindow {
             
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
+            if (!result.connection().isLocalShell()
+                    && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return; // User cancelled password prompt or no valid password available
             }
@@ -2034,7 +2035,8 @@ public class MainWindow {
             
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
+            if (!result.connection().isLocalShell()
+                    && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return null;
             }
