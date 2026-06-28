@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Connection flow</title>
-  <desc id="desc">KorTTY connection flow from user entry through saved settings, authentication, SSH or Mosh transport setup, terminal color handling, optional terminal effects, and final terminal display.</desc>
+  <desc id="desc">KorTTY connection flow from user entry through saved settings, authentication, SSH or Mosh transport setup (or a local shell spawned directly as a local PTY with no host or authentication), terminal color handling, optional terminal effects, and final terminal display.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
@@ -36,7 +36,7 @@
   <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.28"/>
 
   <text class="title" x="44" y="54">Connection Flow</text>
-  <text class="subtitle" x="44" y="82">SSH and Mosh use different setup paths, but both end as one terminal stream in the active KorTTY tab.</text>
+  <text class="subtitle" x="44" y="82">SSH, Mosh, and a local shell use different setup paths, but all end as one terminal stream in the active KorTTY tab.</text>
 
   <rect class="lane" x="40" y="130" width="250" height="430"/>
   <rect class="laneHeader" x="40" y="130" width="250" height="52"/>
@@ -70,13 +70,16 @@
   <rect class="box transport" x="670" y="425" width="210" height="58"/>
   <text class="label" x="727" y="450">UDP session</text>
   <text class="detail" x="707" y="470">port and key from server</text>
+  <rect class="box transport" x="670" y="498" width="210" height="54"/>
+  <text class="label" x="712" y="521">Local shell (PTY)</text>
+  <text class="detail" x="700" y="540">spawn cmd/PowerShell, no auth</text>
 
   <rect class="lane" x="965" y="130" width="275" height="430"/>
   <rect class="laneHeader" x="965" y="130" width="275" height="52"/>
   <text class="laneTitle" x="995" y="163">Terminal output</text>
   <rect class="box remote" x="1000" y="205" width="205" height="58"/>
-  <text class="label" x="1052" y="230">Remote server</text>
-  <text class="detail" x="1032" y="250">shell stream and control data</text>
+  <text class="label" x="1042" y="230">Shell stream source</text>
+  <text class="detail" x="1018" y="250">remote server or local process</text>
   <rect class="box profile" x="1000" y="295" width="205" height="58"/>
   <text class="label" x="1046" y="320">Color handling</text>
   <text class="detail" x="1025" y="340">ANSI/TrueColor toggle</text>
@@ -102,7 +105,11 @@
   <path class="line" d="M 1102 353 V 385"/>
   <path class="line" d="M 1102 443 V 475"/>
 
+  <path class="line" d="M 555 246 C 600 246 605 525 670 525"/>
+  <text class="branchLabel" x="590" y="505">Local shell</text>
+  <path class="line" d="M 880 525 C 945 525 952 268 1000 250"/>
+
   <rect class="lane" x="215" y="600" width="850" height="72"/>
   <text class="note" x="245" y="631">Terminal color handling is stored globally and per connection; disabling it ignores color SGR sequences only.</text>
-  <text class="note" x="245" y="654">Effects stay in the display path. Reconnect returns through profile/auth resolution before creating a new stream.</text>
+  <text class="note" x="245" y="654">Effects stay in the display path. A local shell skips auth and transport setup and spawns a local PTY directly.</text>
 </svg>

@@ -125,12 +125,16 @@ public class TerminalTab extends Tab {
         // Handle tab close
         setOnCloseRequest(event -> {
             if (terminalView.isConnected() && !settings.isCloseWithoutConfirmation()) {
-                // Show confirmation dialog
+                // Show confirmation dialog. Local shells are not network connections, so use
+                // dedicated wording instead of the SSH-flavored message.
+                boolean localShell = connection.isLocalShell();
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 DialogThemeHelper.applyTheme(alert);
-                alert.setTitle(I18n.get("dialog.closeConnection"));
-                alert.setHeaderText(I18n.get("dialog.closeConnectionQuestion"));
-                alert.setContentText(I18n.get("dialog.closeConnectionMessage", connection.getDisplayName()));
+                alert.setTitle(I18n.get(localShell ? "dialog.closeLocalShell" : "dialog.closeConnection"));
+                alert.setHeaderText(I18n.get(localShell ? "dialog.closeLocalShellQuestion" : "dialog.closeConnectionQuestion"));
+                alert.setContentText(I18n.get(
+                    localShell ? "dialog.closeLocalShellMessage" : "dialog.closeConnectionMessage",
+                    connection.getDisplayName()));
                 
                 if (alert.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
                     event.consume(); // Cancel the close
@@ -734,6 +738,9 @@ public class TerminalTab extends Tab {
             });
         });
         
+        // Let the terminal request closing this tab (e.g. Ctrl+D on a local cmd/PowerShell shell).
+        terminalView.setOnCloseTabRequest(() -> Platform.runLater(this::closeTabSilently));
+
         terminalView.connect();
     }
 

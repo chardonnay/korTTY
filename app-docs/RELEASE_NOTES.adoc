@@ -1,5 +1,31 @@
 = Release Notes
 
+== Unreleased
+
+=== Local Shell Connections
+
+* *Open the local machine's shell in a terminal tab (no network)*: A new *Local Shell* protocol spawns a local pseudo-terminal (PTY) via pty4j instead of connecting to a remote host. On Windows you can choose *PowerShell* (default) or *cmd.exe*; on macOS/Linux it defaults to your `$SHELL` (falling back to `/bin/zsh` or `/bin/bash`). A free-form *Custom command* field supports any executable with arguments (e.g. `pwsh.exe`, `wsl.exe -d Ubuntu`, Git Bash), and an optional start directory can be set. Local Shell is selectable in both Quick Connect and the Connection Manager; for these connections host/port/username/authentication are not required and are disabled in the dialogs.
+* *Shared connector hooks*: The terminal recording/logging and AI input-interceptor/data-listener hooks were lifted from the SSH connector onto a shared `ObservableTtyConnector` interface, so terminal logging and recording also work for local shells.
+* *Git Bash / Cygwin / WSL shell options*: On Windows, *Git Bash*, *Cygwin*, and *WSL* are offered as local-shell presets (in Quick Connect and the Connection Manager) — but each only when actually installed: Git Bash and Cygwin are detected via their usual install locations / `PATH`, and WSL is listed only when `wsl.exe` is present and at least one distribution is installed (checked once, with a short timeout). The local-shell command parser is now quote-aware, so shell paths containing spaces (like `"C:\Program Files\Git\bin\bash.exe"`) launch correctly.
+* *AI Agent & Planning in local shells*: The agent's command-execution engine was decoupled from SSH behind an `AgentCommandRunner` abstraction with two backends — SSH (exec channel) and local (a fresh local process). The *AI Agent* and *AI Planning* now run in local shells on Windows, macOS, and Linux: commands execute in the connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`), the environment probe and system prompt are platform-aware so the model generates native commands, and the existing approval flow applies. Limitations on local shells: no `sudo`/administrator elevation on Windows, and no live working-directory tracking (the agent uses the connection's start directory). The JobScheduler's headless AI-agent action stays SSH-only.
+
+=== Terminal Usability
+
+* *Ctrl + mouse wheel zoom*: Holding *Ctrl* (or *Cmd* on macOS) and scrolling the mouse wheel over the terminal now changes the font size — wheel up enlarges, wheel down shrinks — instead of scrolling the buffer. This complements the existing Alt+Plus / Alt+Minus / Alt+0 shortcuts.
+* *Ctrl+D closes a local cmd.exe/PowerShell tab*: Those Windows shells do not exit on EOF, so Ctrl+D had no effect there. Ctrl+D now closes the tab for local cmd.exe/PowerShell sessions. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, Ctrl+D keeps its normal EOF meaning (the shell exits on EOF and the local tab then auto-closes).
+
+=== Workflow Script Generator
+
+* *Two new target languages*: The agent run → *Workflow* script generator can now produce *Windows-CMD* (`.cmd` batch, `@echo off` lead line, `REM` header comments, `errorlevel` checks) and *AppleScript* (`.applescript`, `osascript` shebang, `--` comments, `try/on error` handling) in addition to Bash, Python, Perl, Ruby, PowerShell, and Ansible.
+* *Adjustable script font size*: Each generated-script editor now has *A-* / *A+* buttons and supports *Ctrl + mouse wheel* (Cmd on macOS) to change the font size; the chosen size is remembered across sessions.
+* *Visible progress while a diagram is generated*: Generating a PlantUML diagram from a script now shows the working spinner (in addition to the "diagram is being generated" status), so it is clear the AI connection is actively working.
+* *Clearer AI backend errors*: When the AI server runs out of memory / hits a resource limit (e.g. LM Studio/MLX "Resource limit exceeded", "metal::malloc"), the dialog shows a short, actionable hint instead of dumping the raw multi-line backend stack trace; all other AI errors are collapsed to a single line.
+
+=== Fixes
+
+* *Closing a local shell no longer freezes korTTY*: Closing a local-shell tab (or the window with a local shell open) could hang the whole app. `LocalShellTtyConnector.close()` now destroys the shell process before closing its streams, so a terminal reader thread blocked in a pty `read()` is released instead of deadlocking the close on the JavaFX thread.
+* *Correct wording for local shells when closing*: The close-confirmation no longer says "End SSH connection?" for a local shell — it uses local-shell wording — and the window-close prompt is now transport-neutral ("Active sessions") since a window can mix SSH, Mosh and local-shell tabs.
+
 == v2.2.3
 
 === Critical Fix: Monaco Editors Failed to Load in the Packaged App

@@ -10,7 +10,8 @@ import java.util.Set;
 
 /**
  * Pure, UI-free logic for turning a finished terminal-agent run into a single, self-contained,
- * independently runnable script (Bash/Python/Perl/Ruby/PowerShell) or Ansible playbook.
+ * independently runnable script (Bash/Python/Perl/Ruby/PowerShell/Windows-CMD/AppleScript) or
+ * Ansible playbook.
  *
  * <p>All methods here are deterministic so they can be unit-tested without the JavaFX toolkit.
  * It builds the system/user prompts, the per-language error-handling idioms, strips markdown code
@@ -33,6 +34,9 @@ public final class WorkflowScriptSupport {
         PERL("perl", "Perl", ".pl", "#!/usr/bin/env perl", false),
         RUBY("ruby", "Ruby", ".rb", "#!/usr/bin/env ruby", false),
         POWERSHELL("powershell", "PowerShell", ".ps1", "#!/usr/bin/env pwsh", false),
+        // Windows batch has no shebang; the leading line is "@echo off" (see leadLine()).
+        WINDOWS_CMD("bat", "Windows-CMD", ".cmd", null, false),
+        APPLESCRIPT("applescript", "AppleScript", ".applescript", "#!/usr/bin/osascript", false),
         ANSIBLE("yaml", "Ansible-Playbook", ".yml", null, true);
 
         private final String snippetLanguage;
@@ -71,9 +75,30 @@ public final class WorkflowScriptSupport {
             return declarative;
         }
 
-        /** Line-comment prefix; all six targets use {@code #}. */
+        /** Line-comment prefix: {@code REM} for Windows-CMD, {@code --} for AppleScript, else {@code #}. */
         public String commentPrefix() {
-            return "#";
+            return switch (this) {
+                case WINDOWS_CMD -> "REM";
+                case APPLESCRIPT -> "--";
+                default -> "#";
+            };
+        }
+
+        /**
+         * The mandatory first line of the artefact: the shebang for shebang scripts, {@code ---} for
+         * Ansible, {@code @echo off} for Windows-CMD, or {@code null} when there is none.
+         */
+        public String leadLine() {
+            if (declarative) {
+                return "---";
+            }
+            if (shebang != null) {
+                return shebang;
+            }
+            if (this == WINDOWS_CMD) {
+                return "@echo off";
+            }
+            return null;
         }
 
         public static ScriptLanguage fromId(String id) {
@@ -85,6 +110,8 @@ public final class WorkflowScriptSupport {
                 case "perl", "pl" -> PERL;
                 case "ruby", "rb" -> RUBY;
                 case "powershell", "pwsh", "ps1", "ps" -> POWERSHELL;
+                case "windows-cmd", "windowscmd", "cmd", "bat", "batch" -> WINDOWS_CMD;
+                case "applescript", "osascript", "scpt" -> APPLESCRIPT;
                 case "ansible", "ansible-playbook", "ansible_yaml", "yaml", "yml", "playbook" -> ANSIBLE;
                 default -> BASH;
             };
@@ -173,8 +200,10 @@ public final class WorkflowScriptSupport {
             .append(". No prose, no explanations, no markdown code fences (never emit ``` lines).\n");
         if (lang.isDeclarative()) {
             sb.append("- Begin the file with '---'. It must be valid YAML, runnable with: ansible-playbook <file>.\n");
-        } else {
+        } else if (lang.shebang() != null) {
             sb.append("- The first line MUST be the shebang: ").append(lang.shebang()).append("\n");
+        } else if (lang == ScriptLanguage.WINDOWS_CMD) {
+            sb.append("- The first line MUST be: @echo off  (then: setlocal EnableExtensions EnableDelayedExpansion).\n");
         }
         sb.append("- The ").append(unit).append(" must run standalone with no external project files.\n");
         sb.append("- Comment richly: put a clear comment before each logical step explaining its intent.\n");
@@ -274,6 +303,18 @@ public final class WorkflowScriptSupport {
                 "- Wrap risky work in try/catch/finally and use throw for fatal errors (optionally a trap block).",
                 "- After native commands, check $LASTEXITCODE; exit with meaningful codes.",
                 "- Write diagnostics with Write-Error/Write-Verbose, not only Write-Host.");
+            case WINDOWS_CMD -> String.join("\n",
+                "- Start with: @echo off  then  setlocal EnableExtensions EnableDelayedExpansion.",
+                "- After each critical command check errors: 'if errorlevel 1 ...' or 'if %ERRORLEVEL% neq 0 ...', then 'exit /b <code>' with a meaningful code.",
+                "- Quote paths/values that may contain spaces (\"%VAR%\"); use delayed expansion (!VAR!) inside blocks.",
+                "- Use 'call :label' for subroutines and 'goto :eof' / 'exit /b' to return; send diagnostics to stderr with '1>&2'.",
+                "- Use pure cmd.exe built-ins; do NOT rely on PowerShell-, bash- or Unix-only commands.");
+            case APPLESCRIPT -> String.join("\n",
+                "- Wrap risky logic in 'try ... on error errMsg number errNum ... end try' and report a clear message.",
+                "- Run shell commands with 'do shell script \"...\"'; build arguments safely with 'quoted form of'.",
+                "- Log progress with 'log'; signal fatal failures with 'error \"message\" number <code>'.",
+                "- Keep 'tell application \"...\"' blocks short and only where needed.",
+                "- The script is run via osascript; on failure raise an error (non-zero) rather than returning silently.");
             case ANSIBLE -> String.join("\n",
                 "- A single self-contained playbook in valid YAML, runnable with: ansible-playbook <file>.",
                 "- Begin the file with '---'.",
@@ -388,27 +429,10 @@ public final class WorkflowScriptSupport {
      */
     public static String ensureHeaderInjected(String script, ScriptLanguage lang, HeaderFacts facts) {
         String content = script == null ? "" : script.stripTrailing();
-        if (headerPresent(content, facts)) {
+        if (headerPresent(content, lang, facts)) {
             return content;
         }
-        String header = buildHeaderComment(lang, facts);
-        int nl = content.indexOf('\n');
-        String firstLine = nl >= 0 ? content.substring(0, nl) : content;
-        String rest = nl >= 0 ? content.substring(nl + 1) : "";
-        if (lang.isDeclarative()) {
-            if (firstLine.strip().equals("---")) {
-                return firstLine + "\n" + header + "\n" + rest;
-            }
-            return "---\n" + header + "\n" + content;
-        }
-        if (firstLine.startsWith("#!")) {
-            return firstLine + "\n" + header + "\n" + rest;
-        }
-        String shebang = lang.shebang();
-        if (shebang != null) {
-            return shebang + "\n" + header + "\n" + content;
-        }
-        return header + "\n" + content;
+        return insertHeaderAfterLead(content, lang, buildHeaderComment(lang, facts));
     }
 
     /**
@@ -421,21 +445,31 @@ public final class WorkflowScriptSupport {
         if (header.isEmpty()) {
             return content;
         }
+        return insertHeaderAfterLead(content, lang, header);
+    }
+
+    /**
+     * Inserts {@code header} directly after the artefact's mandatory lead line (shebang, {@code ---},
+     * or {@code @echo off}), or prepends the lead line + header when it is missing.
+     */
+    private static String insertHeaderAfterLead(String content, ScriptLanguage lang, String header) {
         int nl = content.indexOf('\n');
         String firstLine = nl >= 0 ? content.substring(0, nl) : content;
         String rest = nl >= 0 ? content.substring(nl + 1) : "";
+        boolean firstIsLead;
         if (lang.isDeclarative()) {
-            if (firstLine.strip().equals("---")) {
-                return firstLine + "\n" + header + "\n" + rest;
-            }
-            return "---\n" + header + "\n" + content;
+            firstIsLead = firstLine.strip().equals("---");
+        } else if (lang == ScriptLanguage.WINDOWS_CMD) {
+            firstIsLead = firstLine.strip().equalsIgnoreCase("@echo off");
+        } else {
+            firstIsLead = firstLine.startsWith("#!");
         }
-        if (firstLine.startsWith("#!")) {
+        if (firstIsLead) {
             return firstLine + "\n" + header + "\n" + rest;
         }
-        String shebang = lang.shebang();
-        if (shebang != null) {
-            return shebang + "\n" + header + "\n" + content;
+        String lead = lang.leadLine();
+        if (lead != null) {
+            return lead + "\n" + header + "\n" + content;
         }
         return header + "\n" + content;
     }
@@ -446,7 +480,7 @@ public final class WorkflowScriptSupport {
      * creator and the date must appear on comment lines near the top. When in doubt we return false
      * so the deterministic header is injected — a duplicate header is far less harmful than none.
      */
-    private static boolean headerPresent(String content, HeaderFacts facts) {
+    private static boolean headerPresent(String content, ScriptLanguage lang, HeaderFacts facts) {
         if (content == null || content.isBlank()) {
             return false;
         }
@@ -454,6 +488,7 @@ public final class WorkflowScriptSupport {
         if (creator == null || creator.strip().length() < 2) {
             return false;
         }
+        String commentPrefix = lang.commentPrefix();
         String date = DATE.format(facts.generatedAt());
         String head = content.length() > HEADER_DETECTION_WINDOW
             ? content.substring(0, HEADER_DETECTION_WINDOW)
@@ -462,7 +497,7 @@ public final class WorkflowScriptSupport {
         boolean dateOnComment = false;
         for (String rawLine : head.split("\n", -1)) {
             String line = rawLine.strip();
-            if (!line.startsWith("#")) {
+            if (!line.startsWith(commentPrefix)) {
                 continue;
             }
             if (line.contains(creator)) {

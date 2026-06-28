@@ -235,7 +235,11 @@ tasks.register<Exec>("installSithtermfxLocal") {
     if (jdkHome != null) {
         environment("JAVA_HOME", jdkHome)
     }
-    commandLine("mvn", "-q", "-DskipTests", "install")
+    if (isWindows) {
+        commandLine("cmd", "/c", "mvn.cmd", "-q", "-DskipTests", "install")
+    } else {
+        commandLine("mvn", "-q", "-DskipTests", "install")
+    }
     onlyIf {
         sithtermfxDir.asFile.resolve("pom.xml").isFile && !mavenLocalSithtermfxCore.exists()
     }

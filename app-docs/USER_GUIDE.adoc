@@ -129,9 +129,9 @@ image::diagrams/architecture.svg[KorTTY architecture,align=center]
 
 == 3. Connections
 
-=== 3.1 Connection Flow (SSH vs Mosh)
+=== 3.1 Connection Flow (SSH, Mosh, or Local Shell)
 
-KorTTY supports SSH over TCP and Mosh (via mosh4j). The following diagram illustrates the connection sequence.
+KorTTY supports SSH over TCP, Mosh (via mosh4j), and a *local shell* (no network). For SSH and Mosh the following diagram illustrates the connection sequence; a local shell skips host resolution, authentication, and transport handshake and instead spawns a local pseudo-terminal (PTY) directly (see <<#local-shell,Local Shell>>).
 
 image::diagrams/connection-flow.svg[Connection flow,align=center]
 
@@ -147,6 +147,7 @@ The Quick Connect dialog has four sections:
 
 3. *Individual Connection* tab:
 * Select a saved connection from the filtered dropdown (filtered by the search field above), or enter host, port, and username manually.
+* Choose the *Protocol*: SSH over TCP, Mosh, Mosh Client, or *Local Shell*. Selecting *Local Shell* opens the local machine's shell instead of a remote host — host, port, username, and authentication are disabled, and a *Shell* selector (PowerShell, cmd.exe, plus Git Bash / Cygwin / WSL when installed, or a custom command) plus an optional start directory become active (see <<#local-shell,Local Shell>>).
 * Choose an authentication method (Password, SSH Key, or Temporary SSH Key).
 * Optionally customize terminal appearance (font, size, colors, terminal color-sequence handling), terminal effect plugin, and terminal-effect animation speed.
 * Check *Save Connection* to add the connection to your library.
@@ -191,6 +192,9 @@ When you create or edit a connection, a dialog with multiple tabs opens:
 * *Name* - Display name for the connection.
 * *Host* - Server hostname or IP address.
 * *Port* - SSH port (default: 22).
+* *Protocol* - SSH over TCP (default), Mosh, Mosh Client, or *Local Shell*. With *Local Shell*, the host/port/username/authentication fields are disabled and the shell fields below apply instead.
+* *Shell* (Local Shell only) - PowerShell (default on Windows), cmd.exe, and — only when detected — *Git Bash*, *Cygwin*, *WSL* (listed when a WSL distribution is installed), or *Custom command…* (then type any executable with arguments, e.g. `pwsh.exe`, `wsl.exe -d Ubuntu`, or a quoted full path). On macOS/Linux the default resolves to your `$SHELL`.
+* *Start directory* (Local Shell only) - Optional working directory for the shell; empty uses the process default / home directory.
 * *Username* - Login username.
 * *Group* - Folder/group to organize the connection (use `/` for nested groups, e.g., `Production/Web`).
 * *Authentication Method:*
@@ -241,6 +245,33 @@ KorTTY can import connections from several sources:
 
 NOTE: Passwords are never included when importing from third-party formats for security reasons.
 
+[#local-shell]
+=== 3.6 Local Shell
+
+Besides connecting to remote hosts, KorTTY can open the *local machine's shell* in a terminal tab. No network connection is made: KorTTY spawns the shell in a local pseudo-terminal (PTY) using pty4j, so there is no host, port, or authentication.
+
+*Opening a local shell:*
+
+1. Open *Quick Connect* (`Ctrl/Cmd+K`) or *Connections > Manage Connections > New*.
+2. Set *Protocol* to *Local Shell*. Host/port/username/authentication fields are disabled.
+3. Choose the *Shell*:
+* *PowerShell* (default on Windows)
+* *cmd.exe*
+* *Git Bash* — only offered on Windows when Git for Windows is detected; launches `bash.exe --login -i` from the Git installation.
+* *Custom command…* — type any executable with arguments, e.g. `pwsh.exe`, `wsl.exe -d Ubuntu`, or a full path (quote paths that contain spaces). On macOS/Linux the default resolves to your `$SHELL` (falling back to `/bin/zsh` or `/bin/bash`).
+4. Optionally set a *Start directory* (empty uses the process default / home directory).
+5. Connect. The shell opens in a new terminal tab. Exiting the shell (e.g. `exit`) ends the session and closes the tab as usual.
+
+*Closing with Ctrl+D:* In bash-family shells (Git Bash, Cygwin, WSL, and macOS/Linux) Ctrl+D sends EOF, the shell exits, and the tab closes. cmd.exe and PowerShell do not exit on EOF (a Windows limitation), so for those local shells korTTY closes the tab directly on Ctrl+D. You can always close any tab with Ctrl+W or by typing `exit`.
+
+You can save a local-shell connection in the Connection Manager like any other connection; if you do not give it a name, it is labelled by its shell (e.g. `powershell.exe`).
+
+*What works:* resize, colors, terminal effects, terminal logging, and terminal recording behave the same as for remote sessions.
+
+*AI in local shells:* The AI selection actions (Summarize/Solve/Ask), the *AI Agent*, and *AI Planning* all work in a local shell. The agent runs its commands locally in the connection's shell (PowerShell or `cmd.exe` on Windows, your `$SHELL` on macOS/Linux) and is told the platform so it generates native commands; the existing approval flow applies (read-only commands run automatically, system-changing ones ask for confirmation).
+
+NOTE: Local-shell AI Agent limitations: there is no `sudo`/administrator elevation on Windows (admin-only commands will fail), and the agent runs in the connection's start directory without live working-directory tracking (Windows shells emit no OSC 7). The JobScheduler's headless AI-agent action remains SSH-only.
+
 == 4. Terminal
 
 === 4.1 Session Lifecycle
@@ -273,10 +304,11 @@ Adjust the font size of the active terminal without reconnecting:
 | Shortcut | Action
 | Alt+Plus | Zoom in (increase font size)
 | Alt+Minus | Zoom out (decrease font size)
+| Ctrl + mouse wheel | Zoom in/out (Cmd + wheel on macOS); wheel up enlarges, wheel down shrinks
 | Alt+0 | Reset zoom to saved/default font
 |===
 
-*Reset zoom* restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right-click → *Font size* → *Reset*. The zoom level applies only to the currently focused terminal.
+*Ctrl + mouse wheel* over the terminal changes the font size instead of scrolling the buffer (use Cmd on macOS). *Reset zoom* restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right-click → *Font size* → *Reset*. The zoom level applies only to the currently focused terminal.
 
 === 4.5 Terminal Effects
 
@@ -629,7 +661,7 @@ Red styling is reserved for error and failed states.
 
 ==== Generate Workflow Script
 
-After a finished agent run completes successfully, a *Workflow* button turns the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook) with robust error handling, detailed comments, and a header (script name, creator, date/time).
+After a finished agent run completes successfully, a *Workflow* button turns the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Windows-CMD, AppleScript, Ansible playbook) with robust error handling, detailed comments, and a header (script name, creator, date/time).
 
 Script generation:
 
