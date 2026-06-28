@@ -141,13 +141,19 @@ public class SwarmAgentTab extends Tab {
         cancelButton.setOnAction(e -> cancelSwarm());
         cancelButton.setDisable(true);
 
+        Label profileLabel = new Label(I18n.get("ai.result.profile"));
+        Label approvalLabel = new Label(I18n.get("ai.swarm.approvalPolicy"));
         ToolBar toolBar = new ToolBar(
             pickButton, connectMissingButton, new Separator(),
-            new Label(I18n.get("ai.result.profile")), profileComboBox,
+            profileLabel, profileComboBox,
             readOnlyCheck,
-            new Label(I18n.get("ai.swarm.approvalPolicy")), approvalComboBox,
+            approvalLabel, approvalComboBox,
             new Separator(),
             workflowButton, saveButton, cancelButton);
+        // The dynamic theme stylesheet styles .label/.button but not .tool-bar, so a ToolBar keeps the
+        // light JavaFX default background while its labels get the (light) theme foreground -> unreadable.
+        // Paint the bar and its labels from the resolved theme colors so contrast is correct in any theme.
+        applyTopBarTheme(toolBar, profileLabel, approvalLabel);
 
         // Dashboard (left)
         dashboardHeader.setStyle("-fx-font-weight: bold;");
@@ -680,6 +686,26 @@ public class SwarmAgentTab extends Tab {
             alert.initOwner(getTabPane().getScene().getWindow());
         }
         alert.showAndWait();
+    }
+
+    /**
+     * Colors the top toolbar from the active theme so its labels stay readable in any theme. The
+     * shared stylesheet does not theme {@code .tool-bar}, which otherwise keeps a light default
+     * background under the (theme-foreground-colored) labels.
+     */
+    private void applyTopBarTheme(ToolBar bar, Label... labels) {
+        ThemeCssSupport.ThemeColors colors = ThemeCssSupport.resolveThemeColors(KorTTYApplication.getInstance());
+        if (colors == null) {
+            return;
+        }
+        bar.setStyle("-fx-background-color: " + colors.backgroundColor() + ";");
+        String labelStyle = "-fx-text-fill: " + colors.foregroundColor() + ";";
+        for (Label label : labels) {
+            if (label != null) {
+                label.setStyle(labelStyle);
+            }
+        }
+        readOnlyCheck.setStyle(labelStyle);
     }
 
     private static String formatElapsed(long seconds) {
