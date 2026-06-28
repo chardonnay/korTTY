@@ -35,6 +35,9 @@ jobs:
     steps:
       # SHA-pinned, matching the repo convention (actions/checkout@v7).
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          # PR-triggered job: don't persist the GITHUB_TOKEN in local git config.
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"

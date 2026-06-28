@@ -15,10 +15,10 @@ on:
       - ".github/workflows/docs-site.yml"
   workflow_dispatch:
 
+# Least privilege at the top level: the build job only reads the repo. The
+# Pages/OIDC write scopes are granted narrowly to the deploy job below.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Only one concurrent deployment; let an in-progress run finish.
 concurrency:
@@ -28,8 +28,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
@@ -69,6 +73,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Pages publish + OIDC token are only needed here, by the deploy step.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

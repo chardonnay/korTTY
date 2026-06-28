@@ -24,7 +24,9 @@ import java.io.InputStream;
  * with {@code Platform.setImplicitExit(false)} (needed to keep the JobScheduler
  * running) there is no other native hook. The tray menu sidesteps all of that by
  * calling straight into korTTY via {@link MainWindow#runDockAction}, which ends in
- * {@code System.exit}. {@code SystemTray} is a different AWT subsystem than the
+ * {@code Runtime.getRuntime().halt(0)} (see {@code shutdownAndExit()} — halt, not
+ * System.exit, to skip the AWT/JavaFX shutdown hooks that hang the macOS quit).
+ * {@code SystemTray} is a different AWT subsystem than the
  * broken eawt Desktop events, so it works regardless. No-op where unsupported.
  */
 public final class MacMenuBarIcon {

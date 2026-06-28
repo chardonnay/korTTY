@@ -635,10 +635,14 @@ tasks.register("setupDocsVenv") {
     outputs.dir(docsVenvDir)
     doLast {
         val venv = docsVenvDir.asFile
-        val py = venv.resolve("bin/python")
+        // Resolve the venv interpreter the same way docsPythonExecutable() does so the
+        // bootstrap works on Windows (Scripts/python.exe) as well as Unix (bin/python).
+        val isWindows = System.getProperty("os.name", "").lowercase().contains("win")
+        val py = venv.resolve(if (isWindows) "Scripts/python.exe" else "bin/python")
         if (!py.exists()) {
-            val rc = runDocsCommand(rootDir, emptyMap(), "python3", "-m", "venv", venv.absolutePath)
-            if (rc != 0) throw GradleException("Could not create .venv-docs (python3 -m venv failed, exit $rc)")
+            val bootstrapPython = if (isWindows) "py" else "python3"
+            val rc = runDocsCommand(rootDir, emptyMap(), bootstrapPython, "-m", "venv", venv.absolutePath)
+            if (rc != 0) throw GradleException("Could not create .venv-docs (python -m venv failed, exit $rc)")
         }
         var rc = runDocsCommand(rootDir, emptyMap(), py.absolutePath, "-m", "pip", "install", "--quiet", "--upgrade", "pip")
         if (rc != 0) throw GradleException("pip upgrade failed (exit $rc)")
@@ -653,10 +657,12 @@ tasks.register("buildDocsSite") {
     inputs.dir("app-docs/site/docs")
     inputs.dir("app-docs/site/overrides")
     inputs.dir("app-docs/site/vendor")
+    inputs.dir("app-docs/screenshots")
     inputs.file("app-docs/site/mkdocs.yml")
     inputs.file("app-docs/site/mkdocs.en.yml")
     inputs.file("app-docs/site/mkdocs.de.yml")
     inputs.dir("app-docs/diagrams")
+    inputs.file("scripts/build-docs-site.py")
     inputs.property("version", project.version.toString())
     outputs.dir(guideSiteOutputDir)
     doLast {

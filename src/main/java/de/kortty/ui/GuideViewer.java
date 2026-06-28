@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.WindowGeometry;
+import javafx.animation.Animation;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -241,7 +242,13 @@ public final class GuideViewer {
         }
         // Mark disposed FIRST so any in-flight load-worker callback becomes a no-op.
         disposed = true;
+        // Flush any pending debounced geometry save before cancelling the timer, so a
+        // quick move/resize-then-close doesn't drop the final window geometry.
+        boolean geometrySavePending = geometrySaveDelay.getStatus() == Animation.Status.RUNNING;
         geometrySaveDelay.stop();
+        if (geometrySavePending) {
+            saveGeometry();
+        }
         try {
             // Drop the page so the native WebKit context is released promptly.
             webView.getEngine().loadContent("");

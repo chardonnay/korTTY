@@ -1659,7 +1659,7 @@ public class MainWindow {
             GuideViewer.show(app, stage);
         } catch (Exception e) {
             logger.warn("Could not open the guide viewer", e);
-            showError(I18n.get("error.title"), I18n.get("menu.help.guide"));
+            showError(I18n.get("error.title"), I18n.get("error.guideOpenFailed", e.getMessage()));
         }
     }
 

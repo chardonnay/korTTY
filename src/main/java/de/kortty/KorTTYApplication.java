@@ -475,9 +475,11 @@ public class KorTTYApplication extends Application {
         // Keep the packaged macOS app alive after the last window is closed so the
         // JobScheduler keeps running scheduled background jobs. Quit is handled
         // explicitly by korTTY (Cmd+Q scene accelerator, File->Quit, and the Dock
-        // menu's Quit item) ending in System.exit — see shutdownAndExit(). We do NOT
-        // rely on JavaFX/AWT's native Quit: on JavaFX 21.0.2+ (JDK-8332656) Glass owns
-        // the macOS app delegate and the AWT Desktop quit handler never fires.
+        // menu's Quit item) ending in Runtime.getRuntime().halt(0) — see
+        // shutdownAndExit(). halt() (not System.exit) is deliberate: it skips the
+        // AWT/JavaFX shutdown hooks that otherwise hang the macOS Dock-stuck quit.
+        // We do NOT rely on JavaFX/AWT's native Quit: on JavaFX 21.0.2+ (JDK-8332656)
+        // Glass owns the macOS app delegate and the AWT Desktop quit handler never fires.
         Platform.setImplicitExit(false);
         logger.info("Configured JavaFX implicit exit to keep the packaged macOS app alive after the last window closes (JobScheduler keeps running)");
     }
