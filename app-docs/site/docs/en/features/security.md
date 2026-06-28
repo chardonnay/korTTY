@@ -1,0 +1,228 @@
+---
+title: Security — credentials, keys & encryption
+---
+
+# Security: credentials, keys & encryption
+
+KorTTY protects your sensitive data with industry-standard encryption and centralized key management. All connection passwords, SSH key passphrases, and credential storage use AES-256-GCM encryption derived from a master password that is created on first launch.
+
+
+![Persistence & encryption](../assets/diagrams/persistence-encryption-flow.svg)
+
+## Master Password
+
+On first launch, you are prompted to create a master password (minimum 6 characters) that encrypts all stored secrets.
+
+### Setup
+
+1. Enter a password (the field border turns green when length is sufficient, red when too short).
+2. A strength indicator shows password quality; a warning appears for weak or common passwords, but you can confirm if needed.
+3. Confirm the password.
+4. Click **Setup**.
+
+### At-Rest Encryption
+
+The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in `~/.kortty/master-password-hash`.
+
+On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. You can disable this prompt in **Settings > Security**, but stored passwords will not be accessible until you enter the master password manually.
+
+!!! note
+    If you lose the master password, encrypted data cannot be recovered. Delete `master-password-hash` and `credentials.xml`, restart, set a new master password, and re-enter your passwords.
+
+## Encryption Model
+
+All sensitive data at rest is encrypted using **AES-256-GCM**:
+
+- **Algorithm**: AES-256-GCM (Galois/Counter Mode)
+- **Key Derivation**: PBKDF2WithHmacSHA256 with 310,000 iterations
+- **IV Length**: 12 bytes (random per encryption)
+- **Authentication Tag**: 128 bits (built-in integrity verification)
+- **Salt Length**: 32 bytes (random per master password setup)
+
+Each encrypted value combines a random IV with the ciphertext, encoded as Base64 for storage.
+
+## Credential Management
+
+Store centralized username/password credentials that can be reused across multiple connections.
+
+### Opening the Manager
+
+**Menu:** Management > Manage Credentials
+
+### Adding Credentials
+
+1. Click **Add**.
+2. Fill in:
+   - **Name** — Descriptive identifier
+   - **Username** — Login username
+   - **Password** — Stored encrypted with AES-256-GCM
+   - **Environment** — Production, Development, Test, or Staging
+   - **Server Pattern** (optional) — Glob pattern (e.g., `*.example.com`, `10.0.0.*`) for automatic credential matching to connections
+   - **Description** (optional) — Free-text notes
+3. Click **OK**.
+
+### Using Credentials in Connections
+
+When creating or editing a connection:
+
+1. Go to the **Connection** tab.
+2. Select a stored credential from the **Credentials** dropdown.
+3. Username and password are filled in automatically.
+
+The following diagram shows how credentials and SSH keys flow from encrypted storage to active connections:
+
+![Credential & encryption flow](../assets/diagrams/credential-flow.svg)
+
+### Features
+
+- **Environment-specific** — Organize credentials by deployment environment
+- **Server Pattern Matching** — Automatically assign credentials to matching servers
+- **Encrypted Storage** — Passwords are encrypted with AES-256-GCM
+- **Automatic Usage** — Select credentials directly in connection settings
+
+## SSH Key Management
+
+Centralized management of private SSH keys with encrypted passphrases.
+
+### Opening the Manager
+
+**Menu:** Management > Manage SSH Keys
+
+### Adding Keys
+
+1. Click **Add**.
+2. Select the path to your private SSH key file.
+3. (Optional) Enter the passphrase — it will be encrypted and stored.
+4. Click **OK**.
+
+### Key Features
+
+- **Centralized Management** — Manage all SSH keys in one place
+- **Encrypted Passphrases** — Key passphrases are stored encrypted with AES-256-GCM
+- **Key Copying** — Use **Copy to User Directory** to copy keys to `~/.kortty/ssh-keys/` (included in backups for easy migration)
+- **Wildcard Search** — Quick search for keys using `*` patterns
+- **Automatic Usage** — Select keys directly in connection settings
+
+### Using Keys in Connections
+
+When creating or editing a connection:
+
+1. Go to the **Connection** tab.
+2. Select **Private Key** as the authentication method.
+3. Select the desired key from the **SSH Keys** dropdown.
+4. The key path and passphrase are filled in automatically.
+
+## GPG Key Management
+
+Manage GPG keys for backup encryption and connection/snippet export encryption.
+
+### Opening the Manager
+
+**Menu:** Management > Manage GPG Keys
+
+### Adding Keys
+
+- **Manual Entry** — Click **Add** to enter key ID and email manually.
+- **System Import** — Click **Import from GPG** to import keys from your system's GPG keyring.
+
+### Editing and Removing Keys
+
+1. Select a key from the list.
+2. Click **Edit** to modify details, or **Delete** to remove.
+
+### Using Keys for Backup
+
+1. Open **Settings > Backup**.
+2. Select **GPG Encryption** as the encryption type.
+3. Choose the GPG key to use for encryption.
+
+GPG-encrypted backups and exports are stored as `.gpg` files and require your system's `gpg` command and a usable public key for decryption.
+
+## Stored Secrets
+
+The following data is stored encrypted in `~/.kortty/`:
+
+| File | Contents | Encryption |
+|------|----------|------------|
+| `credentials.xml` | Stored username/password credentials | AES-256-GCM |
+| `ssh-keys.xml` | SSH key paths and encrypted passphrases | AES-256-GCM |
+| `connections.xml` | Connection passwords (inline) and key passphrases (if not using SSH key management) | AES-256-GCM |
+| `job-scheduler.xml` | Scheduler sudo passwords and archive passwords; journal entries redact KorTTY-managed secrets | AES-256-GCM |
+| `master-password-hash` | Master password hash (PBKDF2, 310,000 iterations) and salt | PBKDF2 hash only |
+| `global-settings.xml` | AI profile API keys, translation API keys | AES-256-GCM |
+
+## Security Best Practices
+
+!!! warning
+    Selected terminal text sent to AI endpoints can contain sensitive information such as credentials, hostnames, file paths, stack traces, or operational details. For sensitive data, prefer a trusted local endpoint such as **LM Studio**, or verify that you trust the remote endpoint before sending anything.
+
+### Master Password
+
+- Use a strong, unique master password (at least 12 characters, mix of upper/lowercase, numbers, symbols).
+- Never share your master password.
+- Store it securely (password manager recommended).
+
+### SSH Keys
+
+- Keep private key files protected with a passphrase.
+- Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups.
+- Limit key file permissions (e.g., `chmod 600`).
+
+### JobScheduler
+
+- **Host-key Pinning**: Host keys are pinned by default for unattended SSH/SFTP/Rsync jobs to prevent man-in-the-middle attacks.
+- **Sudo Passwords**: Scheduler sudo passwords are encrypted and stored in `~/.kortty/job-scheduler.xml`.
+- **Journal Redaction**: Job journal entries redact KorTTY-managed secrets before persistence (redacted mode is the default; full mode stores unredacted output).
+
+### Backup Encryption
+
+- Always encrypt backups using either password-protected ZIP or GPG encryption.
+- Store backup files in a secure location.
+- Test restore procedures periodically to ensure backups are usable.
+
+### AI Integration
+
+- API keys for AI endpoints are encrypted with your master password.
+- AI profile configuration is stored locally; only your reviewed terminal selection or prompt is sent to the endpoint.
+- Internet access is disabled by default for AI profiles; enable only when needed.
+- Snippet AI actions never use internet access, even if the profile has it enabled.
+
+## Security Overview
+
+| Feature | Implementation |
+|---------|-----------------|
+| Master Password Hashing | PBKDF2 with 310,000 iterations |
+| Credential Encryption | AES-256-GCM |
+| SSH Key Passphrases | Encrypted with AES-256-GCM and master password |
+| AI API Keys | Encrypted with AES-256-GCM and master password |
+| Backup Encryption | Password-protected ZIP or GPG-encrypted |
+| JobScheduler Secrets | Sudo and archive passwords encrypted; journal redaction enabled by default |
+| JobScheduler Host Keys | Host-key pinning required by default for unattended SSH/SFTP/Rsync jobs |
+| Credentials | Never stored in plain text |
+
+## Changing the Master Password
+
+To change your master password (which re-encrypts all stored secrets with a new derivation):
+
+1. Open **Settings > Security**.
+2. Click **Change Master Password**.
+3. Enter your current (old) master password.
+4. Enter the new master password twice.
+5. All stored passwords, passphrases, and credentials are automatically re-encrypted with the new key.
+
+## Configuration Files Reference
+
+All KorTTY data is stored under `~/.kortty/`. Key security-related files:
+
+```text
+~/.kortty/
+├── master-password-hash      # Master password hash and salt (PBKDF2)
+├── credentials.xml           # Encrypted credentials (AES-256-GCM)
+├── ssh-keys.xml             # SSH key paths and encrypted passphrases
+├── gpg-keys.xml             # GPG keys for backup/export encryption
+├── connections.xml          # Connection passwords and key passphrases
+├── global-settings.xml      # AI API keys and other encrypted settings
+├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
+├── kortty.log               # Application log
+└── history/                 # Compressed terminal session history
+```
