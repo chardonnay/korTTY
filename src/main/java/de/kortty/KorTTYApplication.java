@@ -521,9 +521,11 @@ public class KorTTYApplication extends Application {
             // quit handler is also registered, Glass *defers* the system Quit to it,
             // but macOS still calls Glass's delegate — so the Quit falls through the
             // gap and the app cannot be quit (the v2.2.2 Dock-stuck bug). With NO eawt
-            // quit handler and implicit exit enabled, Glass handles Cmd+Q / "Quit
-            // korTTY" itself: it fires each window's close request (so confirmClose()
-            // still runs) and then calls Platform.exit() -> stop() -> shutdownAndExit().
+            // quit handler, Glass handles Cmd+Q / "Quit korTTY" itself: it fires each
+            // window's close request (so confirmClose() still runs). Implicit exit is
+            // disabled for the packaged app (see prepareMacApplicationLifecycle()), so
+            // the quit paths reach shutdownAndExit() directly (-> Runtime.halt(0))
+            // rather than relying on Platform.exit() reaching stop().
             macDesktopHandlersRegistered = true;
         } catch (UnsupportedOperationException | SecurityException e) {
             logger.warn("Could not configure macOS application lifecycle integration", e);
