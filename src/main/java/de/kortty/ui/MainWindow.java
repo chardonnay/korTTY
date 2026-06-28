@@ -2076,7 +2076,9 @@ public class MainWindow {
     }
 
     private String ensurePasswordForConnection(ServerConnection connection, String candidatePassword) {
-        if (connection == null || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+        // Local shells run a local process with no authentication; never prompt for a password.
+        if (connection == null || connection.isLocalShell()
+                || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
             return candidatePassword;
         }
 
@@ -2147,12 +2149,18 @@ public class MainWindow {
                 return;
             }
             
+            // Local shells run a local process with no authentication - connect directly.
+            if (conn.isLocalShell()) {
+                openConnection(conn, null);
+                return;
+            }
+
             // SSH key auth does not require a password - connect directly
             if (conn.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
                 openConnection(conn, null);
                 return;
             }
-            
+
             // Non-key connection: ask for password if needed
             String password = getConnectionPassword(conn);
             if (password == null) {

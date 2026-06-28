@@ -25,6 +25,7 @@
 
 * *Closing a local shell no longer freezes korTTY*: Closing a local-shell tab (or the window with a local shell open) could hang the whole app. `LocalShellTtyConnector.close()` now destroys the shell process before closing its streams, so a terminal reader thread blocked in a pty `read()` is released instead of deadlocking the close on the JavaFX thread.
 * *Correct wording for local shells when closing*: The close-confirmation no longer says "End SSH connection?" for a local shell — it uses local-shell wording — and the window-close prompt is now transport-neutral ("Active sessions") since a window can mix SSH, Mosh and local-shell tabs.
+* *No password prompt for local shells*: Opening a local shell no longer shows a password dialog. Local shells use no authentication, but the connection's default `PASSWORD` auth method previously triggered an irrelevant (and ignored) prompt in Quick Connect and the Connection Manager.
 
 == v2.2.3
 
