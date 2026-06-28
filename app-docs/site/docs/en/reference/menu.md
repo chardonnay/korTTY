@@ -119,3 +119,18 @@ reasoning effort, internet access and token budget) and your saved chats:
 | --- | --- | --- |
 | Manual | ++f1++ | Open this documentation inside korTTY |
 | About korTTY | | Version and project information |
+
+## macOS Dock & menu bar
+
+On macOS the packaged app keeps running in the background (so the JobScheduler
+can run scheduled jobs) even after the last window is closed. korTTY therefore
+adds two extra entry points so it stays reachable — and quittable — with no
+window open:
+
+- **Dock icon menu** — right-click korTTY's Dock icon for quick actions: **New
+  Window**, **New Tab**, **Manage Connections…**, **Open Project…**, **Manual**,
+  **About korTTY**, and **Quit**.
+- **Menu-bar (status) icon** — a system-tray icon with **New Window** and
+  **Quit**; clicking the icon opens a new window.
+
+Both provide a reliable **Quit** even when every window is closed.

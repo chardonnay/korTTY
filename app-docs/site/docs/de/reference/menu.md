@@ -119,3 +119,18 @@ Argumentationsaufwand, Internetzugang und Token-Budget) und Ihre gespeicherten C
 | --- | --- | --- |
 | Anleitung | ++f1++ | Öffnen Sie diese Dokumentation in korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
+
+## macOS Dock & Menüleiste
+
+Unter macOS läuft die paketierte App im Hintergrund weiter (damit der
+JobScheduler geplante Jobs ausführen kann), auch nachdem das letzte Fenster
+geschlossen wurde. korTTY bietet daher zwei zusätzliche Einstiegspunkte, um auch
+ohne offenes Fenster erreich- und beendbar zu bleiben:
+
+- **Dock-Icon-Menü** — Rechtsklick auf das Dock-Icon von korTTY für
+  Schnellaktionen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**,
+  **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
+- **Menüleisten-Icon (Statusleiste)** — ein System-Tray-Icon mit **Neues
+  Fenster** und **Beenden**; ein Klick auf das Icon öffnet ein neues Fenster.
+
+Beide bieten ein zuverlässiges **Beenden**, selbst wenn alle Fenster geschlossen sind.

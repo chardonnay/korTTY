@@ -14,6 +14,16 @@ reviews:
   review_status: true
   poem: false
 
+  # The docstring-coverage pre-merge check counts anonymous functions / closures
+  # (JavaFX listeners, Platform.runLater blocks, Gradle doLast {}), which cannot
+  # carry a docstring, so the default 80% target is not reachable for UI/build
+  # code even when every named method is documented. Keep the check as a
+  # non-blocking signal at a realistic threshold.
+  pre_merge_checks:
+    docstrings:
+      mode: warning
+      threshold: 70
+
   auto_review:
     enabled: true
     drafts: false
