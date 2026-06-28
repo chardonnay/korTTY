@@ -213,10 +213,10 @@ public final class GuideViewer {
             // rectangle is on no current screen, keep the size but re-center on screen.
             if (Screen.getScreensForRectangle(x, y, w, h).isEmpty()) {
                 stage.centerOnScreen();
-                return;
+            } else {
+                stage.setX(x);
+                stage.setY(y);
             }
-            stage.setX(x);
-            stage.setY(y);
             stage.setMaximized(geometry.isMaximized());
         } catch (Exception e) {
             logger.debug("Could not restore guide viewer geometry", e);
