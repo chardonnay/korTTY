@@ -1654,6 +1654,7 @@ public class MainWindow {
         return helpMenu;
     }
 
+    /** Opens (or focuses) the in-app guide viewer; shows an error dialog if it cannot be opened. */
     private void openGuide() {
         try {
             GuideViewer.show(app, stage);

@@ -18,6 +18,7 @@ public final class MacDockMenu {
 
     private static final Logger logger = LoggerFactory.getLogger(MacDockMenu.class);
 
+    /** Utility class — not instantiable. */
     private MacDockMenu() {
     }
 
@@ -55,6 +56,7 @@ public final class MacDockMenu {
         }
     }
 
+    /** Builds a Dock menu item that dispatches {@code action} onto the JavaFX thread via {@link MainWindow#runDockAction}. */
     private static MenuItem item(String label, MainWindow.DockAction action) {
         MenuItem menuItem = new MenuItem(label);
         // Dock menu actions fire on the AWT event thread; runDockAction marshals

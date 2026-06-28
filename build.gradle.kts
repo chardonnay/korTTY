@@ -609,12 +609,14 @@ tasks.named<ProcessResources>("processResources") {
 val docsVenvDir = layout.projectDirectory.dir(".venv-docs")
 val guideSiteOutputDir = layout.buildDirectory.dir("guide")
 
+/** Resolves the docs venv Python (Scripts/python.exe on Windows, bin/python elsewhere), or "python3" if the venv is absent. */
 fun docsPythonExecutable(): String {
     val isWindows = System.getProperty("os.name", "").lowercase().contains("win")
     val venvPython = docsVenvDir.asFile.resolve(if (isWindows) "Scripts/python.exe" else "bin/python")
     return if (venvPython.exists()) venvPython.absolutePath else "python3"
 }
 
+/** Runs a docs-build command in [workingDirectory] with [extraEnv] applied, streaming its merged output; returns the exit code. */
 fun runDocsCommand(workingDirectory: File, extraEnv: Map<String, String>, vararg command: String): Int {
     val builder = ProcessBuilder(command.toList())
         .directory(workingDirectory)

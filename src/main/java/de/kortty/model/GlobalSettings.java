@@ -1983,7 +1983,10 @@ public class GlobalSettings {
         this.jobSchedulerDialogGeometry = jobSchedulerDialogGeometry;
     }
 
+    /** Saved position/size of the in-app guide viewer window, or {@code null} if never stored. */
     public WindowGeometry getGuideViewerGeometry() { return guideViewerGeometry; }
+
+    /** Stores the in-app guide viewer window position/size. */
     public void setGuideViewerGeometry(WindowGeometry guideViewerGeometry) {
         this.guideViewerGeometry = guideViewerGeometry;
     }

@@ -34,6 +34,7 @@ public final class MacMenuBarIcon {
     private static final Logger logger = LoggerFactory.getLogger(MacMenuBarIcon.class);
     private static TrayIcon installed;
 
+    /** Utility class — not instantiable. */
     private MacMenuBarIcon() {
     }
 
@@ -82,6 +83,7 @@ public final class MacMenuBarIcon {
         }
     }
 
+    /** Loads the menu-bar icon image from the classpath, or {@code null} if missing/unreadable. */
     private static Image loadIcon() {
         try (InputStream in = MacMenuBarIcon.class.getResourceAsStream("/icon/kortty_icon.png")) {
             return in != null ? ImageIO.read(in) : null;
@@ -91,6 +93,7 @@ public final class MacMenuBarIcon {
         }
     }
 
+    /** Builds a tray menu item that dispatches {@code action} onto the JavaFX thread via {@link MainWindow#runDockAction}. */
     private static MenuItem item(String label, MainWindow.DockAction action) {
         MenuItem menuItem = new MenuItem(label);
         // Fires on the AWT event thread; runDockAction marshals onto the JavaFX thread.

@@ -300,6 +300,10 @@ public class KorTTYApplication extends Application {
         Runtime.getRuntime().halt(0);
     }
 
+    /**
+     * Flushes all persistent state and stops background services, each step guarded
+     * independently so one failure cannot skip the rest. Idempotent via {@link #shuttingDown}.
+     */
     private synchronized void performShutdown() {
         if (shuttingDown) {
             return;
@@ -384,8 +388,10 @@ public class KorTTYApplication extends Application {
         }
     }
 
+    /** A single, independent shutdown action that may throw; executed via {@link #shutdownStep}. */
     @FunctionalInterface
     private interface ShutdownAction {
+        /** Performs the shutdown action. */
         void run() throws Exception;
     }
 

@@ -54,6 +54,10 @@ public final class GuideViewer {
     private boolean geometryListenersInstalled;
     private String lastInternalLocation;
 
+    /**
+     * Builds the guide window — offline {@link WebView}, external-link handler,
+     * icon and restored geometry — but does not show it. Use {@link #show}.
+     */
     private GuideViewer(KorTTYApplication app, Window owner) {
         this.app = app;
 
@@ -92,6 +96,10 @@ public final class GuideViewer {
         viewer.stage.show();
     }
 
+    /**
+     * Loads the bundled {@code /guide/<lang>/index.html} from the classpath,
+     * falling back to English and then to an offline-notice page if absent.
+     */
     private void loadGuide(WebEngine engine) {
         String lang = resolveGuideLanguage();
         URL resource = GuideViewer.class.getResource("/guide/" + lang + "/index.html");
@@ -144,12 +152,14 @@ public final class GuideViewer {
         });
     }
 
+    /** True if the location points outside the bundled site (http/https/mailto/ftp) and should open externally. */
     private static boolean isExternal(String location) {
         String lower = location.toLowerCase(Locale.ROOT);
         return lower.startsWith("http://") || lower.startsWith("https://")
             || lower.startsWith("mailto:") || lower.startsWith("ftp://") || lower.startsWith("ftps://");
     }
 
+    /** Opens {@code url} in the system browser via the app's {@code HostServices}. */
     private void openExternal(String url) {
         try {
             app.getHostServices().showDocument(url);
@@ -158,6 +168,7 @@ public final class GuideViewer {
         }
     }
 
+    /** Sets the window icon from the bundled app icon; failures are ignored. */
     private void applyIcon() {
         try {
             URL iconUrl = getClass().getResource("/icon/kortty_icon.png");
@@ -169,6 +180,7 @@ public final class GuideViewer {
         }
     }
 
+    /** Returns a minimal offline notice page linking to the online guide, shown when the bundled site is missing. */
     private String onlineFallbackHtml() {
         return "<!doctype html><html><head><meta charset=\"utf-8\">"
             + "<style>body{background:#07111d;color:#e6f3ff;font-family:sans-serif;"
@@ -182,6 +194,7 @@ public final class GuideViewer {
 
     // ---- Geometry persistence (mirrors JobSchedulerDialog, adapted for a Stage) ----
 
+    /** Restores the saved window position/size, or centers on screen when no valid geometry is stored. */
     private void restoreGeometry() {
         try {
             WindowGeometry geometry = settings() != null ? settings().getGuideViewerGeometry() : null;
@@ -199,6 +212,7 @@ public final class GuideViewer {
         }
     }
 
+    /** Installs debounced listeners (once, on first show) that persist the window geometry on move/resize/maximize. */
     private void installGeometryPersistence() {
         if (geometryListenersInstalled) {
             return;
@@ -214,6 +228,7 @@ public final class GuideViewer {
         stage.maximizedProperty().addListener(booleanListener);
     }
 
+    /** Persists the current window position, size and maximized state to the global settings. */
     private void saveGeometry() {
         try {
             if (settings() == null) {
@@ -228,10 +243,15 @@ public final class GuideViewer {
         }
     }
 
+    /** Returns the current {@link GlobalSettings}, or {@code null} if the settings manager is unavailable. */
     private GlobalSettings settings() {
         return app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null;
     }
 
+    /**
+     * Tears down the viewer on the FX thread: flushes any pending geometry save,
+     * stops the WebView, and clears the singleton. Idempotent and thread-safe.
+     */
     private void dispose() {
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater(this::dispose);
