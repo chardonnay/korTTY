@@ -170,8 +170,14 @@ public class KorTTYApplication extends Application {
             // Otherwise, check the setting
             boolean passwordNotSet = !masterPasswordManager.isPasswordSet();
             boolean requirePasswordOnStartup = globalSettingsManager.getSettings().isRequireMasterPasswordOnStartup();
-            
-            if (passwordNotSet || requirePasswordOnStartup) {
+            // Developer/test launch: TEST_MODE_KORTTY=1 starts without the master-password gate.
+            String testModeFlag = System.getenv("TEST_MODE_KORTTY");
+            boolean testMode = "1".equals(testModeFlag) || "true".equalsIgnoreCase(testModeFlag);
+            if (testMode) {
+                logger.warn("TEST_MODE_KORTTY enabled — skipping the master-password dialog (test/dev only)");
+            }
+
+            if (!testMode && (passwordNotSet || requirePasswordOnStartup)) {
                 // Show master password dialog
                 if (!handleMasterPassword(primaryStage)) {
                     Platform.exit();

@@ -5,6 +5,12 @@ shown in the footer.
 
 ## Unreleased
 
+### Appearance
+
+- **App design `Normal` renamed to `Default`** in *Settings → Appearance*. The stored value is unchanged, so existing configurations keep their selected design.
+- **Previous/next buttons next to the App Design dropdown** let you step backward and forward through the designs (wrapping around at the ends) without opening the dropdown.
+- **Design preview moved below the controls** into a fixed-size area, so switching designs (or back to `Default`, which has no preview) no longer draws the preview over the dropdown.
+
 ### Local Shell connections
 
 - **Open the local machine's shell in a terminal tab (no network)** — a new

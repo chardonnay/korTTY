@@ -14,7 +14,9 @@ Customize the application window and dialog visual style.
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
-| App Design | dropdown | Normal, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark | Normal | `appDesign` |
+| App Design | dropdown | Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark | Default | `appDesign` |
+
+The `◀` and `▶` buttons next to the dropdown step backward and forward through the designs (wrapping around at the ends). When a design other than **Default** is selected, a preview image of that design is shown below the controls; the **Default** design has no preview and shows a short note in its place.
 
 !!! note
     App Design applies only to korTTY's application windows and dialogs. Terminal sessions and the file editor retain their own independent color settings (configured via the Colors or Themes tabs).
