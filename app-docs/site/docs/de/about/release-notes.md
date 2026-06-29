@@ -5,99 +5,91 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
-### Lokale-Shell-Verbindungen
+### Aussehen
 
-- **Die Shell des lokalen Rechners in einer Terminal-Registerkarte öffnen (ohne
-  Netzwerk)** – ein neues **Lokale Shell**-Protokoll startet ein lokales
-  Pseudo-Terminal (PTY) über pty4j, statt sich mit einem Remote-Host zu
-  verbinden. Unter Windows können Sie **PowerShell** (Standard) oder **cmd.exe**
-  wählen; unter macOS/Linux wird standardmäßig Ihre `$SHELL` verwendet (Fallback
-  auf `/bin/zsh` oder `/bin/bash`). Ein freies Feld **Benutzerdefinierter Befehl**
-  akzeptiert jede ausführbare Datei mit Argumenten (z. B. `pwsh.exe`,
-  `wsl.exe -d Ubuntu`, Git Bash), und ein optionales Startverzeichnis kann gesetzt
-  werden. Die lokale Shell ist sowohl in Quick Connect als auch im
-  Verbindungsmanager auswählbar; für diese Verbindungen werden
-  Host/Port/Benutzername/Authentifizierung nicht benötigt und sind in den
-  Dialogen deaktiviert.
-- **Git Bash- / Cygwin- / WSL-Voreinstellungen** unter Windows – jeweils nur
-  angeboten, wenn tatsächlich installiert (Git Bash/Cygwin über ihre üblichen
-  Installationspfade / `PATH`; WSL nur, wenn `wsl.exe` vorhanden und mindestens
-  eine Distribution installiert ist). Der Befehls-Parser beachtet
-  Anführungszeichen, sodass Shell-Pfade mit Leerzeichen (wie
-  `"C:\Program Files\Git\bin\bash.exe"`) korrekt gestartet werden.
-- **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die
-  KI-Eingabe-/Daten-Hooks wurden auf eine gemeinsame
-  `ObservableTtyConnector`-Schnittstelle gehoben, sodass sie auch für lokale
-  Shells funktionieren. Funktionen, die nur über den SSH-Kanal verfügbar sind,
-  bleiben SSH-exklusiv.
-- **KI-Agent & -Planung in lokalen Shells** – die Befehlsausführungs-Engine des
-  Agenten wurde hinter einer `AgentCommandRunner`-Abstraktion von SSH entkoppelt
-  (SSH-Exec-Kanal- und lokale-Prozess-Backends). Der **KI-Agent** und die
-  **KI-Planung** laufen nun in lokalen Shells unter Windows, macOS und Linux:
-  Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über
-  `-EncodedCommand`, `cmd.exe` oder `$SHELL`), die Umgebungs-Probe und der
-  System-Prompt sind plattformbewusst, und der bestehende Genehmigungsablauf gilt.
-  Einschränkungen bei lokalen Shells: keine `sudo`-/Administrator-Erhöhung unter
-  Windows und keine Live-Arbeitsverzeichnis-Verfolgung. Die headless
-  KI-Agent-Aktion des JobSchedulers bleibt SSH-exklusiv.
+- **App-Design `Normal` in *Einstellungen → Erscheinungsbild* in `Default`** umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.
+- Mit den Schaltflächen „Zurück/Weiter“ neben dem Dropdown-Menü „App-Design“ können Sie durch die Designs vor- und zurückblättern (an den Enden umschließen), ohne das Dropdown-Menü zu öffnen.
+- **Die Designvorschau wurde unter die Steuerelemente verschoben** in einen Bereich mit fester Größe, sodass beim Wechseln der Designs (oder zurück zu `Default`, wo es keine Vorschau gibt) die Vorschau nicht mehr über dem Dropdown-Menü angezeigt wird.
 
-### Terminal-Bedienbarkeit
+### Lokale Shell-Verbindungen
 
-- **Strg + Mausrad-Zoom** – wenn Sie **Strg** (oder **Cmd** auf macOS) gedrückt
-  halten und mit dem Mausrad über dem Terminal scrollen, ändert sich nun die
-  Schriftgröße, statt den Puffer zu scrollen. Dies ergänzt die bestehenden
-  Tastenkürzel Alt+Plus / Alt+Minus / Alt+0.
-- **Strg+D schließt eine lokale cmd.exe-/PowerShell-Registerkarte** – diese
-  Windows-Shells beenden sich nicht bei EOF, sodass Strg+D dort keine Wirkung
-  hatte. Bei Bash-Familien-Shells (Git Bash/Cygwin/WSL, macOS/Linux) und SSH
-  behält Strg+D seine normale EOF-Bedeutung.
+- **Öffnen Sie die Shell des lokalen Computers in einem Terminal-Tab (kein Netzwerk)** – ein neues
+Das **Local Shell**-Protokoll erzeugt stattdessen ein lokales Pseudo-Terminal (PTY) über pty4j
+eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie **PowerShell** wählen.
+(Standard) oder **cmd.exe**; Unter macOS/Linux wird standardmäßig Ihr `$SHELL` (fallend) verwendet
+zurück zu `/bin/zsh` oder `/bin/bash`). Ein Freiformfeld **Benutzerdefinierter Befehl** akzeptiert
+jede ausführbare Datei mit Argumenten (z. B. `pwsh.exe`, `wsl.exe -d Ubuntu`, Git Bash),
+und ein optionales Startverzeichnis kann festgelegt werden. In beiden Fällen ist die lokale Shell wählbar
+Quick Connect und der Verbindungsmanager; für diese Verbindungen
+Host/Port/Benutzername/Authentifizierung sind nicht erforderlich und im deaktiviert
+Dialoge.
+- **Git Bash / Cygwin / WSL-Voreinstellungen** unter Windows – jeweils nur angeboten, wenn sie tatsächlich vorhanden sind
+installiert (Git Bash/Cygwin über ihre üblichen Installationsorte / `PATH`; nur WSL).
+wenn `wsl.exe` vorhanden ist und mindestens eine Distribution installiert ist). Der
+Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Leerzeichen enthalten (wie
+`"C:\Program Files\Git\bin\bash.exe"`) korrekt starten.
+- **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
+Haken wurden auf eine gemeinsame `ObservableTtyConnector`-Schnittstelle gehoben, also auch
+Arbeit für lokale Muscheln. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
+- **AI Agent & Planning in lokalen Shells** – die Befehlsausführungs-Engine des Agenten
+wurde hinter einer `AgentCommandRunner`-Abstraktion (SSH exec.) von SSH entkoppelt
+Kanal- und lokale Prozess-Backends). Der **KI-Agent** und **KI-Planung** jetzt
+In lokalen Shells unter Windows, macOS und Linux ausführen: Befehle werden im ausgeführt
+Verbindungs-Shell (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`),
+Die Umgebungsprobe und die Systemeingabeaufforderung sind plattformorientiert und vorhanden
+Es gilt der Genehmigungsablauf. Einschränkungen für lokale Shells: kein `sudo`/Administrator
+Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Der JobScheduler
+Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.
 
-### Workflow-Skript-Generator
+### Terminal-Benutzerfreundlichkeit
 
-- **Zwei neue Zielsprachen** – der Skript-Generator der Agentenausführung →
-  **Workflow** kann nun **Windows-CMD** (`.cmd`-Batch) und **AppleScript**
-  (`.applescript`) zusätzlich zu Bash, Python, Perl, Ruby, PowerShell und Ansible
-  erzeugen.
-- **Anpassbare Skript-Schriftgröße** – jeder Editor für generierte Skripte verfügt
-  über **A−**- / **A+**-Schaltflächen und unterstützt **Strg + Mausrad** (Cmd auf
-  macOS); die gewählte Größe wird über Sitzungen hinweg gespeichert.
-- **Sichtbarer Fortschritt während der Diagrammgenerierung** – beim Generieren
-  eines PlantUML-Diagramms aus einem Skript wird nun der Arbeits-Spinner
-  angezeigt.
-- **Klarere KI-Backend-Fehler** – Speicher-/Ressourcenlimit-Fehler des KI-Servers
-  (z. B. LM Studio/MLX „Resource limit exceeded“, „metal::malloc“) zeigen einen
-  kurzen, umsetzbaren Hinweis statt des rohen Stacktraces; alle anderen KI-Fehler
-  werden auf eine einzige Zeile reduziert.
+- **Strg + Mausrad-Zoom** – **Strg** (oder **Befehl** unter macOS) gedrückt halten und
+Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
+Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
+Abkürzungen.
+- **Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte** – diese Windows-Shells tun dies nicht
+Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
+(Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.
 
-### Fixes
+### Workflow-Skriptgenerator
 
-- **Das Schließen einer lokalen Shell friert korTTY nicht mehr ein** – der
-  PTY-Prozess wird nun zerstört, bevor seine Streams geschlossen werden, sodass
-  ein in einem pty-`read()` blockierter Terminal-Lesethread freigegeben wird,
-  statt das Schließen auf dem JavaFX-Thread zu blockieren.
-- **Korrekte Formulierung für lokale Shells beim Schließen** – die
-  Schließbestätigung sagt für eine lokale Shell nicht mehr „SSH-Verbindung
-  beenden?“, und die Fenster-Schließabfrage ist nun transportneutral („Aktive
-  Sitzungen“).
-- **Keine Passwortabfrage für lokale Shells** – das Öffnen einer lokalen Shell
-  zeigt keinen irrelevanten Passwortdialog mehr (lokale Shells verwenden keine
-  Authentifizierung).
+- **Zwei neue Zielsprachen** – der Agent kann den → **Workflow**-Skriptgenerator ausführen
+Jetzt **Windows-CMD** (`.cmd`-Batch) und **AppleScript** (`.applescript`) erstellen
+zusätzlich zu Bash, Python, Perl, Ruby, PowerShell und Ansible.
+- **Anpassbare Skriptschriftgröße** – jeder Editor für generierte Skripte verfügt über **A−** /
+**A+**-Tasten und unterstützt **Strg + Mausrad** (Cmd unter macOS); der Auserwählte
+Die Größe wird sitzungsübergreifend gespeichert.
+- **Sichtbarer Fortschritt während der Generierung eines Diagramms** – Generieren einer PlantUML
+Das Diagramm aus einem Skript zeigt jetzt den funktionierenden Spinner.
+- **Deutlichere AI-Backend-Fehler** – Fehler aufgrund von unzureichendem Arbeitsspeicher/Ressourcenlimit
+AI-Server (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“) zeigt a
+kurzer, umsetzbarer Hinweis anstelle des rohen Stack-Trace; Alle anderen KI-Fehler sind es
+auf eine einzige Zeile reduziert.
+
+### Korrekturen
+
+- **Das Schließen einer lokalen Shell friert korTTY nicht mehr ein** – der PTY-Prozess ist jetzt
+zerstört, bevor seine Streams geschlossen werden, wodurch ein Terminal-Reader-Thread freigegeben wird
+in einem pty `read()` blockiert, anstatt das Schließen des JavaFX-Threads zu blockieren.
+- **Korrekter Wortlaut für lokale Shells beim Schließen** – die Schließbestätigungs-Nr
+sagt länger: „SSH-Verbindung beenden?“ für eine lokale Shell und die Eingabeaufforderung zum Schließen des Fensters
+ist nun transportneutral („Aktive Sitzungen“).
+- **Keine Passwortabfrage für lokale Shells** – Das Öffnen einer lokalen Shell wird nicht mehr angezeigt
+ein irrelevanter Passwortdialog (lokale Shells verwenden keine Authentifizierung).
 
 ## v2.2.3
 
-### Kritischer Fix: Monaco-Editoren luden im gepackten App nicht
+### Kritischer Fix: Die Monaco-Editoren konnten die gepackte App nicht laden
 
-- **Behoben: die Monaco-Editoren (Snippet, Datei, KI, Diff) öffneten sich im
-  gepackten/notarisierten macOS-App als leere Fläche** – kein Cursor, keine
-  Eingabe, kein Einfügen. Im gepackten App lud die WebView ihre Seite aus einer
-  `jar:`-URL, und die Content-Security-Policy der Seite (`script-src 'self'`)
-  blockierte daraufhin die zugehörigen `monaco-host.js`/`.css`, weil ein Dokument
-  mit `jar:`-Origin seine `jar:`-Geschwister nicht autorisiert. Die
-  Monaco-Ressourcen werden jetzt in ein temporäres Verzeichnis entpackt und über
-  eine `file:`-URL geladen, die die CSP erlaubt. Ein fehlgeschlagener
-  Editor-Ladevorgang meldet jetzt außerdem einen Fehler statt einer stummen
-  leeren Fläche, und das Editor-Bundle ist zusätzlich minifiziert mit
-  großzügigerem Boot-Budget.
+- **Behoben, dass die auf Monaco basierenden Editoren (Snippet, Datei, AI, Diff) leer geöffnet wurden
+Bereich in der gepackten/beglaubigten macOS-App** – kein Einfügezeichen, kein Eintippen, kein Einfügen. In
+In der gepackten App hat WebView seine Seite von einer `jar:`-URL und den Seiten geladen
+Content-Security-Policy (`script-src 'self'`) blockierte dann die eigene des Herausgebers
+`monaco-host.js`/`.css`, da ein Dokument mit `jar:`-Ursprung dies nicht autorisiert
+`jar:` Geschwister. Die Monaco-Ressourcen werden jetzt in ein temporäres Verzeichnis extrahiert und
+wird von einer `file:`-URL geladen, was der CSP zulässt. Ein fehlgeschlagener Editor-Ladevorgang ist jetzt ebenfalls aufgetreten
+zeigt einen Fehler anstelle eines stillschweigend leeren Bereichs an, und das Editor-Bundle ist es auch
+zusätzlich minimiert durch ein großzügigeres Boot-Budget.
 
 ## v2.2.2
 

@@ -75,6 +75,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -90,6 +91,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.function.Supplier;
 import java.util.HashSet;
 import java.util.List;
 import java.time.LocalDate;
@@ -108,6 +110,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private static final String HOLOGRAPHIC_PREVIEW_RESOURCE = "/previews/holographic-preview.png";
     private static final String KLINGON_TACTICAL_PREVIEW_RESOURCE = "/previews/klingon-tactical-preview.png";
     private static final String ELEGANT_DARK_PREVIEW_RESOURCE = "/previews/elegant-dark-preview.png";
+    private static final double APP_DESIGN_PREVIEW_MAX_HEIGHT = 260;
+    private static final String APP_DESIGN_PREVIEW_NEUTRAL_STYLE =
+        "-fx-border-color: rgba(255,255,255,0.12); -fx-border-width: 1;";
     
     private final KorTTYApplication app;
     private final ConfigurationManager configManager;
@@ -327,11 +332,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         // Appearance tab
         Tab appearanceTab = new Tab(I18n.get("settings.tab.appearance"));
-        GridPane appearanceGrid = new GridPane();
-        appearanceGrid.setHgap(10);
-        appearanceGrid.setVgap(10);
-        appearanceGrid.setPadding(new Insets(20));
-
         appDesignCombo = new ComboBox<>();
         appDesignCombo.getItems().addAll(
             AppDesign.NORMAL,
@@ -353,9 +353,54 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 return null;
             }
         });
+        // The collapsed combo renders its current design through a "button cell". JavaFX does NOT
+        // reliably re-render that cell when the value changes programmatically (via the prev/next
+        // buttons): the value, selection and preview all update, but the cell's Text node keeps
+        // showing a stale design name. Just calling setText on the existing cell doesn't fix it
+        // (the property updates but the rendered Text node doesn't). What works reliably is to
+        // install a FRESH button cell with the label pre-set and force the combo to lay it out, so
+        // the skin rebuilds and re-renders the display node from the current value. (Selecting from
+        // the open dropdown was never affected — only programmatic value changes.)
+        Supplier<ListCell<AppDesign>> appDesignButtonCellFactory = () -> new ListCell<>() {
+            @Override
+            protected void updateItem(AppDesign design, boolean empty) {
+                super.updateItem(design, empty);
+                setText(empty || design == null ? null : appDesignLabel(design));
+            }
+        };
+        appDesignCombo.setButtonCell(appDesignButtonCellFactory.get());
+        appDesignCombo.valueProperty().addListener((obs, oldDesign, newDesign) -> {
+            ListCell<AppDesign> fresh = appDesignButtonCellFactory.get();
+            fresh.setText(newDesign == null ? null : appDesignLabel(newDesign));
+            appDesignCombo.setButtonCell(fresh);
+            appDesignCombo.applyCss();
+            appDesignCombo.layout();
+        });
 
-        appearanceGrid.add(new Label(I18n.get("settings.appearance.appDesign")), 0, 0);
-        appearanceGrid.add(appDesignCombo, 1, 0);
+        // Previous/next buttons let the user step through the designs without opening the dropdown.
+        Button appDesignPrevButton = new Button("◀");
+        appDesignPrevButton.setTooltip(new Tooltip(I18n.get("settings.appearance.design.previous")));
+        appDesignPrevButton.setAccessibleText(I18n.get("settings.appearance.design.previous"));
+        appDesignPrevButton.getStyleClass().add("settings-section-nav-button");
+        // Step via setValue (not selectionModel.select): setValue drives the combo's value
+        // property directly, which the skin always observes to refresh the collapsed display.
+        // Going through the selection model could change the value (and the preview) while leaving
+        // the shown label stuck. The index is read from the current value, so it stays correct.
+        appDesignPrevButton.setOnAction(e -> appDesignCombo.setValue(appDesignCombo.getItems().get(
+            AppDesignNavigation.previous(appDesignCombo.getItems().indexOf(appDesignCombo.getValue()),
+                appDesignCombo.getItems().size()))));
+        Button appDesignNextButton = new Button("▶");
+        appDesignNextButton.setTooltip(new Tooltip(I18n.get("settings.appearance.design.next")));
+        appDesignNextButton.setAccessibleText(I18n.get("settings.appearance.design.next"));
+        appDesignNextButton.getStyleClass().add("settings-section-nav-button");
+        appDesignNextButton.setOnAction(e -> appDesignCombo.setValue(appDesignCombo.getItems().get(
+            AppDesignNavigation.next(appDesignCombo.getItems().indexOf(appDesignCombo.getValue()),
+                appDesignCombo.getItems().size()))));
+
+        HBox appDesignControls = new HBox(8,
+            new Label(I18n.get("settings.appearance.appDesign")), appDesignCombo,
+            appDesignPrevButton, appDesignNextButton);
+        appDesignControls.setAlignment(Pos.CENTER_LEFT);
 
         Label appearanceInfo = new Label(I18n.get("settings.appearance.appDesign.info"));
         appearanceInfo.setWrapText(true);
@@ -364,20 +409,38 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         appearanceInfo.setStyle(globalSettings == null || globalSettings.getAppDesign() == AppDesign.NORMAL
             ? "-fx-font-size: 11px; -fx-text-fill: gray;"
             : "-fx-font-size: 11px;");
-        appearanceGrid.add(appearanceInfo, 0, 1, 2, 1);
 
         Label appDesignPreviewLabel = new Label(I18n.get("settings.appearance.preview"));
         appDesignPreviewLabel.getStyleClass().add("settings-info-label");
+
         ImageView appDesignPreviewImage = createAppDesignPreviewImage();
-        VBox appDesignPreviewBox = new VBox(6, appDesignPreviewLabel, appDesignPreviewImage);
+        // Shown centered in place of the image for designs without a preview (e.g. Default).
+        Label appDesignPreviewPlaceholder = new Label(I18n.get("settings.appearance.preview.none"));
+        appDesignPreviewPlaceholder.getStyleClass().add("settings-info-label");
+        appDesignPreviewPlaceholder.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        appDesignPreviewPlaceholder.setWrapText(true);
+
+        // Fixed-size area that holds either the preview image or the "no preview" note, both
+        // centered. Crucially its size is the SAME for every design, so switching designs only
+        // swaps the *content* and never resizes the layout. A resize here was what made the
+        // surrounding container skip a layout/repaint pass and leave the preview drawn over the
+        // dropdown (or a stale image behind the placeholder when switching back to Default).
+        StackPane appDesignPreviewArea = new StackPane(appDesignPreviewImage, appDesignPreviewPlaceholder);
+        appDesignPreviewArea.setMinHeight(APP_DESIGN_PREVIEW_MAX_HEIGHT + 16);
+        appDesignPreviewArea.setPrefHeight(APP_DESIGN_PREVIEW_MAX_HEIGHT + 16);
+        appDesignPreviewArea.setMaxWidth(452);
+
+        VBox appDesignPreviewBox = new VBox(6, appDesignPreviewLabel, appDesignPreviewArea);
         appDesignPreviewBox.setMaxWidth(460);
         appDesignPreviewBox.setPadding(new Insets(6));
-        appearanceGrid.add(appDesignPreviewBox, 0, 2, 2, 1);
         appDesignCombo.valueProperty().addListener((obs, oldDesign, newDesign) ->
-            updateAppDesignPreview(appDesignPreviewBox, appDesignPreviewImage, newDesign));
-        updateAppDesignPreview(appDesignPreviewBox, appDesignPreviewImage, appDesignCombo.getValue());
+            updateAppDesignPreview(appDesignPreviewImage, appDesignPreviewPlaceholder, appDesignPreviewBox, newDesign));
+        updateAppDesignPreview(appDesignPreviewImage, appDesignPreviewPlaceholder, appDesignPreviewBox, appDesignCombo.getValue());
 
-        appearanceTab.setContent(appearanceGrid);
+        // Plain top-to-bottom stack: controls row, the info text, then the fixed preview box below.
+        VBox appearanceContent = new VBox(14, appDesignControls, appearanceInfo, appDesignPreviewBox);
+        appearanceContent.setPadding(new Insets(20));
+        appearanceTab.setContent(appearanceContent);
         
         // Font tab
         Tab fontTab = new Tab(I18n.get("settings.tab.font"));
@@ -2310,32 +2373,35 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private ImageView createAppDesignPreviewImage() {
         ImageView imageView = new ImageView();
         imageView.setFitWidth(440);
+        // Cap the height too (preserveRatio keeps it undistorted) so every preview fits inside the
+        // fixed-size preview area regardless of the source image's aspect ratio.
+        imageView.setFitHeight(APP_DESIGN_PREVIEW_MAX_HEIGHT);
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
         return imageView;
     }
 
-    private void updateAppDesignPreview(VBox previewBox, ImageView previewImage, AppDesign design) {
+    private void updateAppDesignPreview(ImageView previewImage, Label previewPlaceholder,
+                                        VBox previewBox, AppDesign design) {
         String previewResource = appDesignPreviewResource(design);
-        if (previewResource == null) {
-            previewImage.setImage(null);
-            previewBox.setVisible(false);
-            previewBox.setManaged(false);
-            return;
-        }
+        var previewUrl = previewResource == null ? null : getClass().getResource(previewResource);
 
-        var previewUrl = getClass().getResource(previewResource);
+        // Only ever swap CONTENT and VISIBILITY here — never anything that changes the layout's
+        // size. The image and the placeholder live in a fixed-size StackPane, so toggling their
+        // `visible` flags leaves every dimension untouched. That is what stops the surrounding
+        // container from skipping a repaint and leaving the preview drawn over the dropdown (or a
+        // stale image behind the placeholder when switching back to the imageless Default design).
         if (previewUrl == null) {
             previewImage.setImage(null);
-            previewBox.setVisible(false);
-            previewBox.setManaged(false);
-            return;
+            previewImage.setVisible(false);
+            previewPlaceholder.setVisible(true);
+            previewBox.setStyle(APP_DESIGN_PREVIEW_NEUTRAL_STYLE);
+        } else {
+            previewImage.setImage(new Image(previewUrl.toExternalForm()));
+            previewImage.setVisible(true);
+            previewPlaceholder.setVisible(false);
+            previewBox.setStyle(appDesignPreviewStyle(design));
         }
-
-        previewImage.setImage(new Image(previewUrl.toExternalForm()));
-        previewBox.setStyle(appDesignPreviewStyle(design));
-        previewBox.setVisible(true);
-        previewBox.setManaged(true);
     }
 
     private String appDesignPreviewResource(AppDesign design) {

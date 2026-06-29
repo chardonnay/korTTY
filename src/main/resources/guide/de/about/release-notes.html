@@ -1751,10 +1751,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#aussehen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aussehen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#lokale-shell-verbindungen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Lokale-Shell-Verbindungen
+        Lokale Shell-Verbindungen
       
     </span>
   </a>
@@ -1762,10 +1773,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terminal-bedienbarkeit" class="md-nav__link">
+  <a href="#terminal-benutzerfreundlichkeit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terminal-Bedienbarkeit
+        Terminal-Benutzerfreundlichkeit
       
     </span>
   </a>
@@ -1773,10 +1784,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#workflow-skript-generator" class="md-nav__link">
+  <a href="#workflow-skriptgenerator" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Workflow-Skript-Generator
+        Workflow-Skriptgenerator
       
     </span>
   </a>
@@ -1784,10 +1795,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes" class="md-nav__link">
+  <a href="#korrekturen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fixes
+        Korrekturen
       
     </span>
   </a>
@@ -1812,10 +1823,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#kritischer-fix-monaco-editoren-luden-im-gepackten-app-nicht" class="md-nav__link">
+  <a href="#kritischer-fix-die-monaco-editoren-konnten-die-gepackte-app-nicht-laden" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Kritischer Fix: Monaco-Editoren luden im gepackten App nicht
+        Kritischer Fix: Die Monaco-Editoren konnten die gepackte App nicht laden
       
     </span>
   </a>
@@ -1999,10 +2010,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#aussehen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aussehen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#lokale-shell-verbindungen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Lokale-Shell-Verbindungen
+        Lokale Shell-Verbindungen
       
     </span>
   </a>
@@ -2010,10 +2032,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terminal-bedienbarkeit" class="md-nav__link">
+  <a href="#terminal-benutzerfreundlichkeit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terminal-Bedienbarkeit
+        Terminal-Benutzerfreundlichkeit
       
     </span>
   </a>
@@ -2021,10 +2043,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#workflow-skript-generator" class="md-nav__link">
+  <a href="#workflow-skriptgenerator" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Workflow-Skript-Generator
+        Workflow-Skriptgenerator
       
     </span>
   </a>
@@ -2032,10 +2054,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes" class="md-nav__link">
+  <a href="#korrekturen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fixes
+        Korrekturen
       
     </span>
   </a>
@@ -2060,10 +2082,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#kritischer-fix-monaco-editoren-luden-im-gepackten-app-nicht" class="md-nav__link">
+  <a href="#kritischer-fix-die-monaco-editoren-konnten-die-gepackte-app-nicht-laden" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Kritischer Fix: Monaco-Editoren luden im gepackten App nicht
+        Kritischer Fix: Die Monaco-Editoren konnten die gepackte App nicht laden
       
     </span>
   </a>
@@ -2213,98 +2235,90 @@
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.</p>
 <h2 id="unveroffentlicht">Unveröffentlicht<a class="headerlink" href="#unveroffentlicht" title="Permanent link">&para;</a></h2>
-<h3 id="lokale-shell-verbindungen">Lokale-Shell-Verbindungen<a class="headerlink" href="#lokale-shell-verbindungen" title="Permanent link">&para;</a></h3>
+<h3 id="aussehen">Aussehen<a class="headerlink" href="#aussehen" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Die Shell des lokalen Rechners in einer Terminal-Registerkarte öffnen (ohne
-  Netzwerk)</strong> – ein neues <strong>Lokale Shell</strong>-Protokoll startet ein lokales
-  Pseudo-Terminal (PTY) über pty4j, statt sich mit einem Remote-Host zu
-  verbinden. Unter Windows können Sie <strong>PowerShell</strong> (Standard) oder <strong>cmd.exe</strong>
-  wählen; unter macOS/Linux wird standardmäßig Ihre <code>$SHELL</code> verwendet (Fallback
-  auf <code>/bin/zsh</code> oder <code>/bin/bash</code>). Ein freies Feld <strong>Benutzerdefinierter Befehl</strong>
-  akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>,
-  <code>wsl.exe -d Ubuntu</code>, Git Bash), und ein optionales Startverzeichnis kann gesetzt
-  werden. Die lokale Shell ist sowohl in Quick Connect als auch im
-  Verbindungsmanager auswählbar; für diese Verbindungen werden
-  Host/Port/Benutzername/Authentifizierung nicht benötigt und sind in den
-  Dialogen deaktiviert.</li>
-<li><strong>Git Bash- / Cygwin- / WSL-Voreinstellungen</strong> unter Windows – jeweils nur
-  angeboten, wenn tatsächlich installiert (Git Bash/Cygwin über ihre üblichen
-  Installationspfade / <code>PATH</code>; WSL nur, wenn <code>wsl.exe</code> vorhanden und mindestens
-  eine Distribution installiert ist). Der Befehls-Parser beachtet
-  Anführungszeichen, sodass Shell-Pfade mit Leerzeichen (wie
-  <code>"C:\Program Files\Git\bin\bash.exe"</code>) korrekt gestartet werden.</li>
-<li><strong>Gemeinsame Connector-Hooks</strong> – Terminalaufzeichnung/-protokollierung und die
-  KI-Eingabe-/Daten-Hooks wurden auf eine gemeinsame
-  <code>ObservableTtyConnector</code>-Schnittstelle gehoben, sodass sie auch für lokale
-  Shells funktionieren. Funktionen, die nur über den SSH-Kanal verfügbar sind,
-  bleiben SSH-exklusiv.</li>
-<li><strong>KI-Agent &amp; -Planung in lokalen Shells</strong> – die Befehlsausführungs-Engine des
-  Agenten wurde hinter einer <code>AgentCommandRunner</code>-Abstraktion von SSH entkoppelt
-  (SSH-Exec-Kanal- und lokale-Prozess-Backends). Der <strong>KI-Agent</strong> und die
-  <strong>KI-Planung</strong> laufen nun in lokalen Shells unter Windows, macOS und Linux:
-  Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über
-  <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungs-Probe und der
-  System-Prompt sind plattformbewusst, und der bestehende Genehmigungsablauf gilt.
-  Einschränkungen bei lokalen Shells: keine <code>sudo</code>-/Administrator-Erhöhung unter
-  Windows und keine Live-Arbeitsverzeichnis-Verfolgung. Die headless
-  KI-Agent-Aktion des JobSchedulers bleibt SSH-exklusiv.</li>
+<li><strong>App-Design <code>Normal</code> in <em>Einstellungen → Erscheinungsbild</em> in <code>Default</code></strong> umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.</li>
+<li>Mit den Schaltflächen „Zurück/Weiter“ neben dem Dropdown-Menü „App-Design“ können Sie durch die Designs vor- und zurückblättern (an den Enden umschließen), ohne das Dropdown-Menü zu öffnen.</li>
+<li><strong>Die Designvorschau wurde unter die Steuerelemente verschoben</strong> in einen Bereich mit fester Größe, sodass beim Wechseln der Designs (oder zurück zu <code>Default</code>, wo es keine Vorschau gibt) die Vorschau nicht mehr über dem Dropdown-Menü angezeigt wird.</li>
 </ul>
-<h3 id="terminal-bedienbarkeit">Terminal-Bedienbarkeit<a class="headerlink" href="#terminal-bedienbarkeit" title="Permanent link">&para;</a></h3>
+<h3 id="lokale-shell-verbindungen">Lokale Shell-Verbindungen<a class="headerlink" href="#lokale-shell-verbindungen" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Strg + Mausrad-Zoom</strong> – wenn Sie <strong>Strg</strong> (oder <strong>Cmd</strong> auf macOS) gedrückt
-  halten und mit dem Mausrad über dem Terminal scrollen, ändert sich nun die
-  Schriftgröße, statt den Puffer zu scrollen. Dies ergänzt die bestehenden
-  Tastenkürzel Alt+Plus / Alt+Minus / Alt+0.</li>
-<li><strong>Strg+D schließt eine lokale cmd.exe-/PowerShell-Registerkarte</strong> – diese
-  Windows-Shells beenden sich nicht bei EOF, sodass Strg+D dort keine Wirkung
-  hatte. Bei Bash-Familien-Shells (Git Bash/Cygwin/WSL, macOS/Linux) und SSH
-  behält Strg+D seine normale EOF-Bedeutung.</li>
+<li><strong>Öffnen Sie die Shell des lokalen Computers in einem Terminal-Tab (kein Netzwerk)</strong> – ein neues
+Das <strong>Local Shell</strong>-Protokoll erzeugt stattdessen ein lokales Pseudo-Terminal (PTY) über pty4j
+eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie <strong>PowerShell</strong> wählen.
+(Standard) oder <strong>cmd.exe</strong>; Unter macOS/Linux wird standardmäßig Ihr <code>$SHELL</code> (fallend) verwendet
+zurück zu <code>/bin/zsh</code> oder <code>/bin/bash</code>). Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert
+jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, Git Bash),
+und ein optionales Startverzeichnis kann festgelegt werden. In beiden Fällen ist die lokale Shell wählbar
+Quick Connect und der Verbindungsmanager; für diese Verbindungen
+Host/Port/Benutzername/Authentifizierung sind nicht erforderlich und im deaktiviert
+Dialoge.</li>
+<li><strong>Git Bash / Cygwin / WSL-Voreinstellungen</strong> unter Windows – jeweils nur angeboten, wenn sie tatsächlich vorhanden sind
+installiert (Git Bash/Cygwin über ihre üblichen Installationsorte / <code>PATH</code>; nur WSL).
+wenn <code>wsl.exe</code> vorhanden ist und mindestens eine Distribution installiert ist). Der
+Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Leerzeichen enthalten (wie
+<code>"C:\Program Files\Git\bin\bash.exe"</code>) korrekt starten.</li>
+<li><strong>Gemeinsame Connector-Hooks</strong> – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
+Haken wurden auf eine gemeinsame <code>ObservableTtyConnector</code>-Schnittstelle gehoben, also auch
+Arbeit für lokale Muscheln. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.</li>
+<li><strong>AI Agent &amp; Planning in lokalen Shells</strong> – die Befehlsausführungs-Engine des Agenten
+wurde hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH exec.) von SSH entkoppelt
+Kanal- und lokale Prozess-Backends). Der <strong>KI-Agent</strong> und <strong>KI-Planung</strong> jetzt
+In lokalen Shells unter Windows, macOS und Linux ausführen: Befehle werden im ausgeführt
+Verbindungs-Shell (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>),
+Die Umgebungsprobe und die Systemeingabeaufforderung sind plattformorientiert und vorhanden
+Es gilt der Genehmigungsablauf. Einschränkungen für lokale Shells: kein <code>sudo</code>/Administrator
+Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Der JobScheduler
+Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.</li>
 </ul>
-<h3 id="workflow-skript-generator">Workflow-Skript-Generator<a class="headerlink" href="#workflow-skript-generator" title="Permanent link">&para;</a></h3>
+<h3 id="terminal-benutzerfreundlichkeit">Terminal-Benutzerfreundlichkeit<a class="headerlink" href="#terminal-benutzerfreundlichkeit" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Zwei neue Zielsprachen</strong> – der Skript-Generator der Agentenausführung →
-  <strong>Workflow</strong> kann nun <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch) und <strong>AppleScript</strong>
-  (<code>.applescript</code>) zusätzlich zu Bash, Python, Perl, Ruby, PowerShell und Ansible
-  erzeugen.</li>
-<li><strong>Anpassbare Skript-Schriftgröße</strong> – jeder Editor für generierte Skripte verfügt
-  über <strong>A−</strong>- / <strong>A+</strong>-Schaltflächen und unterstützt <strong>Strg + Mausrad</strong> (Cmd auf
-  macOS); die gewählte Größe wird über Sitzungen hinweg gespeichert.</li>
-<li><strong>Sichtbarer Fortschritt während der Diagrammgenerierung</strong> – beim Generieren
-  eines PlantUML-Diagramms aus einem Skript wird nun der Arbeits-Spinner
-  angezeigt.</li>
-<li><strong>Klarere KI-Backend-Fehler</strong> – Speicher-/Ressourcenlimit-Fehler des KI-Servers
-  (z. B. LM Studio/MLX „Resource limit exceeded“, „metal::malloc“) zeigen einen
-  kurzen, umsetzbaren Hinweis statt des rohen Stacktraces; alle anderen KI-Fehler
-  werden auf eine einzige Zeile reduziert.</li>
+<li><strong>Strg + Mausrad-Zoom</strong> – <strong>Strg</strong> (oder <strong>Befehl</strong> unter macOS) gedrückt halten und
+Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
+Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
+Abkürzungen.</li>
+<li><strong>Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte</strong> – diese Windows-Shells tun dies nicht
+Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
+(Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.</li>
 </ul>
-<h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
+<h3 id="workflow-skriptgenerator">Workflow-Skriptgenerator<a class="headerlink" href="#workflow-skriptgenerator" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Das Schließen einer lokalen Shell friert korTTY nicht mehr ein</strong> – der
-  PTY-Prozess wird nun zerstört, bevor seine Streams geschlossen werden, sodass
-  ein in einem pty-<code>read()</code> blockierter Terminal-Lesethread freigegeben wird,
-  statt das Schließen auf dem JavaFX-Thread zu blockieren.</li>
-<li><strong>Korrekte Formulierung für lokale Shells beim Schließen</strong> – die
-  Schließbestätigung sagt für eine lokale Shell nicht mehr „SSH-Verbindung
-  beenden?“, und die Fenster-Schließabfrage ist nun transportneutral („Aktive
-  Sitzungen“).</li>
-<li><strong>Keine Passwortabfrage für lokale Shells</strong> – das Öffnen einer lokalen Shell
-  zeigt keinen irrelevanten Passwortdialog mehr (lokale Shells verwenden keine
-  Authentifizierung).</li>
+<li><strong>Zwei neue Zielsprachen</strong> – der Agent kann den → <strong>Workflow</strong>-Skriptgenerator ausführen
+Jetzt <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch) und <strong>AppleScript</strong> (<code>.applescript</code>) erstellen
+zusätzlich zu Bash, Python, Perl, Ruby, PowerShell und Ansible.</li>
+<li><strong>Anpassbare Skriptschriftgröße</strong> – jeder Editor für generierte Skripte verfügt über <strong>A−</strong> /
+<strong>A+</strong>-Tasten und unterstützt <strong>Strg + Mausrad</strong> (Cmd unter macOS); der Auserwählte
+Die Größe wird sitzungsübergreifend gespeichert.</li>
+<li><strong>Sichtbarer Fortschritt während der Generierung eines Diagramms</strong> – Generieren einer PlantUML
+Das Diagramm aus einem Skript zeigt jetzt den funktionierenden Spinner.</li>
+<li><strong>Deutlichere AI-Backend-Fehler</strong> – Fehler aufgrund von unzureichendem Arbeitsspeicher/Ressourcenlimit
+AI-Server (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“) zeigt a
+kurzer, umsetzbarer Hinweis anstelle des rohen Stack-Trace; Alle anderen KI-Fehler sind es
+auf eine einzige Zeile reduziert.</li>
+</ul>
+<h3 id="korrekturen">Korrekturen<a class="headerlink" href="#korrekturen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Das Schließen einer lokalen Shell friert korTTY nicht mehr ein</strong> – der PTY-Prozess ist jetzt
+zerstört, bevor seine Streams geschlossen werden, wodurch ein Terminal-Reader-Thread freigegeben wird
+in einem pty <code>read()</code> blockiert, anstatt das Schließen des JavaFX-Threads zu blockieren.</li>
+<li><strong>Korrekter Wortlaut für lokale Shells beim Schließen</strong> – die Schließbestätigungs-Nr
+sagt länger: „SSH-Verbindung beenden?“ für eine lokale Shell und die Eingabeaufforderung zum Schließen des Fensters
+ist nun transportneutral („Aktive Sitzungen“).</li>
+<li><strong>Keine Passwortabfrage für lokale Shells</strong> – Das Öffnen einer lokalen Shell wird nicht mehr angezeigt
+ein irrelevanter Passwortdialog (lokale Shells verwenden keine Authentifizierung).</li>
 </ul>
 <h2 id="v223">v2.2.3<a class="headerlink" href="#v223" title="Permanent link">&para;</a></h2>
-<h3 id="kritischer-fix-monaco-editoren-luden-im-gepackten-app-nicht">Kritischer Fix: Monaco-Editoren luden im gepackten App nicht<a class="headerlink" href="#kritischer-fix-monaco-editoren-luden-im-gepackten-app-nicht" title="Permanent link">&para;</a></h3>
+<h3 id="kritischer-fix-die-monaco-editoren-konnten-die-gepackte-app-nicht-laden">Kritischer Fix: Die Monaco-Editoren konnten die gepackte App nicht laden<a class="headerlink" href="#kritischer-fix-die-monaco-editoren-konnten-die-gepackte-app-nicht-laden" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Behoben: die Monaco-Editoren (Snippet, Datei, KI, Diff) öffneten sich im
-  gepackten/notarisierten macOS-App als leere Fläche</strong> – kein Cursor, keine
-  Eingabe, kein Einfügen. Im gepackten App lud die WebView ihre Seite aus einer
-  <code>jar:</code>-URL, und die Content-Security-Policy der Seite (<code>script-src 'self'</code>)
-  blockierte daraufhin die zugehörigen <code>monaco-host.js</code>/<code>.css</code>, weil ein Dokument
-  mit <code>jar:</code>-Origin seine <code>jar:</code>-Geschwister nicht autorisiert. Die
-  Monaco-Ressourcen werden jetzt in ein temporäres Verzeichnis entpackt und über
-  eine <code>file:</code>-URL geladen, die die CSP erlaubt. Ein fehlgeschlagener
-  Editor-Ladevorgang meldet jetzt außerdem einen Fehler statt einer stummen
-  leeren Fläche, und das Editor-Bundle ist zusätzlich minifiziert mit
-  großzügigerem Boot-Budget.</li>
+<li><strong>Behoben, dass die auf Monaco basierenden Editoren (Snippet, Datei, AI, Diff) leer geöffnet wurden
+Bereich in der gepackten/beglaubigten macOS-App</strong> – kein Einfügezeichen, kein Eintippen, kein Einfügen. In
+In der gepackten App hat WebView seine Seite von einer <code>jar:</code>-URL und den Seiten geladen
+Content-Security-Policy (<code>script-src 'self'</code>) blockierte dann die eigene des Herausgebers
+<code>monaco-host.js</code>/<code>.css</code>, da ein Dokument mit <code>jar:</code>-Ursprung dies nicht autorisiert
+<code>jar:</code> Geschwister. Die Monaco-Ressourcen werden jetzt in ein temporäres Verzeichnis extrahiert und
+wird von einer <code>file:</code>-URL geladen, was der CSP zulässt. Ein fehlgeschlagener Editor-Ladevorgang ist jetzt ebenfalls aufgetreten
+zeigt einen Fehler anstelle eines stillschweigend leeren Bereichs an, und das Editor-Bundle ist es auch
+zusätzlich minimiert durch ein großzügigeres Boot-Budget.</li>
 </ul>
 <h2 id="v222">v2.2.2<a class="headerlink" href="#v222" title="Permanent link">&para;</a></h2>
 <h3 id="kritischer-fix-absturz-beim-offnen-der-monaco-editoren">Kritischer Fix: Absturz beim Öffnen der Monaco-Editoren<a class="headerlink" href="#kritischer-fix-absturz-beim-offnen-der-monaco-editoren" title="Permanent link">&para;</a></h3>
