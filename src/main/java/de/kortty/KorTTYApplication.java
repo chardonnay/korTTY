@@ -171,10 +171,17 @@ public class KorTTYApplication extends Application {
             boolean passwordNotSet = !masterPasswordManager.isPasswordSet();
             boolean requirePasswordOnStartup = globalSettingsManager.getSettings().isRequireMasterPasswordOnStartup();
             // Developer/test launch: TEST_MODE_KORTTY=1 starts without the master-password gate.
+            // Honored ONLY in non-packaged dev launches (e.g. `./gradlew run`); jpackage sets
+            // jpackage.app-path on every platform, so the bypass can never apply to a release binary.
             String testModeFlag = System.getenv("TEST_MODE_KORTTY");
-            boolean testMode = "1".equals(testModeFlag) || "true".equalsIgnoreCase(testModeFlag);
+            boolean testModeRequested = "1".equals(testModeFlag) || "true".equalsIgnoreCase(testModeFlag);
+            String jpackageAppPath = System.getProperty("jpackage.app-path");
+            boolean packagedBuild = jpackageAppPath != null && !jpackageAppPath.isBlank();
+            boolean testMode = testModeRequested && !packagedBuild;
             if (testMode) {
-                logger.warn("TEST_MODE_KORTTY enabled — skipping the master-password dialog (test/dev only)");
+                logger.warn("TEST_MODE_KORTTY enabled — skipping the master-password dialog (dev launch only)");
+            } else if (testModeRequested && packagedBuild) {
+                logger.warn("TEST_MODE_KORTTY ignored in a packaged build — the master-password gate stays active.");
             }
 
             if (!testMode && (passwordNotSet || requirePasswordOnStartup)) {
