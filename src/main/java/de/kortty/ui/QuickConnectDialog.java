@@ -62,13 +62,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private TextField usernameField;
     private PasswordField passwordField;
 
-    // Local shell (LOCAL_SHELL protocol) controls
-    private static final String SHELL_POWERSHELL = "powershell.exe";
-    private static final String SHELL_CMD = "cmd.exe";
-    private static final String SHELL_GIT_BASH = "__gitbash__";
-    private static final String SHELL_CYGWIN = "__cygwin__";
-    private static final String SHELL_WSL = "__wsl__";
-    private static final String SHELL_CUSTOM = "__custom__";
+    // Local shell (LOCAL_SHELL protocol) controls — preset ids live in LocalShellPresetSupport.
     /** Resolved launch commands for optional Windows shells, or null when not on Windows / not installed. */
     private final String gitBashCommand = de.kortty.core.LocalShellTtyConnector.findWindowsGitBashCommand();
     private final String cygwinCommand = de.kortty.core.LocalShellTtyConnector.findWindowsCygwinCommand();
@@ -349,23 +343,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             }
         });
 
-        // Local shell controls (only relevant for LOCAL_SHELL protocol)
+        // Local shell controls (only relevant for LOCAL_SHELL protocol) — OS-appropriate shells only.
         shellPresetCombo = new ComboBox<>();
-        shellPresetCombo.getItems().add(SHELL_POWERSHELL);
-        shellPresetCombo.getItems().add(SHELL_CMD);
-        if (gitBashCommand != null) {
-            shellPresetCombo.getItems().add(SHELL_GIT_BASH);
-        }
-        if (cygwinCommand != null) {
-            shellPresetCombo.getItems().add(SHELL_CYGWIN);
-        }
-        if (wslCommand != null) {
-            shellPresetCombo.getItems().add(SHELL_WSL);
-        }
-        shellPresetCombo.getItems().add(SHELL_CUSTOM);
-        shellPresetCombo.setValue(SHELL_POWERSHELL);
-        shellPresetCombo.setButtonCell(shellPresetListCell());
-        shellPresetCombo.setCellFactory(lv -> shellPresetListCell());
+        LocalShellPresetSupport.configure(shellPresetCombo, gitBashCommand, cygwinCommand, wslCommand);
         customShellCommandField = new TextField();
         customShellCommandField.setPromptText(I18n.get("connEdit.shellCommandPrompt"));
         shellWorkingDirField = new TextField();
@@ -1561,50 +1541,12 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         return I18n.get("protocol.sshTcp");
     }
 
-    /** Renders a shell-preset item: friendly labels for the presets, i18n label for "custom". */
-    private ListCell<String> shellPresetListCell() {
-        return new ListCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else if (SHELL_CUSTOM.equals(item)) {
-                    setText(I18n.get("connEdit.shell.custom"));
-                } else if (SHELL_POWERSHELL.equals(item)) {
-                    setText(I18n.get("connEdit.shell.powershell"));
-                } else if (SHELL_CMD.equals(item)) {
-                    setText(I18n.get("connEdit.shell.cmd"));
-                } else if (SHELL_GIT_BASH.equals(item)) {
-                    setText(I18n.get("connEdit.shell.gitbash"));
-                } else if (SHELL_CYGWIN.equals(item)) {
-                    setText(I18n.get("connEdit.shell.cygwin"));
-                } else if (SHELL_WSL.equals(item)) {
-                    setText(I18n.get("connEdit.shell.wsl"));
-                } else {
-                    setText(item);
-                }
-            }
-        };
-    }
-
     /** The shell command for the result: the selected preset, or the custom field when "custom". */
     private String effectiveShellCommand() {
-        String preset = shellPresetCombo.getValue();
-        if (SHELL_CUSTOM.equals(preset)) {
-            String custom = customShellCommandField.getText() != null ? customShellCommandField.getText().trim() : "";
-            return custom.isEmpty() ? null : custom;
-        }
-        if (SHELL_GIT_BASH.equals(preset)) {
-            return gitBashCommand;
-        }
-        if (SHELL_CYGWIN.equals(preset)) {
-            return cygwinCommand;
-        }
-        if (SHELL_WSL.equals(preset)) {
-            return wslCommand;
-        }
-        return preset;
+        return LocalShellPresetSupport.commandFor(
+            shellPresetCombo.getValue(),
+            customShellCommandField.getText(),
+            gitBashCommand, cygwinCommand, wslCommand);
     }
 
     /** Applies the credential/key field enablement implied by the selected auth method. */
@@ -1630,7 +1572,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
 
         shellPresetCombo.setDisable(!local);
         shellWorkingDirField.setDisable(!local);
-        customShellCommandField.setDisable(!local || !SHELL_CUSTOM.equals(shellPresetCombo.getValue()));
+        customShellCommandField.setDisable(!local || !LocalShellPresetSupport.CUSTOM.equals(shellPresetCombo.getValue()));
 
         hostField.setDisable(local);
         portSpinner.setDisable(local);
