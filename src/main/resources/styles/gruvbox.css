@@ -1,0 +1,419 @@
+/* Gruvbox Retro app design. Cross-platform JavaFX CSS only. */
+
+.root,
+.dialog-pane {
+    -fx-font-family: "Monospaced";
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(254,128,25,0.05) 0%, #282828 40%, #282828 100%),
+        #282828;
+    -fx-border-color: transparent;
+    -fx-text-fill: #ebdbb2;
+}
+
+.gruvbox-root,
+.kortty-main-root,
+.master-password-root {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(254,128,25,0.05) 0%, #282828 40%, #282828 100%),
+        #282828;
+    -fx-border-color: #504945;
+    -fx-border-width: 1;
+}
+
+.gruvbox-titlebar {
+    -fx-background-color: #3c3836;
+    -fx-border-color: transparent transparent #504945 transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 0 0 0 24;
+}
+
+.gruvbox-window-title {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #a89984;
+}
+
+.wm-dot-red,
+.wm-dot-amber,
+.wm-dot-cyan {
+    -fx-background-radius: 6;
+    -fx-min-width: 12;
+    -fx-min-height: 12;
+    -fx-pref-width: 12;
+    -fx-pref-height: 12;
+    -fx-max-width: 12;
+    -fx-max-height: 12;
+}
+
+.wm-dot-red {
+    -fx-background-color: #fe8019;
+}
+
+.wm-dot-amber {
+    -fx-background-color: #fabd2f;
+}
+
+.wm-dot-cyan {
+    -fx-background-color: #8ec07c;
+}
+
+.app-design-cursor {
+    -fx-min-width: 10;
+    -fx-pref-width: 10;
+    -fx-max-width: 10;
+    -fx-min-height: 10;
+    -fx-pref-height: 10;
+    -fx-max-height: 10;
+    -fx-background-radius: 5;
+    -fx-background-color: #fe8019;
+    -fx-effect: dropshadow(gaussian, #fe8019, 10, 0.5, 0, 0);
+}
+
+.label,
+.check-box,
+.radio-button,
+.hyperlink,
+.titled-pane > .title > .text {
+    -fx-font-family: "Monospaced";
+    -fx-text-fill: #ebdbb2;
+}
+
+.hyperlink {
+    -fx-text-fill: #8ec07c;
+}
+
+.field-label {
+    -fx-font-family: "Monospaced";
+    -fx-text-fill: #a89984;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.version-label {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 10px;
+    -fx-text-fill: #a89984;
+}
+
+.status-bar,
+.main-content,
+.dashboard-view,
+.dialog-pane .content,
+.dialog-pane .header-panel,
+.scroll-pane,
+.scroll-pane .viewport,
+.split-pane,
+.tool-bar,
+.titled-pane > .content {
+    -fx-background-color: transparent;
+}
+
+.menu-bar,
+.context-menu,
+.menu-button,
+.combo-box,
+.choice-box,
+.color-picker,
+.spinner,
+.list-view,
+.tree-view,
+.table-view,
+.tab-pane,
+.tab-pane .tab-header-area,
+.tab-pane .tab-header-background,
+.titled-pane > .title,
+.logo-area {
+    -fx-background-color: #3c3836;
+    -fx-control-inner-background: #3c3836;
+    -fx-border-color: #504945;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.menu-bar {
+    -fx-padding: 3 8 3 8;
+}
+
+.menu-bar .menu,
+.menu-item,
+.tab {
+    -fx-background-color: transparent;
+}
+
+.menu-bar .menu .label,
+.menu-item .label,
+.menu-button .label,
+.combo-box .list-cell,
+.choice-box .label,
+.color-picker .label,
+.tab .tab-label,
+.settings-info-label {
+    -fx-text-fill: #ebdbb2;
+}
+
+.menu-bar .menu:hover,
+.menu-bar .menu:showing,
+.menu-item:hover,
+.menu-item:focused,
+.menu-button:hover,
+.menu-button:showing,
+.combo-box:hover,
+.choice-box:hover,
+.color-picker:hover,
+.tab:hover {
+    -fx-background-color: rgba(254,128,25,0.18);
+}
+
+.tab:selected {
+    -fx-background-color: #282828;
+    -fx-border-color:
+        linear-gradient(to right, #fe8019 0%, #fabd2f 55%, #8ec07c 100%);
+    -fx-border-width: 0 0 2 0;
+}
+
+.tab-close-button,
+.menu-button .arrow-button .arrow,
+.combo-box .arrow,
+.choice-box .arrow,
+.spinner .increment-arrow,
+.spinner .decrement-arrow,
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow,
+.tree-cell .tree-disclosure-node .arrow {
+    -fx-background-color: #fe8019;
+}
+
+.button,
+.btn-secondary {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: #504945;
+    -fx-border-color: #504945;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-text-fill: #ebdbb2;
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
+}
+
+.button:hover,
+.btn-secondary:hover {
+    -fx-background-color: #5a534d;
+    -fx-border-color: #a89984;
+}
+
+.button:default,
+.btn-primary {
+    -fx-font-family: "Monospaced";
+    -fx-font-weight: bold;
+    -fx-background-color:
+        linear-gradient(to right, #fe8019 0%, #fabd2f 55%, #8ec07c 100%);
+    -fx-background-radius: 6;
+    -fx-border-color: transparent;
+    -fx-border-radius: 6;
+    -fx-text-fill: #282828;
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
+    -fx-effect: dropshadow(gaussian, rgba(254,128,25,0.35), 8, 0.1, 0, 1);
+}
+
+.button:default:hover,
+.btn-primary:hover {
+    -fx-background-color:
+        linear-gradient(to right, #fe9a3f 0%, #ffce5a 55%, #a6d499 100%);
+    -fx-effect: dropshadow(gaussian, rgba(254,128,25,0.5), 12, 0.2, 0, 1);
+}
+
+.text-input,
+.text-field,
+.password-field,
+.text-area,
+.text-area .content,
+.terminal-input,
+.gruvbox-input {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: #282828;
+    -fx-control-inner-background: #282828;
+    -fx-text-fill: #ebdbb2;
+    -fx-prompt-text-fill: #a89984;
+    -fx-highlight-fill: rgba(254,128,25,0.18);
+    -fx-highlight-text-fill: #ebdbb2;
+    -fx-border-color: #504945;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-size: 13px;
+    -fx-padding: 8 14 8 14;
+}
+
+.text-field:focused,
+.password-field:focused,
+.text-area:focused,
+.terminal-input:focused,
+.gruvbox-input:focused {
+    -fx-border-color: #fe8019;
+    -fx-effect: dropshadow(gaussian, rgba(254,128,25,0.40), 9, 0.10, 0, 0);
+}
+
+.gruvbox-eye-icon {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 12px;
+    -fx-text-fill: #a89984;
+    -fx-padding: 0 14 0 0;
+}
+
+.list-cell,
+.tree-cell,
+.table-row-cell,
+.table-cell {
+    -fx-background-color: #3c3836;
+    -fx-text-fill: #ebdbb2;
+}
+
+.list-cell:hover,
+.tree-cell:hover,
+.table-row-cell:hover {
+    -fx-background-color: rgba(254,128,25,0.10);
+}
+
+.list-cell:selected,
+.tree-cell:selected,
+.table-row-cell:selected {
+    -fx-background-color: rgba(254,128,25,0.18);
+    -fx-text-fill: #ebdbb2;
+}
+
+.table-view {
+    -fx-table-cell-border-color: #504945;
+}
+
+.table-view .column-header,
+.table-view .column-header-background,
+.table-view .filler {
+    -fx-background-color: #504945;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #fabd2f;
+}
+
+.scroll-bar,
+.scroll-bar .track,
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #504945;
+    -fx-background-radius: 6;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #a89984;
+}
+
+.separator:horizontal .line,
+.separator:vertical .line,
+.split-pane-divider {
+    -fx-background-color: #504945;
+    -fx-border-color: #504945;
+}
+
+.check-box .box,
+.radio-button .radio {
+    -fx-background-color: #282828;
+    -fx-border-color: #504945;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.check-box:selected .mark,
+.radio-button:selected .dot {
+    -fx-background-color: #fe8019;
+}
+
+.progress-bar,
+.progress-bar .track,
+.progress-indicator {
+    -fx-background-color: #3c3836;
+}
+
+.progress-bar .bar,
+.progress-indicator .indicator {
+    -fx-background-color:
+        linear-gradient(to right, #fe8019 0%, #fabd2f 55%, #8ec07c 100%);
+}
+
+.slider .track {
+    -fx-background-color: #504945;
+}
+
+.slider .thumb {
+    -fx-background-color: #fe8019;
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(gaussian, rgba(254,128,25,0.40), 8, 0.2, 0, 0);
+}
+
+.tooltip {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: #3c3836;
+    -fx-text-fill: #ebdbb2;
+    -fx-border-color: #504945;
+}
+
+.file-browser-panel,
+.file-browser-tree,
+.file-browser-tree .tree-cell,
+.file-browser-tree .scroll-bar,
+.file-browser-tree .scroll-bar .track,
+.file-browser-tree .scroll-bar .increment-button,
+.file-browser-tree .scroll-bar .decrement-button,
+.file-browser-status,
+.dashboard-tree,
+.dashboard-tree .tree-cell {
+    -fx-background-color: #3c3836;
+    -fx-control-inner-background: #3c3836;
+    -fx-text-fill: #ebdbb2;
+}
+
+.file-browser-tree .tree-cell:hover,
+.file-browser-tree .tree-cell:selected,
+.dashboard-tree .tree-cell:hover,
+.dashboard-tree .tree-cell:selected {
+    -fx-background-color: rgba(254,128,25,0.18);
+    -fx-text-fill: #ebdbb2;
+}
+
+.file-browser-tree .scroll-bar .thumb {
+    -fx-background-color: #504945;
+}
+
+.logo-panel,
+.logo-area {
+    -fx-background-color: #3c3836;
+    -fx-border-color: #504945;
+    -fx-border-width: 1;
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+    -fx-pref-width: 96;
+    -fx-pref-height: 96;
+    -fx-effect: dropshadow(gaussian, rgba(254,128,25,0.25), 14, 0.1, 0, 2);
+    -fx-padding: 18;
+}
+
+.gruvbox-brand-mark {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #fe8019;
+}
+
+.gruvbox-brand-name {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ebdbb2;
+}

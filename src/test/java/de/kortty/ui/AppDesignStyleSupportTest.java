@@ -130,4 +130,28 @@ class AppDesignStyleSupportTest {
 
         assertThat(stylesheets).containsExactly("base.css");
     }
+
+    @Test
+    void everyNonNormalDesignHasStylesheetAndPreview() {
+        for (AppDesign design : AppDesign.values()) {
+            if (design == AppDesign.NORMAL) {
+                continue;
+            }
+            assertThat(AppDesignStyleSupport.stylesheetUrl(design)).isNotNull();
+            String preview = AppDesignStyleSupport.previewResource(design);
+            assertThat(preview).isNotNull();
+            assertThat(SettingsDialog.class.getResource(preview)).isNotNull();
+        }
+    }
+
+    @Test
+    void applyToStylesheetsAddsNewDesignStylesheetOnlyOnce() {
+        ObservableList<String> stylesheets = FXCollections.observableArrayList("base.css");
+        String draculaStylesheet = AppDesignStyleSupport.stylesheetUrl(AppDesign.DRACULA);
+
+        AppDesignStyleSupport.applyToStylesheets(stylesheets, AppDesign.DRACULA);
+        AppDesignStyleSupport.applyToStylesheets(stylesheets, AppDesign.DRACULA);
+
+        assertThat(stylesheets).containsExactly("base.css", draculaStylesheet).inOrder();
+    }
 }

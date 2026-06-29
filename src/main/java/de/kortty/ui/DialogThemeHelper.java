@@ -39,10 +39,17 @@ public final class DialogThemeHelper {
             logger.debug("Could not resolve terminal.css for dialog theming");
         }
 
+        // A custom app design fully owns the chrome. Layering the terminal-theme-coloured dynamic
+        // stylesheet on top would override the design's menu/button/label colours (e.g. dark text on
+        // the blue DOS chrome), so skip (and strip) it whenever a custom design is active.
         ThemeCssSupport.ThemeColors themeColors = ThemeCssSupport.resolveThemeColors(KorTTYApplication.getInstance());
         String dynamicStylesheet = ThemeCssSupport.getDynamicStylesheetUrl(themeColors);
-        if (dynamicStylesheet != null && !dialogPane.getStylesheets().contains(dynamicStylesheet)) {
-            dialogPane.getStylesheets().add(dynamicStylesheet);
+        if (dynamicStylesheet != null) {
+            if (AppDesignStyleSupport.isCustomAppDesignActive()) {
+                dialogPane.getStylesheets().remove(dynamicStylesheet);
+            } else if (!dialogPane.getStylesheets().contains(dynamicStylesheet)) {
+                dialogPane.getStylesheets().add(dynamicStylesheet);
+            }
         }
 
         AppDesignStyleSupport.applyToDialogPane(dialogPane);

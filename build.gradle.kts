@@ -1359,6 +1359,14 @@ tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateDesignPreviews") {
+    group = "build"
+    description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AppDesignPreviewGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.jar {
     val implementationTitle = project.name
     val implementationVersion = project.version
