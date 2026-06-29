@@ -700,6 +700,8 @@ tasks.register("buildDocsSite") {
 // app) no longer needs the MkDocs toolchain — the GuideViewer always finds a real guide.
 // Refresh the committed copy after editing the docs with `./gradlew stageGuideIntoResources`
 // (builds the site, then syncs it into the source tree) and commit the resulting diff.
+// CI also keeps it in sync: .github/workflows/docs-autocommit.yml rebuilds the guide and
+// commits it back when the Markdown sources change, so refreshing it by hand is optional.
 val guideResourcesDir = layout.projectDirectory.dir("src/main/resources/guide")
 
 tasks.register("stageGuideIntoResources") {
