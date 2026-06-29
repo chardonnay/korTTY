@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 650" role="img" aria-labelledby="title desc">
+  <title id="title">Terminal effect plugin lifecycle</title>
+  <desc id="desc">Lifecycle from plugin management and ServiceLoader scanning to effect session start, connector wrapping, rendering, and cleanup.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:10}.plug{stroke:#f59e0b}.store{stroke:#34d399}.term{stroke:#a78bfa}.title{font-size:28px;font-weight:700;fill:#f8fafc}.small{font-size:14px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}.loop{stroke:#8b5cf6;stroke-width:2;fill:none;marker-end:url(#arrow)}</style></defs>
+  <rect class="bg" width="1180" height="650"/>
+  <text class="title" x="40" y="54">Terminal Effect Plugin Lifecycle</text>
+  <text class="small" x="40" y="82">Imported terminal-effect plugins are trusted local Java code and are not sandboxed.</text>
+  <rect class="box" x="70" y="145" width="210" height="58"/><text x="111" y="180">Plugin dialog</text>
+  <rect class="box plug" x="335" y="145" width="250" height="58"/><text x="378" y="180">Plugin manager</text>
+  <rect class="box store" x="650" y="145" width="250" height="58"/><text x="692" y="180">Bundled/external JARs</text>
+  <rect class="box" x="70" y="300" width="210" height="58"/><text x="110" y="335">Terminal view</text>
+  <rect class="box plug" x="335" y="300" width="250" height="58"/><text x="378" y="335">Effect session</text>
+  <rect class="box term" x="650" y="300" width="250" height="58"/><text x="703" y="335">TtyConnector</text>
+  <rect class="box term" x="650" y="445" width="250" height="58"/><text x="696" y="480">SithTermFX widget</text>
+  <rect class="box" x="965" y="445" width="160" height="58"/><text x="1016" y="480">User</text>
+  <path class="line" d="M280 174 H335"/><path class="line" d="M585 174 H650"/><path class="line" d="M650 174 H585"/><path class="line" d="M175 203 V300"/><path class="line" d="M280 329 H335"/><path class="line" d="M585 329 H650"/><path class="line" d="M775 358 V445"/><path class="line" d="M900 474 H965"/>
+  <path class="loop" d="M650 474 C520 565 390 500 460 358"/>
+  <text class="small" x="335" y="405">Session start applies appearance, overlay nodes, listeners, and optional connector wrapping.</text>
+  <text class="small" x="335" y="540">Disable, switch, or close tab calls stop() to remove overlays and bindings.</text>
+</svg>

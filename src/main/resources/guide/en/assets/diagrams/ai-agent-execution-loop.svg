@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+  <title id="title">Terminal AI agent execution loop</title>
+  <desc id="desc">How the terminal AI agent plans, selects tools, executes with approval, observes and iterates.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
+    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}.title{font-size:28px;font-weight:700;fill:#f8fafc}.subtitle{font-size:14px;fill:#b9c8da}.small{font-size:13px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:7 7;fill:none;marker-end:url(#arrow)}.secure{stroke:#f59e0b}.state{stroke:#34d399}.ai{stroke:#a78bfa}.service{stroke:#60a5fa}.bold{font-weight:700}.tool{font-size:14px;fill:#cdd9e8}</style>
+  </defs>
+  <rect class="bg" width="1200" height="640"/>
+  <text class="title" x="40" y="52">Terminal AI Agent Execution Loop</text>
+  <text class="subtitle" x="40" y="80">The agent plans, picks a tool, asks for approval, executes, observes the output, then iterates until the goal is met.</text>
+
+  <rect class="box" x="40" y="130" width="200" height="84"/>
+  <text class="bold" x="92" y="166">User goal</text>
+  <text class="small" x="70" y="190">A task to accomplish</text>
+
+  <rect class="box ai" x="320" y="130" width="200" height="84"/>
+  <text class="bold" x="372" y="166">Plan (LLM)</text>
+  <text class="small" x="350" y="190">Reason about next step</text>
+
+  <rect class="box ai" x="600" y="130" width="200" height="84"/>
+  <text class="bold" x="650" y="166">Select tool</text>
+  <text class="small" x="628" y="190">Choose an action type</text>
+
+  <rect class="box secure" x="880" y="130" width="200" height="84"/>
+  <text class="bold" x="922" y="166">Approval gate</text>
+  <text class="small" x="908" y="190">User confirms / denies</text>
+
+  <rect class="box state" x="880" y="290" width="200" height="84"/>
+  <text class="bold" x="945" y="326">Execute</text>
+  <text class="small" x="900" y="350">Run the chosen tool</text>
+
+  <rect class="box service" x="880" y="430" width="200" height="170"/>
+  <text class="bold" x="936" y="462">Tool set</text>
+  <text class="tool" x="900" y="488">run command</text>
+  <text class="tool" x="900" y="508">read / write file</text>
+  <text class="tool" x="900" y="528">inspect</text>
+  <text class="tool" x="900" y="548">package / service</text>
+  <text class="tool" x="900" y="568">network</text>
+  <text class="tool" x="900" y="588">message / await-input</text>
+
+  <rect class="box" x="500" y="290" width="220" height="84"/>
+  <text class="bold" x="555" y="326">Observe output</text>
+  <text class="small" x="525" y="350">Capture stdout / result</text>
+
+  <rect class="box state" x="40" y="290" width="200" height="84"/>
+  <text class="bold" x="100" y="326">Done?</text>
+  <text class="small" x="62" y="350">Goal satisfied check</text>
+
+  <rect class="box state" x="40" y="450" width="200" height="84"/>
+  <text class="bold" x="92" y="486">Summarize</text>
+  <text class="small" x="70" y="510">Report result to user</text>
+
+  <path class="line" d="M240 172 H320"/>
+  <path class="line" d="M520 172 H600"/>
+  <path class="line" d="M800 172 H880"/>
+  <text class="small" x="540" y="158">tool</text>
+  <text class="small" x="818" y="158">gate</text>
+
+  <path class="line" d="M980 214 V290"/>
+  <text class="small" x="990" y="258">approved</text>
+
+  <path class="line" d="M980 374 V430"/>
+  <text class="small" x="990" y="408">invoke</text>
+
+  <path class="line" d="M880 332 H720"/>
+  <text class="small" x="755" y="318">result</text>
+
+  <path class="line" d="M500 332 H240"/>
+  <text class="small" x="335" y="318">evaluate</text>
+
+  <path class="dash" d="M140 290 V214"/>
+  <text class="small" x="150" y="258">no, iterate</text>
+
+  <path class="line" d="M140 374 V450"/>
+  <text class="small" x="150" y="418">yes</text>
+
+  <path class="dash" d="M880 490 C660 490 540 430 460 388 C420 366 400 350 360 332" />
+  <text class="small" x="560" y="430">denied tools return to plan</text>
+</svg>

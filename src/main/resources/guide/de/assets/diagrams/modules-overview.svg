@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 880" role="img" aria-labelledby="title desc">
+  <title id="title">KorTTY module overview</title>
+  <desc id="desc">Terminal-inspired overview of KorTTY core modules, JavaFX UI dependencies, terminal stack, SSH and security dependencies, data libraries, formatter tools, and optional runtime integrations.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
+    </marker>
+    <linearGradient id="headerGlow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0.1"/>
+    </linearGradient>
+    <style>
+      text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}
+      .bg{fill:#07111d}
+      .grid{stroke:#13243a;stroke-width:1}
+      .title{font-size:32px;font-weight:700;fill:#f8fafc}
+      .subtitle{font-size:14px;fill:#b9c8da}
+      .panel{fill:#0d1a2b;stroke:#263f5c;stroke-width:2;rx:18}
+      .panelHeader{fill:url(#headerGlow);stroke:#263f5c;stroke-width:0;rx:18}
+      .groupTitle{font-size:19px;font-weight:700;fill:#7dd3fc}
+      .box{fill:#13243a;stroke:#64748b;stroke-width:1.8;rx:10}
+      .core{stroke:#38bdf8}
+      .ui{stroke:#60a5fa}
+      .terminal{stroke:#a78bfa}
+      .security{stroke:#f59e0b}
+      .data{stroke:#34d399}
+      .optional{stroke:#fb7185}
+      .label{font-size:15px;font-weight:700;fill:#f8fafc}
+      .detail{font-size:12px;fill:#b9c8da}
+      .note{font-size:13px;fill:#93a8bd}
+      .line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}
+      .softLine{stroke:#49667f;stroke-width:1.7;fill:none;stroke-dasharray:6 6;marker-end:url(#arrow)}
+      .legend{font-size:13px;fill:#c7d7e8}
+    </style>
+  </defs>
+
+  <rect class="bg" width="1400" height="880"/>
+  <path class="grid" d="M 0 120 H 1400 M 0 240 H 1400 M 0 360 H 1400 M 0 480 H 1400 M 0 600 H 1400 M 0 720 H 1400 M 160 0 V 880 M 320 0 V 880 M 480 0 V 880 M 640 0 V 880 M 800 0 V 880 M 960 0 V 880 M 1120 0 V 880 M 1280 0 V 880" opacity="0.32"/>
+
+  <text class="title" x="48" y="58">KorTTY Module Overview</text>
+  <text class="subtitle" x="48" y="86">Runtime modules grouped by responsibility. App designs are JavaFX CSS resources; PlantUML here refers only to snippet diagrams.</text>
+
+  <rect class="panel" x="470" y="120" width="460" height="170"/>
+  <rect class="panelHeader" x="470" y="120" width="460" height="52"/>
+  <text class="groupTitle" x="500" y="153">Application core</text>
+  <rect class="box core" x="505" y="190" width="170" height="66"/>
+  <text class="label" x="550" y="217">KorTTY</text>
+  <text class="detail" x="536" y="239">de.kortty</text>
+  <rect class="box core" x="705" y="190" width="190" height="66"/>
+  <text class="label" x="746" y="217">JobScheduler</text>
+  <text class="detail" x="738" y="239">background SSH/SFTP/Rsync</text>
+
+  <rect class="panel" x="50" y="330" width="300" height="360"/>
+  <rect class="panelHeader" x="50" y="330" width="300" height="52"/>
+  <text class="groupTitle" x="80" y="363">UI and editor</text>
+  <rect class="box ui" x="85" y="405" width="230" height="56"/>
+  <text class="label" x="142" y="429">JavaFX 21</text>
+  <text class="detail" x="111" y="449">controls, fxml, graphics, swing</text>
+  <rect class="box ui" x="85" y="480" width="230" height="56"/>
+  <text class="label" x="142" y="504">Monaco Editor</text>
+  <text class="detail" x="129" y="524">snippet and code surfaces</text>
+  <rect class="box ui" x="85" y="555" width="230" height="56"/>
+  <text class="label" x="129" y="579">AppDesign CSS</text>
+  <text class="detail" x="109" y="599">Matrix, Holographic, Tactical, Elegant</text>
+
+  <rect class="panel" x="385" y="330" width="300" height="360"/>
+  <rect class="panelHeader" x="385" y="330" width="300" height="52"/>
+  <text class="groupTitle" x="415" y="363">Terminal stack</text>
+  <rect class="box terminal" x="420" y="405" width="230" height="56"/>
+  <text class="label" x="475" y="429">SithTermFX</text>
+  <text class="detail" x="485" y="449">core and UI</text>
+  <rect class="box terminal" x="420" y="480" width="230" height="56"/>
+  <text class="label" x="482" y="504">Lanterna</text>
+  <text class="detail" x="469" y="524">terminal primitives</text>
+  <rect class="box terminal" x="420" y="555" width="230" height="56"/>
+  <text class="label" x="504" y="579">pty4j</text>
+  <text class="detail" x="462" y="599">local PTY integration</text>
+  <rect class="box optional" x="420" y="630" width="230" height="36"/>
+  <text class="detail" x="440" y="653">Terminal Effect SPI + color handling</text>
+
+  <rect class="panel" x="720" y="330" width="300" height="360"/>
+  <rect class="panelHeader" x="720" y="330" width="300" height="52"/>
+  <text class="groupTitle" x="750" y="363">SSH and security</text>
+  <rect class="box security" x="755" y="405" width="230" height="56"/>
+  <text class="label" x="806" y="429">Apache SSHD</text>
+  <text class="detail" x="805" y="449">core, common, sftp</text>
+  <rect class="box security" x="755" y="480" width="230" height="56"/>
+  <text class="label" x="829" y="504">Ed25519</text>
+  <text class="detail" x="797" y="524">SSH key crypto support</text>
+  <rect class="box security" x="755" y="555" width="230" height="56"/>
+  <text class="label" x="829" y="579">zxcvbn</text>
+  <text class="detail" x="791" y="599">offline password strength</text>
+  <rect class="box optional" x="755" y="630" width="230" height="36"/>
+  <text class="detail" x="786" y="653">mosh4j, rsync and system ssh</text>
+
+  <rect class="panel" x="1055" y="330" width="300" height="360"/>
+  <rect class="panelHeader" x="1055" y="330" width="300" height="52"/>
+  <text class="groupTitle" x="1085" y="363">Data and tools</text>
+  <rect class="box data" x="1090" y="405" width="230" height="56"/>
+  <text class="label" x="1152" y="429">JAXB / Gson</text>
+  <text class="detail" x="1139" y="449">XML and JSON data</text>
+  <rect class="box data" x="1090" y="480" width="230" height="56"/>
+  <text class="label" x="1140" y="504">zip4j / Commons</text>
+  <text class="detail" x="1132" y="524">archives, compression, xz</text>
+  <rect class="box data" x="1090" y="555" width="230" height="56"/>
+  <text class="label" x="1144" y="579">Editor formatters</text>
+  <text class="detail" x="1119" y="599">google-java-format + bundled tools</text>
+  <rect class="box optional" x="1090" y="630" width="230" height="36"/>
+  <text class="detail" x="1114" y="653">PlantUML + Graphviz for snippets</text>
+
+  <path class="line" d="M 560 256 C 480 315 350 382 315 432"/>
+  <path class="line" d="M 590 256 C 565 315 545 370 535 405"/>
+  <path class="line" d="M 800 256 C 830 315 850 370 870 405"/>
+  <path class="line" d="M 845 256 C 965 315 1110 370 1205 405"/>
+  <path class="softLine" d="M 800 256 C 775 292 760 310 760 330"/>
+  <path class="softLine" d="M 800 256 C 870 305 960 445 1090 582"/>
+
+  <rect class="panel" x="195" y="735" width="1010" height="82"/>
+  <text class="legend" x="230" y="768">Color key:</text>
+  <rect class="box ui" x="310" y="748" width="24" height="18"/><text class="legend" x="344" y="763">UI/editor</text>
+  <rect class="box terminal" x="450" y="748" width="24" height="18"/><text class="legend" x="484" y="763">terminal</text>
+  <rect class="box security" x="590" y="748" width="24" height="18"/><text class="legend" x="624" y="763">SSH/security</text>
+  <rect class="box data" x="760" y="748" width="24" height="18"/><text class="legend" x="794" y="763">data/tools</text>
+  <rect class="box optional" x="910" y="748" width="24" height="18"/><text class="legend" x="944" y="763">optional runtime or plugins</text>
+  <text class="note" x="230" y="795">The diagram is intentionally dependency-grouped; exact versions are listed in the README table below it.</text>
+</svg>

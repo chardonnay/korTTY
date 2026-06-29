@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+  <title id="title">JobScheduler execution</title>
+  <desc id="desc">Lifecycle of a scheduled job from definition to journal.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
+    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}.title{font-size:28px;font-weight:700;fill:#f8fafc}.subtitle{font-size:14px;fill:#b9c8da}.small{font-size:13px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:7 7;fill:none}.secure{stroke:#f59e0b}.state{stroke:#34d399}.boxhead{font-size:17px;font-weight:700}</style>
+  </defs>
+  <rect class="bg" width="1200" height="640"/>
+  <text class="title" x="40" y="52">JobScheduler Execution</text>
+  <text class="subtitle" x="40" y="80">A scheduled job moves from definition through triggering and secure resolution to running on the target, then is recorded.</text>
+
+  <rect class="box" x="50" y="150" width="220" height="110"/>
+  <text class="boxhead" x="70" y="186">Define job</text>
+  <text class="small" x="70" y="212">job-scheduler.xml</text>
+  <text class="small" x="70" y="234">+ schedule</text>
+
+  <rect class="box" x="345" y="150" width="220" height="110"/>
+  <text class="boxhead" x="365" y="186">Trigger</text>
+  <text class="small" x="365" y="212">cron expression</text>
+  <text class="small" x="365" y="234">or interval timer</text>
+
+  <rect class="box secure" x="640" y="150" width="220" height="110"/>
+  <text class="boxhead" x="660" y="186">Resolve</text>
+  <text class="small" x="660" y="212">host-key pins</text>
+  <text class="small" x="660" y="234">sudo secrets</text>
+
+  <rect class="box state" x="490" y="400" width="260" height="160"/>
+  <text class="boxhead" x="510" y="436">Run on target</text>
+  <text class="small" x="510" y="462">SSH command / snippet</text>
+  <text class="small" x="510" y="484">AI agent</text>
+  <text class="small" x="510" y="506">SFTP transfer</text>
+  <text class="small" x="510" y="528">rsync sync</text>
+
+  <rect class="box" x="930" y="150" width="220" height="110"/>
+  <text class="boxhead" x="950" y="186">Record</text>
+  <text class="small" x="950" y="212">journal + result</text>
+  <text class="small" x="950" y="234">menu-bar status</text>
+
+  <path class="line" d="M270 205 H345"/>
+  <text class="small" x="280" y="195">1. due</text>
+
+  <path class="line" d="M565 205 H640"/>
+  <text class="small" x="572" y="195">2. fire</text>
+
+  <path class="line" d="M750 260 C745 320 660 350 645 398"/>
+  <text class="small" x="690" y="330">3. dispatch</text>
+
+  <path class="line" d="M750 470 C880 460 1010 380 1040 262"/>
+  <text class="small" x="905" y="430">4. outcome</text>
+
+  <path class="dash" d="M1040 150 C1040 90 660 70 160 110 L160 148"/>
+  <text class="small" x="470" y="74">Status feeds the next scheduled run; failures surface in the menu bar.</text>
+</svg>
