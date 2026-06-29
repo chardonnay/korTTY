@@ -601,10 +601,11 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 // ---- Documentation guide site (MkDocs Material) -------------------------------
-// Builds the bilingual, fully-offline guide into build/guide and bundles it into
-// the app under /guide/** so Help -> Anleitung (GuideViewer) loads it from the
-// classpath, exactly like the bundled Monaco editor. The same output is published
-// to GitHub Pages by .github/workflows/docs-site.yml.
+// Builds the bilingual, fully-offline guide into build/guide. The build output is
+// COMMITTED into the repo under src/main/resources/guide/ (via stageGuideIntoResources)
+// and bundled into the app under /guide/** like the bundled Monaco editor, so Help ->
+// Anleitung (GuideViewer) always finds it on the classpath without the MkDocs toolchain.
+// The same build/guide output is published to GitHub Pages by .github/workflows/docs-site.yml.
 
 val docsVenvDir = layout.projectDirectory.dir(".venv-docs")
 val guideSiteOutputDir = layout.buildDirectory.dir("guide")
@@ -694,10 +695,41 @@ tasks.register("buildDocsSite") {
     }
 }
 
-tasks.named<ProcessResources>("processResources") {
+// The built guide site is COMMITTED under src/main/resources/guide/ and bundled into
+// the app under /guide/** like any other resource, so a normal build (and the packaged
+// app) no longer needs the MkDocs toolchain — the GuideViewer always finds a real guide.
+// Refresh the committed copy after editing the docs with `./gradlew stageGuideIntoResources`
+// (builds the site, then syncs it into the source tree) and commit the resulting diff.
+// CI also keeps it in sync: .github/workflows/docs-autocommit.yml rebuilds the guide and
+// commits it back when the Markdown sources change, so refreshing it by hand is optional.
+val guideResourcesDir = layout.projectDirectory.dir("src/main/resources/guide")
+
+tasks.register("stageGuideIntoResources") {
+    group = "documentation"
+    description = "Builds the guide and syncs it into src/main/resources/guide so the built docs are committed to the repo."
     dependsOn("buildDocsSite")
-    from(guideSiteOutputDir) {
-        into("guide")
+    inputs.dir(guideSiteOutputDir)
+    outputs.dir(guideResourcesDir)
+    doLast {
+        val built = guideSiteOutputDir.get().asFile
+        val enIndex = built.resolve("en/index.html")
+        // Never overwrite the committed guide with the buildDocsSite placeholder (written
+        // when MkDocs is unavailable): the real Material site contains the "md-header" markup.
+        if (!enIndex.isFile || !enIndex.readText().contains("md-header")) {
+            logger.warn(
+                "stageGuideIntoResources: build/guide has no real MkDocs site (placeholder or empty); " +
+                    "leaving the committed src/main/resources/guide untouched. " +
+                    "Run ':setupDocsVenv' then ':buildDocsSite' to produce the full guide."
+            )
+            return@doLast
+        }
+        val dest = guideResourcesDir.asFile
+        delete(dest)
+        copy {
+            from(built)
+            into(dest)
+        }
+        logger.lifecycle("stageGuideIntoResources: synced build/guide -> src/main/resources/guide")
     }
 }
 

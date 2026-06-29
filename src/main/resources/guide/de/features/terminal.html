@@ -1,0 +1,2496 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/features/terminal.html">
+      
+      
+        <link rel="prev" href="connections.html">
+      
+      
+        <link rel="next" href="tunnels.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Terminalsitzungen - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#terminalsitzungen" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Terminalsitzungen
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="..../en/features/terminal.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="terminal.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sitzungslebenszyklus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sitzungslebenszyklus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mit-tabs-arbeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mit Tabs arbeiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-window-unterstutzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Window-Unterstützung
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schriftgroe-und-zoom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schriftgröße und Zoom
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lokale-shell-registerkarten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lokale-Shell-Registerkarten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geteilter-bildschirm-mit-ubertragung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geteilter Bildschirm mit Übertragung
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Geteilter Bildschirm mit Übertragung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#operationen-aufteilen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operationen aufteilen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#broadcast-modus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Broadcast-Modus
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endgultige-auswirkungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endgültige Auswirkungen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Endgültige Auswirkungen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#benutzerkontrollen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benutzerkontrollen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugin-verwaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin-Verwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ssh-keep-alive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH-Keep-Alive
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminalprotokollierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminalprotokollierung
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminalaufzeichnung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminalaufzeichnung
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Terminalaufzeichnung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aufnahmen-konfigurieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahmen konfigurieren
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aufnahme-starten-und-stoppen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahme starten und stoppen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exportieren-sie-ein-video" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exportieren Sie ein Video
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aufnahmen-ansehen-und-verwalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahmen ansehen und verwalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sitzungslebenszyklus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sitzungslebenszyklus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mit-tabs-arbeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mit Tabs arbeiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-window-unterstutzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Window-Unterstützung
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schriftgroe-und-zoom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schriftgröße und Zoom
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lokale-shell-registerkarten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lokale-Shell-Registerkarten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geteilter-bildschirm-mit-ubertragung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geteilter Bildschirm mit Übertragung
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Geteilter Bildschirm mit Übertragung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#operationen-aufteilen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operationen aufteilen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#broadcast-modus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Broadcast-Modus
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endgultige-auswirkungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endgültige Auswirkungen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Endgültige Auswirkungen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#benutzerkontrollen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benutzerkontrollen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugin-verwaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin-Verwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ssh-keep-alive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH-Keep-Alive
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminalprotokollierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminalprotokollierung
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminalaufzeichnung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminalaufzeichnung
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Terminalaufzeichnung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aufnahmen-konfigurieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahmen konfigurieren
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aufnahme-starten-und-stoppen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahme starten und stoppen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exportieren-sie-ein-video" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exportieren Sie ein Video
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aufnahmen-ansehen-und-verwalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahmen ansehen und verwalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="terminalsitzungen">Terminalsitzungen<a class="headerlink" href="#terminalsitzungen" title="Permanent link">&para;</a></h1>
+<p>KorTTY bietet eine Terminalschnittstelle mit Registerkarten, die mehrere gleichzeitige SSH-Verbindungen, geteilte Bildschirmlayouts und interaktive Terminalverwaltungsfunktionen unterstützt. In diesem Anleitung werden Registerkartenvorgänge, die Unterstützung mehrerer Fenster, die Anpassung des Terminals und erweiterte Sitzungsfunktionen behandelt.</p>
+<h2 id="sitzungslebenszyklus">Sitzungslebenszyklus<a class="headerlink" href="#sitzungslebenszyklus" title="Permanent link">&para;</a></h2>
+<p>Das folgende Diagramm zeigt die Registerkarte „Terminal“ und den Sitzungslebenszyklus, einschließlich Split-Screen- und Broadcast-Modi.</p>
+<p><img alt="Terminal session lifecycle" src="../assets/diagrams/session-lifecycle.svg" /></p>
+<h2 id="mit-tabs-arbeiten">Mit Tabs arbeiten<a class="headerlink" href="#mit-tabs-arbeiten" title="Permanent link">&para;</a></h2>
+<p>Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:</p>
+<table>
+<thead>
+<tr>
+<th>Aktion</th>
+<th>Verknüpfung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Neuer Tab</strong></td>
+<td>++Strg+T++ (Befehl+T unter macOS) – öffnet Quick Connect, um eine neue Sitzung zu starten</td>
+</tr>
+<tr>
+<td><strong>Tab schließen</strong></td>
+<td>++Strg+W++ (Befehl+W unter macOS) – schließt die aktive Registerkarte mit optionaler Bestätigung</td>
+</tr>
+<tr>
+<td><strong>Nächster Tab</strong></td>
+<td>++Strg+Tab++</td>
+</tr>
+<tr>
+<td><strong>Vorheriger Tab</strong></td>
+<td>++Strg+Umschalt+Tab++</td>
+</tr>
+<tr>
+<td><strong>Wieder verbinden</strong></td>
+<td>Klicken Sie mit der rechten Maustaste auf eine Registerkarte, den Terminalbereich oder einen Servereintrag im Dashboard. Ist die Verbindung aktiv, wird sie sofort geschlossen und wieder aufgebaut; Wenn die Verbindung getrennt wird, wird sie wiederhergestellt. Das Terminalfenster bleibt geöffnet.</td>
+</tr>
+<tr>
+<td><strong>Registerkartengruppen</strong></td>
+<td>Klicken Sie mit der rechten Maustaste auf eine Registerkarte, um sie zur besseren Organisation einer benannten Gruppe zuzuweisen</td>
+</tr>
+</tbody>
+</table>
+<h2 id="multi-window-unterstutzung">Multi-Window-Unterstützung<a class="headerlink" href="#multi-window-unterstutzung" title="Permanent link">&para;</a></h2>
+<p>Öffnen Sie zusätzliche Fenster, um Verbindungen nach Projekt oder Umgebung zu organisieren:</p>
+<ul>
+<li><strong>Neues Fenster</strong>: ++Strg+Umschalt+N++ (Befehl+Umschalt+N unter macOS) öffnet ein neues KorTTY-Fenster. Jedes Fenster kann über eigene Registerkarten und Verbindungen verfügen.</li>
+<li><strong>Registerkarten zwischen Fenstern verschieben</strong>: Ziehen Sie eine Registerkarte aus der Registerkartenleiste und legen Sie sie auf der Registerkartenleiste eines anderen KorTTY-Fensters ab, um diese Registerkarte (und ihre Sitzung, einschließlich aller geteilten Terminals) in das andere Fenster zu verschieben.</li>
+<li><strong>Registerkarten neu anordnen</strong>: Ziehen Sie eine Registerkarte innerhalb desselben Fensters, um ihre Reihenfolge zu ändern; die Registerkarte „+“ bleibt am Ende.</li>
+</ul>
+<h2 id="schriftgroe-und-zoom">Schriftgröße und Zoom<a class="headerlink" href="#schriftgroe-und-zoom" title="Permanent link">&para;</a></h2>
+<p>Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die Verbindung erneut herzustellen:</p>
+<table>
+<thead>
+<tr>
+<th>Verknüpfung</th>
+<th>Aktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-plus">+</kbd></span></td>
+<td>Vergrößern (Schriftgröße vergrößern)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-minus">-</kbd></span></td>
+<td>Verkleinern (Schriftgröße verringern)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-0">0</kbd></span></td>
+<td>Zoom auf gespeicherte/Standardschriftart zurücksetzen</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad</td>
+<td>Über dem Terminal hinein-/herauszoomen (Cmd + Mausrad auf macOS)</td>
+</tr>
+</tbody>
+</table>
+<p>Wenn Sie <span class="keys"><kbd class="key-control">Ctrl</kbd></span> (oder <span class="keys"><kbd class="key-command">Cmd</kbd></span> auf macOS) gedrückt halten und mit dem Mausrad über dem Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, nach unten verkleinert – statt den Puffer zu scrollen. Dies ergänzt die Tastenkürzel <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-0">0</kbd></span>.</p>
+<p><strong>Zoom zurücksetzen</strong> stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → <strong>Schriftgröße</strong> → <strong>Zurücksetzen</strong>. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.</p>
+<h2 id="lokale-shell-registerkarten">Lokale-Shell-Registerkarten<a class="headerlink" href="#lokale-shell-registerkarten" title="Permanent link">&para;</a></h2>
+<p>Neben SSH und Mosh kann eine Terminal-Registerkarte auch eine <strong>lokale Shell</strong> beherbergen – die eigene Shell des lokalen Rechners, geöffnet über ein Pseudo-Terminal (siehe <a href="connections.html#lokale-shell">Lokale Shell</a>). Einige Terminalverhalten sind lokale-Shell-bewusst:</p>
+<ul>
+<li><strong><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> schließt die Registerkarte bei lokalen cmd.exe-/PowerShell-Sitzungen.</strong> Diese Windows-Shells beenden sich nicht bei EOF, sodass <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> dort sonst keine Wirkung hätte. Bei Bash-Familien-Shells (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> seine normale EOF-Bedeutung – die Shell beendet sich, und die lokale Registerkarte schließt sich daraufhin automatisch.</li>
+<li><strong>Die Schließbestätigung</strong> verwendet eine lokale-Shell-Formulierung statt „SSH-Verbindung beenden?“, und die Fenster-Schließabfrage ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und lokale-Shell-Registerkarten mischen kann.</li>
+</ul>
+<h2 id="geteilter-bildschirm-mit-ubertragung">Geteilter Bildschirm mit Übertragung<a class="headerlink" href="#geteilter-bildschirm-mit-ubertragung" title="Permanent link">&para;</a></h2>
+<p>Teilen Sie die Terminalansicht, um mehrere Verbindungen nebeneinander anzuzeigen, und senden Sie optional Eingaben an alle Bereiche gleichzeitig.</p>
+<h3 id="operationen-aufteilen">Operationen aufteilen<a class="headerlink" href="#operationen-aufteilen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Geteilter Bereich</strong>: Erstellen Sie über das Kontextmenü oder Tastaturkürzel horizontale oder vertikale Teilungen innerhalb einer Registerkarte.</li>
+<li><strong>Unabhängige Sitzungen</strong>: In jedem Bereich kann eine andere SSH-Verbindung angezeigt werden.</li>
+<li><strong>Anpassbare Fensterbereiche</strong>: Ziehen Sie die Trennlinien, um die Fenstergrößen anzupassen.</li>
+<li><strong>Fenster verschieben</strong>: Halten Sie ++Umschalt+alt++ (Windows/Linux) or ++Umschalt+Option++ (macOS) gedrückt und ziehen Sie einen Bereich auf einen anderen, um ihn neu anzuordnen. Ohne die Modifikatoren wird das Ziehen mit der Maus für die Textauswahl im Terminal verwendet.</li>
+</ul>
+<h3 id="broadcast-modus">Broadcast-Modus<a class="headerlink" href="#broadcast-modus" title="Permanent link">&para;</a></h3>
+<p>Wenn der <strong>Broadcast-Modus</strong> aktiviert ist, werden Tastatureingaben gleichzeitig an alle sichtbaren Bereiche gesendet. Dies ist nützlich, um dieselben Befehle auf mehreren Servern auszuführen.</p>
+<h2 id="endgultige-auswirkungen">Endgültige Auswirkungen<a class="headerlink" href="#endgultige-auswirkungen" title="Permanent link">&para;</a></h2>
+<p>Terminaleffekte können den sichtbaren Terminalstil und die Ausgabeanimation ändern. Effekte sind Java-Plugins, die über <strong>Plugins &gt; Terminaleffekte</strong> verwaltet werden.</p>
+<h3 id="benutzerkontrollen">Benutzerkontrollen<a class="headerlink" href="#benutzerkontrollen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Aktuelles Terminal</strong>: Verwenden Sie <strong>Ansicht &gt; Terminaleffekt</strong> oder das Terminal-Kontextmenü, um einen Effekt für das aktive Terminal auszuwählen.</li>
+<li><strong>Schnellverbindung</strong>: Wählen Sie den Effekt und die Geschwindigkeit, bevor Sie eine temporäre oder gespeicherte Verbindung öffnen.</li>
+<li><strong>Verbindungsmanager</strong>: Speichern Sie den Effekt und die Geschwindigkeit einer gespeicherten Verbindung, damit neue Tabs sie automatisch verwenden.</li>
+<li><strong>Geschwindigkeit</strong>: Verwenden Sie den Schieberegler für <code>1x</code> bis <code>10x</code>; Wenn das immer noch zu langsam ist, geben Sie im numerischen Geschwindigkeitsfeld einen benutzerdefinierten Wert bis zu <code>99x</code> ein.</li>
+</ul>
+<h3 id="plugin-verwaltung">Plugin-Verwaltung<a class="headerlink" href="#plugin-verwaltung" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Öffnen Sie <strong>Plugins &gt; Terminaleffekte</strong>, um Plugins zu verwalten.
+– Die Tabelle listet geladene Plugins mit aktivem Status, Namen und Beschreibung auf.</li>
+<li><strong>Deaktivieren</strong> Sie ein Plugin, damit es installiert bleibt, aber nicht zur Aktivierung verfügbar ist.</li>
+<li><strong>Import</strong> externer <code>.jar</code>-Plugins. KorTTY kopiert sie in <code>~/.kortty/plugins</code>.</li>
+<li>Plugins <strong>Exportieren</strong>, die über eine Quell-JAR verfügen. Der gebündelte MOTHER-Effekt ist exportierbar.</li>
+</ul>
+<div class="admonition warnung">
+<p class="admonition-title">Warnung</p>
+</div>
+<p>Importierte Terminaleffekt-Plugins sind vertrauenswürdiger Java-Code und werden nicht in einer Sandbox gespeichert. Importieren Sie Plugins nur aus Quellen, denen Sie vertrauen.</p>
+<p>Eine ausführliche Dokumentation zur Plugin-Entwicklung finden Sie unter <a href="terminal-effect-plugins.html">Terminal Effect Plugins</a>.</p>
+<h2 id="ssh-keep-alive">SSH-Keep-Alive<a class="headerlink" href="#ssh-keep-alive" title="Permanent link">&para;</a></h2>
+<p>Verhindern Sie, dass Verbindungen aufgrund von Inaktivität unterbrochen werden, indem Sie SSH-Keepalive-Nachrichten konfigurieren:</p>
+<ol>
+<li>Aktivieren Sie <strong>SSH Keep-Alive</strong> auf der Registerkarte <strong>Terminal</strong> der Verbindung oder unter <strong>Einstellungen &gt; Terminal</strong>.</li>
+<li>Stellen Sie das Intervall ein (5 bis 600 Sekunden, Standard: 60).</li>
+<li>KorTTY sendet <code>SSH_MSG_IGNORE</code>-Heartbeat-Nachrichten im konfigurierten Intervall und aktiviert TCP-Socket-Keepalive, während die Option aktiv ist.</li>
+</ol>
+<div class="admonition notiz">
+<p class="admonition-title">Notiz</p>
+</div>
+<p>Wenn ein Server, eine Firewall, ein VPN oder ein NAT-Gateway inaktive Sitzungen früher als im konfigurierten Intervall schließt, kann die Verbindung trotzdem beendet werden. Überprüfen Sie in diesem Fall die serverseitige SSH-Konfiguration und die Netzwerk-Leerlauf-Timeout-Einstellungen sowie das KorTTY-Protokoll.</p>
+<h2 id="terminalprotokollierung">Terminalprotokollierung<a class="headerlink" href="#terminalprotokollierung" title="Permanent link">&para;</a></h2>
+<p>Protokollieren Sie die Ausgabe der Terminalsitzung automatisch zu Prüf- und Debugging-Zwecken:</p>
+<ol>
+<li>Aktivieren Sie die Protokollierung auf der Registerkarte <strong>Terminalprotokollierung</strong> der Verbindung.</li>
+<li>Wählen Sie ein Protokollformat:</li>
+<li><strong>Klarer Text</strong> – Rohe Terminalausgabe.</li>
+<li><strong>XML</strong> – Strukturiertes XML mit Zeitstempeln.</li>
+<li><strong>JSON</strong> – Strukturiertes JSON mit Zeitstempeln.</li>
+<li>Legen Sie eine <strong>maximale Dateigröße</strong> fest (Standard: 10 MB). Bei Überschreitung wird die Protokolldatei rotiert.</li>
+<li>Protokolle werden in <code>~/.kortty/history/</code> als komprimierte Dateien gespeichert.</li>
+</ol>
+<h2 id="terminalaufzeichnung">Terminalaufzeichnung<a class="headerlink" href="#terminalaufzeichnung" title="Permanent link">&para;</a></h2>
+<p>Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipiert. KorTTY zeichnet Terminal-Bildschirmstatusänderungen und Zeitereignisse in einer JDK/GZIP-Streaming-komprimierten <code>.korttyrec.jsonl.gz</code>-Datei pro Terminal-Tab-Sitzung auf. Ältere <code>.korttyrec.jsonl</code>-Wiedergabedateien bleiben lesbar.</p>
+<h3 id="aufnahmen-konfigurieren">Aufnahmen konfigurieren<a class="headerlink" href="#aufnahmen-konfigurieren" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Um die Aufzeichnung automatisch nach jedem App-Neustart zu aktivieren, öffnen Sie <strong>Einstellungen &gt; Video</strong> und aktivieren Sie <strong>Terminalaufzeichnung nach App-Neustart aktivieren</strong>.</li>
+<li>Um die Aufzeichnung nur für diese Sitzung zu aktivieren, öffnen Sie <strong>Tools &gt; Video Manager...</strong> und wählen Sie <strong>Terminalaufzeichnung für diese App-Sitzung aktivieren</strong>.</li>
+<li>Legen Sie den <strong>Speicherpfad</strong> fest. Wenn die Standardeinstellung beibehalten wird, verwendet KorTTY <code>~/.kortty/recordings</code>.</li>
+<li>Wählen Sie das Standardformat und den Standard-Split-Bereich. Die KorTTY-Wiedergabe ist immer verfügbar; Der Videoexport erfordert <code>ffmpeg</code>.</li>
+<li>Aktivieren oder deaktivieren Sie <strong>Auto-Pause, wenn das Terminal im Leerlauf ist</strong> und legen Sie den Leerlaufschwellenwert fest (Standard: 20 Sekunden).</li>
+<li>Optional: Aktivieren Sie <strong>Terminalfarben in neuen Aufnahmen erfassen</strong>, wenn exportierte Videos Terminalfarben wiedergeben sollen.</li>
+<li>Optional: Legen Sie den <code>ffmpeg</code>-Pfad fest und klicken Sie auf <strong>Prüfen</strong>. Wenn <code>ffmpeg</code> fehlt, bleibt der Videoexport deaktiviert, Wiedergabedateien bleiben jedoch verwendbar.</li>
+<li>Klicken Sie auf <strong>Speichern</strong>.</li>
+</ol>
+<h3 id="aufnahme-starten-und-stoppen">Aufnahme starten und stoppen<a class="headerlink" href="#aufnahme-starten-und-stoppen" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Öffnen oder fokussieren Sie eine SSH-Terminal-Registerkarte.</li>
+<li>Wenn die Terminalaufzeichnung aktiviert ist, klicken Sie in der Terminalleiste auf <strong>Aufzeichnung starten</strong>, wählen Sie <strong>Extras &gt; Terminalaufzeichnung starten/stoppen</strong> oder drücken Sie ++Strg+Umschalt+E++ (Befehl+Umschalt+E unter macOS).</li>
+<li>Wenn die Registerkarte mehrere Split-Terminals enthält, wählen Sie, ob nur die aktive Teilung oder die gesamte Registerkarte aufgezeichnet werden soll.</li>
+<li>Klicken Sie auf <strong>Aufzeichnung stoppen</strong> oder drücken Sie erneut ++Strg+Umschalt+E++, um das aktuelle Segment zu stoppen.</li>
+<li>Starten und stoppen Sie so oft wie nötig auf derselben Registerkarte. KorTTY hängt alle Segmente an dieselbe Wiedergabedatei an, bis die Registerkarte geschlossen wird.</li>
+</ol>
+<h3 id="exportieren-sie-ein-video">Exportieren Sie ein Video<a class="headerlink" href="#exportieren-sie-ein-video" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Öffnen Sie <strong>Extras &gt; Video-Manager...</strong>.</li>
+<li>Wählen Sie eine <code>.korttyrec.jsonl.gz</code>-Wiedergabedatei aus der Liste aus.</li>
+<li>Stellen Sie sicher, dass der ffmpeg-Status besagt, dass der Videoexport aktiviert ist.</li>
+<li>Klicken Sie auf <strong>Exportieren...</strong>.</li>
+<li>In den Exportoptionen:</li>
+<li>Wählen Sie <strong>Gesamte Aufzeichnung exportieren</strong> oder geben Sie Start-/Endzeiten im Minuten- oder <code>MM:SS</code>-Format ein.
+– Wählen Sie, ob Terminalfarben einbezogen werden sollen (nur verfügbar, wenn die Wiedergabe Farbdaten enthält).</li>
+<li>Wählen Sie das Format <strong>WebM/VP9</strong> oder <strong>MKV/FFV1</strong> und dann einen Ausgabepfad.</li>
+<li>Während KorTTY Frames rendert und <code>ffmpeg</code> ausführt, zeigt der Exportfortschrittsdialog die aktuelle Phase, den Fortschrittsbalken und die geschätzte verbleibende Zeit an. Beim Export wird die aufgezeichnete Terminalgeometrie verwendet, sodass große Terminalbildschirme nicht beschnitten werden.</li>
+</ol>
+<h3 id="aufnahmen-ansehen-und-verwalten">Aufnahmen ansehen und verwalten<a class="headerlink" href="#aufnahmen-ansehen-und-verwalten" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Öffnen Sie <strong>Extras &gt; Video-Manager...</strong>.</li>
+<li>Wählen Sie eine <code>.korttyrec.jsonl.gz</code>-Wiedergabedatei aus.</li>
+<li>Klicken Sie auf <strong>Anzeigen</strong>, um die Wiederholung direkt in KorTTY abzuspielen.</li>
+<li>Verwenden Sie die Replay-Viewer-Timeline zum Scrubben oder geben Sie einen <strong>Zeitsprung</strong>-Wert ein, z. B. <code>5</code> für Minute 5 oder <code>5:30</code> für Minute 5 und 30 Sekunden.</li>
+<li>Stellen Sie <strong>Geschwindigkeit</strong> zwischen <code>1x</code> und <code>20x</code> ein, um die Wiedergabegeschwindigkeit zu steuern.</li>
+<li>Klicken Sie auf <strong>Umbenennen...</strong>, um die Wiedergabedatei umzubenennen.</li>
+<li>Klicken Sie nach der Bestätigung auf <strong>Löschen</strong>, um die ausgewählte Wiederholung zu löschen.</li>
+</ol>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

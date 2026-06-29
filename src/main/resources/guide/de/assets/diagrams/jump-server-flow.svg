@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 430" role="img" aria-labelledby="title desc">
+  <title id="title">Jump server connection flow</title>
+  <desc id="desc">KorTTY connects to a target server through a bastion jump server.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:17px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}.jump{stroke:#f59e0b}.target{stroke:#34d399}.title{font-size:28px;font-weight:700;fill:#f8fafc}.small{font-size:14px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:3;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:7 7;fill:none}</style></defs>
+  <rect class="bg" width="980" height="430"/>
+  <text class="title" x="40" y="54">Jump Server Connection Flow</text>
+  <text class="small" x="40" y="82">The target is reached through the bastion; KorTTY shows the resulting remote terminal stream.</text>
+  <rect class="box" x="70" y="160" width="210" height="90"/><text x="118" y="199">User PC</text><text x="122" y="224">KorTTY</text>
+  <rect class="box jump" x="385" y="160" width="210" height="90"/><text x="429" y="199">Jump Server</text><text x="440" y="224">Bastion host</text>
+  <rect class="box target" x="700" y="160" width="210" height="90"/><text x="750" y="199">Target Server</text><text x="765" y="224">Remote shell</text>
+  <path class="line" d="M280 205 H385"/><text class="small" x="305" y="190">1. SSH</text>
+  <path class="line" d="M595 205 H700"/><text class="small" x="610" y="190">2. SSH through tunnel</text>
+  <path class="dash" d="M175 260 C310 360 675 360 805 260"/>
+  <text class="small" x="332" y="350">Terminal traffic enters through the bastion and is forwarded to the target.</text>
+</svg>

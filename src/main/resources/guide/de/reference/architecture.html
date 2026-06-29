@@ -1,0 +1,3357 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/reference/architecture.html">
+      
+      
+        <link rel="prev" href="keyboard-shortcuts.html">
+      
+      
+        <link rel="next" href="config-files.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Architektur - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architektur-entwickler" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architektur
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="..../en/reference/architecture.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="architecture.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#architekturubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architekturübersicht
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-und-abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module und Abhängigkeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module und Abhängigkeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modulaufschlusselung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modulaufschlüsselung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sithtermfx-terminal-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SithTermFX Terminal Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SithTermFX Terminal Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build-Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persistenz-und-konfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persistenz und Konfiguration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Persistenz und Konfiguration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#struktur-der-konfigurationsdatei" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Struktur der Konfigurationsdatei
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serialisierung-und-verschlusselung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Serialisierung und Verschlüsselung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernmodulorganisation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernmodulorganisation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kernmodulorganisation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ssh-und-sitzungsverwaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH und Sitzungsverwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ki-und-agentenintegration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI- und Agentenintegration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jobplanung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobplanung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#organisation-des-ui-moduls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Organisation des UI-Moduls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sicherheitsarchitektur" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sicherheitsarchitektur
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sicherheitsarchitektur">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#master-passwort-und-verschlusselung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Master-Passwort und Verschlüsselung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uberprufung-des-hostschlussels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Überprüfung des Hostschlüssels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anmeldeinformationsverwaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anmeldeinformationsverwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin-System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugin-System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plugin-architektur" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin-Architektur
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugin-wird-geladen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin wird geladen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sicherheitshinweis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sicherheitshinweis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#externe-abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Externe Abhängigkeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Externe Abhängigkeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dynamische-abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dynamische Abhängigkeiten
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-prozess" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build-Prozess
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build-Prozess">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zusammenstellung-und-verpackung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusammenstellung und Verpackung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#klassenpfad-und-modulpfad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Klassenpfad und Modulpfad
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datenfluss-und-integrationspunkte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Datenfluss und Integrationspunkte
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Datenfluss und Integrationspunkte">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ssh-verbindungsablauf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH-Verbindungsablauf
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ki-integrationsfluss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Integrationsfluss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jobplanungsablauf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobplanungsablauf
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#protokollierung-und-diagnose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protokollierung und Diagnose
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thread-modell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread-Modell
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#erweiterbarkeitspunkte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erweiterbarkeitspunkte
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Erweiterbarkeitspunkte">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fur-plugin-entwickler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Für Plugin-Entwickler
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fur-integratoren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Für Integratoren
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#leistungsuberlegungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leistungsüberlegungen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices-fur-die-sicherheit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices für die Sicherheit
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#architekturubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architekturübersicht
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-und-abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module und Abhängigkeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module und Abhängigkeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modulaufschlusselung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modulaufschlüsselung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sithtermfx-terminal-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SithTermFX Terminal Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SithTermFX Terminal Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build-Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persistenz-und-konfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persistenz und Konfiguration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Persistenz und Konfiguration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#struktur-der-konfigurationsdatei" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Struktur der Konfigurationsdatei
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serialisierung-und-verschlusselung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Serialisierung und Verschlüsselung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernmodulorganisation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernmodulorganisation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kernmodulorganisation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ssh-und-sitzungsverwaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH und Sitzungsverwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ki-und-agentenintegration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI- und Agentenintegration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jobplanung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobplanung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#organisation-des-ui-moduls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Organisation des UI-Moduls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sicherheitsarchitektur" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sicherheitsarchitektur
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sicherheitsarchitektur">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#master-passwort-und-verschlusselung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Master-Passwort und Verschlüsselung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uberprufung-des-hostschlussels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Überprüfung des Hostschlüssels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anmeldeinformationsverwaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anmeldeinformationsverwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin-System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugin-System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plugin-architektur" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin-Architektur
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugin-wird-geladen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin wird geladen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sicherheitshinweis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sicherheitshinweis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#externe-abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Externe Abhängigkeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Externe Abhängigkeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dynamische-abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dynamische Abhängigkeiten
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-prozess" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build-Prozess
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build-Prozess">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zusammenstellung-und-verpackung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusammenstellung und Verpackung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#klassenpfad-und-modulpfad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Klassenpfad und Modulpfad
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datenfluss-und-integrationspunkte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Datenfluss und Integrationspunkte
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Datenfluss und Integrationspunkte">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ssh-verbindungsablauf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH-Verbindungsablauf
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ki-integrationsfluss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Integrationsfluss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jobplanungsablauf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobplanungsablauf
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#protokollierung-und-diagnose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protokollierung und Diagnose
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thread-modell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread-Modell
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#erweiterbarkeitspunkte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erweiterbarkeitspunkte
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Erweiterbarkeitspunkte">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fur-plugin-entwickler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Für Plugin-Entwickler
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fur-integratoren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Für Integratoren
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#leistungsuberlegungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leistungsüberlegungen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices-fur-die-sicherheit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices für die Sicherheit
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="architektur-entwickler">Architektur (Entwickler)<a class="headerlink" href="#architektur-entwickler" title="Permanent link">&para;</a></h1>
+<p>korTTY ist ein modularer JavaFX-SSH-Client, der auf einer mehrschichtigen Architektur basiert. Dieser Anleitung beschreibt die Kernmodule, ihre Verantwortlichkeiten, Abhängigkeiten und wie sie interagieren, um ein nahtloses Terminalerlebnis mit erweiterten Funktionen wie Jobplanung, KI-Integration und Terminaleffekt-Plugins zu bieten.</p>
+<p><img alt="Startup &amp; manager init" src="../assets/diagrams/app-startup-manager-init.svg" /></p>
+<h2 id="architekturubersicht">Architekturübersicht<a class="headerlink" href="#architekturubersicht" title="Permanent link">&para;</a></h2>
+<p>Das folgende Diagramm zeigt die Hauptkomponenten von korTTY und ihre Beziehung:</p>
+<p><img alt="Architecture" src="../assets/diagrams/architecture.svg" /></p>
+<h2 id="module-und-abhangigkeiten">Module und Abhängigkeiten<a class="headerlink" href="#module-und-abhangigkeiten" title="Permanent link">&para;</a></h2>
+<p>KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gruppiert sie nach Funktion:</p>
+<p><img alt="Modules overview" src="../assets/diagrams/modules-overview.svg" /></p>
+<h3 id="modulaufschlusselung">Modulaufschlüsselung<a class="headerlink" href="#modulaufschlusselung" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><strong>Modul</strong></th>
+<th><strong>Zweck</strong></th>
+<th><strong>Schlüsselklassen</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Kern</strong></td>
+<td>SSH-Konnektivität, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung</td>
+<td><code>SSHSession</code>, <code>AiChatManager</code>, <code>TerminalAgentService</code>, <code>Mosh4jTtyConnector</code></td>
+</tr>
+<tr>
+<td><strong>ui</strong></td>
+<td>JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager</td>
+<td><code>TerminalPane</code>, <code>ConnectionDialog</code>, <code>SFTPManagerDialog</code>, <code>SnippetEditor</code></td>
+</tr>
+<tr>
+<td><strong>Modell</strong></td>
+<td>Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs</td>
+<td><code>Connection</code>, <code>Credential</code>, <code>Snippet</code>, <code>JobScheduleEntry</code></td>
+</tr>
+<tr>
+<td><strong>Jobscheduler</strong></td>
+<td>Planung und Ausführung von Hintergrundjobs</td>
+<td><code>JobScheduler</code>, <code>JobExecutor</code>, <code>JobJournal</code></td>
+</tr>
+<tr>
+<td><strong>Sicherheit</strong></td>
+<td>Master-Passwort, Verschlüsselung/Entschlüsselung, SSH-Schlüsselverwaltung</td>
+<td><code>MasterPasswordManager</code>, <code>AES256GCMEncryption</code>, <code>SSHKeyManager</code></td>
+</tr>
+<tr>
+<td><strong>Beharrlichkeit</strong></td>
+<td>XML-Serialisierung, Datei-E/A, Repository-Muster</td>
+<td><code>XMLConnectionRepository</code>, <code>CredentialRepository</code>, <code>JobSchedulerPersistence</code></td>
+</tr>
+<tr>
+<td><strong>Plugin</strong></td>
+<td>Terminaleffekt-Plugins (ServiceLoader SPI)</td>
+<td><code>TerminalEffectPlugin</code>, <code>TerminalEffectSession</code></td>
+</tr>
+<tr>
+<td><strong>Teamarbeit</strong></td>
+<td>Funktionen für Zusammenarbeit und Fernzugriff</td>
+<td>Teambasierte Sitzungsfreigabe und -koordination</td>
+</tr>
+<tr>
+<td><strong>jmx</strong></td>
+<td>Überwachung von Java Management Extensions</td>
+<td><code>SSHClientMonitor</code>, <code>SSHClientMonitorMBean</code></td>
+</tr>
+<tr>
+<td><strong>Update</strong></td>
+<td>Versionsprüfung und Update-Benachrichtigungen</td>
+<td>Dienst- und Versionsmetadaten aktualisieren</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sithtermfx-terminal-engine">SithTermFX Terminal Engine<a class="headerlink" href="#sithtermfx-terminal-engine" title="Permanent link">&para;</a></h2>
+<p>KorTTY verwendet <strong>SithTermFX 1.2.0</strong> als primären Terminalemulator, der während des Build-Prozesses aus dem Quellcode erstellt wird. SithTermFX bietet:</p>
+<ul>
+<li><strong>Terminal-Emulation</strong>: VT100/xterm-kompatibles Terminal-Rendering, unterstützt durch ein benutzerdefiniertes JavaFX-Steuerelement</li>
+<li><strong>OSC 8-Hyperlinks</strong>: Ab SithTermFX 1.2.0 Unterstützung für anklickbare explizite Hyperlinks (beschränkt auf sichere URI-Schemata: <code>http</code>, <code>https</code>, <code>mailto</code>, <code>ftp</code>, <code>ftps</code>, <code>news</code>; <code>file://</code> beschränkt auf lokalen Host)</li>
+<li><strong>Sitzungsintegration</strong>: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe</li>
+<li><strong>Farbunterstützung</strong>: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung</li>
+</ul>
+<h3 id="build-integration">Build-Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
+<p>Der Build-Prozess automatisch:</p>
+<ol>
+<li>Klont SithTermFX am Tag <code>v1.2.0</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
+<li>Erstellt es lokal mit Maven über die <code>installSithtermfxLocal</code>-Aufgabe</li>
+<li>Installiert Artefakte im lokalen Maven-Repo (<code>mavenLocal()</code>)</li>
+<li>Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR</li>
+</ol>
+<p>Nach dem Klonen ist kein Netzwerkzugriff erforderlich. Alle Build-Schritte sind deterministisch und reproduzierbar.</p>
+<h2 id="persistenz-und-konfiguration">Persistenz und Konfiguration<a class="headerlink" href="#persistenz-und-konfiguration" title="Permanent link">&para;</a></h2>
+<p>KorTTY speichert alle Konfigurationen, Anmeldeinformationen und den Sitzungsstatus in XML-Dateien unter <code>~/.kortty/</code> unter Verwendung von JAXB (Jakarta XML Binding). Dieser Ansatz gewährleistet:</p>
+<ul>
+<li><strong>Portabilität</strong>: Einfache manuelle Inspektion und Migration zwischen Systemen</li>
+<li><strong>Verschlüsselung</strong>: Sensible Daten (Passwörter, SSH-Schlüsselpassphrasen, Master-Passwort-Hash) werden mit AES-256-GCM verschlüsselt</li>
+<li><strong>Atomere Schreibvorgänge</strong>: Dateiaktualisierungen verwenden temporäre Dateien und eine atomare Umbenennung, um eine Beschädigung bei einem Absturz zu verhindern</li>
+<li><strong>Keine Datenbank</strong>: Eigenständig; Kein separater Datenbankserver oder Migrationsaufwand</li>
+</ul>
+<h3 id="struktur-der-konfigurationsdatei">Struktur der Konfigurationsdatei<a class="headerlink" href="#struktur-der-konfigurationsdatei" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── connections.xml              # Saved SSH/Mosh connections
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── credentials.xml              # Stored usernames/passwords for env-specific targets
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── ssh-keys.xml                 # SSH key references and encrypted passphrases
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── gpg-keys.xml                 # GPG key management for backup encryption
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── global-settings.xml          # Application-wide settings (theme, language, AI profiles)
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── kortty.log                   # Application log file
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── history/                     # Compressed terminal session logs
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── plugins/                     # Imported external terminal-effect plugin JARs
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── projects/                    # Project files (connection sets with saved layout)
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── i18n/                        # Dynamically generated language property files
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>└── ssh-keys/                    # Optional: copied SSH keys for backup inclusion
+</span></code></pre></div>
+<h3 id="serialisierung-und-verschlusselung">Serialisierung und Verschlüsselung<a class="headerlink" href="#serialisierung-und-verschlusselung" title="Permanent link">&para;</a></h3>
+<p><strong>JAXB Marshaling</strong> konvertiert Domänenobjekte in/aus XML mit automatischer Schemavalidierung. Zu den wichtigsten Repositories gehören:</p>
+<ul>
+<li><code>XMLConnectionRepository</code>: Verwaltet <code>Connection</code>-Objekte mit SFTP-, Jump-Server- und Tunneldetails</li>
+<li><code>CredentialRepository</code>: Speichert umgebungsspezifische Anmeldeinformationsmuster</li>
+<li><code>SSHKeyManager</code>: Umschließt importierte SSH-Schlüssel mit verschlüsselten Passphrasen</li>
+<li><code>JobSchedulerPersistence</code>: Behält <code>JobScheduleEntry</code>-Objekte und Ausführungsjournal bei</li>
+</ul>
+<p><strong>AES-256-GCM-Verschlüsselung</strong> schützt vertrauliche Felder:</p>
+<ul>
+<li>Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und als <code>master-password-hash</code> gespeichert
+– Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Master-Passwort abgeleitet werden
+– SSH-Schlüsselpassphrasen, Verbindungspasswörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt</li>
+<li>Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden</li>
+</ul>
+<h2 id="kernmodulorganisation">Kernmodulorganisation<a class="headerlink" href="#kernmodulorganisation" title="Permanent link">&para;</a></h2>
+<h3 id="ssh-und-sitzungsverwaltung">SSH und Sitzungsverwaltung<a class="headerlink" href="#ssh-und-sitzungsverwaltung" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><strong>Komponente</strong></th>
+<th><strong>Verantwortung</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SSHSession</code></td>
+<td>Umschließt den Apache SSHD-Client und verwaltet den Verbindungslebenszyklus</td>
+</tr>
+<tr>
+<td><code>SSHKeyManager</code></td>
+<td>Zentralisierte SSH-Schlüsselspeicherung mit verschlüsselter Passphrase-Unterstützung</td>
+</tr>
+<tr>
+<td><code>Mosh4jTtyConnector</code></td>
+<td>Mosh-Protokoll-Connector unter Verwendung der mosh4j-Bibliothek (dynamisch geladen)</td>
+</tr>
+<tr>
+<td><code>NativeMoshTtyConnector</code></td>
+<td>Native OS Mosh-Unterstützung (Fallback)</td>
+</tr>
+<tr>
+<td><code>TemporarySSHKeyManager</code></td>
+<td>Zeitlich begrenzte SSH-Schlüssel (z. B. von CyberArk)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ki-und-agentenintegration">KI- und Agentenintegration<a class="headerlink" href="#ki-und-agentenintegration" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><strong>Komponente</strong></th>
+<th><strong>Verantwortung</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AiChatManager</code></td>
+<td>Manages AI chat sessions and conversation history</td>
+</tr>
+<tr>
+<td><code>AiCliProviderRegistry</code></td>
+<td>Ordnet KI-Profilkonfigurationen Anbieterendpunkten zu (OpenAI, Anthropic, LM Studio)</td>
+</tr>
+<tr>
+<td><code>TerminalAgentService</code></td>
+<td>Führt Agenten-Workflows aus: SSH-Sitzung prüfen, Aufgabe an Modell senden, Befehle validieren/ausführen</td>
+</tr>
+<tr>
+<td><code>AiInternetAccessConfiguration</code></td>
+<td>Konfiguriert Web-Tools (Tavily, Brave Search, SearXNG usw.) pro Profil</td>
+</tr>
+<tr>
+<td><code>AiChatExportService</code></td>
+<td>Exportiert KI-Chats nach Markdown, PDF, YAML, JSON, XML, Asciidoctor</td>
+</tr>
+</tbody>
+</table>
+<h3 id="jobplanung">Jobplanung<a class="headerlink" href="#jobplanung" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><strong>Komponente</strong></th>
+<th><strong>Verantwortung</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>JobScheduler</code></td>
+<td>Hauptplanerdienst; verwaltet geplante Jobs und Ausführungswarteschlange</td>
+</tr>
+<tr>
+<td><code>JobExecutor</code></td>
+<td>Führt einzelne Jobs aus (SSH-Befehl, Skript, AI-Agent, SFTP, Rsync)</td>
+</tr>
+<tr>
+<td><code>JobJournal</code></td>
+<td>Persistentes Prüfprotokoll mit Schwärzungsunterstützung und automatischer Bereinigung (Standardeinstellung: 14 Tage)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="organisation-des-ui-moduls">Organisation des UI-Moduls<a class="headerlink" href="#organisation-des-ui-moduls" title="Permanent link">&para;</a></h2>
+<p>Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:</p>
+<table>
+<thead>
+<tr>
+<th><strong>Komponente</strong></th>
+<th><strong>Zweck</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MainWindow</code></td>
+<td>Anwendungsfenster der obersten Ebene mit Menüleiste, Registerkartenleiste, Terminalbereichen, Dashboard und SFTP-Browser</td>
+</tr>
+<tr>
+<td><code>TerminalPane</code></td>
+<td>Einzelne Terminal-Registerkarte mit Split-Pane-Unterstützung und Inline-KI-Aktivitätsfenster</td>
+</tr>
+<tr>
+<td><code>ConnectionDialog</code></td>
+<td>Multi-Tab-Editor für Verbindungsdetails (SSH, Tunnel, Jump-Server, Protokollierung usw.)</td>
+</tr>
+<tr>
+<td><code>SFTPManagerDialog</code></td>
+<td>Dual-Panel-Dateimanager für lokale und Remote-Dateioperationen</td>
+</tr>
+<tr>
+<td><code>SnippetEditor</code></td>
+<td>Von Monaco unterstützter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und PlantUML-Diagrammen</td>
+</tr>
+<tr>
+<td><code>JobSchedulerDialog</code></td>
+<td>Auftragserstellung, Terminplanung und Journalprüfung</td>
+</tr>
+<tr>
+<td><code>QuickConnectDialog</code></td>
+<td>Schnelle Verbindungssuche und häufig verwendete Verbindungsverknüpfungen</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sicherheitsarchitektur">Sicherheitsarchitektur<a class="headerlink" href="#sicherheitsarchitektur" title="Permanent link">&para;</a></h2>
+<h3 id="master-passwort-und-verschlusselung">Master-Passwort und Verschlüsselung<a class="headerlink" href="#master-passwort-und-verschlusselung" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Erster Start</strong>: Der Benutzer erstellt ein Master-Passwort (mindestens 6 Zeichen, Stärke überprüft über zxcvbn)</li>
+<li><strong>Speicherung</strong>: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und in <code>~/.kortty/master-password-hash</code> gespeichert</li>
+<li><strong>Entsperren</strong>: Das Master-Passwort entsperrt alle verschlüsselten Daten (Verbindungspasswörter, SSH-Schlüsselpassphrasen, Anmeldeinformationen, Backup-Archiv-Passwörter)</li>
+<li><strong>Verschlüsselung</strong>: AES-256-GCM mit zufälligen IVs; Die Verschlüsselung/Entschlüsselung erfolgt bei Bedarf beim Zugriff auf vertrauliche Felder</li>
+</ol>
+<h3 id="uberprufung-des-hostschlussels">Überprüfung des Hostschlüssels<a class="headerlink" href="#uberprufung-des-hostschlussels" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>JobScheduler</strong>: Erfordert angeheftete Hostschlüssel-Fingerabdrücke vor der unbeaufsichtigten Ausführung (SSH, SFTP, Rsync)</li>
+<li><strong>Speicher</strong>: Host-Schlüssel werden in <code>job-scheduler.xml</code> mit OpenSSH-Public-Key-Material gespeichert (erforderlich für die Rsync-Integration)</li>
+<li><strong>Override</strong>: Override pro Job, um die Überprüfung zu deaktivieren, wenn das Risiko explizit akzeptiert wird</li>
+</ul>
+<h3 id="anmeldeinformationsverwaltung">Anmeldeinformationsverwaltung<a class="headerlink" href="#anmeldeinformationsverwaltung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Umgebungsspezifisch</strong>: Anmeldeinformationen können auf Produktion, Entwicklung, Test oder Staging beschränkt werden</li>
+<li><strong>Glob-Muster</strong>: Servermuster wie <code>*.example.com</code> oder <code>10.0.0.*</code> stimmen automatisch mit Verbindungen überein</li>
+<li><strong>Verschlüsselt gespeichert</strong>: Alle Anmeldedaten-Passwörter verwenden AES-256-GCM</li>
+</ul>
+<h2 id="plugin-system">Plugin-System<a class="headerlink" href="#plugin-system" title="Permanent link">&para;</a></h2>
+<p>KorTTY unterstützt <strong>Terminaleffekt-Plugins</strong> über Java <code>ServiceLoader</code> zum Anpassen des Erscheinungsbilds und Verhaltens des Terminals.</p>
+<h3 id="plugin-architektur">Plugin-Architektur<a class="headerlink" href="#plugin-architektur" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><strong>SPI-Schnittstelle</strong></th>
+<th><strong>Verantwortung</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TerminalEffectPlugin</code></td>
+<td>Plugin-Metadaten (ID, Name, Beschreibung) und Sitzungsfabrik</td>
+</tr>
+<tr>
+<td><code>TerminalEffectSession</code></td>
+<td>Lebenszyklus-Hooks (Init, Render, Cleanup) und optionales TtyConnector-Wrapping</td>
+</tr>
+<tr>
+<td><code>TerminalEffectContext</code></td>
+<td>Zugriff auf Overlay-API, aktuelle SithTermFX-Widgets, Animationsgeschwindigkeit, Erscheinungsbild</td>
+</tr>
+<tr>
+<td><code>TerminalEffectAppearance</code></td>
+<td>Optionale Schriftart-/Farb-/Cursorüberschreibungen</td>
+</tr>
+<tr>
+<td><code>TerminalEffectConnectorWrapper</code></td>
+<td>Transparenter Befehlsstream-Wrapper; KorTTY kann</td>
+</tr>
+</tbody>
+</table>
+<h3 id="plugin-wird-geladen">Plugin wird geladen<a class="headerlink" href="#plugin-wird-geladen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Gebündelte Plugins</strong>: Wird aus dem Klassenpfad der Anwendung geladen (z. B. MOTHER-Effekt)</li>
+<li><strong>Externe Plugins</strong>: Als <code>.jar</code>-Dateien in <code>~/.kortty/plugins/</code> importiert</li>
+<li><strong>Verwaltung</strong>: Einzelne Plugins über <code>Plugins → Terminal Effects</code> ohne Deinstallation aktivieren/deaktivieren</li>
+<li><strong>Exportierbare Plugins</strong>: Einige Plugins können als eigenständige JARs zur Verteilung exportiert werden</li>
+</ul>
+<h3 id="sicherheitshinweis">Sicherheitshinweis<a class="headerlink" href="#sicherheitshinweis" title="Permanent link">&para;</a></h3>
+<p>Externe Plugins sind <strong>vertrauenswürdiger lokaler Code</strong> und unterliegen keiner Sandbox. Importieren Sie JARs nur aus Quellen, denen Sie vertrauen. Abhängigkeiten, die nicht bereits mit korTTY gebündelt sind, müssen in der Plugin-JAR schattiert werden.</p>
+<h2 id="externe-abhangigkeiten">Externe Abhängigkeiten<a class="headerlink" href="#externe-abhangigkeiten" title="Permanent link">&para;</a></h2>
+<p>KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeiten:</p>
+<table>
+<thead>
+<tr>
+<th><strong>Kategorie</strong></th>
+<th><strong>Bibliothek</strong></th>
+<th><strong>Version</strong></th>
+<th><strong>Zweck</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SSH</strong></td>
+<td>Apache SSHD (Core, Common, SFTP)</td>
+<td>2.12.0</td>
+<td>Implementierung des SSH-Protokolls</td>
+</tr>
+<tr>
+<td></td>
+<td>Ed25519 (net.i2p.crypto:eddsa)</td>
+<td>0,3,0</td>
+<td>EdDSA-Schlüsselunterstützung</td>
+</tr>
+<tr>
+<td><strong>Terminal</strong></td>
+<td>SithTermFX (Kern, Benutzeroberfläche)</td>
+<td>1.2.0</td>
+<td>Terminal-Emulator-Engine</td>
+</tr>
+<tr>
+<td></td>
+<td>Lanterna</td>
+<td>3.1.2</td>
+<td>Textbasierte UI-Komponenten</td>
+</tr>
+<tr>
+<td></td>
+<td>pty4j (JetBrains)</td>
+<td>0,12,25</td>
+<td>PTY-Zuteilung für Mosh</td>
+</tr>
+<tr>
+<td><strong>Daten</strong></td>
+<td>Jakarta XML Bind</td>
+<td>4,0</td>
+<td>JAXB-Serialisierung</td>
+</tr>
+<tr>
+<td></td>
+<td>Gson</td>
+<td>2.13.2</td>
+<td>JSON-Analyse</td>
+</tr>
+<tr>
+<td></td>
+<td>zip4j</td>
+<td>2.11.5</td>
+<td>ZIP-Verschlüsselung</td>
+</tr>
+<tr>
+<td><strong>Archiv</strong></td>
+<td>Apache Commons Compress</td>
+<td>1,25,0</td>
+<td>TAR-, BZ2-, XZ-Unterstützung</td>
+</tr>
+<tr>
+<td></td>
+<td>Tukaani xz</td>
+<td>1,9</td>
+<td>XZ-Komprimierung</td>
+</tr>
+<tr>
+<td><strong>Benutzeroberfläche</strong></td>
+<td>JavaFX</td>
+<td>21</td>
+<td>Anwendungsframework</td>
+</tr>
+<tr>
+<td></td>
+<td>Monaco-Herausgeber</td>
+<td>0,55,1</td>
+<td>Code-Editor-Komponente</td>
+</tr>
+<tr>
+<td></td>
+<td>Google-Java-Format</td>
+<td>1,35,0</td>
+<td>Java-Codeformatierung</td>
+</tr>
+<tr>
+<td><strong>Utilities</strong></td>
+<td>jfiglet</td>
+<td>0.0.9</td>
+<td>ASCII art banners</td>
+</tr>
+<tr>
+<td></td>
+<td>zxcvbn</td>
+<td>1.9.0</td>
+<td>Passwortstärke (offline)</td>
+</tr>
+<tr>
+<td></td>
+<td>PlantUML</td>
+<td>1.2026.2</td>
+<td>Diagrammdarstellung</td>
+</tr>
+<tr>
+<td><strong>Protokollierung</strong></td>
+<td>SLF4J / Logback</td>
+<td>2.0.9 / 1.4.14</td>
+<td>Strukturierte Protokollierung</td>
+</tr>
+<tr>
+<td><strong>Optional</strong></td>
+<td>mosh4j</td>
+<td>2.0.2</td>
+<td>Mosh-Protokoll (dynamisch geladen)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dynamische-abhangigkeiten">Dynamische Abhängigkeiten<a class="headerlink" href="#dynamische-abhangigkeiten" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>mosh4j</strong>: In Release-Builds gebündelt; Wird zur Laufzeit dynamisch geladen, wenn Mosh benötigt wird</li>
+<li><strong>rsync / ssh</strong>: Externe Befehle, die von JobScheduler Rsync-Jobs verwendet werden</li>
+<li><strong>ffmpeg</strong>: Optional; Wird für die Terminalaufzeichnung und den Videoexport verwendet</li>
+</ul>
+<h2 id="build-prozess">Build-Prozess<a class="headerlink" href="#build-prozess" title="Permanent link">&para;</a></h2>
+<h3 id="zusammenstellung-und-verpackung">Zusammenstellung und Verpackung<a class="headerlink" href="#zusammenstellung-und-verpackung" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>SithTermFX-Build</strong>: Lokal geklont und erstellt (Maven)</li>
+<li><strong>Formatierungstools</strong>: Node.js, Prettier, shfmt, Perl::Tidy, SQL-Formatter heruntergeladen und gebündelt</li>
+<li><strong>Monaco-Editor</strong>: Erstellt aus npm-Paketen, die als JavaFX WebView-Ressourcen gebündelt sind</li>
+<li><strong>Native Paketierung</strong>: Gradle-JPackage-Aufgaben erstellen plattformspezifische Distributionen (macOS .app/.dmg, Windows .exe/.msi, Linux .deb/.rpm)</li>
+</ol>
+<h3 id="klassenpfad-und-modulpfad">Klassenpfad und Modulpfad<a class="headerlink" href="#klassenpfad-und-modulpfad" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Java 25+</strong>: <code>jdk.jsobject</code> extern über das JavaFX-Artefakt bereitgestellt (Modul zur Entfernung auf JDK 25 veraltet)</li>
+<li><strong>Java 21</strong> (Windows ARM CI): Integriertes <code>jdk.jsobject</code>-Modul verwendet; externe Artefakte ausgeschlossen</li>
+<li><strong>Kompilierungszeit</strong>: Der JDK-Modulpfad umfasst JavaFX, SithTermFX und Apache SSHD</li>
+</ul>
+<h2 id="datenfluss-und-integrationspunkte">Datenfluss und Integrationspunkte<a class="headerlink" href="#datenfluss-und-integrationspunkte" title="Permanent link">&para;</a></h2>
+<h3 id="ssh-verbindungsablauf">SSH-Verbindungsablauf<a class="headerlink" href="#ssh-verbindungsablauf" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>User Input (Quick Connect)
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    ↓
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Connection Manager (lookup saved or new connection)
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    ↓
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>SSHSession (Apache SSHD or Mosh4j connector)
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    ↓
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>Terminal Pane (SithTermFX rendering)
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    ↓
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>Dashboard (status display, job monitor)
+</span></code></pre></div>
+<h3 id="ki-integrationsfluss">KI-Integrationsfluss<a class="headerlink" href="#ki-integrationsfluss" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Selected Terminal Text
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    ↓
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>AI Action (Summarize / Solve Problem / Ask)
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    ↓
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>AiChatManager (prepare request with profile/model)
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    ↓
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>AiCliProviderRegistry (map to endpoint: OpenAI, Claude, LM Studio, etc.)
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    ↓
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>AI Response Tab (render with follow-up composer)
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    ↓
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>Persistence (saved chats stored in global-settings.xml)
+</span></code></pre></div>
+<h3 id="jobplanungsablauf">Jobplanungsablauf<a class="headerlink" href="#jobplanungsablauf" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>User creates scheduled job
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    ↓
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>JobScheduler stores in job-scheduler.xml
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    ↓
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>JobExecutor runs on schedule (background thread)
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    ↓
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>JobJournal records output with redaction
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    ↓
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>Menu-bar status displays next runs / live countdown
+</span></code></pre></div>
+<h2 id="protokollierung-und-diagnose">Protokollierung und Diagnose<a class="headerlink" href="#protokollierung-und-diagnose" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Protokolldatei</strong>: <code>~/.kortty/kortty.log</code> (SLF4J mit Logback-Backend)</li>
+<li><strong>JMX-Überwachung</strong>: MBean <code>de.kortty:type=SSHClient</code> macht aktive Verbindungen, Speicher und gepufferte Textgröße verfügbar</li>
+<li><strong>JobScheduler-Journal</strong>: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)</li>
+<li><strong>Terminalverlauf</strong>: Komprimierte Sitzungsprotokolle in <code>~/.kortty/history/</code></li>
+<li><strong>Terminalaufzeichnung</strong>: Optionale Wiedergabedateien in <code>~/.kortty/recordings/</code></li>
+</ul>
+<h2 id="thread-modell">Thread-Modell<a class="headerlink" href="#thread-modell" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>UI-Thread</strong>: Der JavaFX-Anwendungsthread übernimmt das gesamte Rendering und die Benutzerinteraktion</li>
+<li><strong>SSH-Sitzungsthreads</strong>: Ein Thread pro aktiver SSH-Verbindung (Apache SSHD-Pool)</li>
+<li><strong>Job Executor Threads</strong>: Hintergrund-Thread-Pool für die JobScheduler-Ausführung</li>
+<li><strong>AI-Chat-Threads</strong>: Hintergrund-Threads für API-Anfragen (nicht blockierende Benutzeroberfläche)</li>
+<li><strong>Datei-E/A-Threads</strong>: Asynchrone Schreibvorgänge für Verlauf, Journal und Aufzeichnungen</li>
+</ul>
+<h2 id="erweiterbarkeitspunkte">Erweiterbarkeitspunkte<a class="headerlink" href="#erweiterbarkeitspunkte" title="Permanent link">&para;</a></h2>
+<h3 id="fur-plugin-entwickler">Für Plugin-Entwickler<a class="headerlink" href="#fur-plugin-entwickler" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Terminale Auswirkungen</strong>: <code>TerminalEffectPlugin</code> implementieren und über <code>ServiceLoader</code> registrieren (siehe <code>TERMINAL_EFFECT_PLUGINS.adoc</code>)</li>
+<li><strong>Benutzerdefinierte Formatierer</strong>: Fügen Sie im Snippet-Editor Unterstützung für neue Sprachen hinzu</li>
+<li><strong>KI-Fähigkeiten</strong>: Importieren Sie benutzerdefinierte KI-Befehlssätze über <code>Settings → AI Skills</code></li>
+</ol>
+<h3 id="fur-integratoren">Für Integratoren<a class="headerlink" href="#fur-integratoren" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>JAXB-Repositorys</strong>: Erweitern Sie <code>XMLConnectionRepository</code> oder <code>CredentialRepository</code>, um benutzerdefinierte Datenquellen hinzuzufügen</li>
+<li><strong>SSH-Sitzungs-Hooks</strong>: Unterklasse <code>SSHSession</code> zum Einfügen benutzerdefinierter Verbindungslogik</li>
+<li><strong>JobScheduler-Aktionen</strong>: Neue Aktionstypen zu <code>JobExecutor</code> hinzufügen (z. B. benutzerdefinierte SFTP-Vorgänge)</li>
+</ol>
+<h2 id="leistungsuberlegungen">Leistungsüberlegungen<a class="headerlink" href="#leistungsuberlegungen" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Sitzungscaching</strong>: Aktive SSH-Verbindungen werden zwischengespeichert, um den Aufwand für die erneute Verbindung zu vermeiden</li>
+<li><strong>Lazy Loading</strong>: Verbindungsdetails werden bei Bedarf geladen, nicht alle auf einmal</li>
+<li><strong>Komprimierung</strong>: Terminalverlauf und Aufzeichnungen verwenden die GZIP-Komprimierung</li>
+<li><strong>Drosselung</strong>: Terminal-Rendering-Updates werden stapelweise durchgeführt, um die Belastung des UI-Threads zu reduzieren</li>
+<li><strong>Speicherpooling</strong>: Große Puffer für Terminaltext und SFTP-Dateiliste werden wiederverwendet</li>
+</ul>
+<h2 id="best-practices-fur-die-sicherheit">Best Practices für die Sicherheit<a class="headerlink" href="#best-practices-fur-die-sicherheit" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Master-Passwort</strong>: Legen Sie ein sicheres, eindeutiges Passwort fest; es wird niemals übertragen oder protokolliert</li>
+<li><strong>SSH-Schlüssel</strong>: Zur Einbindung von Backups in <code>~/.kortty/ssh-keys/</code> speichern; Passphrasen werden verschlüsselt</li>
+<li><strong>Host-Schlüssel-Pinning</strong>: Vor der unbeaufsichtigten JobScheduler-Ausführung aktivieren</li>
+<li><strong>Backup-Verschlüsselung</strong>: Verwenden Sie passwortgeschützte ZIP- oder GPG-Verschlüsselung</li>
+<li><strong>KI-Profile</strong>: Bevorzugen Sie lokale LM Studio-Endpunkte für sensible Daten; Überprüfen Sie die Vertrauenswürdigkeit von Remote-Endpunkten</li>
+<li><strong>Protokollierungsgeheimnisse vermeiden</strong>: Das JobScheduler-Journal schwärzt gespeicherte Geheimnisse vor der Persistenz</li>
+</ol>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

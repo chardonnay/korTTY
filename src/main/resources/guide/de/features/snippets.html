@@ -1,0 +1,2834 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/features/snippets.html">
+      
+      
+        <link rel="prev" href="sftp.html">
+      
+      
+        <link rel="next" href="jobscheduler.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Snippet-Manager - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#snippet-manager" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Snippet-Manager
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="..../en/features/snippets.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="snippets.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Übersicht
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offnen-des-snippet-managers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Öffnen des Snippet-Managers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snippets-erstellen-und-bearbeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippets erstellen und bearbeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Snippets erstellen und bearbeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#editor-symbolleiste-und-funktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editor-Symbolleiste und Funktionen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spaltenlineal-und-formatierung-der-zeilenbreite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spaltenlineal und Formatierung der Zeilenbreite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#formatcode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formatcode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editor-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editor-Profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ki-gestutzte-editorfunktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-gestützte Editorfunktionen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="KI-gestützte Editorfunktionen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ki-vorschlage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Vorschläge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-textmenu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI-Textmenü
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optionale-zusatzliche-anweisungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optionale zusätzliche Anweisungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#letzte-ai-anderung-umschalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Letzte AI-Änderung umschalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-code-vervollstandigungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI-Code-Vervollständigungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editor-kontextmenu-ai-aktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editor-Kontextmenü AI-Aktionen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#textkorrektur-und-ubersetzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Textkorrektur und Übersetzung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#technische-beschreibungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technische Beschreibungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-losungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative Lösungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plantuml-diagramme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlantUML-Diagramme
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platzhaltervariablen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platzhaltervariablen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Platzhaltervariablen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#eingebaute-variablen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eingebaute Variablen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benutzerdefinierte-variablen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benutzerdefinierte Variablen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snippets-an-das-terminal-senden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippets an das Terminal senden
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Snippets an das Terminal senden">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#an-terminal-senden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        An Terminal senden
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mit-parametern-an-terminal-senden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mit Parametern an Terminal senden
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skriptargumente" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skriptargumente
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminalanzeige" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminalanzeige
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importieren-und-exportieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Importieren und Exportieren
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Importieren und Exportieren">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datenformatexporte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Datenformatexporte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skriptorientierte-exporte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skriptorientierte Exporte
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Übersicht
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offnen-des-snippet-managers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Öffnen des Snippet-Managers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snippets-erstellen-und-bearbeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippets erstellen und bearbeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Snippets erstellen und bearbeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#editor-symbolleiste-und-funktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editor-Symbolleiste und Funktionen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spaltenlineal-und-formatierung-der-zeilenbreite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spaltenlineal und Formatierung der Zeilenbreite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#formatcode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formatcode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editor-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editor-Profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ki-gestutzte-editorfunktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-gestützte Editorfunktionen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="KI-gestützte Editorfunktionen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ki-vorschlage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Vorschläge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-textmenu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI-Textmenü
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optionale-zusatzliche-anweisungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optionale zusätzliche Anweisungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#letzte-ai-anderung-umschalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Letzte AI-Änderung umschalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-code-vervollstandigungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI-Code-Vervollständigungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editor-kontextmenu-ai-aktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editor-Kontextmenü AI-Aktionen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#textkorrektur-und-ubersetzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Textkorrektur und Übersetzung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#technische-beschreibungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technische Beschreibungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-losungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative Lösungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plantuml-diagramme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlantUML-Diagramme
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platzhaltervariablen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platzhaltervariablen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Platzhaltervariablen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#eingebaute-variablen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eingebaute Variablen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benutzerdefinierte-variablen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benutzerdefinierte Variablen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snippets-an-das-terminal-senden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippets an das Terminal senden
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Snippets an das Terminal senden">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#an-terminal-senden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        An Terminal senden
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mit-parametern-an-terminal-senden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mit Parametern an Terminal senden
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skriptargumente" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skriptargumente
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminalanzeige" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminalanzeige
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importieren-und-exportieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Importieren und Exportieren
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Importieren und Exportieren">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datenformatexporte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Datenformatexporte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skriptorientierte-exporte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skriptorientierte Exporte
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="snippet-manager">Snippet-Manager<a class="headerlink" href="#snippet-manager" title="Permanent link">&para;</a></h1>
+<p>Mit dem Snippet Manager können Sie wiederverwendbare Codefragmente, Skripte und Konfigurationsvorlagen speichern, organisieren und schnell einfügen. Verwalten Sie Snippets in mehreren Sprachen mit Syntaxhervorhebung, erweiterter Suche, KI-gestützter Bearbeitung, Platzhaltervariablen und flexiblen Exportoptionen.</p>
+<h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
+<p>Der Snippet Manager umfasst die folgenden Funktionen:</p>
+<ul>
+<li><strong>System (OS)-Spalte</strong> – Eine sortierbare Betriebssystemspalte für jedes Snippet (Beliebig, Linux, macOS, Windows). Wird automatisch festgelegt, wenn ein Snippet über <em>Workflow-Skript generieren</em> erstellt wird.</li>
+<li><strong>Sortierbare Spalten</strong> – Alle Spalten (Name, Sprache, Kategorie, System, Tags) sind sortierbar.</li>
+<li><strong>Skript-Header-Kategorie</strong> – Eine feste, nicht löschbare Kategorie, die wiederverwendbare Header-Vorlagen für die Workflow-Skript-Generierung enthält.</li>
+</ul>
+<h2 id="offnen-des-snippet-managers">Öffnen des Snippet-Managers<a class="headerlink" href="#offnen-des-snippet-managers" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Menü:</strong> Extras → Snippet-Manager</li>
+<li><strong>Verknüpfung:</strong> ++Strg+Umschalt+s++ (++cmd+Umschalt+s++ unter macOS)</li>
+</ul>
+<h2 id="snippets-erstellen-und-bearbeiten">Snippets erstellen und bearbeiten<a class="headerlink" href="#snippets-erstellen-und-bearbeiten" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Klicken Sie auf <strong>Hinzufügen</strong> (oder <strong>Bearbeiten</strong>, um ein vorhandenes Snippet zu ändern).</li>
+<li>Füllen Sie die Felder aus:</li>
+<li><strong>Name</strong> – Ein beschreibender Name.</li>
+<li><strong>Sprache</strong> – Wählen Sie die Programmiersprache aus (Bash, Python, Java, JavaScript, SQL, XML, JSON, YAML und mehr). Aktiviert die Syntaxhervorhebung.</li>
+<li><strong>Kategorie</strong> – Wählen Sie eine vorhandene Kategorie aus oder geben Sie eine neue ein. Die feste, nicht löschbare Kategorie <em>Script-Header</em> enthält wiederverwendbare Header-Vorlagen für generierte Workflow-Skripte.</li>
+<li><strong>System</strong> – Wählen Sie optional ein Zielbetriebssystem (Beliebig, Linux, macOS, Windows). Automatische Einstellung bei Erstellung über <em>Workflow-Skript generieren</em> basierend auf dem geprüften Betriebssystem des Agenten; Sie können es für jedes Snippet manuell überschreiben.</li>
+<li><strong>Tags</strong> – Durch Kommas getrennte Schlüsselwörter für die Suche (z. B. <code>docker, deploy, backup</code>).</li>
+<li><strong>Beschreibung</strong> – Optionale Freitextbeschreibung des Snippets.</li>
+<li><strong>Inhalt</strong> – Der Snippet-Code. Der Editor bietet Live-Syntaxhervorhebung basierend auf der ausgewählten Sprache.</li>
+<li>Klicken Sie auf <strong>OK</strong>. Wenn sich der Snippet-Inhalt geändert hat, speichert KorTTY das bearbeitete Snippet und schließt gleichzeitig den Dialog. Beim Bearbeiten eines vorhandenen Eintrags speichert <strong>Als neues Snippet speichern</strong> den aktuellen Inhalt als neues Snippet mit einer neuen ID und lässt das Original unverändert.</li>
+</ol>
+<h3 id="editor-symbolleiste-und-funktionen">Editor-Symbolleiste und Funktionen<a class="headerlink" href="#editor-symbolleiste-und-funktionen" title="Permanent link">&para;</a></h3>
+<p>Die Symbolleiste des Snippet-Editors bietet:</p>
+<ul>
+<li><strong>Formatcode</strong> – Formatieren Sie den Inhalt mit lokalen Formatierern oder KI-gestützter Formatierung.</li>
+<li><strong>Syntax prüfen</strong> – Validieren Sie die Syntax (lokal oder KI-unterstützt).</li>
+<li><strong>KI-Text</strong> – Korrigieren Sie die Rechtschreibung, übersetzen Sie oder erstellen Sie technische Beschreibungen.</li>
+<li><strong>KI-Code</strong> – Vervollständigen Sie den Code, überprüfen Sie Fehler, verbessern Sie die Auswahl, überprüfen Sie die Sicherheit oder erstellen Sie Diagramme.</li>
+<li><strong>Einzeiler</strong> – Export als Terminal-Einzeiler.</li>
+<li><strong>Editor-Zoom</strong> – Passen Sie die Textgröße mit ++Strg+Plus++ and ++Strg+Minus++ an.</li>
+<li><strong>Editor-Profile</strong> – Wechseln Sie zwischen integrierten, von IntelliJ inspirierten Profilen und benutzerdefinierten Farbschemata.</li>
+<li><strong>Hintergrundhelligkeit</strong> – Editor-Hintergrund anpassen.</li>
+<li><strong>Zeilenumbruch</strong> – Zeilenumbruch ein-/ausschalten.</li>
+<li><strong>Zeilennummern</strong> – Anzeige der Zeilennummern umschalten.</li>
+</ul>
+<p>Wenn der Editor über den SFTP-Manager für eine lokale oder Remote-Datei geöffnet wird, bleibt dieselbe Symbolleiste verfügbar und das Dialogfeld verwendet Schaltflächen zum Speichern im Dateimodus.</p>
+<h3 id="spaltenlineal-und-formatierung-der-zeilenbreite">Spaltenlineal und Formatierung der Zeilenbreite<a class="headerlink" href="#spaltenlineal-und-formatierung-der-zeilenbreite" title="Permanent link">&para;</a></h3>
+<p>Oberhalb des Inhaltsfelds hält das Spaltenlineal die aktuelle Caret-Spalte links als <code>Column N</code> fest und zeigt eine Live-Markierung an der entsprechenden Editorposition an. Wenn Sie mit der Maus über den Live-Marker fahren, wird <code>Position N</code> angezeigt. Klicken Sie auf das Lineal, um eine Markierung für die maximale Zeilenlänge festzulegen (Spalten 20–240). Klicken Sie mit der rechten Maustaste auf diese Markierung, um den Inhalt auf die ausgewählte Breite zu formatieren oder die Markierung zu entfernen.</p>
+<p>Die Formatierung der Zeilenbreite funktioniert lokal nur für Formatierer, die konfigurierbare Breite unterstützen:</p>
+<ul>
+<li>Schöner unterstützte Webformate (JavaScript, TypeScript, HTML, CSS, JSON)</li>
+<li>Python (Schwarz)</li>
+<li>Perl (Perl::Tidy)</li>
+</ul>
+<p>Bei Sprachen ohne lokale Zeilenbreitenunterstützung fragt KorTTY, ob eine KI-gestützte Formatierung verwendet werden soll. Sowohl die lokale als auch die KI-gestützte Formatierung zeigen eine Vorher/Nachher-Vorschau an, bevor Änderungen übernommen werden.</p>
+<h3 id="formatcode">Formatcode<a class="headerlink" href="#formatcode" title="Permanent link">&para;</a></h3>
+<p><strong>Format Code</strong> nutzt den gemeinsam genutzten lokalen Formatierungsdienst von KorTTY:</p>
+<ul>
+<li><strong>Eingebaute Formatierer:</strong> JSON, XML, YAML/YML, TOML, INI/properties, Groovy</li>
+<li><strong>Gebündelte Formatierer:</strong> Java (google-java-format), Bash/Shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)</li>
+<li><strong>Fallback:</strong> Optionale PATH-Fallbacks für Entwickler-Setups, wenn ein gebündelter Formatierer fehlt</li>
+</ul>
+<p>Wenn die lokale Formatierung nicht verfügbar ist und das konfigurierte AI-Profil Snippet-AI-Funktionen bietet, fragt KorTTY, ob die AI-Unterstützung verwendet werden soll. Die AI-Formatierung wird erst angewendet, nachdem die Vorher/Nachher-Vorschau akzeptiert wurde.</p>
+<h3 id="editor-profile">Editor-Profile<a class="headerlink" href="#editor-profile" title="Permanent link">&para;</a></h3>
+<p>Wechseln Sie zwischen:</p>
+<ul>
+<li><strong>Aktuelle benutzerdefinierte Farben</strong> – Benutzerdefinierte Palette</li>
+<li><strong>10 integrierte, von IntelliJ inspirierte Profile</strong> – Vordefinierte Farbschemata</li>
+<li><strong>Vom Benutzer erstellte Profile</strong> – Von Ihnen erstellte benutzerdefinierte Profile</li>
+</ul>
+<p>Profile speichern Vordergrund-/Hintergrundfarben, Syntaxfarben, Cursorfarbe und Cursorstil.</p>
+<p><img alt="Snippet editor workflow" src="../assets/diagrams/snippet-editor-workflow.svg" /></p>
+<h2 id="ki-gestutzte-editorfunktionen">KI-gestützte Editorfunktionen<a class="headerlink" href="#ki-gestutzte-editorfunktionen" title="Permanent link">&para;</a></h2>
+<p>Wenn AI konfiguriert ist, bietet der Snippet-Editor zusätzliche Aktionen:</p>
+<h3 id="ki-vorschlage">KI-Vorschläge<a class="headerlink" href="#ki-vorschlage" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>KI-Vorschlag</strong> – Erzeugt einen Dateinamen, eine Beschreibung und eine passende Sprache aus dem aktuellen Codeinhalt.</li>
+<li><strong>Korrekte Schreibweise</strong> – Im Beschreibungsfeld; sendet nur Beschreibungstext an die KI.</li>
+</ul>
+<h3 id="ai-textmenu">AI-Textmenü<a class="headerlink" href="#ai-textmenu" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Rechtschreibung in der Auswahl korrigieren</strong> – Tippfehler im ausgewählten Text korrigieren.</li>
+<li><strong>Auswahl übersetzen…</strong> – Ausgewählten Text in eine andere Sprache übersetzen.</li>
+<li><strong>Technische Beschreibung</strong> – Dokumentation für den ausgewählten Code oder das gesamte Snippet erstellen.</li>
+</ul>
+<h3 id="optionale-zusatzliche-anweisungen">Optionale zusätzliche Anweisungen<a class="headerlink" href="#optionale-zusatzliche-anweisungen" title="Permanent link">&para;</a></h3>
+<p>Wenn die Option in <em>Einstellungen → KI</em> aktiviert ist, zeigt der Editor ein Feld mit gemeinsamen Anweisungen an, das bei Anfragen zur Rechtschreibkorrektur, Übersetzung und technischen Beschreibung gesendet wird.</p>
+<h3 id="letzte-ai-anderung-umschalten">Letzte AI-Änderung umschalten<a class="headerlink" href="#letzte-ai-anderung-umschalten" title="Permanent link">&para;</a></h3>
+<p>Die Schaltfläche ↺ wechselt zwischen dem Originalcode und der letzten KI-generierten Editoränderung.</p>
+<h3 id="ai-code-vervollstandigungen">AI-Code-Vervollständigungen<a class="headerlink" href="#ai-code-vervollstandigungen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>AI Complete</strong> – Fordert die Vervollständigung des Codes an der aktuellen Cursorposition an und zeigt ihn als nicht editierbaren Ghost-Vorschlag an. Klicken Sie zum Einfügen.</li>
+<li><strong>Auto AI Complete</strong> – Fordert automatisch Abschlüsse an, nachdem Sie an einer Cursorposition angehalten haben. Standardmäßig deaktiviert; Nur für die aktuelle Editor-Sitzung aktiv.</li>
+</ul>
+<h3 id="editor-kontextmenu-ai-aktionen">Editor-Kontextmenü AI-Aktionen<a class="headerlink" href="#editor-kontextmenu-ai-aktionen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>AI Assistant…</strong> – Öffnet einen Anweisungsdialog für die aktuelle Cursorposition. KorTTY sendet das vollständige Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil. Das Ergebnis wird als Vorher/Nachher-Vorschau angezeigt.</li>
+<li><strong>Fehler und Verbesserungen überprüfen</strong> – Erstellt einen Informationsbericht, ohne den Inhalt zu ändern.</li>
+<li><strong>Verbessern…</strong> – Schreibt nur den ausgewählten Codebereich neu.</li>
+<li><strong>Sicherheitsprüfung</strong> – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus; KorTTY wendet sie mit einer Vorher/Nachher-Vorschau an.</li>
+<li><strong>Diagramm</strong> – Erzeugt und speichert ein persistentes PlantUML-Logikstrukturdiagramm für das Snippet.</li>
+</ul>
+<div class="admonition warnung">
+<p class="admonition-title">Warnung</p>
+</div>
+<p>Snippet-KI-Aktionen senden den aktuellen Snippet-Inhalt, Auswahl- oder Cursor-Metadaten, Eingabeaufforderungsanweisungen und optional aktivierte KI-Fähigkeiten an das konfigurierte Standard-KI-Profil. Snippet-KI-Aktionen aktivieren keine Internet-Tools, selbst wenn das ausgewählte Profil über Internetzugang verfügt. Die automatische Vervollständigung kann das Snippet wiederholt senden, während sie aktiv ist. Deaktivieren Sie sie daher für sensible Snippets, es sei denn, Sie vertrauen dem konfigurierten Endpunkt.</p>
+<h3 id="textkorrektur-und-ubersetzung">Textkorrektur und Übersetzung<a class="headerlink" href="#textkorrektur-und-ubersetzung" title="Permanent link">&para;</a></h3>
+<p>Für die auswahlbasierte Textkorrektur und -übersetzung schreibt KorTTY nur bearbeitbaren Kommentartext, Zeichenfolgenliterale und für den Benutzer sichtbare Textsegmente neu. Die logische Codestruktur wird nicht neu geschrieben.</p>
+<h3 id="technische-beschreibungen">Technische Beschreibungen<a class="headerlink" href="#technische-beschreibungen" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Wenn Text ausgewählt ist, beschreibt die KI nur diesen Bereich.</li>
+<li>Wenn nichts ausgewählt ist, beschreibt die KI das gesamte Snippet.</li>
+</ul>
+<p>Mit dem Beschreibungsdialog können Sie:</p>
+<ul>
+<li>Kopieren Sie die generierte Beschreibung</li>
+<li>Formatieren Sie es mit der Kommentarsyntax der aktuellen Snippet-Sprache</li>
+<li>Fügen Sie es in das Snippet oberhalb des ausgewählten Codes oder oben ein</li>
+</ul>
+<h3 id="alternative-losungen">Alternative Lösungen<a class="headerlink" href="#alternative-losungen" title="Permanent link">&para;</a></h3>
+<p>Klicken Sie mit der rechten Maustaste auf eine ausgewählte Coderegion und wählen Sie <strong>Alternative Lösung</strong>, um:</p>
+<ul>
+<li>Fordern Sie mehrere alternative Implementierungen an (bis zum konfigurierten Limit)</li>
+<li>Fügen Sie ein dreizeiliges Feld für zusätzliche Anweisungen hinzu</li>
+<li>Laden Sie neue Alternativen neu und regenerieren Sie sie</li>
+<li>Zoomen Sie eine einzelne Vorschau auf den gesamten Dialogbereich</li>
+<li>Wenden Sie genau den ursprünglich ausgewählten Code an, wenn Sie fertig sind</li>
+</ul>
+<h3 id="plantuml-diagramme">PlantUML-Diagramme<a class="headerlink" href="#plantuml-diagramme" title="Permanent link">&para;</a></h3>
+<p>PlantUML-Diagramme werden mit dem Snippet gespeichert. Wenn sich der Snippet-Inhalt nach der Diagrammgenerierung ändert, markiert KorTTY das Diagramm als möglicherweise veraltet und bietet eine Neugenerierung an.</p>
+<ul>
+<li><strong>Rendering:</strong> Nur lokal – KorTTY verwendet ein prüfsummenverifiziertes PlantUML-JAR und Graphviz <code>dot</code>; Es wird kein Remote-Server verwendet.</li>
+<li><strong>Dialogfunktionen:</strong> Gerendertes Bild, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export und Kopieren in die Zwischenablage.</li>
+<li><strong>Abhängigkeitsfehler:</strong> Wenn lokales Rendering nicht verfügbar ist, zeigt KorTTY den Fehler an, damit Java/Graphviz behoben werden kann.</li>
+</ul>
+<h2 id="platzhaltervariablen">Platzhaltervariablen<a class="headerlink" href="#platzhaltervariablen" title="Permanent link">&para;</a></h2>
+<p>Snippets können Platzhaltervariablen enthalten, die ersetzt werden, wenn Sie das Snippet einfügen.</p>
+<h3 id="eingebaute-variablen">Eingebaute Variablen<a class="headerlink" href="#eingebaute-variablen" title="Permanent link">&para;</a></h3>
+<p>Diese Variablen werden automatisch ersetzt:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Ersatz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>${date}</code></td>
+<td>Aktuelles Datum im <code>YYYY-MM-DD</code>-Format</td>
+</tr>
+<tr>
+<td><code>${time}</code></td>
+<td>Aktuelle Uhrzeit im <code>HH:MM:SS</code>-Format</td>
+</tr>
+<tr>
+<td><code>${datetime}</code></td>
+<td>Aktuelles Datum und Uhrzeit im <code>YYYY-MM-DD HH:MM:SS</code>-Format</td>
+</tr>
+<tr>
+<td><code>${hostname}</code></td>
+<td>Hostname des lokalen Computers</td>
+</tr>
+<tr>
+<td><code>${username}</code></td>
+<td>Aktueller Systembenutzername</td>
+</tr>
+<tr>
+<td><code>${clipboard}</code></td>
+<td>Aktueller Inhalt der Zwischenablage</td>
+</tr>
+<tr>
+<td><code>${cursor}</code></td>
+<td>Cursorposition (aus dem Text entfernt; Position zurückgegeben)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="benutzerdefinierte-variablen">Benutzerdefinierte Variablen<a class="headerlink" href="#benutzerdefinierte-variablen" title="Permanent link">&para;</a></h3>
+<p>Jeder <code>${variableName}</code>, der nicht in der integrierten Liste enthalten ist, wird als benutzerdefinierte Variable behandelt. Wenn Sie das Snippet einfügen:</p>
+<ul>
+<li>KorTTY überprüft den Variablenmanager auf gespeicherte Werte</li>
+<li>Variablen ohne gespeicherte Werte fordern zur Eingabe auf</li>
+</ul>
+<h2 id="snippets-an-das-terminal-senden">Snippets an das Terminal senden<a class="headerlink" href="#snippets-an-das-terminal-senden" title="Permanent link">&para;</a></h2>
+<p>Der Snippet Manager kann ein ausgewähltes Snippet direkt an das aktive Terminal senden.</p>
+<h3 id="an-terminal-senden">An Terminal senden<a class="headerlink" href="#an-terminal-senden" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Behält bestehendes Verhalten bei</li>
+<li>Unterstützte Skriptsprachen werden nach Möglichkeit als Terminal-Einzeiler eingebettet
+– Andere Snippets verwenden den vorhandenen Fallback-Pfad</li>
+</ul>
+<h3 id="mit-parametern-an-terminal-senden">Mit Parametern an Terminal senden<a class="headerlink" href="#mit-parametern-an-terminal-senden" title="Permanent link">&para;</a></h3>
+<p>– Öffnet einen Dialog für fehlende <code>${...}</code>-Platzhaltervariablen und Skriptargumente
+- Skriptargumente werden einzeln pro Zeile eingegeben; Leerzeilen werden ignoriert
+- Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis dasselbe wie bei <strong>An Terminal senden</strong>, fehlende Platzhaltervariablen können jedoch weiterhin ausgefüllt werden</p>
+<h3 id="skriptargumente">Skriptargumente<a class="headerlink" href="#skriptargumente" title="Permanent link">&para;</a></h3>
+<p>Unterstützt für Bash/Shell-, Python-, Perl- und Ruby-Snippets:</p>
+<ul>
+<li>Argumente werden einzeln und in Shell-Anführungszeichen übergeben
+– Nicht als roher Shell-Text angehängt</li>
+<li>Wenn Argumente für nicht unterstützte Sprachen eingegeben werden, zeigt KorTTY eine Informationsmeldung an und sendet nichts</li>
+</ul>
+<h3 id="terminalanzeige">Terminalanzeige<a class="headerlink" href="#terminalanzeige" title="Permanent link">&para;</a></h3>
+<p>Bei eingebetteten/Base64-Einzeilern zeigt das Terminal die Bezeichnung <code>KorTTY snippet: ...</code> an, anstatt den vollständig generierten Befehl wiederzugeben.</p>
+<h2 id="importieren-und-exportieren">Importieren und Exportieren<a class="headerlink" href="#importieren-und-exportieren" title="Permanent link">&para;</a></h2>
+<p>Snippets können in mehreren Formaten importiert und exportiert werden.</p>
+<h3 id="datenformatexporte">Datenformatexporte<a class="headerlink" href="#datenformatexporte" title="Permanent link">&para;</a></h3>
+<p>Verwenden Sie <strong>Exportieren</strong>, um ausgewählte Snippets oder alle Snippets zu speichern, wenn nichts ausgewählt ist. Verwenden Sie <strong>Importieren</strong>, um Snippets aus einer Datei zusammenzuführen.</p>
+<table>
+<thead>
+<tr>
+<th>Formatieren</th>
+<th>Erweiterung</th>
+<th>Anwendungsfall</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JSON</td>
+<td><code>.json</code></td>
+<td>Datenaustausch, programmatischer Zugriff</td>
+</tr>
+<tr>
+<td>XML</td>
+<td><code>.xml</code></td>
+<td>Strukturierte Daten, Tool-Integration</td>
+</tr>
+<tr>
+<td>YAML</td>
+<td><code>.yaml</code></td>
+<td>Für Menschen lesbar, konfigurationsfreundlich</td>
+</tr>
+</tbody>
+</table>
+<h3 id="skriptorientierte-exporte">Skriptorientierte Exporte<a class="headerlink" href="#skriptorientierte-exporte" title="Permanent link">&para;</a></h3>
+<p>Wählen Sie für skriptspezifische Exporte Folgendes:</p>
+<h4 id="nur-text-skriptdateien">Nur-Text-Skriptdateien<a class="headerlink" href="#nur-text-skriptdateien" title="Permanent link">&para;</a></h4>
+<p>– Öffnet eine Zielordnerauswahl
+- Schreibt eine Datei pro Snippet
+– Der Dateiname stammt aus der Spalte <strong>Name</strong> des Snippets, einschließlich der Erweiterung
+- Unsichere Pfadzeichen werden bereinigt
+- Doppelte Namen erhalten ein Suffix wie <code>script (2).sh</code></p>
+<h4 id="zip-skriptarchiv">ZIP-Skriptarchiv<a class="headerlink" href="#zip-skriptarchiv" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Schreibt eine ZIP-Datei mit einer Skriptdatei pro Snippet</li>
+<li>Behalten Sie die Erweiterung aus der Spalte <strong>Name</strong> bei oder erzwingen Sie eine Erweiterung für alle Dateien</li>
+<li>Unterstützte erzwungene Erweiterungen: <code>.sh</code>, <code>.py</code>, <code>.pl</code>, <code>.rb</code>, <code>.ps1</code>, <code>.sql</code>, <code>.txt</code> oder benutzerdefiniert</li>
+</ul>
+<h4 id="zip-verschlusselungsoptionen">ZIP-Verschlüsselungsoptionen<a class="headerlink" href="#zip-verschlusselungsoptionen" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Unverschlüsselt</strong> – Standard-ZIP-Archiv</li>
+<li><strong>AES passwortgeschützt</strong> – Passwortverschlüsselt mit AES-256</li>
+<li><strong>GPG-verschlüsselt</strong> – Erstellt eine <code>.zip.gpg</code>-Datei; erfordert den lokalen Befehl <code>gpg</code> und einen verwendbaren öffentlichen Schlüssel</li>
+</ul>
+<div class="admonition tipp">
+<p class="admonition-title">Tipp</p>
+</div>
+<p>Wählen Sie zwei Snippets aus, exportieren Sie sie als Nur-Text und bestätigen Sie, dass die erstellten Dateien die Namen aus der Spalte <strong>Name</strong> verwenden. Exportieren Sie dann dieselbe Auswahl als ZIP mit der erzwungenen Erweiterung <code>.txt</code> und überprüfen Sie, ob alle ZIP-Einträge <code>.txt</code> verwenden. Bestätigen Sie für den Passwortexport, dass die ZIP-Datei vor dem Extrahieren das Passwort erfordert. For GPG export, decrypt the <code>.zip.gpg</code> with your local GPG setup and inspect the ZIP entries.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
