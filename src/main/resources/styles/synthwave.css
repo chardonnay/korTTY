@@ -1,0 +1,447 @@
+/* Synthwave '84 app design. Cross-platform JavaFX CSS only. */
+
+.root,
+.dialog-pane {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: linear-gradient(to bottom, #1a0b2e 0%, #2d1b4e 70%, rgba(255,46,136,0.18) 100%);
+    -fx-border-color: transparent;
+    -fx-text-fill: #f5e1ff;
+}
+
+.synthwave-root,
+.kortty-main-root,
+.master-password-root {
+    -fx-background-color: linear-gradient(to bottom, #1a0b2e 0%, #2d1b4e 70%, rgba(255,46,136,0.18) 100%);
+    -fx-border-color: rgba(157,78,221,0.55);
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, #9d4edd, 36, 0.12, 0, 0);
+}
+
+.synthwave-titlebar {
+    -fx-background-color: linear-gradient(to bottom, rgba(157,78,221,0.18), rgba(157,78,221,0.06));
+    -fx-border-color: transparent transparent rgba(255,46,136,0.45) transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 0 0 0 24;
+}
+
+.synthwave-window-title {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ff2e88;
+}
+
+.wm-dot-red,
+.wm-dot-amber,
+.wm-dot-cyan {
+    -fx-background-radius: 5;
+    -fx-min-width: 10;
+    -fx-min-height: 10;
+    -fx-pref-width: 10;
+    -fx-pref-height: 10;
+    -fx-max-width: 10;
+    -fx-max-height: 10;
+}
+
+.wm-dot-red {
+    -fx-background-color: #ff2e88;
+    -fx-effect: dropshadow(gaussian, #ff2e88, 8, 0.5, 0, 0);
+}
+
+.wm-dot-amber {
+    -fx-background-color: #9d4edd;
+    -fx-effect: dropshadow(gaussian, #9d4edd, 8, 0.5, 0, 0);
+}
+
+.wm-dot-cyan {
+    -fx-background-color: #26d6ff;
+    -fx-effect: dropshadow(gaussian, #26d6ff, 8, 0.5, 0, 0);
+}
+
+.label,
+.check-box,
+.radio-button,
+.hyperlink,
+.titled-pane > .title > .text {
+    -fx-font-family: "Monospaced";
+    -fx-text-fill: #f5e1ff;
+}
+
+.hyperlink {
+    -fx-text-fill: #26d6ff;
+}
+
+.field-label {
+    -fx-font-family: "Monospaced";
+    -fx-text-fill: rgba(245,225,255,0.55);
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.version-label {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 10px;
+    -fx-text-fill: rgba(245,225,255,0.55);
+}
+
+.app-design-cursor {
+    -fx-min-width: 10;
+    -fx-pref-width: 10;
+    -fx-max-width: 10;
+    -fx-min-height: 10;
+    -fx-pref-height: 10;
+    -fx-max-height: 10;
+    -fx-background-radius: 5;
+    -fx-background-color: #ff2e88;
+    -fx-effect: dropshadow(gaussian, #ff2e88, 10, 0.5, 0, 0);
+}
+
+.status-bar,
+.main-content,
+.dashboard-view,
+.dialog-pane .content,
+.dialog-pane .header-panel,
+.scroll-pane,
+.scroll-pane .viewport,
+.split-pane,
+.tool-bar,
+.titled-pane > .content {
+    -fx-background-color: transparent;
+}
+
+.menu-bar,
+.context-menu,
+.menu-button,
+.combo-box,
+.choice-box,
+.color-picker,
+.spinner,
+.list-view,
+.tree-view,
+.table-view,
+.tab-pane,
+.tab-pane .tab-header-area,
+.tab-pane .tab-header-background,
+.titled-pane > .title,
+.logo-area {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(157,78,221,0.10), rgba(157,78,221,0.04)),
+        #1a0b2e;
+    -fx-control-inner-background: #1a0b2e;
+    -fx-border-color: rgba(157,78,221,0.55);
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, #ff2e88, 14, 0.18, 0, 0);
+}
+
+.menu-bar {
+    -fx-padding: 3 8 3 8;
+}
+
+.menu-bar .menu,
+.menu-item,
+.tab {
+    -fx-background-color: transparent;
+}
+
+.menu-bar .menu .label,
+.menu-item .label,
+.menu-button .label,
+.combo-box .list-cell,
+.choice-box .label,
+.color-picker .label,
+.tab .tab-label,
+.settings-info-label {
+    -fx-text-fill: #f5e1ff;
+}
+
+.menu-bar .menu:hover,
+.menu-bar .menu:showing,
+.menu-item:hover,
+.menu-item:focused,
+.menu-button:hover,
+.menu-button:showing,
+.combo-box:hover,
+.choice-box:hover,
+.color-picker:hover,
+.tab:hover {
+    -fx-background-color: rgba(255,46,136,0.18);
+}
+
+.tab:selected {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,46,136,0.18), rgba(255,46,136,0.05)),
+        #1a0b2e;
+    -fx-border-color: #ff2e88;
+    -fx-border-width: 0 0 2 0;
+}
+
+.tab-close-button,
+.menu-button .arrow-button .arrow,
+.combo-box .arrow,
+.choice-box .arrow,
+.spinner .increment-arrow,
+.spinner .decrement-arrow,
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow,
+.tree-cell .tree-disclosure-node .arrow {
+    -fx-background-color: #26d6ff;
+}
+
+.button,
+.btn-secondary {
+    -fx-font-family: "Monospaced";
+    -fx-font-weight: bold;
+    -fx-background-color: rgba(255,46,136,0.10);
+    -fx-border-color: #ff2e88;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-text-fill: #f5e1ff;
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
+}
+
+.button:hover,
+.button:focused,
+.btn-secondary:hover {
+    -fx-background-color: rgba(255,46,136,0.20);
+    -fx-effect: dropshadow(gaussian, #ff2e88, 16, 0.30, 0, 0);
+}
+
+.button:default,
+.btn-primary {
+    -fx-font-family: "Monospaced";
+    -fx-font-weight: bold;
+    -fx-background-color: linear-gradient(to bottom, #ff2e88, #c41e7a);
+    -fx-border-color: transparent;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-text-fill: #1a0b2e;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, #ff2e88, 16, 0.30, 0, 0);
+}
+
+.button:default:hover,
+.btn-primary:hover {
+    -fx-background-color: linear-gradient(to bottom, #ff4f9e, #d62a88);
+    -fx-effect: dropshadow(gaussian, #ff2e88, 22, 0.45, 0, 0);
+}
+
+.btn-secondary {
+    -fx-background-color: transparent;
+    -fx-border-color: rgba(157,78,221,0.55);
+    -fx-text-fill: #f5e1ff;
+}
+
+.text-input,
+.text-field,
+.password-field,
+.text-area,
+.text-area .content,
+.terminal-input,
+.synthwave-input {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: #1a0b2e;
+    -fx-control-inner-background: #1a0b2e;
+    -fx-text-fill: #f5e1ff;
+    -fx-prompt-text-fill: rgba(245,225,255,0.55);
+    -fx-highlight-fill: rgba(255,46,136,0.40);
+    -fx-highlight-text-fill: #f5e1ff;
+    -fx-border-color: rgba(157,78,221,0.55);
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-size: 13px;
+    -fx-pref-height: 40;
+    -fx-padding: 0 16 0 16;
+}
+
+.text-field:focused,
+.password-field:focused,
+.text-area:focused,
+.terminal-input:focused,
+.synthwave-input:focused {
+    -fx-border-color: #26d6ff;
+    -fx-effect: dropshadow(gaussian, #26d6ff, 14, 0.30, 0, 0);
+}
+
+.input-prefix {
+    -fx-text-fill: rgba(245,225,255,0.55);
+    -fx-font-family: "Monospaced";
+}
+
+.input-glow-bar {
+    -fx-min-height: 2;
+    -fx-pref-height: 2;
+    -fx-max-height: 2;
+    -fx-background-color: linear-gradient(to right, #ff2e88, #9d4edd, #26d6ff);
+    -fx-effect: dropshadow(gaussian, #ff2e88, 8, 0.6, 0, 0);
+}
+
+.list-cell,
+.tree-cell,
+.table-row-cell,
+.table-cell {
+    -fx-background-color: #1a0b2e;
+    -fx-text-fill: #f5e1ff;
+}
+
+.list-cell:hover,
+.tree-cell:hover,
+.table-row-cell:hover {
+    -fx-background-color: rgba(255,46,136,0.18);
+}
+
+.list-cell:selected,
+.tree-cell:selected,
+.table-row-cell:selected {
+    -fx-background-color: rgba(255,46,136,0.30);
+    -fx-text-fill: #f5e1ff;
+}
+
+.table-view {
+    -fx-table-cell-border-color: rgba(157,78,221,0.30);
+}
+
+.table-view .column-header,
+.table-view .column-header-background,
+.table-view .filler {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(157,78,221,0.20), rgba(157,78,221,0.06)),
+        #1a0b2e;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #ff2e88;
+}
+
+.scroll-bar,
+.scroll-bar .track,
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: rgba(157,78,221,0.55);
+    -fx-background-radius: 6;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #ff2e88;
+}
+
+.separator:horizontal .line,
+.separator:vertical .line,
+.split-pane-divider {
+    -fx-background-color: rgba(157,78,221,0.55);
+    -fx-border-color: rgba(157,78,221,0.55);
+}
+
+.check-box .box,
+.radio-button .radio {
+    -fx-background-color: #1a0b2e;
+    -fx-border-color: rgba(157,78,221,0.55);
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.radio-button .radio {
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.check-box:selected .mark,
+.radio-button:selected .dot {
+    -fx-background-color: #ff2e88;
+}
+
+.check-box:selected .box,
+.radio-button:selected .radio {
+    -fx-border-color: #ff2e88;
+}
+
+.progress-bar,
+.progress-bar .track,
+.progress-indicator {
+    -fx-background-color: rgba(157,78,221,0.12);
+}
+
+.progress-bar .bar,
+.progress-indicator .indicator {
+    -fx-background-color: linear-gradient(to right, #ff2e88, #26d6ff);
+}
+
+.slider .track {
+    -fx-background-color: rgba(157,78,221,0.55);
+}
+
+.slider .thumb {
+    -fx-background-color: #ff2e88;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, #ff2e88, 8, 0.4, 0, 0);
+}
+
+.tooltip {
+    -fx-font-family: "Monospaced";
+    -fx-background-color: #1a0b2e;
+    -fx-text-fill: #f5e1ff;
+    -fx-border-color: rgba(255,46,136,0.55);
+    -fx-effect: dropshadow(gaussian, #ff2e88, 12, 0.20, 0, 0);
+}
+
+.file-browser-panel,
+.file-browser-tree,
+.file-browser-tree .tree-cell,
+.file-browser-tree .scroll-bar,
+.file-browser-tree .scroll-bar .track,
+.file-browser-tree .scroll-bar .increment-button,
+.file-browser-tree .scroll-bar .decrement-button,
+.file-browser-status,
+.dashboard-tree,
+.dashboard-tree .tree-cell {
+    -fx-background-color: #1a0b2e;
+    -fx-control-inner-background: #1a0b2e;
+    -fx-text-fill: #f5e1ff;
+}
+
+.file-browser-tree .tree-cell:hover,
+.file-browser-tree .tree-cell:selected,
+.dashboard-tree .tree-cell:hover,
+.dashboard-tree .tree-cell:selected {
+    -fx-background-color: rgba(255,46,136,0.18);
+    -fx-text-fill: #f5e1ff;
+}
+
+.file-browser-tree .scroll-bar .thumb {
+    -fx-background-color: rgba(157,78,221,0.55);
+}
+
+.logo-panel,
+.logo-area {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(157,78,221,0.18), rgba(157,78,221,0.04)),
+        #1a0b2e;
+    -fx-border-color: #ff2e88;
+    -fx-border-width: 1;
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+    -fx-pref-width: 96;
+    -fx-pref-height: 96;
+    -fx-effect: dropshadow(gaussian, #ff2e88, 18, 0.30, 0, 0);
+    -fx-padding: 18;
+}
+
+.synthwave-brand-mark {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ff2e88;
+}
+
+.synthwave-brand-name {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #26d6ff;
+}

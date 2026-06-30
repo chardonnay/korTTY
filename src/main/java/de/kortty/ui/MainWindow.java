@@ -62,6 +62,7 @@ import java.util.function.Consumer;
 
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.Scene;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -482,11 +483,20 @@ public class MainWindow {
         });
         
         // Status bar
-        statusBar = new VBox(statusLabel);
+        Region appDesignCursor = new Region();
+        appDesignCursor.getStyleClass().add("app-design-cursor");
+        appDesignCursor.setVisible(false);
+        appDesignCursor.setManaged(false);
+        Region statusSpacer = new Region();
+        HBox statusRow = new HBox(8, statusLabel, statusSpacer, appDesignCursor);
+        statusRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(statusSpacer, Priority.ALWAYS);
+        statusBar = new VBox(statusRow);
         statusBar.getStyleClass().add("status-bar");
         statusLabel.getStyleClass().add("status-label");
         statusBar.setStyle("-fx-padding: 5; -fx-background-color: #2d2d2d;");
         statusLabel.setStyle("-fx-text-fill: #cccccc;");
+        AppDesignAnimator.registerCursor(appDesignCursor);
 
         // While the menu bar is hidden, a right-click on the status bar offers to restore it.
         ContextMenu statusBarContextMenu = new ContextMenu();
@@ -2325,7 +2335,11 @@ public class MainWindow {
             if (localFileBrowser != null) {
                 localFileBrowser.applyTheme(bg, fg);
             }
-            if (bg != null && !bg.isEmpty()) {
+            if (customAppDesign) {
+                // The app design fully owns the chrome; the terminal-theme dynamic stylesheet would
+                // override its menu/button/label colours, so strip it while a custom design is active.
+                removeDynamicThemeStylesheet();
+            } else if (bg != null && !bg.isEmpty()) {
                 updateDynamicThemeStylesheet(bg, fg);
             }
             if (stage.getScene() != null) {
@@ -2373,11 +2387,19 @@ public class MainWindow {
         }
     }
 
+    private void removeDynamicThemeStylesheet() {
+        if (stage.getScene() != null && dynamicThemeStylesheetUrl != null) {
+            stage.getScene().getStylesheets().remove(dynamicThemeStylesheetUrl);
+        }
+        dynamicThemeStylesheetUrl = null;
+    }
+
     private static void refreshAppDesignForOpenWindows() {
         for (MainWindow window : new ArrayList<>(openWindows)) {
             window.applyMainWindowThemeFromGlobalSettings();
         }
         AppDesignStyleSupport.applyToOpenWindows();
+        AppDesignAnimator.refreshAll();
     }
     
     private void openNewWindow() {

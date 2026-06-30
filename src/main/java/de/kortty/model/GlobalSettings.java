@@ -152,6 +152,9 @@ public class GlobalSettings {
     private String appDesign = AppDesign.NORMAL.getId(); // App-level UI design, default: normal
 
     @XmlElement
+    private boolean appDesignAnimationsEnabled = true; // Subtle design animations (glow pulse / blink); doubles as reduce-motion switch
+
+    @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
     
     /** When true, temporary SSH key option is shown in Connection Manager and Quick Connect. Default: false. */
@@ -936,6 +939,14 @@ public class GlobalSettings {
 
     public void setAppDesign(AppDesign appDesign) {
         this.appDesign = (appDesign != null ? appDesign : AppDesign.NORMAL).getId();
+    }
+
+    public boolean isAppDesignAnimationsEnabled() {
+        return appDesignAnimationsEnabled;
+    }
+
+    public void setAppDesignAnimationsEnabled(boolean appDesignAnimationsEnabled) {
+        this.appDesignAnimationsEnabled = appDesignAnimationsEnabled;
     }
 
     public boolean isRequireMasterPasswordOnStartup() {

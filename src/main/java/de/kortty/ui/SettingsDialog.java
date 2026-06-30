@@ -106,14 +106,10 @@ import java.util.stream.Collectors;
  * Dialog for editing global terminal settings.
  */
 public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
-    private static final String MATRIX_TERMINAL_PREVIEW_RESOURCE = "/previews/matrix-terminal-preview.png";
-    private static final String HOLOGRAPHIC_PREVIEW_RESOURCE = "/previews/holographic-preview.png";
-    private static final String KLINGON_TACTICAL_PREVIEW_RESOURCE = "/previews/klingon-tactical-preview.png";
-    private static final String ELEGANT_DARK_PREVIEW_RESOURCE = "/previews/elegant-dark-preview.png";
     private static final double APP_DESIGN_PREVIEW_MAX_HEIGHT = 260;
     private static final String APP_DESIGN_PREVIEW_NEUTRAL_STYLE =
         "-fx-border-color: rgba(255,255,255,0.12); -fx-border-width: 1;";
-    
+
     private final KorTTYApplication app;
     private final ConfigurationManager configManager;
     private final ConnectionSettings settings;
@@ -152,6 +148,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
+    private CheckBox appDesignAnimationsCheck;
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
@@ -333,13 +330,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Appearance tab
         Tab appearanceTab = new Tab(I18n.get("settings.tab.appearance"));
         appDesignCombo = new ComboBox<>();
-        appDesignCombo.getItems().addAll(
-            AppDesign.NORMAL,
-            AppDesign.MATRIX_TERMINAL,
-            AppDesign.HOLOGRAPHIC_INTERFACE,
-            AppDesign.KLINGON_TACTICAL,
-            AppDesign.ELEGANT_DARK
-        );
+        appDesignCombo.getItems().setAll(AppDesign.values());
         appDesignCombo.setValue(globalSettings != null ? globalSettings.getAppDesign() : AppDesign.NORMAL);
         appDesignCombo.setPrefWidth(220);
         appDesignCombo.setConverter(new javafx.util.StringConverter<>() {
@@ -402,6 +393,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             appDesignPrevButton, appDesignNextButton);
         appDesignControls.setAlignment(Pos.CENTER_LEFT);
 
+        appDesignAnimationsCheck = new CheckBox(I18n.get("settings.appearance.animations"));
+        appDesignAnimationsCheck.setSelected(globalSettings == null || globalSettings.isAppDesignAnimationsEnabled());
+
         Label appearanceInfo = new Label(I18n.get("settings.appearance.appDesign.info"));
         appearanceInfo.setWrapText(true);
         appearanceInfo.setMaxWidth(460);
@@ -438,7 +432,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         updateAppDesignPreview(appDesignPreviewImage, appDesignPreviewPlaceholder, appDesignPreviewBox, appDesignCombo.getValue());
 
         // Plain top-to-bottom stack: controls row, the info text, then the fixed preview box below.
-        VBox appearanceContent = new VBox(14, appDesignControls, appearanceInfo, appDesignPreviewBox);
+        VBox appearanceContent = new VBox(14, appDesignControls, appDesignAnimationsCheck, appearanceInfo, appDesignPreviewBox);
         appearanceContent.setPadding(new Insets(20));
         appearanceTab.setContent(appearanceContent);
         
@@ -2355,19 +2349,24 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private String appDesignLabel(AppDesign design) {
-        if (design == AppDesign.MATRIX_TERMINAL) {
-            return I18n.get("settings.appearance.design.matrixTerminal");
+        AppDesign resolved = design != null ? design : AppDesign.NORMAL;
+        return I18n.get("settings.appearance.design." + toCamelKey(resolved.getId()));
+    }
+
+    /** Convert a kebab-case design id (e.g. "amber-crt") into a camelCase i18n key suffix ("amberCrt"). */
+    private static String toCamelKey(String id) {
+        StringBuilder sb = new StringBuilder(id.length());
+        boolean upperNext = false;
+        for (int i = 0; i < id.length(); i++) {
+            char c = id.charAt(i);
+            if (c == '-') {
+                upperNext = true;
+            } else {
+                sb.append(upperNext ? Character.toUpperCase(c) : c);
+                upperNext = false;
+            }
         }
-        if (design == AppDesign.HOLOGRAPHIC_INTERFACE) {
-            return I18n.get("settings.appearance.design.holographicInterface");
-        }
-        if (design == AppDesign.KLINGON_TACTICAL) {
-            return I18n.get("settings.appearance.design.klingonTactical");
-        }
-        if (design == AppDesign.ELEGANT_DARK) {
-            return I18n.get("settings.appearance.design.elegantDark");
-        }
-        return I18n.get("settings.appearance.design.normal");
+        return sb.toString();
     }
 
     private ImageView createAppDesignPreviewImage() {
@@ -2405,32 +2404,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private String appDesignPreviewResource(AppDesign design) {
-        if (design == AppDesign.MATRIX_TERMINAL) {
-            return MATRIX_TERMINAL_PREVIEW_RESOURCE;
-        }
-        if (design == AppDesign.HOLOGRAPHIC_INTERFACE) {
-            return HOLOGRAPHIC_PREVIEW_RESOURCE;
-        }
-        if (design == AppDesign.KLINGON_TACTICAL) {
-            return KLINGON_TACTICAL_PREVIEW_RESOURCE;
-        }
-        if (design == AppDesign.ELEGANT_DARK) {
-            return ELEGANT_DARK_PREVIEW_RESOURCE;
-        }
-        return null;
+        return AppDesignStyleSupport.previewResource(design);
     }
 
     private String appDesignPreviewStyle(AppDesign design) {
-        if (design == AppDesign.MATRIX_TERMINAL) {
-            return "-fx-background-color: #080c09; -fx-border-color: #00ff88; -fx-border-width: 1;";
-        }
-        if (design == AppDesign.HOLOGRAPHIC_INTERFACE) {
-            return "-fx-background-color: #000000; -fx-border-color: #00d4ff; -fx-border-width: 1;";
-        }
-        if (design == AppDesign.ELEGANT_DARK) {
-            return "-fx-background-color: #1a1c20; -fx-border-color: rgba(255,255,255,0.12); -fx-border-width: 1;";
-        }
-        return "-fx-background-color: #0d0906; -fx-border-color: #ff3c5a; -fx-border-width: 1;";
+        return "-fx-background-color: " + AppDesignStyleSupport.backgroundColor(design)
+            + "; -fx-border-color: " + AppDesignStyleSupport.previewBorderColor(design)
+            + "; -fx-border-width: 1;";
     }
     
     /** @return true if save may continue, false to abort (e.g. vault locked and translation API key cannot be encrypted) */
@@ -2459,6 +2439,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
             globalSettings.setApplyThemeFonts(applyThemeFontsProperty.get());
             globalSettings.setAppDesign(appDesignCombo.getValue());
+            globalSettings.setAppDesignAnimationsEnabled(appDesignAnimationsCheck.isSelected());
         }
         
         // Save backup settings to GlobalSettings

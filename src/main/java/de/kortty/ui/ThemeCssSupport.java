@@ -60,6 +60,14 @@ final class ThemeCssSupport {
         if (backgroundColor == null || backgroundColor.isBlank()) {
             return null;
         }
+        // A custom app design fully owns the window/dialog chrome. The terminal-theme dynamic
+        // stylesheet restyles .menu-bar/.menu-item/.button/.label with the terminal colours and can
+        // win over the design (e.g. dark/blue menu text on the DOS chrome, invisible nav arrows), so
+        // suppress it entirely while a custom design is active. The AI-agent panel keeps its own
+        // stylesheet (getAgentActivityStylesheetUrl), so it is unaffected.
+        if (AppDesignStyleSupport.isCustomAppDesignActive()) {
+            return null;
+        }
 
         String normalizedBackground = normalizeColorOrDefault(backgroundColor, "#1f2933");
         String normalizedForeground = normalizeColorOrDefault(foregroundColor, "#d9e2ec");

@@ -1,0 +1,416 @@
+/* Dracula app design. Cross-platform JavaFX CSS only. */
+
+.root,
+.dialog-pane {
+    -fx-font-family: "Inter";
+    -fx-background-color: linear-gradient(to bottom, #282a36, #21222c);
+    -fx-text-fill: #f8f8f2;
+}
+
+.dracula-root,
+.kortty-main-root,
+.master-password-root {
+    -fx-background-color: linear-gradient(to bottom, #282a36, #21222c);
+    -fx-border-color: rgba(189,147,249,0.22);
+    -fx-border-width: 1;
+}
+
+.dracula-titlebar {
+    -fx-background-color: #21222c;
+    -fx-border-color: transparent transparent rgba(189,147,249,0.22) transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 0 20 0 20;
+    -fx-pref-height: 38;
+}
+
+.dracula-window-title {
+    -fx-font-family: "Inter";
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #6272a4;
+}
+
+.dracula-window-dot,
+.dracula-status-dot {
+    -fx-min-width: 12;
+    -fx-min-height: 12;
+    -fx-pref-width: 12;
+    -fx-pref-height: 12;
+    -fx-max-width: 12;
+    -fx-max-height: 12;
+    -fx-background-radius: 6;
+}
+
+.dracula-dot-muted {
+    -fx-background-color: #6272a4;
+}
+
+.dracula-dot-accent {
+    -fx-background-color: #bd93f9;
+}
+
+.dracula-dot-success,
+.dracula-status-dot {
+    -fx-background-color: #50fa7b;
+}
+
+.label,
+.check-box,
+.radio-button,
+.hyperlink,
+.titled-pane > .title > .text {
+    -fx-font-family: "Inter";
+    -fx-text-fill: #f8f8f2;
+}
+
+.hyperlink {
+    -fx-text-fill: #bd93f9;
+}
+
+.field-label {
+    -fx-font-family: "Inter";
+    -fx-text-fill: #6272a4;
+    -fx-font-size: 12px;
+    -fx-font-weight: 500;
+}
+
+.version-label {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 10px;
+    -fx-text-fill: #6272a4;
+}
+
+.status-bar,
+.main-content,
+.dashboard-view,
+.dialog-pane .content,
+.dialog-pane .header-panel,
+.scroll-pane,
+.scroll-pane .viewport,
+.split-pane,
+.tool-bar,
+.titled-pane > .content {
+    -fx-background-color: transparent;
+}
+
+.menu-bar,
+.context-menu,
+.menu-button,
+.combo-box,
+.choice-box,
+.color-picker,
+.spinner,
+.list-view,
+.tree-view,
+.table-view,
+.tab-pane,
+.tab-pane .tab-header-area,
+.tab-pane .tab-header-background,
+.titled-pane > .title {
+    -fx-background-color: #343746;
+    -fx-control-inner-background: #343746;
+    -fx-border-color: rgba(189,147,249,0.22);
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+}
+
+.menu-bar {
+    -fx-padding: 3 8 3 8;
+}
+
+.menu-bar .menu,
+.menu-item,
+.tab {
+    -fx-background-color: transparent;
+}
+
+.menu-bar .menu .label,
+.menu-item .label,
+.menu-button .label,
+.combo-box .list-cell,
+.choice-box .label,
+.color-picker .label,
+.tab .tab-label,
+.settings-info-label {
+    -fx-text-fill: #f8f8f2;
+}
+
+.menu-bar .menu:hover,
+.menu-bar .menu:showing,
+.menu-item:hover,
+.menu-item:focused,
+.menu-button:hover,
+.menu-button:showing,
+.combo-box:hover,
+.choice-box:hover,
+.color-picker:hover,
+.tab:hover {
+    -fx-background-color: #44475a;
+}
+
+.tab:selected {
+    -fx-background-color: #282a36;
+    -fx-border-color: #bd93f9;
+    -fx-border-width: 0 0 2 0;
+}
+
+.tab-close-button,
+.menu-button .arrow-button .arrow,
+.combo-box .arrow,
+.choice-box .arrow,
+.spinner .increment-arrow,
+.spinner .decrement-arrow,
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow,
+.tree-cell .tree-disclosure-node .arrow {
+    -fx-background-color: #bd93f9;
+}
+
+.button,
+.btn-secondary {
+    -fx-font-family: "Inter";
+    -fx-background-color: #44475a;
+    -fx-border-color: rgba(189,147,249,0.22);
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-text-fill: #f8f8f2;
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
+}
+
+.button:hover,
+.btn-secondary:hover {
+    -fx-background-color: #6272a4;
+    -fx-border-color: #bd93f9;
+}
+
+.button:default,
+.btn-primary {
+    -fx-font-family: "Inter";
+    -fx-font-weight: bold;
+    -fx-background-color: linear-gradient(to right, #bd93f9, #ff79c6);
+    -fx-background-radius: 7;
+    -fx-border-color: transparent;
+    -fx-border-radius: 7;
+    -fx-text-fill: #21222c;
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
+    -fx-effect: dropshadow(gaussian, rgba(189,147,249,0.35), 10, 0, 0, 0);
+}
+
+.button:default:hover,
+.btn-primary:hover {
+    -fx-background-color: linear-gradient(to right, #c8a0fa, #ff8dce);
+    -fx-effect: dropshadow(gaussian, rgba(189,147,249,0.35), 10, 0, 0, 0);
+}
+
+.text-input,
+.text-field,
+.password-field,
+.text-area,
+.text-area .content,
+.terminal-input,
+.dracula-input {
+    -fx-font-family: "Inter";
+    -fx-background-color: #21222c;
+    -fx-control-inner-background: #21222c;
+    -fx-text-fill: #f8f8f2;
+    -fx-prompt-text-fill: #6272a4;
+    -fx-highlight-fill: rgba(189,147,249,0.20);
+    -fx-highlight-text-fill: #f8f8f2;
+    -fx-border-color: rgba(189,147,249,0.22);
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-font-size: 13px;
+    -fx-pref-height: 40;
+    -fx-padding: 0 36 0 16;
+}
+
+.text-field:focused,
+.password-field:focused,
+.text-area:focused,
+.terminal-input:focused,
+.dracula-input:focused {
+    -fx-border-color: #bd93f9;
+    -fx-effect: dropshadow(gaussian, rgba(255,121,198,0.40), 10, 0, 0, 0);
+}
+
+.input-glow-bar {
+    -fx-min-height: 2;
+    -fx-pref-height: 2;
+    -fx-max-height: 2;
+    -fx-background-color: linear-gradient(to right, #bd93f9, #ff79c6);
+    -fx-effect: dropshadow(gaussian, rgba(189,147,249,0.35), 8, 0.4, 0, 0);
+}
+
+.list-cell,
+.tree-cell,
+.table-row-cell,
+.table-cell {
+    -fx-background-color: #343746;
+    -fx-text-fill: #f8f8f2;
+}
+
+.list-cell:hover,
+.tree-cell:hover,
+.table-row-cell:hover {
+    -fx-background-color: #44475a;
+}
+
+.list-cell:selected,
+.tree-cell:selected,
+.table-row-cell:selected {
+    -fx-background-color: rgba(189,147,249,0.20);
+    -fx-text-fill: #f8f8f2;
+}
+
+.table-view {
+    -fx-table-cell-border-color: rgba(189,147,249,0.22);
+}
+
+.table-view .column-header,
+.table-view .column-header-background,
+.table-view .filler {
+    -fx-background-color: #21222c;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #bd93f9;
+}
+
+.scroll-bar,
+.scroll-bar .track,
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #44475a;
+    -fx-background-radius: 7;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #6272a4;
+}
+
+.separator:horizontal .line,
+.separator:vertical .line,
+.split-pane-divider {
+    -fx-background-color: rgba(189,147,249,0.22);
+    -fx-border-color: rgba(189,147,249,0.22);
+}
+
+.check-box .box,
+.radio-button .radio {
+    -fx-background-color: #21222c;
+    -fx-border-color: rgba(189,147,249,0.22);
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.radio-button .radio {
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.check-box:selected .mark,
+.radio-button:selected .dot {
+    -fx-background-color: #50fa7b;
+}
+
+.progress-bar,
+.progress-bar .track,
+.progress-indicator {
+    -fx-background-color: #21222c;
+}
+
+.progress-bar .bar,
+.progress-indicator .indicator {
+    -fx-background-color: linear-gradient(to right, #bd93f9, #ff79c6);
+}
+
+.slider .track {
+    -fx-background-color: #44475a;
+}
+
+.slider .thumb {
+    -fx-background-color: #bd93f9;
+    -fx-background-radius: 7;
+    -fx-effect: dropshadow(gaussian, rgba(189,147,249,0.35), 8, 0.2, 0, 0);
+}
+
+.tooltip {
+    -fx-font-family: "Inter";
+    -fx-background-color: #343746;
+    -fx-text-fill: #f8f8f2;
+    -fx-border-color: rgba(189,147,249,0.22);
+}
+
+.file-browser-panel,
+.file-browser-tree,
+.file-browser-tree .tree-cell,
+.file-browser-tree .scroll-bar,
+.file-browser-tree .scroll-bar .track,
+.file-browser-tree .scroll-bar .increment-button,
+.file-browser-tree .scroll-bar .decrement-button,
+.file-browser-status,
+.dashboard-tree,
+.dashboard-tree .tree-cell {
+    -fx-background-color: #21222c;
+    -fx-control-inner-background: #21222c;
+    -fx-text-fill: #f8f8f2;
+}
+
+.file-browser-tree .tree-cell:hover,
+.file-browser-tree .tree-cell:selected,
+.dashboard-tree .tree-cell:hover,
+.dashboard-tree .tree-cell:selected {
+    -fx-background-color: rgba(189,147,249,0.20);
+    -fx-text-fill: #f8f8f2;
+}
+
+.file-browser-tree .scroll-bar .thumb {
+    -fx-background-color: #44475a;
+}
+
+.logo-panel,
+.logo-area {
+    -fx-background-color: #343746;
+    -fx-border-color: rgba(189,147,249,0.22);
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+    -fx-pref-width: 96;
+    -fx-pref-height: 96;
+    -fx-effect: dropshadow(gaussian, rgba(189,147,249,0.35), 14, 0, 0, 0);
+    -fx-padding: 18;
+}
+
+.dracula-brand-mark {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #bd93f9;
+}
+
+.dracula-brand-name {
+    -fx-font-family: "Inter";
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f8f8f2;
+}
+
+.app-design-cursor {
+    -fx-min-width: 10;
+    -fx-pref-width: 10;
+    -fx-max-width: 10;
+    -fx-min-height: 10;
+    -fx-pref-height: 10;
+    -fx-max-height: 10;
+    -fx-background-radius: 5;
+    -fx-background-color: #ff79c6;
+    -fx-effect: dropshadow(gaussian, #ff79c6, 10, 0.5, 0, 0);
+}
