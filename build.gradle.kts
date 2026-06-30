@@ -1328,6 +1328,9 @@ tasks.named<JavaExec>("run") {
         "-Dcom.sun.management.jmxremote.local.only=false",
         "-Dcom.sun.management.jmxremote.authenticate=false"
     ) else emptyList())
+    // Forward TEST_MODE_KORTTY to the forked app JVM (daemon-safe) so `TEST_MODE_KORTTY=1 ./gradlew run`
+    // starts korTTY without the master-password gate.
+    environment("TEST_MODE_KORTTY", providers.environmentVariable("TEST_MODE_KORTTY").getOrElse(""))
 }
 
 tasks.test {

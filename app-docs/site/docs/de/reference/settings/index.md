@@ -18,7 +18,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 
 | Tab | Was es steuert |
 | --- | --- |
-| [Erscheinungsbild, Themen und Schriftart](appearance.md) | App-Design (Normal, Matrix, Holographisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe |
+| [Erscheinungsbild, Themen und Schriftart](appearance.md) | App-Design (Standard, Matrix, Holografisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe |
 | [Farben](colors.md) | Farbprofil, Text-/Hintergrund-/Cursor-/Auswahlfarben, Cursor-Blinken, die 16-Farben-ANSI-Palette |
 | [Terminal](terminal.md) | Spalten/Zeilen, Scrollback, Kodierung, SSH-Keep-Alive, Verbindungswiederholungen, Drag-Drop, Zeitstempel |
 | [Fenster](window.md) | Wiederherstellung der Fenstergeometrie, feste Geometrie, Dashboard-Status, Menüleiste |

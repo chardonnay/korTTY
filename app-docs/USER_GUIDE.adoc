@@ -20,7 +20,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *ASCII Art Banner* generator with 11+ FIGlet font styles
 * *Terminal recording* with lightweight KorTTY replay files, optional color capture, auto-pause on inactivity, split-scope selection, and optional WebM/MKV export via local `ffmpeg`
 * *Terminal effect plugins* with per-session or per-connection selection, animation speed, import/export, and plugin enable/disable management
-* *Selectable app designs* for JavaFX windows and dialogs: Normal, Matrix Terminal, Holographic Interface, Klingon Tactical, and Elegant Dark
+* *Selectable app designs* for JavaFX windows and dialogs: Default, Matrix Terminal, Holographic Interface, Klingon Tactical, and Elegant Dark
 * *SSH tunnels* (local, remote, dynamic) and jump server support
 * *Backup and restore* with password-protected ZIP or GPG encryption
 * *8 built-in languages* plus *dynamic translation*: generate language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex (Settings → Translation)
@@ -1205,7 +1205,7 @@ Open with *Edit > Global Settings* (Ctrl+Comma / Cmd+Comma).
 
 Key tabs: *Font and Colors* (including the global *Enable terminal colors* default for ANSI/TrueColor color sequences), *Appearance* (app-wide JavaFX window/dialog designs with previews), *Terminal* (dimensions, scrollback, encoding, SSH Keep-Alive, close-confirmation behavior for active terminal windows), *SFTP* (SFTP auto-close, archive defaults, and optional JobScheduler Rsync binary path), *Snippet Editor*, *Backup*, *Window* (geometry, dashboard state, and menu bar visibility), *Security* (master password), *Language*, *Translation* (dynamic language files), *AI* (OpenAI-compatible profiles, editable model selection with LM Studio Auto mode, optional supported reasoning effort per profile, per-profile internet access mode, default profile, agent command matching, terminal-agent dialog behavior, agent/planning runtime options, terminal-agent panel preferences, snippet-AI behavior switches, saved-chat compatibility, and token quotas), *AI Skills* (local reusable skill instructions for AI Chat/functions and AI Agent), and *Themes* (terminal color profiles with live preview, add/edit/delete actions for custom and preconfigured themes, and dedicated Terminal AI agent panel colors). Terminal-effect plugins are managed from *Plugins > Terminal Effects*.
 
-The *Appearance* tab affects JavaFX app chrome, windows, dialogs, tables, lists, buttons, and inputs. It does not change terminal-session colors, terminal color profiles, Monaco editor content, or Snippet Editor content colors. Available app designs are *Normal*, *Matrix Terminal*, *Holographic Interface*, *Klingon Tactical*, and *Elegant Dark*.
+The *Appearance* tab affects JavaFX app chrome, windows, dialogs, tables, lists, buttons, and inputs. It does not change terminal-session colors, terminal color profiles, Monaco editor content, or Snippet Editor content colors. Available app designs are *Default*, *Matrix Terminal*, *Holographic Interface*, *Klingon Tactical*, and *Elegant Dark*. Use the previous/next buttons next to the dropdown to step through the designs; the preview of the selected design appears below the controls.
 
 == 17. Keyboard Shortcuts
 
