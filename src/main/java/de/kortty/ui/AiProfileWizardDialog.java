@@ -569,6 +569,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
         cloudModelCombo = new ComboBox<>();
         cloudModelCombo.setEditable(true);
+        ComboBoxEditorSync.install(cloudModelCombo);
         cloudModelCombo.setMaxWidth(Double.MAX_VALUE);
         cloudModelCombo.setPromptText(I18n.get("ai.wizard.cloud.model.prompt"));
         cloudModelCombo.valueProperty().addListener((o, a, b) -> {
@@ -612,6 +613,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         reasoningOnRadio.setToggleGroup(reasoningToggle);
         reasoningLevelCombo = new ComboBox<>();
         reasoningLevelCombo.setEditable(true);
+        ComboBoxEditorSync.install(reasoningLevelCombo);
         reasoningLevelCombo.setPromptText(I18n.get("ai.wizard.reasoning.levelPrompt"));
         reasoningLevelCombo.disableProperty().bind(reasoningOffRadio.selectedProperty());
         Label reasoningHint = new Label(I18n.get("ai.wizard.reasoning.hint"));
@@ -764,6 +766,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         serverChooseRadio.setToggleGroup(serverModelToggle);
         serverModelCombo = new ComboBox<>();
         serverModelCombo.setEditable(true);
+        ComboBoxEditorSync.install(serverModelCombo);
         serverModelCombo.setMaxWidth(Double.MAX_VALUE);
         serverModelCombo.disableProperty().bind(serverAutoRadio.selectedProperty());
         Button loadButton = new Button(I18n.get("ai.wizard.server.model.load"));
@@ -909,6 +912,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
         lmsModelCombo = new ComboBox<>();
         lmsModelCombo.setEditable(true);
+        ComboBoxEditorSync.install(lmsModelCombo);
         lmsModelCombo.setMaxWidth(Double.MAX_VALUE);
         lmsModelCombo.setPromptText(I18n.get("ai.wizard.cli.model.prompt"));
         lmsModelCombo.disableProperty().bind(lmsUseLoadedRadio.selectedProperty());

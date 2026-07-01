@@ -1645,6 +1645,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiEditorGrid.add(new Label(I18n.get("settings.ai.model")), 0, aiRow);
         aiModelCombo = new ComboBox<>();
         aiModelCombo.setEditable(true);
+        ComboBoxEditorSync.install(aiModelCombo);
         aiModelCombo.setPrefWidth(220);
         aiModelCombo.getItems().addAll(AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL);
         aiRefreshModelsButton = new Button("↻");

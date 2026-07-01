@@ -153,6 +153,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         apiUrlField = new TextField();
         modelCombo = new ComboBox<>();
         modelCombo.setEditable(true);
+        ComboBoxEditorSync.install(modelCombo);
         modelCombo.getItems().addAll(AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL);
         cliCustomModelField = new TextField();
         refreshModelsButton = new Button("↻");

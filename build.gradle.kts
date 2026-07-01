@@ -1362,6 +1362,14 @@ tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("aiManagerModelComboSmoke") {
+    group = "verification"
+    description = "Selects a model in the real AI Manager model picker to verify the choice sticks."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerModelComboSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateDesignPreviews") {
     group = "build"
     description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."
