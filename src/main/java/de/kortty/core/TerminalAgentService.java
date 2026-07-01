@@ -980,7 +980,7 @@ public class TerminalAgentService {
             publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
                 decision.userMessage(),
-                decision.summary(),
+                nonBlank(result.reasoning(), decision.summary()),
                 tokenUsageOf(result),
                 elapsedSecondsSince(startedAtNanos),
                 true);
@@ -1013,7 +1013,7 @@ public class TerminalAgentService {
                 publishThinking(ui, repairThinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
                     "Thinking",
                     decision.userMessage(),
-                    decision.summary(),
+                    nonBlank(repaired.reasoning(), decision.summary()),
                     tokenUsageOf(repaired),
                     elapsedSecondsSince(repairStartedAtNanos),
                     true);
@@ -1064,7 +1064,7 @@ public class TerminalAgentService {
                 TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
                 decision.userMessage(),
-                decision.summary(),
+                nonBlank(result.reasoning(), decision.summary()),
                 tokenUsageOf(result),
                 elapsedSecondsSince(startedAtNanos),
                 true);
@@ -1119,7 +1119,7 @@ public class TerminalAgentService {
                 TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
                 decision.userMessage(),
-                decision.summary(),
+                nonBlank(repaired.reasoning(), decision.summary()),
                 tokenUsageOf(repaired),
                 elapsedSecondsSince(repairStartedAtNanos),
                 true);

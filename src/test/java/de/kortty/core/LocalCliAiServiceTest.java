@@ -174,6 +174,44 @@ class LocalCliAiServiceTest {
         assertThat(cleaned).contains("Error? no: fine");
     }
 
+    @Test
+    void extractThinkReasoningPullsThinkBlockContent() {
+        String raw = "<think>internal reasoning here</think>The answer is data[0].";
+
+        assertThat(LocalCliAiService.extractThinkReasoning(raw)).isEqualTo("internal reasoning here");
+    }
+
+    @Test
+    void extractThinkReasoningConcatenatesMultipleBlocks() {
+        String raw = "<think>step one</think>partial<think class=\"r\">step two</think>done";
+
+        assertThat(LocalCliAiService.extractThinkReasoning(raw)).isEqualTo("step one\n\nstep two");
+    }
+
+    @Test
+    void extractThinkReasoningReturnsNullWhenNoBlockPresent() {
+        assertThat(LocalCliAiService.extractThinkReasoning("plain answer")).isNull();
+        assertThat(LocalCliAiService.extractThinkReasoning(null)).isNull();
+    }
+
+    @Test
+    void executeSeparatesThinkReasoningFromAnswer() throws Exception {
+        Path script = createScript("printf '%s' '<think>weighing options</think>The answer is 42.'");
+        LocalCliAiService service = new LocalCliAiService(
+            "test",
+            script.toString(),
+            "{promptFile}",
+            "custom-model",
+            AiReasoningEffort.DISABLED,
+            AiSkillPromptSupport.disabled(),
+            Duration.ofSeconds(5));
+
+        AiExecutionResult result = service.executePrompt("system", "user");
+
+        assertThat(result.content()).isEqualTo("The answer is 42.");
+        assertThat(result.reasoning()).isEqualTo("weighing options");
+    }
+
     private Path createScript(String body) throws Exception {
         // These tests drive the service with a POSIX /bin/sh stub script. Windows
         // cannot execute a shebang .sh file, so skip them there (the service itself

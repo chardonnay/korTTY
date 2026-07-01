@@ -328,7 +328,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (content == null || content.isBlank()) {
             throw new IOException("AI API returned an empty response.");
         }
-        return new AiExecutionResult(content.trim(), result != null ? result.usage() : null);
+        return new AiExecutionResult(
+            content.trim(),
+            result != null ? result.usage() : null,
+            result != null ? result.reasoning() : null);
     }
 
     private AiExecutionResult executeToolAwareMessages(
@@ -356,7 +359,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 if (parsed != null && parsed.usage() != null) {
                     usageEntries.add(parsed.usage());
                 }
-                return new AiExecutionResult(content.trim(), mergeUsage(usageEntries));
+                return new AiExecutionResult(content.trim(), mergeUsage(usageEntries), parsed != null ? parsed.reasoning() : null);
             }
             AiTokenUsage usage = parseUsage(root);
             if (usage != null) {
@@ -386,7 +389,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (content == null || content.isBlank()) {
                 throw new IOException("AI API returned an empty response.");
             }
-            return new AiExecutionResult(content.trim(), mergeUsage(usageEntries));
+            return new AiExecutionResult(content.trim(), mergeUsage(usageEntries), parsed != null ? parsed.reasoning() : null);
         }
         throw new IOException("Web search did not finish within " + MAX_WEB_TOOL_ROUNDS + " tool rounds.");
     }
@@ -423,7 +426,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (content == null || content.isBlank()) {
             throw new IOException("AI API returned an empty response after the web search limit was reached.");
         }
-        return new AiExecutionResult(content.trim(), mergeUsage(usageEntries));
+        return new AiExecutionResult(content.trim(), mergeUsage(usageEntries), parsed != null ? parsed.reasoning() : null);
     }
 
     private JsonObject firstAssistantMessage(JsonObject root) {
@@ -940,7 +943,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (content == null || content.isBlank()) {
             throw new IOException("AI API returned an empty response.");
         }
-        return new AiExecutionResult(content.trim(), result != null ? result.usage() : null);
+        return new AiExecutionResult(
+            content.trim(),
+            result != null ? result.usage() : null,
+            result != null ? result.reasoning() : null);
     }
 
     AiExecutionResult parseResponseBody(String responseBody) {
@@ -990,8 +996,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (content == null || content.isJsonNull()) {
             return null;
         }
+        String reasoning = extractReasoning(message);
         if (content.isJsonPrimitive()) {
-            return new AiExecutionResult(content.getAsString(), parseUsage(root));
+            return new AiExecutionResult(content.getAsString(), parseUsage(root), reasoning);
         }
         if (content.isJsonArray()) {
             StringBuilder builder = new StringBuilder();
@@ -1007,7 +1014,29 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     builder.append(obj.get("text").getAsString());
                 }
             }
-            return new AiExecutionResult(builder.toString(), parseUsage(root));
+            return new AiExecutionResult(builder.toString(), parseUsage(root), reasoning);
+        }
+        return null;
+    }
+
+    /**
+     * Reads the model's reasoning / chain-of-thought from an assistant message when the provider
+     * exposes it. DeepSeek and most OpenAI-compatible local servers (vLLM, SGLang) use
+     * {@code reasoning_content}; OpenRouter uses {@code reasoning}. Returns {@code null} when
+     * neither is present or the value is not a plain string.
+     */
+    private String extractReasoning(JsonObject message) {
+        if (message == null) {
+            return null;
+        }
+        for (String field : new String[] {"reasoning_content", "reasoning"}) {
+            JsonElement element = message.get(field);
+            if (element != null && element.isJsonPrimitive()) {
+                String value = element.getAsString();
+                if (value != null && !value.isBlank()) {
+                    return value;
+                }
+            }
         }
         return null;
     }
@@ -1037,7 +1066,11 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (promptTokens > 0 || completionTokens > 0 || totalTokens > 0) {
             usage = new AiTokenUsage(promptTokens, completionTokens, totalTokens > 0 ? totalTokens : promptTokens + completionTokens);
         }
-        return new AiExecutionResult(content, usage);
+        String reasoning = extractJsonStringFieldLenient(responseBody, "reasoning_content");
+        if (reasoning == null || reasoning.isBlank()) {
+            reasoning = extractJsonStringFieldLenient(responseBody, "reasoning");
+        }
+        return new AiExecutionResult(content, usage, reasoning != null && !reasoning.isBlank() ? reasoning : null);
     }
 
     private String extractJsonStringFieldLenient(String source, String fieldName) {

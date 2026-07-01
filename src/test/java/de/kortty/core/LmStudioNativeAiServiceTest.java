@@ -259,6 +259,32 @@ class LmStudioNativeAiServiceTest {
         assertThat(usages.get(0).target()).isEqualTo(AiSkillTarget.AGENT);
     }
 
+    @Test
+    void executeCapturesReasoningOutputItemsSeparatelyFromMessage() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble();
+        client.chatResponse("""
+            {
+              "output": [
+                {"type": "reasoning", "content": "I weighed the options."},
+                {"type": "message", "content": "final answer"}
+              ],
+              "stats": {"input_tokens": 3, "total_output_tokens": 2}
+            }
+            """);
+        LmStudioNativeAiService service = new LmStudioNativeAiService(
+            "http://127.0.0.1:1234/api/v1/chat",
+            "local-model",
+            "",
+            AiReasoningEffort.DISABLED,
+            config(AiInternetAccessMode.DISABLED),
+            client);
+
+        AiExecutionResult result = service.executePrompt("system", "user");
+
+        assertThat(result.content()).isEqualTo("final answer");
+        assertThat(result.reasoning()).isEqualTo("I weighed the options.");
+    }
+
     private AiInternetAccessConfiguration config(AiInternetAccessMode mode) {
         return new AiInternetAccessConfiguration(
             mode,
@@ -284,10 +310,19 @@ class LmStudioNativeAiServiceTest {
 
     /** Test double for deterministic LM Studio native responses. */
     private static final class StringHttpClientTestDouble extends HttpClient {
+        private static final String DEFAULT_CHAT_RESPONSE = """
+            {
+              "output": [
+                {"type": "message", "content": "ok"}
+              ],
+              "stats": {"input_tokens": 3, "total_output_tokens": 2}
+            }
+            """;
         private final List<String> requestBodies = new ArrayList<>();
         private final List<Optional<Duration>> requestTimeouts = new ArrayList<>();
         private final List<URI> requestUris = new ArrayList<>();
         private final String modelListResponse;
+        private String chatResponse = DEFAULT_CHAT_RESPONSE;
 
         private StringHttpClientTestDouble() {
             this(null);
@@ -295,6 +330,10 @@ class LmStudioNativeAiServiceTest {
 
         private StringHttpClientTestDouble(String modelListResponse) {
             this.modelListResponse = modelListResponse;
+        }
+
+        private void chatResponse(String chatResponse) {
+            this.chatResponse = chatResponse;
         }
 
         @Override
@@ -311,14 +350,7 @@ class LmStudioNativeAiServiceTest {
             }
             requestBodies.add(readBody(request));
             @SuppressWarnings("unchecked")
-            T body = (T) """
-                {
-                  "output": [
-                    {"type": "message", "content": "ok"}
-                  ],
-                  "stats": {"input_tokens": 3, "total_output_tokens": 2}
-                }
-                """;
+            T body = (T) chatResponse;
             return new SimpleHttpResponse<>(request, body);
         }
 

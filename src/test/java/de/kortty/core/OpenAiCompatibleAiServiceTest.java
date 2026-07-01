@@ -743,6 +743,102 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void parseResponseBodyCapturesDeepSeekReasoningContent() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "deepseek-reasoner",
+            "secret-token");
+
+        AiExecutionResult parsed = service.parseResponseBody("""
+            {
+              "choices": [
+                {
+                  "message": {
+                    "content": "The answer is 4.",
+                    "reasoning_content": "First 2+2, which is 4."
+                  }
+                }
+              ]
+            }
+            """);
+
+        assertThat(parsed.content()).isEqualTo("The answer is 4.");
+        assertThat(parsed.reasoning()).isEqualTo("First 2+2, which is 4.");
+    }
+
+    @Test
+    void parseResponseBodyCapturesOpenRouterReasoning() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "openrouter-model",
+            "secret-token");
+
+        AiExecutionResult parsed = service.parseResponseBody("""
+            {
+              "choices": [
+                {
+                  "message": {
+                    "content": "Done.",
+                    "reasoning": "I considered the options and picked the safe one."
+                  }
+                }
+              ]
+            }
+            """);
+
+        assertThat(parsed.content()).isEqualTo("Done.");
+        assertThat(parsed.reasoning()).isEqualTo("I considered the options and picked the safe one.");
+    }
+
+    @Test
+    void parseResponseBodyIgnoresNonStringReasoningWithoutFailing() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token");
+
+        AiExecutionResult parsed = service.parseResponseBody("""
+            {
+              "choices": [
+                {
+                  "message": {
+                    "content": "Answer",
+                    "reasoning": {"details": ["step"]}
+                  }
+                }
+              ]
+            }
+            """);
+
+        assertThat(parsed.content()).isEqualTo("Answer");
+        assertThat(parsed.reasoning()).isNull();
+    }
+
+    @Test
+    void executeJsonPromptPreservesModelReasoningThroughRewrap() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {
+              "choices": [
+                {"message": {"role": "assistant", "content": "{\\"status\\":\\"done\\"}", "reasoning_content": "Full chain of thought."}}
+              ]
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.DISABLED,
+            client,
+            null,
+            new AiSkillPromptSupport(true, List.of()));
+
+        AiExecutionResult result = service.executeJsonPrompt("Agent JSON system.", "Agent JSON task.");
+
+        assertThat(result.content()).isEqualTo("{\"status\":\"done\"}");
+        assertThat(result.reasoning()).isEqualTo("Full chain of thought.");
+    }
+
+    @Test
     void parseResponseBodyExtractsLoggedPredictionFallback() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",
