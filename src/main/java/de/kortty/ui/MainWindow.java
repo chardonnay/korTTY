@@ -4868,8 +4868,8 @@ public class MainWindow {
             loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
         terminalTab.getTerminalView().setAiAgentHandler(runContext ->
             requestAiAgentForTab(terminalTab, false, null, null, false, false, runContext));
-        terminalTab.getTerminalView().setAiAgentAskHandler(runContext ->
-            requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext));
+        terminalTab.getTerminalView().setAiAgentAskHandler((runContext, selectedText) ->
+            requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext, selectedText));
         terminalTab.getTerminalView().setAiPlanningHandler(runContext ->
             requestAiPlanningForTab(terminalTab, null, null, runContext));
         terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
@@ -5326,6 +5326,26 @@ public class MainWindow {
         boolean askConfirmationBeforeEveryCommand,
         boolean autoApproveRootCommands,
         TerminalView.TerminalAgentRunContext runContext) {
+        requestAiAgentForTab(
+            terminalTab,
+            queryOnly,
+            initialPrompt,
+            requestedProfileName,
+            askConfirmationBeforeEveryCommand,
+            autoApproveRootCommands,
+            runContext,
+            null);
+    }
+
+    private void requestAiAgentForTab(
+        TerminalTab terminalTab,
+        boolean queryOnly,
+        String initialPrompt,
+        String requestedProfileName,
+        boolean askConfirmationBeforeEveryCommand,
+        boolean autoApproveRootCommands,
+        TerminalView.TerminalAgentRunContext runContext,
+        String askSelectedText) {
         if (!isAiFeaturesEnabled()) {
             return;
         }
@@ -5363,7 +5383,7 @@ public class MainWindow {
                 autoApproveRootCommands,
                 !queryOnly && shouldConfirmTerminalAgentMutatingCommandSets(),
                 queryOnly);
-            launchTerminalAgent(terminalTab, directRequest, runContext);
+            launchTerminalAgent(terminalTab, directRequest, runContext, askSelectedText);
             return;
         }
 
@@ -5391,7 +5411,7 @@ public class MainWindow {
                 autoApproveRootCommands || request.autoApproveRootCommands(),
                 !request.queryOnly() && shouldConfirmTerminalAgentMutatingCommandSets(),
                 request.queryOnly());
-            launchTerminalAgent(terminalTab, enrichedRequest, runContext);
+            launchTerminalAgent(terminalTab, enrichedRequest, runContext, askSelectedText);
         });
     }
 
@@ -5454,6 +5474,14 @@ public class MainWindow {
         TerminalTab terminalTab,
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
+        launchTerminalAgent(terminalTab, request, runContext, null);
+    }
+
+    private void launchTerminalAgent(
+        TerminalTab terminalTab,
+        TerminalAgentModels.Request request,
+        TerminalView.TerminalAgentRunContext runContext,
+        String askSelectedText) {
         AiProfile profile = findAiProfileById(request.profileId());
         if (profile == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.profileMissing"));
@@ -5470,6 +5498,7 @@ public class MainWindow {
             openDirectAiAskTab(
                 profile,
                 request.userPrompt(),
+                askSelectedText,
                 request.connectionDisplayName(),
                 terminalTab != null ? terminalTab.getConnection() : null);
             return;
@@ -5494,17 +5523,32 @@ public class MainWindow {
         runTerminalAgentInTerminalWindow(terminalTab, profile, aiService, request, resolvedRunContext);
     }
 
-    private void openDirectAiAskTab(AiProfile profile, String prompt, String connectionDisplayName, ServerConnection connection) {
+    private void openDirectAiAskTab(
+        AiProfile profile,
+        String prompt,
+        String selectedText,
+        String connectionDisplayName,
+        ServerConnection connection) {
         if (prompt == null || prompt.isBlank()) {
             return;
         }
+        // Answer the question about the terminal selection when one was captured; without a
+        // selection the question itself stays the request text (previous behavior).
+        String requestText = askRequestText(selectedText, prompt);
+        if (selectedText != null && !selectedText.isBlank()) {
+            int maxSelectionChars = getMaxAiSelectionChars(profile);
+            if (selectedText.length() > maxSelectionChars) {
+                showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
+                return;
+            }
+        }
         String languageCode = LanguageManager.getInstance().getCurrentLanguageCode();
-        AiRequest request = new AiRequest(AiAction.ASK, prompt, connectionDisplayName, languageCode, prompt);
+        AiRequest request = new AiRequest(AiAction.ASK, requestText, connectionDisplayName, languageCode, prompt);
         AiResultTab resultTab = new AiResultTab(
             this,
             I18n.get("ai.agent.ask.tabTitle"),
             profile,
-            prompt,
+            requestText,
             connectionDisplayName,
             languageCode,
             null,
@@ -5778,6 +5822,14 @@ public class MainWindow {
             ? withTerminalAgentProfileId(request, currentProfile.getId())
             : request;
         launchTerminalAgent(terminalTab, refreshedRequest, runContext);
+    }
+
+    /**
+     * Chooses the request text for a direct AI-agent "Ask": the captured terminal selection when
+     * present, otherwise the question itself (legacy behavior for asks without a selection).
+     */
+    static String askRequestText(String selectedText, String prompt) {
+        return selectedText != null && !selectedText.isBlank() ? selectedText : prompt;
     }
 
     static TerminalAgentModels.Request withTerminalAgentProfileId(
