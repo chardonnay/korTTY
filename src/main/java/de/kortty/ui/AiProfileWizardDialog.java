@@ -2,6 +2,8 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiCliArgumentTemplate;
+import de.kortty.core.AiCloudModelCatalog;
+import de.kortty.core.AiModelComboSupport;
 import de.kortty.core.AiCliProviderDescriptor;
 import de.kortty.core.AiCliProviderRegistry;
 import de.kortty.core.AiInternetAccessConfiguration;
@@ -68,9 +70,11 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     /**
      * A selectable cloud provider with a pre-filled endpoint. {@code url == null} means the user
      * enters a custom OpenAI-compatible URL. Anthropic uses its native Messages endpoint, which the
-     * {@code AiServiceFactory} routes to the native Anthropic client.
+     * {@code AiServiceFactory} routes to the native Anthropic client. Model suggestions come from
+     * {@link AiCloudModelCatalog}, keyed by the endpoint host, so wizard and profile editors share
+     * one curated list.
      */
-    private record CloudProvider(String name, String url, String keyUrl, String modelExamples) {
+    private record CloudProvider(String name, String url, String keyUrl) {
         boolean isCustom() {
             return url == null;
         }
@@ -78,21 +82,21 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     private static final List<CloudProvider> CLOUD_PROVIDERS = List.of(
         new CloudProvider("OpenAI", "https://api.openai.com/v1/chat/completions",
-            "https://platform.openai.com/api-keys", "gpt-4o-mini, gpt-4o, o4-mini"),
+            "https://platform.openai.com/api-keys"),
         new CloudProvider("Anthropic (Claude)", "https://api.anthropic.com/v1/messages",
-            "https://console.anthropic.com/settings/keys", "claude-3-5-sonnet-latest, claude-3-5-haiku-latest"),
+            "https://console.anthropic.com/settings/keys"),
         new CloudProvider("Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-            "https://aistudio.google.com/apikey", "gemini-2.0-flash, gemini-1.5-pro"),
+            "https://aistudio.google.com/apikey"),
         new CloudProvider("Mistral", "https://api.mistral.ai/v1/chat/completions",
-            "https://console.mistral.ai/api-keys", "mistral-large-latest, mistral-small-latest"),
+            "https://console.mistral.ai/api-keys"),
         new CloudProvider("DeepSeek", "https://api.deepseek.com/v1/chat/completions",
-            "https://platform.deepseek.com/api_keys", "deepseek-chat, deepseek-reasoner"),
+            "https://platform.deepseek.com/api_keys"),
         new CloudProvider("Groq", "https://api.groq.com/openai/v1/chat/completions",
-            "https://console.groq.com/keys", "llama-3.3-70b-versatile, openai/gpt-oss-20b"),
+            "https://console.groq.com/keys"),
         new CloudProvider("OpenRouter", "https://openrouter.ai/api/v1/chat/completions",
-            "https://openrouter.ai/keys", "openai/gpt-4o-mini, anthropic/claude-3.5-sonnet"),
+            "https://openrouter.ai/keys"),
         new CloudProvider("MiniMax", "https://api.minimax.io/v1/text/chatcompletion_v2",
-            "https://www.minimax.io/platform", "MiniMax-Text-01")
+            "https://www.minimax.io/platform")
     );
 
     private enum WizardPath { CLOUD_API, LOCAL_SERVER, LOCAL_CLI }
@@ -515,7 +519,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     private Node buildCloudProvider() {
         cloudProviderCombo = new ComboBox<>();
         cloudProviderCombo.getItems().addAll(CLOUD_PROVIDERS);
-        cloudProviderCombo.getItems().add(new CloudProvider(I18n.get("ai.wizard.cloud.preset.other"), null, null, null));
+        cloudProviderCombo.getItems().add(new CloudProvider(I18n.get("ai.wizard.cloud.preset.other"), null, null));
         cloudProviderCombo.setConverter(new javafx.util.StringConverter<>() {
             @Override
             public String toString(CloudProvider provider) {
@@ -623,11 +627,29 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         if (cloudKeyHelp == null) {
             return;
         }
-        String examples = provider != null && provider.modelExamples() != null
-            ? provider.modelExamples()
-            : "gpt-4o-mini";
+        String examples = AiCloudModelCatalog.examplesForUrl(resolveCloudUrl());
+        if (examples.isEmpty()) {
+            examples = "gpt-4o-mini";
+        }
         cloudKeyHelp.setText(I18n.get("ai.wizard.cloud.key.help"));
         cloudModelStatus.setText(I18n.get("ai.wizard.cloud.model.examples", examples));
+        seedCloudModelSuggestions();
+    }
+
+    /**
+     * Pre-fills the model picker with the curated suggestions for the selected provider, so a
+     * concrete model can be chosen without a live model-list call (which needs a valid API key).
+     */
+    private void seedCloudModelSuggestions() {
+        if (cloudModelCombo == null) {
+            return;
+        }
+        String current = trimToNull(cloudModelCombo.getEditor().getText());
+        cloudModelCombo.getItems().setAll(AiModelComboSupport.buildModelItems(
+            null, null, resolveCloudUrl(), List.of(), current));
+        if (current != null) {
+            cloudModelCombo.getEditor().setText(current);
+        }
     }
 
     private void openKeyHelpUrl() {
@@ -675,7 +697,8 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
                     return;
                 }
                 String current = cloudModelCombo.getEditor().getText();
-                cloudModelCombo.getItems().setAll(models);
+                cloudModelCombo.getItems().setAll(AiModelComboSupport.buildModelItems(
+                    null, null, url, models, trimToNull(current)));
                 if (current != null && !current.isBlank()) {
                     cloudModelCombo.getEditor().setText(current);
                 }
