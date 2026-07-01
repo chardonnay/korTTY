@@ -5583,7 +5583,9 @@ public class MainWindow {
                 pauseLock.notifyAll();
             }
         };
-        Runnable reloadRun = () -> launchTerminalAgent(terminalTab, request, resolvedRunContext);
+        // Reload must use the AI profile that is active *now*, not the one frozen into the
+        // original request, so switching profiles before pressing reload takes effect.
+        Runnable reloadRun = () -> relaunchTerminalAgentWithCurrentProfile(terminalTab, request, resolvedRunContext);
         terminalTab.getTerminalView().setTerminalAgentInputLocked(
             resolvedRunContext,
             runId,
@@ -5748,6 +5750,42 @@ public class MainWindow {
         return new TerminalAgentModels.Request(
             sessionId,
             request.profileId(),
+            request.userPrompt(),
+            request.connectionDisplayName(),
+            request.acceptedPlanContext(),
+            request.executionTarget(),
+            request.showDebugMessages(),
+            request.showRuntimeMessages(),
+            request.askConfirmationBeforeEveryCommand(),
+            request.autoApproveRootCommands(),
+            request.confirmMutatingCommandSets(),
+            request.queryOnly());
+    }
+
+    /**
+     * Re-launches a terminal-agent run (the reload/"Wiederholen" button) using the AI profile that
+     * is currently active, rather than the profile that was active when the original run started.
+     * The profile is re-resolved exactly like a fresh launch, so a connection-pinned profile is
+     * still honoured while a changed global default now takes effect.
+     */
+    private void relaunchTerminalAgentWithCurrentProfile(
+        TerminalTab terminalTab,
+        TerminalAgentModels.Request request,
+        TerminalView.TerminalAgentRunContext runContext) {
+        AiProfile currentProfile = resolveAiProfileForConnection(
+            terminalTab != null ? terminalTab.getConnection() : null);
+        TerminalAgentModels.Request refreshedRequest = currentProfile != null
+            ? withTerminalAgentProfileId(request, currentProfile.getId())
+            : request;
+        launchTerminalAgent(terminalTab, refreshedRequest, runContext);
+    }
+
+    static TerminalAgentModels.Request withTerminalAgentProfileId(
+        TerminalAgentModels.Request request,
+        String profileId) {
+        return new TerminalAgentModels.Request(
+            request.sessionId(),
+            profileId,
             request.userPrompt(),
             request.connectionDisplayName(),
             request.acceptedPlanContext(),
