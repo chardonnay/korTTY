@@ -52,4 +52,32 @@ class AiChatDiagramSupportTest {
         assertThat(AiChatDiagramSupport.normalizeLatexMath("\\[x^2\\]")).isEqualTo("x^2");
         assertThat(AiChatDiagramSupport.normalizeLatexMath("x^2")).isEqualTo("x^2");
     }
+
+    @Test
+    void splitsDisplayMathOutOfText() {
+        var segments = AiChatDiagramSupport.splitTextWithDisplayMath(
+            "The energy is\n$$E = mc^2$$\nas shown above.");
+
+        assertThat(segments).hasSize(3);
+        assertThat(segments.get(0).text()).isEqualTo("The energy is");
+        assertThat(segments.get(1).math()).isEqualTo("E = mc^2");
+        assertThat(segments.get(2).text()).isEqualTo("as shown above.");
+    }
+
+    @Test
+    void keepsTextWithoutMathUntouched() {
+        var segments = AiChatDiagramSupport.splitTextWithDisplayMath("Costs 5 dollars, no math.");
+
+        assertThat(segments).hasSize(1);
+        assertThat(segments.get(0).text()).isEqualTo("Costs 5 dollars, no math.");
+        assertThat(segments.get(0).math()).isNull();
+    }
+
+    @Test
+    void ignoresEmptyDisplayMathFrames() {
+        var segments = AiChatDiagramSupport.splitTextWithDisplayMath("Before $$ $$ after.");
+
+        assertThat(segments).hasSize(1);
+        assertThat(segments.get(0).math()).isNull();
+    }
 }

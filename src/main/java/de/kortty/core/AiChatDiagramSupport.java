@@ -1,6 +1,10 @@
 package de.kortty.core;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Detects diagram code blocks in AI chat responses (PlantUML, Mermaid) and normalizes their
@@ -8,7 +12,50 @@ import java.util.Locale;
  */
 public final class AiChatDiagramSupport {
 
+    private static final Pattern DISPLAY_MATH = Pattern.compile("(?s)\\$\\$(.+?)\\$\\$");
+
+    /**
+     * One part of a text section: either plain text ({@code math == null}) or a display-math
+     * TeX expression extracted from a {@code $$ ... $$} frame.
+     */
+    public record MathSegment(String text, String math) {
+    }
+
     private AiChatDiagramSupport() {
+    }
+
+    /**
+     * Splits a text section into plain-text and {@code $$ ... $$} display-math segments so
+     * formulas can be typeset while the surrounding prose stays regular text.
+     */
+    public static List<MathSegment> splitTextWithDisplayMath(String text) {
+        List<MathSegment> segments = new ArrayList<>();
+        String safeText = text != null ? text : "";
+        Matcher matcher = DISPLAY_MATH.matcher(safeText);
+        int lastEnd = 0;
+        while (matcher.find()) {
+            String math = matcher.group(1).strip();
+            if (math.isEmpty()) {
+                continue;
+            }
+            if (matcher.start() > lastEnd) {
+                String leading = safeText.substring(lastEnd, matcher.start()).strip();
+                if (!leading.isEmpty()) {
+                    segments.add(new MathSegment(leading, null));
+                }
+            }
+            segments.add(new MathSegment(null, math));
+            lastEnd = matcher.end();
+        }
+        if (segments.isEmpty()) {
+            segments.add(new MathSegment(safeText, null));
+            return segments;
+        }
+        String trailing = safeText.substring(lastEnd).strip();
+        if (!trailing.isEmpty()) {
+            segments.add(new MathSegment(trailing, null));
+        }
+        return segments;
     }
 
     /** True when a fenced code block carries PlantUML source. */

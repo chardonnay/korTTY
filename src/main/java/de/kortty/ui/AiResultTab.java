@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiChatContentSupport;
 import de.kortty.core.AiChatDiagramSupport;
+import de.kortty.core.AiChatRenderPageSupport;
 import de.kortty.core.AiRasterImageSupport;
 import de.kortty.core.PlantUmlRenderService;
 import de.kortty.core.AiChatExportContext;
@@ -31,6 +32,7 @@ import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.core.GlobalSettingsManager;
 import javafx.animation.KeyFrame;
+import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -842,7 +844,14 @@ public class AiResultTab extends Tab {
                         if (segment.imageBytes() != null) {
                             messageCard.getChildren().add(createRasterImageBlock(segment.imageBytes()));
                         } else if (segment.text() != null && !segment.text().isBlank()) {
-                            appendStructuredTextContent(messageCard, segment.text());
+                            for (AiChatDiagramSupport.MathSegment mathSegment
+                                : AiChatDiagramSupport.splitTextWithDisplayMath(segment.text())) {
+                                if (mathSegment.math() != null) {
+                                    messageCard.getChildren().add(createLatexMathBlock("math", mathSegment.math()));
+                                } else if (mathSegment.text() != null && !mathSegment.text().isBlank()) {
+                                    appendStructuredTextContent(messageCard, mathSegment.text());
+                                }
+                            }
                         }
                     }
                 }
@@ -873,8 +882,14 @@ public class AiResultTab extends Tab {
                 return createRasterImageBlock(imageBytes);
             }
         }
+        if (AiChatDiagramSupport.isMermaidBlock(language)) {
+            return createMermaidBlock(language, code);
+        }
         if (AiChatDiagramSupport.isPlantUmlBlock(language, code)) {
             return createPlantUmlBlock(language, code);
+        }
+        if (AiChatDiagramSupport.isLatexMathBlock(language, code)) {
+            return createLatexMathBlock(language, code);
         }
         return createPlainCodeBlock(language, code);
     }
@@ -1011,18 +1026,7 @@ public class AiResultTab extends Tab {
                     contentHolder.getChildren().setAll(imageView);
                     statusLabel.setVisible(false);
                     statusLabel.setManaged(false);
-                    toggleButton.setVisible(true);
-                    toggleButton.setManaged(true);
-                    toggleButton.setOnAction(e -> {
-                        boolean showingImage = contentHolder.getChildren().contains(imageView);
-                        if (showingImage) {
-                            contentHolder.getChildren().setAll(codeNode);
-                            toggleButton.setText(I18n.get("ai.result.svg.showImage"));
-                        } else {
-                            contentHolder.getChildren().setAll(imageView);
-                            toggleButton.setText(I18n.get("ai.result.svg.showCode"));
-                        }
-                    });
+                    enableImageCodeToggle(toggleButton, contentHolder, imageView, codeNode);
                 } else {
                     String message = failureMessage != null && !failureMessage.isBlank()
                         ? failureMessage
@@ -1037,6 +1041,155 @@ public class AiResultTab extends Tab {
         renderWorker.setDaemon(true);
         renderWorker.start();
         return diagramBox;
+    }
+
+    /**
+     * Wires the image/code toggle of a rendered chat block once the image node is available:
+     * makes the button visible and swaps the content holder between image and source view.
+     */
+    private void enableImageCodeToggle(
+        Button toggleButton,
+        StackPane contentHolder,
+        javafx.scene.Node imageNode,
+        javafx.scene.Node codeNode) {
+        toggleButton.setVisible(true);
+        toggleButton.setManaged(true);
+        toggleButton.setText(I18n.get("ai.result.svg.showCode"));
+        toggleButton.setOnAction(e -> {
+            boolean showingImage = contentHolder.getChildren().contains(imageNode);
+            if (showingImage) {
+                contentHolder.getChildren().setAll(codeNode);
+                toggleButton.setText(I18n.get("ai.result.svg.showImage"));
+            } else {
+                contentHolder.getChildren().setAll(imageNode);
+                toggleButton.setText(I18n.get("ai.result.svg.showCode"));
+            }
+        });
+    }
+
+    /**
+     * Polls the render page's {@code window.korttyRenderState} until the bundled library reports
+     * success or failure; times out after the given number of 250 ms attempts.
+     */
+    private void pollRenderState(
+        WebView view,
+        int attemptsLeft,
+        Runnable onSuccess,
+        java.util.function.Consumer<String> onFailure) {
+        Object state = null;
+        try {
+            state = view.getEngine().executeScript(AiChatRenderPageSupport.RENDER_STATE_EXPRESSION);
+        } catch (Exception ignored) {
+            // page not loaded yet; keep polling
+        }
+        if ("ok".equals(state)) {
+            onSuccess.run();
+            return;
+        }
+        if (state instanceof String message && message.startsWith("error")) {
+            onFailure.accept(message);
+            return;
+        }
+        if (attemptsLeft <= 0) {
+            onFailure.accept("timeout");
+            return;
+        }
+        PauseTransition retry = new PauseTransition(Duration.millis(250));
+        retry.setOnFinished(e -> pollRenderState(view, attemptsLeft - 1, onSuccess, onFailure));
+        retry.play();
+    }
+
+    /**
+     * Renders a diagram/math code block whose image is produced by a bundled JS library
+     * (mermaid, MathJax) inside a WebView render page. The source stays visible while the page
+     * renders; on success the block switches to the image with a code toggle.
+     */
+    private VBox createWebViewRenderedBlock(
+        String headerText,
+        String language,
+        String code,
+        String pageNamePrefix,
+        String pageHtml,
+        double minHeight,
+        double maxHeight) {
+        Label languageLabel = new Label(headerText);
+        languageLabel.setStyle("-fx-font-weight: bold;");
+        Label statusLabel = new Label(I18n.get("ai.result.diagram.rendering"));
+        statusLabel.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%);");
+        Button copyCodeButton = new Button("⧉");
+        copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
+        copyCodeButton.setOnAction(e -> copyToClipboard(code));
+        copyCodeButton.setStyle("-fx-padding: 3 8 3 8;");
+        Button toggleButton = new Button(I18n.get("ai.result.svg.showCode"));
+        toggleButton.setStyle("-fx-padding: 3 10 3 10;");
+        toggleButton.setVisible(false);
+        toggleButton.setManaged(false);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(8, languageLabel, statusLabel, spacer, toggleButton, copyCodeButton);
+
+        javafx.scene.Node codeNode = createCodeEditorNode(
+            SnippetLanguageSupport.detectSnippetLanguage(language, code), code);
+        StackPane contentHolder = new StackPane(codeNode);
+        VBox renderedBox = new VBox(6, header, contentHolder);
+        renderedBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+
+        String pageUrl = ChatRenderResourceBundle.writeRenderPage(pageNamePrefix, pageHtml);
+        if (pageUrl == null) {
+            statusLabel.setText(I18n.get("ai.result.diagram.failed", "render resources unavailable"));
+            return renderedBox;
+        }
+        WebView renderView = new WebView();
+        renderView.setContextMenuEnabled(false);
+        renderView.setPrefHeight(Math.min(maxHeight, Math.max(minHeight, 320)));
+        renderView.getEngine().load(pageUrl);
+        pollRenderState(renderView, 40, () -> {
+            double contentHeight = renderView.getPrefHeight();
+            try {
+                Object scrollHeight = renderView.getEngine().executeScript("document.body.scrollHeight");
+                if (scrollHeight instanceof Number height) {
+                    contentHeight = height.doubleValue() + 24;
+                }
+            } catch (Exception ignored) {
+                // keep the default height
+            }
+            renderView.setPrefHeight(Math.max(minHeight, Math.min(maxHeight, contentHeight)));
+            contentHolder.getChildren().setAll(renderView);
+            statusLabel.setVisible(false);
+            statusLabel.setManaged(false);
+            enableImageCodeToggle(toggleButton, contentHolder, renderView, codeNode);
+        }, failureMessage -> {
+            String message = failureMessage != null ? failureMessage : "";
+            if (message.length() > 160) {
+                message = message.substring(0, 160) + "…";
+            }
+            statusLabel.setText(I18n.get("ai.result.diagram.failed", message));
+        });
+        return renderedBox;
+    }
+
+    /** Renders a ```mermaid block as a diagram via the bundled mermaid library. */
+    private VBox createMermaidBlock(String language, String code) {
+        return createWebViewRenderedBlock(
+            language != null && !language.isBlank() ? language : "mermaid",
+            language,
+            code,
+            "mermaid",
+            AiChatRenderPageSupport.buildMermaidHtml(code),
+            120,
+            640);
+    }
+
+    /** Renders a LaTeX math block (fenced or $$-framed) via the bundled MathJax library. */
+    private VBox createLatexMathBlock(String language, String code) {
+        return createWebViewRenderedBlock(
+            language != null && !language.isBlank() ? language : "math",
+            language,
+            code,
+            "math",
+            AiChatRenderPageSupport.buildMathHtml(AiChatDiagramSupport.normalizeLatexMath(code)),
+            60,
+            400);
     }
 
     /**
