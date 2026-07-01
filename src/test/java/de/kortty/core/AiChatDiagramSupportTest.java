@@ -1,0 +1,55 @@
+package de.kortty.core;
+
+import org.testng.annotations.Test;
+
+import static com.google.common.truth.Truth.assertThat;
+
+class AiChatDiagramSupportTest {
+
+    @Test
+    void detectsPlantUmlBlocks() {
+        assertThat(AiChatDiagramSupport.isPlantUmlBlock("plantuml", "A -> B: hi")).isTrue();
+        assertThat(AiChatDiagramSupport.isPlantUmlBlock("puml", "A -> B: hi")).isTrue();
+        assertThat(AiChatDiagramSupport.isPlantUmlBlock("", "@startuml\nA -> B\n@enduml")).isTrue();
+        assertThat(AiChatDiagramSupport.isPlantUmlBlock("", "A -> B")).isFalse();
+        assertThat(AiChatDiagramSupport.isPlantUmlBlock("bash", "@startuml")).isFalse();
+        assertThat(AiChatDiagramSupport.isPlantUmlBlock("plantuml", "")).isFalse();
+    }
+
+    @Test
+    void normalizePlantUmlWrapsBareSources() {
+        assertThat(AiChatDiagramSupport.normalizePlantUml("A -> B: hi"))
+            .isEqualTo("@startuml\nA -> B: hi\n@enduml");
+        assertThat(AiChatDiagramSupport.normalizePlantUml("@startuml\nA -> B\n@enduml"))
+            .isEqualTo("@startuml\nA -> B\n@enduml");
+        // Other @start dialects (mindmap, gantt, ...) are passed through untouched.
+        assertThat(AiChatDiagramSupport.normalizePlantUml("@startmindmap\n* root\n@endmindmap"))
+            .isEqualTo("@startmindmap\n* root\n@endmindmap");
+    }
+
+    @Test
+    void detectsMermaidBlocksByLanguageTag() {
+        assertThat(AiChatDiagramSupport.isMermaidBlock("mermaid")).isTrue();
+        assertThat(AiChatDiagramSupport.isMermaidBlock("Mermaid")).isTrue();
+        assertThat(AiChatDiagramSupport.isMermaidBlock("")).isFalse();
+        assertThat(AiChatDiagramSupport.isMermaidBlock(null)).isFalse();
+    }
+
+    @Test
+    void detectsLatexMathBlocksButNotFullDocuments() {
+        assertThat(AiChatDiagramSupport.isLatexMathBlock("latex", "\\frac{a}{b}")).isTrue();
+        assertThat(AiChatDiagramSupport.isLatexMathBlock("math", "E = mc^2")).isTrue();
+        assertThat(AiChatDiagramSupport.isLatexMathBlock("tex", "x^2")).isTrue();
+        assertThat(AiChatDiagramSupport.isLatexMathBlock("latex",
+            "\\documentclass{article}\\begin{document}x\\end{document}")).isFalse();
+        assertThat(AiChatDiagramSupport.isLatexMathBlock("bash", "x^2")).isFalse();
+        assertThat(AiChatDiagramSupport.isLatexMathBlock("latex", "")).isFalse();
+    }
+
+    @Test
+    void normalizeLatexMathStripsDisplayFrames() {
+        assertThat(AiChatDiagramSupport.normalizeLatexMath("$$x^2$$")).isEqualTo("x^2");
+        assertThat(AiChatDiagramSupport.normalizeLatexMath("\\[x^2\\]")).isEqualTo("x^2");
+        assertThat(AiChatDiagramSupport.normalizeLatexMath("x^2")).isEqualTo("x^2");
+    }
+}

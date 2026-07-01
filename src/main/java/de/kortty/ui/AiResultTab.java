@@ -3,6 +3,9 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiChatContentSupport;
+import de.kortty.core.AiChatDiagramSupport;
+import de.kortty.core.AiRasterImageSupport;
+import de.kortty.core.PlantUmlRenderService;
 import de.kortty.core.AiChatExportContext;
 import de.kortty.core.AiChatExportService;
 import de.kortty.core.AiChatShareService;
@@ -49,6 +52,8 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
@@ -832,7 +837,14 @@ public class AiResultTab extends Tab {
                 if (section.code()) {
                     messageCard.getChildren().add(createCodeBlock(section.language(), section.content()));
                 } else if (!section.content().isBlank()) {
-                    appendStructuredTextContent(messageCard, section.content());
+                    for (AiRasterImageSupport.Segment segment
+                        : AiRasterImageSupport.splitTextWithImages(section.content())) {
+                        if (segment.imageBytes() != null) {
+                            messageCard.getChildren().add(createRasterImageBlock(segment.imageBytes()));
+                        } else if (segment.text() != null && !segment.text().isBlank()) {
+                            appendStructuredTextContent(messageCard, segment.text());
+                        }
+                    }
                 }
             }
         }
@@ -854,6 +866,15 @@ public class AiResultTab extends Tab {
     private VBox createCodeBlock(String language, String code) {
         if (AiSvgContentSupport.isSvgContent(language, code)) {
             return createSvgImageBlock(language, code);
+        }
+        if (AiRasterImageSupport.isImageDataUri(code)) {
+            byte[] imageBytes = AiRasterImageSupport.decodeImageDataUri(code);
+            if (imageBytes != null) {
+                return createRasterImageBlock(imageBytes);
+            }
+        }
+        if (AiChatDiagramSupport.isPlantUmlBlock(language, code)) {
+            return createPlantUmlBlock(language, code);
         }
         return createPlainCodeBlock(language, code);
     }
@@ -896,6 +917,126 @@ public class AiResultTab extends Tab {
         int lineCount = Math.max(3, (code != null ? code : "").split("\\R", -1).length);
         codeScrollPane.setPrefHeight(Math.min(260, 36 + (lineCount * 18.0)));
         return codeScrollPane;
+    }
+
+    /** Shared PlantUML renderer; downloads its jar once into the user cache on first use. */
+    private static final PlantUmlRenderService PLANT_UML_RENDERER = new PlantUmlRenderService();
+
+    /**
+     * Renders a decoded base64 raster image (PNG/JPEG/GIF/BMP) inline on a white canvas with a
+     * copy-image button. Falls back to a short notice when the bytes do not decode.
+     */
+    private VBox createRasterImageBlock(byte[] imageBytes) {
+        Image image = new Image(new java.io.ByteArrayInputStream(imageBytes));
+        if (image.isError() || image.getWidth() <= 0) {
+            Label broken = new Label(I18n.get("ai.result.image.error"));
+            broken.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%); -fx-font-style: italic;");
+            return new VBox(broken);
+        }
+        Label imageLabel = new Label(I18n.get("ai.result.image"));
+        imageLabel.setStyle("-fx-font-weight: bold;");
+        Button copyImageButton = new Button("⧉");
+        copyImageButton.setTooltip(new Tooltip(I18n.get("ai.result.image.copy")));
+        copyImageButton.setStyle("-fx-padding: 3 8 3 8;");
+        copyImageButton.setOnAction(e -> {
+            ClipboardContent clipboardContent = new ClipboardContent();
+            clipboardContent.putImage(image);
+            Clipboard.getSystemClipboard().setContent(clipboardContent);
+        });
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(8, imageLabel, spacer, copyImageButton);
+
+        ImageView imageView = new ImageView(image);
+        imageView.setPreserveRatio(true);
+        imageView.setFitWidth(Math.min(image.getWidth(), 720));
+        StackPane canvas = new StackPane(imageView);
+        // White canvas keeps transparent images with dark strokes readable on the dark chat theme.
+        canvas.setStyle("-fx-background-color: white; -fx-background-radius: 6; -fx-padding: 8;");
+
+        VBox imageBox = new VBox(6, header, canvas);
+        imageBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+        return imageBox;
+    }
+
+    /**
+     * Renders a PlantUML code block: the source stays visible while the diagram renders in the
+     * background (local PlantUML jar, needs java + graphviz); on success the block switches to
+     * the diagram image with a code toggle, on failure it stays on the source and shows why.
+     */
+    private VBox createPlantUmlBlock(String language, String code) {
+        Label languageLabel = new Label(language != null && !language.isBlank() ? language : "plantuml");
+        languageLabel.setStyle("-fx-font-weight: bold;");
+        Label statusLabel = new Label(I18n.get("ai.result.diagram.rendering"));
+        statusLabel.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%);");
+        Button copyCodeButton = new Button("⧉");
+        copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
+        copyCodeButton.setOnAction(e -> copyToClipboard(code));
+        copyCodeButton.setStyle("-fx-padding: 3 8 3 8;");
+        Button toggleButton = new Button(I18n.get("ai.result.svg.showCode"));
+        toggleButton.setStyle("-fx-padding: 3 10 3 10;");
+        toggleButton.setVisible(false);
+        toggleButton.setManaged(false);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(8, languageLabel, statusLabel, spacer, toggleButton, copyCodeButton);
+
+        javafx.scene.Node codeNode = createCodeEditorNode(
+            SnippetLanguageSupport.detectSnippetLanguage(language, code), code);
+        StackPane contentHolder = new StackPane(codeNode);
+        VBox diagramBox = new VBox(6, header, contentHolder);
+        diagramBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+
+        String source = AiChatDiagramSupport.normalizePlantUml(code);
+        Thread renderWorker = new Thread(() -> {
+            PlantUmlRenderService.RenderResult result = PLANT_UML_RENDERER.renderSvg(source);
+            String svg = null;
+            if (result.success()) {
+                try {
+                    svg = Files.readString(result.imagePath());
+                } catch (Exception ex) {
+                    // fall through to the failure branch with the read error
+                }
+            }
+            String renderedSvg = svg;
+            String failureMessage = result.message();
+            Platform.runLater(() -> {
+                if (renderedSvg != null) {
+                    String sanitizedSvg = AiSvgContentSupport.sanitizeSvg(renderedSvg);
+                    WebView imageView = new WebView();
+                    imageView.getEngine().setJavaScriptEnabled(false);
+                    imageView.setContextMenuEnabled(false);
+                    imageView.setPrefHeight(AiSvgContentSupport.estimateDisplayHeight(sanitizedSvg, 120, 520, 320));
+                    imageView.getEngine().loadContent(AiSvgContentSupport.buildSvgHtml(sanitizedSvg));
+                    contentHolder.getChildren().setAll(imageView);
+                    statusLabel.setVisible(false);
+                    statusLabel.setManaged(false);
+                    toggleButton.setVisible(true);
+                    toggleButton.setManaged(true);
+                    toggleButton.setOnAction(e -> {
+                        boolean showingImage = contentHolder.getChildren().contains(imageView);
+                        if (showingImage) {
+                            contentHolder.getChildren().setAll(codeNode);
+                            toggleButton.setText(I18n.get("ai.result.svg.showImage"));
+                        } else {
+                            contentHolder.getChildren().setAll(imageView);
+                            toggleButton.setText(I18n.get("ai.result.svg.showCode"));
+                        }
+                    });
+                } else {
+                    String message = failureMessage != null && !failureMessage.isBlank()
+                        ? failureMessage
+                        : "";
+                    if (message.length() > 160) {
+                        message = message.substring(0, 160) + "…";
+                    }
+                    statusLabel.setText(I18n.get("ai.result.diagram.failed", message));
+                }
+            });
+        }, "ai-chat-plantuml-render");
+        renderWorker.setDaemon(true);
+        renderWorker.start();
+        return diagramBox;
     }
 
     /**
