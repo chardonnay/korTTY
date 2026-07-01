@@ -1,0 +1,78 @@
+package de.kortty.core;
+
+import org.testng.annotations.Test;
+
+import static com.google.common.truth.Truth.assertThat;
+
+class AiSvgContentSupportTest {
+
+    private static final String SIMPLE_SVG =
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 50\"><rect width=\"100\" height=\"50\"/></svg>";
+
+    @Test
+    void detectsSvgFencedBlocks() {
+        assertThat(AiSvgContentSupport.isSvgContent("svg", SIMPLE_SVG)).isTrue();
+        assertThat(AiSvgContentSupport.isSvgContent("xml", SIMPLE_SVG)).isTrue();
+        assertThat(AiSvgContentSupport.isSvgContent("html", SIMPLE_SVG)).isTrue();
+        assertThat(AiSvgContentSupport.isSvgContent("", SIMPLE_SVG)).isTrue();
+        assertThat(AiSvgContentSupport.isSvgContent(null, SIMPLE_SVG)).isTrue();
+    }
+
+    @Test
+    void detectsSvgBehindXmlPrologAndComments() {
+        String withProlog = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            + "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"svg11.dtd\">\n"
+            + "<!-- generated -->\n"
+            + SIMPLE_SVG;
+        assertThat(AiSvgContentSupport.isSvgContent("xml", withProlog)).isTrue();
+    }
+
+    @Test
+    void rejectsNonSvgContentAndLanguages() {
+        assertThat(AiSvgContentSupport.isSvgContent("bash", "echo <svg>")).isFalse();
+        assertThat(AiSvgContentSupport.isSvgContent("xml", "<project><svg/></project>")).isFalse();
+        assertThat(AiSvgContentSupport.isSvgContent("svg", "")).isFalse();
+        assertThat(AiSvgContentSupport.isSvgContent("svg", null)).isFalse();
+        // Mentioning svg in text must not trigger image rendering.
+        assertThat(AiSvgContentSupport.isSvgContent("", "Use an <svg> element for icons.")).isFalse();
+    }
+
+    @Test
+    void sanitizeStripsScriptsEventHandlersAndJavascriptLinks() {
+        String hostile = "<svg xmlns=\"http://www.w3.org/2000/svg\" onload=\"alert(1)\">"
+            + "<script>alert(2)</script>"
+            + "<a xlink:href=\"javascript:alert(3)\"><text onclick='alert(4)'>x</text></a>"
+            + "<rect width=\"10\" height=\"10\"/></svg>";
+
+        String sanitized = AiSvgContentSupport.sanitizeSvg(hostile);
+
+        assertThat(sanitized).doesNotContain("<script");
+        assertThat(sanitized).doesNotContain("onload");
+        assertThat(sanitized).doesNotContain("onclick");
+        assertThat(sanitized).doesNotContain("javascript:");
+        assertThat(sanitized).contains("<rect width=\"10\" height=\"10\"/>");
+    }
+
+    @Test
+    void buildSvgHtmlEmbedsTheDocumentWithScalingStyles() {
+        String html = AiSvgContentSupport.buildSvgHtml(SIMPLE_SVG);
+
+        assertThat(html).contains(SIMPLE_SVG);
+        assertThat(html).contains("max-width:100%");
+        assertThat(html).contains("background:#ffffff");
+    }
+
+    @Test
+    void estimatesDisplayHeightFromHeightAttributeThenViewBox() {
+        String withHeight = "<svg xmlns=\"a\" width=\"300\" height=\"200\"><rect/></svg>";
+        assertThat(AiSvgContentSupport.estimateDisplayHeight(withHeight, 120, 520, 320)).isEqualTo(200.0);
+
+        assertThat(AiSvgContentSupport.estimateDisplayHeight(SIMPLE_SVG, 120, 520, 320)).isEqualTo(120.0);
+
+        String huge = "<svg height=\"4000\"><rect/></svg>";
+        assertThat(AiSvgContentSupport.estimateDisplayHeight(huge, 120, 520, 320)).isEqualTo(520.0);
+
+        String noSize = "<svg xmlns=\"a\"><rect/></svg>";
+        assertThat(AiSvgContentSupport.estimateDisplayHeight(noSize, 120, 520, 320)).isEqualTo(320.0);
+    }
+}

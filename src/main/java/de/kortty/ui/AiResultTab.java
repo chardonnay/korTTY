@@ -10,6 +10,7 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiMarkdownTableSupport;
 import de.kortty.core.AiPdfExportOptions;
 import de.kortty.core.AiSnippetMetadataSupport;
+import de.kortty.core.AiSvgContentSupport;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiResponseSanitizer;
 import de.kortty.core.SnippetAiResponseSupport;
@@ -62,6 +63,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
+import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.Duration;
@@ -850,6 +852,13 @@ public class AiResultTab extends Tab {
     }
 
     private VBox createCodeBlock(String language, String code) {
+        if (AiSvgContentSupport.isSvgContent(language, code)) {
+            return createSvgImageBlock(language, code);
+        }
+        return createPlainCodeBlock(language, code);
+    }
+
+    private VBox createPlainCodeBlock(String language, String code) {
         String normalizedLanguage = SnippetLanguageSupport.detectSnippetLanguage(language, code);
         Label languageLabel = new Label(language != null && !language.isBlank() ? language : I18n.get("ai.result.code"));
         languageLabel.setStyle("-fx-font-weight: bold;");
@@ -870,6 +879,12 @@ public class AiResultTab extends Tab {
             ? new HBox(8, languageLabel, spacer, saveSnippetButton, copyCodeButton)
             : new HBox(8, languageLabel, spacer, copyCodeButton);
 
+        VBox codeBox = new VBox(6, header, createCodeEditorNode(normalizedLanguage, code));
+        codeBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+        return codeBox;
+    }
+
+    private javafx.scene.Node createCodeEditorNode(String normalizedLanguage, String code) {
         MonacoEditorPane codeArea = new MonacoEditorPane();
         codeArea.setEditable(false);
         codeArea.replaceText(code != null ? code : "");
@@ -880,9 +895,53 @@ public class AiResultTab extends Tab {
         var codeScrollPane = EditorSettingsHelper.createScrollPane(codeArea);
         int lineCount = Math.max(3, (code != null ? code : "").split("\\R", -1).length);
         codeScrollPane.setPrefHeight(Math.min(260, 36 + (lineCount * 18.0)));
-        VBox codeBox = new VBox(6, header, codeScrollPane);
-        codeBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
-        return codeBox;
+        return codeScrollPane;
+    }
+
+    /**
+     * Renders an SVG code block as an inline image (WebView with JavaScript disabled and a
+     * sanitized document) with a toggle to inspect the underlying SVG source.
+     */
+    private VBox createSvgImageBlock(String language, String code) {
+        Label languageLabel = new Label(language != null && !language.isBlank() ? language : "svg");
+        languageLabel.setStyle("-fx-font-weight: bold;");
+        Button copyCodeButton = new Button("⧉");
+        copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
+        copyCodeButton.setOnAction(e -> copyToClipboard(code));
+        copyCodeButton.setStyle("-fx-padding: 3 8 3 8;");
+        Button toggleButton = new Button(I18n.get("ai.result.svg.showCode"));
+        toggleButton.setStyle("-fx-padding: 3 10 3 10;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(8, languageLabel, spacer, toggleButton, copyCodeButton);
+
+        String sanitizedSvg = AiSvgContentSupport.sanitizeSvg(code);
+        WebView imageView = new WebView();
+        imageView.getEngine().setJavaScriptEnabled(false);
+        imageView.setContextMenuEnabled(false);
+        imageView.setPrefHeight(AiSvgContentSupport.estimateDisplayHeight(sanitizedSvg, 120, 520, 320));
+        imageView.getEngine().loadContent(AiSvgContentSupport.buildSvgHtml(sanitizedSvg));
+
+        StackPane contentHolder = new StackPane(imageView);
+        javafx.scene.Node[] lazyCodeNode = new javafx.scene.Node[1];
+        toggleButton.setOnAction(e -> {
+            boolean showingImage = contentHolder.getChildren().contains(imageView);
+            if (showingImage) {
+                if (lazyCodeNode[0] == null) {
+                    lazyCodeNode[0] = createCodeEditorNode(
+                        SnippetLanguageSupport.detectSnippetLanguage(language, code), code);
+                }
+                contentHolder.getChildren().setAll(lazyCodeNode[0]);
+                toggleButton.setText(I18n.get("ai.result.svg.showImage"));
+            } else {
+                contentHolder.getChildren().setAll(imageView);
+                toggleButton.setText(I18n.get("ai.result.svg.showCode"));
+            }
+        });
+
+        VBox imageBox = new VBox(6, header, contentHolder);
+        imageBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+        return imageBox;
     }
 
     private void appendStructuredTextContent(VBox parent, String content) {
