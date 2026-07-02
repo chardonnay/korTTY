@@ -32,6 +32,13 @@ public final class AiSvgContentSupport {
     // Attribute values like fill="url(#gradient)" are fragment references and stay intact.
     private static final Pattern NON_FRAGMENT_CSS_URL = Pattern.compile(
         "(?is)url\\(\\s*([\"']?)\\s*(?!#)[^)]*\\)");
+    // Resource-fetch attributes that plain SVG never needs but smuggled HTML (appended markup,
+    // <foreignObject> content like <img>/<iframe>/<object>/<video>) would use to load resources.
+    private static final Pattern FETCH_ATTRIBUTE = Pattern.compile(
+        "(?is)\\s+(?:src|srcset|poster|data)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)");
+    // CSS @import directives inside <style> blocks or style attributes.
+    private static final Pattern CSS_IMPORT = Pattern.compile(
+        "(?is)@import\\s+(?:url\\([^)]*\\)|\"[^\"]*\"|'[^']*')\\s*;?");
     private static final Pattern VIEW_BOX = Pattern.compile(
         "(?is)<svg\\b[^>]*\\bviewBox\\s*=\\s*[\"']\\s*[-0-9.]+[\\s,]+[-0-9.]+[\\s,]+([0-9.]+)[\\s,]+([0-9.]+)\\s*[\"']");
     private static final Pattern HEIGHT_ATTRIBUTE = Pattern.compile(
@@ -71,6 +78,8 @@ public final class AiSvgContentSupport {
         sanitized = EVENT_HANDLER_ATTRIBUTE.matcher(sanitized).replaceAll("");
         sanitized = NON_FRAGMENT_HREF_QUOTED.matcher(sanitized).replaceAll("");
         sanitized = NON_FRAGMENT_HREF_UNQUOTED.matcher(sanitized).replaceAll("");
+        sanitized = FETCH_ATTRIBUTE.matcher(sanitized).replaceAll("");
+        sanitized = CSS_IMPORT.matcher(sanitized).replaceAll("");
         sanitized = NON_FRAGMENT_CSS_URL.matcher(sanitized).replaceAll("none");
         return sanitized;
     }

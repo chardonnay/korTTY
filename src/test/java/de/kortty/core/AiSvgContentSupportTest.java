@@ -73,6 +73,25 @@ class AiSvgContentSupportTest {
     }
 
     @Test
+    void sanitizeStripsFetchSinksFromSmuggledMarkup() {
+        String hostile = "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"5\" height=\"5\"/>"
+            + "<foreignObject><iframe src=\"file:///etc/passwd\"></iframe>"
+            + "<img srcset=\"https://evil.example/a.png 1x\" src=https://evil.example/b.png>"
+            + "<object data=\"https://evil.example/o.swf\"></object>"
+            + "<video poster='https://evil.example/p.jpg'></video>"
+            + "<style>@import url(https://evil.example/f.css); @import \"https://evil.example/g.css\";</style>"
+            + "</foreignObject></svg>"
+            + "<img src=\"https://evil.example/appended.png\">";
+
+        String sanitized = AiSvgContentSupport.sanitizeSvg(hostile);
+
+        assertThat(sanitized).doesNotContain("evil.example");
+        assertThat(sanitized).doesNotContain("file:///");
+        assertThat(sanitized).doesNotContain("@import");
+        assertThat(sanitized).contains("<rect width=\"5\" height=\"5\"/>");
+    }
+
+    @Test
     void buildSvgHtmlEmbedsTheDocumentWithScalingStyles() {
         String html = AiSvgContentSupport.buildSvgHtml(SIMPLE_SVG);
 

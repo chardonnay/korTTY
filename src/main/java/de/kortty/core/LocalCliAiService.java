@@ -219,24 +219,24 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         if (raw == null) {
             return "";
         }
-        String cleaned = raw
-            // Reasoning blocks emitted by some local models (e.g. gpt-oss via lms);
-            // tolerate attributes/whitespace such as <think type="...">.
-            .replaceAll("(?is)<think\\b[^>]*>.*?</think\\s*>", "")
-            // ANSI CSI sequences (cursor moves, erase-line, show/hide cursor, colors).
-            .replaceAll("\\[[0-9;?]*[ -/]*[@-~]", "")
-            // ANSI OSC sequences terminated by BEL.
-            .replaceAll("\\][^]*", "")
-            // Stray carriage returns used for in-place progress rendering.
-            .replace("\r", "");
-        return cleaned.strip();
+        String cleaned = THINK_BLOCK_PATTERN.matcher(raw).replaceAll("");
+        return stripAnsiControlSequences(cleaned).strip();
     }
 
+    // Reasoning blocks emitted by some local models (e.g. gpt-oss via lms);
+    // tolerate attributes/whitespace such as <think type="...">.
     private static final Pattern THINK_BLOCK_PATTERN = Pattern.compile("(?is)<think\\b[^>]*>(.*?)</think\\s*>");
-    // Mirrors the ANSI cleanup in sanitizeCliOutput: like there, the regexes embed the literal
-    // ESC/BEL control bytes (invisible in most editors; check with cat -v).
-    private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\\[[0-9;?]*[ -/]*[@-~]");
-    private static final Pattern ANSI_OSC_PATTERN = Pattern.compile("\\][^]*");
+    // ANSI CSI sequences (cursor moves, erase-line, show/hide cursor, colors).
+    private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[ -/]*[@-~]");
+    // ANSI OSC sequences terminated by BEL.
+    private static final Pattern ANSI_OSC_PATTERN = Pattern.compile("\u001B\\][^\u0007]*\u0007");
+
+    /** Strips ANSI CSI/OSC control sequences and stray carriage returns. */
+    private static String stripAnsiControlSequences(String text) {
+        String cleaned = ANSI_CSI_PATTERN.matcher(text).replaceAll("");
+        cleaned = ANSI_OSC_PATTERN.matcher(cleaned).replaceAll("");
+        return cleaned.replace("\r", "");
+    }
 
     /**
      * Pulls the reasoning out of {@code <think>...</think>} blocks that {@link #sanitizeCliOutput}
@@ -254,8 +254,7 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             if (block == null) {
                 continue;
             }
-            block = ANSI_CSI_PATTERN.matcher(block).replaceAll("");
-            block = ANSI_OSC_PATTERN.matcher(block).replaceAll("").replace("\r", "").strip();
+            block = stripAnsiControlSequences(block).strip();
             if (!block.isBlank()) {
                 if (reasoning.length() > 0) {
                     reasoning.append("\n\n");
