@@ -5,6 +5,12 @@ shown in the footer.
 
 ## Unreleased
 
+### Appearance
+
+- **App design `Normal` renamed to `Default`** in *Settings → Appearance*. The stored value is unchanged, so existing configurations keep their selected design.
+- **Previous/next buttons next to the App Design dropdown** let you step backward and forward through the designs (wrapping around at the ends) without opening the dropdown.
+- **Design preview moved below the controls** into a fixed-size area, so switching designs (or back to `Default`, which has no preview) no longer draws the preview over the dropdown.
+
 ### Local Shell connections
 
 - **Open the local machine's shell in a terminal tab (no network)** — a new
@@ -44,6 +50,35 @@ shown in the footer.
 - **Ctrl+D closes a local cmd.exe/PowerShell tab** — those Windows shells do not
   exit on EOF, so Ctrl+D had no effect there. For bash-family shells
   (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, Ctrl+D keeps its normal EOF meaning.
+
+### AI chat & agent
+
+- **Images, diagrams, and math render in AI chats** — AI answers containing an
+  SVG document, a base64 raster image (`data:image/png;base64,…` — PNG, JPEG,
+  GIF, BMP), a ` ```plantuml ` block, a ` ```mermaid ` block, or LaTeX math
+  (` ```latex `/` ```tex `/` ```math ` blocks and `$$…$$` in prose) are shown as
+  images instead of raw markup, each with a **Show code / Show image** toggle and
+  copy button. Mermaid and MathJax are bundled (no network); PlantUML uses the
+  local toolchain (`java` + Graphviz `dot`); SVG output is sanitized and shown
+  with JavaScript disabled.
+- **Full model reasoning in agent thinking rows** — expanding a 💭 row in the
+  agent activity panel now shows the model's actual reasoning when the provider
+  exposes it (Anthropic extended thinking per the profile's Reasoning effort,
+  OpenAI-compatible `reasoning_content`, LM Studio reasoning output, `<think>`
+  blocks from local CLI models), falling back to the decision summary otherwise.
+- **Run log records the AI profile** — every agent run starts with an
+  `AI profile: <name> (<model>)` activity row.
+- **Reload uses the currently active profile** — the activity panel's reload
+  button re-runs the command with the profile that is active now, not the one the
+  original run was started with.
+- **Agent Ask includes the terminal selection** — starting **AI → Ask AI Agent**
+  from the right-click menu with text selected sends the selection as context, so
+  the question is answered about the selected output or script.
+- **Concrete models for cloud profiles** — the model selector is pre-filled with
+  common model names for known cloud providers (offline, no API key needed), the
+  refresh button merges the endpoint's live model list, clicking a model in the
+  dropdown now reliably applies it, and the unusable **Auto** option is no longer
+  offered for cloud endpoints (with a clearer error when no model is selected).
 
 ### Workflow Script Generator
 

@@ -14,6 +14,7 @@ import static com.google.common.truth.Truth.assertThat;
 class LocalCliAiServiceTest {
 
     private static final String ESC = String.valueOf((char) 27);
+    private static final String BEL = String.valueOf((char) 7);
 
     @Test
     void executesCliAndReturnsStdout() throws Exception {
@@ -172,6 +173,66 @@ class LocalCliAiServiceTest {
         assertThat(cleaned).doesNotContain("hidden chain of thought");
         assertThat(cleaned).contains("list[2]");
         assertThat(cleaned).contains("Error? no: fine");
+    }
+
+    @Test
+    void extractThinkReasoningPullsThinkBlockContent() {
+        String raw = "<think>internal reasoning here</think>The answer is data[0].";
+
+        assertThat(LocalCliAiService.extractThinkReasoning(raw)).isEqualTo("internal reasoning here");
+    }
+
+    @Test
+    void extractThinkReasoningConcatenatesMultipleBlocks() {
+        String raw = "<think>step one</think>partial<think class=\"r\">step two</think>done";
+
+        assertThat(LocalCliAiService.extractThinkReasoning(raw)).isEqualTo("step one\n\nstep two");
+    }
+
+    @Test
+    void extractThinkReasoningReturnsNullWhenNoBlockPresent() {
+        assertThat(LocalCliAiService.extractThinkReasoning("plain answer")).isNull();
+        assertThat(LocalCliAiService.extractThinkReasoning(null)).isNull();
+    }
+
+    @Test
+    void extractThinkReasoningStripsAnsiSequencesIncludingEscByte() {
+        String raw = "<think>" + ESC + "[31mred" + ESC + "[0m thought " + ESC + "]0;title" + BEL + "tail"
+            + "\r</think>answer";
+
+        String reasoning = LocalCliAiService.extractThinkReasoning(raw);
+
+        assertThat(reasoning).isEqualTo("red thought tail");
+        assertThat(reasoning).doesNotContain(ESC);
+        assertThat(reasoning).doesNotContain(BEL);
+    }
+
+    @Test
+    void stripsOscSequencesTerminatedByStringTerminator() {
+        // OSC may end with ST (ESC backslash) instead of BEL.
+        String stTerminatedOsc = ESC + "]0;window title" + ESC + "\\";
+
+        assertThat(LocalCliAiService.sanitizeCliOutput(stTerminatedOsc + "answer")).isEqualTo("answer");
+        assertThat(LocalCliAiService.extractThinkReasoning("<think>" + stTerminatedOsc + "thought</think>x"))
+            .isEqualTo("thought");
+    }
+
+    @Test
+    void executeSeparatesThinkReasoningFromAnswer() throws Exception {
+        Path script = createScript("printf '%s' '<think>weighing options</think>The answer is 42.'");
+        LocalCliAiService service = new LocalCliAiService(
+            "test",
+            script.toString(),
+            "{promptFile}",
+            "custom-model",
+            AiReasoningEffort.DISABLED,
+            AiSkillPromptSupport.disabled(),
+            Duration.ofSeconds(5));
+
+        AiExecutionResult result = service.executePrompt("system", "user");
+
+        assertThat(result.content()).isEqualTo("The answer is 42.");
+        assertThat(result.reasoning()).isEqualTo("weighing options");
     }
 
     private Path createScript(String body) throws Exception {

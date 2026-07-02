@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import de.kortty.model.AgentActionCategory;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.core.agent.AgentCommandRunner;
@@ -329,6 +330,7 @@ public class TerminalAgentService {
         String sessionId = request.sessionId();
         CachedSudoPassword cachedPassword = null;
         try {
+            publishAgentProfile(ui, runId, profile);
             TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, runner);
             List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
             boolean confirmMutatingCommandSets = request.confirmMutatingCommandSets();
@@ -984,7 +986,7 @@ public class TerminalAgentService {
             publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
                 decision.userMessage(),
-                decision.summary(),
+                nonBlank(result.reasoning(), decision.summary()),
                 tokenUsageOf(result),
                 elapsedSecondsSince(startedAtNanos),
                 true);
@@ -1017,7 +1019,7 @@ public class TerminalAgentService {
                 publishThinking(ui, repairThinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
                     "Thinking",
                     decision.userMessage(),
-                    decision.summary(),
+                    nonBlank(repaired.reasoning(), decision.summary()),
                     tokenUsageOf(repaired),
                     elapsedSecondsSince(repairStartedAtNanos),
                     true);
@@ -1068,7 +1070,7 @@ public class TerminalAgentService {
                 TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
                 decision.userMessage(),
-                decision.summary(),
+                nonBlank(result.reasoning(), decision.summary()),
                 tokenUsageOf(result),
                 elapsedSecondsSince(startedAtNanos),
                 true);
@@ -1123,7 +1125,7 @@ public class TerminalAgentService {
                 TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
                 decision.userMessage(),
-                decision.summary(),
+                nonBlank(repaired.reasoning(), decision.summary()),
                 tokenUsageOf(repaired),
                 elapsedSecondsSince(repairStartedAtNanos),
                 true);
@@ -2130,6 +2132,34 @@ public class TerminalAgentService {
             && (normalizedError.contains("no such file or directory")
                 || normalizedError.contains("datei oder verzeichnis nicht gefunden")
                 || normalizedError.contains("not a directory"));
+    }
+
+    /**
+     * Publishes the AI profile used for this run as the first activity row, so the log shows which
+     * profile (and model) produced the following steps.
+     */
+    private void publishAgentProfile(RunUi ui, String runId, AiProfile profile) {
+        if (profile == null) {
+            return;
+        }
+        String name = nonBlank(profile.getName(), "AI profile");
+        String modelText = agentProfileModelText(profile);
+        String summary = modelText != null
+            ? "AI profile: " + name + " (" + modelText + ")"
+            : "AI profile: " + name;
+        publishMessage(ui, runId, "profile", summary, "");
+    }
+
+    private String agentProfileModelText(AiProfile profile) {
+        AiModelSelectionMode mode = profile.getModelSelectionMode();
+        String model = profile.getModel() != null ? profile.getModel().trim() : "";
+        if (mode == AiModelSelectionMode.AUTO) {
+            return "Auto";
+        }
+        if (mode == AiModelSelectionMode.DEFAULT) {
+            return null;
+        }
+        return model.isEmpty() ? null : model;
     }
 
     private void publishMessage(RunUi ui, String runId, String suffix, String summary, String detail) {

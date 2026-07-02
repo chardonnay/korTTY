@@ -1,0 +1,2536 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/about/release-notes.html">
+      
+      
+        <link rel="prev" href="../features/i18n.html">
+      
+      
+        <link rel="next" href="feedback.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Versionshinweise - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#versionshinweise" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Versionshinweise
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../en/about/release-notes.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="release-notes.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unveroffentlicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unveröffentlicht
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unveröffentlicht">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aussehen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aussehen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lokale-shell-verbindungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lokale Shell-Verbindungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-benutzerfreundlichkeit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal-Benutzerfreundlichkeit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ki-chat-und-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Chat und Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-skriptgenerator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow-Skriptgenerator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#korrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Korrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v223" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.2.3
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.2.3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kritischer-fix-die-monaco-editoren-konnten-die-gepackte-app-nicht-laden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kritischer Fix: Die Monaco-Editoren konnten die gepackte App nicht laden
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v222" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.2.2
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.2.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kritischer-fix-absturz-beim-offnen-der-monaco-editoren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kritischer Fix: Absturz beim Öffnen der Monaco-Editoren
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v221" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.2.1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.2.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stabilitatskorrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stabilitätskorrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anmeldefenster-mit-master-passwort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anmeldefenster mit Master-Passwort
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v220" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.2.0
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.2.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terminal-engine-und-hyperlinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal-Engine und Hyperlinks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mosh-mosh4j-202-upgrade-und-sicherheitshartung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mosh (mosh4j) 2.0.2 Upgrade und Sicherheitshärtung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ki-agenten-panel-und-aktivitat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Agenten-Panel und -Aktivität
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback und Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unveroffentlicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unveröffentlicht
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unveröffentlicht">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aussehen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aussehen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lokale-shell-verbindungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lokale Shell-Verbindungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-benutzerfreundlichkeit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal-Benutzerfreundlichkeit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ki-chat-und-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Chat und Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-skriptgenerator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow-Skriptgenerator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#korrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Korrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v223" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.2.3
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.2.3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kritischer-fix-die-monaco-editoren-konnten-die-gepackte-app-nicht-laden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kritischer Fix: Die Monaco-Editoren konnten die gepackte App nicht laden
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v222" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.2.2
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.2.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kritischer-fix-absturz-beim-offnen-der-monaco-editoren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kritischer Fix: Absturz beim Öffnen der Monaco-Editoren
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v221" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.2.1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.2.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stabilitatskorrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stabilitätskorrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anmeldefenster-mit-master-passwort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anmeldefenster mit Master-Passwort
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v220" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.2.0
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.2.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terminal-engine-und-hyperlinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal-Engine und Hyperlinks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mosh-mosh4j-202-upgrade-und-sicherheitshartung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mosh (mosh4j) 2.0.2 Upgrade und Sicherheitshärtung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ki-agenten-panel-und-aktivitat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Agenten-Panel und -Aktivität
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
+<p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
+in der Fußzeile angezeigt.</p>
+<h2 id="unveroffentlicht">Unveröffentlicht<a class="headerlink" href="#unveroffentlicht" title="Permanent link">&para;</a></h2>
+<h3 id="aussehen">Aussehen<a class="headerlink" href="#aussehen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>App-Design <code>Normal</code> in <em>Einstellungen → Erscheinungsbild</em> in <code>Default</code></strong> umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.</li>
+<li>Mit den Schaltflächen „Zurück/Weiter“ neben dem Dropdown-Menü „App-Design“ können Sie durch die Designs vor- und zurückblättern (an den Enden umschließen), ohne das Dropdown-Menü zu öffnen.</li>
+<li><strong>Die Designvorschau wurde unter die Steuerelemente verschoben</strong> in einen Bereich mit fester Größe, sodass beim Wechseln der Designs (oder zurück zu <code>Default</code>, wo es keine Vorschau gibt) die Vorschau nicht mehr über dem Dropdown-Menü angezeigt wird.</li>
+</ul>
+<h3 id="lokale-shell-verbindungen">Lokale Shell-Verbindungen<a class="headerlink" href="#lokale-shell-verbindungen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Öffnen Sie die Shell des lokalen Computers in einem Terminal-Tab (kein Netzwerk)</strong> – ein neues
+Das <strong>Local Shell</strong>-Protokoll erzeugt stattdessen ein lokales Pseudo-Terminal (PTY) über pty4j
+eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie <strong>PowerShell</strong> wählen.
+(Standard) oder <strong>cmd.exe</strong>; Unter macOS/Linux wird standardmäßig Ihr <code>$SHELL</code> (fallend) verwendet
+zurück zu <code>/bin/zsh</code> oder <code>/bin/bash</code>). Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert
+jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, Git Bash),
+und ein optionales Startverzeichnis kann festgelegt werden. In beiden Fällen ist die lokale Shell wählbar
+Quick Connect und der Verbindungsmanager; für diese Verbindungen
+Host/Port/Benutzername/Authentifizierung sind nicht erforderlich und im deaktiviert
+Dialoge.</li>
+<li><strong>Git Bash / Cygwin / WSL-Voreinstellungen</strong> unter Windows – jeweils nur angeboten, wenn sie tatsächlich vorhanden sind
+installiert (Git Bash/Cygwin über ihre üblichen Installationsorte / <code>PATH</code>; nur WSL).
+wenn <code>wsl.exe</code> vorhanden ist und mindestens eine Distribution installiert ist). Der
+Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Leerzeichen enthalten (wie
+<code>"C:\Program Files\Git\bin\bash.exe"</code>) korrekt starten.</li>
+<li><strong>Gemeinsame Connector-Hooks</strong> – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
+Haken wurden auf eine gemeinsame <code>ObservableTtyConnector</code>-Schnittstelle gehoben, also auch
+Arbeit für lokale Shells. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.</li>
+<li><strong>AI Agent &amp; Planning in lokalen Shells</strong> – die Befehlsausführungs-Engine des Agenten
+wurde hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH exec.) von SSH entkoppelt
+Kanal- und lokale Prozess-Backends). Der <strong>KI-Agent</strong> und <strong>KI-Planung</strong> jetzt
+In lokalen Shells unter Windows, macOS und Linux ausführen: Befehle werden im ausgeführt
+Verbindungs-Shell (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>),
+Die Umgebungsprobe und die Systemeingabeaufforderung sind plattformorientiert und vorhanden
+Es gilt der Genehmigungsablauf. Einschränkungen für lokale Shells: kein <code>sudo</code>/Administrator
+Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Der JobScheduler
+Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.</li>
+</ul>
+<h3 id="terminal-benutzerfreundlichkeit">Terminal-Benutzerfreundlichkeit<a class="headerlink" href="#terminal-benutzerfreundlichkeit" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Strg + Mausrad-Zoom</strong> – <strong>Strg</strong> (oder <strong>Befehl</strong> unter macOS) gedrückt halten und
+Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
+Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
+Verknüpfungen.</li>
+<li><strong>Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte</strong> – diese Windows-Shells tun dies nicht
+Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
+(Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.</li>
+</ul>
+<h3 id="ki-chat-und-agent">KI-Chat und Agent<a class="headerlink" href="#ki-chat-und-agent" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Bilder, Diagramme und Mathematik werden in KI-Chats gerendert</strong> – KI-Antworten mit einem
+SVG-Dokument, ein Base64-Rasterbild (<code>data:image/png;base64,…</code> – PNG, JPEG,
+GIF, BMP), ein <code>```plantuml</code>-Block, ein <code>```mermaid</code>-Block oder LaTeX-Mathematik
+(<code>```latex</code>/<code>```tex</code>/<code>```math</code> Blöcke und <code>$$…$$</code> in Prosa) werden als angezeigt
+Bilder anstelle von Roh-Markup, jeweils mit einem Umschalter <strong>Code anzeigen/Bild anzeigen</strong> und
+Schaltfläche „Kopieren“. Mermaid und MathJax sind gebündelt (kein Netzwerk); PlantUML verwendet die
+lokale Toolchain (<code>java</code> + Graphviz <code>dot</code>); Die SVG-Ausgabe wird bereinigt und angezeigt
+mit deaktiviertem JavaScript.</li>
+<li><strong>Vollständige Modellbegründung in Agent Thinking-Zeilen</strong> – Erweitern einer 💭-Zeile in der
+Das Agentenaktivitätsfeld zeigt jetzt die tatsächliche Argumentation des Modells beim Anbieter an
+legt es offen (Anthropisches erweitertes Denken gemäß der Argumentationsbemühungen des Profils,
+OpenAI-kompatibler <code>reasoning_content</code>, LM Studio Reasoning-Ausgabe, <code>&lt;think&gt;</code>
+Blöcke aus lokalen CLI-Modellen), andernfalls wird auf die Entscheidungszusammenfassung zurückgegriffen.</li>
+<li><strong>Das Laufprotokoll zeichnet das AI-Profil auf</strong> – jeder Agentenlauf beginnt mit einem
+<code>AI profile: &lt;name&gt; (&lt;model&gt;)</code>-Aktivitätszeile.</li>
+<li><strong>Beim Neuladen wird das aktuell aktive Profil verwendet</strong> – das Neuladen des Aktivitätsbereichs
+Mit der Schaltfläche wird der Befehl mit dem Profil erneut ausgeführt, das jetzt aktiv ist, nicht mit dem Profil, das gerade aktiv ist
+Der ursprüngliche Lauf wurde mit gestartet.</li>
+<li><strong>Agent Ask umfasst die Terminalauswahl</strong> – Starten von <strong>AI → Ask AI Agent</strong>
+aus dem Rechtsklick-Menü mit ausgewähltem Text sendet die Auswahl als Kontext, also
+Die Frage wird bezüglich der ausgewählten Ausgabe oder des ausgewählten Skripts beantwortet.</li>
+<li><strong>Konkrete Modelle für Wolkenprofile</strong> – die Modellauswahl ist vorab gefüllt
+gängige Modellnamen für bekannte Cloud-Anbieter (offline, kein API-Schlüssel erforderlich), die
+Klicken Sie auf die Schaltfläche „Aktualisieren“, um die Live-Modellliste des Endpunkts zusammenzuführen
+Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option <strong>Auto</strong> ist nicht mehr vorhanden
+Wird für Cloud-Endpunkte angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).</li>
+</ul>
+<h3 id="workflow-skriptgenerator">Workflow-Skriptgenerator<a class="headerlink" href="#workflow-skriptgenerator" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Zwei neue Zielsprachen</strong> – der Agent kann den → <strong>Workflow</strong>-Skriptgenerator ausführen
+Jetzt <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch) und <strong>AppleScript</strong> (<code>.applescript</code>) erstellen
+zusätzlich zu Bash, Python, Perl, Ruby, PowerShell und Ansible.</li>
+<li><strong>Anpassbare Skriptschriftgröße</strong> – jeder Editor für generierte Skripte verfügt über <strong>A−</strong> /
+<strong>A+</strong>-Tasten und unterstützt <strong>Strg + Mausrad</strong> (Cmd unter macOS); der Auserwählte
+Die Größe wird sitzungsübergreifend gespeichert.</li>
+<li><strong>Sichtbarer Fortschritt während der Generierung eines Diagramms</strong> – Generieren einer PlantUML
+Das Diagramm aus einem Skript zeigt jetzt den funktionierenden Spinner.</li>
+<li><strong>Deutlichere AI-Backend-Fehler</strong> – Fehler aufgrund von unzureichendem Arbeitsspeicher/Ressourcenlimit
+AI-Server (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“) zeigt a
+kurzer, umsetzbarer Hinweis anstelle des rohen Stack-Trace; Alle anderen KI-Fehler sind es
+auf eine einzige Zeile reduziert.</li>
+</ul>
+<h3 id="korrekturen">Korrekturen<a class="headerlink" href="#korrekturen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Das Schließen einer lokalen Shell friert korTTY nicht mehr ein</strong> – der PTY-Prozess ist jetzt
+zerstört, bevor seine Streams geschlossen werden, wodurch ein Terminal-Reader-Thread freigegeben wird
+in einem pty <code>read()</code> blockiert, anstatt das Schließen des JavaFX-Threads zu blockieren.</li>
+<li><strong>Korrekter Wortlaut für lokale Shells beim Schließen</strong> – die Schließbestätigungs-Nr
+sagt länger: „SSH-Verbindung beenden?“ für eine lokale Shell und die Eingabeaufforderung zum Schließen des Fensters
+ist nun transportneutral („Aktive Sitzungen“).</li>
+<li><strong>Keine Passwortabfrage für lokale Shells</strong> – Das Öffnen einer lokalen Shell wird nicht mehr angezeigt
+ein irrelevanter Passwortdialog (lokale Shells verwenden keine Authentifizierung).</li>
+</ul>
+<h2 id="v223">v2.2.3<a class="headerlink" href="#v223" title="Permanent link">&para;</a></h2>
+<h3 id="kritischer-fix-die-monaco-editoren-konnten-die-gepackte-app-nicht-laden">Kritischer Fix: Die Monaco-Editoren konnten die gepackte App nicht laden<a class="headerlink" href="#kritischer-fix-die-monaco-editoren-konnten-die-gepackte-app-nicht-laden" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Behoben, dass die auf Monaco basierenden Editoren (Snippet, Datei, AI, Diff) leer geöffnet wurden
+Bereich in der gepackten/beglaubigten macOS-App</strong> – kein Einfügezeichen, kein Eintippen, kein Einfügen. In
+In der gepackten App hat WebView seine Seite von einer <code>jar:</code>-URL und den Seiten geladen
+Content-Security-Policy (<code>script-src 'self'</code>) blockierte dann die eigene des Herausgebers
+<code>monaco-host.js</code>/<code>.css</code>, da ein Dokument mit <code>jar:</code>-Ursprung dies nicht autorisiert
+<code>jar:</code> Geschwister. Die Monaco-Ressourcen werden jetzt in ein temporäres Verzeichnis extrahiert und
+wird von einer <code>file:</code>-URL geladen, was der CSP zulässt. Ein fehlgeschlagener Editor-Ladevorgang ist jetzt ebenfalls aufgetreten
+zeigt einen Fehler anstelle eines stillschweigend leeren Bereichs an, und das Editor-Bundle ist es auch
+zusätzlich minimiert durch ein großzügigeres Boot-Budget.</li>
+</ul>
+<h2 id="v222">v2.2.2<a class="headerlink" href="#v222" title="Permanent link">&para;</a></h2>
+<h3 id="kritischer-fix-absturz-beim-offnen-der-monaco-editoren">Kritischer Fix: Absturz beim Öffnen der Monaco-Editoren<a class="headerlink" href="#kritischer-fix-absturz-beim-offnen-der-monaco-editoren" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Ein schwerer Absturz (kein Bildschirmfehler) beim Öffnen des Snippet-Managers wurde behoben
+Snippet-Editor oder der AI-Skill-Editor für Einstellungen in Paket-Builds</strong>: der
+In der gebündelten Laufzeit fehlte also das <code>jdk.jsobject</code>-Modul
+<code>netscape.javascript.JSObject</code> war zur Laufzeit nicht verfügbar und die JVM stürzte ab
+in JNI <code>get_method_id</code> (<code>SIGSEGV</code>). <code>jdk.jsobject</code> ist jetzt im Paket enthalten
+verpackte Laufzeit. Diese Version ersetzt v2.2.0 und v2.2.1, deren Binärdateien sind
+von diesem Absturz betroffen.</li>
+</ul>
+<h2 id="v221">v2.2.1<a class="headerlink" href="#v221" title="Permanent link">&para;</a></h2>
+<h3 id="stabilitatskorrekturen">Stabilitätskorrekturen<a class="headerlink" href="#stabilitatskorrekturen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Absturz des Einstellungen-/Snippet-Managers behoben</strong>: Öffnen der <strong>Globalen Einstellungen</strong> oder des
+<strong>Snippet Manager</strong> könnte die App abbrechen. Der eingebettete Monaco-Editor
+Die JavaScript→Java-Brücke ist nun eine starke Referenz für den Herausgeber
+Lebensdauer.</li>
+<li><strong>Verstärkung des WebView-Lebenszyklus</strong>: Monaco-Editoren werden bei ihrem Dialog entsorgt
+schließt; Späte Timer-/Laderückrufe nach dem Schließen werden ignoriert. Die Einstellungen <em>AI
+Der Skills</em>-Editor lädt bei der ersten Verwendung langsam.</li>
+</ul>
+<h3 id="anmeldefenster-mit-master-passwort">Anmeldefenster mit Master-Passwort<a class="headerlink" href="#anmeldefenster-mit-master-passwort" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Vollflächiges animiertes Logo</strong> im Standard-App-Design, mit Passwortformular
+überzogen mit einer durchscheinenden Karte.</li>
+</ul>
+<h2 id="v220">v2.2.0<a class="headerlink" href="#v220" title="Permanent link">&para;</a></h2>
+<h3 id="terminal-engine-und-hyperlinks">Terminal-Engine und Hyperlinks<a class="headerlink" href="#terminal-engine-und-hyperlinks" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Terminal-Engine <strong>SithTermFX 1.2.0</strong> (aus dem Quellcode erstellt).</li>
+<li><strong>Anklickbare OSC 8-Hyperlinks</strong> – Links, die von Programmen wie ausgegeben werden
+<code>ls --hyperlink</code> oder <code>eza</code>, beschränkt auf eine sichere URI-Schema-Zulassungsliste.</li>
+</ul>
+<h3 id="mosh-mosh4j-202-upgrade-und-sicherheitshartung">Mosh (mosh4j) 2.0.2 Upgrade und Sicherheitshärtung<a class="headerlink" href="#mosh-mosh4j-202-upgrade-und-sicherheitshartung" title="Permanent link">&para;</a></h3>
+<ul>
+<li>mosh4j <code>2.0.0 → 2.0.2</code> mit Wiedergabe-/Aktivitätsschutz pro Richtung und
+Grenzwerte für Dekompressionsbomben; Geben Sie JARs frei, die in nativen Builds gebündelt sind.</li>
+<li>Hüpfburg <code>1.78.1 → 1.84</code> (behebt CVE-2026-5598 HIGH und CVE-2026-0636).
+MÄSSIG); protobuf-java <code>4.28.2 → 4.35.1</code>.</li>
+</ul>
+<h3 id="ki-agenten-panel-und-aktivitat">KI-Agenten-Panel und -Aktivität<a class="headerlink" href="#ki-agenten-panel-und-aktivitat" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>AI Agent Panel-Platzierung</strong>: <em>Unten</em> (Standard), <em>Links andocken</em> oder <em>Andocken
+Richtig</em>, über alle Neustarts hinweg im Gedächtnis geblieben.</li>
+<li><strong>Mehrere gleichzeitige Läufe pro Split</strong> (Kapitel 5), Pause/Fortsetzung pro Lauf und
+Dashboard-/Tab-Statusabzeichen (✋ wartend · ⚡ in Arbeit · ⏸ pausiert · ✓ fertig).</li>
+</ul>
+<div class="admonition notiz">
+<p class="admonition-title">Notiz</p>
+</div>
+<p>Ältere Versionen werden im <code>app-docs/RELEASE_NOTES.adoc</code> des Repositorys erfasst
+und wird vollständig hierher migriert.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

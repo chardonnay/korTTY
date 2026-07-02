@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Executes AI prompts through a locally installed provider CLI.
@@ -127,7 +129,8 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             if (result.exitCode() != 0) {
                 throw new IllegalStateException(buildExitMessage(result));
             }
-            return new AiExecutionResult(sanitizeCliOutput(result.stdout()), null);
+            String stdout = result.stdout();
+            return new AiExecutionResult(sanitizeCliOutput(stdout), null, extractThinkReasoning(stdout));
         } finally {
             deleteRecursively(tempDir);
         }
@@ -216,17 +219,51 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         if (raw == null) {
             return "";
         }
-        String cleaned = raw
-            // Reasoning blocks emitted by some local models (e.g. gpt-oss via lms);
-            // tolerate attributes/whitespace such as <think type="...">.
-            .replaceAll("(?is)<think\\b[^>]*>.*?</think\\s*>", "")
-            // ANSI CSI sequences (cursor moves, erase-line, show/hide cursor, colors).
-            .replaceAll("\\[[0-9;?]*[ -/]*[@-~]", "")
-            // ANSI OSC sequences terminated by BEL.
-            .replaceAll("\\][^]*", "")
-            // Stray carriage returns used for in-place progress rendering.
-            .replace("\r", "");
-        return cleaned.strip();
+        String cleaned = THINK_BLOCK_PATTERN.matcher(raw).replaceAll("");
+        return stripAnsiControlSequences(cleaned).strip();
+    }
+
+    // Reasoning blocks emitted by some local models (e.g. gpt-oss via lms);
+    // tolerate attributes/whitespace such as <think type="...">.
+    private static final Pattern THINK_BLOCK_PATTERN = Pattern.compile("(?is)<think\\b[^>]*>(.*?)</think\\s*>");
+    // ANSI CSI sequences (cursor moves, erase-line, show/hide cursor, colors).
+    private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[ -/]*[@-~]");
+    // ANSI OSC sequences terminated by BEL or by the String Terminator (ESC backslash).
+    private static final Pattern ANSI_OSC_PATTERN =
+        Pattern.compile("\u001B\\][^\u0007\u001B]*(?:\u0007|\u001B\\\\)");
+
+    /** Strips ANSI CSI/OSC control sequences and stray carriage returns. */
+    private static String stripAnsiControlSequences(String text) {
+        String cleaned = ANSI_CSI_PATTERN.matcher(text).replaceAll("");
+        cleaned = ANSI_OSC_PATTERN.matcher(cleaned).replaceAll("");
+        return cleaned.replace("\r", "");
+    }
+
+    /**
+     * Pulls the reasoning out of {@code <think>...</think>} blocks that {@link #sanitizeCliOutput}
+     * strips from the answer, so it can be surfaced as {@link AiExecutionResult#reasoning()}.
+     * Concatenates multiple blocks; returns {@code null} when there is no reasoning.
+     */
+    static String extractThinkReasoning(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        Matcher matcher = THINK_BLOCK_PATTERN.matcher(raw);
+        StringBuilder reasoning = new StringBuilder();
+        while (matcher.find()) {
+            String block = matcher.group(1);
+            if (block == null) {
+                continue;
+            }
+            block = stripAnsiControlSequences(block).strip();
+            if (!block.isBlank()) {
+                if (reasoning.length() > 0) {
+                    reasoning.append("\n\n");
+                }
+                reasoning.append(block);
+            }
+        }
+        return reasoning.length() > 0 ? reasoning.toString() : null;
     }
 
     private static String buildCombinedPrompt(String systemPrompt, String userPrompt) {

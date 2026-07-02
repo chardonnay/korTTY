@@ -9,7 +9,12 @@ public enum AppDesign {
     MATRIX_TERMINAL("matrix-terminal"),
     HOLOGRAPHIC_INTERFACE("holographic-interface"),
     KLINGON_TACTICAL("klingon-tactical"),
-    ELEGANT_DARK("elegant-dark");
+    ELEGANT_DARK("elegant-dark"),
+    AMBER_CRT("amber-crt"),
+    SYNTHWAVE_84("synthwave-84"),
+    GRUVBOX_RETRO("gruvbox-retro"),
+    NORD_ARCTIC("nord-arctic"),
+    DRACULA("dracula");
 
     private final String id;
 

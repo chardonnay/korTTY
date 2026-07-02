@@ -16,7 +16,7 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 1. Öffnen Sie **Bearbeiten > Globale Einstellungen**.
 2. Gehen Sie zu **AI**.
 3. Erstellen Sie ein oder mehrere AI-Profile und geben Sie die **API-URL** für jedes Profil ein, das Sie verwenden möchten. Sie können Profile unter **Einstellungen > AI** oder unter **Tools > AI Manager > Profile** verwalten.
-4. Geben Sie optional **Modell** und **API-Schlüssel** ein. Der bearbeitbare Modellselektor unterstützt manuelle Modellnamen und für lokale LM Studio-Endpunkte eine **Auto**-Option sowie die aktuell geladenen lokalen LLMs. Der **API-Schlüssel** wird verschlüsselt mit Ihrem Master-Passwort gespeichert. Bevorzugen Sie lokale Endpunkte für vertrauliche Daten oder überprüfen Sie die Vertrauensstufe des Endpunkts, bevor Sie eine Auswahl senden.
+4. Geben Sie optional **Modell** und **API-Schlüssel** ein. Die bearbeitbare Modellauswahl unterstützt manuelle Modellnamen; für bekannte Cloud-Anbieter (OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax) ist es mit gängigen Modellnamen vorgefüllt und für lokale LM Studio-Endpunkte bietet es eine **Auto**-Option plus die aktuell geladenen lokalen LLMs. Der **API-Schlüssel** wird verschlüsselt mit Ihrem Master-Passwort gespeichert. Bevorzugen Sie lokale Endpunkte für vertrauliche Daten oder überprüfen Sie die Vertrauensstufe des Endpunkts, bevor Sie eine Auswahl senden.
 5. Konfigurieren Sie optional **Max. Zeichen**, **Tokenizer**, **Token-Limit**, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten **Begründungsaufwand** und **Internetzugriff** pro Profil. korTTY stellt Argumentationsoptionen basierend auf der konfigurierten API-URL und dem konfigurierten API-Modell bereit; Profile ohne unterstützten Argumentationsmodus bleiben deaktiviert.
 6. Klicken Sie auf **AI-Verbindung testen**.
 7. Wählen Sie optional ein **Standardprofil** für Terminal-KI-Aktionen und Folgechats, die nicht explizit ein anderes Profil auswählen.
@@ -38,18 +38,23 @@ Der Assistent führt Sie durch:
 1. **Verbindungstyp** – Wählen Sie lokales LM Studio oder einen Cloud-Anbieter.
 2. **LM Studio-Setup** – Wenn lokal: Wählen Sie ein geladenes LM Studio-Modell aus der Liste aus oder verwenden Sie den **Auto**-Modus.
 3. **Einrichten des Cloud-Anbieters** – Bei Cloud: Wählen Sie den Anbieter aus (Anthropic Claude API, OpenAI oder ein anderer OpenAI-kompatibler Endpunkt).
-4. **API-Details** – Geben Sie den API-Schlüssel ein, wählen Sie den Modellnamen aus oder geben Sie ihn ein und konfigurieren Sie optional den Reasoning-Aufwand (wenn der Anbieter/das Modell erweitertes Denken unterstützt).
+4. **API-Details** – Geben Sie den API-Schlüssel ein und wählen Sie den Modellnamen aus oder geben Sie ihn ein – die Modellliste ist vorab mit gängigen Modellen für den ausgewählten Anbieter gefüllt, und **Modelle laden** führt die Live-Modellliste des Endpunkts oben zusammen. Konfigurieren Sie optional den Reasoning-Aufwand (wenn der Anbieter/das Modell erweitertes Denken unterstützt).
 5. **Profilname** – Geben Sie einen Anzeigenamen für das Profil ein (z. B. „Claude Opus“, „Local LM Studio“).
 
 Native Anthropic (Claude) API-Unterstützung ist neben vorhandenen OpenAI-kompatiblen Endpunkten enthalten.
 
-## Lokale LM Studio-Modellauswahl
+## Modellauswahl
 
-Für lokale LM Studio-Profile kann korTTY aktuell geladene LLM-Modellschlüssel über den `GET /api/v1/models`-Endpunkt von LM Studio ermitteln. Die Modellauswahl unter **Einstellungen > AI** und **Tools > AI Manager > Profile** kann bearbeitet werden:
+Die Modellauswahl unter **Einstellungen > AI** und **Tools > AI Manager > Profile** kann bearbeitet werden:
 
-* **Auto** hält das Profil im automatischen Modus.
+* Bei bekannten Cloud-Anbietern ist das Dropdown-Menü bereits mit gängigen Modellnamen für den konfigurierten Endpunkt gefüllt, sodass ein konkretes Modell ohne API-Schlüssel ausgewählt werden kann. Die Schaltfläche „Aktualisieren“ neben der Auswahl führt die Live-`/v1/models`-Liste des Endpunkts oben zusammen, wenn der API-Schlüssel gültig ist.
 * Ein aufgelistetes Modell speichert dieses Modell als manuelle Auswahl.
-* Ein eingegebener Modellname wird als manuelle Auswahl gespeichert, sodass andere OpenAI-kompatible Endpunkte weiterhin funktionieren.
+* Ein eingegebener Modellname wird als manuelle Auswahl gespeichert, sodass jeder OpenAI-kompatible Endpunkt funktioniert.
+* **Auto** wird nur für lokale LM Studio-Endpunkte angeboten, bei denen korTTY das geladene Modell tatsächlich erkennen kann. Cloud-Profile benötigen ein konkretes Modell; Wenn keine Option ausgewählt ist, werden die Anforderungen mit der expliziten Fehlermeldung „Wählen Sie ein bestimmtes KI-Modell aus“ beendet.
+
+### Lokale LM Studio-Modellauswahl
+
+Für lokale LM Studio-Profile kann korTTY aktuell geladene LLM-Modellschlüssel über den `GET /api/v1/models`-Endpunkt von LM Studio ermitteln.
 
 Der automatische Modus löst das effektive Modell unmittelbar vor Verbindungstests, KI-Chat- und Folgeanfragen, Terminal-KI-Aktionen und der Ausführung des Terminal-KI-Agenten auf. Wenn genau ein LLM geladen ist, verwendet korTTY dieses Modell. Wenn mehrere LLMs geladen sind, verwendet korTTY das gespeicherte bevorzugte Modell nur, wenn dieses Modell gerade geladen ist. Wenn kein LLM geladen ist oder mehrere LLMs ohne gültige gespeicherte Präferenz geladen werden, stoppt korTTY die Anfrage mit einem expliziten Fehler, anstatt zu raten.
 
@@ -144,11 +149,58 @@ Wenn eine AI-Agent-Ausführung einen oder mehrere Skills verwendet, protokollier
 * Mit der Symbolleiste können Sie die Konversation kopieren, den Chat speichern oder umbenennen, ihn als PDF/Markdown/Nur-Text teilen/exportieren, die letzte Anfrage erneut versuchen, die Registerkarte schließen, laufende Anfragen abbrechen und die Schriftgröße ändern.
 * Die Antwortsprache ist standardmäßig die aktuelle GUI-Sprache. Sie können die Antwortsprache und das aktive KI-Profil pro Chat ändern, bevor Sie eine Folgeaufforderung senden.
 * Folgeaufforderungen in **Zusammenfassen** und **Problem lösen** werden als normale Chat-Fragen fortgesetzt; Sie werden nicht zur ursprünglichen Eingabeaufforderung für Zusammenfassung/Problemanalyse zurück gezwungen.
-* Erkannte Codeblöcke erhalten einen eigenen Kopier-Button und können auch direkt im Snippet Manager gespeichert werden.
+* Erkannte Codeblöcke erhalten einen eigenen Kopier-Button und können auch direkt im Snippet Manager gespeichert werden. Blöcke, die Bilder, Diagramme oder Mathematik enthalten, werden stattdessen als Bilder gerendert – siehe [Gerenderte Bilder, Diagramme und Mathematik](#rendered-images-diagrams-and-math).
 * Gerenderte Markdown-Tabellen können als ganze Tabelle, einzelne Spalte oder einzelne Zelle kopiert werden.
 * Die ausgewählte AI-Tab-Schriftgröße wird global gespeichert und für zukünftige AI-Ergebnis-Tabs wiederverwendet.
 * Die Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet, sodass Warnungen und Rücksetzzyklen korrekt bleiben.
 * Wenn ein gespeicherter Chat auf ein AI-Profil verweist, das nicht mehr existiert, fordert korTTY Sie auf, ein Ersatzprofil auszuwählen, bevor Sie mit den Folgeaufforderungen fortfahren.
+
+### Gerenderte Bilder, Diagramme und Mathematik
+
+KI-Antworten, die Bilder, Diagramme oder mathematische Formeln enthalten, werden im Chat als Bilder gerendert, anstatt rohes Markup anzuzeigen. Dies gilt auch für gespeicherte Chats, die über den AI Manager erneut geöffnet werden.
+
+| Inhalt in der KI-Antwort | Gerendert als |
+|--------------------------|-------------|
+| ` ```svg ` / ` ```xml ` / ` ```html `-Codeblock (oder Block ohne Tags), der ein `<svg>`-Dokument enthält | Inline-Vektorbild |
+| Markdown-Bildlink mit einem `data:image/png;base64,…`-URI im Antworttext oder ein Codeblock, der nur einen solchen Daten-URI enthält | Inline-Rasterbild (PNG, JPEG, GIF, BMP; bis zu 8 MB dekodiert) mit einer Schaltfläche **Bild kopieren** |
+| ` ```plantuml ` / ` ```puml `-Codeblock oder ein nicht markierter `@startuml`-Block | Lokal gerendertes PlantUML-Diagramm |
+| ` ```mermaid ` Codeblock | Mermaid-Diagramm (gebündelte Bibliothek, kein Netzwerk) |
+| ` ```latex ` / ` ```tex ` / ` ```math ` Codeblock oder `$$ … $$` Mathematik im Antworttext | Satzformel (im Lieferumfang von MathJax enthalten, kein Netzwerk) |
+
+Jeder gerenderte Block behält eine Kopfzeile mit der üblichen Kopierschaltfläche und einem Umschalter zwischen **Code anzeigen/Bild anzeigen**, sodass die zugrunde liegende Quelle nur einen Klick entfernt bleibt. Während ein PlantUML/Mermaid/Math-Block noch gerendert wird, bleibt die Quelle sichtbar; Wenn das Rendern fehlschlägt (z. B. ein Mermaid-Syntaxfehler), bleibt der Block in der Quellansicht und die Kopfzeile zeigt den Grund an.
+
+Beispielaufforderungen, die gerenderte Antworten erzeugen:
+
+```text
+Draw a simple house as an SVG image.
+Create a Mermaid flowchart of a typical login flow.
+Create a PlantUML sequence diagram for an SSH handshake.
+Explain the Pythagorean theorem and show the formula.
+```
+
+Ein Mermaid-Antwortblock wie dieser wird als Flussdiagramm dargestellt:
+
+````text
+```mermaid
+Diagramm TD;
+Anmelden -> Bestätigen;
+Validieren-->|ok| Sitzung;
+Validieren ->|fehlschlagen| Fehler;
+```
+````
+
+Und zeigen Sie die Mathematik im Antworttext als gesetzte Formel an:
+
+```text
+$$a^2 + b^2 = c^2$$
+```
+
+!!! Hinweis „Darstellungsdetails und Anforderungen“
+* Die SVG- und PlantUML-Ausgabe wird mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.
+* Mermaid läuft mit der Sicherheitsstufe `strict` aus einer lokal gebündelten Bibliothek; LaTeX wird von einem lokal gebündelten MathJax gesetzt. Keiner von beiden benötigt einen Internetzugang.
+* Beim PlantUML-Rendering wird die lokale PlantUML-Toolchain verwendet: `java` und Graphviz `dot` müssen sich auf `PATH` befinden, und das PlantUML-JAR wird bei der ersten Verwendung in den Benutzercache heruntergeladen (dieselben Anforderungen wie bei Snippet-Diagrammen).
+* Vollständige LaTeX-Dokumente (`\documentclass`) bleiben absichtlich Codeblöcke; Es werden nur Formeln gesetzt.
+* Für gerenderte Bilder wird eine weiße Leinwand verwendet, sodass Diagramme und Formeln mit dunklen Strichen bei dunklen Themen lesbar bleiben.
 
 ## KI-Manager
 
@@ -163,24 +215,41 @@ Der AI Manager verfügt über zwei Arbeitsbereiche:
 
 Verwenden Sie **Einstellungen > AI** für die globalen Standardeinstellungen und Verhaltensänderungen und **AI Manager** für die tägliche Profil-/Chatverwaltung.
 
+## Fragen Sie nach der Anleitung (AI-Dokumentensuche)
+
+Das integrierte Anleitung (**Hilfe > Anleitung**, ++f1++) enthält eine KI-gestützte Suche. Schalten Sie **KI-Suche** in der Symbolleiste des manuellen Fensters ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel *„Wie führe ich den KI-Agenten im Terminalfenster aus?“* – und drücken Sie ++enter++.
+
+So funktioniert es:
+
+* korTTY wählt die relevantesten Abschnitte aus dem gebündelten Offline-Anleitung aus (keine Einbettungen, kein externer Suchdienst) und sendet nur diese Auszüge zusammen mit Ihrer Frage an Ihr **Standard-KI-Profil**.
+* Die Antwort wird **ausschließlich aus der Anleitunginhalt** generiert und ist in der App-Sprache verfasst. Wenn die Anleitung die Frage nicht beantwortet, sagt der Assistent dies, anstatt zu raten.
+* Antworten geben ihre Quellen an: Klicken Sie auf ein Inline-Zitat oder einen Eintrag in der Liste **Quellen**, um in der manuellen Ansicht direkt zur Seite und zum Abschnitt zu gelangen, auf die verwiesen wird.
+* Wenn nichts im Anleitung mit der Frage übereinstimmt, antwortet korTTY lokal, ohne den KI-Endpunkt überhaupt zu kontaktieren.
+
+Anforderungen:
+
+* Ein konfiguriertes AI-Profil (siehe [Setup](#setup)); Es wird das Standardprofil verwendet.
+* Ein entsperrter Master-Passwort-Tresor, wenn das Profil einen verschlüsselten API-Schlüssel speichert.
+
+!!! Warnung „Datensicherheit“
+Der Fragetext und die ausgewählten manuellen Auszüge werden an den konfigurierten KI-Endpunkt übermittelt. Der Inhalt der Anleitungs selbst ist eine öffentliche Dokumentation, aber Ihre Frage ist Freitext – vermeiden Sie das Einfügen von Geheimnissen oder verwenden Sie einen vertrauenswürdigen lokalen Endpunkt wie **LM Studio**. Bei manuellen Fragen sind die Internetzugriffsmodi immer deaktiviert.
+
 ## KI-Agent und KI-Planung
 
 korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
 
-!!! note „SSH und lokale Shells“
-    Die Befehlsausführungs-Engine des Agenten wurde hinter einer
-    `AgentCommandRunner`-Abstraktion mit zwei Backends von SSH entkoppelt –
-    **SSH** (Exec-Kanal) und **lokal** (ein frischer lokaler Prozess). Der
-    **KI-Agent** und die **KI-Planung** laufen daher sowohl in SSH-Sitzungen als
-    auch in [lokalen Shells](connections.md#lokale-shell) unter Windows, macOS und
-    Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über
-    `-EncodedCommand`, `cmd.exe` oder `$SHELL`), die Umgebungs-Probe und der
-    System-Prompt sind plattformbewusst, sodass das Modell native Befehle erzeugt,
-    und derselbe Genehmigungsablauf gilt. **Einschränkungen bei lokalen Shells:**
-    keine `sudo`-/Administrator-Erhöhung unter Windows und keine
-    Live-Arbeitsverzeichnis-Verfolgung (der Agent verwendet das Startverzeichnis
-    der Verbindung). Die headless KI-Agent-Aktion des JobSchedulers bleibt
-    SSH-exklusiv.
+!!! Hinweis „SSH und lokale Shells“
+Die Befehlsausführungs-Engine des Agenten ist hinter einem von SSH entkoppelt
+`AgentCommandRunner`-Abstraktion mit zwei Backends – **SSH** (Exec-Kanal)
+und **local** (ein neuer lokaler Prozess). Der **KI-Agent** und **KI-Planung**
+daher sowohl in SSH-Sitzungen als auch in [lokalen Shells](connections.md#local-shell)
+unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt
+(PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), die Umgebung
+Sonde und Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native generiert
+Befehle, und es gilt der gleiche Genehmigungsablauf. **Einschränkungen der lokalen Shell:** Nein
+`sudo`/Administrator-Erhöhung unter Windows und kein Live-Arbeitsverzeichnis
+Tracking (der Agent verwendet das Startverzeichnis der Verbindung). Der JobScheduler
+Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.
 
 ### Starten des Agenten
 
@@ -308,28 +377,27 @@ korTTY fügt Leitplanken für die Agentenausführung hinzu:
 
 ## Workflow-Skript generieren
 
-Nachdem die Ausführung eines fertigen Agenten erfolgreich abgeschlossen wurde, verwandelt eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem Header (Skriptname, Ersteller, Datum/Uhrzeit).
+Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, verwandelt eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD** Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem Header (Skriptname, Ersteller, Datum/Uhrzeit).
 
 Skripterstellung:
 
 * Lädt automatisch passende KI-Fähigkeiten (z. B. eine Sprachqualitätsfähigkeit für die Zielsprache).
 * Kann mehrere Sprachvarianten und mehrere Vorschläge als Inline-Tabs erstellen.
 * Unterstützt Header-Vorlagen aus der festen, nicht löschbaren Snippet-Kategorie **Script-Header**.
-* Enthält optional ein PlantUML-Diagramm für die Skriptlogik. Während das Diagramm generiert wird, erscheint ein Arbeits-Spinner, sodass erkennbar ist, dass die KI-Verbindung beschäftigt ist.
+* Enthält optional ein PlantUML-Diagramm für die Skriptlogik. Während das Diagramm erstellt wird, wird ein funktionierender Kreisel angezeigt, sodass klar ist, dass die KI-Verbindung ausgelastet ist.
 * Wird im Snippet-Manager mit einem kurzen, automatisch generierten Namen und der korrekten Erweiterung gespeichert (dedupliziert durch den vollständigen Namen einschließlich Erweiterung).
 * Kennzeichnen Sie das Snippet zur einfachen Filterung als `workflow`.
 * Setzt die Spalte **System** (Betriebssystem) automatisch auf das geprüfte Betriebssystem des Agenten (jede Linux-Distribution wird zu Linux).
 * Der Internetzugang wird während der Generierung zwangsweise ausgeschaltet.
 
-**Zielsprachen:** Bash, Python, Perl, Ruby, PowerShell, Ansible, sowie **Windows-CMD** (`.cmd`-Batch – `@echo off`-Startzeile, `REM`-Header-Kommentare, `errorlevel`-Prüfungen) und **AppleScript** (`.applescript` – `osascript`-Shebang, `--`-Kommentare, `try`/`on error`-Behandlung).
+**Zielsprachen:** Bash, Python, Perl, Ruby, PowerShell, Ansible, plus **Windows-CMD** (`.cmd`-Batch – `@echo off`-Lead-Zeile, `REM`-Header-Kommentare, `errorlevel`-Prüfungen) und **AppleScript** (`.applescript` – `osascript`-Shebang, `--`-Kommentare, `try`/`on error`-Verarbeitung).
 
-Jeder Editor für generierte Skripte verfügt über **A−**- / **A+**-Schaltflächen und unterstützt ++ctrl++ + Mausrad (Cmd auf macOS) zum Ändern der Schriftgröße; die gewählte Größe wird über Sitzungen hinweg gespeichert.
+Jeder Editor für generierte Skripte verfügt über die Schaltflächen **A−** / **A+** und unterstützt ++ctrl++ + Mausrad (Cmd unter macOS), um die Schriftgröße zu ändern; Die gewählte Größe wird sitzungsübergreifend gespeichert.
 
 Die Größe des Workflow-Dialogfelds kann geändert werden und seine Größe und Position werden für die zukünftige Verwendung gespeichert.
 
-!!! tip „Klarere KI-Backend-Fehler“
-    Wenn dem KI-Server der Speicher ausgeht oder ein Ressourcenlimit erreicht
-    wird (z. B. LM Studio/MLX „Resource limit exceeded“, „metal::malloc“), zeigt
-    der Dialog einen kurzen, umsetzbaren Hinweis statt des rohen mehrzeiligen
-    Backend-Stacktraces; alle anderen KI-Fehler werden auf eine einzige Zeile
-    reduziert.
+!!! Tipp „KI-Backend-Fehler deutlicher machen“
+Wenn der KI-Server nicht mehr über genügend Speicher verfügt oder ein Ressourcenlimit erreicht (z. B. LM
+Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“), im Dialog wird Folgendes angezeigt:
+kurzer, umsetzbarer Hinweis anstelle des rohen mehrzeiligen Backend-Stack-Trace; alle
+Andere KI-Fehler werden in einer einzigen Zeile zusammengefasst.

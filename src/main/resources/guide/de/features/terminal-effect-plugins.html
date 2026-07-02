@@ -1,0 +1,2606 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/features/terminal-effect-plugins.html">
+      
+      
+        <link rel="prev" href="ascii-art.html">
+      
+      
+        <link rel="next" href="i18n.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Terminaleffekt-Plugins - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#terminaleffekt-plugins" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Terminaleffekt-Plugins
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../en/features/terminal-effect-plugins.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="terminal-effect-plugins.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#fahigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fähigkeiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#laufzeitmodell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Laufzeitmodell
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-verwaltung-in-der-benutzeroberflache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin-Verwaltung in der Benutzeroberfläche
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spi-klassen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SPI-Klassen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SPI-Klassen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectPlugin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectsession" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectSession
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectcontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectContext
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectappearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectAppearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectconnectorwrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectConnectorWrapper
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimales-plugin-beispiel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimales Plugin-Beispiel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bauen-und-verpacken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bauen und Verpacken
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#richtlinien-fur-das-connector-wrapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Richtlinien für das Connector-Wrapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overlay-richtlinien" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overlay-Richtlinien
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#animationsgeschwindigkeit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Animationsgeschwindigkeit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#import-export-und-persistenz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import, Export und Persistenz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kompatibilitats-und-sicherheitscheckliste" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kompatibilitäts- und Sicherheitscheckliste
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manuelle-validierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manuelle Validierung
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback und Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#fahigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fähigkeiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#laufzeitmodell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Laufzeitmodell
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-verwaltung-in-der-benutzeroberflache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin-Verwaltung in der Benutzeroberfläche
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spi-klassen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SPI-Klassen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SPI-Klassen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectPlugin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectsession" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectSession
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectcontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectContext
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectappearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectAppearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectconnectorwrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectConnectorWrapper
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimales-plugin-beispiel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimales Plugin-Beispiel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bauen-und-verpacken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bauen und Verpacken
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#richtlinien-fur-das-connector-wrapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Richtlinien für das Connector-Wrapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overlay-richtlinien" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overlay-Richtlinien
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#animationsgeschwindigkeit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Animationsgeschwindigkeit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#import-export-und-persistenz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import, Export und Persistenz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kompatibilitats-und-sicherheitscheckliste" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kompatibilitäts- und Sicherheitscheckliste
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manuelle-validierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manuelle Validierung
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="terminaleffekt-plugins">Terminaleffekt-Plugins<a class="headerlink" href="#terminaleffekt-plugins" title="Permanent link">&para;</a></h1>
+<p>KorTTY-Terminaleffekt-Plugins sind Java-<code>ServiceLoader</code>-Plugins, die das Erscheinungsbild und das Laufzeitverhalten einer Terminalsitzung ändern können. Dabei handelt es sich um vertrauenswürdigen lokalen Code, der in der KorTTY-JVM ausgeführt wird und über eine saubere SPI-Schnittstelle integriert wird.</p>
+<h2 id="fahigkeiten">Fähigkeiten<a class="headerlink" href="#fahigkeiten" title="Permanent link">&para;</a></h2>
+<p>Ein Terminal-Effekt-Plugin kann:</p>
+<ul>
+<li>Anwenden von Werten für das Terminal-Erscheinungsbild wie Schriftart, Vordergrund-/Hintergrundfarben, Cursorfarbe und Cursorstil</li>
+<li>Fügen Sie JavaFX-Overlay-Knoten über dem Terminalbereich hinzu (z. B. Scanlines, Rauschen, Vignetten oder Linienhervorhebungen).</li>
+<li>Wickeln Sie den SithTermFX <code>TtyConnector</code> ein, um die Terminalausgabe zu beobachten, zu beschleunigen oder umzuwandeln, bevor der Terminalemulator sie empfängt</li>
+<li>Reagieren Sie auf die vom Benutzer ausgewählte Animationsgeschwindigkeit des Endeffekts</li>
+</ul>
+<p>Der integrierte MOTHER-Effekt wird als gebündeltes, exportierbares Plugin-JAR implementiert und dient als Referenzimplementierung.</p>
+<h2 id="laufzeitmodell">Laufzeitmodell<a class="headerlink" href="#laufzeitmodell" title="Permanent link">&para;</a></h2>
+<p>Terminaleffekt-Plugins werden von <code>de.kortty.core.TerminalEffectPluginManager</code> in dieser Reihenfolge geladen:</p>
+<ol>
+<li>Klassenpfad-Plugins für Anwendungen</li>
+<li>Gebündelte Plugin-JARs, aufgelistet nach <code>bundled-plugins/terminal-effects.index</code></li>
+<li>Externe JARs in <code>~/.kortty/plugins</code> kopiert</li>
+</ol>
+<p>Wenn zwei Plugins dieselbe Plugin-ID offenlegen, gewinnt das erste und spätere Duplikate werden ignoriert. Dies ist beabsichtigt, da die Verbindungseinstellungen die Plugin-ID beibehalten.</p>
+<p>Externe Plugins werden jeweils aus einem JAR geladen, wobei der Anwendungsklassenlader von KorTTY als übergeordnetes Element fungiert. Abhängigkeiten, die bereits Teil von KorTTY sind, können von diesem übergeordneten Klassenlader verwendet werden. Abhängigkeiten, die nicht Teil von KorTTY sind, werden nicht automatisch von benachbarten Dateien erkannt; Vermeiden Sie sie entweder oder schattieren Sie sie in die Plugin-JAR.</p>
+<p><img alt="Terminal effect plugin flow" src="../assets/diagrams/terminal-effect-plugin-flow.svg" /></p>
+<div class="admonition warnung">
+<p class="admonition-title">Warnung</p>
+</div>
+<p>Terminal-Effekt-Plugins sind vertrauenswürdiger lokaler Java-Code. KorTTY führt keine Sandbox für importierte JARs durch. Ein Plugin wird innerhalb der KorTTY-JVM mit denselben lokalen Prozessberechtigungen wie KorTTY selbst ausgeführt. Importieren Sie Plugins nur aus Quellen, denen Sie vertrauen.</p>
+<h2 id="plugin-verwaltung-in-der-benutzeroberflache">Plugin-Verwaltung in der Benutzeroberfläche<a class="headerlink" href="#plugin-verwaltung-in-der-benutzeroberflache" title="Permanent link">&para;</a></h2>
+<p>Benutzer verwalten Terminal-Effekt-Plugins über <strong>Plugins &gt; Terminal-Effekte</strong>.</p>
+<p><img alt="Terminal Effects manager" src="../assets/screenshots/plugins/terminal-effects.png" /></p>
+<p>Der Dialog zeigt die geladene Plugin-Liste mit:</p>
+<ul>
+<li>Aktiver/inaktiver Zustand</li>
+<li>Anzeigename</li>
+<li>Kurze Beschreibung</li>
+</ul>
+<p>Benutzer können:</p>
+<ul>
+<li>Aktivieren oder deaktivieren Sie ein Plugin</li>
+<li>Importieren Sie ein externes <code>.jar</code>-Plugin, das KorTTY nach <code>~/.kortty/plugins</code> kopiert</li>
+<li>Exportieren Sie Plugins, die über eine Quell-JAR verfügen (gebündeltes MOTHER ist exportierbar, da es von <code>kortty-terminal-effect-mother.jar</code> geladen wird)</li>
+</ul>
+<p>Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder <strong>Ansicht &gt; Terminaleffekt</strong> aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über Quick Connect und Connection Manager speichern. Der Geschwindigkeitsregler deckt <code>1x</code> bis <code>10x</code> ab; Das numerische Feld akzeptiert Werte bis zu <code>99x</code>.</p>
+<h2 id="spi-klassen">SPI-Klassen<a class="headerlink" href="#spi-klassen" title="Permanent link">&para;</a></h2>
+<p>Der öffentliche SPI lebt unter <code>de.kortty.plugin.terminaleffects</code>.</p>
+<h3 id="terminaleffectplugin">TerminalEffectPlugin<a class="headerlink" href="#terminaleffectplugin" title="Permanent link">&para;</a></h3>
+<p>Implementieren Sie <code>TerminalEffectPlugin</code> als <code>ServiceLoader</code>-Einstiegspunkt.</p>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">TerminalEffectPlugin</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="nf">id</span><span class="p">();</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="nf">displayName</span><span class="p">();</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">default</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">description</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="n">TerminalEffectSession</span><span class="w"> </span><span class="nf">createSession</span><span class="p">(</span><span class="n">TerminalEffectContext</span><span class="w"> </span><span class="n">context</span><span class="p">);</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Regeln:</p>
+<ul>
+<li><code>id()</code> muss stabil sein, da die Verbindungseinstellungen und der Status des deaktivierten Plugins bestehen bleiben
+– Gültige IDs stimmen mit dem regulären Ausdruck <code>[a-z0-9][a-z0-9._-]{0,63}</code> überein</li>
+<li><code>displayName()</code> darf nicht leer sein</li>
+<li><code>description()</code> wird in der Plugin-Verwaltungstabelle angezeigt und sollte ein kurzer Satz sein</li>
+<li>Die Provider-Klasse muss von <code>ServiceLoader</code> ladbar sein; Verwenden Sie eine öffentliche Klasse mit einem öffentlichen Konstruktor ohne Argumente</li>
+</ul>
+<h3 id="terminaleffectsession">TerminalEffectSession<a class="headerlink" href="#terminaleffectsession" title="Permanent link">&para;</a></h3>
+<p><code>createSession</code> gibt einen <code>TerminalEffectSession</code> pro Terminal-Tab-/Effektaktivierung zurück.</p>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">TerminalEffectSession</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">AutoCloseable</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="k">default</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">start</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">default</span><span class="w"> </span><span class="nd">@NotNull</span><span class="w"> </span><span class="n">TtyConnector</span><span class="w"> </span><span class="nf">wrapConnector</span><span class="p">(</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">            </span><span class="nd">@Nullable</span><span class="w"> </span><span class="n">SithTermFxWidget</span><span class="w"> </span><span class="n">widget</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">            </span><span class="nd">@NotNull</span><span class="w"> </span><span class="n">TtyConnector</span><span class="w"> </span><span class="n">connector</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">connector</span><span class="p">;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">default</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">stop</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Verantwortlichkeiten:</p>
+<ul>
+<li>Weisen Sie UI-Ressourcen in <code>start()</code> zu</li>
+<li>Dekorieren Sie Anschlüsse in <code>wrapConnector(...)</code>, wenn eine Ausgabesteuerung oder -filterung erforderlich ist
+– Entfernen Sie Listener, stoppen Sie Zeitleisten, lösen Sie die Bindung von Eigenschaften und geben Sie Referenzen in <code>stop()</code> frei</li>
+</ul>
+<p><code>stop()</code> muss idempotent sein. Es kann aufgerufen werden, wenn ein Benutzer den Effekt deaktiviert, Effekte wechselt, einen Tab schließt oder Plugins neu lädt.</p>
+<h3 id="terminaleffectcontext">TerminalEffectContext<a class="headerlink" href="#terminaleffectcontext" title="Permanent link">&para;</a></h3>
+<p><code>TerminalEffectContext</code> macht die aktive Terminalumgebung verfügbar:</p>
+<table>
+<thead>
+<tr>
+<th>Methode</th>
+<th>Zweck</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pluginId()</code></td>
+<td>Die aktive Plugin-ID</td>
+</tr>
+<tr>
+<td><code>terminalView()</code></td>
+<td>Die besitzende KorTTY-Terminalansicht</td>
+</tr>
+<tr>
+<td><code>overlayRoot()</code></td>
+<td>Ein JavaFX <code>StackPane</code> über dem Terminalbereich; Overlay-Knoten hier hinzufügen</td>
+</tr>
+<tr>
+<td><code>widgets()</code></td>
+<td>Aktuelle SithTermFX-Widgets für die Terminalansicht; Split-Terminals können mehr als ein Widget</td>
+</tr>
+<tr>
+<td><code>animationSpeed()</code></td>
+<td>Vom Benutzer ausgewählte Geschwindigkeit normalisiert durch <code>TerminalEffectAnimationSpeed</code></td>
+</tr>
+<tr>
+<td><code>applyAppearance(TerminalEffectAppearance)</code></td>
+<td>Wendet Überschreibungen des Terminal-Erscheinungsbilds an</td>
+</tr>
+<tr>
+<td><code>restoreAppearance()</code></td>
+<td>Stellt das ursprüngliche Erscheinungsbild wieder her, das vor der Aktivierung des Effekts erfasst wurde</td>
+</tr>
+</tbody>
+</table>
+<p>Änderungen am JavaFX-Szenendiagramm müssen im JavaFX-Anwendungsthread ausgeführt werden. Wenn ein Rückruf von einem Terminal-Worker-Thread eingehen kann, verwenden Sie <code>Platform.runLater(...)</code> für Overlay- oder UI-Updates.</p>
+<h3 id="terminaleffectappearance">TerminalEffectAppearance<a class="headerlink" href="#terminaleffectappearance" title="Permanent link">&para;</a></h3>
+<p><code>TerminalEffectAppearance</code> ist ein Datensatz mit Nullable-Feldern:</p>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kd">public</span><span class="w"> </span><span class="kd">record</span> <span class="nc">TerminalEffectAppearance</span><span class="p">(</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">        </span><span class="nd">@Nullable</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">fontFamily</span><span class="p">,</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">        </span><span class="nd">@Nullable</span><span class="w"> </span><span class="n">Integer</span><span class="w"> </span><span class="n">fontSize</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">        </span><span class="nd">@Nullable</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">foregroundColor</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="nd">@Nullable</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">backgroundColor</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="nd">@Nullable</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">cursorColor</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">        </span><span class="nd">@Nullable</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">cursorStyle</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Verwenden Sie nur die Felder, die Ihr Effekt benötigt. <code>null</code> lässt den aktuellen Wert unverändert.</p>
+<p>Die aktuelle Implementierung übergibt Farbwerte als Zeichenfolgen, beispielsweise <code>#19FF4C</code>. Der Cursorstil ist ebenfalls eine Zeichenfolge. Der MOTHER-Effekt verwendet <code>BLINK_BLOCK</code>. Verwenden Sie Werte wieder, die bereits von den Terminaleinstellungen von KorTTY akzeptiert wurden, anstatt neue Namen zu erfinden.</p>
+<h3 id="terminaleffectconnectorwrapper">TerminalEffectConnectorWrapper<a class="headerlink" href="#terminaleffectconnectorwrapper" title="Permanent link">&para;</a></h3>
+<p>Wenn ein Plugin einen Connector umschließt, implementieren Sie <code>TerminalEffectConnectorWrapper</code> und delegieren Sie alle <code>TtyConnector</code>-Methoden an den umschlossenen Connector, es sei denn, der Effekt ändert diese Methode absichtlich.</p>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">TerminalEffectConnectorWrapper</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">TtyConnector</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="n">TtyConnector</span><span class="w"> </span><span class="nf">delegate</span><span class="p">();</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>KorTTY verwendet diese Markierung, um Effekt-Konnektoren zu entpacken, bevor ein anderer Wrapper angewendet wird oder bevor auf den zugrunde liegenden SSH-Konnektor zugegriffen wird. Ohne sie kann es beim erneuten Herstellen einer Verbindung, beim Hochladen per Drag-and-Drop, bei der Nachverfolgung des aktuellen Verzeichnisses durch einen KI-Agenten oder bei zukünftigen Funktionen auf Connector-Ebene dazu kommen, dass der falsche Connector angezeigt wird.</p>
+<h2 id="minimales-plugin-beispiel">Minimales Plugin-Beispiel<a class="headerlink" href="#minimales-plugin-beispiel" title="Permanent link">&para;</a></h2>
+<p>Verzeichnislayout:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>example-terminal-effect/
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── build.gradle.kts
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>└── src/main
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    ├── java/com/example/kortty/effects/AmberTerminalEffectPlugin.java
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    └── resources/META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin
+</span></code></pre></div>
+<p>ServiceLoader-Deskriptor (<code>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin</code>):</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>com.example.kortty.effects.AmberTerminalEffectPlugin
+</span></code></pre></div>
+<p>Beispielimplementierung:</p>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">package</span><span class="w"> </span><span class="nn">com.example.kortty.effects</span><span class="p">;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectAppearance</span><span class="p">;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectContext</span><span class="p">;</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectPlugin</span><span class="p">;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectSession</span><span class="p">;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="kd">public</span><span class="w"> </span><span class="kd">final</span><span class="w"> </span><span class="kd">class</span> <span class="nc">AmberTerminalEffectPlugin</span><span class="w"> </span><span class="kd">implements</span><span class="w"> </span><span class="n">TerminalEffectPlugin</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="nd">@Override</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">id</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;amber&quot;</span><span class="p">;</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="nd">@Override</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">displayName</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Amber&quot;</span><span class="p">;</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">    </span><span class="nd">@Override</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">description</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Amber monochrome terminal colors.&quot;</span><span class="p">;</span>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>
+</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="w">    </span><span class="nd">@Override</span>
+</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">TerminalEffectSession</span><span class="w"> </span><span class="nf">createSession</span><span class="p">(</span><span class="n">TerminalEffectContext</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">TerminalEffectSession</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="w">            </span><span class="nd">@Override</span>
+</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="w">            </span><span class="kd">public</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">start</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="w">                </span><span class="n">context</span><span class="p">.</span><span class="na">applyAppearance</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">TerminalEffectAppearance</span><span class="p">(</span>
+</span><span id="__span-6-31"><a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a><span class="w">                        </span><span class="s">&quot;Monospaced&quot;</span><span class="p">,</span>
+</span><span id="__span-6-32"><a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a><span class="w">                        </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-6-33"><a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a><span class="w">                        </span><span class="s">&quot;#FFB000&quot;</span><span class="p">,</span>
+</span><span id="__span-6-34"><a id="__codelineno-6-34" name="__codelineno-6-34" href="#__codelineno-6-34"></a><span class="w">                        </span><span class="s">&quot;#050200&quot;</span><span class="p">,</span>
+</span><span id="__span-6-35"><a id="__codelineno-6-35" name="__codelineno-6-35" href="#__codelineno-6-35"></a><span class="w">                        </span><span class="s">&quot;#FFD37A&quot;</span><span class="p">,</span>
+</span><span id="__span-6-36"><a id="__codelineno-6-36" name="__codelineno-6-36" href="#__codelineno-6-36"></a><span class="w">                        </span><span class="s">&quot;BLINK_BLOCK&quot;</span><span class="p">));</span>
+</span><span id="__span-6-37"><a id="__codelineno-6-37" name="__codelineno-6-37" href="#__codelineno-6-37"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-38"><a id="__codelineno-6-38" name="__codelineno-6-38" href="#__codelineno-6-38"></a><span class="w">        </span><span class="p">};</span>
+</span><span id="__span-6-39"><a id="__codelineno-6-39" name="__codelineno-6-39" href="#__codelineno-6-39"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-40"><a id="__codelineno-6-40" name="__codelineno-6-40" href="#__codelineno-6-40"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>In diesem Beispiel ändert sich nur das Erscheinungsbild. Es ist kein Overlay oder Connector-Wrapper erforderlich.</p>
+<h2 id="bauen-und-verpacken">Bauen und Verpacken<a class="headerlink" href="#bauen-und-verpacken" title="Permanent link">&para;</a></h2>
+<p>Dieses Repository definiert derzeit kein separat veröffentlichtes Terminaleffekt-SDK-Artefakt. Der Plugin-Code muss mit den KorTTY-Klassen kompiliert werden, die <code>de.kortty.plugin.terminaleffects.*</code> enthalten, und mit denselben öffentlichen Bibliotheken, die das Plugin direkt importiert, wie z. B. SithTermFX oder JavaFX.</p>
+<p>Für die Entwicklung innerhalb dieses Repositorys verwenden Sie das MOTHER-Source-Set-Muster in <code>build.gradle.kts</code>:</p>
+<ul>
+<li>Fügen Sie Plugin-Quellen einem separaten Quellsatz hinzu
+– Fügen Sie <code>sourceSets.main.output.classesDirs</code> und <code>configurations.compileClasspath</code> in den Kompilierungsklassenpfad dieses Quellsatzes ein</li>
+<li>Packen Sie nur die Plugin-Quellsatzausgabe in eine Plugin-JAR</li>
+<li>Fügen Sie den ServiceLoader-Deskriptor in die Plugin-JAR ein</li>
+</ul>
+<p>Die MUTTER-Aufgabe ist das konkrete, erprobte Beispiel:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>./gradlew<span class="w"> </span>motherTerminalEffectPluginJar
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>jar<span class="w"> </span>tf<span class="w"> </span>build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
+</span></code></pre></div>
+<p>Das generierte JAR muss Folgendes enthalten:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>de/kortty/plugin/terminaleffects/mother/MotherTerminalEffectPlugin.class
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>...
+</span></code></pre></div>
+<p>Für ein Out-of-Tree-Plugin gilt die gleiche Regel: Erstellen Sie eine importierbare JAR-Datei, die Ihre Plugin-Klassen und <code>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin</code> enthält. Wenn Sie Bibliotheken verwenden, die KorTTY nicht bereits ausliefert, schattieren Sie sie in dasselbe JAR oder entfernen Sie diese Abhängigkeit.</p>
+<h2 id="richtlinien-fur-das-connector-wrapping">Richtlinien für das Connector-Wrapping<a class="headerlink" href="#richtlinien-fur-das-connector-wrapping" title="Permanent link">&para;</a></h2>
+<p>Verwenden Sie <code>wrapConnector(...)</code> nur, wenn der Effekt Terminal-I/O beobachten, beschleunigen oder umwandeln muss. Bei rein visuellen Überlagerungen und Erscheinungsbildänderungen sollte das Umwickeln von Anschlüssen vermieden werden.</p>
+<p>Beim Einpacken:</p>
+<ul>
+<li>Bewahren Sie den <code>TtyConnector</code>-Vertrag auf</li>
+<li>Delegieren Sie <code>write</code>, <code>resize</code>, <code>waitFor</code>, <code>ready</code>, <code>getName</code>, <code>isConnected</code> und <code>close</code>, es sei denn, der Effekt hat einen bestimmten Grund, sie zu ändern</li>
+<li>Behandeln Sie <code>InterruptedException</code>, indem Sie das Interrupt-Flag wiederherstellen und in eine entsprechende geprüfte Ausnahme konvertieren, wenn die Methode <code>TtyConnector</code> dies erfordert</li>
+<li>Vermeiden Sie unbegrenztes Puffern, da die Terminalausgabe groß sein kann</li>
+<li>Vermeiden Sie die Verzögerung von Steuersequenzen wie ANSI CSI/OSC-Befehlen, es sei denn, der Effekt ändert absichtlich das Verhalten des Terminalprotokolls</li>
+<li>Implementieren Sie <code>TerminalEffectConnectorWrapper</code>, damit KorTTY auf den echten Connector entpacken kann</li>
+</ul>
+<p>Der <code>MotherPacedTtyConnector</code> von MOTHER ist die aktuelle Referenz für die Ausgabesteuerung. Es teilt die Terminalausgabe in unmittelbare Steuersequenzen und getaktete sichtbare Zeichen auf, nutzt die Animationsgeschwindigkeit des Benutzers und umgeht die Taktung für die Ausgabe mit hohem Volumen, damit das Terminal reaktionsfähig bleibt.</p>
+<h2 id="overlay-richtlinien">Overlay-Richtlinien<a class="headerlink" href="#overlay-richtlinien" title="Permanent link">&para;</a></h2>
+<p>Overlays sollten JavaFX-Knoten sein, die zu <code>context.overlayRoot()</code> hinzugefügt werden.</p>
+<p>Gutes Overlay-Verhalten:</p>
+<ul>
+<li>Stellen Sie <code>setMouseTransparent(true)</code> so ein, dass das Terminal weiterhin Mauseingaben empfängt</li>
+<li>Legen Sie <code>setManaged(false)</code> fest, wenn das Overlay das Layout nicht beeinträchtigen soll</li>
+<li>Binden Sie Breite und Höhe an die Overlay-Wurzel</li>
+<li>Stoppen Sie Zeitleisten/Animationen und lösen Sie die Bindung von Eigenschaften in <code>stop()</code></li>
+<li>Zeichnen Sie so günstig, dass Sie es immer wieder neu bemalen können</li>
+<li>Entfernen Sie beim Herunterfahren den Overlay-Knoten von <code>overlayRoot()</code></li>
+</ul>
+<p>Entscheiden Sie bei geteilten Terminals, ob das Overlay die gesamte Terminal-Registerkarte abdecken oder einzelne SithTermFX-Widgets verfolgen soll. <code>context.widgets()</code> kann mehr als ein Widget zurückgeben.</p>
+<h2 id="animationsgeschwindigkeit">Animationsgeschwindigkeit<a class="headerlink" href="#animationsgeschwindigkeit" title="Permanent link">&para;</a></h2>
+<p>Die Animationsgeschwindigkeit ist eine gemeinsame Benutzereinstellung für Terminaleffekte:</p>
+<ul>
+<li>Minimum: <code>1x</code></li>
+<li>Slider-Maximum: <code>10x</code></li>
+<li>Numerisches Maximum: <code>99x</code>
+– Ungültige, nicht endliche oder nicht positive Werte werden auf <code>1x</code> normalisiert</li>
+</ul>
+<p>Verwenden Sie <code>context.animationSpeed()</code>, wenn Sie das Effekt-Timing berechnen. Die von MOTHER verwendete Konvention lautet:</p>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kt">long</span><span class="w"> </span><span class="n">scaledDelayMillis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="na">max</span><span class="p">(</span><span class="mi">1L</span><span class="p">,</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="na">round</span><span class="p">(</span><span class="n">baseDelayMillis</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">context</span><span class="p">.</span><span class="na">animationSpeed</span><span class="p">()));</span>
+</span></code></pre></div>
+<p>Behalten Sie keinen separaten Geschwindigkeitswert im Plugin bei. KorTTY speichert die Verbindungs-/Sitzungsgeschwindigkeit und leitet den normalisierten Wert über <code>TerminalEffectContext</code> weiter.</p>
+<h2 id="import-export-und-persistenz">Import, Export und Persistenz<a class="headerlink" href="#import-export-und-persistenz" title="Permanent link">&para;</a></h2>
+<p><strong>Externe Importe:</strong></p>
+<ul>
+<li>Der Benutzer wählt einen <code>.jar</code> unter <strong>Plugins &gt; Terminaleffekte &gt; Importieren...</strong> aus.</li>
+<li>KorTTY kopiert es in <code>~/.kortty/plugins</code></li>
+<li>Der Plugin-Manager lädt Plugins sofort neu</li>
+</ul>
+<p><strong>Exporte:</strong></p>
+<p>– Ein Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurde
+- Das gebündelte MOTHER ist exportierbar, da KorTTY sein gebündeltes JAR vor dem Laden nach <code>~/.kortty/bundled-plugins/terminal-effects</code> kopiert
+- Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden</p>
+<p><strong>Beharrlichkeit:</strong></p>
+<ul>
+<li>Deaktivierte Plugin-IDs werden in <code>~/.kortty/terminal-effect-plugins.disabled</code> gespeichert</li>
+<li>Gespeicherte Verbindungen und wiederhergestellte Sitzungen speichern die ausgewählte Terminal-Effekt-Plugin-ID und die Animationsgeschwindigkeit
+– Wenn eine gespeicherte Plugin-ID nicht verfügbar oder deaktiviert ist, kann KorTTY sie nicht aktivieren und protokolliert das Problem</li>
+</ul>
+<h2 id="kompatibilitats-und-sicherheitscheckliste">Kompatibilitäts- und Sicherheitscheckliste<a class="headerlink" href="#kompatibilitats-und-sicherheitscheckliste" title="Permanent link">&para;</a></h2>
+<p>Vor dem Versand einer Plugin-JAR:</p>
+<ul>
+<li>Verwenden Sie eine stabile Plugin-ID in Kleinbuchstaben, die zu <code>[a-z0-9][a-z0-9._-]{0,63}</code> passt</li>
+<li>Halten Sie <code>displayName()</code> und <code>description()</code> nicht leer und für den Benutzer lesbar
+– Fügen Sie für jede Anbieterklasse genau einen ServiceLoader-Deskriptor hinzu
+– Behalten Sie JavaFX-Mutationen im JavaFX-Anwendungsthread bei</li>
+<li>Sorgen Sie dafür, dass <code>stop()</code> mehrmals aufgerufen werden kann
+– Entfernen Sie Listener, Zeitleisten, Bindungen und Overlay-Knoten in <code>stop()</code></li>
+<li>Vermeiden Sie das Blockieren des JavaFX-Anwendungsthreads
+– Vermeiden Sie das Erzeugen nicht verwalteter Threads mit langer Laufzeit</li>
+<li>Halten Sie die Connector-Wrapper transparent und implementieren Sie <code>TerminalEffectConnectorWrapper</code>
+– Vermeiden Sie die Protokollierung von Geheimnissen oder rohen Terminalausgaben, es sei denn, der Benutzer hat dieses Verhalten ausdrücklich gewählt</li>
+<li>Testen Sie mit schneller Ausgabe, großer Ausgabe, ANSI-Farbausgabe, geteilten Terminals, erneuter Verbindung, Deaktivierung/Aktivierung des Plugins und Herunterfahren der Anwendung</li>
+</ul>
+<h2 id="manuelle-validierung">Manuelle Validierung<a class="headerlink" href="#manuelle-validierung" title="Permanent link">&para;</a></h2>
+<p>Bauen und prüfen:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>./gradlew<span class="w"> </span>motherTerminalEffectPluginJar
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>jar<span class="w"> </span>tf<span class="w"> </span>build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
+</span></code></pre></div>
+<p>Führen Sie KorTTY aus:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>./gradlew<span class="w"> </span>run
+</span></code></pre></div>
+<p>Plugin-Verwaltung validieren:</p>
+<ol>
+<li>Öffnen Sie <strong>Plugins &gt; Terminaleffekte</strong></li>
+<li>Bestätigen Sie, dass das Plugin mit Namen und Beschreibung angezeigt wird</li>
+<li>Deaktivieren und aktivieren Sie es</li>
+<li>Exportieren Sie es und überprüfen Sie das exportierte JAR mit <code>jar tf</code></li>
+<li>Importieren Sie das exportierte JAR in eine saubere KorTTY-Konfiguration oder einen anderen Build</li>
+</ol>
+<p>Sitzungsverhalten validieren:</p>
+<ol>
+<li>Aktivieren Sie den Effekt über das Terminal-Kontextmenü oder <strong>Ansicht &gt; Terminaleffekt</strong></li>
+<li>Wählen Sie es in Quick Connect und in einem gespeicherten Connection Manager-Eintrag aus</li>
+<li>Ändern Sie die Animationsgeschwindigkeit mit dem Schieberegler und dem numerischen Feld</li>
+<li>Führen Sie Befehle aus, die eine langsame, schnelle, farbige und große Ausgabe erzeugen</li>
+<li>Schließen Sie die Lasche wieder an und schließen Sie sie</li>
+<li>Überprüfen Sie <code>~/.kortty/kortty.log</code> auf Plugin-Ladewarnungen, doppelte IDs, ungültige Anbieter oder Stopp-/Bereinigungsfehler</li>
+</ol>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

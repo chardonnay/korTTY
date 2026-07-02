@@ -10,8 +10,12 @@ text / table cells / admonition titles / the front-matter title value) is
 translated. Asset files (CSS, images, the logo video) are copied verbatim;
 diagrams/screenshots are staged per-language by scripts/build-docs-site.py.
 
-Incremental: a source-hash cache (app-docs/site/.docs-translate-cache) skips
-unchanged pages. Run via the docs venv:  .venv-docs/bin/python scripts/translate_docs.py
+Incremental on two levels: a source-hash cache (app-docs/site/.docs-translate-cache)
+skips unchanged pages entirely, and within a changed page a per-line translation
+memory reuses the existing German lines. The memory needs no extra state: the old
+English source (git HEAD) is line-aligned with the committed German page —
+translate_md preserves line counts — so only added/edited lines are sent to the
+translator. Run via the docs venv:  .venv-docs/bin/python scripts/translate_docs.py
 
 Usage:
   scripts/translate_docs.py            # translate changed pages, copy assets
@@ -23,6 +27,7 @@ import argparse
 import hashlib
 import re
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -118,6 +123,9 @@ def translatable_lines(md: str) -> tuple[list[str], list[tuple[int, str, list[st
 # ("Anleitung", matching the app's menu.help.guide=Anleitung) so the DE site never
 # drifts to Handbuch/Leitfaden/Manual. Applied after translation.
 GLOSSARY_DE = [
+    # Product/technology names that MT tends to translate literally.
+    ("Meerjungfrau", "Mermaid"),
+    ("meerjungfrau", "Mermaid"),
     ("korTTY Guide", "korTTY Anleitung"),
     ("Bedienungsanleitung", "Anleitung"),
     ("Benutzerhandbuch", "Anleitung"),
@@ -134,6 +142,12 @@ GLOSSARY_DE = [
     ("ein Anleitung", "eine Anleitung"),
     ("des Anleitung", "der Anleitung"),
     ("dem Anleitung", "der Anleitung"),
+    # "GitHub issue" is a proper term — MT renders it as Problem/Ausgabe.
+    ("GitHub-Probleme", "GitHub-Issues"),
+    ("GitHub-Problem", "GitHub-Issue"),
+    ("Öffnen Sie eine neue Ausgabe", "Öffnen Sie ein neues Issue"),
+    ("Öffnen Sie das Problem", "Öffnen Sie das Issue"),
+    ("ein Problem zu eröffnen", "ein Issue zu eröffnen"),
 ]
 
 
@@ -143,11 +157,15 @@ def apply_glossary(text: str) -> str:
     return text
 
 
-def translate_md(md: str, translator) -> str:
+def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> tuple[str, int, int]:
+    """Translate a page, reusing memory (masked EN line -> masked DE line) for
+    unchanged lines. Returns (german_markdown, reused_lines, translated_lines)."""
+    memory = dict(memory) if memory else {}
     lines, jobs = translatable_lines(md)
     if not jobs:
-        return apply_glossary(md)
-    texts = [j[1] for j in jobs]
+        return apply_glossary(md), 0, 0
+    misses = [j for j in jobs if j[1] not in memory]
+    texts = [j[1] for j in misses]
     out: list[str] = []
     B = 20
     for k in range(0, len(texts), B):
@@ -174,13 +192,63 @@ def translate_md(md: str, translator) -> str:
         out.extend(res)
         if k + B < len(texts):
             time.sleep(0.4)
-    for (idx, _masked, store), translated in zip(jobs, out):
-        translated = unmask(translated or "", store)
+    for (_idx, masked, _store), translated in zip(misses, out):
+        memory[masked] = translated or ""
+    for idx, masked, store in jobs:
+        translated = unmask(memory.get(masked, ""), store)
         if lines[idx] == "title: ":
             lines[idx] = f'title: {translated}'
         else:
             lines[idx] = translated
-    return apply_glossary("\n".join(lines))
+    return apply_glossary("\n".join(lines)), len(jobs) - len(misses), len(misses)
+
+
+def remask(text: str, store: list[str]) -> str | None:
+    """Reverse of unmask: put the KTPH tokens back into a translated line. Longer
+    fragments first so a fragment that contains another does not get corrupted.
+    Returns None when any fragment is missing (line cannot be safely reused)."""
+    for i, frag in sorted(enumerate(store), key=lambda pair: -len(pair[1])):
+        if frag not in text:
+            return None
+        text = text.replace(frag, f"KTPH{i:03d}", 1)
+    return text
+
+
+def build_page_memory(old_en_md: str | None, de_md: str | None) -> dict[str, str]:
+    """Line-aligns a previous English source with its generated German page into a
+    translation memory (masked EN -> masked DE). translate_md preserves line counts,
+    so index i of the German page is the translation of index i of the English page
+    it was generated from; any mismatch disables reuse for safety."""
+    if old_en_md is None or de_md is None:
+        return {}
+    en_lines = old_en_md.split("\n")
+    de_lines = de_md.split("\n")
+    if len(en_lines) != len(de_lines):
+        return {}
+    _lines, jobs = translatable_lines(old_en_md)
+    memory: dict[str, str] = {}
+    for idx, masked, store in jobs:
+        de_line = de_lines[idx]
+        if en_lines[idx].startswith("title:"):
+            if not de_line.startswith("title:"):
+                continue
+            de_line = de_line[len("title:"):].strip()
+        remasked = remask(de_line, store)
+        if remasked is not None:
+            memory[masked] = remasked
+    return memory
+
+
+def git_head_version(path: Path) -> str | None:
+    """The committed (HEAD) content of a repo file, or None if unavailable."""
+    try:
+        rel = path.relative_to(REPO).as_posix()
+        result = subprocess.run(
+            ["git", "-C", str(REPO), "show", f"HEAD:{rel}"],
+            capture_output=True, text=True, timeout=10)
+        return result.stdout if result.returncode == 0 else None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def load_cache() -> dict[str, str]:
@@ -210,6 +278,7 @@ def main() -> int:
     translator = GoogleTranslator(source="en", target=TARGET)
 
     md_done = md_skip = copied = 0
+    md_lines_fresh = md_lines_reused = 0
     for src in sorted(EN.rglob("*")):
         if src.is_dir():
             continue
@@ -227,13 +296,25 @@ def main() -> int:
             md_skip += 1
             continue
         md = src.read_text(encoding="utf-8")
-        dst.write_text(translate_md(md, translator), encoding="utf-8")
+        # Line-level reuse: align the committed (pre-edit) English source with the
+        # existing German page so only added/edited lines hit the translator.
+        memory: dict[str, str] = {}
+        if dst.exists():
+            old_en = git_head_version(src)
+            if old_en is None and cache.get(str(rel)) == digest:
+                old_en = md  # unchanged page (e.g. --force run): current EN matches DE
+            memory = build_page_memory(old_en, dst.read_text(encoding="utf-8"))
+        translated, reused, fresh = translate_md(md, translator, memory)
+        dst.write_text(translated, encoding="utf-8")
         new_cache[str(rel)] = digest
         md_done += 1
-        print(f"  translated {rel}")
+        md_lines_fresh += fresh
+        md_lines_reused += reused
+        print(f"  translated {rel} ({fresh} line(s) translated, {reused} reused)")
 
     save_cache(new_cache)
-    print(f"\nDone. translated {md_done} page(s), {md_skip} unchanged. "
+    print(f"\nDone. translated {md_done} page(s) ({md_lines_fresh} line(s) translated, "
+          f"{md_lines_reused} reused), {md_skip} unchanged. "
           f"(assets are staged into docs/de by build-docs-site.py)")
     return 0
 

@@ -1,0 +1,84 @@
+# Keeps the COMMITTED, app-bundled guide (src/main/resources/guide/) in sync with
+# its Markdown sources. When the doc sources change on a branch, this rebuilds the
+# offline MkDocs site and commits the regenerated guide back to that branch, so the
+# in-app viewer (Help -> Anleitung) always ships an up-to-date guide without anyone
+# remembering to run `./gradlew stageGuideIntoResources`.
+#
+# On feature branches it auto-commits the regenerated guide; on the default branch it
+# instead FAILS if the committed guide is stale (main is protected and updates flow in
+# through PRs, which self-heal before merge). This is distinct from docs-site.yml, which
+# rebuilds the same site only to publish it to GitHub Pages and never touches the repo.
+name: Docs guide auto-commit
+
+on:
+  push:
+    paths:
+      - "app-docs/site/**"
+      - "app-docs/diagrams/**"
+      - "app-docs/screenshots/**"
+      - "build.gradle.kts"
+      - "scripts/build-docs-site.py"
+      - ".github/workflows/docs-autocommit.yml"
+  workflow_dispatch:
+
+# The job pushes the regenerated guide back, so it needs write access to the repo.
+permissions:
+  contents: write
+
+# One regeneration per branch; a newer push supersedes an in-flight run so the auto-commit
+# is always built from the latest sources (and avoids racing pushes to the same branch).
+concurrency:
+  group: docs-autocommit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      # SHA-pinned, matching the repo convention. persist-credentials stays TRUE here
+      # (unlike the read-only docs workflows) because this job pushes a commit back.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install the pinned MkDocs toolchain
+        run: python -m pip install --quiet -r app-docs/site/requirements.txt
+
+      - name: Rebuild the guide (EN + DE, offline-checked)
+        run: |
+          KORTTY_VERSION="$(grep -E '^version' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
+          export KORTTY_VERSION
+          echo "Regenerating korTTY guide v$KORTTY_VERSION"
+          # --strict (the script's default) fails the build on any broken link/nav, so a
+          # broken guide can never be committed — the step goes red instead.
+          python scripts/build-docs-site.py
+
+      - name: Sync the built site into the committed resources
+        run: |
+          rm -rf src/main/resources/guide
+          mkdir -p src/main/resources/guide
+          cp -R build/guide/. src/main/resources/guide/
+
+      - name: Commit the regenerated guide (branches) or fail if stale (main)
+        run: |
+          if git diff --quiet -- src/main/resources/guide; then
+            echo "Bundled guide already in sync — nothing to commit."
+            exit 0
+          fi
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "::error::src/main/resources/guide is stale on main. Regenerate with" \
+                 "'./gradlew stageGuideIntoResources' and commit the result."
+            git --no-pager diff --stat -- src/main/resources/guide
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/resources/guide
+          # [skip ci] is belt-and-suspenders: the path filter already excludes
+          # src/main/resources/guide/**, so this commit cannot re-trigger the workflow.
+          git commit -m "docs: regenerate bundled guide [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "Pushed the regenerated guide to ${GITHUB_REF_NAME}."

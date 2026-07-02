@@ -160,7 +160,7 @@ dependencies {
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.18")
-    implementation("ch.qos.logback:logback-classic:1.5.34")
+    implementation("ch.qos.logback:logback-classic:1.5.37")
     
     // Testing
     testImplementation("com.google.truth:truth:1.4.5")
@@ -464,6 +464,7 @@ fun runBundledNodeCommand(workingDirectory: File, vararg command: String) {
 
 val monacoWorkspaceDir = layout.buildDirectory.dir("monaco-workspace")
 val monacoGeneratedResourceDir = layout.buildDirectory.dir("generated-monaco-resources")
+val chatRenderGeneratedResourceDir = layout.buildDirectory.dir("generated-chatrender-resources")
 
 tasks.register("copyMonacoBuildNode") {
     group = "build"
@@ -598,13 +599,78 @@ tasks.named<ProcessResources>("processResources") {
     from(monacoGeneratedResourceDir) {
         into("")
     }
+    dependsOn("prepareChatRenderResources")
+    from(chatRenderGeneratedResourceDir) {
+        into("")
+    }
+}
+
+// ---- AI-chat diagram/math rendering assets (mermaid + MathJax) ----------------
+// The AI chat renders ```mermaid blocks and LaTeX math in a WebView. Both libraries ship
+// prebuilt single-file browser bundles inside their npm tarballs, so no npm/node workspace is
+// needed: the pinned tarballs are downloaded, SHA-verified and the two files extracted into the
+// app resources under /chatrender/ (served from a temp dir at runtime, like Monaco).
+val chatRenderMermaidVersion = "11.16.0"
+val chatRenderMermaidSha256 = "ff48c94a0a0458b377a5187ad01407184d2a182e6476c2015b7068ff58355fae"
+val chatRenderMathJaxVersion = "3.2.2"
+val chatRenderMathJaxSha256 = "1b9c0a1c44df864e915690558e72adb9cc5203360daefd385084ced3b6c64c09"
+
+tasks.register("prepareChatRenderResources") {
+    group = "build"
+    description = "Downloads the pinned mermaid/MathJax browser bundles for AI-chat diagram and math rendering."
+    inputs.property("mermaidVersion", chatRenderMermaidVersion)
+    inputs.property("mermaidSha256", chatRenderMermaidSha256)
+    inputs.property("mathJaxVersion", chatRenderMathJaxVersion)
+    inputs.property("mathJaxSha256", chatRenderMathJaxSha256)
+    outputs.dir(chatRenderGeneratedResourceDir)
+    doLast {
+        val outputDir = chatRenderGeneratedResourceDir.get().asFile.resolve("chatrender")
+        delete(chatRenderGeneratedResourceDir)
+        outputDir.mkdirs()
+
+        val mermaidTarball = formatterDownloadDir.get().asFile.resolve("mermaid-$chatRenderMermaidVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/mermaid/-/mermaid-$chatRenderMermaidVersion.tgz",
+            mermaidTarball,
+            chatRenderMermaidSha256
+        )
+        copy {
+            from(tarTree(resources.gzip(mermaidTarball)))
+            include("package/dist/mermaid.min.js")
+            eachFile { path = name }
+            includeEmptyDirs = false
+            into(outputDir)
+        }
+
+        val mathJaxTarball = formatterDownloadDir.get().asFile.resolve("mathjax-$chatRenderMathJaxVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/mathjax/-/mathjax-$chatRenderMathJaxVersion.tgz",
+            mathJaxTarball,
+            chatRenderMathJaxSha256
+        )
+        copy {
+            from(tarTree(resources.gzip(mathJaxTarball)))
+            include("package/es5/tex-svg.js")
+            eachFile { path = name }
+            includeEmptyDirs = false
+            into(outputDir)
+        }
+
+        if (!outputDir.resolve("mermaid.min.js").isFile) {
+            throw GradleException("mermaid.min.js was not extracted from the mermaid tarball")
+        }
+        if (!outputDir.resolve("tex-svg.js").isFile) {
+            throw GradleException("tex-svg.js was not extracted from the MathJax tarball")
+        }
+    }
 }
 
 // ---- Documentation guide site (MkDocs Material) -------------------------------
-// Builds the bilingual, fully-offline guide into build/guide and bundles it into
-// the app under /guide/** so Help -> Anleitung (GuideViewer) loads it from the
-// classpath, exactly like the bundled Monaco editor. The same output is published
-// to GitHub Pages by .github/workflows/docs-site.yml.
+// Builds the bilingual, fully-offline guide into build/guide. The build output is
+// COMMITTED into the repo under src/main/resources/guide/ (via stageGuideIntoResources)
+// and bundled into the app under /guide/** like the bundled Monaco editor, so Help ->
+// Anleitung (GuideViewer) always finds it on the classpath without the MkDocs toolchain.
+// The same build/guide output is published to GitHub Pages by .github/workflows/docs-site.yml.
 
 val docsVenvDir = layout.projectDirectory.dir(".venv-docs")
 val guideSiteOutputDir = layout.buildDirectory.dir("guide")
@@ -694,10 +760,41 @@ tasks.register("buildDocsSite") {
     }
 }
 
-tasks.named<ProcessResources>("processResources") {
+// The built guide site is COMMITTED under src/main/resources/guide/ and bundled into
+// the app under /guide/** like any other resource, so a normal build (and the packaged
+// app) no longer needs the MkDocs toolchain — the GuideViewer always finds a real guide.
+// Refresh the committed copy after editing the docs with `./gradlew stageGuideIntoResources`
+// (builds the site, then syncs it into the source tree) and commit the resulting diff.
+// CI also keeps it in sync: .github/workflows/docs-autocommit.yml rebuilds the guide and
+// commits it back when the Markdown sources change, so refreshing it by hand is optional.
+val guideResourcesDir = layout.projectDirectory.dir("src/main/resources/guide")
+
+tasks.register("stageGuideIntoResources") {
+    group = "documentation"
+    description = "Builds the guide and syncs it into src/main/resources/guide so the built docs are committed to the repo."
     dependsOn("buildDocsSite")
-    from(guideSiteOutputDir) {
-        into("guide")
+    inputs.dir(guideSiteOutputDir)
+    outputs.dir(guideResourcesDir)
+    doLast {
+        val built = guideSiteOutputDir.get().asFile
+        val enIndex = built.resolve("en/index.html")
+        // Never overwrite the committed guide with the buildDocsSite placeholder (written
+        // when MkDocs is unavailable): the real Material site contains the "md-header" markup.
+        if (!enIndex.isFile || !enIndex.readText().contains("md-header")) {
+            logger.warn(
+                "stageGuideIntoResources: build/guide has no real MkDocs site (placeholder or empty); " +
+                    "leaving the committed src/main/resources/guide untouched. " +
+                    "Run ':setupDocsVenv' then ':buildDocsSite' to produce the full guide."
+            )
+            return@doLast
+        }
+        val dest = guideResourcesDir.asFile
+        delete(dest)
+        copy {
+            from(built)
+            into(dest)
+        }
+        logger.lifecycle("stageGuideIntoResources: synced build/guide -> src/main/resources/guide")
     }
 }
 
@@ -1296,6 +1393,9 @@ tasks.named<JavaExec>("run") {
         "-Dcom.sun.management.jmxremote.local.only=false",
         "-Dcom.sun.management.jmxremote.authenticate=false"
     ) else emptyList())
+    // Forward TEST_MODE_KORTTY to the forked app JVM (daemon-safe) so `TEST_MODE_KORTTY=1 ./gradlew run`
+    // starts korTTY without the master-password gate.
+    environment("TEST_MODE_KORTTY", providers.environmentVariable("TEST_MODE_KORTTY").getOrElse(""))
 }
 
 tasks.test {
@@ -1324,6 +1424,30 @@ tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
     description = "Re-parents an AI-agent panel between bottom tabs and a side stacked dock to verify it."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AiAgentSidePanelSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("aiManagerModelComboSmoke") {
+    group = "verification"
+    description = "Selects a model in the real AI Manager model picker to verify the choice sticks."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerModelComboSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("guideAskPanelSmoke") {
+    group = "verification"
+    description = "Renders the guide AI-search panel with a sample answer and snapshots it to build/smoke/guide-ask-panel.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.GuideAskPanelSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateDesignPreviews") {
+    group = "build"
+    description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AppDesignPreviewGenerator")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

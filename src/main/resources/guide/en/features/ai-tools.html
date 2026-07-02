@@ -1,0 +1,3111 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/en/features/ai-tools.html">
+      
+      
+        <link rel="prev" href="ai-assistant.html">
+      
+      
+        <link rel="next" href="security.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Terminal AI agent & tools - korTTY Guide</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#terminal-ai-agent-tools" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="korTTY Guide" class="md-header__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Guide
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Terminal AI agent & tools
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../de/features/ai-tools.html"
+     title="Deutsch" hreflang="de">
+    <span class="kt-lang-code">DE</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Guide" class="md-nav__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Guide
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First launch — master password
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main window overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menu reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Keyboard shortcuts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Appearance, themes & font
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Colors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Window
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH Tunnels (Port Forwarding)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP file manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projects (workspaces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamwork (shared connections)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal AI agent & tools
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="ai-tools.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal AI agent & tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#command-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command variants
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command variants">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#command-purposes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command purposes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tab-completion-and-prompt-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TAB completion and prompt history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-ai-agent-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the AI Agent works
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How the AI Agent works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#suitable-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suitable tasks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-suitable-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not suitable for
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#activity-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Activity panel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Activity panel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#panel-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Panel features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#panel-placement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Panel placement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status-indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status indicators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#activity-icons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Activity icons
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safety-and-failure-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety and failure handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Safety and failure handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#command-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#privilege-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Privilege handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#approval-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Approval gates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#directory-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typing-during-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typing during execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#web-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#json-schema-repair" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON schema repair
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generate-workflow-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate Workflow Script
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Generate Workflow Script">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#script-generation-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Script generation capabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminal-targeted-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal-targeted behavior
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Terminal-targeted behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-working-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current working directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#input-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transcripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transcripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keyboard-shortcuts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard shortcuts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#planning-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Planning mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings-and-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings and configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ai-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Skills
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#internet-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internet access
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security — credentials, keys & encryption
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal recording
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII art banner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal effect plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Languages & dynamic translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback & support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#command-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command variants
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command variants">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#command-purposes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command purposes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tab-completion-and-prompt-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TAB completion and prompt history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-ai-agent-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the AI Agent works
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How the AI Agent works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#suitable-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suitable tasks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-suitable-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not suitable for
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#activity-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Activity panel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Activity panel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#panel-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Panel features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#panel-placement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Panel placement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status-indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status indicators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#activity-icons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Activity icons
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safety-and-failure-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety and failure handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Safety and failure handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#command-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#privilege-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Privilege handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#approval-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Approval gates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#directory-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typing-during-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typing during execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#web-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#json-schema-repair" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON schema repair
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generate-workflow-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate Workflow Script
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Generate Workflow Script">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#script-generation-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Script generation capabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminal-targeted-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal-targeted behavior
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Terminal-targeted behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-working-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current working directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#input-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transcripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transcripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keyboard-shortcuts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard shortcuts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#planning-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Planning mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings-and-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings and configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ai-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Skills
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#internet-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internet access
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="terminal-ai-agent-tools">Terminal AI agent &amp; tools<a class="headerlink" href="#terminal-ai-agent-tools" title="Permanent link">&para;</a></h1>
+<p>korTTY's Terminal AI Agent is a controlled automation workflow that enables safe, intelligent command execution on remote servers — and, since the execution engine was decoupled behind an <code>AgentCommandRunner</code> abstraction (SSH exec-channel and local-process backends), in <a href="connections.html#local-shell">local shells</a> on Windows, macOS and Linux too. Unlike naive automation, the agent probes the session state, reasons about each step, and waits for human approval before executing system-changing commands.</p>
+<div class="admonition note">
+<p class="admonition-title">SSH vs. local shells</p>
+<p>In local shells, commands run in the connection's shell (PowerShell via <code>-EncodedCommand</code>, <code>cmd.exe</code>, or <code>$SHELL</code>) and the environment probe and system prompt are platform-aware. Local-shell limitations: no <code>sudo</code>/administrator elevation on Windows, and no live working-directory tracking (the agent uses the connection's start directory). The JobScheduler's headless AI-agent action stays SSH-only.</p>
+</div>
+<p><img alt="AI agent execution loop" src="../assets/diagrams/ai-agent-execution-loop.svg" /></p>
+<h2 id="command-variants">Command variants<a class="headerlink" href="#command-variants" title="Permanent link">&para;</a></h2>
+<p>The Terminal AI Agent is triggered via shortcut commands at the shell prompt. When enabled in <strong>Settings &gt; AI</strong>, KorTTY intercepts these commands locally instead of sending them to the server:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>agent<span class="w"> </span>&lt;goal&gt;
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>agent-ask<span class="w"> </span>&lt;question&gt;
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>agent-plan<span class="w"> </span>&lt;task&gt;
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>agent<span class="w"> </span>-plan<span class="w"> </span>&lt;task&gt;
+</span></code></pre></div>
+<p>The base command name is configurable in <strong>Settings &gt; AI</strong>. If you rename <code>agent</code>, KorTTY automatically derives the matching <code>-ask</code> and <code>-plan</code> commands. The same settings page can:</p>
+<ul>
+<li>Make the command name case-insensitive</li>
+<li>Disable the per-run setup dialog (uses the configured default profile when disabled)</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>KorTTY intercepts these shortcuts locally before they reach the remote shell. User-entered agent commands remain available in the shell history.</p>
+</div>
+<h3 id="command-purposes">Command purposes<a class="headerlink" href="#command-purposes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>agent &lt;goal&gt;</code></strong> — Execute safe SSH commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.</li>
+<li><strong><code>agent-ask &lt;question&gt;</code></strong> — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (<strong>AI → Ask AI Agent</strong>) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.</li>
+<li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click <strong>Implement</strong>.</li>
+</ul>
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>agent<span class="w"> </span>show<span class="w"> </span>the<span class="w"> </span><span class="m">10</span><span class="w"> </span>largest<span class="w"> </span>XML<span class="w"> </span>files<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span>directory
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>agent<span class="w"> </span>update<span class="w"> </span>groesste_xml.pl<span class="w"> </span>so<span class="w"> </span>the<span class="w"> </span>-r<span class="w"> </span>flag<span class="w"> </span>searches<span class="w"> </span>subdirectories<span class="w"> </span>recursively
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>agent<span class="w"> </span>check<span class="w"> </span>why<span class="w"> </span>nginx<span class="w"> </span>failed<span class="w"> </span>to<span class="w"> </span>start<span class="w"> </span>and<span class="w"> </span>suggest<span class="w"> </span>the<span class="w"> </span>safest<span class="w"> </span>fix
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>agent-ask<span class="w"> </span>what<span class="w"> </span>user<span class="w"> </span>and<span class="w"> </span>directory<span class="w"> </span>am<span class="w"> </span>I<span class="w"> </span>currently<span class="w"> </span>using?
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>agent-plan<span class="w"> </span>migrate<span class="w"> </span>this<span class="w"> </span>host<span class="w"> </span>from<span class="w"> </span>package<span class="w"> </span>X<span class="w"> </span>to<span class="w"> </span>package<span class="w"> </span>Y
+</span></code></pre></div>
+<h2 id="tab-completion-and-prompt-history">TAB completion and prompt history<a class="headerlink" href="#tab-completion-and-prompt-history" title="Permanent link">&para;</a></h2>
+<p>At the shell prompt, TAB completion is enhanced for agent commands:</p>
+<ul>
+<li>Type the agent command name (e.g., <code>agent</code>) then press <span class="keys"><kbd class="key-tab">Tab</kbd></span> to show command variants (<code>agent</code>, <code>agent-ask</code>, <code>agent-plan</code>).</li>
+<li>Type the command + a space (e.g., <code>agent</code>) then press <span class="keys"><kbd class="key-tab">Tab</kbd></span> to show recent agent-prompt history. Each row displays the prompt and the date/time it was last run, de-duplicated by prompt text (newest first).</li>
+<li>Prompts longer than 60 characters are shortened with an ellipsis for readability; the full prompt is still inserted when selected.</li>
+<li>The history popup is resizable — drag the grip in the bottom-right corner — and remembers its size across restarts. It shows a vertical scrollbar when the history exceeds the popup height.</li>
+<li>In the history popup, click a row's ✕ button (or press <span class="keys"><kbd class="key-delete">Del</kbd></span> on keyboards with a forward-delete key) to remove a single prompt, or use <strong>Clear all</strong> (two-step confirm) to wipe the entire history. Deletions are saved immediately.</li>
+<li>Outside this context, <span class="keys"><kbd class="key-tab">Tab</kbd></span> remains normal shell completion.</li>
+</ul>
+<p>History size is configurable in <strong>Settings &gt; AI</strong> (default 20, range 5–100).</p>
+<h2 id="how-the-ai-agent-works">How the AI Agent works<a class="headerlink" href="#how-the-ai-agent-works" title="Permanent link">&para;</a></h2>
+<p>The Terminal AI Agent follows a strict, safe execution loop:</p>
+<ol>
+<li><strong>Probe the session</strong> — KorTTY probes the active SSH session with a non-interactive command and records compact context: current user, host, operating system, active terminal working directory, sudo availability, disk path, and recent command state.</li>
+<li><strong>Send context to the model</strong> — KorTTY sends the user task, probe snapshot, previous command results, active AI Skills, and optionally web-tool availability to the selected AI profile.</li>
+<li><strong>Model returns a JSON decision</strong> — The model must return a strict JSON response: run commands, ask for confirmation, finish, or block.</li>
+<li><strong>Validate the decision</strong> — KorTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported decisions are rejected.</li>
+<li><strong>Execute approved commands</strong> — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory (the connection's start directory for local shells). A <code>cd</code> inside one command does not persist to the next.</li>
+<li><strong>Iterate or conclude</strong> — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).</li>
+</ol>
+<h3 id="suitable-tasks">Suitable tasks<a class="headerlink" href="#suitable-tasks" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Inspecting files, directories, package state, logs, service state, and system configuration</li>
+<li>Creating or modifying scripts and configuration files when the task asks for it</li>
+<li>Running tests, syntax checks, linters, or read-only diagnostic commands</li>
+<li>Summarizing command output and explaining findings</li>
+<li>Planning multi-step operational changes before implementation</li>
+</ul>
+<h3 id="not-suitable-for">Not suitable for<a class="headerlink" href="#not-suitable-for" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Interactive full-screen programs such as <code>vim</code>, <code>nano</code>, <code>top</code>, <code>less</code>, <code>ssh</code>, or commands that wait for prompts</li>
+<li>Long-running daemons or commands without clear completion</li>
+<li>Secret exfiltration or blind destructive commands</li>
+<li>Web research for local files unless the user explicitly asks for external/current information</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>For local file review tasks, name the file in your prompt. The agent should then inspect it with SSH commands such as <code>sed -n</code>, <code>cat</code>, <code>file</code>, or language-specific syntax checks. When an internet-enabled profile is active, KorTTY still keeps web tools away from local file planning unless your task clearly asks for current or external information.</p>
+</div>
+<h2 id="activity-panel">Activity panel<a class="headerlink" href="#activity-panel" title="Permanent link">&para;</a></h2>
+<p>Terminal-targeted agent runs use an inline activity panel at the bottom of the current terminal split.</p>
+<h3 id="panel-features">Panel features<a class="headerlink" href="#panel-features" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Run tabs</strong> — Multiple concurrent runs appear as closable tabs. Click a tab to select it; only the selected tab's run is controlled by run-control keys and buttons. Up to 5 concurrent runs per split.</li>
+<li><strong>Controls</strong> — Each run has reload, pause/resume, cancel buttons, and per-row copy/snippet actions. The reload button re-runs the command with the <strong>currently active</strong> AI profile, so switching profiles between runs takes effect on the rerun.</li>
+<li><strong>Details</strong> — The panel shows the user prompt in a two-line scrollable field, agent messages, read/run actions, task timing, reported token usage, semantic activity markers, and collapsible details.</li>
+<li><strong>AI profile row</strong> — Every run log starts with an <code>AI profile: &lt;name&gt; (&lt;model&gt;)</code> entry, so the protocol records which profile and model produced the run.</li>
+<li><strong>Model reasoning</strong> — Expanding a 💭 thinking row shows the model's full reasoning when the provider exposes it (Anthropic extended thinking when the profile's Reasoning effort is enabled, OpenAI-compatible <code>reasoning_content</code>, LM Studio reasoning output, or <code>&lt;think&gt;</code> blocks from local CLI models). Models without exposed reasoning keep the short decision summary.</li>
+<li><strong>Status bar</strong> — When collapsed, the panel shows a compact status bar with the run prompt, state, pause/cancel buttons, and expand button. A spinner shows while the agent is working; a bold ✋ marker signals when user input is required.</li>
+<li><strong>Keep collapsed</strong> — Use <strong>Keep collapsed</strong> to make the panel start minimized and stay collapsed when new activity or input prompts arrive. You can still expand manually.</li>
+<li><strong>Resizing</strong> — Drag the resize handle to change panel height. Enable <strong>Remember size</strong> to persist height and font size across application restarts.</li>
+<li><strong>Parallel splits</strong> — Different splits can run their own agent tasks in parallel; each split has its own activity panel.</li>
+<li><strong>Font controls</strong> — Use <strong>A−</strong> and <strong>A+</strong> to change the activity font size.</li>
+<li><strong>Export</strong> — Save the current run or all panel-history runs as Markdown, plain text, YAML, XML, JSON, PDF, or Asciidoctor. Exports include the AI profile, model/LLM, reasoning status, run timestamps, total runtime, per-activity runtimes, token usage, and detail text.</li>
+<li><strong>Expand all</strong> — Keep activity details open instead of compacting them. This option is saved globally.</li>
+</ul>
+<h3 id="panel-placement">Panel placement<a class="headerlink" href="#panel-placement" title="Permanent link">&para;</a></h3>
+<p>Use <strong>View → AI Agent Panel</strong> to choose where the activity panel appears:</p>
+<ul>
+<li><strong>At Bottom</strong> (default) — The activity panel appears below the terminal split where the run was started.</li>
+<li><strong>Dock Left / Dock Right</strong> — The panel appears as a resizable side panel docked to the main window (like the file browser). In side mode there is one outer tab per terminal of the active tab, with runs stacked vertically. Dragging the divider resizes the dock; placement and width are remembered across restarts. Switching to another terminal tab swaps the dock to that tab's terminals.</li>
+</ul>
+<h3 id="status-indicators">Status indicators<a class="headerlink" href="#status-indicators" title="Permanent link">&para;</a></h3>
+<p>A per-terminal AI-agent status icon appears in the Dashboard and prefixed to the terminal tab title, aggregated across that terminal's runs and refreshed about once a second:</p>
+<ul>
+<li><strong>✋</strong> — Awaiting user input (approval or sudo password)</li>
+<li><strong>⚡</strong> — Working (agent is actively planning or running commands)</li>
+<li><strong>⏸</strong> — Paused (run is parked at a safe checkpoint)</li>
+<li><strong>✓</strong> — Finished (run completed successfully)</li>
+</ul>
+<h3 id="activity-icons">Activity icons<a class="headerlink" href="#activity-icons" title="Permanent link">&para;</a></h3>
+<p>Activity rows use semantic emoji icons (static, non-blinking):</p>
+<table>
+<thead>
+<tr>
+<th>Icon</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>💾</td>
+<td>Request or input: write/create file</td>
+</tr>
+<tr>
+<td>📖</td>
+<td>Action: read file/directory</td>
+</tr>
+<tr>
+<td>▶️</td>
+<td>Action: run/execute command</td>
+</tr>
+<tr>
+<td>📁</td>
+<td>Action: directory operation</td>
+</tr>
+<tr>
+<td>📦</td>
+<td>Context: package manager</td>
+</tr>
+<tr>
+<td>⚙️</td>
+<td>Context: service or system</td>
+</tr>
+<tr>
+<td>🌐</td>
+<td>Action: network operation</td>
+</tr>
+<tr>
+<td>🔍</td>
+<td>Action: inspect/analyze</td>
+</tr>
+<tr>
+<td>💭</td>
+<td>State: thinking/reasoning</td>
+</tr>
+<tr>
+<td>💬</td>
+<td>Output: message or result</td>
+</tr>
+<tr>
+<td>✋</td>
+<td>Required: awaiting user input (sudo/approval)</td>
+</tr>
+<tr>
+<td>❌</td>
+<td>State: error or failed activity</td>
+</tr>
+<tr>
+<td>🚫</td>
+<td>State: cancelled activity</td>
+</tr>
+</tbody>
+</table>
+<p>Red styling is reserved for error and failed states.</p>
+<h2 id="safety-and-failure-handling">Safety and failure handling<a class="headerlink" href="#safety-and-failure-handling" title="Permanent link">&para;</a></h2>
+<p>KorTTY enforces multiple guardrails around agent execution:</p>
+<h3 id="command-limits">Command limits<a class="headerlink" href="#command-limits" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Per-turn limit</strong> — A maximum of 3 commands per turn prevents runaway automation.</li>
+<li><strong>Non-interactive only</strong> — The agent rejects interactive commands (like <code>vim</code>, <code>less</code>, <code>su</code>) that would hang in a non-interactive SSH exec channel.</li>
+<li><strong>Mutating-command detection</strong> — Commands that change the system (<code>chmod</code>, <code>rm</code>, <code>mv</code>, <code>mkdir</code>, etc.) are flagged for confirmation unless the agent has auto-approval bypass.</li>
+</ul>
+<h3 id="privilege-handling">Privilege handling<a class="headerlink" href="#privilege-handling" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Sudo detection</strong> — The agent detects whether the current user has sudo access and whether a password is required.</li>
+<li><strong>Passwordless sudo</strong> — When <code>sudo -n</code> (no-password sudo) is available, the agent uses it without prompting.</li>
+<li><strong>Password prompts</strong> — When a password is required, the agent requests it via an activity-panel password input field (masked, not echoed to the terminal).</li>
+<li><strong>Password retries</strong> — Up to 3 wrong-password retries are allowed before the run cancels.</li>
+<li><strong>No <code>sudo -S</code></strong> — KorTTY does not allow <code>sudo -S</code> (stdin password) or other interactive password methods in automated runs.</li>
+<li><strong>Session caching</strong> — Sudo passwords can be cached for the current session so you don't re-enter them for every command in the same run.</li>
+</ul>
+<h3 id="approval-gates">Approval gates<a class="headerlink" href="#approval-gates" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Mutating commands</strong> — By default, the agent asks for approval before running commands that modify the system (unless auto-approval is enabled in settings).</li>
+<li><strong>Confirmation dialog</strong> — The approval dialog shows the planned commands and their purposes. You can approve once, approve all remaining commands in the run, or cancel.</li>
+<li><strong>Sudo preflight</strong> — After accepting a planning report, if the plan requires sudo and your SSH session requires a sudo password, KorTTY performs the preflight check immediately after acceptance so execution is not interrupted later.</li>
+</ul>
+<h3 id="directory-tracking">Directory tracking<a class="headerlink" href="#directory-tracking" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Active directory</strong> — Terminal shortcut runs use KorTTY's tracked current remote directory. Commands and generated files are executed relative to that directory.</li>
+<li><strong>Directory loss</strong> — If a tracked directory no longer exists, KorTTY retries the probe from the SSH default directory and reports the issue.</li>
+</ul>
+<h3 id="typing-during-execution">Typing during execution<a class="headerlink" href="#typing-during-execution" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Not locked</strong> — While a terminal-targeted run is active, normal typing is still allowed. You can keep typing in the shell prompt and launch new <code>agent</code> commands (they open new tabs).</li>
+<li><strong>Run-control keys only</strong> — Only run-control keys are intercepted:</li>
+<li><span class="keys"><kbd class="key-escape">Esc</kbd></span> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> — Cancel the selected run's tab</li>
+<li><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-r">R</kbd></span> — Toggle the selected run's thinking details</li>
+</ul>
+<h3 id="web-tools">Web tools<a class="headerlink" href="#web-tools" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Explicit failures</strong> — Web-search failures, HTTP errors, authentication errors, empty results, and timeouts are surfaced as explicit tool errors instead of the model making up facts.</li>
+</ul>
+<h3 id="json-schema-repair">JSON schema repair<a class="headerlink" href="#json-schema-repair" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>One repair attempt</strong> — If the AI response does not match the required JSON schema, KorTTY asks for a repair. If repair also fails, the run is blocked with an explanation.</li>
+</ul>
+<h2 id="generate-workflow-script">Generate Workflow Script<a class="headerlink" href="#generate-workflow-script" title="Permanent link">&para;</a></h2>
+<p>After a finished agent run completes successfully, a <strong>Workflow</strong> button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook, <strong>Windows-CMD</strong> batch, or <strong>AppleScript</strong>) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time).</p>
+<h3 id="script-generation-capabilities">Script generation capabilities<a class="headerlink" href="#script-generation-capabilities" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Auto-load matching AI Skills</strong> — Skills like language-quality guidelines for the target language are automatically included.</li>
+<li><strong>Eight target languages</strong> — Bash, Python, Perl, Ruby, PowerShell, Ansible, plus <strong>Windows-CMD</strong> (<code>.cmd</code> batch — <code>@echo off</code>, <code>REM</code> headers, <code>errorlevel</code> checks) and <strong>AppleScript</strong> (<code>.applescript</code> — <code>osascript</code> shebang, <code>--</code> comments, <code>try</code>/<code>on error</code>).</li>
+<li><strong>Multiple language variants</strong> — Generate several language variants and suggestions as inline tabs within the workflow dialog.</li>
+<li><strong>Adjustable font size</strong> — Each generated-script editor has <strong>A−</strong> / <strong>A+</strong> buttons and supports <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + mouse wheel (Cmd on macOS); the chosen size is remembered across sessions.</li>
+<li><strong>Header templates</strong> — Use reusable headers from the fixed non-deletable <strong>Script-Header</strong> snippet category.</li>
+<li><strong>PlantUML diagram</strong> — Optionally include a PlantUML diagram depicting the script logic. A working spinner is shown while the diagram is generated.</li>
+<li><strong>Snippet Manager</strong> — Save the generated script into the Snippet Manager with a short auto-generated name and correct file extension. Scripts are de-duplicated by full name including extension.</li>
+<li><strong>Workflow tagging</strong> — The snippet is tagged as <code>workflow</code> for easy filtering.</li>
+<li><strong>OS detection</strong> — The <strong>System</strong> (OS) column is auto-set from the agent's probed OS (any Linux distro → Linux).</li>
+<li><strong>No internet access</strong> — Internet access is forced OFF during generation regardless of the profile's internet mode.</li>
+<li><strong>Resizable dialog</strong> — The workflow dialog remembers its size and position for future use.</li>
+</ul>
+<h2 id="terminal-targeted-behavior">Terminal-targeted behavior<a class="headerlink" href="#terminal-targeted-behavior" title="Permanent link">&para;</a></h2>
+<h3 id="current-working-directory">Current working directory<a class="headerlink" href="#current-working-directory" title="Permanent link">&para;</a></h3>
+<p>The agent tracks the current remote directory for the active SSH session. Agent commands run relative to that directory, so generated files are created where you're currently working on the server.</p>
+<h3 id="input-requirements">Input requirements<a class="headerlink" href="#input-requirements" title="Permanent link">&para;</a></h3>
+<p>When user input is required (sudo password or command approval):</p>
+<ul>
+<li><strong>Auto-expand</strong> — The activity panel auto-expands and selects the run that needs input.</li>
+<li><strong>Masked input</strong> — Sudo password input is masked in the activity panel.</li>
+<li><strong>Submit</strong> — Press <span class="keys"><kbd class="key-enter">Enter</kbd></span> or click the submit button to send the password.</li>
+<li><strong>Up to 3 retries</strong> — Wrong passwords can be retried up to 3 times before the run cancels.</li>
+<li><strong>Bold badge</strong> — The run tab shows a bold ✋ "input required" badge while waiting.</li>
+</ul>
+<h3 id="terminal-output">Terminal output<a class="headerlink" href="#terminal-output" title="Permanent link">&para;</a></h3>
+<p>Final terminal-agent answers are written back to the terminal area so the shell transcript contains the answer, not only the activity panel state.</p>
+<h3 id="transcripts">Transcripts<a class="headerlink" href="#transcripts" title="Permanent link">&para;</a></h3>
+<p>Dedicated agent and planning tabs can copy and save their transcript for later review or sharing.</p>
+<h2 id="running-commands">Running commands<a class="headerlink" href="#running-commands" title="Permanent link">&para;</a></h2>
+<p>To start an agent task:</p>
+<ol>
+<li>
+<p><strong>At a shell prompt</strong> in an active SSH terminal, type your agent command:
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>agent<span class="w"> </span>show<span class="w"> </span>the<span class="w"> </span><span class="m">10</span><span class="w"> </span>largest<span class="w"> </span>files<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span>directory
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>The agent probes the session</strong> — It immediately collects the current user, OS, working directory, and sudo status.</p>
+</li>
+<li>
+<p><strong>For planning mode</strong>, the agent asks clarifying questions and proposes approaches before you approve:</p>
+</li>
+<li>Answer the questions or propose your own approach</li>
+<li>Review the final plan</li>
+<li>
+<p>Click <strong>Implement</strong> to start execution</p>
+</li>
+<li>
+<p><strong>The activity panel</strong> appears at the bottom of the split showing:</p>
+</li>
+<li>The user prompt</li>
+<li>Each decision made (which commands to run)</li>
+<li>Real-time command output as it runs</li>
+<li>
+<p>Any approval or password requests</p>
+</li>
+<li>
+<p><strong>Approvals</strong> — When the agent needs approval to run system-changing commands, click <strong>Approve once</strong> (just this set) or <strong>Approve always</strong> (all remaining sets in the run), or click <strong>Cancel</strong>.</p>
+</li>
+<li>
+<p><strong>Sudo password</strong> — When prompted, enter your sudo password. It can optionally be cached for the session.</p>
+</li>
+<li>
+<p><strong>The run completes</strong> when the task succeeds, is blocked by an error, or is cancelled by the user.</p>
+</li>
+<li>
+<p><strong>After completion</strong>, a <strong>Workflow</strong> button appears if you'd like to convert the successful run into a reusable script.</p>
+</li>
+</ol>
+<h2 id="keyboard-shortcuts">Keyboard shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Shortcut</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> at agent command</td>
+<td>Show <code>agent</code>, <code>agent-ask</code>, <code>agent-plan</code> variants</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> after <code>agent</code></td>
+<td>Show recent agent-prompt history</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-escape">Esc</kbd></span> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> during run</td>
+<td>Cancel the selected run's tab</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-r">R</kbd></span> during run</td>
+<td>Toggle thinking details for the selected run</td>
+</tr>
+<tr>
+<td>Activity panel ⏸ button</td>
+<td>Pause the selected run at a safe checkpoint</td>
+</tr>
+<tr>
+<td>Activity panel ▶️ button</td>
+<td>Resume a paused run</td>
+</tr>
+</tbody>
+</table>
+<h2 id="planning-mode">Planning mode<a class="headerlink" href="#planning-mode" title="Permanent link">&para;</a></h2>
+<p>Planning mode (<code>agent-plan</code> or <code>agent -plan</code>) offers an advisory workflow before execution:</p>
+<ol>
+<li><strong>Clarifying questions</strong> — The agent asks follow-up questions to understand your requirements.</li>
+<li><strong>Propose options</strong> — Based on your answers, the agent suggests one or more approaches with feasibility, risks, and prerequisites.</li>
+<li><strong>Final plan</strong> — After you select an approach, the agent generates a detailed final plan with steps, success criteria, and risks.</li>
+<li><strong>Implement</strong> — Only after you review and click <strong>Implement</strong> does execution begin.</li>
+<li><strong>Sudo preflight</strong> — If the plan requires sudo and a password is needed, KorTTY checks the password immediately so execution is not interrupted later.</li>
+</ol>
+<h2 id="settings-and-configuration">Settings and configuration<a class="headerlink" href="#settings-and-configuration" title="Permanent link">&para;</a></h2>
+<p>Configure the Terminal AI Agent in <strong>Settings &gt; AI</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AI Agent enabled</strong></td>
+<td>Enable or disable the agent feature globally</td>
+</tr>
+<tr>
+<td><strong>Agent command name</strong></td>
+<td>The base command (default: <code>agent</code>); other variants are derived automatically</td>
+</tr>
+<tr>
+<td><strong>Case-insensitive</strong></td>
+<td>Make command matching case-insensitive</td>
+</tr>
+<tr>
+<td><strong>Execution target</strong></td>
+<td>Choose whether agent runs open in dedicated tabs or inline at the terminal split</td>
+</tr>
+<tr>
+<td><strong>Per-run setup dialog</strong></td>
+<td>Show a setup dialog before each run (disabled uses the default profile)</td>
+</tr>
+<tr>
+<td><strong>Input history size</strong></td>
+<td>Number of recent prompts to remember (5–100, default 20)</td>
+</tr>
+<tr>
+<td><strong>Default profile</strong></td>
+<td>The AI profile used when the setup dialog is disabled</td>
+</tr>
+<tr>
+<td><strong>Activity panel placement</strong></td>
+<td>Choose <strong>At Bottom</strong> or <strong>Dock Left/Right</strong></td>
+</tr>
+<tr>
+<td><strong>Keep collapsed preference</strong></td>
+<td>Start the panel minimized and keep it collapsed during execution</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ai-skills">AI Skills<a class="headerlink" href="#ai-skills" title="Permanent link">&para;</a></h2>
+<p>AI Skills are reusable local instruction blocks that the agent can use. For agent runs, enable or disable skills globally, or let KorTTY automatically match only relevant skills to the task. Skills can cover:</p>
+<ul>
+<li>Operational policies and standards</li>
+<li>Security best practices</li>
+<li>Language-specific coding guidelines</li>
+<li>System administration conventions</li>
+</ul>
+<p>See the <strong>AI Skills</strong> section in the main AI documentation for setup and management details.</p>
+<h2 id="internet-access">Internet access<a class="headerlink" href="#internet-access" title="Permanent link">&para;</a></h2>
+<p>The agent can optionally use web tools when the task clearly requires current or external information:</p>
+<ul>
+<li><strong>Disabled</strong> (default) — No web tools or MCP integrations are sent with agent requests.</li>
+<li><strong>KorTTY Tavily Tool</strong> — Direct web search via Tavily API.</li>
+<li><strong>LM Studio MCP modes</strong> — Integrate Tavily, Bright Data, Brave Search, SearXNG, or LM Studio Toolpack through LM Studio's native MCP support.</li>
+</ul>
+<p>Configure internet access per AI profile in <strong>Settings &gt; AI &gt; Internet access</strong>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><strong>Web tools are withheld from local file/script review tasks</strong> unless your prompt clearly asks for current or external information. Inspecting a local file should use SSH commands like <code>sed</code>, <code>cat</code>, <code>find</code>, or language-specific tools, not web search.</p>
+</div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

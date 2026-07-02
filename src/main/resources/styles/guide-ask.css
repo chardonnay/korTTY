@@ -1,0 +1,130 @@
+/* Dark "terminal" theme for the guide window chrome and its AI ask panel, mirroring the
+   bundled MkDocs site palette (app-docs/site/docs/en/assets/stylesheets/kortty.css):
+   bg #07111d · surface #0d1b2a / #102132 · primary #38bdf8 · accent #67e8f9
+   text #e6f3ff / muted #b9c8da · hairlines rgba(103,232,249,.18) · code bg #061320 */
+
+.guide-root {
+    -fx-background-color: #07111d;
+}
+
+.guide-toolbar {
+    -fx-background-color: #07111d;
+    -fx-border-color: transparent transparent rgba(103, 232, 249, 0.18) transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.guide-split {
+    -fx-background-color: #07111d;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.guide-split > .split-pane-divider {
+    -fx-background-color: rgba(103, 232, 249, 0.18);
+    -fx-padding: 0 1 0 1;
+}
+
+.guide-ask-panel {
+    -fx-background-color: #0d1b2a;
+    -fx-focus-color: #38bdf8;
+    -fx-faint-focus-color: rgba(56, 189, 248, 0.2);
+}
+
+.guide-ask-panel .label {
+    -fx-text-fill: #e6f3ff;
+}
+
+.guide-ask-panel .text-field {
+    -fx-background-color: #102132;
+    -fx-background-radius: 4;
+    -fx-border-color: rgba(103, 232, 249, 0.18);
+    -fx-border-radius: 4;
+    -fx-text-fill: #e6f3ff;
+    -fx-prompt-text-fill: #b9c8da;
+    -fx-highlight-fill: #38bdf8;
+    -fx-highlight-text-fill: #07111d;
+}
+
+.guide-ask-panel .text-field:focused {
+    -fx-border-color: #38bdf8;
+}
+
+.guide-ask-panel .button,
+.guide-ask-panel .menu-button,
+.guide-toolbar .toggle-button {
+    -fx-background-color: #102132;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4;
+    -fx-border-color: rgba(103, 232, 249, 0.18);
+    -fx-border-radius: 4;
+    -fx-text-fill: #e6f3ff;
+}
+
+.guide-ask-panel .button:hover,
+.guide-ask-panel .menu-button:hover,
+.guide-toolbar .toggle-button:hover {
+    -fx-border-color: #38bdf8;
+    -fx-text-fill: #67e8f9;
+}
+
+.guide-ask-panel .menu-button > .arrow-button > .arrow {
+    -fx-background-color: #e6f3ff;
+}
+
+/* History dropdown popup (inherits the scene stylesheets; the guide scene has no other menus). */
+.context-menu {
+    -fx-background-color: #102132;
+    -fx-border-color: rgba(103, 232, 249, 0.18);
+}
+
+.context-menu .menu-item .label {
+    -fx-text-fill: #e6f3ff;
+}
+
+.context-menu .menu-item:focused {
+    -fx-background-color: #38bdf8;
+}
+
+.context-menu .menu-item:focused .label {
+    -fx-text-fill: #07111d;
+}
+
+.context-menu .menu-item:disabled .label {
+    -fx-text-fill: #b9c8da;
+}
+
+.guide-ask-panel .button:disabled,
+.guide-ask-panel .text-field:disabled {
+    -fx-opacity: 0.5;
+}
+
+.guide-toolbar .toggle-button:selected {
+    -fx-background-color: #38bdf8;
+    -fx-text-fill: #07111d;
+}
+
+.guide-toolbar .toggle-button:selected:hover {
+    -fx-background-color: #67e8f9;
+    -fx-text-fill: #07111d;
+}
+
+.guide-ask-panel .hyperlink,
+.guide-ask-panel .hyperlink:visited {
+    -fx-text-fill: #38bdf8;
+    -fx-border-color: transparent;
+    -fx-padding: 1 0 1 0;
+}
+
+.guide-ask-panel .hyperlink:hover {
+    -fx-text-fill: #67e8f9;
+    -fx-underline: true;
+}
+
+.guide-ask-panel .progress-indicator {
+    -fx-progress-color: #38bdf8;
+}
+
+.guide-ask-sources-header {
+    -fx-font-weight: bold;
+    -fx-text-fill: #b9c8da;
+}

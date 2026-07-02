@@ -17,6 +17,7 @@ import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.FailingAiService;
+import de.kortty.core.AiModelComboSupport;
 import de.kortty.core.LocalLmModelResolver;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiConnectionMode;
@@ -157,6 +158,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         apiUrlField = new TextField();
         modelCombo = new ComboBox<>();
         modelCombo.setEditable(true);
+        ComboBoxEditorSync.install(modelCombo);
         modelCombo.getItems().addAll(AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL);
         cliCustomModelField = new TextField();
         refreshModelsButton = new Button("↻");
@@ -1103,15 +1105,19 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             loadCliModelSelection(profile);
             return;
         }
-        modelCombo.getItems().setAll(AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL);
+        String apiUrl = trimToNull(profile.getApiUrl());
         String model = trimToNull(profile.getModel());
-        if (model != null && !modelCombo.getItems().contains(model)) {
-            modelCombo.getItems().add(model);
-        }
-        if (profile.getModelSelectionMode() == AiModelSelectionMode.DEFAULT) {
+        modelCombo.getItems().setAll(AiModelComboSupport.buildModelItems(
+            AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL, apiUrl, List.of(), model));
+        AiModelSelectionMode mode = profile.getModelSelectionMode();
+        if (mode == AiModelSelectionMode.DEFAULT) {
             modelCombo.getSelectionModel().select(AI_MODEL_DEFAULT_LABEL);
-        } else if (profile.getModelSelectionMode() == AiModelSelectionMode.AUTO) {
+        } else if (mode == AiModelSelectionMode.AUTO && AiModelComboSupport.supportsAutoModel(apiUrl)) {
             modelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
+        } else if (mode == AiModelSelectionMode.AUTO) {
+            // Auto cannot resolve a model for a remote/cloud endpoint: show nothing so the user
+            // picks a concrete model instead of hitting a runtime error.
+            modelCombo.getEditor().setText("");
         } else {
             modelCombo.getEditor().setText(model != null ? model : "");
         }
@@ -1196,19 +1202,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private void preserveModelItems(List<String> loadedModels) {
         String currentText = modelEditorText();
-        List<String> items = new ArrayList<>();
-        items.add(AI_MODEL_DEFAULT_LABEL);
-        items.add(AI_MODEL_AUTO_LABEL);
-        for (String model : loadedModels) {
-            if (model != null && !model.isBlank() && !items.contains(model)) {
-                items.add(model);
-            }
-        }
-        String current = trimToNull(currentText);
-        if (current != null && !items.contains(current)) {
-            items.add(current);
-        }
-        modelCombo.getItems().setAll(items);
+        String apiUrl = apiUrlField != null ? trimToNull(apiUrlField.getText()) : null;
+        modelCombo.getItems().setAll(AiModelComboSupport.buildModelItems(
+            AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL, apiUrl, loadedModels, trimToNull(currentText)));
         if (currentText != null) {
             modelCombo.getEditor().setText(currentText);
         }

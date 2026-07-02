@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+  <title id="title">korTTY main window layout</title>
+  <desc id="desc">Annotated map of the main window regions.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
+    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}.title{font-size:28px;font-weight:700;fill:#f8fafc}.subtitle{font-size:14px;fill:#b9c8da}.small{font-size:13px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:7 7;fill:none}.secure{stroke:#f59e0b}.state{stroke:#34d399}.ai{stroke:#a78bfa}.external{stroke:#fb7185}.service{stroke:#60a5fa}.label{font-size:14px;font-weight:700;fill:#f8fafc}.strip{fill:#0e1b2c}</style>
+  </defs>
+  <rect class="bg" width="1200" height="640"/>
+  <text class="title" x="40" y="52">korTTY Main Window Layout</text>
+  <text class="subtitle" x="40" y="80">A region map of the application window: chrome strips, the dashboard, the terminal area, the dockable AI panel, and the status bar.</text>
+
+  <rect class="box" x="40" y="108" width="1120" height="500"/>
+  <text class="label" x="60" y="134">Main Application Window</text>
+
+  <rect class="box strip" x="64" y="148" width="1072" height="48" rx="8"/>
+  <text class="label" x="80" y="170">Menu bar</text>
+  <text class="small" x="80" y="188">File · Edit · Connections · Configuration · Tools · AI · Teamwork · Plugins · View · Help</text>
+
+  <rect class="box strip" x="64" y="206" width="1072" height="38" rx="8"/>
+  <text class="label" x="80" y="230">Tab bar</text>
+  <text class="small" x="200" y="230">open session tabs · new-tab control</text>
+
+  <rect class="box service" x="64" y="256" width="290" height="262"/>
+  <text class="label" x="84" y="288">Dashboard</text>
+  <text class="small" x="84" y="312">Saved connections list</text>
+  <text class="small" x="84" y="334">Connection status</text>
+  <text class="small" x="84" y="356">Quick connect &amp; search</text>
+
+  <rect class="box" x="368" y="256" width="500" height="262"/>
+  <text class="label" x="388" y="288">Terminal area</text>
+  <text class="small" x="388" y="312">Tabbed terminal sessions</text>
+  <text class="small" x="388" y="334">Split-screen panes</text>
+  <text class="small" x="388" y="356">Broadcast input to panes</text>
+
+  <rect class="box ai" x="882" y="256" width="254" height="262"/>
+  <text class="label" x="902" y="288">AI Agent panel</text>
+  <text class="small" x="902" y="312">Dockable region</text>
+  <text class="small" x="902" y="334">bottom / left / right</text>
+  <text class="small" x="902" y="356">Chat &amp; command assist</text>
+
+  <rect class="box state" x="64" y="530" width="1072" height="48" rx="8"/>
+  <text class="label" x="80" y="552">Status bar</text>
+  <text class="small" x="80" y="570">host · protocol · connection duration</text>
+
+  <path class="dash" d="M888 400 H872"/>
+  <path class="dash" d="M888 420 H872"/>
+  <text class="small" x="640" y="606">The AI Agent panel can dock to the bottom, left, or right of the terminal area.</text>
+</svg>

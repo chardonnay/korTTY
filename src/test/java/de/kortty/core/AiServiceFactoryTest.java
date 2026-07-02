@@ -62,6 +62,21 @@ class AiServiceFactoryTest {
     }
 
     @Test
+    void createRejectsAutoModelSelectionForCloudEndpointWithClearMessage() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.openai.com/v1/chat/completions");
+        profile.setModelSelectionMode(AiModelSelectionMode.AUTO);
+
+        try {
+            AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        } catch (IllegalStateException ex) {
+            assertThat(ex).hasMessageThat().contains("only available for a local LM Studio server");
+            return;
+        }
+        throw new AssertionError("Expected Auto model selection on a cloud endpoint to be rejected.");
+    }
+
+    @Test
     void createAllowsDefaultModelForOpenAiCompatibleProfile() {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("https://api.minimax.io/v1");

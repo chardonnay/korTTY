@@ -14,7 +14,9 @@ Passen Sie den visuellen Stil des Anwendungsfensters und des Dialogs an.
 
 | Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| App-Design | Dropdown | Normal, Matrix-Terminal, holographische Schnittstelle, klingonisch taktisch, elegant dunkel | Normal | `appDesign` |
+| App-Design | Dropdown | Standard, Matrix-Terminal, holographische Schnittstelle, klingonische Taktik, elegante Dunkelheit | Standard | `appDesign` |
+
+Mit den Schaltflächen `◀` und `▶` neben dem Dropdown-Menü können Sie durch die Designs vor- und zurückblättern (an den Enden umlaufend). Wenn ein anderes Design als **Standard** ausgewählt wird, wird unterhalb der Steuerelemente ein Vorschaubild dieses Designs angezeigt. Das **Standarddesign** hat keine Vorschau und zeigt stattdessen eine kurze Notiz an.
 
 !!! Notiz
 App Design gilt nur für die Anwendungsfenster und Dialoge von korTTY. Terminalsitzungen und der Dateieditor behalten ihre eigenen unabhängigen Farbeinstellungen (konfiguriert über die Registerkarten „Farben“ oder „Themen“).

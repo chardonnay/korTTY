@@ -1,0 +1,2824 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/en/reference/config-files.html">
+      
+      
+        <link rel="prev" href="architecture.html">
+      
+      
+        <link rel="next" href="settings/index.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Configuration files - korTTY Guide</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#configuration-files" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="korTTY Guide" class="md-header__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Guide
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Configuration files
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../de/reference/config-files.html"
+     title="Deutsch" hreflang="de">
+    <span class="kt-lang-code">DE</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Guide" class="md-nav__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Guide
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First launch — master password
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main window overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menu reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Keyboard shortcuts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration files
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="config-files.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#directory-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-configuration-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core configuration files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core configuration files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connectionsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connections.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#credentialsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        credentials.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-keysxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ssh-keys.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpg-keysxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gpg-keys.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#global-settingsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        global-settings.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#job-schedulerxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        job-scheduler.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-chatsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ai-chats.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#snippetsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snippets.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#snippet-variablesxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snippet-variables.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#master-password-hash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        master-password-hash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-effect-pluginsdisabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        terminal-effect-plugins.disabled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#korttylog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kortty.log
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#directories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directories
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Directories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        history/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plugins/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bundled-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bundled-plugins/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        projects/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i18n" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        i18n/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ssh-keys/
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-locations-by-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File locations by platform
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backup-and-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backup and recovery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-configuration-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing configuration files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Appearance, themes & font
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Colors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Window
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH Tunnels (Port Forwarding)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP file manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projects (workspaces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamwork (shared connections)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal AI agent & tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security — credentials, keys & encryption
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal recording
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII art banner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal effect plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Languages & dynamic translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback & support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#directory-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-configuration-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core configuration files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core configuration files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connectionsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connections.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#credentialsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        credentials.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-keysxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ssh-keys.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpg-keysxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gpg-keys.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#global-settingsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        global-settings.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#job-schedulerxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        job-scheduler.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-chatsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ai-chats.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#snippetsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snippets.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#snippet-variablesxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snippet-variables.xml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#master-password-hash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        master-password-hash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-effect-pluginsdisabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        terminal-effect-plugins.disabled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#korttylog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kortty.log
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#directories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directories
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Directories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        history/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plugins/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bundled-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bundled-plugins/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        projects/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i18n" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        i18n/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ssh-keys/
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-locations-by-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File locations by platform
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backup-and-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backup and recovery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-configuration-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing configuration files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="configuration-files">Configuration files<a class="headerlink" href="#configuration-files" title="Permanent link">&para;</a></h1>
+<p>KorTTY stores all application data and configuration under the <code>~/.kortty/</code> directory in your home folder. This guide documents every file and subdirectory, their purpose, and how they are used.</p>
+<h2 id="directory-structure">Directory structure<a class="headerlink" href="#directory-structure" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── connections.xml                    # Saved SSH connections
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── credentials.xml                    # Stored credentials (encrypted)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── ssh-keys.xml                       # SSH key management
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── gpg-keys.xml                       # GPG keys for backup encryption
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── global-settings.xml                # Global application settings
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── ai-chats.xml                       # Saved AI conversations
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── snippets.xml                       # Code snippets and scripts
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── snippet-variables.xml              # Snippet variable storage
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── master-password-hash               # Hashed master password (PBKDF2)
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── kortty.log                         # Application log file
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── history/                           # Terminal session history (compressed)
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── plugins/                           # Imported terminal-effect plugin JARs
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── projects/                          # Project files (.kortty)
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── i18n/                              # Generated language files (messages_*.properties)
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+</span></code></pre></div>
+<h2 id="core-configuration-files">Core configuration files<a class="headerlink" href="#core-configuration-files" title="Permanent link">&para;</a></h2>
+<h3 id="connectionsxml">connections.xml<a class="headerlink" href="#connectionsxml" title="Permanent link">&para;</a></h3>
+<p>Contains all saved SSH connections with their settings.</p>
+<p><strong>Includes:</strong>
+- Connection name, host, port, username
+- Authentication method (password, SSH key, temporary SSH key)
+- Terminal appearance overrides (font, colors, size)
+- SSH tunnels and jump server configuration
+- Terminal effect plugins and animation speed
+- Connection-specific terminal logging settings
+- Window geometry preferences
+- Group/folder organization</p>
+<p><strong>Security:</strong> Connection passwords are encrypted with AES-256-GCM using the master password.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If a connection password is encrypted, it is stored in a hashed/encrypted format and cannot be viewed as plain text. When you open a saved connection, the password is automatically decrypted using your master password.</p>
+</div>
+<h3 id="credentialsxml">credentials.xml<a class="headerlink" href="#credentialsxml" title="Permanent link">&para;</a></h3>
+<p>Centralized credential storage for username/password pairs.</p>
+<p><strong>Includes:</strong>
+- Credential name, username, password
+- Environment (Production, Development, Test, Staging)
+- Server pattern (glob patterns like <code>*.example.com</code> or <code>10.0.0.*</code>)
+- Auto-assignment to connections matching the pattern</p>
+<p><strong>Security:</strong> All passwords are encrypted with AES-256-GCM.</p>
+<h3 id="ssh-keysxml">ssh-keys.xml<a class="headerlink" href="#ssh-keysxml" title="Permanent link">&para;</a></h3>
+<p>Manages centralized SSH key storage.</p>
+<p><strong>Includes:</strong>
+- SSH key path
+- Key passphrase (if the key is protected)
+- Optional description
+- Key fingerprint</p>
+<p><strong>Security:</strong> Key passphrases are encrypted with AES-256-GCM using the master password.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>SSH keys referenced in this file can be kept in their original location or copied to <code>~/.kortty/ssh-keys/</code> for easy backup and migration via the <em>Copy to User Directory</em> action in SSH key management.</p>
+</div>
+<h3 id="gpg-keysxml">gpg-keys.xml<a class="headerlink" href="#gpg-keysxml" title="Permanent link">&para;</a></h3>
+<p>Stores GPG key information for backup encryption.</p>
+<p><strong>Includes:</strong>
+- GPG key ID
+- Key email address
+- Optional fingerprint
+- Import source (system keyring or manual entry)</p>
+<h3 id="global-settingsxml">global-settings.xml<a class="headerlink" href="#global-settingsxml" title="Permanent link">&para;</a></h3>
+<p>Global application preferences and defaults.</p>
+<p><strong>Contains:</strong>
+- UI theme and appearance settings
+- Font family and default size
+- Terminal color configuration
+- Window geometry and state (position, size, maximized status)
+- Dashboard visibility state
+- Menu bar visibility preference
+- AI profile defaults and configuration
+- Translation API settings
+- Video/recording preferences
+- Terminal logging defaults
+- SSH keep-alive settings
+- JobScheduler status display preference
+- Terminal effect plugin defaults
+- Backup encryption method and retention settings
+- Connection timeout and retry defaults</p>
+<h3 id="job-schedulerxml">job-scheduler.xml<a class="headerlink" href="#job-schedulerxml" title="Permanent link">&para;</a></h3>
+<p>All JobScheduler jobs and related data.</p>
+<p><strong>Contains:</strong>
+- Job name, enabled status, action type (COMMAND, SNIPPET_SCRIPT, AI_AGENT, SFTP, RSYNC_SYNC)
+- Schedule configuration (weekdays, times, intervals, date ranges)
+- Target servers or groups
+- Host-key pins (OpenSSH public-key material for unattended execution)
+- Sudo passwords for servers and groups (encrypted)
+- Journal entries with timestamps, exit codes, and redacted output
+- Journal retention settings (auto-delete entries older than 14 days by default)</p>
+<p><strong>Security:</strong>
+- Host-key pinning is required by default for unattended SSH/SFTP/Rsync execution
+- Sudo passwords are encrypted with the master password
+- Journal entries are stored with KorTTY-managed secrets redacted before persistence
+- Archive passwords and backup encryption credentials are stored encrypted</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If the master password is locked and a job needs SSH, sudo, API, or archive secrets, the job is blocked and a journal entry is created explaining the issue.</p>
+</div>
+<h3 id="ai-chatsxml">ai-chats.xml<a class="headerlink" href="#ai-chatsxml" title="Permanent link">&para;</a></h3>
+<p>Saved AI conversations and chat history.</p>
+<p><strong>Includes:</strong>
+- Chat title and creation timestamp
+- Conversation messages and responses
+- Associated AI profile used for the chat
+- Follow-up prompt history (for context)</p>
+<p><strong>Note:</strong> AI result tabs are not automatically saved. You must explicitly save them from the AI tab using the <em>Save</em> button to add them to this file.</p>
+<h3 id="snippetsxml">snippets.xml<a class="headerlink" href="#snippetsxml" title="Permanent link">&para;</a></h3>
+<p>Code snippets, scripts, and templates.</p>
+<p><strong>Includes:</strong>
+- Snippet name, description, language
+- Code content with syntax highlighting metadata
+- Category/folder organization
+- Tags and metadata
+- Target system (Operating System column: Linux, macOS, Windows, etc.)
+- Import/export history</p>
+<p><strong>Features:</strong>
+- Support for JSON/XML/YAML import/export
+- Plain-text script export
+- ZIP archives with optional password or GPG encryption
+- Local syntax highlighting with Monaco editor
+- AI-assisted editing and code generation
+- PlantUML diagram support
+- One-liner export with optional script arguments</p>
+<h3 id="snippet-variablesxml">snippet-variables.xml<a class="headerlink" href="#snippet-variablesxml" title="Permanent link">&para;</a></h3>
+<p>Stores variable definitions for use within snippets.</p>
+<p><strong>Includes:</strong>
+- Variable name, value, type
+- Scope (local or shared)
+- Default values and validation rules</p>
+<h3 id="master-password-hash">master-password-hash<a class="headerlink" href="#master-password-hash" title="Permanent link">&para;</a></h3>
+<p>Binary file containing the hashed master password.</p>
+<p><strong>Format:</strong> PBKDF2 hash with 310,000 iterations</p>
+<p><strong>Security:</strong> This file does not contain the actual master password—only a cryptographic hash used to verify the password you enter on startup. If this file is lost or corrupted, you must restart KorTTY and set a new master password (though you will lose access to previously stored encrypted credentials and SSH key passphrases).</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If you forget your master password, delete <code>master-password-hash</code> and <code>credentials.xml</code>, restart KorTTY, set a new master password, and re-enter your passwords. There is no recovery mechanism for the lost password.</p>
+</div>
+<h3 id="terminal-effect-pluginsdisabled">terminal-effect-plugins.disabled<a class="headerlink" href="#terminal-effect-pluginsdisabled" title="Permanent link">&para;</a></h3>
+<p>Text file listing disabled terminal-effect plugin IDs (one per line).</p>
+<p><strong>Purpose:</strong> When you disable a terminal-effect plugin via <em>Plugins &gt; Terminal Effects</em>, its ID is written to this file so it remains disabled after restart.</p>
+<h3 id="korttylog">kortty.log<a class="headerlink" href="#korttylog" title="Permanent link">&para;</a></h3>
+<p>Application log file.</p>
+<p><strong>Contains:</strong>
+- Startup messages
+- Connection attempts and results
+- Terminal session events
+- Configuration changes
+- Errors and warnings
+- Performance metrics (on request via JMX)</p>
+<p><strong>Rotation:</strong> The log file grows throughout the application session. Old logs are not automatically rotated (the log file persists until KorTTY exits or you manually delete it).</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Check this file when troubleshooting connection issues, plugin loading problems, or unexpected behavior. Common issues logged here include SSH errors, encryption failures, and import/export problems.</p>
+</div>
+<h2 id="directories">Directories<a class="headerlink" href="#directories" title="Permanent link">&para;</a></h2>
+<h3 id="history">history/<a class="headerlink" href="#history" title="Permanent link">&para;</a></h3>
+<p>Compressed terminal session history.</p>
+<p><strong>Format:</strong> GZIP-compressed text files, one per terminal session</p>
+<p><strong>Naming:</strong> <code>{session-id}_{timestamp}.history.gz</code> (for session history from terminal logging)</p>
+<p><strong>Purpose:</strong> Stores terminal command history and output when terminal logging is enabled for a connection.</p>
+<p><strong>Access:</strong> Terminal history is loaded automatically when you open a saved connection and displayed in the terminal history search feature.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This directory only stores history if you explicitly enable <em>Terminal Logging</em> for a connection in the <em>Terminal Logging</em> tab when creating or editing a connection.</p>
+</div>
+<h3 id="plugins">plugins/<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
+<p>User-imported terminal-effect plugin JARs.</p>
+<p><strong>Purpose:</strong> External terminal-effect plugins that you import via <em>Plugins &gt; Terminal Effects &gt; Import</em>.</p>
+<p><strong>Security:</strong> Imported plugins are trusted Java code and are not sandboxed. Only import JARs from sources you trust.</p>
+<p><strong>Cleanup:</strong> If you delete a plugin from this directory, it will no longer be available in KorTTY. Disabled plugins remain in this directory but are listed in <code>terminal-effect-plugins.disabled</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Plugin dependencies must be shaded into the plugin JAR. Adjacent dependency JARs are not loaded automatically. See <a href="../features/terminal-effect-plugins.html">Terminal effect plugins</a> for packaging guidelines.</p>
+</div>
+<h3 id="bundled-plugins">bundled-plugins/<a class="headerlink" href="#bundled-plugins" title="Permanent link">&para;</a></h3>
+<p>Runtime copies of bundled exportable terminal-effect plugin JARs.</p>
+<p><strong>Purpose:</strong> Backup and working copies of built-in plugins that can be exported to external users.</p>
+<p><strong>Contents:</strong> The MU/TH/UR 6000 effect plugin and any other exportable bundled plugins.</p>
+<p><strong>Auto-management:</strong> KorTTY automatically manages this directory. Users should not edit it manually.</p>
+<h3 id="projects">projects/<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h3>
+<p>Project files for saving and loading connection sets.</p>
+<p><strong>Format:</strong> KorTTY XML-based project format (<code>.kortty</code> files)</p>
+<p><strong>Naming:</strong> User-defined project names with <code>.kortty</code> extension (e.g., <code>production.kortty</code>, <code>development.kortty</code>)</p>
+<p><strong>Contains:</strong>
+- List of open connections/tabs at project save time
+- Window state (tabs, sizes, active tab)
+- Dashboard state
+- Project metadata and creation timestamp</p>
+<p><strong>Purpose:</strong> Quickly open a pre-configured set of connections for a specific project or workflow.</p>
+<p><strong>Usage:</strong> Save a project via <em>File &gt; Save Project</em>, restore via <em>File &gt; Open Project</em> or the project history menu.</p>
+<h3 id="i18n">i18n/<a class="headerlink" href="#i18n" title="Permanent link">&para;</a></h3>
+<p>Dynamically generated language translation files.</p>
+<p><strong>Format:</strong> Java properties files (<code>.properties</code>)</p>
+<p><strong>Naming:</strong> <code>messages_{language-code}.properties</code> (e.g., <code>messages_de.properties</code> for German, <code>messages_fr.properties</code> for French)</p>
+<p><strong>Purpose:</strong> Stores translations generated by translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, or Yandex) when you choose to generate language files via <em>Settings &gt; Translation</em>.</p>
+<p><strong>Auto-refresh:</strong> When you upgrade KorTTY to a new version, generated language files are marked as outdated. Use <em>Settings &gt; Translation &gt; Regenerate outdated</em> to refresh them with any new or changed UI keys.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) are shipped with the application and do not use this directory. This directory is only used for dynamically generated translations.</p>
+</div>
+<h3 id="ssh-keys">ssh-keys/<a class="headerlink" href="#ssh-keys" title="Permanent link">&para;</a></h3>
+<p>Optional directory for copied SSH keys.</p>
+<p><strong>Purpose:</strong> Stores copies of SSH keys for easy backup and migration.</p>
+<p><strong>How to use:</strong>
+1. Open <em>Management &gt; Manage SSH Keys...</em>
+2. Select an SSH key and click <em>Copy to User Directory</em>
+3. The key is copied to <code>~/.kortty/ssh-keys/</code></p>
+<p><strong>Backup:</strong> SSH keys in this directory are included when you create a backup via <em>Edit &gt; Create Backup</em>.</p>
+<p><strong>Benefits:</strong>
+- Centralized location for all SSH keys
+- Easy migration to new machines
+- Included in encrypted backups</p>
+<h2 id="security-summary">Security summary<a class="headerlink" href="#security-summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Security Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Master password</td>
+<td>PBKDF2 hashing with 310,000 iterations</td>
+</tr>
+<tr>
+<td>Connection passwords</td>
+<td>AES-256-GCM encryption</td>
+</tr>
+<tr>
+<td>SSH key passphrases</td>
+<td>AES-256-GCM encryption</td>
+</tr>
+<tr>
+<td>Credentials (username/password)</td>
+<td>AES-256-GCM encryption</td>
+</tr>
+<tr>
+<td>JobScheduler sudo passwords</td>
+<td>AES-256-GCM encryption</td>
+</tr>
+<tr>
+<td>JobScheduler journal entries</td>
+<td>Redacted secrets before persistence</td>
+</tr>
+<tr>
+<td>Backup files</td>
+<td>Password-protected ZIP or GPG encryption</td>
+</tr>
+<tr>
+<td>API keys (AI profiles)</td>
+<td>AES-256-GCM encryption with master password</td>
+</tr>
+<tr>
+<td>Terminal effect plugins</td>
+<td>Not encrypted; trusted local code, not sandboxed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="file-locations-by-platform">File locations by platform<a class="headerlink" href="#file-locations-by-platform" title="Permanent link">&para;</a></h2>
+<p>All files are stored in the same <code>~/.kortty/</code> directory across platforms:</p>
+<ul>
+<li><strong>macOS:</strong> <code>/Users/{username}/.kortty/</code></li>
+<li><strong>Windows:</strong> <code>C:\Users\{username}\.kortty\</code> (or <code>%USERPROFILE%\.kortty\</code>)</li>
+<li><strong>Linux:</strong> <code>/home/{username}/.kortty/</code> (or <code>$HOME/.kortty/</code>)</li>
+</ul>
+<h2 id="backup-and-recovery">Backup and recovery<a class="headerlink" href="#backup-and-recovery" title="Permanent link">&para;</a></h2>
+<p>When you create a backup via <em>Edit &gt; Create Backup</em>, the following files and directories are included:</p>
+<ul>
+<li>All <code>.xml</code> configuration files</li>
+<li><code>master-password-hash</code></li>
+<li><code>history/</code> directory</li>
+<li><code>projects/</code> directory</li>
+<li><code>i18n/</code> directory (generated language files)</li>
+<li><code>ssh-keys/</code> directory (if present)</li>
+<li><code>snippets.xml</code> and related snippet data</li>
+</ul>
+<p>The backup is encrypted (password-protected ZIP or GPG) and saved to a location you specify.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Backups are the recommended way to migrate KorTTY to a new machine or to recover from data loss. Create a backup regularly and store it in a safe location.</p>
+</div>
+<h2 id="accessing-configuration-files">Accessing configuration files<a class="headerlink" href="#accessing-configuration-files" title="Permanent link">&para;</a></h2>
+<p>You can edit KorTTY configuration directly by:</p>
+<ol>
+<li>Closing KorTTY completely</li>
+<li>Opening <code>~/.kortty/</code> in your file manager or terminal</li>
+<li>Editing the XML files with a text editor</li>
+<li>Restarting KorTTY to load the changes</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Editing XML files directly can corrupt your data if not done carefully. Always create a backup before manual editing. For most configuration tasks, use the KorTTY UI instead—it handles encryption, validation, and file format correctly.</p>
+</div>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<p><strong>Configuration file not found:</strong>
+- KorTTY creates the <code>~/.kortty/</code> directory and all necessary subdirectories on first launch.
+- If a configuration file is missing, KorTTY uses sensible defaults and creates the file on next save.</p>
+<p><strong>Encryption errors:</strong>
+- If you forget your master password, you must delete <code>master-password-hash</code> and set a new password. Previously encrypted data will be inaccessible.</p>
+<p><strong>Corrupted XML files:</strong>
+- If a <code>.xml</code> file becomes corrupted, restore from a backup or delete the file. KorTTY will recreate it with defaults on next save.</p>
+<p><strong>Plugin loading issues:</strong>
+- Check <code>kortty.log</code> for error messages related to plugin loading (e.g., duplicate IDs, missing services, class loading errors).
+- Ensure the plugin JAR is in <code>~/.kortty/plugins/</code> and contains <code>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin</code>.
+- Use <em>Plugins &gt; Terminal Effects &gt; Reload</em> to refresh the plugin list.</p>
+<p><strong>Log file size:</strong>
+- <code>kortty.log</code> grows during the application session. It is not automatically rotated. You can safely delete it while KorTTY is closed.</p>
+<p><strong>Master password recovery:</strong>
+- There is no recovery for a forgotten master password. If you lose it, delete <code>master-password-hash</code> and <code>credentials.xml</code>, restart KorTTY, and set a new password.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

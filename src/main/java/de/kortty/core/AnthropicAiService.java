@@ -16,15 +16,20 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Native Anthropic Messages API client (https://docs.anthropic.com/en/api/messages).
  *
  * <p>Unlike {@link OpenAiCompatibleAiService} this talks Anthropic's own wire format:
  * {@code POST /v1/messages} with the {@code x-api-key} and {@code anthropic-version} headers, a
- * top-level {@code system} string, and a {@code messages} array. Reasoning ("extended thinking")
- * and web-search tools are intentionally not used here; the service focuses on robust text
- * completion so it works with terminal AI actions and the terminal agent.
+ * top-level {@code system} string, and a {@code messages} array. When a reasoning effort is
+ * configured, the request enables Anthropic's "extended thinking" and the returned
+ * {@code thinking} blocks are surfaced as {@link AiExecutionResult#reasoning()} (they are never
+ * mixed into {@link AiExecutionResult#content()}). Models that do not support extended thinking
+ * reject the request with an HTTP 400; the service then retries once without thinking, so the
+ * default (reasoning disabled) configuration and non-thinking models keep working unchanged.
+ * Web-search tools are intentionally not used here.
  */
 public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker {
 
@@ -49,12 +54,22 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
         String apiKey,
         AiReasoningEffort reasoningEffort,
         AiSkillPromptSupport skillPromptSupport) {
+        this(apiUrl, model, apiKey, reasoningEffort, skillPromptSupport, null);
+    }
+
+    AnthropicAiService(
+        String apiUrl,
+        String model,
+        String apiKey,
+        AiReasoningEffort reasoningEffort,
+        AiSkillPromptSupport skillPromptSupport,
+        HttpClient httpClient) {
         this.apiUrl = apiUrl;
         this.model = model != null ? model.trim() : "";
         this.apiKey = apiKey != null ? apiKey.trim() : "";
         this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
         this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
-        this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+        this.httpClient = httpClient != null ? httpClient : HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
     }
 
     @Override
@@ -101,15 +116,31 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
     }
 
     private AiExecutionResult send(String systemPrompt, String userPrompt, Duration timeout, int maxTokens) throws Exception {
+        // Only request extended thinking for full-size requests; the tiny connection test (16 tokens)
+        // cannot fit the minimum thinking budget and must never enable it.
+        boolean allowThinking = thinkingBudgetTokens() > 0 && maxTokens >= DEFAULT_MAX_TOKENS;
+        return send(systemPrompt, userPrompt, timeout, maxTokens, allowThinking);
+    }
+
+    private AiExecutionResult send(
+        String systemPrompt, String userPrompt, Duration timeout, int maxTokens, boolean allowThinking) throws Exception {
         if (model.isBlank()) {
             throw new IllegalStateException("AI model must be configured.");
         }
         if (apiKey.isBlank()) {
             throw new IllegalStateException("Anthropic API key must be configured.");
         }
+        int thinkingBudget = allowThinking ? thinkingBudgetTokens() : 0;
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
-        body.addProperty("max_tokens", maxTokens);
+        // Extended thinking consumes tokens from max_tokens, so max_tokens must exceed the budget.
+        body.addProperty("max_tokens", thinkingBudget > 0 ? thinkingBudget + maxTokens : maxTokens);
+        if (thinkingBudget > 0) {
+            JsonObject thinking = new JsonObject();
+            thinking.addProperty("type", "enabled");
+            thinking.addProperty("budget_tokens", thinkingBudget);
+            body.add("thinking", thinking);
+        }
         String normalizedSystem = normalize(systemPrompt);
         if (!normalizedSystem.isBlank()) {
             body.addProperty("system", normalizedSystem);
@@ -134,22 +165,63 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
         int status = response.statusCode();
         String responseBody = response.body();
         if (status < 200 || status >= 300) {
-            throw new IllegalStateException("Anthropic request failed (HTTP " + status + "): " + extractError(responseBody));
+            String error = extractError(responseBody);
+            if (thinkingBudget > 0 && indicatesThinkingUnsupported(error)) {
+                logger.debug("Anthropic model rejected extended thinking, retrying without it: {}", error);
+                return send(systemPrompt, userPrompt, timeout, maxTokens, false);
+            }
+            throw new IllegalStateException("Anthropic request failed (HTTP " + status + "): " + error);
         }
         return parseResponse(responseBody);
+    }
+
+    /**
+     * Maps the configured reasoning effort to an Anthropic {@code budget_tokens} value (minimum
+     * 1024). Returns {@code 0} when extended thinking should not be requested.
+     */
+    private int thinkingBudgetTokens() {
+        if (!reasoningEffort.isApiEnabled()) {
+            return 0;
+        }
+        return switch (reasoningEffort) {
+            case MINIMAL, LOW -> 1024;
+            case MEDIUM -> 4096;
+            case HIGH -> 8192;
+            case XHIGH -> 12288;
+            case NONE, DISABLED -> 0;
+        };
+    }
+
+    private static boolean indicatesThinkingUnsupported(String error) {
+        if (error == null) {
+            return false;
+        }
+        String lower = error.toLowerCase(Locale.ROOT);
+        return lower.contains("thinking") || lower.contains("budget_tokens");
     }
 
     private static AiExecutionResult parseResponse(String responseBody) {
         JsonObject root = JsonParser.parseString(responseBody).getAsJsonObject();
         StringBuilder text = new StringBuilder();
+        StringBuilder reasoning = new StringBuilder();
         JsonArray content = root.getAsJsonArray("content");
         if (content != null) {
             for (JsonElement element : content) {
-                if (element.isJsonObject()) {
-                    JsonObject block = element.getAsJsonObject();
-                    if (block.has("text") && block.get("text").isJsonPrimitive()) {
-                        text.append(block.get("text").getAsString());
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                JsonObject block = element.getAsJsonObject();
+                // Extended-thinking responses return {"type":"thinking","thinking":"..."} blocks
+                // ahead of the text. Collect them as reasoning; never mix them into the content that
+                // the terminal agent parses as JSON. "redacted_thinking" carries only an opaque blob
+                // and is skipped.
+                if (block.has("thinking") && block.get("thinking").isJsonPrimitive()) {
+                    if (reasoning.length() > 0) {
+                        reasoning.append("\n");
                     }
+                    reasoning.append(block.get("thinking").getAsString());
+                } else if (block.has("text") && block.get("text").isJsonPrimitive()) {
+                    text.append(block.get("text").getAsString());
                 }
             }
         }
@@ -160,7 +232,8 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
             long output = usageObject.has("output_tokens") ? usageObject.get("output_tokens").getAsLong() : 0;
             usage = new AiTokenUsage(input, output, input + output);
         }
-        return new AiExecutionResult(text.toString().trim(), usage);
+        String reasoningText = reasoning.length() > 0 ? reasoning.toString().trim() : null;
+        return new AiExecutionResult(text.toString().trim(), usage, reasoningText);
     }
 
     private static String extractError(String responseBody) {

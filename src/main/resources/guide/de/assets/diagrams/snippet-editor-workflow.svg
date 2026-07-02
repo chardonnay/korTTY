@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 680" role="img" aria-labelledby="title desc">
+  <title id="title">Snippet editor workflow</title>
+  <desc id="desc">Snippet editor content, Monaco column ruler, toolbar actions, local tools, cursor-aware AI assistant flows, and SFTP file mode save actions.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#08111f}.panel{fill:#0e1b2c;stroke:#29445f;stroke-width:2;rx:18}.box{fill:#14243a;stroke:#38bdf8;stroke-width:2;rx:10}.ai{stroke:#a78bfa}.local{stroke:#34d399}.sec{stroke:#f59e0b}.title{font-size:28px;font-weight:700;fill:#f8fafc}.label{font-size:19px;font-weight:700;fill:#7dd3fc}.small{font-size:14px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:6 6;fill:none;marker-end:url(#arrow)}</style></defs>
+  <rect class="bg" width="1160" height="680"/>
+  <text class="title" x="40" y="54">Snippet Editor Workflow</text>
+  <text class="small" x="40" y="82">One Monaco editor surface supports snippets, SFTP file mode, local formatting, AI previews, and diagram storage.</text>
+  <rect class="panel" x="55" y="130" width="305" height="380"/>
+  <text class="label" x="85" y="165">Editor surface</text>
+  <rect class="box" x="90" y="195" width="230" height="52"/><text x="114" y="226">Monaco code area</text>
+  <rect class="box local" x="90" y="260" width="230" height="52"/><text x="115" y="286">Column ruler</text><text class="small" x="117" y="303">Column N + Position N</text>
+  <rect class="box" x="90" y="325" width="230" height="52"/><text x="122" y="356">Toolbar + menus</text>
+  <rect class="box" x="90" y="390" width="230" height="52"/><text x="118" y="421">Editor profiles</text>
+  <rect class="panel" x="420" y="130" width="300" height="380"/>
+  <text class="label" x="450" y="165">Local tools</text>
+  <rect class="box local" x="455" y="205" width="230" height="52"/><text x="485" y="237">CodeFormatterService</text>
+  <rect class="box local" x="455" y="275" width="230" height="52"/><text x="500" y="307">Syntax checks</text>
+  <rect class="box local" x="455" y="345" width="230" height="52"/><text x="505" y="377">PlantUML render</text>
+  <rect class="box local" x="455" y="415" width="230" height="52"/><text x="492" y="447">SFTP/local save</text>
+  <rect class="panel" x="780" y="130" width="320" height="380"/>
+  <text class="label" x="810" y="165">AI actions</text>
+  <rect class="box ai" x="815" y="205" width="245" height="52"/><text x="855" y="237">Ghost completion</text>
+  <rect class="box ai" x="815" y="275" width="245" height="52"/><text x="860" y="300">AI Assistant</text><text class="small" x="866" y="318">cursor + skills</text>
+  <rect class="box sec" x="815" y="345" width="245" height="52"/><text x="847" y="377">Review + security</text>
+  <rect class="box ai" x="815" y="415" width="245" height="52"/><text x="852" y="447">Diff before apply</text>
+  <path class="line" d="M320 351 H455"/><path class="line" d="M320 286 C382 250 398 231 455 231"/><path class="line" d="M320 416 C390 430 400 440 455 441"/><path class="line" d="M685 301 H815"/><path class="line" d="M685 371 H815"/><path class="dash" d="M815 441 C690 560 260 560 205 247"/>
+  <text class="small" x="88" y="575">SFTP file mode keeps the same editor functions, then writes back by overwrite, save-as, or save-as-snippet.</text>
+  <text class="small" x="88" y="602">Right-click AI Assistant sends full snippet plus cursor metadata; AI changes use explicit preview/diff actions.</text>
+  <text class="small" x="88" y="629">The ruler tracks the caret column, has a removable limit marker, and previews line-width formatting before apply.</text>
+</svg>

@@ -15,6 +15,9 @@ public final class AiServiceFactory {
 
     private static final String OPENAI_CHAT_COMPLETIONS_PATH = "/chat/completions";
     private static final String MISSING_MODEL_MESSAGE = "AI model must be configured.";
+    private static final String CLOUD_MODEL_REQUIRED_MESSAGE =
+        "Select a specific AI model for this provider (for example gpt-4o). "
+            + "Automatic model detection is only available for a local LM Studio server.";
 
     private AiServiceFactory() {
     }
@@ -144,12 +147,12 @@ public final class AiServiceFactory {
             webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
         }
         if (modelSelectionMode == AiModelSelectionMode.MANUAL && model == null) {
-            throw new IllegalStateException(MISSING_MODEL_MESSAGE);
+            throw new IllegalStateException(CLOUD_MODEL_REQUIRED_MESSAGE);
         }
         if (modelSelectionMode == AiModelSelectionMode.AUTO) {
             String normalizedApiUrl = normalizeOpenAiCompatibleChatCompletionsUrl(apiUrl);
             if (!LocalLmModelResolver.canResolve(normalizedApiUrl)) {
-                throw new IllegalStateException(LocalLmModelResolver.MISSING_MODEL_MESSAGE);
+                throw new IllegalStateException(CLOUD_MODEL_REQUIRED_MESSAGE);
             }
         }
         return new OpenAiCompatibleAiService(

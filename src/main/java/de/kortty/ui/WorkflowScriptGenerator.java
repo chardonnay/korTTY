@@ -94,11 +94,17 @@ public final class WorkflowScriptGenerator {
             throw new GenerationException(FailureKind.NO_PROFILE, "No AI profile available");
         }
 
-        // Script generation is a pure text transformation — it never needs web access. Force the
-        // internet mode off on a copy so a profile configured for Tavily/MCP search does not demand
-        // an API key (the factory derives the mode from the profile, not the passed config).
+        // Script generation is a pure text transformation — it never needs web access.
+        // LM-Studio-MCP modes must survive on the copy because the factory routes those profiles
+        // to the native LM Studio service by mode — rerouting them to the OpenAI-compatible client
+        // would hit the incompatible /api/v1/chat schema. Their internet use is switched off at
+        // request time by the disabled() configuration passed below. Every other mode is forced
+        // off on the copy so a Tavily-style profile does not demand its API key.
         AiProfile generationProfile = new AiProfile(profile);
-        generationProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        if (generationProfile.getInternetAccessMode() == null
+            || !generationProfile.getInternetAccessMode().usesLmStudioMcp()) {
+            generationProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        }
 
         String apiKey = resolveApiKey(generationProfile);
 
@@ -267,8 +273,12 @@ public final class WorkflowScriptGenerator {
         if (profile == null) {
             throw new GenerationException(FailureKind.NO_PROFILE, "No AI profile available");
         }
+        // Same routing rule as generate(): keep LM-Studio-MCP modes on the copy, disable the rest.
         AiProfile generationProfile = new AiProfile(profile);
-        generationProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        if (generationProfile.getInternetAccessMode() == null
+            || !generationProfile.getInternetAccessMode().usesLmStudioMcp()) {
+            generationProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        }
         String apiKey = resolveApiKey(generationProfile);
 
         AiService service = AiServiceFactory.create(

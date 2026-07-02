@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+  <title id="title">korTTY startup &amp; manager init</title>
+  <desc id="desc">Cold launch from Launcher through manager initialization to a ready main window.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
+    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}.title{font-size:28px;font-weight:700;fill:#f8fafc}.subtitle{font-size:14px;fill:#b9c8da}.small{font-size:13px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:7 7;fill:none}.secure{stroke:#f59e0b}.state{stroke:#34d399}.ai{stroke:#a78bfa}.external{stroke:#fb7185}.service{stroke:#60a5fa}.label{font-size:14px;font-weight:700;fill:#f8fafc}.mline{font-size:14px;fill:#cfe0f0}</style>
+  </defs>
+  <rect class="bg" width="1200" height="640"/>
+  <text class="title" x="40" y="52">korTTY Startup &amp; Manager Init</text>
+  <text class="subtitle" x="40" y="80">Cold launch from Launcher through manager initialization to a ready main window.</text>
+
+  <!-- Row 1 -->
+  <rect class="box" x="40" y="130" width="210" height="90"/>
+  <text class="label" x="72" y="170">Launcher</text>
+  <text class="mline" x="72" y="194">bootstrap</text>
+
+  <rect class="box" x="330" y="130" width="220" height="90"/>
+  <text class="label" x="362" y="166">KorTTYApplication</text>
+  <text class="mline" x="362" y="190">JavaFX init</text>
+  <text class="small" x="362" y="210">start() lifecycle</text>
+
+  <rect class="box state" x="630" y="130" width="230" height="90"/>
+  <text class="label" x="662" y="166">Load State</text>
+  <text class="mline" x="662" y="190">read ~/.kortty/*.xml</text>
+  <text class="small" x="662" y="210">sessions &amp; settings</text>
+
+  <rect class="box secure" x="940" y="130" width="220" height="90"/>
+  <text class="label" x="972" y="166">Master Password</text>
+  <text class="mline" x="972" y="190">unlock vault</text>
+  <text class="small" x="972" y="210">decrypt secrets</text>
+
+  <!-- Row 2 -->
+  <rect class="box service" x="630" y="350" width="320" height="200"/>
+  <text class="label" x="662" y="386">Init Managers</text>
+  <text class="mline" x="662" y="414">Connection</text>
+  <text class="mline" x="662" y="438">Credential</text>
+  <text class="mline" x="662" y="462">AI</text>
+  <text class="mline" x="662" y="486">JobScheduler</text>
+  <text class="mline" x="662" y="510">Plugin (ServiceLoader)</text>
+  <text class="mline" x="662" y="534">i18n &amp; Theme</text>
+
+  <rect class="box state" x="200" y="395" width="230" height="110"/>
+  <text class="label" x="232" y="438">MainWindow Ready</text>
+  <text class="mline" x="232" y="464">UI shown</text>
+  <text class="small" x="232" y="486">terminal &amp; sidebar</text>
+
+  <!-- Arrows row 1 -->
+  <path class="line" d="M250 175 H330"/>
+  <text class="small" x="262" y="160">1. launch</text>
+
+  <path class="line" d="M550 175 H630"/>
+  <text class="small" x="560" y="160">2. start()</text>
+
+  <path class="line" d="M860 175 H940"/>
+  <text class="small" x="868" y="160">3. restore</text>
+
+  <!-- Master password down to managers -->
+  <path class="line" d="M1050 220 V300 H810 V350"/>
+  <text class="small" x="900" y="288">4. keys ready</text>
+
+  <!-- Managers to MainWindow -->
+  <path class="line" d="M630 450 H430"/>
+  <text class="small" x="470" y="438">5. wire managers</text>
+
+  <!-- Note -->
+  <path class="dash" d="M315 505 C360 580 560 580 700 555"/>
+  <text class="small" x="360" y="600">Managers register services and load plugins before the main window becomes interactive.</text>
+</svg>

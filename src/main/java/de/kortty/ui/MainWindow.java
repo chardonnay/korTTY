@@ -66,6 +66,7 @@ import java.util.function.Consumer;
 
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.Scene;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -487,11 +488,20 @@ public class MainWindow {
         });
         
         // Status bar
-        statusBar = new VBox(statusLabel);
+        Region appDesignCursor = new Region();
+        appDesignCursor.getStyleClass().add("app-design-cursor");
+        appDesignCursor.setVisible(false);
+        appDesignCursor.setManaged(false);
+        Region statusSpacer = new Region();
+        HBox statusRow = new HBox(8, statusLabel, statusSpacer, appDesignCursor);
+        statusRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(statusSpacer, Priority.ALWAYS);
+        statusBar = new VBox(statusRow);
         statusBar.getStyleClass().add("status-bar");
         statusLabel.getStyleClass().add("status-label");
         statusBar.setStyle("-fx-padding: 5; -fx-background-color: #2d2d2d;");
         statusLabel.setStyle("-fx-text-fill: #cccccc;");
+        AppDesignAnimator.registerCursor(appDesignCursor);
 
         // While the menu bar is hidden, a right-click on the status bar offers to restore it.
         ContextMenu statusBarContextMenu = new ContextMenu();
@@ -2334,7 +2344,11 @@ public class MainWindow {
             if (localFileBrowser != null) {
                 localFileBrowser.applyTheme(bg, fg);
             }
-            if (bg != null && !bg.isEmpty()) {
+            if (customAppDesign) {
+                // The app design fully owns the chrome; the terminal-theme dynamic stylesheet would
+                // override its menu/button/label colours, so strip it while a custom design is active.
+                removeDynamicThemeStylesheet();
+            } else if (bg != null && !bg.isEmpty()) {
                 updateDynamicThemeStylesheet(bg, fg);
             }
             if (stage.getScene() != null) {
@@ -2382,11 +2396,19 @@ public class MainWindow {
         }
     }
 
+    private void removeDynamicThemeStylesheet() {
+        if (stage.getScene() != null && dynamicThemeStylesheetUrl != null) {
+            stage.getScene().getStylesheets().remove(dynamicThemeStylesheetUrl);
+        }
+        dynamicThemeStylesheetUrl = null;
+    }
+
     private static void refreshAppDesignForOpenWindows() {
         for (MainWindow window : new ArrayList<>(openWindows)) {
             window.applyMainWindowThemeFromGlobalSettings();
         }
         AppDesignStyleSupport.applyToOpenWindows();
+        AppDesignAnimator.refreshAll();
     }
     
     private void openNewWindow() {
@@ -4860,8 +4882,8 @@ public class MainWindow {
             loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
         terminalTab.getTerminalView().setAiAgentHandler(runContext ->
             requestAiAgentForTab(terminalTab, false, null, null, false, false, runContext));
-        terminalTab.getTerminalView().setAiAgentAskHandler(runContext ->
-            requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext));
+        terminalTab.getTerminalView().setAiAgentAskHandler((runContext, selectedText) ->
+            requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext, selectedText));
         terminalTab.getTerminalView().setAiPlanningHandler(runContext ->
             requestAiPlanningForTab(terminalTab, null, null, runContext));
         terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
@@ -5318,6 +5340,26 @@ public class MainWindow {
         boolean askConfirmationBeforeEveryCommand,
         boolean autoApproveRootCommands,
         TerminalView.TerminalAgentRunContext runContext) {
+        requestAiAgentForTab(
+            terminalTab,
+            queryOnly,
+            initialPrompt,
+            requestedProfileName,
+            askConfirmationBeforeEveryCommand,
+            autoApproveRootCommands,
+            runContext,
+            null);
+    }
+
+    private void requestAiAgentForTab(
+        TerminalTab terminalTab,
+        boolean queryOnly,
+        String initialPrompt,
+        String requestedProfileName,
+        boolean askConfirmationBeforeEveryCommand,
+        boolean autoApproveRootCommands,
+        TerminalView.TerminalAgentRunContext runContext,
+        String askSelectedText) {
         if (!isAiFeaturesEnabled()) {
             return;
         }
@@ -5355,7 +5397,7 @@ public class MainWindow {
                 autoApproveRootCommands,
                 !queryOnly && shouldConfirmTerminalAgentMutatingCommandSets(),
                 queryOnly);
-            launchTerminalAgent(terminalTab, directRequest, runContext);
+            launchTerminalAgent(terminalTab, directRequest, runContext, askSelectedText);
             return;
         }
 
@@ -5383,7 +5425,7 @@ public class MainWindow {
                 autoApproveRootCommands || request.autoApproveRootCommands(),
                 !request.queryOnly() && shouldConfirmTerminalAgentMutatingCommandSets(),
                 request.queryOnly());
-            launchTerminalAgent(terminalTab, enrichedRequest, runContext);
+            launchTerminalAgent(terminalTab, enrichedRequest, runContext, askSelectedText);
         });
     }
 
@@ -5446,6 +5488,14 @@ public class MainWindow {
         TerminalTab terminalTab,
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
+        launchTerminalAgent(terminalTab, request, runContext, null);
+    }
+
+    private void launchTerminalAgent(
+        TerminalTab terminalTab,
+        TerminalAgentModels.Request request,
+        TerminalView.TerminalAgentRunContext runContext,
+        String askSelectedText) {
         AiProfile profile = findAiProfileById(request.profileId());
         if (profile == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.profileMissing"));
@@ -5462,6 +5512,7 @@ public class MainWindow {
             openDirectAiAskTab(
                 profile,
                 request.userPrompt(),
+                askSelectedText,
                 request.connectionDisplayName(),
                 terminalTab != null ? terminalTab.getConnection() : null);
             return;
@@ -5486,17 +5537,32 @@ public class MainWindow {
         runTerminalAgentInTerminalWindow(terminalTab, profile, aiService, request, resolvedRunContext);
     }
 
-    private void openDirectAiAskTab(AiProfile profile, String prompt, String connectionDisplayName, ServerConnection connection) {
+    private void openDirectAiAskTab(
+        AiProfile profile,
+        String prompt,
+        String selectedText,
+        String connectionDisplayName,
+        ServerConnection connection) {
         if (prompt == null || prompt.isBlank()) {
             return;
         }
+        // Answer the question about the terminal selection when one was captured; without a
+        // selection the question itself stays the request text (previous behavior).
+        String requestText = askRequestText(selectedText, prompt);
+        if (selectedText != null && !selectedText.isBlank()) {
+            int maxSelectionChars = getMaxAiSelectionChars(profile);
+            if (selectedText.length() > maxSelectionChars) {
+                showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
+                return;
+            }
+        }
         String languageCode = LanguageManager.getInstance().getCurrentLanguageCode();
-        AiRequest request = new AiRequest(AiAction.ASK, prompt, connectionDisplayName, languageCode, prompt);
+        AiRequest request = new AiRequest(AiAction.ASK, requestText, connectionDisplayName, languageCode, prompt);
         AiResultTab resultTab = new AiResultTab(
             this,
             I18n.get("ai.agent.ask.tabTitle"),
             profile,
-            prompt,
+            requestText,
             connectionDisplayName,
             languageCode,
             null,
@@ -5575,7 +5641,9 @@ public class MainWindow {
                 pauseLock.notifyAll();
             }
         };
-        Runnable reloadRun = () -> launchTerminalAgent(terminalTab, request, resolvedRunContext);
+        // Reload must use the AI profile that is active *now*, not the one frozen into the
+        // original request, so switching profiles before pressing reload takes effect.
+        Runnable reloadRun = () -> relaunchTerminalAgentWithCurrentProfile(terminalTab, request, resolvedRunContext);
         terminalTab.getTerminalView().setTerminalAgentInputLocked(
             resolvedRunContext,
             runId,
@@ -5740,6 +5808,50 @@ public class MainWindow {
         return new TerminalAgentModels.Request(
             sessionId,
             request.profileId(),
+            request.userPrompt(),
+            request.connectionDisplayName(),
+            request.acceptedPlanContext(),
+            request.executionTarget(),
+            request.showDebugMessages(),
+            request.showRuntimeMessages(),
+            request.askConfirmationBeforeEveryCommand(),
+            request.autoApproveRootCommands(),
+            request.confirmMutatingCommandSets(),
+            request.queryOnly());
+    }
+
+    /**
+     * Re-launches a terminal-agent run (the reload/"Wiederholen" button) using the AI profile that
+     * is currently active, rather than the profile that was active when the original run started.
+     * The profile is re-resolved exactly like a fresh launch, so a connection-pinned profile is
+     * still honoured while a changed global default now takes effect.
+     */
+    private void relaunchTerminalAgentWithCurrentProfile(
+        TerminalTab terminalTab,
+        TerminalAgentModels.Request request,
+        TerminalView.TerminalAgentRunContext runContext) {
+        AiProfile currentProfile = resolveAiProfileForConnection(
+            terminalTab != null ? terminalTab.getConnection() : null);
+        TerminalAgentModels.Request refreshedRequest = currentProfile != null
+            ? withTerminalAgentProfileId(request, currentProfile.getId())
+            : request;
+        launchTerminalAgent(terminalTab, refreshedRequest, runContext);
+    }
+
+    /**
+     * Chooses the request text for a direct AI-agent "Ask": the captured terminal selection when
+     * present, otherwise the question itself (legacy behavior for asks without a selection).
+     */
+    static String askRequestText(String selectedText, String prompt) {
+        return selectedText != null && !selectedText.isBlank() ? selectedText : prompt;
+    }
+
+    static TerminalAgentModels.Request withTerminalAgentProfileId(
+        TerminalAgentModels.Request request,
+        String profileId) {
+        return new TerminalAgentModels.Request(
+            request.sessionId(),
+            profileId,
             request.userPrompt(),
             request.connectionDisplayName(),
             request.acceptedPlanContext(),

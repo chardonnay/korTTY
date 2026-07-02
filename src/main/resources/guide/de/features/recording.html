@@ -1,0 +1,2548 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/features/recording.html">
+      
+      
+        <link rel="prev" href="backup.html">
+      
+      
+        <link rel="next" href="ascii-art.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Terminalaufzeichnung - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#terminalaufzeichnung" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Terminalaufzeichnung
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../en/features/recording.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="recording.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#aufnahmeformat-und-speicherung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahmeformat und Speicherung
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#konfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Konfiguration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Konfiguration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aufnahme-aktivieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahme aktivieren
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speicher-und-verhalten-konfigurieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speicher und Verhalten konfigurieren
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ffmpeg-konfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ffmpeg-Konfiguration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#eine-sitzung-aufzeichnen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eine Sitzung aufzeichnen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Eine Sitzung aufzeichnen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aufnahme-starten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahme starten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stoppen-sie-die-aufnahme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stoppen Sie die Aufnahme
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mehrere-segmente" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mehrere Segmente
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#videos-exportieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Videos exportieren
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Videos exportieren">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exportoptionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exportoptionen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exportfortschritt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exportfortschritt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aufnahmen-ansehen-und-verwalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahmen ansehen und verwalten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Aufnahmen ansehen und verwalten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sehen-sie-sich-eine-wiederholung-an" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sehen Sie sich eine Wiederholung an
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eine-wiederholung-umbenennen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eine Wiederholung umbenennen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eine-wiederholung-loschen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eine Wiederholung löschen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aufzeichnung-von-ereignissen-und-jsonl-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufzeichnung von Ereignissen und JSONL-Format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tipps-und-best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tipps und Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback und Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#aufnahmeformat-und-speicherung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahmeformat und Speicherung
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#konfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Konfiguration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Konfiguration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aufnahme-aktivieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahme aktivieren
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speicher-und-verhalten-konfigurieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speicher und Verhalten konfigurieren
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ffmpeg-konfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ffmpeg-Konfiguration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#eine-sitzung-aufzeichnen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eine Sitzung aufzeichnen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Eine Sitzung aufzeichnen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aufnahme-starten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahme starten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stoppen-sie-die-aufnahme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stoppen Sie die Aufnahme
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mehrere-segmente" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mehrere Segmente
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#videos-exportieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Videos exportieren
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Videos exportieren">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exportoptionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exportoptionen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exportfortschritt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exportfortschritt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aufnahmen-ansehen-und-verwalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufnahmen ansehen und verwalten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Aufnahmen ansehen und verwalten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sehen-sie-sich-eine-wiederholung-an" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sehen Sie sich eine Wiederholung an
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eine-wiederholung-umbenennen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eine Wiederholung umbenennen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eine-wiederholung-loschen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eine Wiederholung löschen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aufzeichnung-von-ereignissen-und-jsonl-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufzeichnung von Ereignissen und JSONL-Format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tipps-und-best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tipps und Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="terminalaufzeichnung">Terminalaufzeichnung<a class="headerlink" href="#terminalaufzeichnung" title="Permanent link">&para;</a></h1>
+<p>KorTTY zeichnet Terminalsitzungen als kompakte Wiedergabedateien mit optionaler Farberfassung und Videoexport auf. Sitzungsaufzeichnungen erfassen Änderungen des Bildschirmzustands und Zeitereignisse ohne kontinuierliche Pixelerfassung, wodurch sie effizient und portabel sind.</p>
+<h2 id="aufnahmeformat-und-speicherung">Aufnahmeformat und Speicherung<a class="headerlink" href="#aufnahmeformat-und-speicherung" title="Permanent link">&para;</a></h2>
+<p>Die Terminalaufzeichnung speichert Sitzungsdaten in komprimierten JSONL-Wiedergabedateien, eine pro Terminal-Tab-Sitzung:</p>
+<ul>
+<li><strong>Wiedergabedateiformat</strong>: <code>.korttyrec.jsonl.gz</code> (JDK/GZIP-Streaming-komprimiert)</li>
+<li><strong>Legacy-Format</strong>: <code>.korttyrec.jsonl</code>-Dateien bleiben lesbar (unkomprimiert)</li>
+<li><strong>Standardspeicher</strong>: <code>~/.kortty/recordings</code></li>
+<li><strong>Inhalt</strong>: Änderungen des Bildschirmstatus, Zeitereignisse und optionale Farbläufe</li>
+</ul>
+<div class="admonition notiz">
+<p class="admonition-title">Notiz</p>
+</div>
+<p>Aufnahmen erfassen nicht kontinuierlich Pixel und werden nicht über das Netzwerk gestreamt. Die Dateigröße hängt von der Aktivitätsstufe ab und davon, ob die Farberfassung aktiviert ist.</p>
+<h2 id="konfiguration">Konfiguration<a class="headerlink" href="#konfiguration" title="Permanent link">&para;</a></h2>
+<h3 id="aufnahme-aktivieren">Aufnahme aktivieren<a class="headerlink" href="#aufnahme-aktivieren" title="Permanent link">&para;</a></h3>
+<p>Um die Aufzeichnung nach jedem App-Neustart verfügbar zu machen:</p>
+<ol>
+<li>Öffnen Sie <strong>Einstellungen &gt; Video</strong></li>
+<li>Aktivieren Sie <strong>Terminalaufzeichnung nach App-Neustart aktivieren</strong></li>
+<li>Klicken Sie auf <strong>Speichern</strong></li>
+</ol>
+<p>So aktivieren Sie die Aufnahme nur, bis KorTTY beendet wird:</p>
+<ol>
+<li>Öffnen Sie <strong>Tools &gt; Video-Manager</strong></li>
+<li>Wählen Sie <strong>Terminalaufzeichnung für diese App-Sitzung aktivieren</strong></li>
+<li>Klicken Sie auf <strong>Speichern</strong></li>
+</ol>
+<h3 id="speicher-und-verhalten-konfigurieren">Speicher und Verhalten konfigurieren<a class="headerlink" href="#speicher-und-verhalten-konfigurieren" title="Permanent link">&para;</a></h3>
+<p>Legen Sie unter <strong>Tools &gt; Video Manager</strong> die folgenden Optionen fest:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Speicherpfad</strong></td>
+<td>Verzeichnis, in dem Wiedergabedateien gespeichert werden (Standard: <code>~/.kortty/recordings</code>)</td>
+</tr>
+<tr>
+<td><strong>Standardformat</strong></td>
+<td>KorTTY-Wiedergabeformat für neue Aufnahmen</td>
+</tr>
+<tr>
+<td><strong>Standardmäßiger geteilter Bereich</strong></td>
+<td>Nur aktive Teilung oder gesamte Registerkarte aufzeichnen</td>
+</tr>
+<tr>
+<td><strong>Automatische Pause im Leerlauf</strong></td>
+<td>Aufzeichnung pausieren, wenn Terminal inaktiv ist</td>
+</tr>
+<tr>
+<td><strong>Leerlaufschwelle</strong></td>
+<td>Sekunden Inaktivität vor der Pause (Standard: 20)</td>
+</tr>
+<tr>
+<td><strong>Farben erfassen</strong></td>
+<td>Terminal-Läufe pro Zelle in neue Aufzeichnungen einbeziehen</td>
+</tr>
+<tr>
+<td><strong>ffmpeg-Pfad</strong></td>
+<td>Pfad zur lokalen <code>ffmpeg</code>-Binärdatei für den Videoexport</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tipp">
+<p class="admonition-title">Tipp</p>
+</div>
+<p>Aktivieren Sie die Farberfassung <em>vor</em> der Aufnahme, wenn Sie möchten, dass exportierte Videos die Terminalfarben genau wiedergeben. Vorhandene Aufnahmen ohne Farbdaten können weiterhin exportiert werden, die Farben bleiben jedoch nicht erhalten.</p>
+<h3 id="ffmpeg-konfiguration">ffmpeg-Konfiguration<a class="headerlink" href="#ffmpeg-konfiguration" title="Permanent link">&para;</a></h3>
+<p>Der Videoexport erfordert eine lokale <code>ffmpeg</code>-Installation:</p>
+<ol>
+<li>Geben Sie unter <strong>Tools &gt; Video Manager</strong> den vollständigen Pfad zu <code>ffmpeg</code> ein (oder lassen Sie das Feld leer, um die automatische Erkennung zu ermöglichen).</li>
+<li>Klicken Sie auf <strong>Prüfen</strong>, um die Verfügbarkeit zu überprüfen</li>
+<li>Wenn <code>ffmpeg</code> nicht gefunden wird, bleibt der Videoexport deaktiviert, aber die Wiedergabewiedergabe und andere Funktionen funktionieren normal</li>
+</ol>
+<p>Wenn sich <code>ffmpeg</code> unter macOS und Linux in Ihrem PATH befindet, erkennt KorTTY es automatisch. Unter Windows müssen Sie möglicherweise den vollständigen Pfad angeben.</p>
+<h2 id="eine-sitzung-aufzeichnen">Eine Sitzung aufzeichnen<a class="headerlink" href="#eine-sitzung-aufzeichnen" title="Permanent link">&para;</a></h2>
+<h3 id="aufnahme-starten">Aufnahme starten<a class="headerlink" href="#aufnahme-starten" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Öffnen oder fokussieren Sie eine SSH-Terminal-Registerkarte</li>
+<li>Wenn die Aufzeichnung aktiviert ist, klicken Sie in der Terminalleiste auf <strong>Aufzeichnung starten</strong> oder:</li>
+<li>Wählen Sie <strong>Extras &gt; Terminalaufzeichnung starten/stoppen</strong>, oder</li>
+<li>Drücken Sie ++Strg+Umschalt+e++ (++cmd+Umschalt+e++ unter macOS)</li>
+<li>Wenn die Registerkarte geteilte Anschlüsse enthält, wählen Sie:</li>
+<li><strong>Aktive Teilung</strong> – Nur den fokussierten Terminalbereich aufzeichnen</li>
+<li><strong>Gesamte Registerkarte</strong> – zeichnet alle sichtbaren Teilungen auf</li>
+</ol>
+<p>Das Steuerelement in der Terminalleiste ist ausgeblendet, bis die Aufzeichnung aktiviert oder der Menüpunkt/die Verknüpfung verwendet wird.</p>
+<h3 id="stoppen-sie-die-aufnahme">Stoppen Sie die Aufnahme<a class="headerlink" href="#stoppen-sie-die-aufnahme" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Klicken Sie in der Terminalleiste auf <strong>Aufnahme beenden</strong>, oder</li>
+<li>Drücken Sie ++Strg+Umschalt+e++ (++cmd+Umschalt+e++ unter macOS)</li>
+</ul>
+<h3 id="mehrere-segmente">Mehrere Segmente<a class="headerlink" href="#mehrere-segmente" title="Permanent link">&para;</a></h3>
+<p>Starten und stoppen Sie die Aufnahme so oft wie nötig auf derselben Registerkarte. Alle Segmente werden an dieselbe Wiedergabedatei angehängt, bis die Registerkarte geschlossen wird. Bei jedem Aufnahmestart/-stopp wird ein neues Segment in der Datei erstellt.</p>
+<h2 id="videos-exportieren">Videos exportieren<a class="headerlink" href="#videos-exportieren" title="Permanent link">&para;</a></h2>
+<p>Für exportierte Videos muss <code>ffmpeg</code> verfügbar und konfiguriert sein.</p>
+<h3 id="exportoptionen">Exportoptionen<a class="headerlink" href="#exportoptionen" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Öffnen Sie <strong>Tools &gt; Video-Manager</strong></li>
+<li>Wählen Sie eine <code>.korttyrec.jsonl.gz</code>-Wiedergabedatei aus</li>
+<li>Stellen Sie sicher, dass der <strong>ffmpeg-Status</strong> besagt, dass der Videoexport aktiviert ist</li>
+<li>Klicken Sie auf <strong>Exportieren</strong></li>
+<li>Im Exportdialog:</li>
+<li>Wählen Sie <strong>Gesamte Aufzeichnung exportieren</strong> oder geben Sie einen benutzerdefinierten Zeitraum an
+– Geben Sie für benutzerdefinierte Bereiche die Start-/Endzeiten als <code>MM</code> (Minuten) oder <code>MM:SS</code> (Minuten und Sekunden) ein.</li>
+<li>Werte, die über die Wiedergabedauer hinausgehen, werden abgelehnt
+– Wählen Sie, ob <strong>Terminalfarben einbezogen werden</strong> (nur verfügbar, wenn die Wiedergabe Farbdaten enthält)</li>
+<li>Wählen Sie das Ausgabeformat: <strong>WebM/VP9</strong> oder <strong>MKV/FFV1</strong></li>
+<li>Wählen Sie den Ausgabeort</li>
+</ol>
+<h3 id="exportfortschritt">Exportfortschritt<a class="headerlink" href="#exportfortschritt" title="Permanent link">&para;</a></h3>
+<p>Während des Exports wird in einem Fortschrittsdialog Folgendes angezeigt:</p>
+<ul>
+<li>Aktuelle Phase (Frame-Rendering, Videokodierung)</li>
+<li>Fortschrittsbalken</li>
+<li>Geschätzte verbleibende Zeit</li>
+</ul>
+<p>Beim Export wird die aufgezeichnete Terminalgeometrie verwendet, um das Zuschneiden breiter Terminalbildschirme zu vermeiden. Wenn die Geometrie nicht verfügbar ist, berechnet KorTTY eine Legacy-Fallback-Größe.</p>
+<h2 id="aufnahmen-ansehen-und-verwalten">Aufnahmen ansehen und verwalten<a class="headerlink" href="#aufnahmen-ansehen-und-verwalten" title="Permanent link">&para;</a></h2>
+<h3 id="sehen-sie-sich-eine-wiederholung-an">Sehen Sie sich eine Wiederholung an<a class="headerlink" href="#sehen-sie-sich-eine-wiederholung-an" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Öffnen Sie <strong>Tools &gt; Video-Manager</strong></li>
+<li>Wählen Sie eine <code>.korttyrec.jsonl.gz</code>-Wiedergabedatei aus</li>
+<li>Klicken Sie auf <strong>Anzeigen</strong>, um die Wiedergabe im integrierten Viewer zu öffnen</li>
+<li>Verwenden Sie die Timeline-Steuerelemente:</li>
+<li><strong>Timeline-Schieberegler</strong> – Ziehen Sie, um zu einer beliebigen Position zu springen</li>
+<li><strong>Zeitsprung</strong> – Geben Sie <code>5</code> für Minute 5 und <code>5:30</code> für 5 Minuten 30 Sekunden ein</li>
+<li><strong>Geschwindigkeit</strong> – Stellen Sie die Wiedergabegeschwindigkeit zwischen 1x und 20x ein</li>
+</ol>
+<h3 id="eine-wiederholung-umbenennen">Eine Wiederholung umbenennen<a class="headerlink" href="#eine-wiederholung-umbenennen" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Wählen Sie unter <strong>Tools &gt; Video-Manager</strong> eine Wiedergabe aus.</li>
+<li>Klicken Sie auf <strong>Umbenennen</strong></li>
+<li>Geben Sie einen neuen Dateinamen ein</li>
+<li>Die Datei wird im Speicherordner umbenannt</li>
+</ol>
+<h3 id="eine-wiederholung-loschen">Eine Wiederholung löschen<a class="headerlink" href="#eine-wiederholung-loschen" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Wählen Sie unter <strong>Tools &gt; Video-Manager</strong> eine Wiedergabe aus.</li>
+<li>Klicken Sie auf <strong>Löschen</strong></li>
+<li>Bestätigen Sie den Löschvorgang</li>
+</ol>
+<h2 id="aufzeichnung-von-ereignissen-und-jsonl-format">Aufzeichnung von Ereignissen und JSONL-Format<a class="headerlink" href="#aufzeichnung-von-ereignissen-und-jsonl-format" title="Permanent link">&para;</a></h2>
+<p>Wiedergabedateien enthalten zeitgestempelte Ereignisse im JSONL-Format (ein Ereignis pro Zeile, gzip-komprimiert). Das dekomprimierte JSONL kann Folgendes enthalten:</p>
+<table>
+<thead>
+<tr>
+<th>Veranstaltung</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>recording_start</code></td>
+<td>Aufnahmesitzung hat begonnen</td>
+</tr>
+<tr>
+<td><code>screen</code></td>
+<td>Änderung des Bildschirmstatus (kann <code>styleRuns</code> mit Vordergrund-/Hintergrundwerten umfassen)</td>
+</tr>
+<tr>
+<td><code>auto_pause</code></td>
+<td>Aufnahme wegen Inaktivität pausiert</td>
+</tr>
+<tr>
+<td><code>auto_resume</code></td>
+<td>Aufnahme nach Inaktivität fortgesetzt</td>
+</tr>
+<tr>
+<td><code>recording_stop</code></td>
+<td>Aufnahme manuell gestoppt</td>
+</tr>
+<tr>
+<td><code>session_closed</code></td>
+<td>Terminal-Tab geschlossen</td>
+</tr>
+</tbody>
+</table>
+<p>Jedes Bildschirmereignis umfasst Terminalinhalte, Abmessungen und optionale Farbstilläufe.</p>
+<h2 id="tipps-und-best-practices">Tipps und Best Practices<a class="headerlink" href="#tipps-und-best-practices" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Große Terminalfenster</strong>: Die Terminalgeometrie wird aufgezeichnet, sodass Breitbildschirme ohne Beschneiden korrekt exportiert werden</li>
+<li><strong>Farbgenauigkeit</strong>: Aktivieren Sie die Farberfassung vor der Aufnahme, wenn Sie Videos mit Terminalfarben exportieren möchten</li>
+<li><strong>Leerlaufpause</strong>: Die automatische Pause hilft, die Dateigröße bei langen Leerlaufzeiten zu reduzieren; Aktivieren Sie es, es sei denn, Sie müssen das genaue Timing beibehalten</li>
+<li><strong>Split-Scope-Auswahl</strong>: Wählen Sie Ihren Aufzeichnungsbereich (aktive Aufteilung vs. gesamte Registerkarte) jedes Mal, wenn Sie mit der Aufzeichnung beginnen, passend zu Ihrem Arbeitsablauf</li>
+<li><strong>Legacy-Dateien</strong>: Alte <code>.korttyrec.jsonl</code>-Wiedergabedateien (unkomprimiert) sind im Video-Manager weiterhin lesbar</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

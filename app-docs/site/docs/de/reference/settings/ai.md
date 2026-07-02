@@ -45,7 +45,7 @@ Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die g
 | API-URL | Text | — | — | (Profilfeld `apiUrl`) |
 | CLI-Anbieter | Dropdown | (registrierte Anbieter) | — | (Profilfeld `cliProviderId`) |
 | CLI-ausführbare Datei | Text | — | — | (Profilfeld `cliExecutablePath`) |
-| Modell | Dropdown/Text | (editable; supports "Default" / "Auto") | — | (Profilfeld `model`) |
+| Modell | Dropdown/Text | (bearbeitbar; „Standard“, kuratierte Vorschläge von Cloud-Anbietern plus live geladene Modelle; „Auto“ nur für lokale LM Studio-Endpunkte) | — | (Profilfeld `model`) |
 | Kundenspezifisches Modell | Text | — | — | (Profilfeld `cliCustomModel`) |
 | Begründung | Dropdown | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
 | Internetzugang | Dropdown | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
@@ -98,11 +98,13 @@ Der Argumentationsaufwand konfiguriert, wie tief die KI nachdenkt, bevor sie ant
 - **Keine**: Argumentation explizit deaktivieren (`reasoning: "none"` senden).
 - **Minimal**: Leichte Argumentation; schnellste Ausführung.
 - **Niedrig**: Argumentation mit geringem Aufwand; Balance zwischen Geschwindigkeit und Tiefe.
-- **Medium**: Medium effort; angemessene Tiefe.
+- **Mittel**: Mittlerer Aufwand; angemessene Tiefe.
 - **Hoch**: Hoher Aufwand; gründlichere Begründung.
 - **Extra hoch**: Maximaler Argumentationsaufwand; am langsamsten, aber am umfassendsten.
 
 Nicht alle Modelle unterstützen alle Ebenen. Verwenden Sie die Schaltfläche **Begründungsoptionen aktualisieren**, um verfügbare Ebenen für das aktuelle Profil und Modell zu ermitteln.
+
+Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Argumentationsebene **erweitertes Denken** mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Die Argumentation des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.
 
 ### Token-Kontingentverwaltung
 
@@ -111,7 +113,7 @@ Jedes AI-Profil verwaltet ein Token-Nutzungskontingent mit den folgenden Kontrol
 - **Tokenizer**: Wählen Sie aus, welcher Tokenizer die Anzahl der Token schätzt – nützlich beim Wechsel zwischen OpenAI und anderen Anbietern. Optionen sind Estimate (generisch), cl100k_base (GPT-3.5/4), o200k_base (o1/o1-mini), p50k_base (Codex) und r50k_base (GPT-2).
 - **Maximales Token-Limit**: Legen Sie eine Ausgabenobergrenze fest (in Tausenden oder Millionen Token oder unbegrenzt). Die Anzahl der Token wird nach einem fortlaufenden Zeitplan zurückgesetzt.
 - **Reset-Zeitraum**: Anzahl der Tage zwischen Resets (1–3650), mit optionalem Ankerdatum für vorhersehbaren Reset-Zeitpunkt.
-- **Warnschwellenwerte**: Gelbe Warnung wird bei einem Prozentsatz des Grenzwerts ausgelöst; red warning at a higher percentage. Konfigurieren Sie beide als Ganzzahlen 0–100.
+- **Warnschwellenwerte**: Gelbe Warnung wird bei einem Prozentsatz des Grenzwerts ausgelöst; rote Warnung bei einem höheren Prozentsatz. Konfigurieren Sie beide als Ganzzahlen 0–100.
 
 Die Token-Nutzung wird als farbiger Balken und Zusammenfassung im Profileditor angezeigt, und die Profilliste zeigt den Token-Status inline an.
 
