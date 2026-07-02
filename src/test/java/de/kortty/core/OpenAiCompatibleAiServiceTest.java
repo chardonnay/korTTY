@@ -815,6 +815,56 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void toolCallRoundsMergeReasoningWithFinalAnswer() throws Exception {
+        TavilyToolTestDouble tavilyTool = new TavilyToolTestDouble("""
+            {"status":"ok","provider":"tavily","results":[{"title":"Example","url":"https://example.test","content":"Example"}]}
+            """);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            """
+                {
+                  "choices": [
+                    {
+                      "message": {
+                        "role": "assistant",
+                        "content": null,
+                        "reasoning_content": "I should search the web first.",
+                        "tool_calls": [
+                          {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {"name": "web_search", "arguments": "{\\"query\\":\\"KorTTY\\"}"}
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+                """,
+            """
+                {
+                  "choices": [
+                    {"message": {"role": "assistant", "content": "Final answer.", "reasoning_content": "Now I can answer."}}
+                  ]
+                }
+                """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            client,
+            tavilyTool);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ASK, "What is current?", "qa-box", "en", "KorTTY"),
+            client,
+            Duration.ofSeconds(30));
+
+        assertThat(result.content()).isEqualTo("Final answer.");
+        assertThat(result.reasoning()).isEqualTo("I should search the web first.\n\nNow I can answer.");
+    }
+
+    @Test
     void executeJsonPromptPreservesModelReasoningThroughRewrap() throws Exception {
         SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
             {

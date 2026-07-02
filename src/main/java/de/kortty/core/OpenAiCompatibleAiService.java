@@ -342,6 +342,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         String effectiveModel) throws Exception {
 
         List<AiTokenUsage> usageEntries = new ArrayList<>();
+        List<String> reasoningEntries = new ArrayList<>();
         for (int round = 0; round <= MAX_WEB_TOOL_ROUNDS; round++) {
             String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, true, effectiveModel);
             HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
@@ -359,7 +360,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 if (parsed != null && parsed.usage() != null) {
                     usageEntries.add(parsed.usage());
                 }
-                return new AiExecutionResult(content.trim(), mergeUsage(usageEntries), parsed != null ? parsed.reasoning() : null);
+                return new AiExecutionResult(
+                    content.trim(),
+                    mergeUsage(usageEntries),
+                    mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null));
             }
             AiTokenUsage usage = parseUsage(root);
             if (usage != null) {
@@ -368,6 +372,13 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             JsonObject message = firstAssistantMessage(root);
             JsonArray toolCalls = message != null ? message.getAsJsonArray("tool_calls") : null;
             if (toolCalls != null && !toolCalls.isEmpty()) {
+                // Keep the reasoning of tool-call rounds; the final answer's reasoning alone
+                // would drop the model's earlier thinking. The non-tool final round is covered
+                // by the parsed result below, so it is not collected here twice.
+                String roundReasoning = extractReasoning(message);
+                if (roundReasoning != null && !roundReasoning.isBlank()) {
+                    reasoningEntries.add(roundReasoning);
+                }
                 JsonArray limitedToolCalls = limitToolCallsForRequest(toolCalls);
                 if (round >= MAX_WEB_TOOL_ROUNDS) {
                     messages.add(copyAssistantToolCallMessage(message, limitedToolCalls));
@@ -375,7 +386,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                         messages.add(buildToolRoundLimitMessage(toolCallElement));
                     }
                     messages.add(buildToolRoundLimitInstructionMessage());
-                    return executeFinalMessagesWithoutTools(messages, client, timeout, jsonResponseFormat, usageEntries, effectiveModel);
+                    return executeFinalMessagesWithoutTools(
+                        messages, client, timeout, jsonResponseFormat, usageEntries, reasoningEntries, effectiveModel);
                 }
                 messages.add(copyAssistantToolCallMessage(message, limitedToolCalls));
                 for (JsonElement toolCallElement : limitedToolCalls) {
@@ -389,7 +401,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (content == null || content.isBlank()) {
                 throw new IOException("AI API returned an empty response.");
             }
-            return new AiExecutionResult(content.trim(), mergeUsage(usageEntries), parsed != null ? parsed.reasoning() : null);
+            return new AiExecutionResult(
+                content.trim(),
+                mergeUsage(usageEntries),
+                mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null));
         }
         throw new IOException("Web search did not finish within " + MAX_WEB_TOOL_ROUNDS + " tool rounds.");
     }
@@ -400,6 +415,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         Duration timeout,
         boolean jsonResponseFormat,
         List<AiTokenUsage> usageEntries,
+        List<String> reasoningEntries,
         String effectiveModel) throws Exception {
 
         String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, false, effectiveModel);
@@ -426,7 +442,30 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (content == null || content.isBlank()) {
             throw new IOException("AI API returned an empty response after the web search limit was reached.");
         }
-        return new AiExecutionResult(content.trim(), mergeUsage(usageEntries), parsed != null ? parsed.reasoning() : null);
+        return new AiExecutionResult(
+            content.trim(),
+            mergeUsage(usageEntries),
+            mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null));
+    }
+
+    /**
+     * Joins the reasoning captured from tool-call rounds with the final answer's reasoning, so
+     * multi-round web-tool runs keep the model's full thinking. Returns {@code null} when no
+     * round produced any reasoning.
+     */
+    private static String mergeReasoning(List<String> reasoningEntries, String finalReasoning) {
+        List<String> values = new ArrayList<>();
+        if (reasoningEntries != null) {
+            for (String entry : reasoningEntries) {
+                if (entry != null && !entry.isBlank()) {
+                    values.add(entry);
+                }
+            }
+        }
+        if (finalReasoning != null && !finalReasoning.isBlank()) {
+            values.add(finalReasoning);
+        }
+        return values.isEmpty() ? null : String.join("\n\n", values);
     }
 
     private JsonObject firstAssistantMessage(JsonObject root) {
