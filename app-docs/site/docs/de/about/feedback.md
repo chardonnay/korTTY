@@ -4,7 +4,7 @@ title: Feedback und Support
 
 # Feedback und Support
 
-korTTY wird offen auf GitHub entwickelt: <https://github.com/chardonnay/korTTY>. Fehlerberichte und Feature-Ideen werden beide als GitHub-Probleme behandelt. Sie benötigen ein kostenloses GitHub-Konto, um ein Problem zu eröffnen.
+korTTY wird offen auf GitHub entwickelt: <https://github.com/chardonnay/korTTY>. Fehlerberichte und Feature-Ideen werden beide als GitHub-Issues behandelt. Sie benötigen ein kostenloses GitHub-Konto, um ein Issue zu eröffnen.
 
 ## Einen Fehler melden
 
@@ -15,16 +15,16 @@ korTTY wird offen auf GitHub entwickelt: <https://github.com/chardonnay/korTTY>.
 * Genaue Schritte zur Reproduktion des Problems, was Sie erwartet haben und was stattdessen passiert ist.
 * Ein relevanter Auszug aus dem Anwendungsprotokoll `~/.kortty/kortty.log` (siehe [Konfigurationsdateien ](../reference/config-files.md)) und, bei Abstürzen, jedem Absturzbericht, den Ihr Betriebssystem erstellt hat.
 * Ein Screenshot, wenn das Problem visuell ist.
-3. **Öffnen Sie das Problem** bei <https://github.com/chardonnay/korTTY/issues/new>: Verwenden Sie einen kurzen, spezifischen Titel (z. B. *„SFTP-Tab friert ein, wenn eine Datei unter Windows 11 umbenannt wird“*), fügen Sie die gesammelten Fakten in die Beschreibung ein und senden Sie sie ab.
+3. **Öffnen Sie das Issue** bei <https://github.com/chardonnay/korTTY/issues/new>: Verwenden Sie einen kurzen, spezifischen Titel (z. B. *„SFTP-Tab friert ein, wenn eine Datei unter Windows 11 umbenannt wird“*), fügen Sie die gesammelten Fakten in die Beschreibung ein und senden Sie sie ab.
 4. **Erreichbar bleiben** – Folgefragen zu diesem Thema sind häufig; Aktivieren Sie GitHub-Benachrichtigungen dafür.
 
 !!! Warnung „Datensicherheit“
-Protokolldateien und Screenshots können vertrauliche Informationen wie Hostnamen, Benutzernamen, Dateipfade oder Sitzungsdetails enthalten. Überprüfen und redigieren Sie alles, was Sie einem öffentlichen GitHub-Problem hinzufügen.
+Protokolldateien und Screenshots können vertrauliche Informationen wie Hostnamen, Benutzernamen, Dateipfade oder Sitzungsdetails enthalten. Überprüfen und redigieren Sie alles, was Sie einem öffentlichen GitHub-Issue hinzufügen.
 
 ## Schlagen Sie eine Funktion oder Idee vor
 
 1. Überprüfen Sie zunächst <https://github.com/chardonnay/korTTY/issues> auf ähnliche Vorschläge – fügen Sie dort einen Kommentar oder eine 👍 Reaktion hinzu, anstatt ein Duplikat zu öffnen.
-2. Öffnen Sie eine neue Ausgabe bei <https://github.com/chardonnay/korTTY/issues/new> mit einem Titel, der mit `Feature:` beginnt (z. B. *"Feature: Lesezeichenordner im Verbindungsmanager"*).
+2. Öffnen Sie ein neues Issue bei <https://github.com/chardonnay/korTTY/issues/new> mit einem Titel, der mit `Feature:` beginnt (z. B. *"Feature: Lesezeichenordner im Verbindungsmanager"*).
 3. Beschreiben Sie den **Anwendungsfall** – was Sie erreichen möchten und warum das aktuelle Verhalten unzureichend ist – und nicht nur die Lösung, die Sie im Sinn haben. Mockups oder Beispiele von anderen Tools sind willkommen.
 
 Versionshinweise für ausgelieferte Änderungen werden in [Versionshinweise](release-notes.md).
