@@ -208,6 +208,16 @@ class LocalCliAiServiceTest {
     }
 
     @Test
+    void stripsOscSequencesTerminatedByStringTerminator() {
+        // OSC may end with ST (ESC backslash) instead of BEL.
+        String stTerminatedOsc = ESC + "]0;window title" + ESC + "\\";
+
+        assertThat(LocalCliAiService.sanitizeCliOutput(stTerminatedOsc + "answer")).isEqualTo("answer");
+        assertThat(LocalCliAiService.extractThinkReasoning("<think>" + stTerminatedOsc + "thought</think>x"))
+            .isEqualTo("thought");
+    }
+
+    @Test
     void executeSeparatesThinkReasoningFromAnswer() throws Exception {
         Path script = createScript("printf '%s' '<think>weighing options</think>The answer is 42.'");
         LocalCliAiService service = new LocalCliAiService(

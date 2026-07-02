@@ -228,8 +228,9 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
     private static final Pattern THINK_BLOCK_PATTERN = Pattern.compile("(?is)<think\\b[^>]*>(.*?)</think\\s*>");
     // ANSI CSI sequences (cursor moves, erase-line, show/hide cursor, colors).
     private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[ -/]*[@-~]");
-    // ANSI OSC sequences terminated by BEL.
-    private static final Pattern ANSI_OSC_PATTERN = Pattern.compile("\u001B\\][^\u0007]*\u0007");
+    // ANSI OSC sequences terminated by BEL or by the String Terminator (ESC backslash).
+    private static final Pattern ANSI_OSC_PATTERN =
+        Pattern.compile("\u001B\\][^\u0007\u001B]*(?:\u0007|\u001B\\\\)");
 
     /** Strips ANSI CSI/OSC control sequences and stray carriage returns. */
     private static String stripAnsiControlSequences(String text) {
