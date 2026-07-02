@@ -9,15 +9,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -45,12 +45,23 @@ public final class SwarmOrchestrator {
         this.aggregator = aggregator != null ? aggregator : new SwarmAggregator();
     }
 
+    /** Compatibility overload: runs with a private control (no external pause/restart/stop). */
     public void run(
         SwarmModels.SwarmRequest request,
         List<SwarmTarget> targets,
         AiProfile profile,
         Supplier<AiPromptService> aiServiceFactory,
         SwarmCallback userCallback) {
+        run(request, targets, profile, aiServiceFactory, userCallback, new SwarmRunControl());
+    }
+
+    public void run(
+        SwarmModels.SwarmRequest request,
+        List<SwarmTarget> targets,
+        AiProfile profile,
+        Supplier<AiPromptService> aiServiceFactory,
+        SwarmCallback userCallback,
+        SwarmRunControl control) {
 
         long start = System.currentTimeMillis();
         Map<String, SwarmModels.SwarmAgentState> states = new ConcurrentHashMap<>();
@@ -71,83 +82,219 @@ public final class SwarmOrchestrator {
         int parallelism = Math.max(1, Math.min(
             request.maxParallelism() > 0 ? request.maxParallelism() : DEFAULT_PARALLELISM, total));
         ExecutorService pool = Executors.newFixedThreadPool(parallelism, daemonFactory());
-        List<Future<SwarmModels.SwarmAgentStatus>> futures = new ArrayList<>(total);
+        // The pool stays open for the whole run so per-agent restarts can be resubmitted; an
+        // outstanding counter (not awaitTermination) tells the coordinator when all attempts ended.
+        Map<String, SwarmTarget> targetsById = new LinkedHashMap<>();
+        Map<String, SwarmModels.SwarmAgentStatus> results = new ConcurrentHashMap<>();
+        AtomicInteger outstanding = new AtomicInteger();
+        AttemptContext context = new AttemptContext(
+            pool, outstanding, results, control, request, profile, aiServiceFactory, callback, router);
         for (SwarmTarget target : targets) {
+            targetsById.put(target.agentId(), target);
             states.put(target.agentId(), SwarmModels.SwarmAgentState.QUEUED);
-            futures.add(pool.submit(() -> runOne(target, request, profile, aiServiceFactory, callback, router)));
+            submitAttempt(context, target);
         }
-        pool.shutdown();
         callback.onSwarmState(rollup(SwarmModels.SwarmPhase.RUNNING_AGENTS, states, total, start, null));
 
+        boolean cancelled = false;
         try {
-            while (!pool.awaitTermination(POLL_INTERVAL_MS, TimeUnit.MILLISECONDS)) {
-                if (userCallback.isCancelled()) {
-                    pool.shutdownNow();
+            while (outstanding.get() > 0 || control.hasPendingRestarts()) {
+                if (userCallback.isCancelled() || control.isSwarmCancelled()) {
+                    cancelled = true;
                     break;
                 }
+                for (SwarmRunControl.RestartRequest restart : control.drainRestartRequests()) {
+                    SwarmTarget target = targetsById.get(restart.agentId());
+                    // Skip superseded requests: rapid repeated restarts bump the generation
+                    // several times but only the newest request may spawn a live attempt —
+                    // otherwise two attempts with the SAME generation would both run.
+                    if (target != null && restart.generation() == control.currentGeneration(restart.agentId())) {
+                        submitAttempt(context, target, restart.generation());
+                    }
+                }
+                Thread.sleep(POLL_INTERVAL_MS);
                 callback.onSwarmState(rollup(SwarmModels.SwarmPhase.RUNNING_AGENTS, states, total, start, null));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            pool.shutdownNow();
+            cancelled = true;
+        }
+        // The loop can also drain because every agent observed the cancel before the next poll —
+        // re-check so the run reports CANCELLED, not DONE, in that race.
+        if (!cancelled && (userCallback.isCancelled() || control.isSwarmCancelled())) {
+            cancelled = true;
         }
 
-        List<SwarmModels.SwarmAgentStatus> results = new ArrayList<>(total);
-        for (Future<SwarmModels.SwarmAgentStatus> future : futures) {
-            try {
-                SwarmModels.SwarmAgentStatus status = future.get();
-                if (status != null) {
-                    results.add(status);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException | java.util.concurrent.CancellationException e) {
-                logger.debug("Swarm agent task ended without a result", e);
-            }
-        }
-
-        if (userCallback.isCancelled()) {
+        if (cancelled) {
+            control.cancelAll();
+            // Queued-but-never-started attempts are drained by shutdownNow and never reach their
+            // finally-decrement — account for them here so the wind-down wait can complete.
+            List<Runnable> neverStarted = pool.shutdownNow();
+            outstanding.addAndGet(-neverStarted.size());
+            awaitWindDown(outstanding);
+            backfillCancelledAgents(targetsById, results, callback);
             callback.onSwarmState(rollup(SwarmModels.SwarmPhase.CANCELLED, states, total, start, null));
             callback.onAggregationResult(aggregator.aggregate(
-                new SwarmModels.SwarmAggregationRequest(request.query(), results), null));
+                new SwarmModels.SwarmAggregationRequest(request.query(), orderedResults(targetsById, results)), null));
             return;
         }
 
+        pool.shutdown();
         callback.onSwarmState(rollup(SwarmModels.SwarmPhase.AGGREGATING, states, total, start, null));
         AiPromptService aggregationService = safeBuildService(aiServiceFactory);
         SwarmModels.SwarmAggregationResult aggregation = aggregator.aggregate(
-            new SwarmModels.SwarmAggregationRequest(request.query(), results), aggregationService);
+            new SwarmModels.SwarmAggregationRequest(request.query(), orderedResults(targetsById, results)),
+            aggregationService);
         callback.onAggregationResult(aggregation);
         callback.onSwarmState(rollup(SwarmModels.SwarmPhase.DONE, states, total, start, null));
     }
 
-    private SwarmModels.SwarmAgentStatus runOne(
-        SwarmTarget target,
+    /** Everything one attempt submission needs; avoids ten-argument helper signatures. */
+    private record AttemptContext(
+        ExecutorService pool,
+        AtomicInteger outstanding,
+        Map<String, SwarmModels.SwarmAgentStatus> results,
+        SwarmRunControl control,
         SwarmModels.SwarmRequest request,
         AiProfile profile,
         Supplier<AiPromptService> aiServiceFactory,
-        SwarmCallback callback,
+        CountingCallback callback,
         PerAgentRunUi.ApprovalRouter router) {
+    }
 
-        PerAgentRunUi ui = new PerAgentRunUi(target, callback, router);
-        if (callback.isCancelled() || callback.isAgentCancelled(target.agentId())) {
+    private void submitAttempt(AttemptContext context, SwarmTarget target) {
+        submitAttempt(context, target, context.control().currentGeneration(target.agentId()));
+    }
+
+    /**
+     * Submits one attempt for a target with an explicit generation. The per-agent permit
+     * serializes attempts so a restart only starts once the replaced attempt has ended;
+     * stale attempts never overwrite the newer attempt's result.
+     */
+    private void submitAttempt(AttemptContext context, SwarmTarget target, int generation) {
+        String agentId = target.agentId();
+        context.outstanding().incrementAndGet();
+        try {
+            context.pool().submit(() -> {
+                try {
+                    Semaphore permit = context.control().attemptPermit(agentId);
+                    permit.acquire();
+                    try {
+                        SwarmModels.SwarmAgentStatus status = runOne(target, context, generation);
+                        if (status != null && !context.control().isAttemptStale(agentId, generation)) {
+                            context.results().put(agentId, status);
+                        }
+                    } finally {
+                        permit.release();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    context.outstanding().decrementAndGet();
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            // pool already shut down (cancellation racing a restart) — undo the reservation
+            context.outstanding().decrementAndGet();
+        }
+    }
+
+    /** Bounded cooperative wind-down after cancellation; agents observe the cancel flags quickly. */
+    private static void awaitWindDown(AtomicInteger outstanding) {
+        long deadline = System.currentTimeMillis() + 30_000L;
+        try {
+            while (outstanding.get() > 0 && System.currentTimeMillis() < deadline) {
+                Thread.sleep(100L);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * After a cancel, agents whose attempt never started (drained from the queue, or a restart
+     * request that could no longer be serviced) have no terminal status. Synthesize CANCELLED for
+     * them so rows, roll-ups, saved summaries and the aggregation table don't report stale states.
+     */
+    private static void backfillCancelledAgents(
+        Map<String, SwarmTarget> targetsById,
+        Map<String, SwarmModels.SwarmAgentStatus> results,
+        SwarmCallback callback) {
+        for (Map.Entry<String, SwarmTarget> entry : targetsById.entrySet()) {
+            SwarmModels.SwarmAgentStatus existing = results.get(entry.getKey());
+            if (existing != null && isTerminalState(existing.state())) {
+                continue;
+            }
+            SwarmTarget target = entry.getValue();
+            SwarmModels.SwarmAgentStatus cancelled = new SwarmModels.SwarmAgentStatus(
+                entry.getKey(),
+                target.displayName(),
+                SwarmModels.SwarmTargetKey.of(target.connection()),
+                SwarmModels.SwarmAgentState.CANCELLED,
+                existing != null ? existing.currentActivity() : "",
+                existing != null ? existing.elapsedSeconds() : 0L,
+                existing != null ? existing.tokens() : SwarmModels.TokenTotals.zero(),
+                existing != null ? existing.finalAnswer() : null,
+                existing != null ? existing.transcriptSummary() : null,
+                null);
+            results.put(entry.getKey(), cancelled);
+            callback.onAgentStatus(cancelled);
+        }
+    }
+
+    private static boolean isTerminalState(SwarmModels.SwarmAgentState state) {
+        return state == SwarmModels.SwarmAgentState.DONE
+            || state == SwarmModels.SwarmAgentState.FAILED
+            || state == SwarmModels.SwarmAgentState.CANCELLED
+            || state == SwarmModels.SwarmAgentState.SKIPPED;
+    }
+
+    /** Results in submission order for a stable aggregation-table row order. */
+    private static List<SwarmModels.SwarmAgentStatus> orderedResults(
+        Map<String, SwarmTarget> targetsById,
+        Map<String, SwarmModels.SwarmAgentStatus> results) {
+        List<SwarmModels.SwarmAgentStatus> ordered = new ArrayList<>(results.size());
+        for (String agentId : targetsById.keySet()) {
+            SwarmModels.SwarmAgentStatus status = results.get(agentId);
+            if (status != null) {
+                ordered.add(status);
+            }
+        }
+        return ordered;
+    }
+
+    private SwarmModels.SwarmAgentStatus runOne(SwarmTarget target, AttemptContext context, int generation) {
+        SwarmRunControl control = context.control();
+        SwarmCallback callback = context.callback();
+        PerAgentRunUi ui = new PerAgentRunUi(target, callback, context.router(), control, generation);
+        if (callback.isCancelled()
+            || callback.isAgentCancelled(target.agentId())
+            || control.isAttemptCancelled(target.agentId(), generation)) {
             ui.markCancelled();
             return ui.snapshot();
         }
         try {
-            AiPromptService aiService = aiServiceFactory.get();
+            // Park QUEUED agents right away while the swarm is paused — before opening connections.
+            ui.awaitIfPaused();
+            if (ui.isCancelled()) {
+                ui.markCancelled();
+                return ui.snapshot();
+            }
+            AiPromptService aiService = context.aiServiceFactory().get();
             if (aiService == null) {
                 ui.markFailed("AI service unavailable");
                 return ui.snapshot();
             }
-            TerminalAgentModels.Request agentRequest = buildAgentRequest(target, request, profile);
+            TerminalAgentModels.Request agentRequest = buildAgentRequest(target, context.request(), context.profile());
             agentService.runAgent(
-                target.terminalTab(), target.runner(), profile, aiService, agentRequest, target.agentId(), ui);
+                target.terminalTab(), target.runner(), context.profile(), aiService, agentRequest,
+                target.agentId(), ui);
             ui.markCompletedIfRunning();
         } catch (Exception e) {
             if (TerminalAgentService.isCancellation(e)
                 || callback.isCancelled()
-                || callback.isAgentCancelled(target.agentId())) {
+                || callback.isAgentCancelled(target.agentId())
+                || control.isAttemptCancelled(target.agentId(), generation)) {
                 ui.markCancelled();
             } else {
                 logger.warn("Swarm agent {} failed", target.displayName(), e);
@@ -200,7 +347,7 @@ public final class SwarmOrchestrator {
         for (SwarmModels.SwarmAgentState state : states.values()) {
             switch (state) {
                 case QUEUED -> queued++;
-                case CONNECTING, PROBING, RUNNING, AWAITING_APPROVAL -> running++;
+                case CONNECTING, PROBING, RUNNING, AWAITING_APPROVAL, PAUSED -> running++;
                 case DONE -> done++;
                 case FAILED -> failed++;
                 case CANCELLED, SKIPPED -> cancelled++;

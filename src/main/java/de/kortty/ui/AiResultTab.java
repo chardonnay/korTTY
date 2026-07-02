@@ -800,7 +800,7 @@ public class AiResultTab extends Tab {
             @Override
             public TerminalAgentService.ApprovalDecision requestBatchApproval(
                 TerminalAgentModels.Approval approval, String agentId) {
-                return requestSwarmApprovalBlocking(approval);
+                return requestSwarmApprovalBlocking(approval, cancelled);
             }
 
             @Override
@@ -814,7 +814,8 @@ public class AiResultTab extends Tab {
                 return cancelled.get();
             }
         };
-        ownerWindow.startSwarm(request, targets, profile, callback);
+        ownerWindow.startSwarm(request, targets, profile, callback,
+            new de.kortty.core.swarm.SwarmRunControl());
     }
 
     private void updateBroadcastProgress(SwarmModels.SwarmRunState state) {
@@ -833,29 +834,51 @@ public class AiResultTab extends Tab {
         }
     }
 
-    private TerminalAgentService.ApprovalDecision requestSwarmApprovalBlocking(TerminalAgentModels.Approval approval) {
+    private TerminalAgentService.ApprovalDecision requestSwarmApprovalBlocking(
+        TerminalAgentModels.Approval approval, AtomicBoolean cancelled) {
         CompletableFuture<TerminalAgentService.ApprovalDecision> future = new CompletableFuture<>();
+        java.util.concurrent.atomic.AtomicReference<Alert> openAlert = new java.util.concurrent.atomic.AtomicReference<>();
         Runnable show = () -> {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle(I18n.get("ai.swarm.approve.title"));
-            alert.setHeaderText(null);
-            StringBuilder commands = new StringBuilder();
-            if (approval != null && approval.commands() != null) {
-                for (TerminalAgentModels.PlannedCommand command : approval.commands()) {
-                    if (command != null && command.command() != null) {
-                        commands.append(command.command()).append('\n');
+            try {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle(I18n.get("ai.swarm.approve.title"));
+                alert.setHeaderText(null);
+                StringBuilder commands = new StringBuilder();
+                if (approval != null && approval.commands() != null) {
+                    for (TerminalAgentModels.PlannedCommand command : approval.commands()) {
+                        if (command != null && command.command() != null) {
+                            commands.append(command.command()).append('\n');
+                        }
                     }
                 }
+                alert.setContentText(I18n.get("ai.swarm.approve.message",
+                    I18n.get("ai.swarm.broadcast.targetMode.allOpen"), commands.toString().trim()));
+                ButtonType approveAll = new ButtonType(I18n.get("ai.swarm.approve.approveAll"), ButtonBar.ButtonData.OK_DONE);
+                ButtonType cancel = new ButtonType(I18n.get("ai.swarm.approve.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+                alert.getButtonTypes().setAll(approveAll, cancel);
+                // Owner + toFront: an ownerless alert can open behind the main window on macOS.
+                Window owner = getOwnerWindow();
+                if (owner != null) {
+                    alert.initOwner(owner);
+                }
+                alert.setOnShown(shownEvent -> {
+                    if (alert.getDialogPane().getScene() != null
+                        && alert.getDialogPane().getScene().getWindow() instanceof javafx.stage.Stage stage) {
+                        stage.toFront();
+                        stage.requestFocus();
+                    }
+                });
+                openAlert.set(alert);
+                var choice = alert.showAndWait();
+                future.complete(choice.isPresent() && choice.get() == approveAll
+                    ? TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS
+                    : TerminalAgentService.ApprovalDecision.CANCEL);
+            } catch (Exception ex) {
+                // a broken dialog must never leave the broadcast blocked forever
+                future.complete(TerminalAgentService.ApprovalDecision.CANCEL);
+            } finally {
+                openAlert.set(null);
             }
-            alert.setContentText(I18n.get("ai.swarm.approve.message",
-                I18n.get("ai.swarm.broadcast.targetMode.allOpen"), commands.toString().trim()));
-            ButtonType approveAll = new ButtonType(I18n.get("ai.swarm.approve.approveAll"), ButtonBar.ButtonData.OK_DONE);
-            ButtonType cancel = new ButtonType(I18n.get("ai.swarm.approve.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-            alert.getButtonTypes().setAll(approveAll, cancel);
-            var choice = alert.showAndWait();
-            future.complete(choice.isPresent() && choice.get() == approveAll
-                ? TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS
-                : TerminalAgentService.ApprovalDecision.CANCEL);
         };
         if (Platform.isFxApplicationThread()) {
             show.run();
@@ -863,7 +886,22 @@ public class AiResultTab extends Tab {
             Platform.runLater(show);
         }
         try {
-            return future.get();
+            // Poll so a broadcast cancel aborts a pending approval instead of hanging on it.
+            while (true) {
+                try {
+                    return future.get(500, java.util.concurrent.TimeUnit.MILLISECONDS);
+                } catch (java.util.concurrent.TimeoutException stillWaiting) {
+                    if (cancelled != null && cancelled.get()) {
+                        Platform.runLater(() -> {
+                            Alert alert = openAlert.get();
+                            if (alert != null && alert.isShowing()) {
+                                alert.close();
+                            }
+                        });
+                        return TerminalAgentService.ApprovalDecision.CANCEL;
+                    }
+                }
+            }
         } catch (Exception e) {
             return TerminalAgentService.ApprovalDecision.CANCEL;
         }

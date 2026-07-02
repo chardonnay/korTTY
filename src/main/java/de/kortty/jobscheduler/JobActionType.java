@@ -14,6 +14,9 @@ public enum JobActionType {
     @XmlEnumValue("AI_AGENT")
     AI_AGENT,
 
+    @XmlEnumValue("AI_SWARM")
+    AI_SWARM,
+
     @XmlEnumValue("SFTP_UPLOAD")
     SFTP_UPLOAD,
 

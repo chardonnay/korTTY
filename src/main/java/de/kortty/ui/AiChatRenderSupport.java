@@ -3,9 +3,12 @@ package de.kortty.ui;
 import de.kortty.core.AiChatContentSupport;
 import de.kortty.core.AiMarkdownTableSupport;
 import javafx.geometry.Insets;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -87,14 +90,30 @@ public final class AiChatRenderSupport {
         for (int rowIndex = 0; rowIndex < table.rows().size(); rowIndex++) {
             List<String> row = table.rows().get(rowIndex);
             for (int column = 0; column < row.size(); column++) {
-                grid.add(cell(row.get(column), false, fontSize), column, rowIndex + 1);
+                Node cell = cell(row.get(column), false, fontSize);
+                attachRowViewer(cell, table.header(), row);
+                grid.add(cell, column, rowIndex + 1);
             }
         }
         return grid;
     }
 
+    /** Clicking any data cell opens the whole row, readable, in a separate non-modal window. */
+    private static void attachRowViewer(Node cell, List<String> headers, List<String> row) {
+        cell.setCursor(Cursor.HAND);
+        if (cell instanceof Label label) {
+            label.setTooltip(new Tooltip(I18n.get("ai.table.rowView.tooltip")));
+        }
+        cell.setOnMouseClicked(event -> {
+            if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 1) {
+                AiTableRowViewerDialog.open(
+                    cell.getScene() != null ? cell.getScene().getWindow() : null, headers, row);
+            }
+        });
+    }
+
     private static Node cell(String value, boolean header, int fontSize) {
-        Label label = new Label(value != null ? value : "");
+        Label label = new Label(value != null ? AiTableRowViewerDialog.decodeCellText(value) : "");
         label.setWrapText(true);
         label.setMaxWidth(Double.MAX_VALUE);
         label.setPadding(new Insets(6, 10, 6, 10));

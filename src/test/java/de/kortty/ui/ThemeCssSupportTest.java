@@ -17,6 +17,8 @@ class ThemeCssSupportTest {
         assertThat(css.contains(".root { -fx-background-color: #101820; }")).isTrue();
         assertThat(css.contains(".label { -fx-text-fill: #f3f4f6; }")).isTrue();
         assertThat(css.contains("-fx-prompt-text-fill:")).isTrue();
+        assertThat(css.contains(".swarm-composer-input {")).isTrue();
+        assertThat(css.contains(".swarm-composer-input .content {")).isTrue();
     }
 
     @Test

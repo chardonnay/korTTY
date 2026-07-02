@@ -56,7 +56,9 @@ public final class SwarmAggregator {
             "Du bist ein Aggregator.",
             "Du erhältst Pro-Server-Antworten desselben KI-Agenten, der dieselbe Anfrage über mehrere Server ausgeführt hat.",
             "Erzeuge EINE knappe Antwort in Markdown, bevorzugt eine Vergleichstabelle mit genau einer Zeile pro Server.",
-            "Nenne Abweichungen, fehlende Daten und Fehler explizit.",
+            "Die letzte Spalte der Tabelle trägt exakt die Überschrift \"Fehler\".",
+            "Trage Abweichungen, fehlende Daten und Fehler knapp in die Spalte \"Fehler\" ein; gibt es nichts zu melden, schreibe \"-\".",
+            "Die Spaltenüberschrift \"Fehler\" bleibt wörtlich erhalten, auch wenn der Rest der Antwort in einer anderen Sprache ist.",
             "Erfinde keine Daten; nutze ausschließlich die gelieferten Pro-Server-Antworten.",
             "Antworte in der Sprache der Nutzeranfrage.");
     }
@@ -79,7 +81,7 @@ public final class SwarmAggregator {
                 sb.append("(keine Antwort)\n");
             }
         }
-        sb.append("\nFasse diese Ergebnisse jetzt in einer Markdown-Tabelle zusammen.");
+        sb.append("\nFasse diese Ergebnisse jetzt in einer Markdown-Tabelle zusammen; die letzte Spalte heißt \"Fehler\".");
         return sb.toString();
     }
 
@@ -91,18 +93,20 @@ public final class SwarmAggregator {
         if (query != null && !query.isBlank()) {
             sb.append("**").append(escapeCell(query.trim())).append("**\n\n");
         }
-        sb.append("| Server | Status | Antwort |\n");
-        sb.append("|---|---|---|\n");
+        sb.append("| Server | Status | Antwort | Fehler |\n");
+        sb.append("|---|---|---|---|\n");
         for (SwarmModels.SwarmAgentStatus status : results) {
             String answer = status.finalAnswer();
             if (answer == null || answer.isBlank()) {
-                answer = status.errorMessage() != null && !status.errorMessage().isBlank()
-                    ? status.errorMessage()
-                    : (status.transcriptSummary() != null ? status.transcriptSummary() : "");
+                answer = status.transcriptSummary() != null ? status.transcriptSummary() : "";
             }
+            String failure = status.errorMessage() != null && !status.errorMessage().isBlank()
+                ? cap(status.errorMessage().trim(), PER_SERVER_ANSWER_CAP)
+                : "-";
             sb.append("| ").append(escapeCell(safe(status.displayName())))
                 .append(" | ").append(escapeCell(String.valueOf(status.state())))
                 .append(" | ").append(escapeCell(cap(answer == null ? "" : answer.trim(), PER_SERVER_ANSWER_CAP)))
+                .append(" | ").append(escapeCell(failure))
                 .append(" |\n");
         }
         return new SwarmModels.SwarmAggregationResult(sb.toString(), SwarmModels.TokenTotals.zero(), error);

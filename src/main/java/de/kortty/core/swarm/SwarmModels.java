@@ -22,6 +22,8 @@ public final class SwarmModels {
         PROBING,
         RUNNING,
         AWAITING_APPROVAL,
+        /** Parked at a turn boundary by the user; resumes into its previous state. Not terminal. */
+        PAUSED,
         DONE,
         FAILED,
         CANCELLED,

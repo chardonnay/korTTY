@@ -1290,6 +1290,8 @@ public class MainWindow {
         aiPlanning.setOnAction(e -> showAiPlanning());
 
         MenuItem aiSwarm = new MenuItem(I18n.get("menu.tools.aiSwarm"));
+        // Shortcut+Alt+S — Shortcut+Shift+S is taken by the Snippet-Manager
+        aiSwarm.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
         aiSwarm.setOnAction(e -> showAiSwarm());
 
         toolsAiMenuItems.add(aiManager);
@@ -6083,11 +6085,12 @@ public class MainWindow {
         SwarmModels.SwarmRequest request,
         java.util.List<SwarmTarget> targets,
         AiProfile profile,
-        SwarmCallback callback) {
+        SwarmCallback callback,
+        de.kortty.core.swarm.SwarmRunControl control) {
         SwarmOrchestrator orchestrator = new SwarmOrchestrator(terminalAgentService);
         java.util.function.Supplier<AiPromptService> factory = aiPromptServiceFactory(profile);
         Thread thread = new Thread(
-            () -> orchestrator.run(request, targets, profile, factory, callback),
+            () -> orchestrator.run(request, targets, profile, factory, callback, control),
             "ai-swarm-coordinator");
         thread.setDaemon(true);
         thread.start();
@@ -6705,6 +6708,11 @@ public class MainWindow {
     }
 
     private void showJobScheduler() {
+        showJobSchedulerWithDraft(null);
+    }
+
+    /** Opens the Job Scheduler; a non-null draft (e.g. from the AI-swarm window) is preselected. */
+    void showJobSchedulerWithDraft(de.kortty.jobscheduler.ScheduledJob draft) {
         logger.info("showJobScheduler() called - Opening JobScheduler");
         try {
             if (app.getJobSchedulerService() == null) {
@@ -6712,6 +6720,9 @@ public class MainWindow {
                 return;
             }
             JobSchedulerDialog dialog = new JobSchedulerDialog(app, stage);
+            if (draft != null) {
+                dialog.prefillNewJob(draft);
+            }
             dialog.show();
         } catch (Exception e) {
             logger.error("Failed to open JobScheduler", e);

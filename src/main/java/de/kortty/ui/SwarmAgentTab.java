@@ -1,10 +1,18 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiChatExportContext;
+import de.kortty.core.AiChatExportService;
+import de.kortty.core.AiPdfExportOptions;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
+import de.kortty.core.swarm.SwarmRunControl;
+import de.kortty.core.swarm.SwarmSnippetExecutor;
 import de.kortty.core.swarm.SwarmTarget;
+import de.kortty.core.swarm.SwarmTranscriptBuffer;
+import de.kortty.jobscheduler.HeadlessSwarmAgentRunner;
+import de.kortty.jobscheduler.ScheduledJob;
 import de.kortty.model.AiProfile;
 import de.kortty.model.SavedSwarmChat;
 import de.kortty.model.SavedSwarmMessage;
@@ -12,31 +20,50 @@ import de.kortty.model.SavedSwarmServerSummary;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
 import javafx.animation.KeyFrame;
+import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.ToolBar;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.stage.FileChooser;
+import javafx.stage.Window;
 import javafx.util.Duration;
+
+import java.io.File;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,7 +72,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Dedicated AI swarm window: a live per-server agent dashboard on the left and a chat (query +
@@ -55,6 +84,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SwarmAgentTab extends Tab {
 
     private static final int FONT_SIZE = 13;
+    private static final DateTimeFormatter EXPORT_FILE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     private final MainWindow ownerWindow;
     private String languageCode;
@@ -64,23 +94,48 @@ public class SwarmAgentTab extends Tab {
     private final ComboBox<SwarmModels.BatchApprovalPolicy> approvalComboBox = new ComboBox<>();
     private final TextArea promptInputArea = new TextArea();
     private final Button sendButton = new Button(I18n.get("ai.swarm.send"));
-    private final Button cancelButton = new Button(I18n.get("ai.swarm.cancel"));
+    private final Button scheduleButton = new Button(I18n.get("ai.swarm.schedule"));
+    private final Button runScriptButton = new Button(I18n.get("ai.swarm.script.button"));
+    private final Button pauseButton = new Button(I18n.get("ai.swarm.control.pause"));
+    private final Button resumeButton = new Button(I18n.get("ai.swarm.control.resume"));
+    private final Button restartButton = new Button(I18n.get("ai.swarm.control.restart"));
+    private final Button stopButton = new Button(I18n.get("ai.swarm.control.stop"));
     private final Button connectMissingButton = new Button();
     private final Label targetLabel = new Label(I18n.get("ai.swarm.target.none"));
     private final Label dashboardHeader = new Label();
     private final VBox agentRowsBox = new VBox(6);
     private final VBox messagesBox = new VBox(12);
     private final ScrollPane messagesScrollPane;
+    private final ScrollPane dashboardScroll = new ScrollPane(agentRowsBox);
+    private final SwarmStatusStrip statusStrip = new SwarmStatusStrip();
+    private final Button copyChatButton = new Button(I18n.get("ai.result.copy"));
+    private final MenuButton exportChatButton = new MenuButton(I18n.get("ai.result.export"));
+    private final Label chatStatusLabel = new Label();
+    private final AiChatExportService exportService = new AiChatExportService();
 
     private final Map<String, SwarmAgentRow> rowsByAgentId = new LinkedHashMap<>();
+    private final Map<String, SwarmTranscriptBuffer> transcriptBuffers = new LinkedHashMap<>();
+    private final Map<String, String> headlessAgentIds = new LinkedHashMap<>();
+    private final List<AutoCloseable> headlessRunners = new ArrayList<>();
     private final List<SwarmTarget> targets = new ArrayList<>();
     private final List<ServerConnection> missingConnections = new ArrayList<>();
     private final List<SavedSwarmMessage> messageEntries = new ArrayList<>();
     private final List<String> targetGroupPaths = new ArrayList<>();
 
+    private String composerFrameBaseStyle;
+    private String composerFrameFocusStyle;
+
+    private final Circle tabIndicator = new Circle(5);
+    private Timeline tabIndicatorPulse;
+    private SwarmTabActivitySupport.Indicator tabIndicatorState = SwarmTabActivitySupport.Indicator.NONE;
+
     private boolean includeLocalShell;
     private boolean busy;
-    private AtomicBoolean swarmCancelled;
+    private boolean scriptRunActive;
+    private SwarmRunControl swarmControl;
+    private String lastSentPrompt;
+    private boolean restartPending;
+    private SwarmModels.SwarmPhase lastSwarmPhase;
     private final Timeline timer;
 
     private String savedChatId;
@@ -101,7 +156,7 @@ public class SwarmAgentTab extends Tab {
         setClosable(true);
         setText(this.baseTitle);
         setOnCloseRequest(event -> cancelSwarm());
-        setOnClosed(event -> ownerWindow.unregisterSavedSwarmChatTab(savedChatId));
+        setOnClosed(event -> handleTabClosed());
 
         // Profile combo
         profileComboBox.setPrefWidth(220);
@@ -137,9 +192,14 @@ public class SwarmAgentTab extends Tab {
         workflowButton.setOnAction(e -> openSwarmWorkflow());
         Button saveButton = new Button(I18n.get("ai.swarm.save"));
         saveButton.setOnAction(e -> saveChat());
+        scheduleButton.setTooltip(new Tooltip(I18n.get("ai.swarm.schedule.tooltip")));
+        scheduleButton.setOnAction(e -> openScheduleDraft());
+        runScriptButton.setOnAction(e -> openRunScriptDialog());
 
-        cancelButton.setOnAction(e -> cancelSwarm());
-        cancelButton.setDisable(true);
+        pauseButton.setOnAction(e -> pauseSwarm());
+        resumeButton.setOnAction(e -> resumeSwarm());
+        restartButton.setOnAction(e -> restartSwarm());
+        stopButton.setOnAction(e -> stopSwarm());
 
         Label profileLabel = new Label(I18n.get("ai.result.profile"));
         Label approvalLabel = new Label(I18n.get("ai.swarm.approvalPolicy"));
@@ -149,7 +209,9 @@ public class SwarmAgentTab extends Tab {
             readOnlyCheck,
             approvalLabel, approvalComboBox,
             new Separator(),
-            workflowButton, saveButton, cancelButton);
+            workflowButton, saveButton, scheduleButton, runScriptButton,
+            new Separator(),
+            pauseButton, resumeButton, restartButton, stopButton);
         // The dynamic theme stylesheet styles .label/.button but not .tool-bar, so a ToolBar keeps the
         // light JavaFX default background while its labels get the (light) theme foreground -> unreadable.
         // Paint the bar and its labels from the resolved theme colors so contrast is correct in any theme.
@@ -157,7 +219,6 @@ public class SwarmAgentTab extends Tab {
 
         // Dashboard (left)
         dashboardHeader.setStyle("-fx-font-weight: bold;");
-        ScrollPane dashboardScroll = new ScrollPane(agentRowsBox);
         dashboardScroll.setFitToWidth(true);
         agentRowsBox.setPadding(new Insets(6));
         VBox dashboard = new VBox(6, new Label(I18n.get("ai.swarm.dashboard.title")), targetLabel, dashboardHeader, dashboardScroll);
@@ -170,15 +231,23 @@ public class SwarmAgentTab extends Tab {
         messagesScrollPane.setFitToWidth(true);
         promptInputArea.setWrapText(true);
         promptInputArea.setPrefRowCount(3);
+        promptInputArea.setMinHeight(Region.USE_PREF_SIZE);
+        promptInputArea.getStyleClass().add("swarm-composer-input");
         promptInputArea.setPromptText(I18n.get("ai.swarm.composer.placeholder"));
         promptInputArea.textProperty().addListener((obs, oldValue, newValue) -> updateSendAvailability());
         sendButton.setDefaultButton(true);
         sendButton.setMinWidth(110);
         sendButton.setOnAction(e -> sendSwarm());
-        HBox.setHgrow(promptInputArea, Priority.ALWAYS);
-        HBox composer = new HBox(10, promptInputArea, sendButton);
+        initComposerFrameStyles();
+        StackPane promptFrame = new StackPane(promptInputArea);
+        promptFrame.setPadding(new Insets(1));
+        promptFrame.setStyle(composerFrameBaseStyle);
+        promptInputArea.focusedProperty().addListener((obs, wasFocused, focused) ->
+            promptFrame.setStyle(focused ? composerFrameFocusStyle : composerFrameBaseStyle));
+        HBox.setHgrow(promptFrame, Priority.ALWAYS);
+        HBox composer = new HBox(10, promptFrame, sendButton);
         composer.setAlignment(Pos.BOTTOM_RIGHT);
-        VBox chat = new VBox(8, new Label(I18n.get("ai.swarm.chat.title")), messagesScrollPane, composer);
+        VBox chat = new VBox(8, buildChatHeader(), messagesScrollPane, composer);
         chat.setPadding(new Insets(8));
         VBox.setVgrow(messagesScrollPane, Priority.ALWAYS);
 
@@ -186,9 +255,13 @@ public class SwarmAgentTab extends Tab {
         split.setDividerPositions(0.42);
 
         BorderPane content = new BorderPane();
-        content.setTop(toolBar);
+        content.setTop(new VBox(toolBar, statusStrip));
         content.setCenter(split);
         setContent(content);
+
+        statusStrip.setOnOrbClicked(this::highlightAgentRow);
+        statusStrip.setTabSelected(isSelected());
+        selectedProperty().addListener((obs, wasSelected, selected) -> statusStrip.setTabSelected(selected));
 
         timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> tickTimers()));
         timer.setCycleCount(Timeline.INDEFINITE);
@@ -249,7 +322,9 @@ public class SwarmAgentTab extends Tab {
             SwarmTargetCollector.resolveSelection(ownerWindow, selection.connections(), includeLocalShell);
         targets.clear();
         rowsByAgentId.clear();
+        transcriptBuffers.clear();
         agentRowsBox.getChildren().clear();
+        statusStrip.clearAgents();
         for (SwarmTarget target : resolved.openTargets()) {
             addTarget(target);
         }
@@ -279,21 +354,86 @@ public class SwarmAgentTab extends Tab {
             return;
         }
         targets.add(target);
-        SwarmAgentRow row = new SwarmAgentRow(target.displayName());
+        SwarmAgentRow row = new SwarmAgentRow(target.agentId(), target.displayName());
         rowsByAgentId.put(target.agentId(), row);
         agentRowsBox.getChildren().add(row);
+        if (statusStrip.isStaticMode()) {
+            // Leaving the rehydrated (static) view: re-seed the strip from the full target list,
+            // not just this target — otherwise "Connect missing" would drop the already-open ones.
+            statusStrip.clearAgents();
+            for (SwarmTarget existing : targets) {
+                statusStrip.addAgent(existing.agentId(), existing.displayName());
+            }
+        } else {
+            statusStrip.addAgent(target.agentId(), target.displayName());
+        }
     }
 
     private void refreshTargetLabels() {
-        if (targets.isEmpty()) {
+        int headlessCount = headlessCandidates().size();
+        if (targets.isEmpty() && headlessCount == 0) {
             targetLabel.setText(I18n.get("ai.swarm.target.none"));
         } else {
-            targetLabel.setText(I18n.get("ai.swarm.target.selected", targets.size())
-                + "  •  " + I18n.get("ai.swarm.target.openCount", targets.size()));
+            StringBuilder text = new StringBuilder(
+                I18n.get("ai.swarm.target.selected", targets.size() + headlessCount));
+            text.append("  •  ").append(I18n.get("ai.swarm.target.openCount", targets.size()));
+            if (headlessCount > 0) {
+                text.append("  •  ").append(I18n.get("ai.swarm.target.headlessCount", headlessCount));
+            }
+            targetLabel.setText(text.toString());
         }
         connectMissingButton.setText(I18n.get("ai.swarm.target.connectCount", missingConnections.size()));
         connectMissingButton.setDisable(busy || missingConnections.isEmpty());
         updateSendAvailability();
+    }
+
+    // ---- Headless targets (selected connections without an open terminal) ------
+
+    private List<ServerConnection> headlessCandidates() {
+        return SwarmHeadlessTargetSupport.schedulableConnections(missingConnections);
+    }
+
+    private boolean hasRunnableTargets() {
+        return !targets.isEmpty() || !headlessCandidates().isEmpty();
+    }
+
+    /**
+     * Open targets plus ephemeral headless targets for this run. Returns {@code null} (after
+     * showing the vault error) when headless targets need stored secrets but the vault is locked.
+     */
+    private List<SwarmTarget> buildRunTargets() {
+        List<SwarmTarget> runTargets = new ArrayList<>(targets);
+        List<ServerConnection> headless = headlessCandidates();
+        if (headless.isEmpty()) {
+            return runTargets;
+        }
+        char[] masterPassword = KorTTYApplication.getInstance().getMasterPasswordManager() != null
+            ? KorTTYApplication.getInstance().getMasterPasswordManager().getMasterPassword()
+            : null;
+        if (masterPassword == null) {
+            showError(I18n.get("ai.swarm.error.masterPasswordLocked"));
+            return null;
+        }
+        for (ServerConnection connection : headless) {
+            String agentId = SwarmHeadlessTargetSupport.stableAgentId(headlessAgentIds, connection.getId());
+            HeadlessSwarmAgentRunner runner = new HeadlessSwarmAgentRunner(
+                KorTTYApplication.getInstance(), connection, masterPassword, null);
+            headlessRunners.add(runner);
+            runTargets.add(new SwarmTarget(agentId, connection, runner, null,
+                connection.getId(), SwarmTargetCollector.displayName(connection)));
+        }
+        return runTargets;
+    }
+
+    private void closeHeadlessRunners() {
+        for (AutoCloseable runner : headlessRunners) {
+            try {
+                runner.close();
+            } catch (Exception e) {
+                // best effort — the run is over
+            }
+        }
+        headlessRunners.clear();
     }
 
     // ---- Running the swarm --------------------------------------------------
@@ -308,12 +448,33 @@ public class SwarmAgentTab extends Tab {
             showError(I18n.get("ai.swarm.error.notConfigured"));
             return;
         }
-        if (targets.isEmpty()) {
+        if (!hasRunnableTargets()) {
             showError(I18n.get("ai.swarm.error.noTargets"));
             return;
         }
+        // Clear the composer only once the run actually started — an aborted start (e.g. locked
+        // vault for headless targets) must not throw away the typed prompt.
+        if (startSwarmRun(prompt)) {
+            promptInputArea.clear();
+        }
+    }
+
+    /**
+     * Launches one swarm run; also the re-entry point for the whole-swarm restart.
+     *
+     * @return whether the run was actually started
+     */
+    private boolean startSwarmRun(String prompt) {
+        AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
+        if (busy || prompt == null || prompt.isBlank() || profile == null || !hasRunnableTargets()) {
+            return false;
+        }
+        List<SwarmTarget> runTargets = buildRunTargets();
+        if (runTargets == null || runTargets.isEmpty()) {
+            return false;
+        }
+        lastSentPrompt = prompt;
         appendUserMessage(prompt);
-        promptInputArea.clear();
 
         boolean readOnly = readOnlyCheck.isSelected();
         SwarmModels.BatchApprovalPolicy policy = readOnly
@@ -323,45 +484,71 @@ public class SwarmAgentTab extends Tab {
             prompt, profile.getId(), SwarmModels.SwarmSource.CONNECTION_SELECTION,
             includeLocalShell, readOnly, 4, policy);
 
-        // Re-key rows by the (stable) target agentIds for this run.
+        // Re-key rows by the (stable) target agentIds for this run (open + headless targets).
         rowsByAgentId.clear();
+        transcriptBuffers.clear();
         agentRowsBox.getChildren().clear();
-        for (SwarmTarget target : targets) {
-            SwarmAgentRow row = new SwarmAgentRow(target.displayName());
+        statusStrip.clearAgents();
+        for (SwarmTarget target : runTargets) {
+            SwarmAgentRow row = new SwarmAgentRow(target.agentId(), target.displayName());
             rowsByAgentId.put(target.agentId(), row);
             agentRowsBox.getChildren().add(row);
+            statusStrip.addAgent(target.agentId(), target.displayName());
         }
 
         busy = true;
-        swarmCancelled = new AtomicBoolean(false);
-        AtomicBoolean cancelled = swarmCancelled;
+        restartPending = false;
+        lastSwarmPhase = null;
+        swarmControl = new SwarmRunControl();
+        SwarmRunControl control = swarmControl;
         timer.playFromStart();
         updateSendAvailability();
+        updateTabIndicator();
 
+        // Run-identity guard: agentIds are stable across runs, so after a swarm restart a
+        // straggler attempt from the superseded run could otherwise write into the new run's
+        // rows/orbs/transcripts. Deliveries are dropped unless this run is still the current one.
         SwarmCallback callback = new SwarmCallback() {
             @Override
             public void onSwarmState(SwarmModels.SwarmRunState state) {
-                Platform.runLater(() -> applySwarmState(state));
+                Platform.runLater(() -> {
+                    if (swarmControl == control) {
+                        applySwarmState(state);
+                    }
+                });
             }
 
             @Override
             public void onAgentStatus(SwarmModels.SwarmAgentStatus status) {
-                Platform.runLater(() -> applyAgentStatus(status));
+                Platform.runLater(() -> {
+                    if (swarmControl == control) {
+                        applyAgentStatus(status);
+                    }
+                });
             }
 
             @Override
             public void onAgentTranscript(String agentId, String chunk) {
+                Platform.runLater(() -> {
+                    if (swarmControl == control) {
+                        appendAgentTranscript(agentId, chunk);
+                    }
+                });
             }
 
             @Override
             public void onAggregationResult(SwarmModels.SwarmAggregationResult result) {
-                Platform.runLater(() -> finishSwarm(result));
+                Platform.runLater(() -> {
+                    if (swarmControl == control) {
+                        finishSwarm(result);
+                    }
+                });
             }
 
             @Override
             public TerminalAgentService.ApprovalDecision requestBatchApproval(
                 TerminalAgentModels.Approval approval, String agentId) {
-                return requestApprovalBlocking(approval, agentId);
+                return requestApprovalBlocking(approval, agentId, control);
             }
 
             @Override
@@ -372,19 +559,22 @@ public class SwarmAgentTab extends Tab {
 
             @Override
             public boolean isCancelled() {
-                return cancelled.get();
+                return control.isSwarmCancelled();
             }
         };
-        ownerWindow.startSwarm(request, new ArrayList<>(targets), profile, callback);
+        ownerWindow.startSwarm(request, runTargets, profile, callback, control);
+        return true;
     }
 
     private void applySwarmState(SwarmModels.SwarmRunState state) {
         if (state == null) {
             return;
         }
+        lastSwarmPhase = state.phase();
         long seconds = Math.max(0L, state.elapsedSeconds());
         dashboardHeader.setText(I18n.get("ai.swarm.progress",
             state.running(), state.done(), state.failed(), formatElapsed(seconds)));
+        updateSendAvailability();
     }
 
     private void applyAgentStatus(SwarmModels.SwarmAgentStatus status) {
@@ -395,17 +585,114 @@ public class SwarmAgentTab extends Tab {
         if (row != null) {
             row.update(status);
         }
+        statusStrip.applyAgentStatus(status);
+        updateTabIndicator();
+    }
+
+    // ---- Tab activity indicator ----------------------------------------------
+
+    /**
+     * Small pulsing dot in the tab header so a running swarm stays visible from other tabs:
+     * blue breathing while agents work, fast orange blink when an agent waits for approval,
+     * static violet when everything is paused, and a short green flash once the run finished.
+     */
+    private void updateTabIndicator() {
+        List<SwarmModels.SwarmAgentState> states = new ArrayList<>(rowsByAgentId.size());
+        for (SwarmAgentRow row : rowsByAgentId.values()) {
+            states.add(row.state);
+        }
+        SwarmTabActivitySupport.Indicator indicator =
+            SwarmTabActivitySupport.dominantIndicator(busy, states);
+        if (indicator == tabIndicatorState) {
+            return;
+        }
+        boolean wasBusyIndicator = tabIndicatorState != SwarmTabActivitySupport.Indicator.NONE;
+        tabIndicatorState = indicator;
+        stopTabIndicatorAnimation();
+        switch (indicator) {
+            case ACTIVE -> showTabIndicator(Color.web("#4f9cf0"), javafx.util.Duration.seconds(1.2));
+            case WAITING -> showTabIndicator(Color.web("#ff9800"), javafx.util.Duration.seconds(0.55));
+            case PAUSED -> showTabIndicator(Color.web("#b39ddb"), null);
+            case NONE -> {
+                if (wasBusyIndicator && !restartPending) {
+                    showTabIndicatorDone();
+                } else {
+                    setGraphic(null);
+                }
+            }
+        }
+    }
+
+    private void showTabIndicator(Color color, javafx.util.Duration pulsePeriod) {
+        tabIndicator.setFill(color);
+        tabIndicator.setOpacity(1.0);
+        setGraphic(tabIndicator);
+        if (pulsePeriod != null) {
+            tabIndicatorPulse = new Timeline(
+                new KeyFrame(javafx.util.Duration.ZERO,
+                    new javafx.animation.KeyValue(tabIndicator.opacityProperty(), 1.0)),
+                new KeyFrame(pulsePeriod,
+                    new javafx.animation.KeyValue(tabIndicator.opacityProperty(), 0.3)));
+            tabIndicatorPulse.setAutoReverse(true);
+            tabIndicatorPulse.setCycleCount(Timeline.INDEFINITE);
+            tabIndicatorPulse.play();
+        }
+    }
+
+    /** The green "finished" dot stays until the next run starts (or the tab closes). */
+    private void showTabIndicatorDone() {
+        tabIndicator.setFill(Color.web("#4caf50"));
+        tabIndicator.setOpacity(1.0);
+        setGraphic(tabIndicator);
+    }
+
+    private void stopTabIndicatorAnimation() {
+        if (tabIndicatorPulse != null) {
+            tabIndicatorPulse.stop();
+            tabIndicatorPulse = null;
+        }
+        tabIndicator.setOpacity(1.0);
+    }
+
+    /** Live agent output for the expandable row detail; buffered even while the row is collapsed. */
+    private void appendAgentTranscript(String agentId, String chunk) {
+        if (agentId == null || chunk == null || chunk.isEmpty()) {
+            return;
+        }
+        SwarmTranscriptBuffer buffer = transcriptBuffers.computeIfAbsent(
+            agentId, id -> new SwarmTranscriptBuffer(200_000, 150_000));
+        boolean trimmed = buffer.append(chunk);
+        SwarmAgentRow row = rowsByAgentId.get(agentId);
+        if (row != null && row.isExpanded()) {
+            if (trimmed) {
+                row.setDetail(buffer.snapshot());
+            } else {
+                row.appendDetail(chunk);
+            }
+        }
     }
 
     private void finishSwarm(SwarmModels.SwarmAggregationResult result) {
         timer.stop();
         busy = false;
-        swarmCancelled = null;
-        if (result != null && result.markdown() != null && !result.markdown().isBlank()) {
+        boolean restartRequested = restartPending;
+        restartPending = false;
+        swarmControl = null;
+        lastSwarmPhase = null;
+        closeHeadlessRunners();
+        statusStrip.markRunFinished();
+        // A swarm restart discards the cancelled run's partial aggregation instead of
+        // polluting the chat (and the autosave) with a half answer.
+        if (!restartRequested && result != null && result.markdown() != null && !result.markdown().isBlank()) {
             appendAssistantMessage(result.markdown(), buildServerSummaries());
         }
         refreshDashboardHeader();
+        refreshAgentControlIndicators();
         updateSendAvailability();
+        updateTabIndicator();
+        if (restartRequested && getTabPane() != null && lastSentPrompt != null) {
+            startSwarmRun(lastSentPrompt);
+        }
     }
 
     private List<SavedSwarmServerSummary> buildServerSummaries() {
@@ -423,36 +710,272 @@ public class SwarmAgentTab extends Tab {
     }
 
     private void cancelSwarm() {
-        if (swarmCancelled != null) {
-            swarmCancelled.set(true);
+        if (swarmControl != null) {
+            swarmControl.cancelAll();
         }
     }
 
+    // ---- Whole-swarm controls -------------------------------------------------
+
+    private void pauseSwarm() {
+        if (swarmControl != null) {
+            swarmControl.pauseAll();
+            refreshAgentControlIndicators();
+            updateSendAvailability();
+        }
+    }
+
+    private void resumeSwarm() {
+        if (swarmControl != null) {
+            swarmControl.resumeAll();
+            refreshAgentControlIndicators();
+            updateSendAvailability();
+        }
+    }
+
+    private void stopSwarm() {
+        restartPending = false;
+        cancelSwarm();
+        updateSendAvailability();
+    }
+
+    // ---- Snippet script run (no AI) --------------------------------------------
+
+    private void openRunScriptDialog() {
+        if (busy || !hasRunnableTargets()) {
+            return;
+        }
+        SwarmSnippetRunDialog dialog = new SwarmSnippetRunDialog(
+            ownerWindowRef(), targets.size() + headlessCandidates().size(),
+            KorTTYApplication.getInstance().getSnippetManager(),
+            KorTTYApplication.getInstance().getSnippetVariableManager());
+        dialog.showAndWait().ifPresent(this::startScriptRun);
+    }
+
+    /** Runs the prepared snippet one-liner on all targets in parallel — without any AI agent. */
+    private void startScriptRun(SwarmSnippetRunSupport.PreparedRun prepared) {
+        if (busy || !hasRunnableTargets() || prepared == null) {
+            return;
+        }
+        List<SwarmTarget> runTargets = buildRunTargets();
+        if (runTargets == null || runTargets.isEmpty()) {
+            return;
+        }
+        appendUserMessage(I18n.get("ai.swarm.script.user.message",
+            prepared.snippetName(), prepared.arguments().size()));
+
+        rowsByAgentId.clear();
+        transcriptBuffers.clear();
+        agentRowsBox.getChildren().clear();
+        statusStrip.clearAgents();
+        for (SwarmTarget target : runTargets) {
+            SwarmAgentRow row = new SwarmAgentRow(target.agentId(), target.displayName());
+            rowsByAgentId.put(target.agentId(), row);
+            agentRowsBox.getChildren().add(row);
+            statusStrip.addAgent(target.agentId(), target.displayName());
+        }
+
+        busy = true;
+        scriptRunActive = true;
+        restartPending = false;
+        lastSwarmPhase = null;
+        swarmControl = new SwarmRunControl();
+        SwarmRunControl control = swarmControl;
+        timer.playFromStart();
+        updateSendAvailability();
+        updateTabIndicator();
+
+        Map<String, SwarmTarget> targetsById = new LinkedHashMap<>();
+        for (SwarmTarget target : runTargets) {
+            targetsById.put(target.agentId(), target);
+        }
+        new SwarmSnippetExecutor().run(runTargets, prepared.command(), control, new SwarmSnippetExecutor.Listener() {
+            @Override
+            public void onTargetStarted(String agentId) {
+                Platform.runLater(() -> {
+                    if (swarmControl == control) {
+                        applyAgentStatus(scriptStatus(targetsById.get(agentId),
+                            SwarmModels.SwarmAgentState.RUNNING, I18n.get("ai.swarm.script.running"), 0L, null));
+                        refreshDashboardHeader();
+                    }
+                });
+            }
+
+            @Override
+            public void onTargetOutput(String agentId, String chunk) {
+                Platform.runLater(() -> {
+                    if (swarmControl == control) {
+                        appendAgentTranscript(agentId, chunk);
+                    }
+                });
+            }
+
+            @Override
+            public void onTargetFinished(SwarmSnippetExecutor.TargetOutcome outcome) {
+                Platform.runLater(() -> {
+                    if (swarmControl == control) {
+                        applyAgentStatus(scriptStatus(targetsById.get(outcome.agentId()),
+                            scriptStateFor(outcome), scriptActivityFor(outcome),
+                            outcome.elapsedSeconds(), outcome.errorDetail()));
+                        refreshDashboardHeader();
+                    }
+                });
+            }
+
+            @Override
+            public void onAllFinished(List<SwarmSnippetExecutor.TargetOutcome> outcomes) {
+                Platform.runLater(() -> {
+                    if (swarmControl == control) {
+                        finishScriptRun(prepared, outcomes);
+                    }
+                });
+            }
+        });
+    }
+
+    private void finishScriptRun(SwarmSnippetRunSupport.PreparedRun prepared,
+                                 List<SwarmSnippetExecutor.TargetOutcome> outcomes) {
+        timer.stop();
+        busy = false;
+        scriptRunActive = false;
+        restartPending = false;
+        swarmControl = null;
+        lastSwarmPhase = null;
+        closeHeadlessRunners();
+        statusStrip.markRunFinished();
+        String markdown = SwarmSnippetRunSupport.buildResultMarkdown(
+            I18n.get("ai.swarm.script.result.heading", prepared.snippetName()),
+            List.of(I18n.get("ai.swarm.script.table.server"),
+                I18n.get("ai.swarm.script.table.exit"),
+                I18n.get("ai.swarm.script.table.output")),
+            outcomes,
+            new SwarmSnippetRunSupport.OutcomeLabels(
+                I18n.get("ai.swarm.status.cancelled"),
+                I18n.get("ai.swarm.script.outcome.timeout"),
+                I18n.get("ai.swarm.script.outcome.notConnected"),
+                I18n.get("ai.swarm.script.outcome.unsupportedShell"),
+                I18n.get("ai.swarm.script.outcome.error")),
+            SwarmSnippetRunSupport.DEFAULT_OUTPUT_CAP);
+        appendAssistantMessage(markdown, buildServerSummaries(), false);
+        refreshDashboardHeader();
+        refreshAgentControlIndicators();
+        updateSendAvailability();
+        updateTabIndicator();
+    }
+
+    private SwarmModels.SwarmAgentStatus scriptStatus(SwarmTarget target, SwarmModels.SwarmAgentState state,
+                                                      String activity, long elapsedSeconds, String error) {
+        return new SwarmModels.SwarmAgentStatus(
+            target.agentId(), target.displayName(), SwarmModels.SwarmTargetKey.of(target.connection()),
+            state, activity, elapsedSeconds, SwarmModels.TokenTotals.zero(), null, null, error);
+    }
+
+    private static SwarmModels.SwarmAgentState scriptStateFor(SwarmSnippetExecutor.TargetOutcome outcome) {
+        return switch (outcome.kind()) {
+            case COMPLETED -> outcome.exitCode() == 0
+                ? SwarmModels.SwarmAgentState.DONE
+                : SwarmModels.SwarmAgentState.FAILED;
+            case CANCELLED -> SwarmModels.SwarmAgentState.CANCELLED;
+            case UNSUPPORTED_SHELL -> SwarmModels.SwarmAgentState.SKIPPED;
+            case TIMED_OUT, NOT_CONNECTED, ERROR -> SwarmModels.SwarmAgentState.FAILED;
+        };
+    }
+
+    private static String scriptActivityFor(SwarmSnippetExecutor.TargetOutcome outcome) {
+        return switch (outcome.kind()) {
+            case COMPLETED -> I18n.get("ai.swarm.script.activity.exit", outcome.exitCode());
+            case CANCELLED -> I18n.get("ai.swarm.status.cancelled");
+            case TIMED_OUT -> I18n.get("ai.swarm.script.outcome.timeout");
+            case NOT_CONNECTED -> I18n.get("ai.swarm.script.outcome.notConnected");
+            case UNSUPPORTED_SHELL -> I18n.get("ai.swarm.script.outcome.unsupportedShell");
+            case ERROR -> I18n.get("ai.swarm.script.outcome.error",
+                outcome.errorDetail() != null ? outcome.errorDetail() : "");
+        };
+    }
+
+    /** Opens the Job Scheduler with a prefilled AI_SWARM draft built from this window's state. */
+    private void openScheduleDraft() {
+        AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
+        String prompt = SwarmScheduleDraftSupport.resolvePromptForDraft(messageEntries, promptInputArea.getText());
+        ScheduledJob draft = SwarmScheduleDraftSupport.buildDraft(
+            baseTitle,
+            prompt,
+            profile != null ? profile.getId() : null,
+            connectionsForWorkflow(),
+            readOnlyCheck.isSelected());
+        if (draft == null) {
+            return;
+        }
+        ownerWindow.showJobSchedulerWithDraft(draft);
+    }
+
+    /** Mid-run: cancel and re-send the same prompt once the run wound down; idle: re-send directly. */
+    private void restartSwarm() {
+        if (busy) {
+            restartPending = true;
+            cancelSwarm();
+        } else if (lastSentPrompt != null) {
+            startSwarmRun(lastSentPrompt);
+        }
+    }
+
+    /** Stops all animation/timers when the tab closes; late callback deliveries become no-ops. */
+    private void handleTabClosed() {
+        restartPending = false;
+        closeHeadlessRunners();
+        stopTabIndicatorAnimation();
+        statusStrip.dispose();
+        timer.stop();
+        ownerWindow.unregisterSavedSwarmChatTab(savedChatId);
+    }
+
     private TerminalAgentService.ApprovalDecision requestApprovalBlocking(
-        TerminalAgentModels.Approval approval, String agentId) {
+        TerminalAgentModels.Approval approval, String agentId, SwarmRunControl control) {
         CompletableFuture<TerminalAgentService.ApprovalDecision> future = new CompletableFuture<>();
+        AtomicReference<Alert> openAlert = new AtomicReference<>();
         SwarmAgentRow row = rowsByAgentId.get(agentId);
         String serverName = row != null ? row.displayName : agentId;
         Runnable show = () -> {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle(I18n.get("ai.swarm.approve.title"));
-            alert.setHeaderText(null);
-            StringBuilder commands = new StringBuilder();
-            if (approval != null && approval.commands() != null) {
-                for (TerminalAgentModels.PlannedCommand command : approval.commands()) {
-                    if (command != null && command.command() != null) {
-                        commands.append(command.command()).append('\n');
+            try {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle(I18n.get("ai.swarm.approve.title"));
+                alert.setHeaderText(null);
+                StringBuilder commands = new StringBuilder();
+                if (approval != null && approval.commands() != null) {
+                    for (TerminalAgentModels.PlannedCommand command : approval.commands()) {
+                        if (command != null && command.command() != null) {
+                            commands.append(command.command()).append('\n');
+                        }
                     }
                 }
+                alert.setContentText(I18n.get("ai.swarm.approve.message", serverName, commands.toString().trim()));
+                ButtonType approveAll = new ButtonType(I18n.get("ai.swarm.approve.approveAll"), ButtonBar.ButtonData.OK_DONE);
+                ButtonType cancel = new ButtonType(I18n.get("ai.swarm.approve.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+                alert.getButtonTypes().setAll(approveAll, cancel);
+                // Owner + toFront: an ownerless alert can open BEHIND the (large) main window or
+                // without focus on macOS — invisible to the user while the agent waits forever.
+                Window owner = ownerWindowRef();
+                if (owner != null) {
+                    alert.initOwner(owner);
+                }
+                alert.setOnShown(shownEvent -> {
+                    if (alert.getDialogPane().getScene() != null
+                        && alert.getDialogPane().getScene().getWindow() instanceof javafx.stage.Stage stage) {
+                        stage.toFront();
+                        stage.requestFocus();
+                    }
+                });
+                openAlert.set(alert);
+                Optional<ButtonType> choice = alert.showAndWait();
+                future.complete(choice.isPresent() && choice.get() == approveAll
+                    ? TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS
+                    : TerminalAgentService.ApprovalDecision.CANCEL);
+            } catch (Exception ex) {
+                // a broken dialog must never leave the agent blocked forever
+                future.complete(TerminalAgentService.ApprovalDecision.CANCEL);
+            } finally {
+                openAlert.set(null);
             }
-            alert.setContentText(I18n.get("ai.swarm.approve.message", serverName, commands.toString().trim()));
-            ButtonType approveAll = new ButtonType(I18n.get("ai.swarm.approve.approveAll"), ButtonBar.ButtonData.OK_DONE);
-            ButtonType cancel = new ButtonType(I18n.get("ai.swarm.approve.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-            alert.getButtonTypes().setAll(approveAll, cancel);
-            Optional<ButtonType> choice = alert.showAndWait();
-            future.complete(choice.isPresent() && choice.get() == approveAll
-                ? TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS
-                : TerminalAgentService.ApprovalDecision.CANCEL);
         };
         if (Platform.isFxApplicationThread()) {
             show.run();
@@ -460,13 +983,105 @@ public class SwarmAgentTab extends Tab {
             Platform.runLater(show);
         }
         try {
-            return future.get();
+            // Poll instead of waiting unbounded: Stop / tab close (cancelAll) must abort a pending
+            // approval instead of holding the agent hostage to an unanswered dialog.
+            while (true) {
+                try {
+                    return future.get(500, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException stillWaiting) {
+                    if (control != null && control.isSwarmCancelled()) {
+                        Platform.runLater(() -> {
+                            Alert alert = openAlert.get();
+                            if (alert != null && alert.isShowing()) {
+                                alert.close();
+                            }
+                        });
+                        return TerminalAgentService.ApprovalDecision.CANCEL;
+                    }
+                }
+            }
         } catch (Exception e) {
             return TerminalAgentService.ApprovalDecision.CANCEL;
         }
     }
 
     // ---- Chat / messages ----------------------------------------------------
+
+    private HBox buildChatHeader() {
+        chatStatusLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        copyChatButton.setOnAction(e -> copyConversation());
+        MenuItem plainItem = new MenuItem(I18n.get("ai.result.export.text"));
+        plainItem.setOnAction(e -> exportConversation(AiChatExportService.Format.TEXT));
+        MenuItem markdownItem = new MenuItem(I18n.get("ai.result.export.markdown"));
+        markdownItem.setOnAction(e -> exportConversation(AiChatExportService.Format.MARKDOWN));
+        MenuItem pdfItem = new MenuItem(I18n.get("ai.result.export.pdf"));
+        pdfItem.setOnAction(e -> exportConversation(AiChatExportService.Format.PDF));
+        exportChatButton.getItems().setAll(plainItem, markdownItem, pdfItem);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(8,
+            new Label(I18n.get("ai.swarm.chat.title")), chatStatusLabel, spacer, copyChatButton, exportChatButton);
+        header.setAlignment(Pos.CENTER_LEFT);
+        return header;
+    }
+
+    private void copyConversation() {
+        String text = exportService.buildPlainTextExport(SwarmChatExportSupport.toChatMessages(messageEntries));
+        ClipboardContent content = new ClipboardContent();
+        content.putString(text != null ? text : "");
+        Clipboard.getSystemClipboard().setContent(content);
+        showChatStatus(I18n.get("ai.swarm.chat.copied"));
+    }
+
+    private void exportConversation(AiChatExportService.Format format) {
+        AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
+        AiChatExportContext exportContext = new AiChatExportContext(
+            baseTitle, LocalDateTime.now(), profile != null ? profile.getName() : null, messageEntries.size());
+        AiPdfExportOptions pdfOptions = null;
+        if (format == AiChatExportService.Format.PDF) {
+            AiPdfExportDialog dialog = new AiPdfExportDialog(
+                ownerWindowRef(), exportContext, AiPdfExportOptions.defaults(exportContext.title()));
+            pdfOptions = dialog.showAndWait().orElse(null);
+            if (pdfOptions == null) {
+                return;
+            }
+        }
+        File targetFile = chooseExportTarget(format);
+        if (targetFile == null) {
+            return;
+        }
+        try {
+            exportService.exportChat(targetFile.toPath(), format,
+                SwarmChatExportSupport.toChatMessages(messageEntries), FONT_SIZE, exportContext, pdfOptions);
+            showChatStatus(I18n.get("ai.result.export.success", targetFile.getName()));
+        } catch (Exception ex) {
+            showError(I18n.get("ai.result.export.failed") + "\n"
+                + (ex.getMessage() != null ? ex.getMessage() : ex.toString()));
+        }
+    }
+
+    private File chooseExportTarget(AiChatExportService.Format format) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(I18n.get("ai.result.export.title"));
+        fileChooser.setInitialFileName("swarm-chat-" + LocalDateTime.now().format(EXPORT_FILE_FORMAT) + format.getExtension());
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(I18n.get(format.getFilterKey()), "*" + format.getExtension()));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*"));
+        return fileChooser.showSaveDialog(ownerWindowRef());
+    }
+
+    private Window ownerWindowRef() {
+        return getTabPane() != null && getTabPane().getScene() != null
+            ? getTabPane().getScene().getWindow()
+            : null;
+    }
+
+    /** Shows a transient status note next to the conversation title. */
+    private void showChatStatus(String message) {
+        chatStatusLabel.setText(message);
+        PauseTransition clear = new PauseTransition(Duration.seconds(4));
+        clear.setOnFinished(e -> chatStatusLabel.setText(""));
+        clear.play();
+    }
 
     private void appendUserMessage(String content) {
         SavedSwarmMessage message = new SavedSwarmMessage();
@@ -475,10 +1090,19 @@ public class SwarmAgentTab extends Tab {
         messageEntries.add(message);
         renderMessage(message);
         persistQuietly();
+        updateSendAvailability();
     }
 
     private void appendAssistantMessage(String content, List<SavedSwarmServerSummary> summaries) {
-        AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
+        appendAssistantMessage(content, summaries, true);
+    }
+
+    /** {@code attributeProfile=false} for script-run results — no AI was involved in producing them. */
+    private void appendAssistantMessage(
+        String content, List<SavedSwarmServerSummary> summaries, boolean attributeProfile) {
+        AiProfile profile = attributeProfile
+            ? profileComboBox.getSelectionModel().getSelectedItem()
+            : null;
         SavedSwarmMessage message = new SavedSwarmMessage();
         message.setRole(SavedSwarmMessage.ROLE_ASSISTANT);
         message.setContent(content);
@@ -490,6 +1114,7 @@ public class SwarmAgentTab extends Tab {
         messageEntries.add(message);
         renderMessage(message);
         persistQuietly();
+        updateSendAvailability();
     }
 
     private void renderMessage(SavedSwarmMessage message) {
@@ -613,6 +1238,18 @@ public class SwarmAgentTab extends Tab {
             missingConnections.clear();
             missingConnections.addAll(resolved.missing());
         }
+        // Show the persisted final states in the status strip (static, no animation) until the
+        // next run replaces them with live agents.
+        List<SavedSwarmServerSummary> lastSummaries = List.of();
+        for (int i = messageEntries.size() - 1; i >= 0; i--) {
+            SavedSwarmMessage message = messageEntries.get(i);
+            if (message != null && SavedSwarmMessage.ROLE_ASSISTANT.equals(message.getRole())
+                && message.getServerSummaries() != null && !message.getServerSummaries().isEmpty()) {
+                lastSummaries = message.getServerSummaries();
+                break;
+            }
+        }
+        statusStrip.showFinalSummaries(lastSummaries);
         refreshTargetLabels();
     }
 
@@ -649,6 +1286,22 @@ public class SwarmAgentTab extends Tab {
         for (SwarmAgentRow row : rowsByAgentId.values()) {
             row.tick();
         }
+        statusStrip.tick();
+        refreshAgentControlIndicators();
+    }
+
+    /** Scrolls the dashboard to the row of the clicked orb and flashes it briefly. */
+    private void highlightAgentRow(String agentId) {
+        SwarmAgentRow row = rowsByAgentId.get(agentId);
+        if (row == null) {
+            return;
+        }
+        double contentHeight = agentRowsBox.getBoundsInLocal().getHeight();
+        double viewportHeight = dashboardScroll.getViewportBounds().getHeight();
+        if (contentHeight > viewportHeight) {
+            dashboardScroll.setVvalue(row.getBoundsInParent().getMinY() / (contentHeight - viewportHeight));
+        }
+        row.flash();
     }
 
     private void refreshDashboardHeader() {
@@ -659,7 +1312,7 @@ public class SwarmAgentTab extends Tab {
             switch (row.state == null ? SwarmModels.SwarmAgentState.QUEUED : row.state) {
                 case DONE -> done++;
                 case FAILED -> failed++;
-                case CONNECTING, PROBING, RUNNING, AWAITING_APPROVAL -> running++;
+                case CONNECTING, PROBING, RUNNING, AWAITING_APPROVAL, PAUSED -> running++;
                 default -> {
                 }
             }
@@ -669,12 +1322,104 @@ public class SwarmAgentTab extends Tab {
 
     private void updateSendAvailability() {
         boolean hasPrompt = promptInputArea.getText() != null && !promptInputArea.getText().trim().isEmpty();
-        sendButton.setDisable(busy || targets.isEmpty() || !hasPrompt
+        sendButton.setDisable(busy || !hasRunnableTargets() || !hasPrompt
             || profileComboBox.getSelectionModel().getSelectedItem() == null);
-        cancelButton.setDisable(!busy);
         profileComboBox.setDisable(busy);
         readOnlyCheck.setDisable(busy);
         approvalComboBox.setDisable(busy);
+        copyChatButton.setDisable(messageEntries.isEmpty());
+        exportChatButton.setDisable(messageEntries.isEmpty());
+
+        boolean paused = swarmControl != null && swarmControl.isSwarmPaused();
+        boolean controls = controlsActive();
+        pauseButton.setVisible(!paused);
+        pauseButton.setManaged(!paused);
+        resumeButton.setVisible(paused);
+        resumeButton.setManaged(paused);
+        pauseButton.setDisable(!controls);
+        resumeButton.setDisable(!busy || !paused);
+        stopButton.setDisable(!busy);
+        restartButton.setDisable(scriptRunActive || lastSentPrompt == null || !hasRunnableTargets()
+            || profileComboBox.getSelectionModel().getSelectedItem() == null);
+        runScriptButton.setDisable(busy || !hasRunnableTargets());
+        scheduleButton.setDisable(
+            SwarmScheduleDraftSupport.sshConnectionIds(connectionsForWorkflow()).isEmpty()
+                || SwarmScheduleDraftSupport.resolvePromptForDraft(messageEntries, promptInputArea.getText()) == null);
+    }
+
+    /**
+     * Whether pause/restart/stop can still influence the run: once the orchestrator reached
+     * AGGREGATING the coordinator loop no longer drains the control, so requests would be lost.
+     */
+    private boolean controlsActive() {
+        return busy && !scriptRunActive && swarmControl != null
+            && (lastSwarmPhase == null
+                || lastSwarmPhase == SwarmModels.SwarmPhase.PREPARING
+                || lastSwarmPhase == SwarmModels.SwarmPhase.CONNECTING
+                || lastSwarmPhase == SwarmModels.SwarmPhase.RUNNING_AGENTS);
+    }
+
+    /** Rebuilt on every open so the enablement reflects the current state (F4 context menu). */
+    private ContextMenu buildAgentContextMenu(String agentId, SwarmModels.SwarmAgentState state) {
+        SwarmRunControl control = swarmControl;
+        boolean active = controlsActive() && control != null && !control.isSwarmCancelled();
+        boolean pauseRequested = active && control.isAgentPauseRequested(agentId);
+        boolean workingState = state == SwarmModels.SwarmAgentState.CONNECTING
+            || state == SwarmModels.SwarmAgentState.PROBING
+            || state == SwarmModels.SwarmAgentState.RUNNING;
+        boolean terminal = state == SwarmModels.SwarmAgentState.DONE
+            || state == SwarmModels.SwarmAgentState.FAILED
+            || state == SwarmModels.SwarmAgentState.CANCELLED
+            || state == SwarmModels.SwarmAgentState.SKIPPED;
+
+        MenuItem pauseItem = new MenuItem(I18n.get("ai.swarm.control.pause"));
+        pauseItem.setDisable(!(active && workingState && !pauseRequested));
+        pauseItem.setOnAction(e -> {
+            if (swarmControl != null) {
+                swarmControl.pauseAgent(agentId);
+                refreshAgentControlIndicators();
+            }
+        });
+
+        MenuItem resumeItem = new MenuItem(I18n.get("ai.swarm.control.resume"));
+        resumeItem.setDisable(!(active
+            && (state == SwarmModels.SwarmAgentState.PAUSED || pauseRequested)
+            && !control.isSwarmPaused()));
+        resumeItem.setOnAction(e -> {
+            if (swarmControl != null) {
+                swarmControl.resumeAgent(agentId);
+                refreshAgentControlIndicators();
+            }
+        });
+
+        MenuItem restartItem = new MenuItem(I18n.get("ai.swarm.control.restart"));
+        restartItem.setDisable(!(active && state != SwarmModels.SwarmAgentState.QUEUED));
+        restartItem.setOnAction(e -> {
+            if (swarmControl != null) {
+                swarmControl.requestRestart(agentId);
+                refreshAgentControlIndicators();
+            }
+        });
+
+        MenuItem stopItem = new MenuItem(I18n.get("ai.swarm.control.stop"));
+        stopItem.setDisable(!(active && !terminal));
+        stopItem.setOnAction(e -> {
+            if (swarmControl != null) {
+                swarmControl.stopAgent(agentId);
+                refreshAgentControlIndicators();
+            }
+        });
+
+        return new ContextMenu(pauseItem, resumeItem, new SeparatorMenuItem(), restartItem, stopItem);
+    }
+
+    /** Mirrors pending pause requests onto the row badges ("Pausing…" until the agent parks). */
+    private void refreshAgentControlIndicators() {
+        SwarmRunControl control = swarmControl;
+        for (Map.Entry<String, SwarmAgentRow> entry : rowsByAgentId.entrySet()) {
+            boolean pending = control != null && busy && control.isAgentPauseRequested(entry.getKey());
+            entry.getValue().setPausePending(pending);
+        }
     }
 
     private void showError(String message) {
@@ -686,6 +1431,24 @@ public class SwarmAgentTab extends Tab {
             alert.initOwner(getTabPane().getScene().getWindow());
         }
         alert.showAndWait();
+    }
+
+    /** Frame around the composer: lighter surface + visible border, accent border while focused. */
+    private void initComposerFrameStyles() {
+        ThemeCssSupport.ThemeColors colors = ThemeCssSupport.resolveThemeColors(KorTTYApplication.getInstance());
+        Color bg;
+        try {
+            bg = Color.web(colors != null ? colors.backgroundColor() : "#1f2933");
+        } catch (Exception e) {
+            bg = Color.web("#1f2933");
+        }
+        double luminance = 0.299 * bg.getRed() + 0.587 * bg.getGreen() + 0.114 * bg.getBlue();
+        Color blend = luminance < 0.5 ? Color.WHITE : Color.BLACK;
+        String frameBg = ThemeCssSupport.toHex(bg.interpolate(blend, 0.08));
+        String border = ThemeCssSupport.toHex(bg.interpolate(blend, 0.35));
+        String common = "-fx-background-color: " + frameBg + "; -fx-background-radius: 8; -fx-border-radius: 8;";
+        composerFrameBaseStyle = common + " -fx-border-width: 1; -fx-border-color: " + border + ";";
+        composerFrameFocusStyle = common + " -fx-border-width: 1.5; -fx-border-color: #0066cc;";
     }
 
     /**
@@ -713,13 +1476,22 @@ public class SwarmAgentTab extends Tab {
         return String.format(Locale.ROOT, "%02d:%02d", s / 60L, s % 60L);
     }
 
-    /** One dashboard row for a single per-server agent. */
-    private final class SwarmAgentRow extends HBox {
+    /** One dashboard row for a single per-server agent; expands inline to a live transcript view. */
+    private final class SwarmAgentRow extends VBox {
+        private static final String BASE_STYLE =
+            "-fx-background-color: rgba(255,255,255,0.04); -fx-background-radius: 6;";
+
+        private final String agentId;
         private final String displayName;
+        private final Label chevron = new Label("▸");
         private final Label badge = new Label();
         private final Label nameLabel;
         private final Label activityLabel = new Label();
         private final Label metaLabel = new Label();
+        private final HBox header;
+        private TextArea detailArea;
+        private boolean expanded;
+        private boolean pausePending;
 
         private SwarmModels.SwarmAgentState state = SwarmModels.SwarmAgentState.QUEUED;
         private String lastActivity = "";
@@ -727,22 +1499,92 @@ public class SwarmAgentTab extends Tab {
         private long totalTokens;
         private long startedAtMillis;
 
-        SwarmAgentRow(String displayName) {
-            super(8);
+        SwarmAgentRow(String agentId, String displayName) {
+            super(4);
+            this.agentId = agentId != null ? agentId : "";
             this.displayName = displayName != null ? displayName : "";
             this.nameLabel = new Label(this.displayName);
             this.nameLabel.setStyle("-fx-font-weight: bold;");
-            setAlignment(Pos.CENTER_LEFT);
             setPadding(new Insets(4, 8, 4, 8));
-            setStyle("-fx-background-color: rgba(255,255,255,0.04); -fx-background-radius: 6;");
+            setStyle(BASE_STYLE);
+            chevron.setStyle("-fx-text-fill: gray;");
             activityLabel.setStyle("-fx-text-fill: gray;");
             metaLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
             HBox.setHgrow(activityLabel, Priority.ALWAYS);
             activityLabel.setMaxWidth(Double.MAX_VALUE);
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
-            getChildren().addAll(badge, nameLabel, activityLabel, spacer, metaLabel);
+            header = new HBox(8, chevron, badge, nameLabel, activityLabel, spacer, metaLabel);
+            header.setAlignment(Pos.CENTER_LEFT);
+            header.setCursor(Cursor.HAND);
+            header.setOnMouseClicked(e -> {
+                if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 1) {
+                    toggleExpanded();
+                }
+            });
+            // Note: over the expanded TextArea its built-in edit menu wins; the agent menu is
+            // reachable via the header and the row background.
+            setOnContextMenuRequested(e -> {
+                ContextMenu menu = buildAgentContextMenu(this.agentId, this.state);
+                menu.setAutoHide(true);
+                menu.show(this, e.getScreenX(), e.getScreenY());
+                e.consume();
+            });
+            getChildren().add(header);
             applyBadge();
+        }
+
+        /** Shows "Pausing…" until the parked PAUSED status arrives from the agent. */
+        void setPausePending(boolean value) {
+            if (this.pausePending != value) {
+                this.pausePending = value;
+                applyBadge();
+            }
+        }
+
+        void toggleExpanded() {
+            setExpanded(!expanded);
+        }
+
+        void setExpanded(boolean value) {
+            if (value == expanded) {
+                return;
+            }
+            expanded = value;
+            chevron.setText(expanded ? "▾" : "▸");
+            if (expanded) {
+                if (detailArea == null) {
+                    detailArea = new TextArea();
+                    detailArea.setEditable(false);
+                    detailArea.setWrapText(true);
+                    detailArea.setPrefRowCount(10);
+                    detailArea.setMaxHeight(220);
+                    detailArea.setPromptText(I18n.get("ai.swarm.detail.empty"));
+                    detailArea.setStyle("-fx-font-family: 'monospace'; -fx-font-size: 11px;");
+                }
+                SwarmTranscriptBuffer buffer = transcriptBuffers.get(agentId);
+                setDetail(buffer != null ? buffer.snapshot() : "");
+                getChildren().add(detailArea);
+            } else {
+                getChildren().remove(detailArea);
+            }
+        }
+
+        boolean isExpanded() {
+            return expanded;
+        }
+
+        void appendDetail(String chunk) {
+            if (detailArea != null) {
+                detailArea.appendText(chunk);
+            }
+        }
+
+        void setDetail(String fullText) {
+            if (detailArea != null) {
+                detailArea.setText(fullText != null ? fullText : "");
+                detailArea.positionCaret(detailArea.getText().length());
+            }
         }
 
         void update(SwarmModels.SwarmAgentStatus status) {
@@ -750,7 +1592,9 @@ public class SwarmAgentTab extends Tab {
             this.lastActivity = status.currentActivity() != null ? status.currentActivity() : "";
             this.elapsedSeconds = status.elapsedSeconds();
             this.totalTokens = status.tokens() != null ? status.tokens().total() : 0L;
-            if (startedAtMillis == 0 && !isTerminal()) {
+            // Every status carries the agent's authoritative elapsed (pause-adjusted, restart-reset);
+            // rebase unconditionally so the local 1s tick merely interpolates between statuses.
+            if (!isTerminal()) {
                 startedAtMillis = System.currentTimeMillis() - status.elapsedSeconds() * 1000L;
             }
             activityLabel.setText(lastActivity);
@@ -759,10 +1603,20 @@ public class SwarmAgentTab extends Tab {
         }
 
         void tick() {
-            if (!isTerminal() && startedAtMillis > 0) {
+            // PAUSED freezes the visible timer; the authoritative pause-adjusted elapsed arrives
+            // with the resume status and rebases the local clock.
+            if (!isTerminal() && state != SwarmModels.SwarmAgentState.PAUSED && startedAtMillis > 0) {
                 elapsedSeconds = Math.max(0L, (System.currentTimeMillis() - startedAtMillis) / 1000L);
                 refreshMeta();
             }
+        }
+
+        /** Briefly outlines the row after its orb was clicked in the status strip. */
+        void flash() {
+            setStyle(BASE_STYLE + " -fx-border-color: #4f9cf0; -fx-border-radius: 6; -fx-border-width: 1.5;");
+            PauseTransition reset = new PauseTransition(Duration.seconds(1.2));
+            reset.setOnFinished(e -> setStyle(BASE_STYLE));
+            reset.play();
         }
 
         private boolean isTerminal() {
@@ -778,16 +1632,23 @@ public class SwarmAgentTab extends Tab {
         }
 
         private void applyBadge() {
-            badge.setText(statusLabel(state));
-            String color = switch (state) {
+            boolean showPending = pausePending
+                && !isTerminal()
+                && state != SwarmModels.SwarmAgentState.PAUSED;
+            badge.setText(showPending
+                ? I18n.get("ai.swarm.status.pausePending")
+                : statusLabel(state));
+            String color = showPending ? "#512da8" : switch (state) {
                 case DONE -> "#2e7d32";
                 case FAILED -> "#c62828";
                 case CANCELLED, SKIPPED -> "#757575";
                 case AWAITING_APPROVAL -> "#e65100";
+                case PAUSED -> "#512da8";
                 default -> "#1565c0";
             };
             badge.setStyle("-fx-text-fill: white; -fx-background-radius: 4; -fx-padding: 1 6 1 6;"
-                + " -fx-font-size: 11px; -fx-background-color: " + color + ";");
+                + " -fx-font-size: 11px; -fx-background-color: " + color + ";"
+                + (showPending ? " -fx-opacity: 0.75;" : ""));
         }
 
         private String statusLabel(SwarmModels.SwarmAgentState state) {
@@ -797,6 +1658,7 @@ public class SwarmAgentTab extends Tab {
                 case PROBING -> I18n.get("ai.swarm.status.probing");
                 case RUNNING -> I18n.get("ai.swarm.status.running");
                 case AWAITING_APPROVAL -> I18n.get("ai.swarm.status.awaitingApproval");
+                case PAUSED -> I18n.get("ai.swarm.status.paused");
                 case DONE -> I18n.get("ai.swarm.status.done");
                 case FAILED -> I18n.get("ai.swarm.status.failed");
                 case CANCELLED -> I18n.get("ai.swarm.status.cancelled");

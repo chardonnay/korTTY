@@ -19,12 +19,15 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
     }
 
     private static final int TRANSCRIPT_TAIL_CAP = 4_000;
+    private static final long PAUSE_POLL_INTERVAL_MS = 200L;
 
     private final String agentId;
     private final String displayName;
     private final SwarmModels.SwarmTargetKey key;
     private final SwarmCallback callback;
     private final ApprovalRouter approvalRouter;
+    private final SwarmRunControl control;
+    private final int generation;
     private final long startMillis = System.currentTimeMillis();
     private final StringBuilder transcript = new StringBuilder();
 
@@ -36,13 +39,25 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
     private volatile long promptTokens;
     private volatile long completionTokens;
     private volatile long totalTokens;
+    private volatile long pausedMillis;
 
     PerAgentRunUi(SwarmTarget target, SwarmCallback callback, ApprovalRouter approvalRouter) {
+        this(target, callback, approvalRouter, new SwarmRunControl(), 0);
+    }
+
+    PerAgentRunUi(
+        SwarmTarget target,
+        SwarmCallback callback,
+        ApprovalRouter approvalRouter,
+        SwarmRunControl control,
+        int generation) {
         this.agentId = target.agentId();
         this.displayName = target.displayName();
         this.key = SwarmModels.SwarmTargetKey.of(target.connection());
         this.callback = callback;
         this.approvalRouter = approvalRouter;
+        this.control = control;
+        this.generation = generation;
     }
 
     @Override
@@ -78,7 +93,40 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
             }
             transcriptSummary = transcript.toString();
         }
+        if (control.isAttemptStale(agentId, generation)) {
+            return;
+        }
         callback.onAgentTranscript(agentId, text);
+    }
+
+    /**
+     * Cooperative pause: parks this agent at the turn boundary while a pause is requested,
+     * reporting {@code PAUSED} meanwhile and restoring the previous state on resume. Time spent
+     * parked is excluded from the reported elapsed seconds so the adaptive slow rule stays fair.
+     */
+    @Override
+    public void awaitIfPaused() throws InterruptedException {
+        if (!control.isAgentPauseRequested(agentId)) {
+            return;
+        }
+        SwarmModels.SwarmAgentState previous = state;
+        state = SwarmModels.SwarmAgentState.PAUSED;
+        emit();
+        long pausedSince = System.currentTimeMillis();
+        try {
+            while (control.isAgentPauseRequested(agentId)) {
+                if (isCancelled()) {
+                    return;
+                }
+                Thread.sleep(PAUSE_POLL_INTERVAL_MS);
+            }
+        } finally {
+            pausedMillis += System.currentTimeMillis() - pausedSince;
+            state = previous != null && previous != SwarmModels.SwarmAgentState.PAUSED
+                ? previous
+                : SwarmModels.SwarmAgentState.RUNNING;
+            emit();
+        }
     }
 
     @Override
@@ -126,7 +174,9 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
 
     @Override
     public boolean isCancelled() {
-        return callback.isCancelled() || callback.isAgentCancelled(agentId);
+        return callback.isCancelled()
+            || callback.isAgentCancelled(agentId)
+            || control.isAttemptCancelled(agentId, generation);
     }
 
     void markCancelled() {
@@ -148,7 +198,7 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
     }
 
     SwarmModels.SwarmAgentStatus snapshot() {
-        long elapsed = Math.max(0L, (System.currentTimeMillis() - startMillis) / 1000L);
+        long elapsed = Math.max(0L, (System.currentTimeMillis() - startMillis - pausedMillis) / 1000L);
         return new SwarmModels.SwarmAgentStatus(
             agentId,
             displayName,
@@ -163,6 +213,10 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
     }
 
     private void emit() {
+        // A restarted agent owns the row/orb: this (older) attempt's updates are suppressed.
+        if (control.isAttemptStale(agentId, generation)) {
+            return;
+        }
         callback.onAgentStatus(snapshot());
     }
 

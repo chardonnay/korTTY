@@ -164,6 +164,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<String> aiProfileCombo = new ComboBox<>();
     private final CheckBox aiAutoApproveCheck =
         new CheckBox("AI agent may change the server without runtime confirmation");
+    private final Spinner<Integer> swarmParallelismSpinner = new Spinner<>(1, 16, 4);
+    private final CheckBox swarmReadOnlyCheck =
+        new CheckBox("Read-only: agents must not run server-changing commands");
     private final TextField localPathField = new TextField();
     private final TextField remotePathField = new TextField();
     private final TextField remoteSourceField = new TextField();
@@ -219,6 +222,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         AI_PROFILE,
         AI_PROMPT,
         AI_AUTO_APPROVE,
+        AI_SWARM_PARALLELISM,
+        AI_SWARM_READ_ONLY,
         LOCAL_PATH,
         REMOTE_PATH,
         REMOTE_SOURCE,
@@ -467,6 +472,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             if (newValue == JobActionType.AI_AGENT && oldValue != JobActionType.AI_AGENT) {
                 aiAutoApproveCheck.setSelected(true);
             }
+            if (newValue == JobActionType.AI_SWARM && oldValue != JobActionType.AI_SWARM) {
+                // Safe defaults for unattended multi-server runs: observe only, never mutate.
+                swarmReadOnlyCheck.setSelected(true);
+                aiAutoApproveCheck.setSelected(false);
+            }
             updateActionFieldVisibility();
         });
         archiveFormatCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -539,6 +549,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         addActionRow(grid, row++, ActionField.AI_PROFILE, "AI profile", aiProfileCombo);
         addActionRow(grid, row++, ActionField.AI_PROMPT, "AI prompt", aiPromptArea);
         addActionRow(grid, row++, ActionField.AI_AUTO_APPROVE, "AI server changes", aiAutoApproveCheck);
+        addActionRow(grid, row++, ActionField.AI_SWARM_PARALLELISM, "Swarm parallelism", swarmParallelismSpinner);
+        addActionRow(grid, row++, ActionField.AI_SWARM_READ_ONLY, "Swarm read-only", swarmReadOnlyCheck);
         addActionRow(grid, row++, ActionField.LOCAL_PATH, "Local path", fieldButtonBox(localPathField, localPathButton));
         addActionRow(grid, row++, ActionField.REMOTE_PATH, "Remote path", fieldButtonBox(remotePathField, remotePathButton));
         addActionRow(grid, row++, ActionField.REMOTE_SOURCE, "Remote source", fieldButtonBox(remoteSourceField, remoteSourceButton));
@@ -906,6 +918,16 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         jobsTable.getSelectionModel().select(job);
     }
 
+    /** Adds a pre-populated draft (e.g. from the AI-swarm window) — persisted only on Save. */
+    public void prefillNewJob(ScheduledJob draft) {
+        if (draft == null) {
+            createNewJob();
+            return;
+        }
+        jobs.add(draft);
+        jobsTable.getSelectionModel().select(draft);
+    }
+
     private void loadJob(ScheduledJob job) {
         selectedJob = job;
         if (job == null) {
@@ -947,6 +969,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         aiPromptArea.setText(nonBlank(action.getAiPrompt(), ""));
         selectAiProfile(action.getAiProfileId());
         aiAutoApproveCheck.setSelected(action.isAiAutoApproveCommands());
+        swarmParallelismSpinner.getValueFactory().setValue(action.effectiveSwarmParallelism());
+        swarmReadOnlyCheck.setSelected(action.isSwarmReadOnly());
         localPathField.setText(nonBlank(action.getLocalPath(), ""));
         remotePathField.setText(nonBlank(action.getRemotePath(), ""));
         remoteSourceField.setText(nonBlank(action.getRemoteSourcePath(), ""));
@@ -1034,6 +1058,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         action.setAiPrompt(aiPromptArea.getText());
         action.setAiProfileId(selectedAiProfileId());
         action.setAiAutoApproveCommands(aiAutoApproveCheck.isSelected());
+        action.setSwarmMaxParallelism(swarmParallelismSpinner.getValue());
+        action.setSwarmReadOnly(swarmReadOnlyCheck.isSelected());
         action.setLocalPath(localPathField.getText());
         action.setRemotePath(remotePathField.getText());
         action.setRemoteSourcePath(remoteSourceField.getText());
@@ -1909,6 +1935,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                 ActionField.AI_PROMPT,
                 ActionField.AI_AUTO_APPROVE,
                 ActionField.SUDO));
+            case AI_SWARM -> fields.addAll(EnumSet.of(
+                ActionField.AI_PROFILE,
+                ActionField.AI_PROMPT,
+                ActionField.AI_AUTO_APPROVE,
+                ActionField.AI_SWARM_PARALLELISM,
+                ActionField.AI_SWARM_READ_ONLY));
             case SFTP_UPLOAD, SFTP_DOWNLOAD -> fields.addAll(EnumSet.of(
                 ActionField.LOCAL_PATH,
                 ActionField.REMOTE_PATH,

@@ -53,6 +53,11 @@ final class SnippetColumnRuler extends StackPane {
         setMinHeight(HEIGHT);
         setPrefHeight(HEIGHT);
         setMaxHeight(HEIGHT);
+        // The canvas is non-resizable, so a StackPane takes its CURRENT width as the pane's
+        // minimum — once the window grew, the dialog could never shrink again and the
+        // right-aligned action buttons ended up clipped outside the window. Min 0 lets the
+        // ruler follow the window in both directions (the bound canvas redraws on resize).
+        setMinWidth(0);
         rulerTooltip.setText(I18n.get("snippets.ruler.tooltip"));
         Tooltip.install(this, rulerTooltip);
 

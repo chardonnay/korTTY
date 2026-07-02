@@ -1443,6 +1443,14 @@ tasks.register<JavaExec>("guideAskPanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("swarmStatusStripSmoke") {
+    group = "verification"
+    description = "Renders the AI-swarm status strip in every agent state and snapshots it to build/smoke/swarm-strip-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SwarmStatusStripSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateDesignPreviews") {
     group = "build"
     description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."

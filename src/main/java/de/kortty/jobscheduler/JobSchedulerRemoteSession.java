@@ -222,6 +222,15 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
 
     @Override
     public CommandResult execute(String command, String stdin) throws Exception {
+        return execute(command, stdin, null);
+    }
+
+    /**
+     * Executes one command with an optional cooperative cancellation check (polled alongside the
+     * thread-interrupt check). Used by headless AI-swarm agents whose cancellation is flag-driven.
+     */
+    public CommandResult execute(String command, String stdin, java.util.function.BooleanSupplier cancelled)
+        throws Exception {
         ensureConnected();
         try (ChannelExec channel = session.createExecChannel(command)) {
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
@@ -232,7 +241,7 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
                 channel.setIn(new ByteArrayInputStream(stdin.getBytes(StandardCharsets.UTF_8)));
             }
             channel.open().verify(COMMAND_OPEN_TIMEOUT);
-            boolean timedOut = waitForCommand(channel);
+            boolean timedOut = waitForCommand(channel, cancelled);
             int exitCode = !timedOut && channel.getExitStatus() != null ? channel.getExitStatus() : -1;
             return new CommandResult(
                 exitCode,
@@ -241,10 +250,10 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         }
     }
 
-    private boolean waitForCommand(ChannelExec channel) throws Exception {
+    private boolean waitForCommand(ChannelExec channel, java.util.function.BooleanSupplier cancelled) throws Exception {
         long deadlineNanos = System.nanoTime() + COMMAND_WAIT_TIMEOUT.toNanos();
         while (true) {
-            if (Thread.currentThread().isInterrupted()) {
+            if (Thread.currentThread().isInterrupted() || (cancelled != null && cancelled.getAsBoolean())) {
                 channel.close(false);
                 throw new IOException("JobScheduler command cancelled.");
             }
@@ -459,6 +468,10 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         return connection.getAuthMethod() != AuthMethod.PUBLIC_KEY
             || connection.getSshKeyId() != null
             || connection.getPrivateKeyPassphrase() != null;
+    }
+
+    public boolean isConnected() {
+        return session != null && session.isOpen();
     }
 
     private void ensureConnected() {

@@ -116,7 +116,7 @@ public class JobSchedulerAiSupport {
             detail.toString());
     }
 
-    private AiProfile findAiProfile(String profileId) {
+    AiProfile findAiProfile(String profileId) {
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         if (settings == null || settings.getAiProfiles() == null) {
             return null;
@@ -132,7 +132,7 @@ public class JobSchedulerAiSupport {
         return settings.getAiProfiles().stream().filter(profile -> profile != null).findFirst().orElse(null);
     }
 
-    private AiPromptService createAiService(AiProfile profile) {
+    AiPromptService createAiService(AiProfile profile) {
         String apiKey = decryptSecret(profile.getEncryptedApiKey(), "AI API key");
         var service = AiServiceFactory.create(
             profile,
