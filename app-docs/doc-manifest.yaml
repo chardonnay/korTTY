@@ -225,7 +225,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/ai-manager.png]
-    last_synced_ref: "d662323"
+    last_synced_ref: "1402638"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
