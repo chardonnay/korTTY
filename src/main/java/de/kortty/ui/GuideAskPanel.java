@@ -59,6 +59,7 @@ final class GuideAskPanel extends VBox {
         setSpacing(8);
         setPadding(new Insets(8));
         setMinWidth(260);
+        getStyleClass().add("guide-ask-panel");
 
         questionField.setPromptText(I18n.get("guide.ask.placeholder"));
         questionField.setOnAction(event -> ask());
@@ -74,8 +75,10 @@ final class GuideAskPanel extends VBox {
         answerView.setContextMenuEnabled(false);
         VBox.setVgrow(answerView, Priority.ALWAYS);
         installCitationLinkHandler(answerView.getEngine());
+        // Load the empty themed page right away — a fresh WebView renders white otherwise.
+        showHtml(GuideAskPromptSupport.renderAnswerHtml(""));
 
-        sourcesHeader.setStyle("-fx-font-weight: bold;");
+        sourcesHeader.getStyleClass().add("guide-ask-sources-header");
         showSources(List.of());
 
         getChildren().addAll(questionRow, statusRow, answerView, sourcesHeader, sourcesBox);
@@ -134,7 +137,8 @@ final class GuideAskPanel extends VBox {
         statusRow.setManaged(busy);
     }
 
-    private void showAnswer(GuideAskService.Answer answer) {
+    /** Package-private so the smoke harness can render a sample answer without an LLM call. */
+    void showAnswer(GuideAskService.Answer answer) {
         showHtml(GuideAskPromptSupport.renderAnswerHtml(answer.markdown()));
         showSources(answer.excerpts());
     }

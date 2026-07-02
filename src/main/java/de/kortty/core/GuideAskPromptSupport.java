@@ -108,10 +108,21 @@ public final class GuideAskPromptSupport {
      */
     public static String renderAnswerHtml(String answerMarkdown) {
         String html = SnippetMarkupPreviewRenderer.renderHtml("markdown", answerMarkdown);
-        html = html.replace("</style>",
-            "a { color: #38BDF8; text-decoration: none; }\n"
-                + "a:hover { text-decoration: underline; }\n"
-                + "</style>");
+        // Re-theme the renderer's generic dark palette to the guide site palette
+        // (app-docs/site/.../kortty.css) so the answer blends into the manual window.
+        html = html.replace("</style>", """
+            body { background: #0d1b2a; color: #e6f3ff; }
+            h1, h2, h3, h4, h5, h6 { color: #e6f3ff; border-color: rgba(103, 232, 249, 0.18); }
+            pre { background: #061320; border-color: rgba(103, 232, 249, 0.28); }
+            code { color: #67e8f9; }
+            :not(pre) > code { background: rgba(103, 232, 249, 0.12); }
+            blockquote { border-left-color: #38bdf8; background: rgba(56, 189, 248, 0.08); color: #b9c8da; }
+            th { background: rgba(56, 189, 248, 0.15); color: #e6f3ff; }
+            th, td { border-color: rgba(103, 232, 249, 0.18); }
+            hr { border-top-color: rgba(103, 232, 249, 0.18); }
+            a { color: #38bdf8; text-decoration: none; }
+            a:hover { color: #67e8f9; text-decoration: underline; }
+            </style>""");
         Pattern escapedLink = Pattern.compile(
             "\\[([^\\[\\]]+)\\]\\((" + GUIDE_LOCATION.pattern() + ")\\)");
         Matcher matcher = escapedLink.matcher(html);

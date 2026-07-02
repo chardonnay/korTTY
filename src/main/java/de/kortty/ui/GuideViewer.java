@@ -74,18 +74,21 @@ public final class GuideViewer {
 
         askPanel = new GuideAskPanel(app, resolveGuideLanguage(), this::navigateToLocation);
         splitPane.getItems().add(webView);
+        splitPane.getStyleClass().add("guide-split");
 
         ToggleButton askToggle = new ToggleButton(I18n.get("guide.ask.toggle"));
         askToggle.setOnAction(event -> toggleAskPanel(askToggle.isSelected()));
         HBox toolbar = new HBox(askToggle);
         toolbar.setAlignment(Pos.CENTER_RIGHT);
         toolbar.setPadding(new Insets(6));
-        toolbar.setStyle("-fx-background-color: #07111d;");
+        toolbar.getStyleClass().add("guide-toolbar");
 
         BorderPane root = new BorderPane(splitPane);
         root.setTop(toolbar);
+        root.getStyleClass().add("guide-root");
         Scene scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT);
         scene.setFill(Color.web("#07111d"));
+        applyGuideStylesheet(scene);
 
         stage.setScene(scene);
         stage.setTitle(I18n.get("menu.help.guide") + " — " + KorTTYApplication.getAppName());
@@ -142,6 +145,16 @@ public final class GuideViewer {
             return "de".equals(code) ? "de" : "en";
         } catch (RuntimeException e) {
             return "en";
+        }
+    }
+
+    /** Applies the dark guide stylesheet matching the bundled MkDocs site palette. */
+    static void applyGuideStylesheet(Scene scene) {
+        URL stylesheet = GuideViewer.class.getResource("/styles/guide-ask.css");
+        if (stylesheet != null) {
+            scene.getStylesheets().add(stylesheet.toExternalForm());
+        } else {
+            logger.warn("Guide stylesheet /styles/guide-ask.css not found on classpath");
         }
     }
 
