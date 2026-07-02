@@ -17,6 +17,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+shift+d++ | Toggle Dashboard |
 | ++ctrl+shift+l++ | Show / Hide Menu Bar |
 | ++ctrl+shift+y++ | Open AI Manager |
+| ++ctrl+alt+s++ | Open AI Swarm |
 | ++ctrl+x++ | Cut (disabled for terminal tabs) |
 | ++ctrl+c++ | Copy |
 | ++ctrl+v++ | Paste |

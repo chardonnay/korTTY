@@ -66,7 +66,7 @@ Sehen Sie sich die [Einstellungsreferenz](settings/index.md)] für jede einzelne
 | Artikel | Beschreibung |
 | --- | --- |
 | Snippet-Manager… | Befehlsschnipsel erstellen, bearbeiten, organisieren, senden und exportieren |
-| JobScheduler… | Planen Sie Hintergrundbefehle/Snippets/AI-Agent/SFTP/Rsync-Jobs |
+| JobScheduler… | Planen Sie Hintergrundbefehle/Snippets/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs |
 | Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über `ffmpeg` | nach WebM/MKV
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++Strg+Umschalt+E++) |
 | ASCII-Kunst… | FIGlet-Bannergenerator mit mehreren Schriftarten |
@@ -80,6 +80,7 @@ Sehen Sie sich die [Einstellungsreferenz](settings/index.md)] für jede einzelne
 | KI-Manager… | KI-Profile und gespeicherte Chats verwalten |
 | KI-Agent… | Öffnen Sie den Terminal AI Agent |
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
+| KI-Schwarm… | Übertragen Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++Strg+Alt+S++) |
 
 **AI Manager** listet Ihre AI-Profile auf (jeweils mit Verbindungsmodus, Modell,
 Argumentationsaufwand, Internetzugang und Token-Budget) und Ihre gespeicherten Chats:

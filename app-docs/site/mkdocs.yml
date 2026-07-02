@@ -133,6 +133,7 @@ nav:
       - features/teamwork.md
       - features/ai-assistant.md
       - features/ai-tools.md
+      - features/ai-swarm.md
       - features/security.md
       - features/backup.md
       - features/recording.md

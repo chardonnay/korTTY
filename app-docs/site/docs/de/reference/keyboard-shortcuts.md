@@ -17,6 +17,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++Strg+Umschalt+D++ | Dashboard umschalten |
 | ++Strg+Umschalt+L++ | Menüleiste ein-/ausblenden |
 | ++Strg+Umschalt+Y++ | Öffnen Sie AI Manager |
+| ++Strg+Alt+S++ | KI-Schwarm öffnen |
 | ++Strg+x++ | Ausschneiden (für Anschlusslaschen deaktiviert) |
 | ++Strg+C++ | Kopieren |
 | ++Strg+V++ | Einfügen |

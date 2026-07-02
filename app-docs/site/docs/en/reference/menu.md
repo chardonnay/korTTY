@@ -66,7 +66,7 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | Item | Description |
 | --- | --- |
 | Snippet Manager… | Create, edit, organize, send and export command snippets |
-| JobScheduler… | Schedule background command / snippet / AI-agent / SFTP / Rsync jobs |
+| JobScheduler… | Schedule background command / snippet / AI-agent / AI-swarm / SFTP / Rsync jobs |
 | Video Manager… | Manage terminal recordings and export to WebM/MKV via `ffmpeg` |
 | Start/Stop Terminal Recording | Toggle recording of the active terminal (++ctrl+shift+e++) |
 | ASCII Art… | FIGlet banner generator with multiple font styles |
@@ -80,6 +80,7 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | AI Manager… | Manage AI profiles and saved chats |
 | AI Agent… | Open the terminal AI agent |
 | AI Planning… | Open the AI planning workflow |
+| AI Swarm… | Broadcast one AI task to many servers and compare the answers (++ctrl+alt+s++) |
 
 **AI Manager** lists your AI profiles (each with connection mode, model,
 reasoning effort, internet access and token budget) and your saved chats:

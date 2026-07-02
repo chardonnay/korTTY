@@ -5,6 +5,47 @@ shown in the footer.
 
 ## Unreleased
 
+### AI Swarm
+
+- **AI Swarm tab** (**AI → AI Swarm...**, ++ctrl+alt+s++ / Cmd on macOS) — broadcast
+  one AI-agent task to many servers at once; each server runs its own agent and
+  the answers are combined into a single comparison table with one row per
+  server and a literal **"Fehler"** column for deviations and errors.
+- **Animated status strip** — one orb per agent above the conversation shows
+  queued/running/awaiting-input/paused/done/failed/cancelled at a glance,
+  flags *unusually long* runs via an adaptive threshold
+  (`max(60 s, 2 × median of finished agents)`), and clicking an orb jumps to the
+  agent's row. The strip scales from 1 to 50+ servers.
+- **Per-agent and swarm-wide run control** — pause, resume, restart, and stop
+  either a single agent (right-click its row) or the whole swarm (toolbar).
+  Pausing is cooperative and stops the elapsed timers; restarts replace only
+  that agent's answer.
+- **Expandable live transcripts** — left-click an agent row to watch its live
+  command/output transcript inline while it runs.
+- **Conversation copy & export** — copy the whole swarm conversation to the
+  clipboard or export it as plain text, Markdown, or PDF; saved swarm chats get
+  their own **Swarm Chats** section in the AI Manager.
+- **Readable result rows** — clicking a row of the combined answer table opens
+  it in a separate **Row details** window with A−/A+ font sizing and
+  copy-to-clipboard.
+- **Targets without open terminals** — swarm runs (AI and script) now work on
+  saved servers with no open terminal via background SSH sessions; no terminal
+  tab is opened. Requires an unlocked master-password vault.
+- **Run scripts without AI** — execute a Snippet Manager script with parameters
+  on all swarm targets in parallel (Base64-transferred, single confirmation),
+  with live output per server and a per-server exit-code/output result table.
+- **Schedule swarm runs** — a new JobScheduler action type **AI_SWARM** with
+  **Swarm parallelism** (1–16) and **Swarm read-only** fields; the swarm tab's
+  **Schedule…** button prefills a job from the current targets and prompt.
+  Results go to the journal *and* a saved swarm chat.
+- **Visible composer and tab status dot** — the swarm input is a clearly framed
+  three-line field, and the tab shows a colored activity dot (running / waiting
+  for input / paused / finished — the green dot stays until the next run).
+- **Multi-server workflow dialog reworked** — syntax-highlighted script view, a
+  visible working animation with live elapsed time and total duration, an
+  additional-instructions field with a de-duplicated 10-entry history, and
+  **Save to Snippets** with a fitting pre-filled script name.
+
 ### Appearance
 
 - **App design `Normal` renamed to `Default`** in *Settings → Appearance*. The stored value is unchanged, so existing configurations keep their selected design.

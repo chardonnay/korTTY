@@ -13,11 +13,12 @@ Open it with **Tools > JobScheduler...**. The dialog remembers its window positi
 
 ## Overview
 
-JobScheduler supports five types of actions:
+JobScheduler supports six types of actions:
 
 - **COMMAND** — Run a non-interactive remote shell command
 - **SNIPPET_SCRIPT** — Execute a SnippetManager script on the target with optional parameters
 - **AI_AGENT** — Run a headless AI agent with explicit auto-approval
+- **AI_SWARM** — Broadcast one AI-agent task to all selected targets in parallel and store the combined answer as a saved swarm chat
 - **SFTP** — Upload, download, sync, delete, rename, create directories, set permissions, change ownership, remote-copy, or create archives
 - **RSYNC_SYNC** — Synchronize directories via external `rsync` over SSH
 
@@ -71,6 +72,7 @@ Use the **Action** tab to choose what the job does. The tab shows only the field
 | **COMMAND** | Run a non-interactive remote command. |
 | **SNIPPET_SCRIPT** | Run a SnippetManager script on the selected target. The **Snippet search** field filters the script dropdown by snippet name, category, language, or ID; **Snippet parameters** passes additional arguments as one argv value per line. |
 | **AI_AGENT** | Run the headless scheduler AI agent. Unattended command execution requires **Auto-approve AI commands** on the job. |
+| **AI_SWARM** | Run the [AI Swarm](ai-swarm.md) headlessly on every selected target in parallel and combine the answers into one comparison table. |
 | **SFTP_UPLOAD** | Upload a local path to a remote path. |
 | **SFTP_DOWNLOAD** | Download a remote path to a local path. |
 | **SFTP_SYNC** | Synchronize local and remote paths in the selected upload/download direction. |
@@ -88,6 +90,22 @@ Path fields provide local Finder/Explorer selection where the path is local and 
 #### Snippet Script Jobs
 
 Snippet script jobs use the selected SnippetManager entry without requiring an open terminal tab. KorTTY resolves built-in snippet variables and stored SnippetManager variables before execution. Missing snippets, missing stored variable values, and unsupported snippet languages block the job and write the reason to the journal. Additional snippet parameters are entered one per line so values with spaces are passed as single script arguments.
+
+#### AI Swarm Jobs
+
+AI Swarm jobs run one AI-agent prompt on **all selected targets in parallel** over background SSH sessions — no terminal tabs are opened. Beyond the shared **AI profile**, **AI prompt**, and **Auto-approve AI commands** fields, two swarm-specific fields apply:
+
+| Field | Description |
+|-------|-------------|
+| **Swarm parallelism** | How many targets run concurrently (1–16, default 4). |
+| **Swarm read-only** | Restricts every agent to non-mutating commands. On by default. |
+
+Results are stored twice: the **journal** records the run outcome, and the full conversation — including the combined per-server comparison table — is saved as a **swarm chat** that can be reopened from the AI Manager's *Swarm Chats* section.
+
+The fastest way to create an AI Swarm job is the **Schedule…** button in the [AI Swarm tab](ai-swarm.md#scheduling-swarm-runs-jobscheduler): it prefills a new job with the tab's current targets, prompt, AI profile, and read-only setting. See that page for recommended swarm/scheduler usage scenarios.
+
+!!! warning
+    A scheduled swarm with **Swarm read-only** off and **Auto-approve AI commands** on changes systems unattended. Test the prompt interactively in the AI Swarm tab before enabling such a job.
 
 #### SFTP Archive Jobs
 

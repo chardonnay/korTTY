@@ -5,6 +5,47 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+### KI-Schwarm
+
+- **Registerkarte „AI Swarm“** (**AI → AI Swarm...**, ++ctrl+alt+s++ / Cmd auf macOS) – Übertragung
+eine KI-Agent-Aufgabe für viele Server gleichzeitig; Jeder Server führt seinen eigenen Agenten aus und
+Die Antworten werden in einer einzigen Vergleichstabelle mit jeweils einer Zeile zusammengefasst
+Server und eine wörtliche Spalte **"Fehler"** für Abweichungen und Fehler.
+- **Animierter Statusstreifen** – eine Kugel pro Agent über den Konversationsshows
+in der Warteschlange/wird ausgeführt/wartet auf Eingaben/angehalten/erledigt/fehlgeschlagen/abgebrochen auf einen Blick,
+Flags *ungewöhnlich lange* Läufe über einen adaptiven Schwellenwert
+(`max(60 s, 2 × median of finished agents)`) und das Klicken auf eine Kugel springt zum
+Reihe des Agenten. Der Strip skaliert von 1 bis 50+ Servern.
+- **Pro-Agent und schwarmweite Laufsteuerung** – Anhalten, Fortsetzen, Neustarten und Stoppen
+entweder ein einzelner Agent (klicken Sie mit der rechten Maustaste auf seine Zeile) oder der gesamte Schwarm (Symbolleiste).
+Das Pausieren ist kooperativ und stoppt die abgelaufenen Timer. Neustarts ersetzen nur
+Die Antwort dieses Agenten.
+- **Erweiterbare Live-Transkripte** – Klicken Sie mit der linken Maustaste auf eine Agentenzeile, um sie live anzusehen
+Befehls-/Ausgabetranskript inline während der Ausführung.
+- **Konversation kopieren und exportieren** – Kopieren Sie die gesamte Schwarmkonversation in die
+in die Zwischenablage kopieren oder als einfachen Text, Markdown oder PDF exportieren; Gespeicherte Schwarm-Chats erhalten
+ihren eigenen **Schwarm-Chats**-Bereich im AI Manager.
+- **Lesbare Ergebniszeilen** – Durch Klicken auf eine Zeile der kombinierten Antworttabelle wird geöffnet
+es in einem separaten **Zeilendetails**-Fenster mit der Schriftgröße A−/A+ und
+In die Zwischenablage kopieren.
+- **Ziele ohne offene Terminals** – Schwarmläufe (KI und Skript) funktionieren jetzt
+gespeicherte Server ohne geöffnetes Terminal über Hintergrund-SSH-Sitzungen; kein Terminal
+Die Registerkarte wird geöffnet. Erfordert einen entsperrten Master-Passwort-Tresor.
+- **Skripte ohne KI ausführen** – Führen Sie ein Snippet Manager-Skript mit Parametern aus
+auf allen Schwarmzielen parallel (Base64-übertragen, einmalige Bestätigung),
+mit Live-Ausgabe pro Server und einer Exit-Code-/Ausgabeergebnistabelle pro Server.
+- **Schedule Swarm Runs** – ein neuer JobScheduler-Aktionstyp **AI_SWARM** mit
+**Schwarm-Parallelität** (1–16) und **Schwarm-Lesefelder**; die Schwarm-Registerkarte
+Mit der Schaltfläche „Planen…“ wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
+Die Ergebnisse gehen in das Journal *und* in einen gespeicherten Schwarm-Chat.
+- **Sichtbarer Composer- und Tab-Statuspunkt** – die Schwarmeingabe ist klar umrahmt
+dreizeiliges Feld und auf der Registerkarte wird ein farbiger Aktivitätspunkt angezeigt (läuft/wartet).
+für Eingabe / Pause / Fertig – der grüne Punkt bleibt bis zum nächsten Durchlauf bestehen).
+- **Multi-Server-Workflow-Dialog überarbeitet** – Syntax-hervorgehobene Skriptansicht, a
+sichtbare Arbeitsanimation mit Live-Ablaufzeit und Gesamtdauer, an
+Feld „Zusatzanweisungen“ mit einem deduplizierten Verlauf mit 10 Einträgen und
+**In Snippets speichern** mit einem passenden vorab ausgefüllten Skriptnamen.
+
 ### Aussehen
 
 - **App-Design `Normal` in *Einstellungen → Erscheinungsbild* in `Default`** umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.
