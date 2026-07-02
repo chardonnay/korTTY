@@ -487,7 +487,13 @@ class AiI18nCoverageTest {
         "guide.ask.notFound",
         "guide.ask.failed",
         "guide.ask.vaultLocked",
-        "guide.ask.unavailable");
+        "guide.ask.unavailable",
+        "guide.ask.clear",
+        "guide.ask.history",
+        "guide.ask.history.empty",
+        "guide.ask.copy",
+        "guide.ask.copy.tooltip",
+        "guide.ask.copied");
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\d+}");
 

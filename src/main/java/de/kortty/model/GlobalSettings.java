@@ -378,6 +378,11 @@ public class GlobalSettings {
     @XmlElement(name = "prompt")
     private java.util.List<String> aiPromptHistory;
 
+    /** Recent questions asked in the guide's AI docs search (max 10, newest first). */
+    @XmlElementWrapper(name = "guideAskHistory")
+    @XmlElement(name = "question")
+    private java.util.List<String> guideAskHistory;
+
     /** Recent terminal AI-agent prompts, offered via TAB after the agent command + space. */
     @XmlElementWrapper(name = "terminalAgentInputHistory")
     @XmlElement(name = "input")
@@ -1602,6 +1607,31 @@ public class GlobalSettings {
 
     public void clearAiPromptHistory() {
         getAiPromptHistory().clear();
+    }
+
+    public java.util.List<String> getGuideAskHistory() {
+        if (guideAskHistory == null) {
+            guideAskHistory = new java.util.ArrayList<>();
+        }
+        return guideAskHistory;
+    }
+
+    public void setGuideAskHistory(java.util.List<String> guideAskHistory) {
+        this.guideAskHistory = guideAskHistory;
+    }
+
+    /** Records a guide AI-search question: deduplicated, newest first, capped at 10 entries. */
+    public void addGuideAskHistoryEntry(String question) {
+        if (question == null || question.trim().isEmpty()) {
+            return;
+        }
+        java.util.List<String> history = getGuideAskHistory();
+        String normalized = question.trim();
+        history.remove(normalized);
+        history.add(0, normalized);
+        while (history.size() > 10) {
+            history.remove(history.size() - 1);
+        }
     }
 
     public int getTerminalAgentInputHistorySize() {

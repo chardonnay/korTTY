@@ -72,19 +72,24 @@ public final class GuideViewer {
         WebEngine engine = webView.getEngine();
         installExternalLinkHandler(engine);
 
-        askPanel = new GuideAskPanel(app, resolveGuideLanguage(), this::navigateToLocation);
         splitPane.getItems().add(webView);
         splitPane.getStyleClass().add("guide-split");
 
-        ToggleButton askToggle = new ToggleButton(I18n.get("guide.ask.toggle"));
-        askToggle.setOnAction(event -> toggleAskPanel(askToggle.isSelected()));
-        HBox toolbar = new HBox(askToggle);
-        toolbar.setAlignment(Pos.CENTER_RIGHT);
-        toolbar.setPadding(new Insets(6));
-        toolbar.getStyleClass().add("guide-toolbar");
-
         BorderPane root = new BorderPane(splitPane);
-        root.setTop(toolbar);
+        // The AI docs search only exists while AI features are enabled in the global settings;
+        // without them the guide window stays a plain viewer (no toolbar, no ask WebView).
+        if (isAiSearchAvailable()) {
+            askPanel = new GuideAskPanel(app, resolveGuideLanguage(), this::navigateToLocation);
+            ToggleButton askToggle = new ToggleButton(I18n.get("guide.ask.toggle"));
+            askToggle.setOnAction(event -> toggleAskPanel(askToggle.isSelected()));
+            HBox toolbar = new HBox(askToggle);
+            toolbar.setAlignment(Pos.CENTER_RIGHT);
+            toolbar.setPadding(new Insets(6));
+            toolbar.getStyleClass().add("guide-toolbar");
+            root.setTop(toolbar);
+        } else {
+            askPanel = null;
+        }
         root.getStyleClass().add("guide-root");
         Scene scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT);
         scene.setFill(Color.web("#07111d"));
@@ -158,8 +163,21 @@ public final class GuideViewer {
         }
     }
 
+    /** True when the AI docs search may be offered: AI features are enabled in the settings. */
+    private boolean isAiSearchAvailable() {
+        try {
+            GlobalSettings settings = app != null ? settings() : null;
+            return settings != null && settings.isAiFeaturesEnabled();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
     /** Shows or hides the "ask the manual" AI side panel next to the guide. */
     private void toggleAskPanel(boolean show) {
+        if (askPanel == null) {
+            return;
+        }
         if (show) {
             if (!splitPane.getItems().contains(askPanel)) {
                 splitPane.getItems().add(askPanel);
@@ -367,7 +385,9 @@ public final class GuideViewer {
         if (geometrySavePending) {
             saveGeometry();
         }
-        askPanel.dispose();
+        if (askPanel != null) {
+            askPanel.dispose();
+        }
         try {
             // Drop the page so the native WebKit context is released promptly.
             webView.getEngine().loadContent("");

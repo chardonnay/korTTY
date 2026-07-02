@@ -50,6 +50,7 @@
 }
 
 .guide-ask-panel .button,
+.guide-ask-panel .menu-button,
 .guide-toolbar .toggle-button {
     -fx-background-color: #102132;
     -fx-background-insets: 0;
@@ -60,9 +61,36 @@
 }
 
 .guide-ask-panel .button:hover,
+.guide-ask-panel .menu-button:hover,
 .guide-toolbar .toggle-button:hover {
     -fx-border-color: #38bdf8;
     -fx-text-fill: #67e8f9;
+}
+
+.guide-ask-panel .menu-button > .arrow-button > .arrow {
+    -fx-background-color: #e6f3ff;
+}
+
+/* History dropdown popup (inherits the scene stylesheets; the guide scene has no other menus). */
+.context-menu {
+    -fx-background-color: #102132;
+    -fx-border-color: rgba(103, 232, 249, 0.18);
+}
+
+.context-menu .menu-item .label {
+    -fx-text-fill: #e6f3ff;
+}
+
+.context-menu .menu-item:focused {
+    -fx-background-color: #38bdf8;
+}
+
+.context-menu .menu-item:focused .label {
+    -fx-text-fill: #07111d;
+}
+
+.context-menu .menu-item:disabled .label {
+    -fx-text-fill: #b9c8da;
 }
 
 .guide-ask-panel .button:disabled,
