@@ -1435,6 +1435,14 @@ tasks.register<JavaExec>("aiManagerModelComboSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("guideAskPanelSmoke") {
+    group = "verification"
+    description = "Renders the guide AI-search panel with a sample answer and snapshots it to build/smoke/guide-ask-panel.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.GuideAskPanelSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateDesignPreviews") {
     group = "build"
     description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."

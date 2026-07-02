@@ -215,6 +215,25 @@ The AI Manager has two working areas:
 
 Use **Settings > AI** for the global defaults and behavior switches, and **AI Manager** for day-to-day profile/chat management.
 
+## Ask the manual (AI docs search)
+
+The built-in manual (**Help > Manual**, ++f1++) includes an AI-powered search. Toggle **AI search** in the manual window's toolbar to open a side panel, type a question in natural language — for example *"How do I run the AI agent in the terminal window?"* — and press ++enter++.
+
+How it works:
+
+* korTTY selects the most relevant sections from the bundled offline manual (no embeddings, no external search service) and sends only those excerpts together with your question to your **default AI profile**.
+* The answer is generated **exclusively from the manual content** and is written in the app language. If the manual does not cover the question, the assistant says so instead of guessing.
+* Answers cite their sources: click an inline citation or an entry in the **Sources** list to jump the manual view directly to the referenced page and section.
+* If nothing in the manual matches the question, korTTY answers locally without contacting the AI endpoint at all.
+
+Requirements:
+
+* A configured AI profile (see [Setup](#setup)); the default profile is used.
+* An unlocked master-password vault when the profile stores an encrypted API key.
+
+!!! warning "Data Security"
+    The question text and the selected manual excerpts are transmitted to the configured AI endpoint. The manual content itself is public documentation, but your question is free text — avoid pasting secrets into it, or use a trusted local endpoint such as **LM Studio**. Internet access modes are always disabled for manual questions.
+
 ## AI Agent and AI Planning
 
 korTTY supports agent-style workflows for an active terminal session.

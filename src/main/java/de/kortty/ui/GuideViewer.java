@@ -8,9 +8,14 @@ import javafx.animation.Animation;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
@@ -49,6 +54,8 @@ public final class GuideViewer {
     private final KorTTYApplication app;
     private final Stage stage = new Stage();
     private final WebView webView = new WebView();
+    private final SplitPane splitPane = new SplitPane();
+    private final GuideAskPanel askPanel;
     private final PauseTransition geometrySaveDelay = new PauseTransition(Duration.millis(500));
 
     private boolean disposed;
@@ -65,9 +72,28 @@ public final class GuideViewer {
         WebEngine engine = webView.getEngine();
         installExternalLinkHandler(engine);
 
-        BorderPane root = new BorderPane(webView);
+        splitPane.getItems().add(webView);
+        splitPane.getStyleClass().add("guide-split");
+
+        BorderPane root = new BorderPane(splitPane);
+        // The AI docs search only exists while AI features are enabled in the global settings;
+        // without them the guide window stays a plain viewer (no toolbar, no ask WebView).
+        if (isAiSearchAvailable()) {
+            askPanel = new GuideAskPanel(app, resolveGuideLanguage(), this::navigateToLocation);
+            ToggleButton askToggle = new ToggleButton(I18n.get("guide.ask.toggle"));
+            askToggle.setOnAction(event -> toggleAskPanel(askToggle.isSelected()));
+            HBox toolbar = new HBox(askToggle);
+            toolbar.setAlignment(Pos.CENTER_RIGHT);
+            toolbar.setPadding(new Insets(6));
+            toolbar.getStyleClass().add("guide-toolbar");
+            root.setTop(toolbar);
+        } else {
+            askPanel = null;
+        }
+        root.getStyleClass().add("guide-root");
         Scene scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT);
         scene.setFill(Color.web("#07111d"));
+        applyGuideStylesheet(scene);
 
         stage.setScene(scene);
         stage.setTitle(I18n.get("menu.help.guide") + " — " + KorTTYApplication.getAppName());
@@ -125,6 +151,85 @@ public final class GuideViewer {
         } catch (RuntimeException e) {
             return "en";
         }
+    }
+
+    /** Applies the dark guide stylesheet matching the bundled MkDocs site palette. */
+    static void applyGuideStylesheet(Scene scene) {
+        URL stylesheet = GuideViewer.class.getResource("/styles/guide-ask.css");
+        if (stylesheet != null) {
+            scene.getStylesheets().add(stylesheet.toExternalForm());
+        } else {
+            logger.warn("Guide stylesheet /styles/guide-ask.css not found on classpath");
+        }
+    }
+
+    /** True when the AI docs search may be offered: AI features are enabled in the settings. */
+    private boolean isAiSearchAvailable() {
+        try {
+            GlobalSettings settings = app != null ? settings() : null;
+            return settings != null && settings.isAiFeaturesEnabled();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** Shows or hides the "ask the manual" AI side panel next to the guide. */
+    private void toggleAskPanel(boolean show) {
+        if (askPanel == null) {
+            return;
+        }
+        if (show) {
+            if (!splitPane.getItems().contains(askPanel)) {
+                splitPane.getItems().add(askPanel);
+                splitPane.setDividerPositions(0.66);
+            }
+            askPanel.focusQuestionField();
+        } else {
+            splitPane.getItems().remove(askPanel);
+        }
+    }
+
+    /**
+     * Navigates the main guide WebView to a documentation location ({@code page.html#anchor})
+     * quoted verbatim from the bundled search index. Same-page anchor jumps go through
+     * {@code window.location.hash} because a plain {@code load()} with only a fragment change
+     * does not re-scroll reliably in WebKit.
+     */
+    private void navigateToLocation(String location) {
+        if (disposed || location == null || location.isBlank()) {
+            return;
+        }
+        String path = location;
+        String anchor = null;
+        int hash = location.indexOf('#');
+        if (hash >= 0) {
+            path = location.substring(0, hash);
+            anchor = location.substring(hash + 1);
+        }
+        String lang = resolveGuideLanguage();
+        URL page = GuideViewer.class.getResource("/guide/" + lang + "/" + path);
+        if (page == null && !"en".equals(lang)) {
+            page = GuideViewer.class.getResource("/guide/en/" + path);
+        }
+        if (page == null) {
+            logger.warn("Guide citation points to a missing page: {}", location);
+            return;
+        }
+        WebEngine engine = webView.getEngine();
+        String pageUrl = page.toExternalForm();
+        String target = anchor != null && !anchor.isBlank() ? pageUrl + "#" + anchor : pageUrl;
+        String current = engine.getLocation();
+        if (current != null && current.startsWith(pageUrl)) {
+            String safeAnchor = anchor != null ? anchor.replaceAll("[^A-Za-z0-9._-]", "") : "";
+            try {
+                engine.executeScript("window.location.hash='" + safeAnchor + "'");
+            } catch (RuntimeException e) {
+                logger.debug("Guide anchor navigation failed for {}", location, e);
+            }
+        } else {
+            engine.load(target);
+        }
+        lastInternalLocation = target;
     }
 
     /**
@@ -279,6 +384,9 @@ public final class GuideViewer {
         geometrySaveDelay.stop();
         if (geometrySavePending) {
             saveGeometry();
+        }
+        if (askPanel != null) {
+            askPanel.dispose();
         }
         try {
             // Drop the page so the native WebKit context is released promptly.
