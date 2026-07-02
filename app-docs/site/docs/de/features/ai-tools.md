@@ -4,10 +4,10 @@ title: Terminal-KI-Agent und -Tools
 
 # Terminal-KI-Agent und -Tools
 
-Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer `AgentCommandRunner`-Abstraktion entkoppelt wurde (SSH-Exec-Kanal- und lokale-Prozess-Backends), auch in [lokalen Shells](connections.md#lokale-shell) unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.
+Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer `AgentCommandRunner`-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) entkoppelt wurde, auch in [lokalen Shells](connections.md#local-shell) unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.
 
-!!! note „SSH vs. lokale Shells“
-    In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), und die Umgebungs-Probe sowie der System-Prompt sind plattformbewusst. Einschränkungen bei lokalen Shells: keine `sudo`-/Administrator-Erhöhung unter Windows und keine Live-Arbeitsverzeichnis-Verfolgung (der Agent verwendet das Startverzeichnis der Verbindung). Die headless KI-Agent-Aktion des JobSchedulers bleibt SSH-exklusiv.
+!!! Hinweis „SSH vs. lokale Shells“
+In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine `sudo`/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
 
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
@@ -34,7 +34,7 @@ KorTTY fängt diese Verknüpfungen lokal ab, bevor sie die Remote-Shell erreiche
 ### Befehlszwecke
 
 - **`agent <goal>`** – Führen Sie sichere SSH-Befehle aus, um ein Ziel zu erreichen. Der Agent prüft die Sitzung, plant nicht interaktive Befehle, fordert bei Bedarf eine Genehmigung an und schreibt die endgültige Antwort zurück an das Terminal.
-- **`agent-ask <question>`** – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen.
+- **`agent-ask <question>`** – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen. Beim Start über das Terminal-Rechtsklickmenü (**AI → Ask AI Agent**) mit ausgewähltem Text wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.
 - **`agent-plan <task>` / `agent -plan <task>`** – Rufen Sie zuerst den Planungsmodus auf. Der Agent stellt klärende Fragen, schlägt Vorgehensweisen vor, erstellt einen endgültigen Plan und führt die Implementierung erst durch, nachdem Sie auf **Umsetzen** geklickt haben.
 
 ### Beispiele
@@ -68,13 +68,13 @@ Der Terminal AI Agent folgt einer strengen, sicheren Ausführungsschleife:
 2. **Kontext an das Modell senden** – KorTTY sendet die Benutzeraufgabe, den Sonden-Snapshot, frühere Befehlsergebnisse, aktive KI-Fähigkeiten und optional die Web-Tool-Verfügbarkeit an das ausgewählte KI-Profil.
 3. **Modell gibt eine JSON-Entscheidung zurück** – Das Modell muss eine strikte JSON-Antwort zurückgeben: Befehle ausführen, um Bestätigung bitten, beenden oder blockieren.
 4. **Entscheidung validieren** – KorTTY validiert das JSON-Schema und die Befehlseinschränkungen. Ungültige Antworten werden einmalig repariert; unsichere oder nicht unterstützte Entscheidungen werden abgelehnt.
-5. **Genehmigte Befehle ausführen** – KorTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Ausführungskanäle bei SSH-Sitzungen oder einen frischen lokalen Prozess bei lokalen Shells. Jeder Befehl startet im verfolgten aktiven Terminalverzeichnis (bei lokalen Shells im Startverzeichnis der Verbindung). Ein `cd` in einem Befehl bleibt nicht im nächsten bestehen.
+5. **Genehmigte Befehle ausführen** – KorTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Ausführungskanäle für SSH-Sitzungen oder einen neuen lokalen Prozess für lokale Shells. Jeder Befehl startet im verfolgten aktiven Terminalverzeichnis (dem Startverzeichnis der Verbindung für lokale Shells). Ein `cd` in einem Befehl bleibt nicht im nächsten bestehen.
 6. **Iterieren oder abschließen** – Die Befehlsausgabe wird dem Aktivitätsfeld und der nächsten Modellrunde hinzugefügt, bis die Aufgabe abgeschlossen, blockiert oder abgebrochen wird oder das Rundenlimit erreicht ist (maximal 8 Runden).
 
 ### Passende Aufgaben
 
 - Überprüfen von Dateien, Verzeichnissen, Paketstatus, Protokollen, Dienststatus und Systemkonfiguration
-- Erstellen oder Ändern von Skripten und Konfigurationsdateien, wenn die Aufgabe dies erfordert
+- Erstellen oder Ändern von Skripten und Konfigurationsdateien, wenn die Aufgabe dies verlangt
 - Ausführen von Tests, Syntaxprüfungen, Linters oder schreibgeschützten Diagnosebefehlen
 - Zusammenfassung der Befehlsausgabe und Erläuterung der Ergebnisse
 - Planung mehrstufiger betrieblicher Änderungen vor der Implementierung
@@ -96,8 +96,10 @@ Auf Terminals ausgerichtete Agentenausführungen verwenden ein Inline-Aktivität
 ### Panel-Funktionen
 
 - **Ausführungsregisterkarten** – Mehrere gleichzeitige Ausführungen werden als schließbare Registerkarten angezeigt. Klicken Sie auf eine Registerkarte, um sie auszuwählen. Nur der Lauf der ausgewählten Registerkarte wird durch Laufsteuerungstasten und -schaltflächen gesteuert. Bis zu 5 gleichzeitige Läufe pro Split.
-- **Steuerelemente** – Jeder Lauf verfügt über Schaltflächen zum Neuladen, Anhalten/Fortsetzen, Abbrechen und Kopier-/Snippet-Aktionen pro Zeile.
+- **Steuerelemente** – Jeder Lauf verfügt über Schaltflächen zum Neuladen, Anhalten/Fortsetzen, Abbrechen und Kopier-/Snippet-Aktionen pro Zeile. Mit der Schaltfläche „Neu laden“ wird der Befehl mit dem **aktuell aktiven** AI-Profil erneut ausgeführt, sodass der Profilwechsel zwischen den Ausführungen bei der Wiederholung wirksam wird.
 - **Details** – Das Panel zeigt die Benutzeraufforderung in einem zweizeiligen scrollbaren Feld, Agentenmeldungen, Lese-/Ausführungsaktionen, Aufgabenzeitpunkt, gemeldete Token-Nutzung, semantische Aktivitätsmarkierungen und ausblendbare Details.
+- **AI-Profilzeile** – Jedes Laufprotokoll beginnt mit einem `AI profile: <name> (<model>)`-Eintrag, sodass das Protokoll aufzeichnet, welches Profil und welches Modell den Lauf erzeugt hat.
+- **Modellbegründung** – Durch Erweitern einer 💭-Denkzeile wird die vollständige Begründung des Modells angezeigt, wenn der Anbieter sie verfügbar macht (anthropisches erweitertes Denken, wenn der Begründungsaufwand des Profils aktiviert ist, OpenAI-kompatibles `reasoning_content`, LM Studio-Begründungsausgabe oder `<think>`-Blöcke von lokalen CLI-Modellen). Modelle ohne offengelegte Begründung behalten die kurze Entscheidungszusammenfassung bei.
 - **Statusleiste** – Wenn das Bedienfeld minimiert ist, wird eine kompakte Statusleiste mit der Startaufforderung, dem Status, den Schaltflächen „Pause/Abbrechen“ und der Schaltfläche „Erweitern“ angezeigt. Während der Agent arbeitet, wird ein Spinner angezeigt. Eine fettgedruckte ✋-Markierung signalisiert, wenn eine Benutzereingabe erforderlich ist.
 - **Reduziert halten** – Verwenden Sie **Reduziert halten**, damit das Panel minimiert startet und minimiert bleibt, wenn neue Aktivitäten oder Eingabeaufforderungen eintreffen. Sie können weiterhin manuell erweitern.
 - **Größenänderung** – Ziehen Sie den Größenänderungsgriff, um die Panelhöhe zu ändern. Aktivieren Sie **Größe merken**, um Höhe und Schriftgröße bei Anwendungsneustarts beizubehalten.
@@ -172,7 +174,7 @@ KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 ### Verzeichnisverfolgung
 
 - **Aktives Verzeichnis** – Terminalverknüpfungen verwenden das von KorTTY verfolgte aktuelle Remote-Verzeichnis. Befehle und generierte Dateien werden relativ zu diesem Verzeichnis ausgeführt.
-- **Verzeichnisverlust** – Wenn ein nachverfolgtes Verzeichnis nicht mehr vorhanden ist, versucht KorTTY die Prüfung erneut aus dem SSH-Standardverzeichnis und meldet das Problem.
+- **Verzeichnisverlust** – Wenn ein verfolgtes Verzeichnis nicht mehr vorhanden ist, wiederholt KorTTY die Prüfung vom SSH-Standardverzeichnis aus und meldet das Problem.
 
 ### Tippen während der Ausführung
 
@@ -191,16 +193,16 @@ KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 
 ## Workflow-Skript generieren
 
-Nachdem die Ausführung eines fertigen Agenten erfolgreich abgeschlossen wurde, wandelt eine Schaltfläche **Workflow** die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit) um.
+Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).
 
 ### Funktionen zur Skriptgenerierung
 
 - **Passende KI-Fähigkeiten automatisch laden** – Fähigkeiten wie Sprachqualitätsrichtlinien für die Zielsprache werden automatisch einbezogen.
-- **Acht Zielsprachen** – Bash, Python, Perl, Ruby, PowerShell, Ansible sowie **Windows-CMD** (`.cmd`-Batch – `@echo off`, `REM`-Header, `errorlevel`-Prüfungen) und **AppleScript** (`.applescript` – `osascript`-Shebang, `--`-Kommentare, `try`/`on error`).
+- **Acht Zielsprachen** – Bash, Python, Perl, Ruby, PowerShell, Ansible, plus **Windows-CMD** (`.cmd`-Batch – `@echo off`, `REM`-Header, `errorlevel`-Prüfungen) und **AppleScript** (`.applescript` – `osascript`-Shebang, `--`-Kommentare, `try`/`on error`).
 - **Mehrere Sprachvarianten** – Generieren Sie mehrere Sprachvarianten und Vorschläge als Inline-Registerkarten im Workflow-Dialogfeld.
-- **Anpassbare Schriftgröße** – Jeder Editor für generierte Skripte verfügt über **A−**- / **A+**-Schaltflächen und unterstützt ++ctrl++ + Mausrad (Cmd auf macOS); die gewählte Größe wird über Sitzungen hinweg gespeichert.
+- **Anpassbare Schriftgröße** – Jeder Editor für generierte Skripte verfügt über **A−** / **A+**-Tasten und unterstützt ++ctrl++ + Mausrad (Cmd unter macOS); Die gewählte Größe wird sitzungsübergreifend gespeichert.
 - **Header-Vorlagen** – Verwenden Sie wiederverwendbare Header aus der festen, nicht löschbaren Snippet-Kategorie **Script-Header**.
-- **PlantUML-Diagramm** – Fügen Sie optional ein PlantUML-Diagramm hinzu, das die Skriptlogik darstellt. Während das Diagramm generiert wird, erscheint ein Arbeits-Spinner.
+- **PlantUML-Diagramm** – Fügen Sie optional ein PlantUML-Diagramm hinzu, das die Skriptlogik darstellt. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.
 - **Snippet Manager** – Speichern Sie das generierte Skript im Snippet Manager mit einem kurzen, automatisch generierten Namen und der richtigen Dateierweiterung. Skripte werden nach vollständigem Namen einschließlich Erweiterung dedupliziert.
 - **Workflow-Tagging** – Das Snippet ist zur einfachen Filterung mit `workflow` getaggt.
 - **Betriebssystemerkennung** – Die Spalte **System** (Betriebssystem) wird automatisch vom untersuchten Betriebssystem des Agenten (jede Linux-Distribution → Linux) festgelegt.

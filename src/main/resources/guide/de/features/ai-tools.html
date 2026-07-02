@@ -2598,9 +2598,9 @@
 
 
 <h1 id="terminal-ki-agent-und-tools">Terminal-KI-Agent und -Tools<a class="headerlink" href="#terminal-ki-agent-und-tools" title="Permanent link">&para;</a></h1>
-<p>Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer <code>AgentCommandRunner</code>-Abstraktion entkoppelt wurde (SSH-Exec-Kanal- und lokale-Prozess-Backends), auch in <a href="connections.html#lokale-shell">lokalen Shells</a> unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.</p>
-<p>!!! note „SSH vs. lokale Shells“
-    In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), und die Umgebungs-Probe sowie der System-Prompt sind plattformbewusst. Einschränkungen bei lokalen Shells: keine <code>sudo</code>-/Administrator-Erhöhung unter Windows und keine Live-Arbeitsverzeichnis-Verfolgung (der Agent verwendet das Startverzeichnis der Verbindung). Die headless KI-Agent-Aktion des JobSchedulers bleibt SSH-exklusiv.</p>
+<p>Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) entkoppelt wurde, auch in <a href="connections.html#local-shell">lokalen Shells</a> unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.</p>
+<p>!!! Hinweis „SSH vs. lokale Shells“
+In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
 <p><img alt="AI agent execution loop" src="../assets/diagrams/ai-agent-execution-loop.svg" /></p>
 <h2 id="befehlsvarianten">Befehlsvarianten<a class="headerlink" href="#befehlsvarianten" title="Permanent link">&para;</a></h2>
 <p>Der Terminal AI Agent wird über Shortcut-Befehle am Shell-Prompt ausgelöst. Wenn KorTTY unter <strong>Einstellungen &gt; AI</strong> aktiviert ist, fängt KorTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:</p>
@@ -2621,7 +2621,7 @@
 <h3 id="befehlszwecke">Befehlszwecke<a class="headerlink" href="#befehlszwecke" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>agent &lt;goal&gt;</code></strong> – Führen Sie sichere SSH-Befehle aus, um ein Ziel zu erreichen. Der Agent prüft die Sitzung, plant nicht interaktive Befehle, fordert bei Bedarf eine Genehmigung an und schreibt die endgültige Antwort zurück an das Terminal.</li>
-<li><strong><code>agent-ask &lt;question&gt;</code></strong> – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen.</li>
+<li><strong><code>agent-ask &lt;question&gt;</code></strong> – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen. Beim Start über das Terminal-Rechtsklickmenü (<strong>AI → Ask AI Agent</strong>) mit ausgewähltem Text wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.</li>
 <li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> – Rufen Sie zuerst den Planungsmodus auf. Der Agent stellt klärende Fragen, schlägt Vorgehensweisen vor, erstellt einen endgültigen Plan und führt die Implementierung erst durch, nachdem Sie auf <strong>Umsetzen</strong> geklickt haben.</li>
 </ul>
 <h3 id="beispiele">Beispiele<a class="headerlink" href="#beispiele" title="Permanent link">&para;</a></h3>
@@ -2649,13 +2649,13 @@
 <li><strong>Kontext an das Modell senden</strong> – KorTTY sendet die Benutzeraufgabe, den Sonden-Snapshot, frühere Befehlsergebnisse, aktive KI-Fähigkeiten und optional die Web-Tool-Verfügbarkeit an das ausgewählte KI-Profil.</li>
 <li><strong>Modell gibt eine JSON-Entscheidung zurück</strong> – Das Modell muss eine strikte JSON-Antwort zurückgeben: Befehle ausführen, um Bestätigung bitten, beenden oder blockieren.</li>
 <li><strong>Entscheidung validieren</strong> – KorTTY validiert das JSON-Schema und die Befehlseinschränkungen. Ungültige Antworten werden einmalig repariert; unsichere oder nicht unterstützte Entscheidungen werden abgelehnt.</li>
-<li><strong>Genehmigte Befehle ausführen</strong> – KorTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Ausführungskanäle bei SSH-Sitzungen oder einen frischen lokalen Prozess bei lokalen Shells. Jeder Befehl startet im verfolgten aktiven Terminalverzeichnis (bei lokalen Shells im Startverzeichnis der Verbindung). Ein <code>cd</code> in einem Befehl bleibt nicht im nächsten bestehen.</li>
+<li><strong>Genehmigte Befehle ausführen</strong> – KorTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Ausführungskanäle für SSH-Sitzungen oder einen neuen lokalen Prozess für lokale Shells. Jeder Befehl startet im verfolgten aktiven Terminalverzeichnis (dem Startverzeichnis der Verbindung für lokale Shells). Ein <code>cd</code> in einem Befehl bleibt nicht im nächsten bestehen.</li>
 <li><strong>Iterieren oder abschließen</strong> – Die Befehlsausgabe wird dem Aktivitätsfeld und der nächsten Modellrunde hinzugefügt, bis die Aufgabe abgeschlossen, blockiert oder abgebrochen wird oder das Rundenlimit erreicht ist (maximal 8 Runden).</li>
 </ol>
 <h3 id="passende-aufgaben">Passende Aufgaben<a class="headerlink" href="#passende-aufgaben" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Überprüfen von Dateien, Verzeichnissen, Paketstatus, Protokollen, Dienststatus und Systemkonfiguration</li>
-<li>Erstellen oder Ändern von Skripten und Konfigurationsdateien, wenn die Aufgabe dies erfordert</li>
+<li>Erstellen oder Ändern von Skripten und Konfigurationsdateien, wenn die Aufgabe dies verlangt</li>
 <li>Ausführen von Tests, Syntaxprüfungen, Linters oder schreibgeschützten Diagnosebefehlen</li>
 <li>Zusammenfassung der Befehlsausgabe und Erläuterung der Ergebnisse</li>
 <li>Planung mehrstufiger betrieblicher Änderungen vor der Implementierung</li>
@@ -2676,8 +2676,10 @@
 <h3 id="panel-funktionen">Panel-Funktionen<a class="headerlink" href="#panel-funktionen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Ausführungsregisterkarten</strong> – Mehrere gleichzeitige Ausführungen werden als schließbare Registerkarten angezeigt. Klicken Sie auf eine Registerkarte, um sie auszuwählen. Nur der Lauf der ausgewählten Registerkarte wird durch Laufsteuerungstasten und -schaltflächen gesteuert. Bis zu 5 gleichzeitige Läufe pro Split.</li>
-<li><strong>Steuerelemente</strong> – Jeder Lauf verfügt über Schaltflächen zum Neuladen, Anhalten/Fortsetzen, Abbrechen und Kopier-/Snippet-Aktionen pro Zeile.</li>
+<li><strong>Steuerelemente</strong> – Jeder Lauf verfügt über Schaltflächen zum Neuladen, Anhalten/Fortsetzen, Abbrechen und Kopier-/Snippet-Aktionen pro Zeile. Mit der Schaltfläche „Neu laden“ wird der Befehl mit dem <strong>aktuell aktiven</strong> AI-Profil erneut ausgeführt, sodass der Profilwechsel zwischen den Ausführungen bei der Wiederholung wirksam wird.</li>
 <li><strong>Details</strong> – Das Panel zeigt die Benutzeraufforderung in einem zweizeiligen scrollbaren Feld, Agentenmeldungen, Lese-/Ausführungsaktionen, Aufgabenzeitpunkt, gemeldete Token-Nutzung, semantische Aktivitätsmarkierungen und ausblendbare Details.</li>
+<li><strong>AI-Profilzeile</strong> – Jedes Laufprotokoll beginnt mit einem <code>AI profile: &lt;name&gt; (&lt;model&gt;)</code>-Eintrag, sodass das Protokoll aufzeichnet, welches Profil und welches Modell den Lauf erzeugt hat.</li>
+<li><strong>Modellbegründung</strong> – Durch Erweitern einer 💭-Denkzeile wird die vollständige Begründung des Modells angezeigt, wenn der Anbieter sie verfügbar macht (anthropisches erweitertes Denken, wenn der Begründungsaufwand des Profils aktiviert ist, OpenAI-kompatibles <code>reasoning_content</code>, LM Studio-Begründungsausgabe oder <code>&lt;think&gt;</code>-Blöcke von lokalen CLI-Modellen). Modelle ohne offengelegte Begründung behalten die kurze Entscheidungszusammenfassung bei.</li>
 <li><strong>Statusleiste</strong> – Wenn das Bedienfeld minimiert ist, wird eine kompakte Statusleiste mit der Startaufforderung, dem Status, den Schaltflächen „Pause/Abbrechen“ und der Schaltfläche „Erweitern“ angezeigt. Während der Agent arbeitet, wird ein Spinner angezeigt. Eine fettgedruckte ✋-Markierung signalisiert, wenn eine Benutzereingabe erforderlich ist.</li>
 <li><strong>Reduziert halten</strong> – Verwenden Sie <strong>Reduziert halten</strong>, damit das Panel minimiert startet und minimiert bleibt, wenn neue Aktivitäten oder Eingabeaufforderungen eintreffen. Sie können weiterhin manuell erweitern.</li>
 <li><strong>Größenänderung</strong> – Ziehen Sie den Größenänderungsgriff, um die Panelhöhe zu ändern. Aktivieren Sie <strong>Größe merken</strong>, um Höhe und Schriftgröße bei Anwendungsneustarts beizubehalten.</li>
@@ -2791,7 +2793,7 @@
 <h3 id="verzeichnisverfolgung">Verzeichnisverfolgung<a class="headerlink" href="#verzeichnisverfolgung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Aktives Verzeichnis</strong> – Terminalverknüpfungen verwenden das von KorTTY verfolgte aktuelle Remote-Verzeichnis. Befehle und generierte Dateien werden relativ zu diesem Verzeichnis ausgeführt.</li>
-<li><strong>Verzeichnisverlust</strong> – Wenn ein nachverfolgtes Verzeichnis nicht mehr vorhanden ist, versucht KorTTY die Prüfung erneut aus dem SSH-Standardverzeichnis und meldet das Problem.</li>
+<li><strong>Verzeichnisverlust</strong> – Wenn ein verfolgtes Verzeichnis nicht mehr vorhanden ist, wiederholt KorTTY die Prüfung vom SSH-Standardverzeichnis aus und meldet das Problem.</li>
 </ul>
 <h3 id="tippen-wahrend-der-ausfuhrung">Tippen während der Ausführung<a class="headerlink" href="#tippen-wahrend-der-ausfuhrung" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2809,15 +2811,15 @@
 <li><strong>Ein Reparaturversuch</strong> – Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert KorTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.</li>
 </ul>
 <h2 id="workflow-skript-generieren">Workflow-Skript generieren<a class="headerlink" href="#workflow-skript-generieren" title="Permanent link">&para;</a></h2>
-<p>Nachdem die Ausführung eines fertigen Agenten erfolgreich abgeschlossen wurde, wandelt eine Schaltfläche <strong>Workflow</strong> die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, <strong>Windows-CMD</strong>-Batch oder <strong>AppleScript</strong>) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit) um.</p>
+<p>Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine <strong>Workflow</strong>-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, <strong>Windows-CMD</strong>-Batch oder <strong>AppleScript</strong>) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).</p>
 <h3 id="funktionen-zur-skriptgenerierung">Funktionen zur Skriptgenerierung<a class="headerlink" href="#funktionen-zur-skriptgenerierung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Passende KI-Fähigkeiten automatisch laden</strong> – Fähigkeiten wie Sprachqualitätsrichtlinien für die Zielsprache werden automatisch einbezogen.</li>
-<li><strong>Acht Zielsprachen</strong> – Bash, Python, Perl, Ruby, PowerShell, Ansible sowie <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch – <code>@echo off</code>, <code>REM</code>-Header, <code>errorlevel</code>-Prüfungen) und <strong>AppleScript</strong> (<code>.applescript</code> – <code>osascript</code>-Shebang, <code>--</code>-Kommentare, <code>try</code>/<code>on error</code>).</li>
+<li><strong>Acht Zielsprachen</strong> – Bash, Python, Perl, Ruby, PowerShell, Ansible, plus <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch – <code>@echo off</code>, <code>REM</code>-Header, <code>errorlevel</code>-Prüfungen) und <strong>AppleScript</strong> (<code>.applescript</code> – <code>osascript</code>-Shebang, <code>--</code>-Kommentare, <code>try</code>/<code>on error</code>).</li>
 <li><strong>Mehrere Sprachvarianten</strong> – Generieren Sie mehrere Sprachvarianten und Vorschläge als Inline-Registerkarten im Workflow-Dialogfeld.</li>
-<li><strong>Anpassbare Schriftgröße</strong> – Jeder Editor für generierte Skripte verfügt über <strong>A−</strong>- / <strong>A+</strong>-Schaltflächen und unterstützt <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad (Cmd auf macOS); die gewählte Größe wird über Sitzungen hinweg gespeichert.</li>
+<li><strong>Anpassbare Schriftgröße</strong> – Jeder Editor für generierte Skripte verfügt über <strong>A−</strong> / <strong>A+</strong>-Tasten und unterstützt <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad (Cmd unter macOS); Die gewählte Größe wird sitzungsübergreifend gespeichert.</li>
 <li><strong>Header-Vorlagen</strong> – Verwenden Sie wiederverwendbare Header aus der festen, nicht löschbaren Snippet-Kategorie <strong>Script-Header</strong>.</li>
-<li><strong>PlantUML-Diagramm</strong> – Fügen Sie optional ein PlantUML-Diagramm hinzu, das die Skriptlogik darstellt. Während das Diagramm generiert wird, erscheint ein Arbeits-Spinner.</li>
+<li><strong>PlantUML-Diagramm</strong> – Fügen Sie optional ein PlantUML-Diagramm hinzu, das die Skriptlogik darstellt. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.</li>
 <li><strong>Snippet Manager</strong> – Speichern Sie das generierte Skript im Snippet Manager mit einem kurzen, automatisch generierten Namen und der richtigen Dateierweiterung. Skripte werden nach vollständigem Namen einschließlich Erweiterung dedupliziert.</li>
 <li><strong>Workflow-Tagging</strong> – Das Snippet ist zur einfachen Filterung mit <code>workflow</code> getaggt.</li>
 <li><strong>Betriebssystemerkennung</strong> – Die Spalte <strong>System</strong> (Betriebssystem) wird automatisch vom untersuchten Betriebssystem des Agenten (jede Linux-Distribution → Linux) festgelegt.</li>

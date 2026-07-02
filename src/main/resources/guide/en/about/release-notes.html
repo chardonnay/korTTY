@@ -1784,6 +1784,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ai-chat-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI chat &amp; agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#workflow-script-generator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2043,6 +2054,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ai-chat-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI chat &amp; agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#workflow-script-generator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2280,6 +2302,35 @@ shown in the footer.</p>
 <li><strong>Ctrl+D closes a local cmd.exe/PowerShell tab</strong> — those Windows shells do not
   exit on EOF, so Ctrl+D had no effect there. For bash-family shells
   (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, Ctrl+D keeps its normal EOF meaning.</li>
+</ul>
+<h3 id="ai-chat-agent">AI chat &amp; agent<a class="headerlink" href="#ai-chat-agent" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Images, diagrams, and math render in AI chats</strong> — AI answers containing an
+  SVG document, a base64 raster image (<code>data:image/png;base64,…</code> — PNG, JPEG,
+  GIF, BMP), a <code>```plantuml</code> block, a <code>```mermaid</code> block, or LaTeX math
+  (<code>```latex</code>/<code>```tex</code>/<code>```math</code> blocks and <code>$$…$$</code> in prose) are shown as
+  images instead of raw markup, each with a <strong>Show code / Show image</strong> toggle and
+  copy button. Mermaid and MathJax are bundled (no network); PlantUML uses the
+  local toolchain (<code>java</code> + Graphviz <code>dot</code>); SVG output is sanitized and shown
+  with JavaScript disabled.</li>
+<li><strong>Full model reasoning in agent thinking rows</strong> — expanding a 💭 row in the
+  agent activity panel now shows the model's actual reasoning when the provider
+  exposes it (Anthropic extended thinking per the profile's Reasoning effort,
+  OpenAI-compatible <code>reasoning_content</code>, LM Studio reasoning output, <code>&lt;think&gt;</code>
+  blocks from local CLI models), falling back to the decision summary otherwise.</li>
+<li><strong>Run log records the AI profile</strong> — every agent run starts with an
+  <code>AI profile: &lt;name&gt; (&lt;model&gt;)</code> activity row.</li>
+<li><strong>Reload uses the currently active profile</strong> — the activity panel's reload
+  button re-runs the command with the profile that is active now, not the one the
+  original run was started with.</li>
+<li><strong>Agent Ask includes the terminal selection</strong> — starting <strong>AI → Ask AI Agent</strong>
+  from the right-click menu with text selected sends the selection as context, so
+  the question is answered about the selected output or script.</li>
+<li><strong>Concrete models for cloud profiles</strong> — the model selector is pre-filled with
+  common model names for known cloud providers (offline, no API key needed), the
+  refresh button merges the endpoint's live model list, clicking a model in the
+  dropdown now reliably applies it, and the unusable <strong>Auto</strong> option is no longer
+  offered for cloud endpoints (with a clearer error when no model is selected).</li>
 </ul>
 <h3 id="workflow-script-generator">Workflow Script Generator<a class="headerlink" href="#workflow-script-generator" title="Permanent link">&para;</a></h3>
 <ul>

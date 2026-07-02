@@ -16,7 +16,7 @@ KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint 
 1. Open **Edit > Global Settings**.
 2. Go to **AI**.
 3. Create one or more AI profiles and enter the **API URL** for each profile you want to use. You can manage profiles in **Settings > AI** or in **Tools > AI Manager > Profiles**.
-4. Optionally enter **Model** and **API Key**. The editable model selector supports manual model names and, for local LM Studio endpoints, an **Auto** option plus the currently loaded local LLMs. The **API Key** is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.
+4. Optionally enter **Model** and **API Key**. The editable model selector supports manual model names; for known cloud providers (OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax) it is pre-filled with common model names, and for local LM Studio endpoints it offers an **Auto** option plus the currently loaded local LLMs. The **API Key** is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.
 5. Optionally configure **Max characters**, **Tokenizer**, **Token limit**, warning thresholds, token reset cycle, supported **Reasoning** effort, and **Internet access** per profile. korTTY exposes reasoning choices based on the configured API URL and model; profiles without a supported reasoning mode stay disabled.
 6. Click **Test AI Connection**.
 7. Optionally choose a **Default profile** for terminal AI actions and follow-up chats that do not explicitly select another profile.
@@ -38,18 +38,23 @@ The wizard guides you through:
 1. **Connection Type** - Choose local LM Studio or a cloud provider.
 2. **LM Studio Setup** - If local: pick a loaded LM Studio model from the list or use **Auto** mode.
 3. **Cloud Provider Setup** - If cloud: select the provider (Anthropic Claude API, OpenAI, or other OpenAI-compatible endpoint).
-4. **API Details** - Enter API Key, select or enter Model name, and optionally configure Reasoning effort (if the provider/model supports extended thinking).
+4. **API Details** - Enter API Key and select or enter the Model name — the model list is pre-filled with common models for the chosen provider, and **Load models** merges the endpoint's live model list on top. Optionally configure Reasoning effort (if the provider/model supports extended thinking).
 5. **Profile Name** - Enter a display name for the profile (e.g., "Claude Opus", "Local LM Studio").
 
 Native Anthropic (Claude) API support is included alongside existing OpenAI-compatible endpoints.
 
-## Local LM Studio model selection
+## Model selection
 
-For local LM Studio profiles, korTTY can discover currently loaded LLM model keys through LM Studio's `GET /api/v1/models` endpoint. The model selector in **Settings > AI** and **Tools > AI Manager > Profiles** is editable:
+The model selector in **Settings > AI** and **Tools > AI Manager > Profiles** is editable:
 
-* **Auto** keeps the profile in automatic mode.
+* For known cloud providers the dropdown is pre-filled with common model names for the configured endpoint, so a concrete model can be chosen without an API key. The refresh button next to the selector merges the endpoint's live `/v1/models` list on top when the API key is valid.
 * A listed model stores that model as the manual selection.
-* A typed model name is stored as a manual selection so other OpenAI-compatible endpoints still work.
+* A typed model name is stored as a manual selection so any OpenAI-compatible endpoint works.
+* **Auto** is offered only for local LM Studio endpoints, where korTTY can actually detect the loaded model. Cloud profiles need a concrete model; if none is selected, requests stop with an explicit "select a specific AI model" error.
+
+### Local LM Studio model selection
+
+For local LM Studio profiles, korTTY can discover currently loaded LLM model keys through LM Studio's `GET /api/v1/models` endpoint.
 
 Auto mode resolves the effective model immediately before connection tests, AI chat and follow-up requests, terminal AI actions, and Terminal AI Agent runs. If exactly one LLM is loaded, korTTY uses that model. If multiple LLMs are loaded, korTTY uses the saved preferred model only when that model is currently loaded. If no LLM is loaded, or multiple LLMs are loaded without a valid saved preference, korTTY stops the request with an explicit error instead of guessing.
 
@@ -144,11 +149,58 @@ When an AI Agent run uses one or more skills, the terminal-agent activity panel 
 * The toolbar lets you copy the conversation, save or rename the chat, share/export it to PDF/Markdown/plain text, retry the last request, close the tab, cancel running requests, and change the font size.
 * The response language defaults to the current GUI language. You can change the response language and the active AI profile per chat before sending a follow-up prompt.
 * Follow-up prompts in **Summarize** and **Solve Problem** continue as normal chat questions; they are not forced back into the original summarizing/problem-analysis prompt.
-* Detected code blocks get their own copy button and can also be saved directly into the Snippet Manager.
+* Detected code blocks get their own copy button and can also be saved directly into the Snippet Manager. Blocks that contain images, diagrams, or math render as images instead — see [Rendered images, diagrams, and math](#rendered-images-diagrams-and-math).
 * Rendered markdown tables can be copied as a whole table, a single column, or a single cell.
 * The chosen AI tab font size is stored globally and reused for future AI result tabs.
 * Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate.
 * If a saved chat references an AI profile that no longer exists, korTTY asks you to choose a replacement profile before you continue with follow-up prompts.
+
+### Rendered images, diagrams, and math
+
+AI answers that contain images, diagrams, or math formulas are rendered as images inside the chat instead of showing raw markup. This also applies to saved chats reopened from the AI Manager.
+
+| Content in the AI answer | Rendered as |
+|--------------------------|-------------|
+| ` ```svg ` / ` ```xml ` / ` ```html ` code block (or untagged block) containing an `<svg>` document | Inline vector image |
+| Markdown image link with a `data:image/png;base64,…` URI in the answer text, or a code block containing only such a data URI | Inline raster image (PNG, JPEG, GIF, BMP; up to 8 MB decoded) with a **copy image** button |
+| ` ```plantuml ` / ` ```puml ` code block, or an untagged `@startuml` block | Locally rendered PlantUML diagram |
+| ` ```mermaid ` code block | Mermaid diagram (bundled library, no network) |
+| ` ```latex ` / ` ```tex ` / ` ```math ` code block, or `$$ … $$` math in the answer text | Typeset formula (bundled MathJax, no network) |
+
+Every rendered block keeps a header with the usual copy button and a **Show code / Show image** toggle, so the underlying source stays one click away. While a PlantUML/Mermaid/math block is still rendering, the source remains visible; if rendering fails (for example a Mermaid syntax error), the block stays on the source view and the header shows the reason.
+
+Example prompts that produce rendered answers:
+
+```text
+Draw a simple house as an SVG image.
+Create a Mermaid flowchart of a typical login flow.
+Create a PlantUML sequence diagram for an SSH handshake.
+Explain the Pythagorean theorem and show the formula.
+```
+
+A Mermaid answer block like this renders as a flowchart:
+
+````text
+```mermaid
+graph TD;
+  Login-->Validate;
+  Validate-->|ok| Session;
+  Validate-->|fail| Error;
+```
+````
+
+And display math in the answer text renders as a typeset formula:
+
+```text
+$$a^2 + b^2 = c^2$$
+```
+
+!!! note "Rendering details and requirements"
+    * SVG and PlantUML output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.
+    * Mermaid runs with its `strict` security level from a locally bundled library; LaTeX is typeset by a locally bundled MathJax. Neither needs internet access.
+    * PlantUML rendering uses the local PlantUML toolchain: `java` and Graphviz `dot` must be on the `PATH`, and the PlantUML jar is downloaded to the user cache on first use (same requirements as snippet diagrams).
+    * Full LaTeX documents (`\documentclass`) intentionally stay code blocks; only formulas are typeset.
+    * Rendered images use a white canvas so diagrams and formulas with dark strokes stay readable on dark themes.
 
 ## AI Manager
 

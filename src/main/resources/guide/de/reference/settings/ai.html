@@ -2253,7 +2253,7 @@
 <tr>
 <td>Modell</td>
 <td>Dropdown/Text</td>
-<td>(editable; supports "Default" / "Auto")</td>
+<td>(bearbeitbar; „Standard“, kuratierte Vorschläge von Cloud-Anbietern plus live geladene Modelle; „Auto“ nur für lokale LM Studio-Endpunkte)</td>
 <td>—</td>
 <td>(Profilfeld <code>model</code>)</td>
 </tr>
@@ -2456,18 +2456,19 @@
 <li><strong>Keine</strong>: Argumentation explizit deaktivieren (<code>reasoning: "none"</code> senden).</li>
 <li><strong>Minimal</strong>: Leichte Argumentation; schnellste Ausführung.</li>
 <li><strong>Niedrig</strong>: Argumentation mit geringem Aufwand; Balance zwischen Geschwindigkeit und Tiefe.</li>
-<li><strong>Medium</strong>: Medium effort; angemessene Tiefe.</li>
+<li><strong>Mittel</strong>: Mittlerer Aufwand; angemessene Tiefe.</li>
 <li><strong>Hoch</strong>: Hoher Aufwand; gründlichere Begründung.</li>
 <li><strong>Extra hoch</strong>: Maximaler Argumentationsaufwand; am langsamsten, aber am umfassendsten.</li>
 </ul>
 <p>Nicht alle Modelle unterstützen alle Ebenen. Verwenden Sie die Schaltfläche <strong>Begründungsoptionen aktualisieren</strong>, um verfügbare Ebenen für das aktuelle Profil und Modell zu ermitteln.</p>
+<p>Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Argumentationsebene <strong>erweitertes Denken</strong> mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Die Argumentation des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.</p>
 <h3 id="token-kontingentverwaltung">Token-Kontingentverwaltung<a class="headerlink" href="#token-kontingentverwaltung" title="Permanent link">&para;</a></h3>
 <p>Jedes AI-Profil verwaltet ein Token-Nutzungskontingent mit den folgenden Kontrollen:</p>
 <ul>
 <li><strong>Tokenizer</strong>: Wählen Sie aus, welcher Tokenizer die Anzahl der Token schätzt – nützlich beim Wechsel zwischen OpenAI und anderen Anbietern. Optionen sind Estimate (generisch), cl100k_base (GPT-3.5/4), o200k_base (o1/o1-mini), p50k_base (Codex) und r50k_base (GPT-2).</li>
 <li><strong>Maximales Token-Limit</strong>: Legen Sie eine Ausgabenobergrenze fest (in Tausenden oder Millionen Token oder unbegrenzt). Die Anzahl der Token wird nach einem fortlaufenden Zeitplan zurückgesetzt.</li>
 <li><strong>Reset-Zeitraum</strong>: Anzahl der Tage zwischen Resets (1–3650), mit optionalem Ankerdatum für vorhersehbaren Reset-Zeitpunkt.</li>
-<li><strong>Warnschwellenwerte</strong>: Gelbe Warnung wird bei einem Prozentsatz des Grenzwerts ausgelöst; red warning at a higher percentage. Konfigurieren Sie beide als Ganzzahlen 0–100.</li>
+<li><strong>Warnschwellenwerte</strong>: Gelbe Warnung wird bei einem Prozentsatz des Grenzwerts ausgelöst; rote Warnung bei einem höheren Prozentsatz. Konfigurieren Sie beide als Ganzzahlen 0–100.</li>
 </ul>
 <p>Die Token-Nutzung wird als farbiger Balken und Zusammenfassung im Profileditor angezeigt, und die Profilliste zeigt den Token-Status inline an.</p>
 <h3 id="internetzugriffsmodi">Internetzugriffsmodi<a class="headerlink" href="#internetzugriffsmodi" title="Permanent link">&para;</a></h3>

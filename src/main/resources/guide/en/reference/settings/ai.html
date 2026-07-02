@@ -2253,7 +2253,7 @@
 <tr>
 <td>Model</td>
 <td>dropdown/text</td>
-<td>(editable; supports "Default" / "Auto")</td>
+<td>(editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints)</td>
 <td>—</td>
 <td>(profile <code>model</code> field)</td>
 </tr>
@@ -2461,6 +2461,7 @@
 <li><strong>Extra high</strong>: Maximum reasoning effort; slowest but most comprehensive.</li>
 </ul>
 <p>Not all models support all levels. Use the <strong>Refresh reasoning options</strong> button to detect available levels for the current profile and model.</p>
+<p>For the native Anthropic (Claude) endpoint, an enabled reasoning level requests <strong>extended thinking</strong> with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.</p>
 <h3 id="token-quota-management">Token Quota Management<a class="headerlink" href="#token-quota-management" title="Permanent link">&para;</a></h3>
 <p>Each AI profile maintains a token usage quota with the following controls:</p>
 <ul>
