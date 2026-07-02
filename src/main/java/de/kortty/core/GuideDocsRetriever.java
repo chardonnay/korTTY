@@ -480,10 +480,10 @@ public final class GuideDocsRetriever {
     }
 
     /**
-     * Strips at most one suffix (longest first) while at least 4 chars remain. After an English
-     * verb suffix the trailing doubled consonant is collapsed ("running" -> "runn" -> "run");
-     * German double consonants ("einstell") are kept. Consistency between query and index
-     * matters more than linguistic correctness — both sides use this exact stemmer.
+     * Suffix-stripping in at most two bounded passes. A single pass would strand inflected
+     * pairs on different stems ("sessions" -> "session" while "session" -> "sessio"; same for
+     * German "aktionen"/"aktion") — the second pass reunites them. Consistency between query
+     * and index matters more than linguistic correctness — both sides use this exact stemmer.
      */
     static String stem(String token) {
         // Short plural ("runs" -> "run", "tabs" -> "tab"); the generic rule below requires a
@@ -491,6 +491,23 @@ public final class GuideDocsRetriever {
         if (token.length() == 4 && token.endsWith("s") && !token.endsWith("ss")) {
             return token.substring(0, 3);
         }
+        String current = token;
+        for (int pass = 0; pass < 2; pass++) {
+            String stripped = stripOneSuffix(current);
+            if (stripped.equals(current)) {
+                break;
+            }
+            current = stripped;
+        }
+        return current;
+    }
+
+    /**
+     * Strips at most one suffix (longest first) while at least 4 chars remain. After an English
+     * verb suffix the trailing doubled consonant is collapsed ("running" -> "runn" -> "run");
+     * German double consonants ("einstell") are kept.
+     */
+    private static String stripOneSuffix(String token) {
         if (token.length() < 5) {
             return token;
         }

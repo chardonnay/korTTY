@@ -104,6 +104,31 @@ class GuideDocsRetrieverTest {
     }
 
     @Test
+    void singularAndPluralLandOnTheSameStem() {
+        // The bounded second stemming pass reunites '-n'-final nouns whose plural strips only
+        // the "s" ("sessions" -> "session") with the singular ("session" -> "sessio").
+        assertThat(GuideDocsRetriever.stem("sessions"))
+            .isEqualTo(GuideDocsRetriever.stem("session"));
+        assertThat(GuideDocsRetriever.stem("screens"))
+            .isEqualTo(GuideDocsRetriever.stem("screen"));
+        assertThat(GuideDocsRetriever.stem("connections"))
+            .isEqualTo(GuideDocsRetriever.stem("connection"));
+        assertThat(GuideDocsRetriever.stem("aktionen"))
+            .isEqualTo(GuideDocsRetriever.stem("aktion"));
+    }
+
+    @Test
+    void pluralPhrasedQuestionScoresLikeTheSingularOne() {
+        GuideDocsRetriever.RetrievalResult singular = GuideDocsRetriever.retrieve(
+            GuideSearchIndex.load("en"), null, "How do I split the screen?", BUDGET, MAX_EXCERPTS);
+        GuideDocsRetriever.RetrievalResult plural = GuideDocsRetriever.retrieve(
+            GuideSearchIndex.load("en"), null, "How do I split screens?", BUDGET, MAX_EXCERPTS);
+        assertWithMessage("plural query keeps most of the singular score; singular="
+            + singular.topScore() + " plural=" + plural.topScore())
+            .that(plural.topScore()).isAtLeast(singular.topScore() * 0.6);
+    }
+
+    @Test
     void truncationCutsAtASentenceBoundary() {
         String sentence = "This is a fairly long sentence about korTTY features. ";
         String text = sentence.repeat(80); // ~4400 chars

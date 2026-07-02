@@ -104,11 +104,17 @@ public final class GuideAskService {
             throw new AskException(FailureKind.NO_PROFILE, "No AI profile available");
         }
 
-        // Answering from bundled docs never needs web access. Force the internet mode off on a
-        // copy so a profile configured for Tavily/MCP search does not demand its API key (the
-        // factory derives the mode from the profile, not the passed config).
+        // Answering from bundled docs never needs web access. LM-Studio-MCP modes must survive
+        // on the copy because the factory routes those profiles to the native LM Studio service
+        // by mode — rerouting them to the OpenAI-compatible client would hit the incompatible
+        // /api/v1/chat schema. Their internet use is switched off at request time by the
+        // disabled() configuration passed below. Every other mode is forced off on the copy so
+        // a Tavily-style profile does not demand its API key.
         AiProfile askProfile = new AiProfile(profile);
-        askProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        if (askProfile.getInternetAccessMode() == null
+            || !askProfile.getInternetAccessMode().usesLmStudioMcp()) {
+            askProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        }
 
         int budget = contextBudget(askProfile);
         int maxExcerpts = budget <= LOCAL_CONTEXT_CHARS ? LOCAL_MAX_EXCERPTS : CLOUD_MAX_EXCERPTS;
