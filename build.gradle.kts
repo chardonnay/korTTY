@@ -619,8 +619,8 @@ tasks.register("prepareChatRenderResources") {
     group = "build"
     description = "Downloads the pinned mermaid/MathJax browser bundles for AI-chat diagram and math rendering."
     inputs.property("mermaidVersion", chatRenderMermaidVersion)
-    inputs.property("mathJaxVersion", chatRenderMathJaxVersion)
     inputs.property("mermaidSha256", chatRenderMermaidSha256)
+    inputs.property("mathJaxVersion", chatRenderMathJaxVersion)
     inputs.property("mathJaxSha256", chatRenderMathJaxSha256)
     outputs.dir(chatRenderGeneratedResourceDir)
     doLast {

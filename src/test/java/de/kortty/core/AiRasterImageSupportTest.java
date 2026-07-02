@@ -63,6 +63,36 @@ class AiRasterImageSupportTest {
     }
 
     @Test
+    void acceptsSaneDimensionsAndRejectsDecompressionBombs() {
+        byte[] tiny = Base64.getDecoder().decode(TINY_PNG_BASE64);
+        assertThat(AiRasterImageSupport.hasSaneDimensions(tiny)).isTrue();
+
+        // A valid PNG header declaring 100000x100000 (10 gigapixels) must be rejected
+        // before any decode is attempted.
+        assertThat(AiRasterImageSupport.hasSaneDimensions(pngHeaderWithDimensions(100_000, 100_000))).isFalse();
+
+        assertThat(AiRasterImageSupport.hasSaneDimensions(new byte[] {1, 2, 3})).isFalse();
+        assertThat(AiRasterImageSupport.hasSaneDimensions(null)).isFalse();
+    }
+
+    /** Builds a minimal PNG (signature + IHDR with valid CRC) declaring the given dimensions. */
+    private static byte[] pngHeaderWithDimensions(int width, int height) {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        out.writeBytes(new byte[] {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'});
+        byte[] ihdrType = {'I', 'H', 'D', 'R'};
+        java.nio.ByteBuffer ihdrData = java.nio.ByteBuffer.allocate(13);
+        ihdrData.putInt(width).putInt(height).put((byte) 8).put((byte) 6).put((byte) 0).put((byte) 0).put((byte) 0);
+        out.writeBytes(new byte[] {0, 0, 0, 13});
+        out.writeBytes(ihdrType);
+        out.writeBytes(ihdrData.array());
+        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        crc.update(ihdrType);
+        crc.update(ihdrData.array());
+        out.writeBytes(java.nio.ByteBuffer.allocate(4).putInt((int) crc.getValue()).array());
+        return out.toByteArray();
+    }
+
+    @Test
     void leavesUndecodableImageMarkdownInText() {
         String text = "Broken: ![x](data:image/png;base64,@@@) end";
 

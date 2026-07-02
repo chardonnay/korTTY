@@ -28,6 +28,13 @@ class AiChatDiagramSupportTest {
     }
 
     @Test
+    void normalizePlantUmlAppendsMissingEndMarker() {
+        // Truncated AI output: @startuml without the closing @enduml.
+        assertThat(AiChatDiagramSupport.normalizePlantUml("@startuml\nA -> B"))
+            .isEqualTo("@startuml\nA -> B\n@enduml");
+    }
+
+    @Test
     void detectsMermaidBlocksByLanguageTag() {
         assertThat(AiChatDiagramSupport.isMermaidBlock("mermaid")).isTrue();
         assertThat(AiChatDiagramSupport.isMermaidBlock("Mermaid")).isTrue();

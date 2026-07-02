@@ -19,7 +19,9 @@ public final class AiModelComboSupport {
 
     /**
      * True when "Auto" (detect the loaded model) is meaningful for this endpoint, i.e. a local
-     * LM Studio-style server whose loaded model can be queried.
+     * LM Studio-style server whose loaded model can be queried. Delegates to the factory's
+     * check so the picker agrees with what {@link AiServiceFactory#create} accepts at runtime
+     * (the factory normalizes URLs like {@code http://127.0.0.1:1234/v1} first).
      */
     public static boolean supportsAutoModel(String apiUrl) {
         return AiServiceFactory.canAutoResolveLocalModel(apiUrl);

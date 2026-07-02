@@ -37,9 +37,6 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -940,13 +937,15 @@ public class AiResultTab extends Tab {
     /** Shared PlantUML renderer; downloads its jar once into the user cache on first use. */
     private static final PlantUmlRenderService PLANT_UML_RENDERER = new PlantUmlRenderService();
 
-    /** Bounded executor for PlantUML diagram rendering to limit concurrent render jobs. */
-    private static final ExecutorService PLANT_UML_EXECUTOR = Executors.newFixedThreadPool(
-        2,
-        r -> {
-            Thread t = new Thread(r, "ai-chat-plantuml-render");
-            t.setDaemon(true);
-            return t;
+    /**
+     * Bounded pool for PlantUML renders: each render spawns a java subprocess, so a response
+     * with many diagram blocks must not fan out into unbounded concurrent workers.
+     */
+    private static final java.util.concurrent.ExecutorService PLANT_UML_RENDER_POOL =
+        java.util.concurrent.Executors.newFixedThreadPool(2, runnable -> {
+            Thread thread = new Thread(runnable, "ai-chat-plantuml-render");
+            thread.setDaemon(true);
+            return thread;
         });
 
     /**
@@ -954,18 +953,14 @@ public class AiResultTab extends Tab {
      * copy-image button. Falls back to a short notice when the bytes do not decode.
      */
     private VBox createRasterImageBlock(byte[] imageBytes) {
-        if (imageBytes == null || imageBytes.length > 50_000_000) {
+        // Header-only dimension probe rejects decompression bombs before the full decode.
+        if (!AiRasterImageSupport.hasSaneDimensions(imageBytes)) {
             Label broken = new Label(I18n.get("ai.result.image.error"));
             broken.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%); -fx-font-style: italic;");
             return new VBox(broken);
         }
         Image image = new Image(new java.io.ByteArrayInputStream(imageBytes));
         if (image.isError() || image.getWidth() <= 0) {
-            Label broken = new Label(I18n.get("ai.result.image.error"));
-            broken.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%); -fx-font-style: italic;");
-            return new VBox(broken);
-        }
-        if (image.getWidth() > 16384 || image.getHeight() > 16384) {
             Label broken = new Label(I18n.get("ai.result.image.error"));
             broken.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%); -fx-font-style: italic;");
             return new VBox(broken);
@@ -1025,7 +1020,7 @@ public class AiResultTab extends Tab {
         diagramBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
 
         String source = AiChatDiagramSupport.normalizePlantUml(code);
-        PLANT_UML_EXECUTOR.submit(() -> {
+        PLANT_UML_RENDER_POOL.submit(() -> {
             PlantUmlRenderService.RenderResult result = PLANT_UML_RENDERER.renderSvg(source);
             String svg = null;
             if (result.success()) {

@@ -233,7 +233,10 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
     }
 
     private static final Pattern THINK_BLOCK_PATTERN = Pattern.compile("(?is)<think\\b[^>]*>(.*?)</think\\s*>");
-    private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[ -/]*[@-~]");
+    // Mirrors the ANSI cleanup in sanitizeCliOutput: like there, the regexes embed the literal
+    // ESC/BEL control bytes (invisible in most editors; check with cat -v).
+    private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\\[[0-9;?]*[ -/]*[@-~]");
+    private static final Pattern ANSI_OSC_PATTERN = Pattern.compile("\\][^]*");
 
     /**
      * Pulls the reasoning out of {@code <think>...</think>} blocks that {@link #sanitizeCliOutput}
@@ -251,7 +254,8 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             if (block == null) {
                 continue;
             }
-            block = ANSI_CSI_PATTERN.matcher(block).replaceAll("").replace("\r", "").strip();
+            block = ANSI_CSI_PATTERN.matcher(block).replaceAll("");
+            block = ANSI_OSC_PATTERN.matcher(block).replaceAll("").replace("\r", "").strip();
             if (!block.isBlank()) {
                 if (reasoning.length() > 0) {
                     reasoning.append("\n\n");

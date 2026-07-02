@@ -1,7 +1,12 @@
 package de.kortty.core;
 
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,6 +24,12 @@ public final class AiRasterImageSupport {
 
     /** Upper bound for a decoded image payload (bytes). */
     static final int MAX_DECODED_BYTES = 8 * 1024 * 1024;
+
+    /**
+     * Upper bound for the decoded pixel count (~160 MB ARGB). Guards against decompression
+     * bombs: a tiny compressed payload may declare enormous dimensions in its header.
+     */
+    static final long MAX_PIXELS = 40_000_000L;
 
     private static final String DATA_URI_BODY = "data:image/(?:png|jpe?g|gif|bmp);base64,[A-Za-z0-9+/=\\s]+";
     private static final Pattern MARKDOWN_IMAGE = Pattern.compile("!\\[[^\\]]*\\]\\(\\s*(" + DATA_URI_BODY + ")\\)");
@@ -73,6 +84,34 @@ public final class AiRasterImageSupport {
             segments.add(new Segment(trailing, null));
         }
         return segments;
+    }
+
+    /**
+     * True when the image header declares plausible dimensions within the pixel budget. Reads
+     * only the header (no full decode), so a decompression bomb is rejected before any large
+     * allocation happens. Unreadable or dimensionless payloads are rejected as well.
+     */
+    public static boolean hasSaneDimensions(byte[] imageBytes) {
+        if (imageBytes == null || imageBytes.length == 0) {
+            return false;
+        }
+        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(imageBytes))) {
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) {
+                return false;
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(input, true, true);
+                long width = reader.getWidth(0);
+                long height = reader.getHeight(0);
+                return width > 0 && height > 0 && width * height <= MAX_PIXELS;
+            } finally {
+                reader.dispose();
+            }
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     /**

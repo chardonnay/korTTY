@@ -14,6 +14,7 @@ import static com.google.common.truth.Truth.assertThat;
 class LocalCliAiServiceTest {
 
     private static final String ESC = String.valueOf((char) 27);
+    private static final String BEL = String.valueOf((char) 7);
 
     @Test
     void executesCliAndReturnsStdout() throws Exception {
@@ -192,6 +193,18 @@ class LocalCliAiServiceTest {
     void extractThinkReasoningReturnsNullWhenNoBlockPresent() {
         assertThat(LocalCliAiService.extractThinkReasoning("plain answer")).isNull();
         assertThat(LocalCliAiService.extractThinkReasoning(null)).isNull();
+    }
+
+    @Test
+    void extractThinkReasoningStripsAnsiSequencesIncludingEscByte() {
+        String raw = "<think>" + ESC + "[31mred" + ESC + "[0m thought " + ESC + "]0;title" + BEL + "tail"
+            + "\r</think>answer";
+
+        String reasoning = LocalCliAiService.extractThinkReasoning(raw);
+
+        assertThat(reasoning).isEqualTo("red thought tail");
+        assertThat(reasoning).doesNotContain(ESC);
+        assertThat(reasoning).doesNotContain(BEL);
     }
 
     @Test

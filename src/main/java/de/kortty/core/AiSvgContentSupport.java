@@ -21,12 +21,17 @@ public final class AiSvgContentSupport {
     private static final Pattern SCRIPT_ELEMENT = Pattern.compile("(?is)<script\\b.*?(?:</script\\s*>|$)");
     private static final Pattern EVENT_HANDLER_ATTRIBUTE = Pattern.compile(
         "(?is)\\s+on[a-z]+\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)");
-    private static final Pattern JAVASCRIPT_HREF = Pattern.compile(
-        "(?is)\\s+(?:xlink:)?href\\s*=\\s*([\"'])\\s*javascript:[^\"']*\\1");
-    private static final Pattern EXTERNAL_HREF = Pattern.compile(
-        "(?is)\\s+(?:xlink:)?href\\s*=\\s*([\"'])(?!#)[^\"']*\\1");
-    private static final Pattern CSS_URL = Pattern.compile(
-        "(?is)url\\s*\\(\\s*(?:[\"'](?!#)[^\"')]+[\"']|(?!#)[^\"')]+)\\s*\\)");
+    // Only same-document fragment references (href="#id") stay; anything else (http:, file:,
+    // javascript:, relative paths, data:) is removed so untrusted SVG cannot reference other
+    // resources at all.
+    private static final Pattern NON_FRAGMENT_HREF_QUOTED = Pattern.compile(
+        "(?is)\\s+(?:xlink:)?href\\s*=\\s*([\"'])\\s*(?!#)[^\"']*\\1");
+    private static final Pattern NON_FRAGMENT_HREF_UNQUOTED = Pattern.compile(
+        "(?is)\\s+(?:xlink:)?href\\s*=\\s*(?![\"'#])[^\\s>]+");
+    // CSS url(...) references (style attributes/<style> blocks) that do not target a fragment.
+    // Attribute values like fill="url(#gradient)" are fragment references and stay intact.
+    private static final Pattern NON_FRAGMENT_CSS_URL = Pattern.compile(
+        "(?is)url\\(\\s*([\"']?)\\s*(?!#)[^)]*\\)");
     private static final Pattern VIEW_BOX = Pattern.compile(
         "(?is)<svg\\b[^>]*\\bviewBox\\s*=\\s*[\"']\\s*[-0-9.]+[\\s,]+[-0-9.]+[\\s,]+([0-9.]+)[\\s,]+([0-9.]+)\\s*[\"']");
     private static final Pattern HEIGHT_ATTRIBUTE = Pattern.compile(
@@ -53,8 +58,10 @@ public final class AiSvgContentSupport {
     }
 
     /**
-     * Removes scripts, event-handler attributes and {@code javascript:} links from an SVG
-     * document. Display additionally runs with JavaScript disabled; this is defense in depth.
+     * Removes scripts, event-handler attributes and every non-fragment resource reference
+     * (hrefs and CSS {@code url(...)} that are not {@code #fragment} targets) from an SVG
+     * document, so untrusted SVG can neither execute code nor fetch remote/local resources.
+     * Display additionally runs with JavaScript disabled; this is defense in depth.
      */
     public static String sanitizeSvg(String svg) {
         if (svg == null) {
@@ -62,9 +69,9 @@ public final class AiSvgContentSupport {
         }
         String sanitized = SCRIPT_ELEMENT.matcher(svg).replaceAll("");
         sanitized = EVENT_HANDLER_ATTRIBUTE.matcher(sanitized).replaceAll("");
-        sanitized = JAVASCRIPT_HREF.matcher(sanitized).replaceAll("");
-        sanitized = EXTERNAL_HREF.matcher(sanitized).replaceAll("");
-        sanitized = CSS_URL.matcher(sanitized).replaceAll("");
+        sanitized = NON_FRAGMENT_HREF_QUOTED.matcher(sanitized).replaceAll("");
+        sanitized = NON_FRAGMENT_HREF_UNQUOTED.matcher(sanitized).replaceAll("");
+        sanitized = NON_FRAGMENT_CSS_URL.matcher(sanitized).replaceAll("none");
         return sanitized;
     }
 

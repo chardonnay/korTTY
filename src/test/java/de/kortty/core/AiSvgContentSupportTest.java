@@ -54,6 +54,25 @@ class AiSvgContentSupportTest {
     }
 
     @Test
+    void sanitizeStripsExternalResourceReferencesButKeepsFragments() {
+        String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\">"
+            + "<defs><linearGradient id=\"g\"/></defs>"
+            + "<image href=\"http://evil.example/leak.png\" width=\"5\" height=\"5\"/>"
+            + "<image href=relative.png width=\"5\" height=\"5\"/>"
+            + "<use xlink:href=\"#g\"/>"
+            + "<rect fill=\"url(#g)\" style=\"background:url(http://evil.example/x.png)\" width=\"10\" height=\"10\"/>"
+            + "</svg>";
+
+        String sanitized = AiSvgContentSupport.sanitizeSvg(svg);
+
+        assertThat(sanitized).doesNotContain("http://evil.example");
+        assertThat(sanitized).doesNotContain("relative.png");
+        // Same-document fragment references (gradients, <use>) must survive.
+        assertThat(sanitized).contains("xlink:href=\"#g\"");
+        assertThat(sanitized).contains("fill=\"url(#g)\"");
+    }
+
+    @Test
     void buildSvgHtmlEmbedsTheDocumentWithScalingStyles() {
         String html = AiSvgContentSupport.buildSvgHtml(SIMPLE_SVG);
 

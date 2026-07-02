@@ -73,14 +73,16 @@ public final class AiChatDiagramSupport {
 
     /**
      * Ensures the PlantUML source carries the {@code @startuml}/{@code @enduml} frame the
-     * renderer requires; AI responses sometimes omit it inside a ```plantuml fence.
+     * renderer requires; AI responses sometimes omit it (entirely, or just the truncated end
+     * marker) inside a ```plantuml fence. Other {@code @start...} dialects pass through
+     * untouched, since their end markers differ per dialect.
      */
     public static String normalizePlantUml(String content) {
         String source = content != null ? content.strip() : "";
+        if (source.startsWith("@startuml")) {
+            return source.endsWith("@enduml") ? source : source + "\n@enduml";
+        }
         if (source.startsWith("@start")) {
-            if (!source.contains("@end")) {
-                return source + "\n@enduml";
-            }
             return source;
         }
         return "@startuml\n" + source + "\n@enduml";

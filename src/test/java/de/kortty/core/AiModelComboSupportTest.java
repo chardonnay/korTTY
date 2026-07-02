@@ -25,6 +25,15 @@ class AiModelComboSupportTest {
     }
 
     @Test
+    void autoDetectionNormalizesLocalUrlsLikeTheServiceFactory() {
+        // The factory normalizes these before checking; the picker must agree with it.
+        assertThat(AiModelComboSupport.supportsAutoModel("http://127.0.0.1:1234/v1")).isTrue();
+        assertThat(AiModelComboSupport.supportsAutoModel("http://localhost:1234/v1/chat/completions")).isTrue();
+        assertThat(AiModelComboSupport.supportsAutoModel(null)).isFalse();
+        assertThat(AiModelComboSupport.supportsAutoModel("https://api.openai.com/v1")).isFalse();
+    }
+
+    @Test
     void mergesLiveModelsAndCurrentValueWithoutDuplicates() {
         String url = "https://api.openai.com/v1/chat/completions";
         List<String> items = AiModelComboSupport.buildModelItems(
