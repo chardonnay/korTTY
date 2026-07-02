@@ -233,7 +233,7 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
     }
 
     private static final Pattern THINK_BLOCK_PATTERN = Pattern.compile("(?is)<think\\b[^>]*>(.*?)</think\\s*>");
-    private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\\[[0-9;?]*[ -/]*[@-~]");
+    private static final Pattern ANSI_CSI_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[ -/]*[@-~]");
 
     /**
      * Pulls the reasoning out of {@code <think>...</think>} blocks that {@link #sanitizeCliOutput}

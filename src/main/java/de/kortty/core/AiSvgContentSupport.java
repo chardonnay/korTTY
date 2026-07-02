@@ -23,6 +23,10 @@ public final class AiSvgContentSupport {
         "(?is)\\s+on[a-z]+\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)");
     private static final Pattern JAVASCRIPT_HREF = Pattern.compile(
         "(?is)\\s+(?:xlink:)?href\\s*=\\s*([\"'])\\s*javascript:[^\"']*\\1");
+    private static final Pattern EXTERNAL_HREF = Pattern.compile(
+        "(?is)\\s+(?:xlink:)?href\\s*=\\s*([\"'])(?!#)[^\"']*\\1");
+    private static final Pattern CSS_URL = Pattern.compile(
+        "(?is)url\\s*\\(\\s*(?:[\"'](?!#)[^\"')]+[\"']|(?!#)[^\"')]+)\\s*\\)");
     private static final Pattern VIEW_BOX = Pattern.compile(
         "(?is)<svg\\b[^>]*\\bviewBox\\s*=\\s*[\"']\\s*[-0-9.]+[\\s,]+[-0-9.]+[\\s,]+([0-9.]+)[\\s,]+([0-9.]+)\\s*[\"']");
     private static final Pattern HEIGHT_ATTRIBUTE = Pattern.compile(
@@ -59,6 +63,8 @@ public final class AiSvgContentSupport {
         String sanitized = SCRIPT_ELEMENT.matcher(svg).replaceAll("");
         sanitized = EVENT_HANDLER_ATTRIBUTE.matcher(sanitized).replaceAll("");
         sanitized = JAVASCRIPT_HREF.matcher(sanitized).replaceAll("");
+        sanitized = EXTERNAL_HREF.matcher(sanitized).replaceAll("");
+        sanitized = CSS_URL.matcher(sanitized).replaceAll("");
         return sanitized;
     }
 

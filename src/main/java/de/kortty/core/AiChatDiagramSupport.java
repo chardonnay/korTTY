@@ -78,6 +78,9 @@ public final class AiChatDiagramSupport {
     public static String normalizePlantUml(String content) {
         String source = content != null ? content.strip() : "";
         if (source.startsWith("@start")) {
+            if (!source.contains("@end")) {
+                return source + "\n@enduml";
+            }
             return source;
         }
         return "@startuml\n" + source + "\n@enduml";

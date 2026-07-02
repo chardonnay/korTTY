@@ -22,7 +22,7 @@ public final class AiModelComboSupport {
      * LM Studio-style server whose loaded model can be queried.
      */
     public static boolean supportsAutoModel(String apiUrl) {
-        return apiUrl != null && LocalLmModelResolver.canResolve(apiUrl);
+        return AiServiceFactory.canAutoResolveLocalModel(apiUrl);
     }
 
     /**
