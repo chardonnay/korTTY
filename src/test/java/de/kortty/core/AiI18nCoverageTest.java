@@ -477,7 +477,17 @@ class AiI18nCoverageTest {
         "ai.workflow.diagram.generating",
         "ai.workflow.suggestions",
         "ai.workflow.alsoLanguages",
-        "ai.workflow.alsoLanguages.tooltip");
+        "ai.workflow.alsoLanguages.tooltip",
+        "guide.ask.toggle",
+        "guide.ask.placeholder",
+        "guide.ask.ask",
+        "guide.ask.cancel",
+        "guide.ask.working",
+        "guide.ask.sources",
+        "guide.ask.notFound",
+        "guide.ask.failed",
+        "guide.ask.vaultLocked",
+        "guide.ask.unavailable");
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\d+}");
 

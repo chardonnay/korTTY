@@ -8,9 +8,14 @@ import javafx.animation.Animation;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
@@ -49,6 +54,8 @@ public final class GuideViewer {
     private final KorTTYApplication app;
     private final Stage stage = new Stage();
     private final WebView webView = new WebView();
+    private final SplitPane splitPane = new SplitPane();
+    private final GuideAskPanel askPanel;
     private final PauseTransition geometrySaveDelay = new PauseTransition(Duration.millis(500));
 
     private boolean disposed;
@@ -65,7 +72,18 @@ public final class GuideViewer {
         WebEngine engine = webView.getEngine();
         installExternalLinkHandler(engine);
 
-        BorderPane root = new BorderPane(webView);
+        askPanel = new GuideAskPanel(app, resolveGuideLanguage(), this::navigateToLocation);
+        splitPane.getItems().add(webView);
+
+        ToggleButton askToggle = new ToggleButton(I18n.get("guide.ask.toggle"));
+        askToggle.setOnAction(event -> toggleAskPanel(askToggle.isSelected()));
+        HBox toolbar = new HBox(askToggle);
+        toolbar.setAlignment(Pos.CENTER_RIGHT);
+        toolbar.setPadding(new Insets(6));
+        toolbar.setStyle("-fx-background-color: #07111d;");
+
+        BorderPane root = new BorderPane(splitPane);
+        root.setTop(toolbar);
         Scene scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT);
         scene.setFill(Color.web("#07111d"));
 
@@ -125,6 +143,62 @@ public final class GuideViewer {
         } catch (RuntimeException e) {
             return "en";
         }
+    }
+
+    /** Shows or hides the "ask the manual" AI side panel next to the guide. */
+    private void toggleAskPanel(boolean show) {
+        if (show) {
+            if (!splitPane.getItems().contains(askPanel)) {
+                splitPane.getItems().add(askPanel);
+                splitPane.setDividerPositions(0.66);
+            }
+            askPanel.focusQuestionField();
+        } else {
+            splitPane.getItems().remove(askPanel);
+        }
+    }
+
+    /**
+     * Navigates the main guide WebView to a documentation location ({@code page.html#anchor})
+     * quoted verbatim from the bundled search index. Same-page anchor jumps go through
+     * {@code window.location.hash} because a plain {@code load()} with only a fragment change
+     * does not re-scroll reliably in WebKit.
+     */
+    private void navigateToLocation(String location) {
+        if (disposed || location == null || location.isBlank()) {
+            return;
+        }
+        String path = location;
+        String anchor = null;
+        int hash = location.indexOf('#');
+        if (hash >= 0) {
+            path = location.substring(0, hash);
+            anchor = location.substring(hash + 1);
+        }
+        String lang = resolveGuideLanguage();
+        URL page = GuideViewer.class.getResource("/guide/" + lang + "/" + path);
+        if (page == null && !"en".equals(lang)) {
+            page = GuideViewer.class.getResource("/guide/en/" + path);
+        }
+        if (page == null) {
+            logger.warn("Guide citation points to a missing page: {}", location);
+            return;
+        }
+        WebEngine engine = webView.getEngine();
+        String pageUrl = page.toExternalForm();
+        String target = anchor != null && !anchor.isBlank() ? pageUrl + "#" + anchor : pageUrl;
+        String current = engine.getLocation();
+        if (current != null && current.startsWith(pageUrl)) {
+            String safeAnchor = anchor != null ? anchor.replaceAll("[^A-Za-z0-9._-]", "") : "";
+            try {
+                engine.executeScript("window.location.hash='" + safeAnchor + "'");
+            } catch (RuntimeException e) {
+                logger.debug("Guide anchor navigation failed for {}", location, e);
+            }
+        } else {
+            engine.load(target);
+        }
+        lastInternalLocation = target;
     }
 
     /**
@@ -280,6 +354,7 @@ public final class GuideViewer {
         if (geometrySavePending) {
             saveGeometry();
         }
+        askPanel.dispose();
         try {
             // Drop the page so the native WebKit context is released promptly.
             webView.getEngine().loadContent("");

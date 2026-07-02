@@ -1626,6 +1626,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#fragen-sie-nach-der-anleitung-ai-dokumentensuche" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fragen Sie nach der Anleitung (AI-Dokumentensuche)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ki-agent-und-ki-planung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2260,6 +2271,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#fragen-sie-nach-der-anleitung-ai-dokumentensuche" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fragen Sie nach der Anleitung (AI-Dokumentensuche)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ki-agent-und-ki-planung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2632,6 +2654,22 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <li><strong>Gespeicherte Chats</strong> – Öffnen, umbenennen, aktualisieren oder löschen Sie zuvor gespeicherte KI-Konversationen.</li>
 </ul>
 <p>Verwenden Sie <strong>Einstellungen &gt; AI</strong> für die globalen Standardeinstellungen und Verhaltensänderungen und <strong>AI Manager</strong> für die tägliche Profil-/Chatverwaltung.</p>
+<h2 id="fragen-sie-nach-der-anleitung-ai-dokumentensuche">Fragen Sie nach der Anleitung (AI-Dokumentensuche)<a class="headerlink" href="#fragen-sie-nach-der-anleitung-ai-dokumentensuche" title="Permanent link">&para;</a></h2>
+<p>Das integrierte Anleitung (<strong>Hilfe &gt; Anleitung</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) enthält eine KI-gestützte Suche. Schalten Sie <strong>KI-Suche</strong> in der Symbolleiste des manuellen Fensters ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel <em>„Wie führe ich den KI-Agenten im Terminalfenster aus?“</em> – und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
+<p>So funktioniert es:</p>
+<ul>
+<li>korTTY wählt die relevantesten Abschnitte aus dem gebündelten Offline-Anleitung aus (keine Einbettungen, kein externer Suchdienst) und sendet nur diese Auszüge zusammen mit Ihrer Frage an Ihr <strong>Standard-KI-Profil</strong>.</li>
+<li>Die Antwort wird <strong>ausschließlich aus der Anleitunginhalt</strong> generiert und ist in der App-Sprache verfasst. Wenn die Anleitung die Frage nicht beantwortet, sagt der Assistent dies, anstatt zu raten.</li>
+<li>Antworten geben ihre Quellen an: Klicken Sie auf ein Inline-Zitat oder einen Eintrag in der Liste <strong>Quellen</strong>, um in der manuellen Ansicht direkt zur Seite und zum Abschnitt zu gelangen, auf die verwiesen wird.</li>
+<li>Wenn nichts im Anleitung mit der Frage übereinstimmt, antwortet korTTY lokal, ohne den KI-Endpunkt überhaupt zu kontaktieren.</li>
+</ul>
+<p>Anforderungen:</p>
+<ul>
+<li>Ein konfiguriertes AI-Profil (siehe <a href="#setup">Setup</a>); Es wird das Standardprofil verwendet.</li>
+<li>Ein entsperrter Master-Passwort-Tresor, wenn das Profil einen verschlüsselten API-Schlüssel speichert.</li>
+</ul>
+<p>!!! Warnung „Datensicherheit“
+Der Fragetext und die ausgewählten manuellen Auszüge werden an den konfigurierten KI-Endpunkt übermittelt. Der Inhalt der Anleitungs selbst ist eine öffentliche Dokumentation, aber Ihre Frage ist Freitext – vermeiden Sie das Einfügen von Geheimnissen oder verwenden Sie einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong>. Bei manuellen Fragen sind die Internetzugriffsmodi immer deaktiviert.</p>
 <h2 id="ki-agent-und-ki-planung">KI-Agent und KI-Planung<a class="headerlink" href="#ki-agent-und-ki-planung" title="Permanent link">&para;</a></h2>
 <p>korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.</p>
 <p>!!! Hinweis „SSH und lokale Shells“

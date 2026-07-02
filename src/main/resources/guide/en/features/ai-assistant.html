@@ -1626,6 +1626,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ask-the-manual-ai-docs-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ask the manual (AI docs search)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ai-agent-and-ai-planning" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2260,6 +2271,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ask-the-manual-ai-docs-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ask the manual (AI docs search)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ai-agent-and-ai-planning" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2638,6 +2660,24 @@
 <li><strong>Saved Chats</strong> - Open, rename, refresh, or delete previously saved AI conversations.</li>
 </ul>
 <p>Use <strong>Settings &gt; AI</strong> for the global defaults and behavior switches, and <strong>AI Manager</strong> for day-to-day profile/chat management.</p>
+<h2 id="ask-the-manual-ai-docs-search">Ask the manual (AI docs search)<a class="headerlink" href="#ask-the-manual-ai-docs-search" title="Permanent link">&para;</a></h2>
+<p>The built-in manual (<strong>Help &gt; Manual</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) includes an AI-powered search. Toggle <strong>AI search</strong> in the manual window's toolbar to open a side panel, type a question in natural language — for example <em>"How do I run the AI agent in the terminal window?"</em> — and press <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
+<p>How it works:</p>
+<ul>
+<li>korTTY selects the most relevant sections from the bundled offline manual (no embeddings, no external search service) and sends only those excerpts together with your question to your <strong>default AI profile</strong>.</li>
+<li>The answer is generated <strong>exclusively from the manual content</strong> and is written in the app language. If the manual does not cover the question, the assistant says so instead of guessing.</li>
+<li>Answers cite their sources: click an inline citation or an entry in the <strong>Sources</strong> list to jump the manual view directly to the referenced page and section.</li>
+<li>If nothing in the manual matches the question, korTTY answers locally without contacting the AI endpoint at all.</li>
+</ul>
+<p>Requirements:</p>
+<ul>
+<li>A configured AI profile (see <a href="#setup">Setup</a>); the default profile is used.</li>
+<li>An unlocked master-password vault when the profile stores an encrypted API key.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Data Security</p>
+<p>The question text and the selected manual excerpts are transmitted to the configured AI endpoint. The manual content itself is public documentation, but your question is free text — avoid pasting secrets into it, or use a trusted local endpoint such as <strong>LM Studio</strong>. Internet access modes are always disabled for manual questions.</p>
+</div>
 <h2 id="ai-agent-and-ai-planning">AI Agent and AI Planning<a class="headerlink" href="#ai-agent-and-ai-planning" title="Permanent link">&para;</a></h2>
 <p>korTTY supports agent-style workflows for an active terminal session.</p>
 <div class="admonition note">
