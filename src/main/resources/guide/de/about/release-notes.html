@@ -1088,6 +1088,8 @@
       
         
       
+        
+      
     
     
     
@@ -1448,6 +1450,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../features/ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Schwarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../features/security.html" class="md-nav__link">
         
   
@@ -1755,6 +1785,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#ki-schwarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Schwarm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aussehen" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2053,6 +2094,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#ki-schwarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Schwarm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aussehen" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2289,6 +2341,47 @@
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.</p>
 <h2 id="unveroffentlicht">Unveröffentlicht<a class="headerlink" href="#unveroffentlicht" title="Permanent link">&para;</a></h2>
+<h3 id="ki-schwarm">KI-Schwarm<a class="headerlink" href="#ki-schwarm" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Registerkarte „AI Swarm“</strong> (<strong>AI → AI Swarm...</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> / Cmd auf macOS) – Übertragung
+eine KI-Agent-Aufgabe für viele Server gleichzeitig; Jeder Server führt seinen eigenen Agenten aus und
+Die Antworten werden in einer einzigen Vergleichstabelle mit jeweils einer Zeile zusammengefasst
+Server und eine wörtliche Spalte <strong>"Fehler"</strong> für Abweichungen und Fehler.</li>
+<li><strong>Animierter Statusstreifen</strong> – eine Kugel pro Agent über den Konversationsshows
+in der Warteschlange/wird ausgeführt/wartet auf Eingaben/angehalten/erledigt/fehlgeschlagen/abgebrochen auf einen Blick,
+Flags <em>ungewöhnlich lange</em> Läufe über einen adaptiven Schwellenwert
+(<code>max(60 s, 2 × median of finished agents)</code>) und das Klicken auf eine Kugel springt zum
+Reihe des Agenten. Der Strip skaliert von 1 bis 50+ Servern.</li>
+<li><strong>Pro-Agent und schwarmweite Laufsteuerung</strong> – Anhalten, Fortsetzen, Neustarten und Stoppen
+entweder ein einzelner Agent (klicken Sie mit der rechten Maustaste auf seine Zeile) oder der gesamte Schwarm (Symbolleiste).
+Das Pausieren ist kooperativ und stoppt die abgelaufenen Timer. Neustarts ersetzen nur
+Die Antwort dieses Agenten.</li>
+<li><strong>Erweiterbare Live-Transkripte</strong> – Klicken Sie mit der linken Maustaste auf eine Agentenzeile, um sie live anzusehen
+Befehls-/Ausgabetranskript inline während der Ausführung.</li>
+<li><strong>Konversation kopieren und exportieren</strong> – Kopieren Sie die gesamte Schwarmkonversation in die
+in die Zwischenablage kopieren oder als einfachen Text, Markdown oder PDF exportieren; Gespeicherte Schwarm-Chats erhalten
+ihren eigenen <strong>Schwarm-Chats</strong>-Bereich im AI Manager.</li>
+<li><strong>Lesbare Ergebniszeilen</strong> – Durch Klicken auf eine Zeile der kombinierten Antworttabelle wird geöffnet
+es in einem separaten <strong>Zeilendetails</strong>-Fenster mit der Schriftgröße A−/A+ und
+In die Zwischenablage kopieren.</li>
+<li><strong>Ziele ohne offene Terminals</strong> – Schwarmläufe (KI und Skript) funktionieren jetzt
+gespeicherte Server ohne geöffnetes Terminal über Hintergrund-SSH-Sitzungen; kein Terminal
+Die Registerkarte wird geöffnet. Erfordert einen entsperrten Master-Passwort-Tresor.</li>
+<li><strong>Skripte ohne KI ausführen</strong> – Führen Sie ein Snippet Manager-Skript mit Parametern aus
+auf allen Schwarmzielen parallel (Base64-übertragen, einmalige Bestätigung),
+mit Live-Ausgabe pro Server und einer Exit-Code-/Ausgabeergebnistabelle pro Server.</li>
+<li><strong>Schedule Swarm Runs</strong> – ein neuer JobScheduler-Aktionstyp <strong>AI_SWARM</strong> mit
+<strong>Schwarm-Parallelität</strong> (1–16) und <strong>Schwarm-Lesefelder</strong>; die Schwarm-Registerkarte
+Mit der Schaltfläche „Planen…“ wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
+Die Ergebnisse gehen in das Journal <em>und</em> in einen gespeicherten Schwarm-Chat.</li>
+<li><strong>Sichtbarer Composer- und Tab-Statuspunkt</strong> – die Schwarmeingabe ist klar umrahmt
+dreizeiliges Feld und auf der Registerkarte wird ein farbiger Aktivitätspunkt angezeigt (läuft/wartet).
+für Eingabe / Pause / Fertig – der grüne Punkt bleibt bis zum nächsten Durchlauf bestehen).</li>
+<li><strong>Multi-Server-Workflow-Dialog überarbeitet</strong> – Syntax-hervorgehobene Skriptansicht, a
+sichtbare Arbeitsanimation mit Live-Ablaufzeit und Gesamtdauer, an
+Feld „Zusatzanweisungen“ mit einem deduplizierten Verlauf mit 10 Einträgen und
+<strong>In Snippets speichern</strong> mit einem passenden vorab ausgefüllten Skriptnamen.</li>
+</ul>
 <h3 id="aussehen">Aussehen<a class="headerlink" href="#aussehen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>App-Design <code>Normal</code> in <em>Einstellungen → Erscheinungsbild</em> in <code>Default</code></strong> umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.</li>

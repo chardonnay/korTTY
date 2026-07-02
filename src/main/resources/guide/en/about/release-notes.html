@@ -1088,6 +1088,8 @@
       
         
       
+        
+      
     
     
     
@@ -1448,6 +1450,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../features/ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../features/security.html" class="md-nav__link">
         
   
@@ -1755,6 +1785,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#ai-swarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Swarm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#appearance" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2053,6 +2094,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#ai-swarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Swarm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#appearance" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2289,6 +2341,47 @@
 <p>The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="ai-swarm">AI Swarm<a class="headerlink" href="#ai-swarm" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>AI Swarm tab</strong> (<strong>AI → AI Swarm...</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> / Cmd on macOS) — broadcast
+  one AI-agent task to many servers at once; each server runs its own agent and
+  the answers are combined into a single comparison table with one row per
+  server and a literal <strong>"Fehler"</strong> column for deviations and errors.</li>
+<li><strong>Animated status strip</strong> — one orb per agent above the conversation shows
+  queued/running/awaiting-input/paused/done/failed/cancelled at a glance,
+  flags <em>unusually long</em> runs via an adaptive threshold
+  (<code>max(60 s, 2 × median of finished agents)</code>), and clicking an orb jumps to the
+  agent's row. The strip scales from 1 to 50+ servers.</li>
+<li><strong>Per-agent and swarm-wide run control</strong> — pause, resume, restart, and stop
+  either a single agent (right-click its row) or the whole swarm (toolbar).
+  Pausing is cooperative and stops the elapsed timers; restarts replace only
+  that agent's answer.</li>
+<li><strong>Expandable live transcripts</strong> — left-click an agent row to watch its live
+  command/output transcript inline while it runs.</li>
+<li><strong>Conversation copy &amp; export</strong> — copy the whole swarm conversation to the
+  clipboard or export it as plain text, Markdown, or PDF; saved swarm chats get
+  their own <strong>Swarm Chats</strong> section in the AI Manager.</li>
+<li><strong>Readable result rows</strong> — clicking a row of the combined answer table opens
+  it in a separate <strong>Row details</strong> window with A−/A+ font sizing and
+  copy-to-clipboard.</li>
+<li><strong>Targets without open terminals</strong> — swarm runs (AI and script) now work on
+  saved servers with no open terminal via background SSH sessions; no terminal
+  tab is opened. Requires an unlocked master-password vault.</li>
+<li><strong>Run scripts without AI</strong> — execute a Snippet Manager script with parameters
+  on all swarm targets in parallel (Base64-transferred, single confirmation),
+  with live output per server and a per-server exit-code/output result table.</li>
+<li><strong>Schedule swarm runs</strong> — a new JobScheduler action type <strong>AI_SWARM</strong> with
+  <strong>Swarm parallelism</strong> (1–16) and <strong>Swarm read-only</strong> fields; the swarm tab's
+  <strong>Schedule…</strong> button prefills a job from the current targets and prompt.
+  Results go to the journal <em>and</em> a saved swarm chat.</li>
+<li><strong>Visible composer and tab status dot</strong> — the swarm input is a clearly framed
+  three-line field, and the tab shows a colored activity dot (running / waiting
+  for input / paused / finished — the green dot stays until the next run).</li>
+<li><strong>Multi-server workflow dialog reworked</strong> — syntax-highlighted script view, a
+  visible working animation with live elapsed time and total duration, an
+  additional-instructions field with a de-duplicated 10-entry history, and
+  <strong>Save to Snippets</strong> with a fitting pre-filled script name.</li>
+</ul>
 <h3 id="appearance">Appearance<a class="headerlink" href="#appearance" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>App design <code>Normal</code> renamed to <code>Default</code></strong> in <em>Settings → Appearance</em>. The stored value is unchanged, so existing configurations keep their selected design.</li>

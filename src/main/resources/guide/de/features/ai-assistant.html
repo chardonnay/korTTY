@@ -1090,6 +1090,8 @@
       
         
       
+        
+      
     
     
     
@@ -1759,6 +1761,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ai-swarm-multiserver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Swarm (Multiserver)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#workflow-skript-generieren" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1793,6 +1806,34 @@
     
   
     Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Schwarm
   
 
     
@@ -2434,6 +2475,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ai-swarm-multiserver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Swarm (Multiserver)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#workflow-skript-generieren" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2681,7 +2733,7 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <p>Der AI Manager verfügt über zwei Arbeitsbereiche:</p>
 <ul>
 <li><strong>Profile</strong> – KI-Profile erstellen, bearbeiten, testen, speichern und entfernen. Die Profilliste zeigt den aktuellen Kontingent-/Nutzungsstatus für jedes Profil.</li>
-<li><strong>Gespeicherte Chats</strong> – Öffnen, umbenennen, aktualisieren oder löschen Sie zuvor gespeicherte KI-Konversationen.</li>
+<li><strong>Gespeicherte Chats</strong> – Öffnen, umbenennen, aktualisieren oder löschen Sie zuvor gespeicherte KI-Konversationen. Gespeicherte <a href="ai-swarm.html">AI Swarm</a>-Konversationen werden in einem eigenen Abschnitt <strong>Swarm-Chats</strong> angezeigt, einschließlich derjenigen, die durch geplante Swarm-Jobs erstellt wurden.</li>
 </ul>
 <p>Verwenden Sie <strong>Einstellungen &gt; AI</strong> für die globalen Standardeinstellungen und Verhaltensänderungen und <strong>AI Manager</strong> für die tägliche Profil-/Chatverwaltung.</p>
 <h2 id="fragen-sie-nach-der-anleitung-ai-dokumentensuche">Fragen Sie nach der Anleitung (AI-Dokumentensuche)<a class="headerlink" href="#fragen-sie-nach-der-anleitung-ai-dokumentensuche" title="Permanent link">&para;</a></h2>
@@ -2867,6 +2919,8 @@ Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.</p>
 <li>Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.</li>
 <li>Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.</li>
 </ul>
+<h2 id="ai-swarm-multiserver">AI Swarm (Multiserver)<a class="headerlink" href="#ai-swarm-multiserver" title="Permanent link">&para;</a></h2>
+<p>Der <a href="ai-swarm.html">AI Swarm</a> sendet eine KI-Agentenaufgabe gleichzeitig an viele Server: Jeder ausgewählte Server erhält seinen eigenen Agentenlauf – einschließlich Server <strong>ohne offenes Terminal</strong> – und die Antworten pro Server werden in einer einzigen Vergleichstabelle zusammengefasst. Die Schwarm-Registerkarte fügt einen animierten Statusstreifen pro Agent, erweiterbare Live-Transkripte, Steuerelemente zum Anhalten/Fortsetzen/Neustarten/Stoppen pro Agent und im gesamten Schwarm, eine KI-freie Skriptausführung über den Snippet-Manager sowie eine Schaltfläche <strong>Planen…</strong> hinzu, die die Ausführung in einen unbeaufsichtigten Job <a href="jobscheduler.html">JobScheduler</a>] umwandelt. Öffnen Sie es mit <strong>AI &gt; AI Swarm...</strong> oder ++Strg+Alt+S++ (Cmd unter macOS); Den vollständigen Funktionsumfang finden Sie auf der Seite <a href="ai-swarm.html">AI Swarm</a>].</p>
 <h2 id="workflow-skript-generieren">Workflow-Skript generieren<a class="headerlink" href="#workflow-skript-generieren" title="Permanent link">&para;</a></h2>
 <p>Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, verwandelt eine <strong>Workflow</strong>-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, <strong>Windows-CMD</strong> Batch oder <strong>AppleScript</strong>) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem Header (Skriptname, Ersteller, Datum/Uhrzeit).</p>
 <p>Skripterstellung:</p>
