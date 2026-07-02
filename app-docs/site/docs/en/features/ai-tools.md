@@ -34,7 +34,7 @@ The base command name is configurable in **Settings > AI**. If you rename `agent
 ### Command purposes
 
 - **`agent <goal>`** — Execute safe SSH commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.
-- **`agent-ask <question>`** — Get a non-executing answer about the current session context without running any commands.
+- **`agent-ask <question>`** — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (**AI → Ask AI Agent**) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.
 - **`agent-plan <task>` / `agent -plan <task>`** — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click **Implement**.
 
 ### Examples
@@ -96,8 +96,10 @@ Terminal-targeted agent runs use an inline activity panel at the bottom of the c
 ### Panel features
 
 - **Run tabs** — Multiple concurrent runs appear as closable tabs. Click a tab to select it; only the selected tab's run is controlled by run-control keys and buttons. Up to 5 concurrent runs per split.
-- **Controls** — Each run has reload, pause/resume, cancel buttons, and per-row copy/snippet actions.
+- **Controls** — Each run has reload, pause/resume, cancel buttons, and per-row copy/snippet actions. The reload button re-runs the command with the **currently active** AI profile, so switching profiles between runs takes effect on the rerun.
 - **Details** — The panel shows the user prompt in a two-line scrollable field, agent messages, read/run actions, task timing, reported token usage, semantic activity markers, and collapsible details.
+- **AI profile row** — Every run log starts with an `AI profile: <name> (<model>)` entry, so the protocol records which profile and model produced the run.
+- **Model reasoning** — Expanding a 💭 thinking row shows the model's full reasoning when the provider exposes it (Anthropic extended thinking when the profile's Reasoning effort is enabled, OpenAI-compatible `reasoning_content`, LM Studio reasoning output, or `<think>` blocks from local CLI models). Models without exposed reasoning keep the short decision summary.
 - **Status bar** — When collapsed, the panel shows a compact status bar with the run prompt, state, pause/cancel buttons, and expand button. A spinner shows while the agent is working; a bold ✋ marker signals when user input is required.
 - **Keep collapsed** — Use **Keep collapsed** to make the panel start minimized and stay collapsed when new activity or input prompts arrive. You can still expand manually.
 - **Resizing** — Drag the resize handle to change panel height. Enable **Remember size** to persist height and font size across application restarts.

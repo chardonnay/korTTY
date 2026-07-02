@@ -130,7 +130,7 @@
 
 <div class="md-header__option">
   <a class="md-header__button md-icon kt-lang-switch"
-     href="..../en/about/release-notes.html"
+     href="../../en/about/release-notes.html"
      title="English" hreflang="en">
     <span class="kt-lang-code">EN</span>
   </a>
@@ -1784,6 +1784,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ki-chat-und-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Chat und Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#workflow-skriptgenerator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2043,6 +2054,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ki-chat-und-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Chat und Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#workflow-skriptgenerator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2260,7 +2282,7 @@ Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Lee
 <code>"C:\Program Files\Git\bin\bash.exe"</code>) korrekt starten.</li>
 <li><strong>Gemeinsame Connector-Hooks</strong> – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
 Haken wurden auf eine gemeinsame <code>ObservableTtyConnector</code>-Schnittstelle gehoben, also auch
-Arbeit für lokale Muscheln. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.</li>
+Arbeit für lokale Shells. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.</li>
 <li><strong>AI Agent &amp; Planning in lokalen Shells</strong> – die Befehlsausführungs-Engine des Agenten
 wurde hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH exec.) von SSH entkoppelt
 Kanal- und lokale Prozess-Backends). Der <strong>KI-Agent</strong> und <strong>KI-Planung</strong> jetzt
@@ -2276,10 +2298,39 @@ Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.</li>
 <li><strong>Strg + Mausrad-Zoom</strong> – <strong>Strg</strong> (oder <strong>Befehl</strong> unter macOS) gedrückt halten und
 Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
 Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
-Abkürzungen.</li>
+Verknüpfungen.</li>
 <li><strong>Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte</strong> – diese Windows-Shells tun dies nicht
 Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
 (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.</li>
+</ul>
+<h3 id="ki-chat-und-agent">KI-Chat und Agent<a class="headerlink" href="#ki-chat-und-agent" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Bilder, Diagramme und Mathematik werden in KI-Chats gerendert</strong> – KI-Antworten mit einem
+SVG-Dokument, ein Base64-Rasterbild (<code>data:image/png;base64,…</code> – PNG, JPEG,
+GIF, BMP), ein <code>```plantuml</code>-Block, ein <code>```mermaid</code>-Block oder LaTeX-Mathematik
+(<code>```latex</code>/<code>```tex</code>/<code>```math</code> Blöcke und <code>$$…$$</code> in Prosa) werden als angezeigt
+Bilder anstelle von Roh-Markup, jeweils mit einem Umschalter <strong>Code anzeigen/Bild anzeigen</strong> und
+Schaltfläche „Kopieren“. Mermaid und MathJax sind gebündelt (kein Netzwerk); PlantUML verwendet die
+lokale Toolchain (<code>java</code> + Graphviz <code>dot</code>); Die SVG-Ausgabe wird bereinigt und angezeigt
+mit deaktiviertem JavaScript.</li>
+<li><strong>Vollständige Modellbegründung in Agent Thinking-Zeilen</strong> – Erweitern einer 💭-Zeile in der
+Das Agentenaktivitätsfeld zeigt jetzt die tatsächliche Argumentation des Modells beim Anbieter an
+legt es offen (Anthropisches erweitertes Denken gemäß der Argumentationsbemühungen des Profils,
+OpenAI-kompatibler <code>reasoning_content</code>, LM Studio Reasoning-Ausgabe, <code>&lt;think&gt;</code>
+Blöcke aus lokalen CLI-Modellen), andernfalls wird auf die Entscheidungszusammenfassung zurückgegriffen.</li>
+<li><strong>Das Laufprotokoll zeichnet das AI-Profil auf</strong> – jeder Agentenlauf beginnt mit einem
+<code>AI profile: &lt;name&gt; (&lt;model&gt;)</code>-Aktivitätszeile.</li>
+<li><strong>Beim Neuladen wird das aktuell aktive Profil verwendet</strong> – das Neuladen des Aktivitätsbereichs
+Mit der Schaltfläche wird der Befehl mit dem Profil erneut ausgeführt, das jetzt aktiv ist, nicht mit dem Profil, das gerade aktiv ist
+Der ursprüngliche Lauf wurde mit gestartet.</li>
+<li><strong>Agent Ask umfasst die Terminalauswahl</strong> – Starten von <strong>AI → Ask AI Agent</strong>
+aus dem Rechtsklick-Menü mit ausgewähltem Text sendet die Auswahl als Kontext, also
+Die Frage wird bezüglich der ausgewählten Ausgabe oder des ausgewählten Skripts beantwortet.</li>
+<li><strong>Konkrete Modelle für Wolkenprofile</strong> – die Modellauswahl ist vorab gefüllt
+gängige Modellnamen für bekannte Cloud-Anbieter (offline, kein API-Schlüssel erforderlich), die
+Klicken Sie auf die Schaltfläche „Aktualisieren“, um die Live-Modellliste des Endpunkts zusammenzuführen
+Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option <strong>Auto</strong> ist nicht mehr vorhanden
+Wird für Cloud-Endpunkte angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).</li>
 </ul>
 <h3 id="workflow-skriptgenerator">Workflow-Skriptgenerator<a class="headerlink" href="#workflow-skriptgenerator" title="Permanent link">&para;</a></h3>
 <ul>

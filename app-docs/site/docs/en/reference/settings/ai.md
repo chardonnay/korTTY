@@ -45,7 +45,7 @@ Configure AI profiles and terminal AI Agent settings. This is the largest settin
 | API URL | text | — | — | (profile `apiUrl` field) |
 | CLI provider | dropdown | (registered providers) | — | (profile `cliProviderId` field) |
 | CLI executable | text | — | — | (profile `cliExecutablePath` field) |
-| Model | dropdown/text | (editable; supports "Default" / "Auto") | — | (profile `model` field) |
+| Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |
 | Custom model | text | — | — | (profile `cliCustomModel` field) |
 | Reasoning | dropdown | Disabled, None, Minimal, Low, Medium, High, Extra high | Disabled | (profile `reasoningEffort` field) |
 | Internet access | dropdown | Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Disabled | (profile `internetAccessMode` field) |
@@ -103,6 +103,8 @@ Reasoning effort configures how deeply the AI thinks before responding. Availabl
 - **Extra high**: Maximum reasoning effort; slowest but most comprehensive.
 
 Not all models support all levels. Use the **Refresh reasoning options** button to detect available levels for the current profile and model.
+
+For the native Anthropic (Claude) endpoint, an enabled reasoning level requests **extended thinking** with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.
 
 ### Token Quota Management
 

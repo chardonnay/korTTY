@@ -247,6 +247,47 @@ class TerminalAgentDecisionRepairTest {
         assertThat(aiService.userPrompts().size()).isEqualTo(1);
     }
 
+    @Test
+    void showsModelReasoningAsThinkingDetailWhenAvailable() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        ReasoningAiService aiService = new ReasoningAiService(
+            """
+            {"status":"done","summary":"Short summary","userMessage":"All done.","commands":[],"needsReprobe":false}
+            """,
+            "First I inspected the probe, then I decided nothing else was needed.");
+        RunUiTestDouble ui = new RunUiTestDouble();
+
+        service.requestAgentDecision(aiService, request(), probe(), List.of(), 1, false, ui, "run-1");
+
+        TerminalAgentModels.AgentActivity thinking = lastCompletedThinking(ui);
+        assertThat(thinking.detail())
+            .isEqualTo("First I inspected the probe, then I decided nothing else was needed.");
+        // The collapsed header still shows the user-facing message, not the reasoning.
+        assertThat(thinking.summary()).isEqualTo("All done.");
+    }
+
+    @Test
+    void fallsBackToDecisionSummaryWhenModelHasNoReasoning() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        AiServiceTestDouble aiService = new AiServiceTestDouble("""
+            {"status":"done","summary":"Short summary","userMessage":"All done.","commands":[],"needsReprobe":false}
+            """);
+        RunUiTestDouble ui = new RunUiTestDouble();
+
+        service.requestAgentDecision(aiService, request(), probe(), List.of(), 1, false, ui, "run-1");
+
+        TerminalAgentModels.AgentActivity thinking = lastCompletedThinking(ui);
+        assertThat(thinking.detail()).isEqualTo("Short summary");
+    }
+
+    private static TerminalAgentModels.AgentActivity lastCompletedThinking(RunUiTestDouble ui) {
+        return ui.activities().stream()
+            .filter(activity -> activity.type() == TerminalAgentModels.AgentActivityType.THINKING
+                && activity.status() == TerminalAgentModels.AgentActivityStatus.COMPLETED)
+            .reduce((first, second) -> second)
+            .orElseThrow();
+    }
+
     private TerminalAgentModels.Request request() {
         return new TerminalAgentModels.Request(
             "session-1",
@@ -309,6 +350,23 @@ class TerminalAgentDecisionRepairTest {
 
         private List<String> userPrompts() {
             return userPrompts;
+        }
+    }
+
+    /** Test double that returns a fixed decision plus model reasoning. */
+    private static final class ReasoningAiService extends OpenAiCompatibleAiService {
+        private final String response;
+        private final String reasoning;
+
+        private ReasoningAiService(String response, String reasoning) {
+            super("http://localhost", "test-model", "");
+            this.response = response;
+            this.reasoning = reasoning;
+        }
+
+        @Override
+        public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) {
+            return new AiExecutionResult(response, null, reasoning);
         }
     }
 

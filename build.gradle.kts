@@ -464,6 +464,7 @@ fun runBundledNodeCommand(workingDirectory: File, vararg command: String) {
 
 val monacoWorkspaceDir = layout.buildDirectory.dir("monaco-workspace")
 val monacoGeneratedResourceDir = layout.buildDirectory.dir("generated-monaco-resources")
+val chatRenderGeneratedResourceDir = layout.buildDirectory.dir("generated-chatrender-resources")
 
 tasks.register("copyMonacoBuildNode") {
     group = "build"
@@ -597,6 +598,70 @@ tasks.named<ProcessResources>("processResources") {
     dependsOn("bundleMonacoEditor")
     from(monacoGeneratedResourceDir) {
         into("")
+    }
+    dependsOn("prepareChatRenderResources")
+    from(chatRenderGeneratedResourceDir) {
+        into("")
+    }
+}
+
+// ---- AI-chat diagram/math rendering assets (mermaid + MathJax) ----------------
+// The AI chat renders ```mermaid blocks and LaTeX math in a WebView. Both libraries ship
+// prebuilt single-file browser bundles inside their npm tarballs, so no npm/node workspace is
+// needed: the pinned tarballs are downloaded, SHA-verified and the two files extracted into the
+// app resources under /chatrender/ (served from a temp dir at runtime, like Monaco).
+val chatRenderMermaidVersion = "11.16.0"
+val chatRenderMermaidSha256 = "ff48c94a0a0458b377a5187ad01407184d2a182e6476c2015b7068ff58355fae"
+val chatRenderMathJaxVersion = "3.2.2"
+val chatRenderMathJaxSha256 = "1b9c0a1c44df864e915690558e72adb9cc5203360daefd385084ced3b6c64c09"
+
+tasks.register("prepareChatRenderResources") {
+    group = "build"
+    description = "Downloads the pinned mermaid/MathJax browser bundles for AI-chat diagram and math rendering."
+    inputs.property("mermaidVersion", chatRenderMermaidVersion)
+    inputs.property("mermaidSha256", chatRenderMermaidSha256)
+    inputs.property("mathJaxVersion", chatRenderMathJaxVersion)
+    inputs.property("mathJaxSha256", chatRenderMathJaxSha256)
+    outputs.dir(chatRenderGeneratedResourceDir)
+    doLast {
+        val outputDir = chatRenderGeneratedResourceDir.get().asFile.resolve("chatrender")
+        delete(chatRenderGeneratedResourceDir)
+        outputDir.mkdirs()
+
+        val mermaidTarball = formatterDownloadDir.get().asFile.resolve("mermaid-$chatRenderMermaidVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/mermaid/-/mermaid-$chatRenderMermaidVersion.tgz",
+            mermaidTarball,
+            chatRenderMermaidSha256
+        )
+        copy {
+            from(tarTree(resources.gzip(mermaidTarball)))
+            include("package/dist/mermaid.min.js")
+            eachFile { path = name }
+            includeEmptyDirs = false
+            into(outputDir)
+        }
+
+        val mathJaxTarball = formatterDownloadDir.get().asFile.resolve("mathjax-$chatRenderMathJaxVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/mathjax/-/mathjax-$chatRenderMathJaxVersion.tgz",
+            mathJaxTarball,
+            chatRenderMathJaxSha256
+        )
+        copy {
+            from(tarTree(resources.gzip(mathJaxTarball)))
+            include("package/es5/tex-svg.js")
+            eachFile { path = name }
+            includeEmptyDirs = false
+            into(outputDir)
+        }
+
+        if (!outputDir.resolve("mermaid.min.js").isFile) {
+            throw GradleException("mermaid.min.js was not extracted from the mermaid tarball")
+        }
+        if (!outputDir.resolve("tex-svg.js").isFile) {
+            throw GradleException("tex-svg.js was not extracted from the MathJax tarball")
+        }
     }
 }
 
@@ -1359,6 +1424,14 @@ tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
     description = "Re-parents an AI-agent panel between bottom tabs and a side stacked dock to verify it."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AiAgentSidePanelSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("aiManagerModelComboSmoke") {
+    group = "verification"
+    description = "Selects a model in the real AI Manager model picker to verify the choice sticks."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerModelComboSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

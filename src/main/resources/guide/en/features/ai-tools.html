@@ -132,7 +132,7 @@
 
 <div class="md-header__option">
   <a class="md-header__button md-icon kt-lang-switch"
-     href="..../de/features/ai-tools.html"
+     href="../../de/features/ai-tools.html"
      title="Deutsch" hreflang="de">
     <span class="kt-lang-code">DE</span>
   </a>
@@ -2623,7 +2623,7 @@
 <h3 id="command-purposes">Command purposes<a class="headerlink" href="#command-purposes" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>agent &lt;goal&gt;</code></strong> — Execute safe SSH commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.</li>
-<li><strong><code>agent-ask &lt;question&gt;</code></strong> — Get a non-executing answer about the current session context without running any commands.</li>
+<li><strong><code>agent-ask &lt;question&gt;</code></strong> — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (<strong>AI → Ask AI Agent</strong>) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.</li>
 <li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click <strong>Implement</strong>.</li>
 </ul>
 <h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
@@ -2678,8 +2678,10 @@
 <h3 id="panel-features">Panel features<a class="headerlink" href="#panel-features" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Run tabs</strong> — Multiple concurrent runs appear as closable tabs. Click a tab to select it; only the selected tab's run is controlled by run-control keys and buttons. Up to 5 concurrent runs per split.</li>
-<li><strong>Controls</strong> — Each run has reload, pause/resume, cancel buttons, and per-row copy/snippet actions.</li>
+<li><strong>Controls</strong> — Each run has reload, pause/resume, cancel buttons, and per-row copy/snippet actions. The reload button re-runs the command with the <strong>currently active</strong> AI profile, so switching profiles between runs takes effect on the rerun.</li>
 <li><strong>Details</strong> — The panel shows the user prompt in a two-line scrollable field, agent messages, read/run actions, task timing, reported token usage, semantic activity markers, and collapsible details.</li>
+<li><strong>AI profile row</strong> — Every run log starts with an <code>AI profile: &lt;name&gt; (&lt;model&gt;)</code> entry, so the protocol records which profile and model produced the run.</li>
+<li><strong>Model reasoning</strong> — Expanding a 💭 thinking row shows the model's full reasoning when the provider exposes it (Anthropic extended thinking when the profile's Reasoning effort is enabled, OpenAI-compatible <code>reasoning_content</code>, LM Studio reasoning output, or <code>&lt;think&gt;</code> blocks from local CLI models). Models without exposed reasoning keep the short decision summary.</li>
 <li><strong>Status bar</strong> — When collapsed, the panel shows a compact status bar with the run prompt, state, pause/cancel buttons, and expand button. A spinner shows while the agent is working; a bold ✋ marker signals when user input is required.</li>
 <li><strong>Keep collapsed</strong> — Use <strong>Keep collapsed</strong> to make the panel start minimized and stay collapsed when new activity or input prompts arrive. You can still expand manually.</li>
 <li><strong>Resizing</strong> — Drag the resize handle to change panel height. Enable <strong>Remember size</strong> to persist height and font size across application restarts.</li>

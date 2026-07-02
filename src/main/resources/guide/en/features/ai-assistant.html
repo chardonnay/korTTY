@@ -132,7 +132,7 @@
 
 <div class="md-header__option">
   <a class="md-header__button md-icon kt-lang-switch"
-     href="..../de/features/ai-assistant.html"
+     href="../../de/features/ai-assistant.html"
      title="Deutsch" hreflang="de">
     <span class="kt-lang-code">DE</span>
   </a>
@@ -1476,6 +1476,18 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#model-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model selection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model selection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#local-lm-studio-model-selection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1483,6 +1495,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1575,6 +1592,17 @@
     <span class="md-ellipsis">
       
         AI result tab features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rendered-images-diagrams-and-math" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendered images, diagrams, and math
       
     </span>
   </a>
@@ -2082,6 +2110,18 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#model-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model selection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model selection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#local-lm-studio-model-selection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2089,6 +2129,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2181,6 +2226,17 @@
     <span class="md-ellipsis">
       
         AI result tab features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rendered-images-diagrams-and-math" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendered images, diagrams, and math
       
     </span>
   </a>
@@ -2365,7 +2421,7 @@
 <li>Open <strong>Edit &gt; Global Settings</strong>.</li>
 <li>Go to <strong>AI</strong>.</li>
 <li>Create one or more AI profiles and enter the <strong>API URL</strong> for each profile you want to use. You can manage profiles in <strong>Settings &gt; AI</strong> or in <strong>Tools &gt; AI Manager &gt; Profiles</strong>.</li>
-<li>Optionally enter <strong>Model</strong> and <strong>API Key</strong>. The editable model selector supports manual model names and, for local LM Studio endpoints, an <strong>Auto</strong> option plus the currently loaded local LLMs. The <strong>API Key</strong> is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.</li>
+<li>Optionally enter <strong>Model</strong> and <strong>API Key</strong>. The editable model selector supports manual model names; for known cloud providers (OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax) it is pre-filled with common model names, and for local LM Studio endpoints it offers an <strong>Auto</strong> option plus the currently loaded local LLMs. The <strong>API Key</strong> is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.</li>
 <li>Optionally configure <strong>Max characters</strong>, <strong>Tokenizer</strong>, <strong>Token limit</strong>, warning thresholds, token reset cycle, supported <strong>Reasoning</strong> effort, and <strong>Internet access</strong> per profile. korTTY exposes reasoning choices based on the configured API URL and model; profiles without a supported reasoning mode stay disabled.</li>
 <li>Click <strong>Test AI Connection</strong>.</li>
 <li>Optionally choose a <strong>Default profile</strong> for terminal AI actions and follow-up chats that do not explicitly select another profile.</li>
@@ -2385,17 +2441,20 @@
 <li><strong>Connection Type</strong> - Choose local LM Studio or a cloud provider.</li>
 <li><strong>LM Studio Setup</strong> - If local: pick a loaded LM Studio model from the list or use <strong>Auto</strong> mode.</li>
 <li><strong>Cloud Provider Setup</strong> - If cloud: select the provider (Anthropic Claude API, OpenAI, or other OpenAI-compatible endpoint).</li>
-<li><strong>API Details</strong> - Enter API Key, select or enter Model name, and optionally configure Reasoning effort (if the provider/model supports extended thinking).</li>
+<li><strong>API Details</strong> - Enter API Key and select or enter the Model name — the model list is pre-filled with common models for the chosen provider, and <strong>Load models</strong> merges the endpoint's live model list on top. Optionally configure Reasoning effort (if the provider/model supports extended thinking).</li>
 <li><strong>Profile Name</strong> - Enter a display name for the profile (e.g., "Claude Opus", "Local LM Studio").</li>
 </ol>
 <p>Native Anthropic (Claude) API support is included alongside existing OpenAI-compatible endpoints.</p>
-<h2 id="local-lm-studio-model-selection">Local LM Studio model selection<a class="headerlink" href="#local-lm-studio-model-selection" title="Permanent link">&para;</a></h2>
-<p>For local LM Studio profiles, korTTY can discover currently loaded LLM model keys through LM Studio's <code>GET /api/v1/models</code> endpoint. The model selector in <strong>Settings &gt; AI</strong> and <strong>Tools &gt; AI Manager &gt; Profiles</strong> is editable:</p>
+<h2 id="model-selection">Model selection<a class="headerlink" href="#model-selection" title="Permanent link">&para;</a></h2>
+<p>The model selector in <strong>Settings &gt; AI</strong> and <strong>Tools &gt; AI Manager &gt; Profiles</strong> is editable:</p>
 <ul>
-<li><strong>Auto</strong> keeps the profile in automatic mode.</li>
+<li>For known cloud providers the dropdown is pre-filled with common model names for the configured endpoint, so a concrete model can be chosen without an API key. The refresh button next to the selector merges the endpoint's live <code>/v1/models</code> list on top when the API key is valid.</li>
 <li>A listed model stores that model as the manual selection.</li>
-<li>A typed model name is stored as a manual selection so other OpenAI-compatible endpoints still work.</li>
+<li>A typed model name is stored as a manual selection so any OpenAI-compatible endpoint works.</li>
+<li><strong>Auto</strong> is offered only for local LM Studio endpoints, where korTTY can actually detect the loaded model. Cloud profiles need a concrete model; if none is selected, requests stop with an explicit "select a specific AI model" error.</li>
 </ul>
+<h3 id="local-lm-studio-model-selection">Local LM Studio model selection<a class="headerlink" href="#local-lm-studio-model-selection" title="Permanent link">&para;</a></h3>
+<p>For local LM Studio profiles, korTTY can discover currently loaded LLM model keys through LM Studio's <code>GET /api/v1/models</code> endpoint.</p>
 <p>Auto mode resolves the effective model immediately before connection tests, AI chat and follow-up requests, terminal AI actions, and Terminal AI Agent runs. If exactly one LLM is loaded, korTTY uses that model. If multiple LLMs are loaded, korTTY uses the saved preferred model only when that model is currently loaded. If no LLM is loaded, or multiple LLMs are loaded without a valid saved preference, korTTY stops the request with an explicit error instead of guessing.</p>
 <h2 id="ai-internet-access">AI internet access<a class="headerlink" href="#ai-internet-access" title="Permanent link">&para;</a></h2>
 <p>Internet access is configured per AI profile. Existing and new profiles default to <strong>Disabled</strong>.</p>
@@ -2504,12 +2563,72 @@
 <li>The toolbar lets you copy the conversation, save or rename the chat, share/export it to PDF/Markdown/plain text, retry the last request, close the tab, cancel running requests, and change the font size.</li>
 <li>The response language defaults to the current GUI language. You can change the response language and the active AI profile per chat before sending a follow-up prompt.</li>
 <li>Follow-up prompts in <strong>Summarize</strong> and <strong>Solve Problem</strong> continue as normal chat questions; they are not forced back into the original summarizing/problem-analysis prompt.</li>
-<li>Detected code blocks get their own copy button and can also be saved directly into the Snippet Manager.</li>
+<li>Detected code blocks get their own copy button and can also be saved directly into the Snippet Manager. Blocks that contain images, diagrams, or math render as images instead — see <a href="#rendered-images-diagrams-and-math">Rendered images, diagrams, and math</a>.</li>
 <li>Rendered markdown tables can be copied as a whole table, a single column, or a single cell.</li>
 <li>The chosen AI tab font size is stored globally and reused for future AI result tabs.</li>
 <li>Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate.</li>
 <li>If a saved chat references an AI profile that no longer exists, korTTY asks you to choose a replacement profile before you continue with follow-up prompts.</li>
 </ul>
+<h3 id="rendered-images-diagrams-and-math">Rendered images, diagrams, and math<a class="headerlink" href="#rendered-images-diagrams-and-math" title="Permanent link">&para;</a></h3>
+<p>AI answers that contain images, diagrams, or math formulas are rendered as images inside the chat instead of showing raw markup. This also applies to saved chats reopened from the AI Manager.</p>
+<table>
+<thead>
+<tr>
+<th>Content in the AI answer</th>
+<th>Rendered as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>```svg</code> / <code>```xml</code> / <code>```html</code> code block (or untagged block) containing an <code>&lt;svg&gt;</code> document</td>
+<td>Inline vector image</td>
+</tr>
+<tr>
+<td>Markdown image link with a <code>data:image/png;base64,…</code> URI in the answer text, or a code block containing only such a data URI</td>
+<td>Inline raster image (PNG, JPEG, GIF, BMP; up to 8 MB decoded) with a <strong>copy image</strong> button</td>
+</tr>
+<tr>
+<td><code>```plantuml</code> / <code>```puml</code> code block, or an untagged <code>@startuml</code> block</td>
+<td>Locally rendered PlantUML diagram</td>
+</tr>
+<tr>
+<td><code>```mermaid</code> code block</td>
+<td>Mermaid diagram (bundled library, no network)</td>
+</tr>
+<tr>
+<td><code>```latex</code> / <code>```tex</code> / <code>```math</code> code block, or <code>$$ … $$</code> math in the answer text</td>
+<td>Typeset formula (bundled MathJax, no network)</td>
+</tr>
+</tbody>
+</table>
+<p>Every rendered block keeps a header with the usual copy button and a <strong>Show code / Show image</strong> toggle, so the underlying source stays one click away. While a PlantUML/Mermaid/math block is still rendering, the source remains visible; if rendering fails (for example a Mermaid syntax error), the block stays on the source view and the header shows the reason.</p>
+<p>Example prompts that produce rendered answers:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Draw a simple house as an SVG image.
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Create a Mermaid flowchart of a typical login flow.
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Create a PlantUML sequence diagram for an SSH handshake.
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>Explain the Pythagorean theorem and show the formula.
+</span></code></pre></div>
+<p>A Mermaid answer block like this renders as a flowchart:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>```mermaid
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>graph TD;
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  Login--&gt;Validate;
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  Validate--&gt;|ok| Session;
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  Validate--&gt;|fail| Error;
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>```
+</span></code></pre></div>
+<p>And display math in the answer text renders as a typeset formula:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>$$a^2 + b^2 = c^2$$
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Rendering details and requirements</p>
+<ul>
+<li>SVG and PlantUML output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.</li>
+<li>Mermaid runs with its <code>strict</code> security level from a locally bundled library; LaTeX is typeset by a locally bundled MathJax. Neither needs internet access.</li>
+<li>PlantUML rendering uses the local PlantUML toolchain: <code>java</code> and Graphviz <code>dot</code> must be on the <code>PATH</code>, and the PlantUML jar is downloaded to the user cache on first use (same requirements as snippet diagrams).</li>
+<li>Full LaTeX documents (<code>\documentclass</code>) intentionally stay code blocks; only formulas are typeset.</li>
+<li>Rendered images use a white canvas so diagrams and formulas with dark strokes stay readable on dark themes.</li>
+</ul>
+</div>
 <h2 id="ai-manager">AI Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h2>
 <p>Open <strong>Tools &gt; AI Manager</strong> or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).</p>
 <p><img alt="AI Manager" src="../assets/screenshots/ai/ai-manager.png" /></p>
@@ -2561,10 +2680,10 @@ headless AI-agent action stays SSH-only.</p>
 </ul>
 <h2 id="terminal-agent-shortcut-commands">Terminal agent shortcut commands<a class="headerlink" href="#terminal-agent-shortcut-commands" title="Permanent link">&para;</a></h2>
 <p>When terminal agent shortcuts are enabled and the terminal is at a shell prompt, korTTY intercepts these commands locally instead of sending them to the server:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>agent<span class="w"> </span>&lt;goal&gt;
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>agent-ask<span class="w"> </span>&lt;question&gt;
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>agent-plan<span class="w"> </span>&lt;task&gt;
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>agent<span class="w"> </span>-plan<span class="w"> </span>&lt;task&gt;
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>agent<span class="w"> </span>&lt;goal&gt;
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>agent-ask<span class="w"> </span>&lt;question&gt;
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>agent-plan<span class="w"> </span>&lt;task&gt;
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>agent<span class="w"> </span>-plan<span class="w"> </span>&lt;task&gt;
 </span></code></pre></div>
 <p>The base command name is configurable in <strong>Settings &gt; AI</strong>. If you rename <code>agent</code>, korTTY derives the matching <code>-ask</code> and <code>-plan</code> commands automatically. The same settings page can make the command name case-insensitive and can disable the per-run setup dialog; when the dialog is disabled, korTTY uses the configured default profile.</p>
 <h3 id="tab-completion-and-prompt-history">TAB completion and prompt history<a class="headerlink" href="#tab-completion-and-prompt-history" title="Permanent link">&para;</a></h3>
@@ -2605,11 +2724,11 @@ headless AI-agent action stays SSH-only.</p>
 <li>web research for local files unless you explicitly ask for external/current information.</li>
 </ul>
 <h3 id="example-commands">Example commands<a class="headerlink" href="#example-commands" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>agent<span class="w"> </span>show<span class="w"> </span>the<span class="w"> </span><span class="m">10</span><span class="w"> </span>largest<span class="w"> </span>XML<span class="w"> </span>files<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span>directory
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>agent<span class="w"> </span>update<span class="w"> </span>groesste_xml.pl<span class="w"> </span>so<span class="w"> </span>the<span class="w"> </span>-r<span class="w"> </span>flag<span class="w"> </span>searches<span class="w"> </span>subdirectories<span class="w"> </span>recursively
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>agent<span class="w"> </span>check<span class="w"> </span>why<span class="w"> </span>nginx<span class="w"> </span>failed<span class="w"> </span>to<span class="w"> </span>start<span class="w"> </span>and<span class="w"> </span>suggest<span class="w"> </span>the<span class="w"> </span>safest<span class="w"> </span>fix
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>agent-ask<span class="w"> </span>what<span class="w"> </span>user<span class="w"> </span>and<span class="w"> </span>directory<span class="w"> </span>am<span class="w"> </span>I<span class="w"> </span>currently<span class="w"> </span>using?
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>agent-plan<span class="w"> </span>migrate<span class="w"> </span>this<span class="w"> </span>host<span class="w"> </span>from<span class="w"> </span>package<span class="w"> </span>X<span class="w"> </span>to<span class="w"> </span>package<span class="w"> </span>Y
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>agent<span class="w"> </span>show<span class="w"> </span>the<span class="w"> </span><span class="m">10</span><span class="w"> </span>largest<span class="w"> </span>XML<span class="w"> </span>files<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span>directory
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>agent<span class="w"> </span>update<span class="w"> </span>groesste_xml.pl<span class="w"> </span>so<span class="w"> </span>the<span class="w"> </span>-r<span class="w"> </span>flag<span class="w"> </span>searches<span class="w"> </span>subdirectories<span class="w"> </span>recursively
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>agent<span class="w"> </span>check<span class="w"> </span>why<span class="w"> </span>nginx<span class="w"> </span>failed<span class="w"> </span>to<span class="w"> </span>start<span class="w"> </span>and<span class="w"> </span>suggest<span class="w"> </span>the<span class="w"> </span>safest<span class="w"> </span>fix
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>agent-ask<span class="w"> </span>what<span class="w"> </span>user<span class="w"> </span>and<span class="w"> </span>directory<span class="w"> </span>am<span class="w"> </span>I<span class="w"> </span>currently<span class="w"> </span>using?
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>agent-plan<span class="w"> </span>migrate<span class="w"> </span>this<span class="w"> </span>host<span class="w"> </span>from<span class="w"> </span>package<span class="w"> </span>X<span class="w"> </span>to<span class="w"> </span>package<span class="w"> </span>Y
 </span></code></pre></div>
 <p>For local file review tasks, name the file in the task. The agent should then inspect it with SSH commands such as <code>sed -n</code>, <code>cat</code>, <code>file</code>, or language-specific syntax checks. If an internet-enabled profile is active, korTTY still keeps web tools away from these local file planning prompts unless your task clearly asks for current or external information.</p>
 <h3 id="activity-row-icons">Activity row icons<a class="headerlink" href="#activity-row-icons" title="Permanent link">&para;</a></h3>

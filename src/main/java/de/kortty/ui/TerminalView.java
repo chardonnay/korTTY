@@ -167,6 +167,15 @@ public class TerminalView extends BorderPane {
         void handle(@Nullable TerminalAgentRunContext runContext);
     }
 
+    /**
+     * Handler for the AI-agent "Ask" context-menu entry. Receives the terminal text that was
+     * selected when the menu was opened, so the question can be answered about that selection.
+     */
+    @FunctionalInterface
+    public interface TerminalAgentAskHandler {
+        void handle(@Nullable TerminalAgentRunContext runContext, String selectedText);
+    }
+
     public record TerminalAgentRunContext(
         @Nullable SithTermFxWidget widget,
         ObservableTtyConnector connector,
@@ -255,7 +264,7 @@ public class TerminalView extends BorderPane {
     private Runnable menuBarRestoreHandler;
     private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
     private TerminalAgentContextHandler aiAgentHandler;
-    private TerminalAgentContextHandler aiAgentAskHandler;
+    private TerminalAgentAskHandler aiAgentAskHandler;
     private TerminalAgentContextHandler aiPlanningHandler;
     private TerminalAgentShortcutHandler terminalAgentShortcutHandler;
     private final Map<SithTermFxWidget, AiAgentActivityTabsPanel> terminalAgentActivityPanels = new ConcurrentHashMap<>();
@@ -404,7 +413,8 @@ public class TerminalView extends BorderPane {
                 }
                 if (aiAgentAskHandler != null) {
                     javafx.scene.control.MenuItem agentAskItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.agentAsk"));
-                    agentAskItem.setOnAction(e -> aiAgentAskHandler.handle(createTerminalAgentRunContext(widget)));
+                    // Capture the selection at menu time so the question is answered about it.
+                    agentAskItem.setOnAction(e -> aiAgentAskHandler.handle(createTerminalAgentRunContext(widget), selectedText));
                     aiMenu.getItems().add(agentAskItem);
                 }
                 if (aiPlanningHandler != null) {
@@ -576,7 +586,7 @@ public class TerminalView extends BorderPane {
         this.aiAgentHandler = aiAgentHandler;
     }
 
-    public void setAiAgentAskHandler(TerminalAgentContextHandler aiAgentAskHandler) {
+    public void setAiAgentAskHandler(TerminalAgentAskHandler aiAgentAskHandler) {
         this.aiAgentAskHandler = aiAgentAskHandler;
     }
 

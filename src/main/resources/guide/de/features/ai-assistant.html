@@ -132,7 +132,7 @@
 
 <div class="md-header__option">
   <a class="md-header__button md-icon kt-lang-switch"
-     href="..../en/features/ai-assistant.html"
+     href="../../en/features/ai-assistant.html"
      title="English" hreflang="en">
     <span class="kt-lang-code">EN</span>
   </a>
@@ -1476,6 +1476,18 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#modellauswahl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modellauswahl
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Modellauswahl">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#lokale-lm-studio-modellauswahl" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1483,6 +1495,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1575,6 +1592,17 @@
     <span class="md-ellipsis">
       
         Funktionen der Registerkarte „AI-Ergebnis“.
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gerenderte-bilder-diagramme-und-mathematik" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gerenderte Bilder, Diagramme und Mathematik
       
     </span>
   </a>
@@ -2082,6 +2110,18 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#modellauswahl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modellauswahl
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Modellauswahl">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#lokale-lm-studio-modellauswahl" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2089,6 +2129,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2181,6 +2226,17 @@
     <span class="md-ellipsis">
       
         Funktionen der Registerkarte „AI-Ergebnis“.
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gerenderte-bilder-diagramme-und-mathematik" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gerenderte Bilder, Diagramme und Mathematik
       
     </span>
   </a>
@@ -2363,7 +2419,7 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <li>Öffnen Sie <strong>Bearbeiten &gt; Globale Einstellungen</strong>.</li>
 <li>Gehen Sie zu <strong>AI</strong>.</li>
 <li>Erstellen Sie ein oder mehrere AI-Profile und geben Sie die <strong>API-URL</strong> für jedes Profil ein, das Sie verwenden möchten. Sie können Profile unter <strong>Einstellungen &gt; AI</strong> oder unter <strong>Tools &gt; AI Manager &gt; Profile</strong> verwalten.</li>
-<li>Geben Sie optional <strong>Modell</strong> und <strong>API-Schlüssel</strong> ein. Der bearbeitbare Modellselektor unterstützt manuelle Modellnamen und für lokale LM Studio-Endpunkte eine <strong>Auto</strong>-Option sowie die aktuell geladenen lokalen LLMs. Der <strong>API-Schlüssel</strong> wird verschlüsselt mit Ihrem Master-Passwort gespeichert. Bevorzugen Sie lokale Endpunkte für vertrauliche Daten oder überprüfen Sie die Vertrauensstufe des Endpunkts, bevor Sie eine Auswahl senden.</li>
+<li>Geben Sie optional <strong>Modell</strong> und <strong>API-Schlüssel</strong> ein. Die bearbeitbare Modellauswahl unterstützt manuelle Modellnamen; für bekannte Cloud-Anbieter (OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax) ist es mit gängigen Modellnamen vorgefüllt und für lokale LM Studio-Endpunkte bietet es eine <strong>Auto</strong>-Option plus die aktuell geladenen lokalen LLMs. Der <strong>API-Schlüssel</strong> wird verschlüsselt mit Ihrem Master-Passwort gespeichert. Bevorzugen Sie lokale Endpunkte für vertrauliche Daten oder überprüfen Sie die Vertrauensstufe des Endpunkts, bevor Sie eine Auswahl senden.</li>
 <li>Konfigurieren Sie optional <strong>Max. Zeichen</strong>, <strong>Tokenizer</strong>, <strong>Token-Limit</strong>, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten <strong>Begründungsaufwand</strong> und <strong>Internetzugriff</strong> pro Profil. korTTY stellt Argumentationsoptionen basierend auf der konfigurierten API-URL und dem konfigurierten API-Modell bereit; Profile ohne unterstützten Argumentationsmodus bleiben deaktiviert.</li>
 <li>Klicken Sie auf <strong>AI-Verbindung testen</strong>.</li>
 <li>Wählen Sie optional ein <strong>Standardprofil</strong> für Terminal-KI-Aktionen und Folgechats, die nicht explizit ein anderes Profil auswählen.</li>
@@ -2383,17 +2439,20 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <li><strong>Verbindungstyp</strong> – Wählen Sie lokales LM Studio oder einen Cloud-Anbieter.</li>
 <li><strong>LM Studio-Setup</strong> – Wenn lokal: Wählen Sie ein geladenes LM Studio-Modell aus der Liste aus oder verwenden Sie den <strong>Auto</strong>-Modus.</li>
 <li><strong>Einrichten des Cloud-Anbieters</strong> – Bei Cloud: Wählen Sie den Anbieter aus (Anthropic Claude API, OpenAI oder ein anderer OpenAI-kompatibler Endpunkt).</li>
-<li><strong>API-Details</strong> – Geben Sie den API-Schlüssel ein, wählen Sie den Modellnamen aus oder geben Sie ihn ein und konfigurieren Sie optional den Reasoning-Aufwand (wenn der Anbieter/das Modell erweitertes Denken unterstützt).</li>
+<li><strong>API-Details</strong> – Geben Sie den API-Schlüssel ein und wählen Sie den Modellnamen aus oder geben Sie ihn ein – die Modellliste ist vorab mit gängigen Modellen für den ausgewählten Anbieter gefüllt, und <strong>Modelle laden</strong> führt die Live-Modellliste des Endpunkts oben zusammen. Konfigurieren Sie optional den Reasoning-Aufwand (wenn der Anbieter/das Modell erweitertes Denken unterstützt).</li>
 <li><strong>Profilname</strong> – Geben Sie einen Anzeigenamen für das Profil ein (z. B. „Claude Opus“, „Local LM Studio“).</li>
 </ol>
 <p>Native Anthropic (Claude) API-Unterstützung ist neben vorhandenen OpenAI-kompatiblen Endpunkten enthalten.</p>
-<h2 id="lokale-lm-studio-modellauswahl">Lokale LM Studio-Modellauswahl<a class="headerlink" href="#lokale-lm-studio-modellauswahl" title="Permanent link">&para;</a></h2>
-<p>Für lokale LM Studio-Profile kann korTTY aktuell geladene LLM-Modellschlüssel über den <code>GET /api/v1/models</code>-Endpunkt von LM Studio ermitteln. Die Modellauswahl unter <strong>Einstellungen &gt; AI</strong> und <strong>Tools &gt; AI Manager &gt; Profile</strong> kann bearbeitet werden:</p>
+<h2 id="modellauswahl">Modellauswahl<a class="headerlink" href="#modellauswahl" title="Permanent link">&para;</a></h2>
+<p>Die Modellauswahl unter <strong>Einstellungen &gt; AI</strong> und <strong>Tools &gt; AI Manager &gt; Profile</strong> kann bearbeitet werden:</p>
 <ul>
-<li><strong>Auto</strong> hält das Profil im automatischen Modus.</li>
+<li>Bei bekannten Cloud-Anbietern ist das Dropdown-Menü bereits mit gängigen Modellnamen für den konfigurierten Endpunkt gefüllt, sodass ein konkretes Modell ohne API-Schlüssel ausgewählt werden kann. Die Schaltfläche „Aktualisieren“ neben der Auswahl führt die Live-<code>/v1/models</code>-Liste des Endpunkts oben zusammen, wenn der API-Schlüssel gültig ist.</li>
 <li>Ein aufgelistetes Modell speichert dieses Modell als manuelle Auswahl.</li>
-<li>Ein eingegebener Modellname wird als manuelle Auswahl gespeichert, sodass andere OpenAI-kompatible Endpunkte weiterhin funktionieren.</li>
+<li>Ein eingegebener Modellname wird als manuelle Auswahl gespeichert, sodass jeder OpenAI-kompatible Endpunkt funktioniert.</li>
+<li><strong>Auto</strong> wird nur für lokale LM Studio-Endpunkte angeboten, bei denen korTTY das geladene Modell tatsächlich erkennen kann. Cloud-Profile benötigen ein konkretes Modell; Wenn keine Option ausgewählt ist, werden die Anforderungen mit der expliziten Fehlermeldung „Wählen Sie ein bestimmtes KI-Modell aus“ beendet.</li>
 </ul>
+<h3 id="lokale-lm-studio-modellauswahl">Lokale LM Studio-Modellauswahl<a class="headerlink" href="#lokale-lm-studio-modellauswahl" title="Permanent link">&para;</a></h3>
+<p>Für lokale LM Studio-Profile kann korTTY aktuell geladene LLM-Modellschlüssel über den <code>GET /api/v1/models</code>-Endpunkt von LM Studio ermitteln.</p>
 <p>Der automatische Modus löst das effektive Modell unmittelbar vor Verbindungstests, KI-Chat- und Folgeanfragen, Terminal-KI-Aktionen und der Ausführung des Terminal-KI-Agenten auf. Wenn genau ein LLM geladen ist, verwendet korTTY dieses Modell. Wenn mehrere LLMs geladen sind, verwendet korTTY das gespeicherte bevorzugte Modell nur, wenn dieses Modell gerade geladen ist. Wenn kein LLM geladen ist oder mehrere LLMs ohne gültige gespeicherte Präferenz geladen werden, stoppt korTTY die Anfrage mit einem expliziten Fehler, anstatt zu raten.</p>
 <h2 id="ki-internetzugang">KI-Internetzugang<a class="headerlink" href="#ki-internetzugang" title="Permanent link">&para;</a></h2>
 <p>Der Internetzugang wird pro AI-Profil konfiguriert. Vorhandene und neue Profile sind standardmäßig <strong>Deaktiviert</strong>.</p>
@@ -2502,12 +2561,68 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <li>Mit der Symbolleiste können Sie die Konversation kopieren, den Chat speichern oder umbenennen, ihn als PDF/Markdown/Nur-Text teilen/exportieren, die letzte Anfrage erneut versuchen, die Registerkarte schließen, laufende Anfragen abbrechen und die Schriftgröße ändern.</li>
 <li>Die Antwortsprache ist standardmäßig die aktuelle GUI-Sprache. Sie können die Antwortsprache und das aktive KI-Profil pro Chat ändern, bevor Sie eine Folgeaufforderung senden.</li>
 <li>Folgeaufforderungen in <strong>Zusammenfassen</strong> und <strong>Problem lösen</strong> werden als normale Chat-Fragen fortgesetzt; Sie werden nicht zur ursprünglichen Eingabeaufforderung für Zusammenfassung/Problemanalyse zurück gezwungen.</li>
-<li>Erkannte Codeblöcke erhalten einen eigenen Kopier-Button und können auch direkt im Snippet Manager gespeichert werden.</li>
+<li>Erkannte Codeblöcke erhalten einen eigenen Kopier-Button und können auch direkt im Snippet Manager gespeichert werden. Blöcke, die Bilder, Diagramme oder Mathematik enthalten, werden stattdessen als Bilder gerendert – siehe <a href="#rendered-images-diagrams-and-math">Gerenderte Bilder, Diagramme und Mathematik</a>.</li>
 <li>Gerenderte Markdown-Tabellen können als ganze Tabelle, einzelne Spalte oder einzelne Zelle kopiert werden.</li>
 <li>Die ausgewählte AI-Tab-Schriftgröße wird global gespeichert und für zukünftige AI-Ergebnis-Tabs wiederverwendet.</li>
 <li>Die Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet, sodass Warnungen und Rücksetzzyklen korrekt bleiben.</li>
 <li>Wenn ein gespeicherter Chat auf ein AI-Profil verweist, das nicht mehr existiert, fordert korTTY Sie auf, ein Ersatzprofil auszuwählen, bevor Sie mit den Folgeaufforderungen fortfahren.</li>
 </ul>
+<h3 id="gerenderte-bilder-diagramme-und-mathematik">Gerenderte Bilder, Diagramme und Mathematik<a class="headerlink" href="#gerenderte-bilder-diagramme-und-mathematik" title="Permanent link">&para;</a></h3>
+<p>KI-Antworten, die Bilder, Diagramme oder mathematische Formeln enthalten, werden im Chat als Bilder gerendert, anstatt rohes Markup anzuzeigen. Dies gilt auch für gespeicherte Chats, die über den AI Manager erneut geöffnet werden.</p>
+<table>
+<thead>
+<tr>
+<th>Inhalt in der KI-Antwort</th>
+<th>Gerendert als</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>```svg</code> / <code>```xml</code> / <code>```html</code>-Codeblock (oder Block ohne Tags), der ein <code>&lt;svg&gt;</code>-Dokument enthält</td>
+<td>Inline-Vektorbild</td>
+</tr>
+<tr>
+<td>Markdown-Bildlink mit einem <code>data:image/png;base64,…</code>-URI im Antworttext oder ein Codeblock, der nur einen solchen Daten-URI enthält</td>
+<td>Inline-Rasterbild (PNG, JPEG, GIF, BMP; bis zu 8 MB dekodiert) mit einer Schaltfläche <strong>Bild kopieren</strong></td>
+</tr>
+<tr>
+<td><code>```plantuml</code> / <code>```puml</code>-Codeblock oder ein nicht markierter <code>@startuml</code>-Block</td>
+<td>Lokal gerendertes PlantUML-Diagramm</td>
+</tr>
+<tr>
+<td><code>```mermaid</code> Codeblock</td>
+<td>Mermaid-Diagramm (gebündelte Bibliothek, kein Netzwerk)</td>
+</tr>
+<tr>
+<td><code>```latex</code> / <code>```tex</code> / <code>```math</code> Codeblock oder <code>$$ … $$</code> Mathematik im Antworttext</td>
+<td>Satzformel (im Lieferumfang von MathJax enthalten, kein Netzwerk)</td>
+</tr>
+</tbody>
+</table>
+<p>Jeder gerenderte Block behält eine Kopfzeile mit der üblichen Kopierschaltfläche und einem Umschalter zwischen <strong>Code anzeigen/Bild anzeigen</strong>, sodass die zugrunde liegende Quelle nur einen Klick entfernt bleibt. Während ein PlantUML/Mermaid/Math-Block noch gerendert wird, bleibt die Quelle sichtbar; Wenn das Rendern fehlschlägt (z. B. ein Mermaid-Syntaxfehler), bleibt der Block in der Quellansicht und die Kopfzeile zeigt den Grund an.</p>
+<p>Beispielaufforderungen, die gerenderte Antworten erzeugen:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Draw a simple house as an SVG image.
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Create a Mermaid flowchart of a typical login flow.
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Create a PlantUML sequence diagram for an SSH handshake.
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>Explain the Pythagorean theorem and show the formula.
+</span></code></pre></div>
+<p>Ein Mermaid-Antwortblock wie dieser wird als Flussdiagramm dargestellt:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>```mermaid
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>Diagramm TD;
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>Anmelden -&gt; Bestätigen;
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>Validieren--&gt;|ok| Sitzung;
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>Validieren -&gt;|fehlschlagen| Fehler;
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>```
+</span></code></pre></div>
+<p>Und zeigen Sie die Mathematik im Antworttext als gesetzte Formel an:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>$$a^2 + b^2 = c^2$$
+</span></code></pre></div>
+<p>!!! Hinweis „Darstellungsdetails und Anforderungen“
+* Die SVG- und PlantUML-Ausgabe wird mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.
+* Mermaid läuft mit der Sicherheitsstufe <code>strict</code> aus einer lokal gebündelten Bibliothek; LaTeX wird von einem lokal gebündelten MathJax gesetzt. Keiner von beiden benötigt einen Internetzugang.
+* Beim PlantUML-Rendering wird die lokale PlantUML-Toolchain verwendet: <code>java</code> und Graphviz <code>dot</code> müssen sich auf <code>PATH</code> befinden, und das PlantUML-JAR wird bei der ersten Verwendung in den Benutzercache heruntergeladen (dieselben Anforderungen wie bei Snippet-Diagrammen).
+* Vollständige LaTeX-Dokumente (<code>\documentclass</code>) bleiben absichtlich Codeblöcke; Es werden nur Formeln gesetzt.
+* Für gerenderte Bilder wird eine weiße Leinwand verwendet, sodass Diagramme und Formeln mit dunklen Strichen bei dunklen Themen lesbar bleiben.</p>
 <h2 id="ki-manager">KI-Manager<a class="headerlink" href="#ki-manager" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie <strong>Tools &gt; AI Manager</strong> oder drücken Sie ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).</p>
 <p><img alt="AI Manager" src="../assets/screenshots/ai/ai-manager.png" /></p>
@@ -2519,20 +2634,18 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <p>Verwenden Sie <strong>Einstellungen &gt; AI</strong> für die globalen Standardeinstellungen und Verhaltensänderungen und <strong>AI Manager</strong> für die tägliche Profil-/Chatverwaltung.</p>
 <h2 id="ki-agent-und-ki-planung">KI-Agent und KI-Planung<a class="headerlink" href="#ki-agent-und-ki-planung" title="Permanent link">&para;</a></h2>
 <p>korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.</p>
-<p>!!! note „SSH und lokale Shells“
-    Die Befehlsausführungs-Engine des Agenten wurde hinter einer
-    <code>AgentCommandRunner</code>-Abstraktion mit zwei Backends von SSH entkoppelt –
-    <strong>SSH</strong> (Exec-Kanal) und <strong>lokal</strong> (ein frischer lokaler Prozess). Der
-    <strong>KI-Agent</strong> und die <strong>KI-Planung</strong> laufen daher sowohl in SSH-Sitzungen als
-    auch in <a href="connections.html#lokale-shell">lokalen Shells</a> unter Windows, macOS und
-    Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über
-    <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungs-Probe und der
-    System-Prompt sind plattformbewusst, sodass das Modell native Befehle erzeugt,
-    und derselbe Genehmigungsablauf gilt. <strong>Einschränkungen bei lokalen Shells:</strong>
-    keine <code>sudo</code>-/Administrator-Erhöhung unter Windows und keine
-    Live-Arbeitsverzeichnis-Verfolgung (der Agent verwendet das Startverzeichnis
-    der Verbindung). Die headless KI-Agent-Aktion des JobSchedulers bleibt
-    SSH-exklusiv.</p>
+<p>!!! Hinweis „SSH und lokale Shells“
+Die Befehlsausführungs-Engine des Agenten ist hinter einem von SSH entkoppelt
+<code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal)
+und <strong>local</strong> (ein neuer lokaler Prozess). Der <strong>KI-Agent</strong> und <strong>KI-Planung</strong>
+daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#local-shell">lokalen Shells</a>
+unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt
+(PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebung
+Sonde und Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native generiert
+Befehle, und es gilt der gleiche Genehmigungsablauf. <strong>Einschränkungen der lokalen Shell:</strong> Nein
+<code>sudo</code>/Administrator-Erhöhung unter Windows und kein Live-Arbeitsverzeichnis
+Tracking (der Agent verwendet das Startverzeichnis der Verbindung). Der JobScheduler
+Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.</p>
 <h3 id="starten-des-agenten">Starten des Agenten<a class="headerlink" href="#starten-des-agenten" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>AI Agent</strong> – Starten Sie über <strong>Tools &gt; AI Agent...</strong>, über das Kontextmenü des Terminals oder mit dem Terminal-Verknüpfungsbefehl. Der Agent kann je nach <strong>Einstellungen &gt; AI</strong> einen speziellen Chat-Tab öffnen oder auf das aktive Terminalfenster zielen.</li>
@@ -2559,10 +2672,10 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 </ul>
 <h2 id="verknupfungsbefehle-fur-terminal-agenten">Verknüpfungsbefehle für Terminal-Agenten<a class="headerlink" href="#verknupfungsbefehle-fur-terminal-agenten" title="Permanent link">&para;</a></h2>
 <p>Wenn Terminal-Agent-Verknüpfungen aktiviert sind und sich das Terminal an einem Shell-Prompt befindet, fängt korTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>agent<span class="w"> </span>&lt;goal&gt;
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>agent-ask<span class="w"> </span>&lt;question&gt;
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>agent-plan<span class="w"> </span>&lt;task&gt;
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>agent<span class="w"> </span>-plan<span class="w"> </span>&lt;task&gt;
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>agent<span class="w"> </span>&lt;goal&gt;
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>agent-ask<span class="w"> </span>&lt;question&gt;
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>agent-plan<span class="w"> </span>&lt;task&gt;
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>agent<span class="w"> </span>-plan<span class="w"> </span>&lt;task&gt;
 </span></code></pre></div>
 <p>Der Basisbefehlsname kann unter <strong>Einstellungen &gt; AI</strong> konfiguriert werden. Wenn Sie <code>agent</code> umbenennen, leitet korTTY automatisch die passenden Befehle <code>-ask</code> und <code>-plan</code> ab. Auf derselben Einstellungsseite kann die Groß-/Kleinschreibung des Befehlsnamens nicht beachtet werden, und der Setup-Dialog pro Lauf kann deaktiviert werden. Wenn der Dialog deaktiviert ist, verwendet korTTY das konfigurierte Standardprofil.</p>
 <h3 id="tab-vervollstandigung-und-eingabeaufforderungsverlauf">TAB-Vervollständigung und Eingabeaufforderungsverlauf<a class="headerlink" href="#tab-vervollstandigung-und-eingabeaufforderungsverlauf" title="Permanent link">&para;</a></h3>
@@ -2603,11 +2716,11 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <li>Webrecherche nach lokalen Dateien, es sei denn, Sie fragen ausdrücklich nach externen/aktuellen Informationen.</li>
 </ul>
 <h3 id="beispielbefehle">Beispielbefehle<a class="headerlink" href="#beispielbefehle" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>agent<span class="w"> </span>show<span class="w"> </span>the<span class="w"> </span><span class="m">10</span><span class="w"> </span>largest<span class="w"> </span>XML<span class="w"> </span>files<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span>directory
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>agent<span class="w"> </span>update<span class="w"> </span>groesste_xml.pl<span class="w"> </span>so<span class="w"> </span>the<span class="w"> </span>-r<span class="w"> </span>flag<span class="w"> </span>searches<span class="w"> </span>subdirectories<span class="w"> </span>recursively
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>agent<span class="w"> </span>check<span class="w"> </span>why<span class="w"> </span>nginx<span class="w"> </span>failed<span class="w"> </span>to<span class="w"> </span>start<span class="w"> </span>and<span class="w"> </span>suggest<span class="w"> </span>the<span class="w"> </span>safest<span class="w"> </span>fix
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>agent-ask<span class="w"> </span>what<span class="w"> </span>user<span class="w"> </span>and<span class="w"> </span>directory<span class="w"> </span>am<span class="w"> </span>I<span class="w"> </span>currently<span class="w"> </span>using?
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>agent-plan<span class="w"> </span>migrate<span class="w"> </span>this<span class="w"> </span>host<span class="w"> </span>from<span class="w"> </span>package<span class="w"> </span>X<span class="w"> </span>to<span class="w"> </span>package<span class="w"> </span>Y
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>agent<span class="w"> </span>show<span class="w"> </span>the<span class="w"> </span><span class="m">10</span><span class="w"> </span>largest<span class="w"> </span>XML<span class="w"> </span>files<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span>directory
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>agent<span class="w"> </span>update<span class="w"> </span>groesste_xml.pl<span class="w"> </span>so<span class="w"> </span>the<span class="w"> </span>-r<span class="w"> </span>flag<span class="w"> </span>searches<span class="w"> </span>subdirectories<span class="w"> </span>recursively
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>agent<span class="w"> </span>check<span class="w"> </span>why<span class="w"> </span>nginx<span class="w"> </span>failed<span class="w"> </span>to<span class="w"> </span>start<span class="w"> </span>and<span class="w"> </span>suggest<span class="w"> </span>the<span class="w"> </span>safest<span class="w"> </span>fix
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>agent-ask<span class="w"> </span>what<span class="w"> </span>user<span class="w"> </span>and<span class="w"> </span>directory<span class="w"> </span>am<span class="w"> </span>I<span class="w"> </span>currently<span class="w"> </span>using?
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>agent-plan<span class="w"> </span>migrate<span class="w"> </span>this<span class="w"> </span>host<span class="w"> </span>from<span class="w"> </span>package<span class="w"> </span>X<span class="w"> </span>to<span class="w"> </span>package<span class="w"> </span>Y
 </span></code></pre></div>
 <p>Benennen Sie bei lokalen Dateiüberprüfungsaufgaben die Datei in der Aufgabe. Der Agent sollte es dann mit SSH-Befehlen wie <code>sed -n</code>, <code>cat</code>, <code>file</code> oder sprachspezifischen Syntaxprüfungen überprüfen. Wenn ein internetfähiges Profil aktiv ist, hält korTTY Web-Tools weiterhin von diesen lokalen Dateiplanungsaufforderungen fern, es sei denn, Ihre Aufgabe fragt eindeutig nach aktuellen oder externen Informationen.</p>
 <h3 id="aktivitatszeilensymbole">Aktivitätszeilensymbole<a class="headerlink" href="#aktivitatszeilensymbole" title="Permanent link">&para;</a></h3>
@@ -2687,27 +2800,26 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <li>Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.</li>
 </ul>
 <h2 id="workflow-skript-generieren">Workflow-Skript generieren<a class="headerlink" href="#workflow-skript-generieren" title="Permanent link">&para;</a></h2>
-<p>Nachdem die Ausführung eines fertigen Agenten erfolgreich abgeschlossen wurde, verwandelt eine <strong>Workflow</strong>-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, <strong>Windows-CMD</strong>-Batch oder <strong>AppleScript</strong>) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem Header (Skriptname, Ersteller, Datum/Uhrzeit).</p>
+<p>Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, verwandelt eine <strong>Workflow</strong>-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, <strong>Windows-CMD</strong> Batch oder <strong>AppleScript</strong>) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem Header (Skriptname, Ersteller, Datum/Uhrzeit).</p>
 <p>Skripterstellung:</p>
 <ul>
 <li>Lädt automatisch passende KI-Fähigkeiten (z. B. eine Sprachqualitätsfähigkeit für die Zielsprache).</li>
 <li>Kann mehrere Sprachvarianten und mehrere Vorschläge als Inline-Tabs erstellen.</li>
 <li>Unterstützt Header-Vorlagen aus der festen, nicht löschbaren Snippet-Kategorie <strong>Script-Header</strong>.</li>
-<li>Enthält optional ein PlantUML-Diagramm für die Skriptlogik. Während das Diagramm generiert wird, erscheint ein Arbeits-Spinner, sodass erkennbar ist, dass die KI-Verbindung beschäftigt ist.</li>
+<li>Enthält optional ein PlantUML-Diagramm für die Skriptlogik. Während das Diagramm erstellt wird, wird ein funktionierender Kreisel angezeigt, sodass klar ist, dass die KI-Verbindung ausgelastet ist.</li>
 <li>Wird im Snippet-Manager mit einem kurzen, automatisch generierten Namen und der korrekten Erweiterung gespeichert (dedupliziert durch den vollständigen Namen einschließlich Erweiterung).</li>
 <li>Kennzeichnen Sie das Snippet zur einfachen Filterung als <code>workflow</code>.</li>
 <li>Setzt die Spalte <strong>System</strong> (Betriebssystem) automatisch auf das geprüfte Betriebssystem des Agenten (jede Linux-Distribution wird zu Linux).</li>
 <li>Der Internetzugang wird während der Generierung zwangsweise ausgeschaltet.</li>
 </ul>
-<p><strong>Zielsprachen:</strong> Bash, Python, Perl, Ruby, PowerShell, Ansible, sowie <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch – <code>@echo off</code>-Startzeile, <code>REM</code>-Header-Kommentare, <code>errorlevel</code>-Prüfungen) und <strong>AppleScript</strong> (<code>.applescript</code> – <code>osascript</code>-Shebang, <code>--</code>-Kommentare, <code>try</code>/<code>on error</code>-Behandlung).</p>
-<p>Jeder Editor für generierte Skripte verfügt über <strong>A−</strong>- / <strong>A+</strong>-Schaltflächen und unterstützt <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad (Cmd auf macOS) zum Ändern der Schriftgröße; die gewählte Größe wird über Sitzungen hinweg gespeichert.</p>
+<p><strong>Zielsprachen:</strong> Bash, Python, Perl, Ruby, PowerShell, Ansible, plus <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch – <code>@echo off</code>-Lead-Zeile, <code>REM</code>-Header-Kommentare, <code>errorlevel</code>-Prüfungen) und <strong>AppleScript</strong> (<code>.applescript</code> – <code>osascript</code>-Shebang, <code>--</code>-Kommentare, <code>try</code>/<code>on error</code>-Verarbeitung).</p>
+<p>Jeder Editor für generierte Skripte verfügt über die Schaltflächen <strong>A−</strong> / <strong>A+</strong> und unterstützt <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad (Cmd unter macOS), um die Schriftgröße zu ändern; Die gewählte Größe wird sitzungsübergreifend gespeichert.</p>
 <p>Die Größe des Workflow-Dialogfelds kann geändert werden und seine Größe und Position werden für die zukünftige Verwendung gespeichert.</p>
-<p>!!! tip „Klarere KI-Backend-Fehler“
-    Wenn dem KI-Server der Speicher ausgeht oder ein Ressourcenlimit erreicht
-    wird (z. B. LM Studio/MLX „Resource limit exceeded“, „metal::malloc“), zeigt
-    der Dialog einen kurzen, umsetzbaren Hinweis statt des rohen mehrzeiligen
-    Backend-Stacktraces; alle anderen KI-Fehler werden auf eine einzige Zeile
-    reduziert.</p>
+<p>!!! Tipp „KI-Backend-Fehler deutlicher machen“
+Wenn der KI-Server nicht mehr über genügend Speicher verfügt oder ein Ressourcenlimit erreicht (z. B. LM
+Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“), im Dialog wird Folgendes angezeigt:
+kurzer, umsetzbarer Hinweis anstelle des rohen mehrzeiligen Backend-Stack-Trace; alle
+Andere KI-Fehler werden in einer einzigen Zeile zusammengefasst.</p>
 
 
 

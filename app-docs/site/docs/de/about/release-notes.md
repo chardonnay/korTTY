@@ -30,7 +30,7 @@ Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Lee
 `"C:\Program Files\Git\bin\bash.exe"`) korrekt starten.
 - **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
 Haken wurden auf eine gemeinsame `ObservableTtyConnector`-Schnittstelle gehoben, also auch
-Arbeit für lokale Muscheln. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
+Arbeit für lokale Shells. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
 - **AI Agent & Planning in lokalen Shells** – die Befehlsausführungs-Engine des Agenten
 wurde hinter einer `AgentCommandRunner`-Abstraktion (SSH exec.) von SSH entkoppelt
 Kanal- und lokale Prozess-Backends). Der **KI-Agent** und **KI-Planung** jetzt
@@ -46,10 +46,39 @@ Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.
 - **Strg + Mausrad-Zoom** – **Strg** (oder **Befehl** unter macOS) gedrückt halten und
 Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
 Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
-Abkürzungen.
+Verknüpfungen.
 - **Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte** – diese Windows-Shells tun dies nicht
 Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
 (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.
+
+### KI-Chat und Agent
+
+- **Bilder, Diagramme und Mathematik werden in KI-Chats gerendert** – KI-Antworten mit einem
+SVG-Dokument, ein Base64-Rasterbild (`data:image/png;base64,…` – PNG, JPEG,
+GIF, BMP), ein ` ```plantuml `-Block, ein ` ```mermaid `-Block oder LaTeX-Mathematik
+(` ```latex `/` ```tex `/` ```math ` Blöcke und `$$…$$` in Prosa) werden als angezeigt
+Bilder anstelle von Roh-Markup, jeweils mit einem Umschalter **Code anzeigen/Bild anzeigen** und
+Schaltfläche „Kopieren“. Mermaid und MathJax sind gebündelt (kein Netzwerk); PlantUML verwendet die
+lokale Toolchain (`java` + Graphviz `dot`); Die SVG-Ausgabe wird bereinigt und angezeigt
+mit deaktiviertem JavaScript.
+- **Vollständige Modellbegründung in Agent Thinking-Zeilen** – Erweitern einer 💭-Zeile in der
+Das Agentenaktivitätsfeld zeigt jetzt die tatsächliche Argumentation des Modells beim Anbieter an
+legt es offen (Anthropisches erweitertes Denken gemäß der Argumentationsbemühungen des Profils,
+OpenAI-kompatibler `reasoning_content`, LM Studio Reasoning-Ausgabe, `<think>`
+Blöcke aus lokalen CLI-Modellen), andernfalls wird auf die Entscheidungszusammenfassung zurückgegriffen.
+- **Das Laufprotokoll zeichnet das AI-Profil auf** – jeder Agentenlauf beginnt mit einem
+`AI profile: <name> (<model>)`-Aktivitätszeile.
+- **Beim Neuladen wird das aktuell aktive Profil verwendet** – das Neuladen des Aktivitätsbereichs
+Mit der Schaltfläche wird der Befehl mit dem Profil erneut ausgeführt, das jetzt aktiv ist, nicht mit dem Profil, das gerade aktiv ist
+Der ursprüngliche Lauf wurde mit gestartet.
+- **Agent Ask umfasst die Terminalauswahl** – Starten von **AI → Ask AI Agent**
+aus dem Rechtsklick-Menü mit ausgewähltem Text sendet die Auswahl als Kontext, also
+Die Frage wird bezüglich der ausgewählten Ausgabe oder des ausgewählten Skripts beantwortet.
+- **Konkrete Modelle für Wolkenprofile** – die Modellauswahl ist vorab gefüllt
+gängige Modellnamen für bekannte Cloud-Anbieter (offline, kein API-Schlüssel erforderlich), die
+Klicken Sie auf die Schaltfläche „Aktualisieren“, um die Live-Modellliste des Endpunkts zusammenzuführen
+Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option **Auto** ist nicht mehr vorhanden
+Wird für Cloud-Endpunkte angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).
 
 ### Workflow-Skriptgenerator
 

@@ -362,13 +362,19 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         JsonObject root = JsonParser.parseString(responseBody).getAsJsonObject();
         JsonArray output = root.getAsJsonArray("output");
         StringBuilder builder = new StringBuilder();
+        StringBuilder reasoning = new StringBuilder();
         if (output != null) {
             for (JsonElement element : output) {
                 if (!element.isJsonObject()) {
                     continue;
                 }
                 JsonObject item = element.getAsJsonObject();
-                if (!"message".equals(stringField(item, "type")) || !item.has("content")) {
+                String type = stringField(item, "type");
+                if ("reasoning".equals(type)) {
+                    appendReasoningItem(reasoning, item);
+                    continue;
+                }
+                if (!"message".equals(type) || !item.has("content")) {
                     continue;
                 }
                 if (builder.length() > 0) {
@@ -377,7 +383,51 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
                 builder.append(item.get("content").getAsString());
             }
         }
-        return new AiExecutionResult(builder.toString().trim(), parseStats(root));
+        String reasoningText = reasoning.length() > 0 ? reasoning.toString().trim() : null;
+        return new AiExecutionResult(builder.toString().trim(), parseStats(root), reasoningText);
+    }
+
+    private void appendReasoningItem(StringBuilder reasoning, JsonObject item) {
+        String text = firstNonBlank(
+            stringField(item, "reasoning"),
+            stringField(item, "content"),
+            stringField(item, "text"),
+            stringField(item, "summary"));
+        if (text.isBlank()) {
+            // Some servers nest the reasoning text inside a content array of {type, text} parts.
+            JsonElement content = item.get("content");
+            if (content != null && content.isJsonArray()) {
+                StringBuilder nested = new StringBuilder();
+                for (JsonElement part : content.getAsJsonArray()) {
+                    if (!part.isJsonObject()) {
+                        continue;
+                    }
+                    String partText = stringField(part.getAsJsonObject(), "text");
+                    if (!partText.isBlank()) {
+                        if (nested.length() > 0) {
+                            nested.append("\n");
+                        }
+                        nested.append(partText);
+                    }
+                }
+                text = nested.toString();
+            }
+        }
+        if (!text.isBlank()) {
+            if (reasoning.length() > 0) {
+                reasoning.append("\n\n");
+            }
+            reasoning.append(text);
+        }
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private AiTokenUsage parseStats(JsonObject root) {

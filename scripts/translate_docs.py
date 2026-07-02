@@ -118,6 +118,9 @@ def translatable_lines(md: str) -> tuple[list[str], list[tuple[int, str, list[st
 # ("Anleitung", matching the app's menu.help.guide=Anleitung) so the DE site never
 # drifts to Handbuch/Leitfaden/Manual. Applied after translation.
 GLOSSARY_DE = [
+    # Product/technology names that MT tends to translate literally.
+    ("Meerjungfrau", "Mermaid"),
+    ("meerjungfrau", "Mermaid"),
     ("korTTY Guide", "korTTY Anleitung"),
     ("Bedienungsanleitung", "Anleitung"),
     ("Benutzerhandbuch", "Anleitung"),
