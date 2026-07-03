@@ -181,6 +181,12 @@ public final class SwarmWorkflowScriptDialog {
             };
             activeTask.set(task);
             task.setOnSucceeded(ev -> {
+                // A success/failure event can already be queued on the FX thread when the dialog is
+                // closed — cancel() on an already-finished task is a no-op, so this must also guard
+                // against running after preview.dispose() rather than relying on cancel() alone.
+                if (!dialog.isShowing() || task.isCancelled()) {
+                    return;
+                }
                 elapsedTimeline.stop();
                 busyIndicator.setVisible(false);
                 busyIndicator.setManaged(false);
@@ -188,8 +194,12 @@ public final class SwarmWorkflowScriptDialog {
                 preview.replaceText(outcome != null ? outcome.script() : "");
                 status.setText(I18n.get("ai.workflow.ready.duration", formatElapsed(startedAtMillis.get())));
                 generateButton.setDisable(false);
+                activeTask.compareAndSet(task, null);
             });
             task.setOnFailed(ev -> {
+                if (!dialog.isShowing() || task.isCancelled()) {
+                    return;
+                }
                 elapsedTimeline.stop();
                 busyIndicator.setVisible(false);
                 busyIndicator.setManaged(false);
@@ -197,6 +207,7 @@ public final class SwarmWorkflowScriptDialog {
                 status.setText(error != null && error.getMessage() != null
                     ? error.getMessage() : I18n.get("ai.result.error"));
                 generateButton.setDisable(false);
+                activeTask.compareAndSet(task, null);
             });
             Thread thread = new Thread(task, "ai-swarm-workflow");
             thread.setDaemon(true);

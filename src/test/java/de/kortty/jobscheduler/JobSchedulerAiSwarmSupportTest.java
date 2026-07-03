@@ -55,6 +55,20 @@ class JobSchedulerAiSwarmSupportTest {
     }
 
     @Test
+    void approvalBlockedAgentClassifiesAsBlockedEvenThoughItsPhaseMappedToFailed() {
+        // PerAgentRunUi's phase mapping has no distinct swarm BLOCKED state, so an approval denial
+        // surfaces as SwarmAgentState.FAILED; mutationBlockedAgentIds must override that for the job
+        // summary, or a policy-denied agent would be misreported as a genuine failure.
+        JobExecutionOutcome outcome = JobSchedulerAiSwarmSupport.mapOutcome(
+            List.of(status("a", SwarmModels.SwarmAgentState.DONE),
+                status("b", SwarmModels.SwarmAgentState.FAILED)),
+            "report", Set.of("b"), IDENTITY);
+        assertThat(outcome.status()).isEqualTo(JobRunStatus.BLOCKED);
+        assertThat(outcome.summary()).contains("Failed: 0, blocked: 1.");
+        assertThat(outcome.summary()).contains("required approval");
+    }
+
+    @Test
     void outcomeDetailGoesThroughTheRedactionHook() {
         JobExecutionOutcome outcome = JobSchedulerAiSwarmSupport.mapOutcome(
             List.of(status("a", SwarmModels.SwarmAgentState.DONE)),

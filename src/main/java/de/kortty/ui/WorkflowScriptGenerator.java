@@ -176,12 +176,33 @@ public final class WorkflowScriptGenerator {
                                      List<WorkflowScriptSupport.SwarmHost> hosts,
                                      TerminalAgentActivityExportService.Run representativeRun,
                                      String detectedOs) {
+        public SwarmRunExportData {
+            hosts = hosts != null ? List.copyOf(hosts) : List.of();
+        }
     }
 
     public record SwarmRequest(ScriptLanguage language,
                                EnumSet<WorkflowScriptSupport.HardeningOption> hardening,
                                EnumSet<WorkflowScriptSupport.SwarmScriptOption> swarmOptions,
                                String extraInstructions, HeaderFacts headerFacts, String headerOverride) {
+        public SwarmRequest {
+            hardening = hardening != null
+                ? hardening.clone()
+                : EnumSet.noneOf(WorkflowScriptSupport.HardeningOption.class);
+            swarmOptions = swarmOptions != null
+                ? swarmOptions.clone()
+                : EnumSet.noneOf(WorkflowScriptSupport.SwarmScriptOption.class);
+        }
+
+        @Override
+        public EnumSet<WorkflowScriptSupport.HardeningOption> hardening() {
+            return hardening.clone();
+        }
+
+        @Override
+        public EnumSet<WorkflowScriptSupport.SwarmScriptOption> swarmOptions() {
+            return swarmOptions.clone();
+        }
     }
 
     /** Generates a multi-host workflow script that runs the per-host work across all target hosts. */

@@ -169,6 +169,13 @@ public class JobSchedulerAiSwarmSupport {
         int failed = 0;
         int blocked = 0;
         for (SwarmModels.SwarmAgentStatus status : statuses) {
+            // An approval denial surfaces through PerAgentRunUi's phase mapping as FAILED (there is
+            // no distinct swarm BLOCKED state), so mutationBlockedAgentIds is the source of truth
+            // for "blocked by policy" rather than "genuinely failed".
+            if (mutationBlockedAgentIds != null && mutationBlockedAgentIds.contains(status.agentId())) {
+                blocked++;
+                continue;
+            }
             switch (status.state()) {
                 case DONE -> done++;
                 case FAILED -> failed++;

@@ -13,8 +13,10 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -79,7 +81,19 @@ public class SwarmChatManager {
 
         Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-        marshaller.marshal(wrapper, file.toFile());
+        // Marshal to a temp file first and move it into place: a crash or disk-full error mid-write
+        // must never leave a half-written swarm-chats.xml for the next load() to choke on.
+        Path tempFile = Files.createTempFile(configDir, SWARM_CHATS_FILE, ".tmp");
+        try {
+            marshaller.marshal(wrapper, tempFile.toFile());
+            try {
+                Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
         logger.info("Saved {} swarm chats to {}", chats.size(), file);
     }
 
