@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AtomicFileWriter;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SFTPSession;
 import de.kortty.core.SftpFileTransferService;
@@ -3280,12 +3281,7 @@ public class SFTPManagerTab extends Tab {
     }
 
     private boolean overwriteLocalSnippetFile(Path filePath, Snippet draft) throws IOException {
-        Files.writeString(
-            filePath,
-            draft.getContent(),
-            StandardCharsets.UTF_8,
-            StandardOpenOption.WRITE,
-            StandardOpenOption.TRUNCATE_EXISTING);
+        AtomicFileWriter.writeStringAtomically(filePath, draft.getContent() != null ? draft.getContent() : "");
         Platform.runLater(this::refreshLocal);
         return true;
     }

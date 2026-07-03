@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.ui.I18n;
 import de.kortty.core.AgentDashboardStatus;
+import de.kortty.core.AtomicFileWriter;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiExecutionResult;
@@ -5131,12 +5132,7 @@ public class MainWindow {
     }
 
     private boolean overwriteTerminalLocalTextFile(Path filePath, Snippet draft) throws IOException {
-        Files.writeString(
-            filePath,
-            draft.getContent() != null ? draft.getContent() : "",
-            StandardCharsets.UTF_8,
-            StandardOpenOption.WRITE,
-            StandardOpenOption.TRUNCATE_EXISTING);
+        AtomicFileWriter.writeStringAtomically(filePath, draft.getContent() != null ? draft.getContent() : "");
         return true;
     }
 
