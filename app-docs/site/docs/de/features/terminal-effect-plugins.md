@@ -14,8 +14,27 @@ Ein Terminal-Effekt-Plugin kann:
 - Fügen Sie JavaFX-Overlay-Knoten über dem Terminalbereich hinzu (z. B. Scanlines, Rauschen, Vignetten oder Linienhervorhebungen).
 - Wickeln Sie den SithTermFX `TtyConnector` ein, um die Terminalausgabe zu beobachten, zu beschleunigen oder umzuwandeln, bevor der Terminalemulator sie empfängt
 - Reagieren Sie auf die vom Benutzer ausgewählte Animationsgeschwindigkeit des Endeffekts
+- Stellen Sie eine animierte Vorschau bereit, die der Plugin-Manager für das ausgewählte Plugin anzeigt (optional `createPreview()`)
 
-Der integrierte MOTHER-Effekt wird als gebündeltes, exportierbares Plugin-JAR implementiert und dient als Referenzimplementierung.
+## Eingebaute Effekte
+
+KorTTY liefert elf integrierte Effekte als zwei gebündelte, exportierbare Plugin-JARs: die MOTHER-Referenzimplementierung (`kortty-terminal-effect-mother.jar`) und das Effektpaket (`kortty-terminal-effect-pack.jar`) mit zehn thematischen Effekten.
+
+| ID | Name | Beschreibung |
+|----|------|-------------|
+| `mother` | MU/DO/UR 6000 | Grünes CRT-Terminal-Erscheinungsbild im ALIEN-Stil mit getakteter Zeilenausgabe. |
+| `amber-crt-90` | Bernstein CRT '90 | Bernsteinfarbener Phosphor-CRT-Monitor aus den 90er Jahren mit Scanlines, Glühen, Flimmern und einem rollenden Bildwiederholband. |
+| `commodore-blue` | Commodore Heritage | Klassischer C64-Heimcomputer-Look: Hellblau auf Blau mit klobigem Cursor und Ladebalken. |
+| `neon-city` | Neonstadt | Cyberpunk-Neon-Look mit Glitch-Tears, RGB-Split-Flimmern und pulsierendem Leuchten. |
+| `digital-rain` | Digitaler Regen | Grün-auf-Schwarz-Matrixstil mit einem schwachen Strom fallender Glyphen. |
+| `hologram-hud` | Hologramm-HUD | Durchscheinendes Science-Fiction-Hologramm mit Interferenzbändern, HUD-Eckklammern und Flimmern. |
+| `poltergeist` | Poltergeist | Verwunschenes monochromes Terminal mit atmender Vignette, statischen Ausbrüchen und geisterhaften Blitzen. |
+| `vhs-1987` | VHS 1987 | Abgenutzte VHS-Kassettenwiedergabe mit Tracking-Rauschen, Rollverzerrung und einer PLAY-Überlagerung. |
+| `synthwave-horizon` | Synthwave-Horizont | Synthwave-Palette im Retro-80er-Jahre-Stil mit einem leuchtenden perspektivischen Raster am Horizont. |
+| `deep-space-radar` | Weltraumradar | Taktische Weltraumkonsole mit langsamem Radarschwenk, schwachen Blips und Rahmenecken. |
+| `typewriter-noir` | Schreibmaschine Noir | Sepia-Papier und Ink-Noir-Look mit zeichenweiser Schreibmaschinen-Ausgabegeschwindigkeit. |
+
+Alle integrierten Effekte überschreiben das Erscheinungsbild des Terminals (Schriftart, Farben, Cursor), solange sie aktiv sind, und zeichnen ihre Animation als maustransparente Leinwandüberlagerung. Typewriter Noir umschließt zusätzlich den Anschluss, um die Ausgabe Zeichen für Zeichen zu beschleunigen. Effektnamen sind Eigennamen und bleiben unübersetzt; Beschreibungen werden über die `plugin.terminalEffects.desc.*`-Nachrichtenschlüssel mit einem englischen Fallback lokalisiert.
 
 ## Laufzeitmodell
 
@@ -46,11 +65,13 @@ Der Dialog zeigt die geladene Plugin-Liste mit:
 - Anzeigename
 - Kurze Beschreibung
 
+Neben der Tabelle spielt ein Vorschaufenster eine animierte Live-Vorschau des ausgewählten Plugins ab (ein kleines gefälschtes Terminal in den Farben des Effekts mit der Effektüberlagerung darüber). Wenn ein Plugin `createPreview()` nicht implementiert, zeigt das Panel stattdessen einen Platzhaltertext an. Die Vorschau stoppt, wenn sich die Auswahl ändert, der globale Schalter für Terminaleffekte ausgeschaltet wird oder das Dialogfeld geschlossen wird.
+
 Benutzer können:
 
 - Aktivieren oder deaktivieren Sie ein Plugin
 - Importieren Sie ein externes `.jar`-Plugin, das KorTTY nach `~/.kortty/plugins` kopiert
-- Exportieren Sie Plugins, die über eine Quell-JAR verfügen (gebündeltes MOTHER ist exportierbar, da es von `kortty-terminal-effect-mother.jar` geladen wird)
+- Exportieren Sie Plugins, die über eine Quell-JAR verfügen (die gebündelten MOTHER- und Effect-Pack-JARs sind exportierbar)
 
 Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder **Ansicht > Terminaleffekt** aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über Quick Connect und Connection Manager speichern. Der Geschwindigkeitsregler deckt `1x` bis `10x` ab; Das numerische Feld akzeptiert Werte bis zu `99x`.
 
@@ -68,6 +89,7 @@ public interface TerminalEffectPlugin {
     String displayName();
     default String description() { return ""; }
     TerminalEffectSession createSession(TerminalEffectContext context);
+    default TerminalEffectPreview createPreview() { return null; }
 }
 ```
 
@@ -78,6 +100,7 @@ Regeln:
 - `displayName()` darf nicht leer sein
 - `description()` wird in der Plugin-Verwaltungstabelle angezeigt und sollte ein kurzer Satz sein
 - Die Provider-Klasse muss von `ServiceLoader` ladbar sein; Verwenden Sie eine öffentliche Klasse mit einem öffentlichen Konstruktor ohne Argumente
+- `createPreview()` ist optional; Die Rückgabe von `null` (Standard) zeigt einen Platzhalter im Plugin-Manager an
 
 ### TerminalEffectSession
 
@@ -139,6 +162,26 @@ public record TerminalEffectAppearance(
 Verwenden Sie nur die Felder, die Ihr Effekt benötigt. `null` lässt den aktuellen Wert unverändert.
 
 Die aktuelle Implementierung übergibt Farbwerte als Zeichenfolgen, beispielsweise `#19FF4C`. Der Cursorstil ist ebenfalls eine Zeichenfolge. Der MOTHER-Effekt verwendet `BLINK_BLOCK`. Verwenden Sie Werte wieder, die bereits von den Terminaleinstellungen von KorTTY akzeptiert wurden, anstatt neue Namen zu erfinden.
+
+### TerminalEffectPreview
+
+`createPreview()` gibt die im Plugin-Manager angezeigte animierte Vorschau zurück:
+
+```java
+public interface TerminalEffectPreview {
+    @NotNull Node node();
+    default void start() {}
+    default void stop() {}
+}
+```
+
+Vertrag:
+
+- Eine Vorschauinstanz unterstützt eine angezeigte Vorschau. Der Anrufer fordert einmal `node()` an, ruft `start()` nach dem Anhängen und `stop()` auf, bevor er es verwirft
+- Erstellen Sie keine JavaFX-Objekte, bevor `node()` aufgerufen wird, damit die Plugin-Metadaten auch ohne ein ausgeführtes JavaFX-Toolkit verwendbar bleiben
+- `stop()` muss alle Zeitleisten stoppen und Animationsressourcen freigeben
+
+`TerminalEffectPreviewCanvas` (gleiches Paket) ist eine wiederverwendbare Implementierung, die von allen integrierten Effekten verwendet wird: ein 360x220 gefälschtes Terminal mit konfigurierbaren Farben, gefälschten Shell-Linien, einem blinkenden Cursor und einer optionalen Effekt-Overlay-Leinwand oben. Sein Builder sammelt nur einfache Daten und erstellt träge JavaFX-Knoten in `node()`.
 
 ### TerminalEffectConnectorWrapper
 
@@ -228,12 +271,17 @@ Für die Entwicklung innerhalb dieses Repositorys verwenden Sie das MOTHER-Sourc
 - Packen Sie nur die Plugin-Quellsatzausgabe in eine Plugin-JAR
 - Fügen Sie den ServiceLoader-Deskriptor in die Plugin-JAR ein
 
-Die MUTTER-Aufgabe ist das konkrete, erprobte Beispiel:
+Die Aufgaben MOTHER und effect-pack sind die konkreten, erprobten Beispiele:
 
 ```bash
 ./gradlew motherTerminalEffectPluginJar
 jar tf build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
+
+./gradlew effectPackPluginJar
+jar tf build/terminal-effect-plugins/kortty-terminal-effect-pack.jar
 ```
+
+Eine einzelne Plugin-JAR kann mehrere Effekte registrieren: Das Effektpaket listet alle zehn Anbieterklassen in einem ServiceLoader-Deskriptor auf. Gebündelte JARs müssen zusätzlich in `src/main/resources/bundled-plugins/terminal-effects.index` aufgeführt sein, sonst werden sie nie extrahiert und geladen.
 
 Das generierte JAR muss Folgendes enthalten:
 
@@ -303,7 +351,8 @@ Behalten Sie keinen separaten Geschwindigkeitswert im Plugin bei. KorTTY speiche
 **Exporte:**
 
 – Ein Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurde
-- Das gebündelte MOTHER ist exportierbar, da KorTTY sein gebündeltes JAR vor dem Laden nach `~/.kortty/bundled-plugins/terminal-effects` kopiert
+- Gebündelte Plugins sind exportierbar, da KorTTY seine gebündelten JARs vor dem Laden nach `~/.kortty/bundled-plugins/terminal-effects` kopiert
+- Beim Exportieren eines der zehn Effektpaket-Effekte wird der gesamte `kortty-terminal-effect-pack.jar` exportiert, da das JAR die Exporteinheit ist
 - Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden
 
 **Beharrlichkeit:**
@@ -346,10 +395,13 @@ Führen Sie KorTTY aus:
 Plugin-Verwaltung validieren:
 
 1. Öffnen Sie **Plugins > Terminaleffekte**
-2. Bestätigen Sie, dass das Plugin mit Namen und Beschreibung angezeigt wird
-3. Deaktivieren und aktivieren Sie es
-4. Exportieren Sie es und überprüfen Sie das exportierte JAR mit `jar tf`
-5. Importieren Sie das exportierte JAR in eine saubere KorTTY-Konfiguration oder einen anderen Build
+2. Bestätigen Sie, dass alle integrierten Plugins mit Namen und Beschreibung angezeigt werden
+3. Wählen Sie eine Zeile aus und bestätigen Sie, dass die animierte Vorschau neben der Tabelle abgespielt wird
+4. Deaktivieren und aktivieren Sie ein Plugin
+5. Exportieren Sie eines und überprüfen Sie das exportierte JAR mit `jar tf`
+6. Importieren Sie das exportierte JAR in eine saubere KorTTY-Konfiguration oder einen anderen Build
+
+Die Gradle-Aufgabe `terminalEffectPreviewSmoke` rendert alle integrierten Vorschau- und Manager-Dialogfelder kopflos in `build/smoke/` für eine schnelle Offline-Überprüfung.
 
 Sitzungsverhalten validieren:
 

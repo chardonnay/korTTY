@@ -5,6 +5,26 @@ shown in the footer.
 
 ## Unreleased
 
+### Terminal effects: ten new built-in effects & animated previews
+
+- **Ten new built-in terminal effects** — alongside MU/TH/UR 6000, a bundled
+  effect pack now ships ten themed effects from cyberpunk to retro to creepy:
+  **Amber CRT '90** (amber 90s phosphor monitor with scanlines, glow, flicker
+  and a rolling refresh band), **Commodore Heritage** (C64 blue with loader
+  bars), **Neon City** (glitch tears and RGB-split flickers), **Digital Rain**
+  (faint falling matrix glyphs), **Hologram HUD** (interference bands and HUD
+  corner brackets), **Poltergeist** (breathing vignette, static bursts and
+  ghostly flashes), **VHS 1987** (tracking noise, rolling distortion and a
+  PLAY overlay), **Synthwave Horizon** (glowing perspective grid), **Deep Space
+  Radar** (slow radar sweep with blips) and **Typewriter Noir** (sepia paper
+  look with per-character typewriter output pacing). All effects respect the
+  animation-speed setting and their descriptions are localized in all nine
+  languages.
+- **Animated previews in the plugin manager** — **Plugins → Terminal Effects**
+  now shows a live animated preview of the selected effect next to the plugin
+  table, so effects can be compared before activating them in a session.
+  Plugins without a preview show a placeholder instead.
+
 ## v2.3.3
 
 ### Fixes

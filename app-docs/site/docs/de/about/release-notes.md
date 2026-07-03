@@ -5,6 +5,26 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+### Terminaleffekte: Zehn neue integrierte Effekte und animierte Vorschauen
+
+- **Zehn neue integrierte Terminaleffekte** – neben MU/TH/UR 6000, ein Bundle
+Das Effektpaket enthält jetzt zehn thematische Effekte von Cyberpunk über Retro bis Grusel:
+**Bernsteinfarbener CRT '90** (bernsteinfarbener 90er-Jahre-Phosphormonitor mit Scanlines, Glühen, Flimmern
+und ein rollendes Aktualisierungsband), **Commodore Heritage** (C64 blau mit Lader
+Balken), **Neon City** (Glitch Tears und RGB-Split-Flimmern), **Digital Rain**
+(schwache fallende Matrixglyphen), **Hologramm-HUD** (Interferenzbänder und HUD
+Eckklammern), **Poltergeist** (atmende Vignette, statische Ausbrüche und
+gespenstische Blitze), **VHS 1987** (Tracking-Rauschen, Rollverzerrung und a
+PLAY-Overlay), **Synthwave Horizon** (leuchtendes perspektivisches Raster), **Deep Space
+Radar** (langsamer Radardurchlauf mit Blips) und **Typewriter Noir** (Sepiapapier
+sehen Sie sich die Schreibmaschinen-Ausgabegeschwindigkeit pro Zeichen an). Alle Effekte respektieren die
+Die Einstellungen für die Animationsgeschwindigkeit und ihre Beschreibungen sind in allen neun lokalisiert
+Sprachen.
+- **Animierte Vorschauen im Plugin-Manager** — **Plugins → Terminaleffekte**
+Zeigt jetzt neben dem Plugin eine animierte Live-Vorschau des ausgewählten Effekts an
+Tabelle, sodass Effekte verglichen werden können, bevor sie in einer Sitzung aktiviert werden.
+Plugins ohne Vorschau zeigen stattdessen einen Platzhalter an.
+
 ## v2.3.3
 
 ### Korrekturen
