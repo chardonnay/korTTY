@@ -5,6 +5,8 @@ shown in the footer.
 
 ## Unreleased
 
+## v2.3.1
+
 ### Fixes
 
 - **"Load as text file" follows `cd` in local shells** — in a local-shell tab,

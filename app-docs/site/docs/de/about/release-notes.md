@@ -5,6 +5,8 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+## v2.3.1
+
 ### Korrekturen
 
 - **„Als Textdatei laden“ folgt `cd` in lokalen Shells** – in einer Registerkarte einer lokalen Shell,

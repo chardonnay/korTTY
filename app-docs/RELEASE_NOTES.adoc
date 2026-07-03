@@ -2,6 +2,8 @@
 
 == Unreleased
 
+== v2.3.1
+
 === Fixes
 
 * *"Load as text file" follows `cd` in local shells*: In a local-shell tab, loading a selected file with *Load as text file* after changing directory no longer fails to find the file. korTTY now reads the shell's live working directory straight from the operating system (the shell process's current directory) instead of relying only on the prompt text, which does not reveal the full path when the prompt shows just the folder name (the macOS zsh default). On macOS/Linux this resolves the selection against the directory the shell is actually in; on Windows it falls back to the previous prompt-based behavior.

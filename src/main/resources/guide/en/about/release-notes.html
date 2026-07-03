@@ -1781,7 +1781,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v231" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.3.1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.3.1">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2129,7 +2140,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v231" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.3.1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.3.1">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2419,16 +2441,33 @@
 <p>The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="v231">v2.3.1<a class="headerlink" href="#v231" title="Permanent link">&para;</a></h2>
 <h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>"Load as text file" works in local shells</strong> — right-clicking a selected file
-  name in a local-shell tab and choosing <strong>Load as text file</strong> no longer fails
-  with "No active SSH connection is available". The file is read from the local
-  filesystem — resolved against the working directory shown in the shell prompt
-  when available, otherwise the directory the shell was started in — and opens
-  in the snippet editor with <strong>Overwrite local file</strong> and <strong>Save as...</strong> just
-  like the SSH/SFTP variant. The not-connected error message is now
-  transport-neutral.</li>
+<li><strong>"Load as text file" follows <code>cd</code> in local shells</strong> — in a local-shell tab,
+  loading a selected file with <strong>Load as text file</strong> after changing directory no
+  longer fails to find the file. korTTY now reads the shell's live working
+  directory straight from the operating system (the shell process's current
+  directory) instead of relying only on the prompt text, which does not reveal
+  the full path when the prompt shows just the folder name (the macOS zsh
+  default). On macOS/Linux this resolves the selection against the directory the
+  shell is actually in; on Windows it falls back to the previous prompt-based
+  behavior.</li>
+<li><strong>Snippet-editor AI functions work with reasoning models and chatty
+  responses</strong> — AI actions in the snippet editor (<strong>Diagram</strong>, <strong>Review</strong>,
+  <strong>Improve</strong>, <strong>Assistant</strong>, <strong>Security</strong>, <strong>Alternatives</strong>, <strong>Describe</strong>,
+  <strong>Complete</strong>, <strong>One-liner</strong>) no longer fail — e.g. <em>"PlantUML generation
+  failed"</em> — when the model wraps its JSON answer in prose or a code fence, or
+  when a local reasoning model (LM Studio, Ollama, llama.cpp serving
+  DeepSeek-R1/QwQ/gpt-oss) emits a <code>&lt;think&gt;…&lt;/think&gt;</code> block. The response parser
+  now strips leaked reasoning and extracts the real JSON payload robustly instead
+  of a greedy match that broke on any stray brace.</li>
+<li><strong>Snippet-editor AI errors are now visible</strong> — when a snippet-editor AI action
+  fails, the real cause is written to the log and its message is shown in the
+  status bar. Previously the exception was discarded, so a misconfigured AI
+  profile (e.g. a cloud profile with no model selected, which reports <em>"Select a
+  model…"</em>) made every AI function fail silently with only a generic message and
+  nothing in the log.</li>
 </ul>
 <h2 id="v230">v2.3.0<a class="headerlink" href="#v230" title="Permanent link">&para;</a></h2>
 <h3 id="ai-swarm">AI Swarm<a class="headerlink" href="#ai-swarm" title="Permanent link">&para;</a></h3>
@@ -2599,6 +2638,21 @@ shown in the footer.</p>
   is now transport-neutral ("Active sessions").</li>
 <li><strong>No password prompt for local shells</strong> — opening a local shell no longer shows
   an irrelevant password dialog (local shells use no authentication).</li>
+<li><strong>"Load as text file" works in local shells</strong> — right-clicking a selected file
+  name in a local-shell tab and choosing <strong>Load as text file</strong> no longer fails
+  with "No active SSH connection is available". The file is read from the local
+  filesystem — resolved against the working directory shown in the shell prompt
+  when available, otherwise the directory the shell was started in — and opens
+  in the snippet editor with <strong>Overwrite local file</strong> and <strong>Save as...</strong> just
+  like the SSH/SFTP variant. The not-connected error message is now
+  transport-neutral.</li>
+<li><strong>Local file overwrites are now atomic</strong> — both "Overwrite local file" flows
+  (local-shell <strong>Load as text file</strong> and the SFTP-manager local-file editor)
+  used to truncate the target file in place, so a mid-write failure (disk full,
+  process killed, power loss) could leave it truncated with no recovery.
+  Overwrites now write to a sibling temp file and move it into place, preserve
+  the original file's POSIX permissions, and write through symlinks to their
+  real target instead of replacing the link itself.</li>
 </ul>
 <h2 id="v223">v2.2.3<a class="headerlink" href="#v223" title="Permanent link">&para;</a></h2>
 <h3 id="critical-fix-monaco-editors-failed-to-load-in-the-packaged-app">Critical fix: Monaco editors failed to load in the packaged app<a class="headerlink" href="#critical-fix-monaco-editors-failed-to-load-in-the-packaged-app" title="Permanent link">&para;</a></h3>
@@ -2706,7 +2760,7 @@ and will be migrated here in full.</p>
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.3.0</strong>
+    korTTY <strong>v2.3.1</strong>
   </div>
 </div>
       
