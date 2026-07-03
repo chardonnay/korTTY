@@ -5,6 +5,8 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+## v2.3.3
+
 ### Korrekturen
 
 - **macOS: „Quit korTTY“ beendet tatsächlich die App** – auf der paketierten macOS-App, a

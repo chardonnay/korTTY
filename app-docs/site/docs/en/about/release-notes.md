@@ -5,6 +5,8 @@ shown in the footer.
 
 ## Unreleased
 
+## v2.3.3
+
 ### Fixes
 
 - **macOS: "Quit korTTY" actually quits the app** — on the packaged macOS app, a
