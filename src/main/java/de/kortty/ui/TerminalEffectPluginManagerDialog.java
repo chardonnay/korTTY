@@ -1,6 +1,8 @@
 package de.kortty.ui;
 
 import de.kortty.core.TerminalEffectPluginManager;
+import de.kortty.plugin.terminaleffects.TerminalEffectPreview;
+import de.kortty.plugin.terminaleffects.TerminalEffectPreviewCanvas;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -12,16 +14,19 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Window;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -37,6 +42,9 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
     private final Button importButton = new Button(I18n.get("plugin.terminalEffects.import"));
     private final Button reloadButton = new Button(I18n.get("plugin.terminalEffects.reload"));
     private final CheckBox enabledCheck = new CheckBox(I18n.get("plugin.terminalEffects.enabled"));
+    private final StackPane previewHolder = new StackPane();
+    private final Label previewPlaceholder = new Label(I18n.get("plugin.terminalEffects.preview.none"));
+    private @Nullable TerminalEffectPreview activePreview;
     private boolean updatingEnabledCheck;
 
     TerminalEffectPluginManagerDialog(Window owner, TerminalEffectPluginManager pluginManager) {
@@ -48,6 +56,7 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         getDialogPane().setContent(createContent());
         loadRows();
+        setOnHidden(event -> stopActivePreview());
     }
 
     private VBox createContent() {
@@ -58,8 +67,8 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
         table.setEditable(true);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-        table.setPlaceholder(new javafx.scene.control.Label(I18n.get("plugin.terminalEffects.empty")));
-        table.setPrefSize(720, 360);
+        table.setPlaceholder(new Label(I18n.get("plugin.terminalEffects.empty")));
+        table.setPrefSize(520, 360);
 
         TableColumn<PluginRow, Boolean> enabledColumn = new TableColumn<>(I18n.get("plugin.terminalEffects.column.active"));
         enabledColumn.setCellValueFactory(data -> data.getValue().enabledProperty());
@@ -74,11 +83,13 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
 
         TableColumn<PluginRow, String> descriptionColumn = new TableColumn<>(I18n.get("plugin.terminalEffects.column.description"));
         descriptionColumn.setCellValueFactory(data -> data.getValue().descriptionProperty());
-        descriptionColumn.setPrefWidth(420);
+        descriptionColumn.setPrefWidth(260);
 
         table.getColumns().setAll(java.util.List.of(enabledColumn, nameColumn, descriptionColumn));
-        table.getSelectionModel().selectedItemProperty().addListener((obs, oldRow, newRow) ->
-                updateExportButtonState());
+        table.getSelectionModel().selectedItemProperty().addListener((obs, oldRow, newRow) -> {
+            updateExportButtonState();
+            updatePreview(newRow);
+        });
 
         importButton.setOnAction(event -> importPlugin());
         exportButton.setOnAction(event -> exportSelectedPlugin());
@@ -86,11 +97,62 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
         updateExportButtonState();
         updateGlobalEnabledState();
 
+        Label previewTitle = new Label(I18n.get("plugin.terminalEffects.preview.title"));
+        previewPlaceholder.setWrapText(true);
+        previewHolder.setMinSize(TerminalEffectPreviewCanvas.PREVIEW_WIDTH, TerminalEffectPreviewCanvas.PREVIEW_HEIGHT);
+        previewHolder.setPrefSize(TerminalEffectPreviewCanvas.PREVIEW_WIDTH, TerminalEffectPreviewCanvas.PREVIEW_HEIGHT);
+        previewHolder.setMaxSize(TerminalEffectPreviewCanvas.PREVIEW_WIDTH, TerminalEffectPreviewCanvas.PREVIEW_HEIGHT);
+        previewHolder.setStyle("-fx-border-color: -fx-box-border; -fx-border-radius: 8; -fx-background-radius: 8;");
+        previewHolder.getChildren().setAll(previewPlaceholder);
+        VBox previewBox = new VBox(6, previewTitle, previewHolder);
+
+        HBox center = new HBox(12, table, previewBox);
+        HBox.setHgrow(table, Priority.ALWAYS);
+
         HBox actions = new HBox(8, importButton, exportButton, reloadButton);
-        VBox content = new VBox(10, enabledCheck, table, actions);
+        VBox content = new VBox(10, enabledCheck, center, actions);
         content.setPadding(new Insets(12));
-        VBox.setVgrow(table, Priority.ALWAYS);
+        VBox.setVgrow(center, Priority.ALWAYS);
         return content;
+    }
+
+    private void updatePreview(@Nullable PluginRow row) {
+        stopActivePreview();
+        if (row == null || !enabledCheck.isSelected()) {
+            return;
+        }
+        TerminalEffectPluginManager.PluginEntry entry =
+                pluginManager.findPluginEntry(row.id()).orElse(null);
+        if (entry == null) {
+            return;
+        }
+        try {
+            TerminalEffectPreview preview = entry.plugin().createPreview();
+            if (preview == null) {
+                previewPlaceholder.setText(I18n.get("plugin.terminalEffects.preview.unavailable"));
+                return;
+            }
+            previewHolder.getChildren().setAll(preview.node());
+            activePreview = preview;
+            preview.start();
+        } catch (Exception e) {
+            stopActivePreview();
+            previewPlaceholder.setText(I18n.get("plugin.terminalEffects.preview.unavailable"));
+        }
+    }
+
+    private void stopActivePreview() {
+        TerminalEffectPreview preview = activePreview;
+        activePreview = null;
+        if (preview != null) {
+            try {
+                preview.stop();
+            } catch (Exception e) {
+                // A misbehaving third-party preview must never break the dialog.
+            }
+        }
+        previewPlaceholder.setText(I18n.get("plugin.terminalEffects.preview.none"));
+        previewHolder.getChildren().setAll(previewPlaceholder);
     }
 
     private void setTerminalEffectsEnabled(boolean enabled) {
@@ -122,9 +184,15 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
         importButton.setDisable(!enabled);
         reloadButton.setDisable(!enabled);
         updateExportButtonState();
+        if (enabled) {
+            updatePreview(table.getSelectionModel().getSelectedItem());
+        } else {
+            stopActivePreview();
+        }
     }
 
     private void loadRows() {
+        table.getSelectionModel().clearSelection();
         rows.setAll(pluginManager.getPluginEntries().stream()
                 .sorted(Comparator.comparing(TerminalEffectPluginManager.PluginEntry::displayName))
                 .map(entry -> new PluginRow(entry, this::setPluginEnabled))

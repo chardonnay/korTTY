@@ -1,6 +1,16 @@
 package de.kortty.core;
 
 import de.kortty.plugin.terminaleffects.mother.MotherTerminalEffectPlugin;
+import de.kortty.plugin.terminaleffects.pack.AmberCrt90Plugin;
+import de.kortty.plugin.terminaleffects.pack.CommodoreHeritagePlugin;
+import de.kortty.plugin.terminaleffects.pack.DeepSpaceRadarPlugin;
+import de.kortty.plugin.terminaleffects.pack.DigitalRainPlugin;
+import de.kortty.plugin.terminaleffects.pack.HologramHudPlugin;
+import de.kortty.plugin.terminaleffects.pack.NeonCityPlugin;
+import de.kortty.plugin.terminaleffects.pack.PoltergeistPlugin;
+import de.kortty.plugin.terminaleffects.pack.SynthwaveHorizonPlugin;
+import de.kortty.plugin.terminaleffects.pack.TypewriterNoirPlugin;
+import de.kortty.plugin.terminaleffects.pack.Vhs1987Plugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectContext;
 import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectSession;
@@ -9,6 +19,9 @@ import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
@@ -18,6 +31,18 @@ public class TerminalEffectPluginManagerTest {
 
     private static final String SERVICE_PATH =
             "META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin";
+
+    private static final List<String> PACK_PLUGIN_IDS = List.of(
+            AmberCrt90Plugin.PLUGIN_ID,
+            CommodoreHeritagePlugin.PLUGIN_ID,
+            NeonCityPlugin.PLUGIN_ID,
+            DigitalRainPlugin.PLUGIN_ID,
+            HologramHudPlugin.PLUGIN_ID,
+            PoltergeistPlugin.PLUGIN_ID,
+            Vhs1987Plugin.PLUGIN_ID,
+            SynthwaveHorizonPlugin.PLUGIN_ID,
+            DeepSpaceRadarPlugin.PLUGIN_ID,
+            TypewriterNoirPlugin.PLUGIN_ID);
 
     @Test
     void loadRegistersBundledMotherPluginJar() throws Exception {
@@ -36,6 +61,42 @@ public class TerminalEffectPluginManagerTest {
                 .isEqualTo("MU/TH/UR 6000");
         assertThat(manager.findPlugin(MotherTerminalEffectPlugin.PLUGIN_ID).orElseThrow().description())
                 .contains("CRT");
+    }
+
+    @Test
+    void loadRegistersBundledEffectPackPluginJar() throws Exception {
+        Path configDir = Files.createTempDirectory("kortty-terminal-effects-test");
+        TerminalEffectPluginManager manager = new TerminalEffectPluginManager(configDir);
+
+        manager.load();
+
+        for (String pluginId : PACK_PLUGIN_IDS) {
+            assertThat(manager.findPlugin(pluginId)).isPresent();
+            TerminalEffectPluginManager.PluginEntry entry =
+                    manager.findPluginEntry(pluginId).orElseThrow();
+            assertThat(entry.source()).isEqualTo(TerminalEffectPluginManager.PluginSource.BUNDLED_JAR);
+            assertThat(entry.exportable()).isTrue();
+            assertThat(entry.sourcePath().getFileName().toString())
+                    .isEqualTo("kortty-terminal-effect-pack.jar");
+        }
+    }
+
+    @Test
+    void builtInPluginIdsAreUniqueValidAndProvidePreviews() throws Exception {
+        Path configDir = Files.createTempDirectory("kortty-terminal-effects-test");
+        TerminalEffectPluginManager manager = new TerminalEffectPluginManager(configDir);
+
+        manager.load();
+
+        List<TerminalEffectPluginManager.PluginEntry> entries = manager.getPluginEntries();
+        assertThat(entries).hasSize(PACK_PLUGIN_IDS.size() + 1);
+        Set<String> seenIds = new HashSet<>();
+        for (TerminalEffectPluginManager.PluginEntry entry : entries) {
+            assertThat(entry.id()).matches("[a-z0-9][a-z0-9._-]{0,63}");
+            assertThat(seenIds.add(entry.id())).isTrue();
+            assertThat(entry.displayName()).isNotEmpty();
+            assertThat(entry.plugin().createPreview()).isNotNull();
+        }
     }
 
     @Test
