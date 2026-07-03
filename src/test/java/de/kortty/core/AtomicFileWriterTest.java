@@ -3,6 +3,7 @@ package de.kortty.core;
 import org.testng.SkipException;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
@@ -75,6 +76,31 @@ class AtomicFileWriterTest {
             AtomicFileWriter.writeStringAtomically(file, "replacement content");
 
             assertThat(Files.getPosixFilePermissions(file)).containsExactlyElementsIn(worldReadable);
+        } finally {
+            deleteTree(dir);
+        }
+    }
+
+    @Test
+    void writesThroughSymlinkWithoutReplacingIt() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-atomic-write-symlink");
+        try {
+            Path realFile = dir.resolve("real-notes.txt");
+            Files.writeString(realFile, "original content");
+            Path symlink = dir.resolve("notes.txt");
+            try {
+                Files.createSymbolicLink(symlink, realFile);
+            } catch (UnsupportedOperationException | IOException e) {
+                throw new SkipException("Symbolic links are not supported on this platform");
+            }
+
+            AtomicFileWriter.writeStringAtomically(symlink, "replacement content");
+
+            assertThat(Files.isSymbolicLink(symlink)).isTrue();
+            assertThat(Files.readSymbolicLink(symlink)).isEqualTo(realFile);
+            assertThat(Files.readString(realFile)).isEqualTo("replacement content");
+            assertThat(Files.readString(symlink)).isEqualTo("replacement content");
+            assertThat(listTempFiles(dir)).isEmpty();
         } finally {
             deleteTree(dir);
         }

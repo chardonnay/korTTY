@@ -18,15 +18,19 @@ public final class AtomicFileWriter {
     }
 
     public static void writeStringAtomically(Path filePath, String content) throws IOException {
-        Path parentDir = filePath.toAbsolutePath().getParent();
-        Path tempFile = Files.createTempFile(parentDir, filePath.getFileName().toString(), ".tmp");
+        // Files.move(..., REPLACE_EXISTING) replaces a symlink entry itself rather than the file it
+        // points to, so resolve through symlinks first: the move must land on the real file, or a
+        // symlinked config/dotfile would silently turn into a plain file.
+        Path targetPath = Files.exists(filePath) ? filePath.toRealPath() : filePath.toAbsolutePath();
+        Path parentDir = targetPath.getParent();
+        Path tempFile = Files.createTempFile(parentDir, targetPath.getFileName().toString(), ".tmp");
         try {
             Files.writeString(tempFile, content, StandardCharsets.UTF_8);
-            copyPosixPermissionsIfPresent(filePath, tempFile);
+            copyPosixPermissionsIfPresent(targetPath, tempFile);
             try {
-                Files.move(tempFile, filePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                Files.move(tempFile, targetPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tempFile, filePath, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(tempFile, targetPath, StandardCopyOption.REPLACE_EXISTING);
             }
         } finally {
             Files.deleteIfExists(tempFile);
