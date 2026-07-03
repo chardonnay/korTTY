@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AtomicFileWriter;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SFTPSession;
 import de.kortty.core.SftpFileTransferService;
@@ -39,12 +40,10 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
@@ -3282,24 +3281,9 @@ public class SFTPManagerTab extends Tab {
     }
 
     private boolean overwriteLocalSnippetFile(Path filePath, Snippet draft) throws IOException {
-        writeStringAtomically(filePath, draft.getContent());
+        AtomicFileWriter.writeStringAtomically(filePath, draft.getContent() != null ? draft.getContent() : "");
         Platform.runLater(this::refreshLocal);
         return true;
-    }
-
-    static void writeStringAtomically(Path filePath, String content) throws IOException {
-        Path parentDir = filePath.toAbsolutePath().getParent();
-        Path tempFile = Files.createTempFile(parentDir, filePath.getFileName().toString(), ".tmp");
-        try {
-            Files.writeString(tempFile, content, StandardCharsets.UTF_8);
-            try {
-                Files.move(tempFile, filePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tempFile, filePath, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } finally {
-            Files.deleteIfExists(tempFile);
-        }
     }
 
     private boolean saveLocalSnippetFileAs(Path sourcePath, Snippet draft) throws Exception {

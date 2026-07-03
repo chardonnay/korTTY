@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.ui.I18n;
 import de.kortty.core.AgentDashboardStatus;
+import de.kortty.core.AtomicFileWriter;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiExecutionResult;
@@ -113,9 +114,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.zip.ZipOutputStream;
 import java.util.zip.ZipEntry;
@@ -5133,23 +5132,8 @@ public class MainWindow {
     }
 
     private boolean overwriteTerminalLocalTextFile(Path filePath, Snippet draft) throws IOException {
-        writeStringAtomically(filePath, draft.getContent() != null ? draft.getContent() : "");
+        AtomicFileWriter.writeStringAtomically(filePath, draft.getContent() != null ? draft.getContent() : "");
         return true;
-    }
-
-    static void writeStringAtomically(Path filePath, String content) throws IOException {
-        Path parentDir = filePath.toAbsolutePath().getParent();
-        Path tempFile = Files.createTempFile(parentDir, filePath.getFileName().toString(), ".tmp");
-        try {
-            Files.writeString(tempFile, content, StandardCharsets.UTF_8);
-            try {
-                Files.move(tempFile, filePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tempFile, filePath, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } finally {
-            Files.deleteIfExists(tempFile);
-        }
     }
 
     private boolean saveTerminalLocalTextFileAs(Path sourcePath, Snippet draft) throws Exception {
