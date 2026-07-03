@@ -140,11 +140,13 @@ final class AiTableRowViewerDialog {
         StringBuilder sb = new StringBuilder();
         int count = headers != null ? Math.max(headers.size(), values != null ? values.size() : 0) : 0;
         for (int i = 0; i < count; i++) {
+            // decodeCellText emits a literal "\n" (also used for JavaFX Label display); normalize it
+            // to the platform separator so the clipboard text doesn't mix "\n" with the "%n" below.
             String header = headers != null && i < headers.size() && headers.get(i) != null
-                ? decodeCellText(headers.get(i)).strip()
+                ? decodeCellText(headers.get(i)).strip().replace("\n", System.lineSeparator())
                 : "";
             String value = values != null && i < values.size() && values.get(i) != null
-                ? decodeCellText(values.get(i)).strip()
+                ? decodeCellText(values.get(i)).strip().replace("\n", System.lineSeparator())
                 : "";
             if (header.isBlank() && value.isBlank()) {
                 continue;

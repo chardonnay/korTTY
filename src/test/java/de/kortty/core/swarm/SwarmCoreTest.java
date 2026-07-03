@@ -248,7 +248,10 @@ class SwarmCoreTest {
 
         Thread coordinator = runInBackground(
             orchestrator, request(2), targets, new FakeAiService("AGG"), callback, control);
-        waitUntil("both agents parked", () -> callback.statuses.stream()
+        // Snapshot into a plain ArrayList before streaming: the coordinator thread is still adding
+        // to the synchronized `statuses` list concurrently, and a `synchronizedList` only guards
+        // individual calls, not iteration via stream() — that raced into a ConcurrentModificationException.
+        waitUntil("both agents parked", () -> new ArrayList<>(callback.statuses).stream()
             .filter(s -> s.state() == SwarmModels.SwarmAgentState.PAUSED)
             .map(SwarmModels.SwarmAgentStatus::agentId)
             .distinct()
