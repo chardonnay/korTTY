@@ -1784,6 +1784,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v232" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.3.2
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.3.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v231" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1796,7 +1824,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixes" class="md-nav__link">
+  <a href="#fixes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -1901,7 +1929,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes_1" class="md-nav__link">
+  <a href="#fixes_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2143,6 +2171,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v232" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v2.3.2
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.3.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v231" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2155,7 +2211,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixes" class="md-nav__link">
+  <a href="#fixes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2260,7 +2316,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes_1" class="md-nav__link">
+  <a href="#fixes_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2441,8 +2497,20 @@
 <p>The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
-<h2 id="v231">v2.3.1<a class="headerlink" href="#v231" title="Permanent link">&para;</a></h2>
+<h2 id="v232">v2.3.2<a class="headerlink" href="#v232" title="Permanent link">&para;</a></h2>
 <h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Snippet-editor diagrams render when Graphviz is installed outside the app's
+  PATH</strong> — generating a <strong>Diagram</strong> in the snippet editor no longer fails with
+  "Graphviz dot is required to render PlantUML diagrams" when <code>dot</code> is installed
+  (e.g. via Homebrew) but not on the minimal PATH a desktop-launched app inherits
+  from launchd. korTTY now locates <code>dot</code> and the Java runtime the same way it
+  finds AI CLIs — searching the PATH plus common install directories
+  (<code>/opt/homebrew/bin</code>, <code>/usr/local/bin</code>, …) — and passes the resolved <code>dot</code> path
+  to the PlantUML renderer via <code>GRAPHVIZ_DOT</code> so it does not have to rediscover it.</li>
+</ul>
+<h2 id="v231">v2.3.1<a class="headerlink" href="#v231" title="Permanent link">&para;</a></h2>
+<h3 id="fixes_1">Fixes<a class="headerlink" href="#fixes_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>"Load as text file" follows <code>cd</code> in local shells</strong> — in a local-shell tab,
   loading a selected file with <strong>Load as text file</strong> after changing directory no
@@ -2628,7 +2696,7 @@ shown in the footer.</p>
   short, actionable hint instead of the raw stack trace; all other AI errors are
   collapsed to a single line.</li>
 </ul>
-<h3 id="fixes_1">Fixes<a class="headerlink" href="#fixes_1" title="Permanent link">&para;</a></h3>
+<h3 id="fixes_2">Fixes<a class="headerlink" href="#fixes_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Closing a local shell no longer freezes korTTY</strong> — the PTY process is now
   destroyed before its streams are closed, releasing a terminal reader thread
@@ -2760,7 +2828,7 @@ and will be migrated here in full.</p>
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.3.1</strong>
+    korTTY <strong>v2.3.2</strong>
   </div>
 </div>
       

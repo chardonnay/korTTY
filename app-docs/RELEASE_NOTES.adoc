@@ -2,6 +2,8 @@
 
 == Unreleased
 
+== v2.3.2
+
 === Fixes
 
 * *Snippet-editor diagrams render when Graphviz is installed outside the app's PATH*: Generating a *Diagram* in the snippet editor no longer fails with "Graphviz dot is required to render PlantUML diagrams" when `dot` is installed (e.g. via Homebrew) but not on the minimal PATH a desktop-launched app inherits. korTTY now locates `dot` and the Java runtime the same way it finds AI CLIs — searching the PATH plus common install directories (`/opt/homebrew/bin`, `/usr/local/bin`, …) — and passes the resolved `dot` path to the PlantUML renderer via `GRAPHVIZ_DOT` so it does not have to rediscover it.

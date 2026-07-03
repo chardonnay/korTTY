@@ -5,6 +5,8 @@ shown in the footer.
 
 ## Unreleased
 
+## v2.3.2
+
 ### Fixes
 
 - **Snippet-editor diagrams render when Graphviz is installed outside the app's

@@ -5,6 +5,8 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+## v2.3.2
+
 ### Korrekturen
 
 - **Snippet-Editor-Diagramme werden gerendert, wenn Graphviz außerhalb der App installiert ist
