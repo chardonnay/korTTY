@@ -113,7 +113,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.zip.ZipOutputStream;
 import java.util.zip.ZipEntry;
@@ -5131,13 +5133,23 @@ public class MainWindow {
     }
 
     private boolean overwriteTerminalLocalTextFile(Path filePath, Snippet draft) throws IOException {
-        Files.writeString(
-            filePath,
-            draft.getContent() != null ? draft.getContent() : "",
-            StandardCharsets.UTF_8,
-            StandardOpenOption.WRITE,
-            StandardOpenOption.TRUNCATE_EXISTING);
+        writeStringAtomically(filePath, draft.getContent() != null ? draft.getContent() : "");
         return true;
+    }
+
+    static void writeStringAtomically(Path filePath, String content) throws IOException {
+        Path parentDir = filePath.toAbsolutePath().getParent();
+        Path tempFile = Files.createTempFile(parentDir, filePath.getFileName().toString(), ".tmp");
+        try {
+            Files.writeString(tempFile, content, StandardCharsets.UTF_8);
+            try {
+                Files.move(tempFile, filePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tempFile, filePath, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
     }
 
     private boolean saveTerminalLocalTextFileAs(Path sourcePath, Snippet draft) throws Exception {
