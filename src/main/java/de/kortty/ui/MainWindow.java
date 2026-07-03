@@ -6129,24 +6129,28 @@ public class MainWindow {
             return;
         }
         ServerConnection connection = iterator.next();
+        // Deliberately logs only host/port, not getDisplayName(): its local-shell fallback path
+        // derives from a free-form, user-configurable command string that a static scanner can't
+        // prove never carries embedded sensitive data.
+        String logLabel = connection.getHost() + ":" + connection.getPort();
         TerminalTab tab;
         try {
             String password = ensurePasswordForConnection(connection, null);
             boolean requiresPassword = !connection.isLocalShell()
                 && connection.getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY;
             if (requiresPassword && (password == null || password.isBlank())) {
-                logger.warn("Swarm skipping connection {}: no password provided", connection.getDisplayName());
+                logger.warn("Swarm skipping connection {}: no password provided", logLabel);
                 connectSwarmNext(iterator, onConnected, onComplete);
                 return;
             }
             tab = openConnectionAndReturnTab(connection, password, null, null);
         } catch (Exception e) {
-            logger.warn("Swarm could not open connection {}", connection.getDisplayName(), e);
+            logger.warn("Swarm could not open connection {}", logLabel, e);
             connectSwarmNext(iterator, onConnected, onComplete);
             return;
         }
         if (tab == null) {
-            logger.warn("Swarm could not open connection {}: no tab returned", connection.getDisplayName());
+            logger.warn("Swarm could not open connection {}: no tab returned", logLabel);
             connectSwarmNext(iterator, onConnected, onComplete);
             return;
         }

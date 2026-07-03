@@ -51,8 +51,11 @@ public final class HeadlessSwarmAgentRunner implements AgentCommandRunner, AutoC
         // Probe + session construction happen OUTSIDE the monitor: close() runs on the FX thread
         // and must never wait behind network I/O (SSH probe can take a full connect timeout).
         PinnedHostKey hostKey = JobSchedulerRemoteSession.probeHostKey(connection);
-        logger.warn("Accepting server key for headless swarm target {} ({}:{})",
-            connection.getDisplayName(), connection.getHost(), connection.getPort());
+        // Deliberately logs only host/port, not getDisplayName(): its local-shell fallback path
+        // derives from a free-form, user-configurable command string that a static scanner can't
+        // prove never carries embedded sensitive data, even though this connection is always SSH.
+        logger.warn("Accepting server key for headless swarm target {}:{}",
+            connection.getHost(), connection.getPort());
         JobSchedulerRemoteSession session = new JobSchedulerRemoteSession(
             app, connection, hostKey, masterPassword, false);
         JobSwarmAgentRunner created = new JobSwarmAgentRunner(session, initialWorkingDirectory);
