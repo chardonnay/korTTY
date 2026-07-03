@@ -5,6 +5,17 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+### Korrekturen
+
+- **Snippet-Editor-Diagramme werden gerendert, wenn Graphviz außerhalb der App installiert ist
+PFAD** – Das Generieren eines **Diagramms** im Snippet-Editor schlägt nicht mehr fehl
+„Zum Rendern von PlantUML-Diagrammen ist Graphviz Dot erforderlich“, wenn `dot` installiert ist
+(z. B. über Homebrew), aber nicht auf dem minimalen PATH, den eine auf dem Desktop gestartete App erbt
+von launchd. korTTY lokalisiert jetzt `dot` und die Java-Laufzeitumgebung auf die gleiche Weise
+findet AI-CLIs – durchsucht den PATH und allgemeine Installationsverzeichnisse
+(`/opt/homebrew/bin`, `/usr/local/bin`, …) – und übergibt den aufgelösten `dot`-Pfad
+über `GRAPHVIZ_DOT` an den PlantUML-Renderer gesendet, sodass er es nicht erneut ermitteln muss.
+
 ## v2.3.1
 
 ### Korrekturen

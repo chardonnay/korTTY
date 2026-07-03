@@ -58,10 +58,12 @@ public class PlantUmlRenderService {
         if (!SnippetDiagramSupport.isRenderablePlantUml(plantUmlSource)) {
             return new RenderResult(false, null, "PlantUML source must start with @startuml and end with @enduml.");
         }
-        if (!commandAvailable("java")) {
+        String javaExecutable = resolveJavaExecutable();
+        if (javaExecutable == null) {
             return new RenderResult(false, null, "Java is required to render PlantUML diagrams.");
         }
-        if (!commandAvailable("dot")) {
+        String dotExecutable = resolveDotExecutable();
+        if (dotExecutable == null) {
             return new RenderResult(false, null, "Graphviz dot is required to render PlantUML diagrams.");
         }
         try {
@@ -69,9 +71,15 @@ public class PlantUmlRenderService {
             Path workDir = Files.createTempDirectory("kortty-snippet-plantuml-");
             Path sourceFile = workDir.resolve("snippet-diagram.puml");
             Files.writeString(sourceFile, plantUmlSource, StandardCharsets.UTF_8);
-            Process process = new ProcessBuilder("java", "-jar", jar.toString(), "-t" + format, sourceFile.toString())
-                .redirectErrorStream(true)
-                .start();
+            ProcessBuilder builder =
+                new ProcessBuilder(javaExecutable, "-jar", jar.toString(), "-t" + format, sourceFile.toString())
+                    .redirectErrorStream(true);
+            // PlantUML resolves Graphviz via the GRAPHVIZ_DOT env var (or falls back to its own PATH
+            // search), and this JVM's own PATH search above already found dot via Homebrew/common
+            // install dirs — those don't necessarily flow through to what PlantUML sees, so pass the
+            // resolved path explicitly rather than relying on PlantUML to rediscover it.
+            builder.environment().put("GRAPHVIZ_DOT", dotExecutable);
+            Process process = builder.start();
             boolean finished = process.waitFor(RENDER_TIMEOUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
             if (!finished) {
                 process.destroyForcibly();
@@ -111,7 +119,8 @@ public class PlantUmlRenderService {
         if (!SnippetDiagramSupport.isRenderablePlantUml(plantUmlSource)) {
             return new SyntaxCheckResult(true, false, "PlantUML source must start with @startuml and end with @enduml.");
         }
-        if (!commandAvailable("java")) {
+        String javaExecutable = resolveJavaExecutable();
+        if (javaExecutable == null) {
             return new SyntaxCheckResult(false, false, "Java is required to check PlantUML syntax.");
         }
         Path workDir = null;
@@ -120,7 +129,7 @@ public class PlantUmlRenderService {
             workDir = Files.createTempDirectory("kortty-snippet-plantuml-check-");
             Path sourceFile = workDir.resolve("snippet-diagram.puml");
             Files.writeString(sourceFile, plantUmlSource, StandardCharsets.UTF_8);
-            Process process = new ProcessBuilder("java", "-jar", jar.toString(), "--check-syntax", sourceFile.toString())
+            Process process = new ProcessBuilder(javaExecutable, "-jar", jar.toString(), "--check-syntax", sourceFile.toString())
                 .redirectErrorStream(true)
                 .start();
             boolean finished = process.waitFor(RENDER_TIMEOUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -192,19 +201,34 @@ public class PlantUmlRenderService {
         return HexFormat.of().formatHex(digest.digest());
     }
 
-    private static boolean commandAvailable(String command) {
-        String probe = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")
-            ? "where"
-            : "command";
-        ProcessBuilder builder = "command".equals(probe)
-            ? new ProcessBuilder("sh", "-c", "command -v " + command)
-            : new ProcessBuilder("where", command);
-        try {
-            Process process = builder.redirectErrorStream(true).start();
-            return process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) && process.exitValue() == 0;
-        } catch (Exception e) {
-            return false;
+    /**
+     * The Java executable to launch the PlantUML jar with: the currently-running JVM's own
+     * {@code bin/java} (guaranteed to exist and be a compatible version, and present even in a
+     * jpackage-bundled app with no system-wide "java" on PATH), falling back to a PATH/common-dirs
+     * search for a system "java" if {@code java.home} is somehow unavailable. Returns {@code null}
+     * when no usable Java can be found at all.
+     */
+    private static String resolveJavaExecutable() {
+        String javaHome = System.getProperty("java.home");
+        if (javaHome != null && !javaHome.isBlank()) {
+            boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+            Path candidate = Path.of(javaHome, "bin", windows ? "java.exe" : "java");
+            if (Files.isExecutable(candidate)) {
+                return candidate.toString();
+            }
         }
+        return AiCliProviderRegistry.findExecutable("java").orElse(null);
+    }
+
+    /**
+     * The Graphviz {@code dot} executable. GUI apps launched from the desktop (especially macOS)
+     * often inherit a minimal PATH that omits Homebrew, so a naive PATH-only lookup (or the shell
+     * built-in {@code command -v}, which only sees that same minimal PATH) reports "not found" even
+     * when dot is installed. Delegate to {@link AiCliProviderRegistry#findExecutable}, which also
+     * scans common install directories.
+     */
+    private static String resolveDotExecutable() {
+        return AiCliProviderRegistry.findExecutable("dot").orElse(null);
     }
 
     private static Path defaultCacheDir() {
