@@ -18,7 +18,6 @@ public final class JobSwarmAgentRunner implements AgentCommandRunner, AutoClosea
 
     private final JobSchedulerRemoteSession session;
     private String currentDirectory;
-    private String homeDirectory;
 
     public JobSwarmAgentRunner(JobSchedulerRemoteSession session, String initialWorkingDirectory) {
         this.session = session;
@@ -81,9 +80,6 @@ public final class JobSwarmAgentRunner implements AgentCommandRunner, AutoClosea
 
     @Override
     public void updateDirectoryHints(String homeDir, String currentDir) {
-        if (homeDir != null && !homeDir.isBlank()) {
-            this.homeDirectory = homeDir.trim();
-        }
         if (currentDir != null && !currentDir.isBlank()) {
             this.currentDirectory = currentDir.trim();
         }

@@ -37,11 +37,38 @@ public final class SwarmAggregator {
             if (content == null || content.isBlank()) {
                 return localFallback(query, results, "Empty aggregation response");
             }
-            return new SwarmModels.SwarmAggregationResult(content.trim(), toTotals(result.usage()), null);
+            String trimmed = content.trim();
+            if (!hasRequiredFehlerColumn(trimmed)) {
+                return localFallback(query, results, "Aggregation response missing required Fehler column");
+            }
+            return new SwarmModels.SwarmAggregationResult(trimmed, toTotals(result.usage()), null);
         } catch (Exception e) {
             logger.warn("Swarm aggregation failed, using local fallback", e);
             return localFallback(query, results, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
         }
+    }
+
+    /** Builds the deterministic local table directly, e.g. when a run is cancelled before aggregation runs. */
+    public SwarmModels.SwarmAggregationResult aggregateLocally(SwarmModels.SwarmAggregationRequest request, String reason) {
+        List<SwarmModels.SwarmAgentStatus> results = request != null ? request.perAgentResults() : List.of();
+        String query = request != null ? request.userQuery() : "";
+        if (results == null || results.isEmpty()) {
+            return new SwarmModels.SwarmAggregationResult("", SwarmModels.TokenTotals.zero(), null);
+        }
+        return localFallback(query, results, reason);
+    }
+
+    /** The aggregation prompt requires the last column of the first table row to read exactly "Fehler". */
+    private static boolean hasRequiredFehlerColumn(String markdown) {
+        for (String line : markdown.split("\\R")) {
+            String trimmedLine = line.trim();
+            if (!trimmedLine.startsWith("|") || !trimmedLine.endsWith("|")) {
+                continue;
+            }
+            String[] cells = trimmedLine.substring(1, trimmedLine.length() - 1).split("(?<!\\\\)\\|", -1);
+            return cells.length > 0 && "Fehler".equals(cells[cells.length - 1].trim());
+        }
+        return false;
     }
 
     private static SwarmModels.TokenTotals toTotals(AiTokenUsage usage) {

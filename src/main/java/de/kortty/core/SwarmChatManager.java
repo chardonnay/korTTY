@@ -29,6 +29,16 @@ public class SwarmChatManager {
 
     private static final Logger logger = LoggerFactory.getLogger(SwarmChatManager.class);
     private static final String SWARM_CHATS_FILE = "swarm-chats.xml";
+    private static final JAXBContext JAXB_CONTEXT;
+
+    static {
+        try {
+            JAXB_CONTEXT = JAXBContext.newInstance(
+                SwarmChatsWrapper.class, SavedSwarmChat.class, SavedSwarmMessage.class, SavedSwarmServerSummary.class);
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
 
     private final Path configDir;
     private final List<SavedSwarmChat> chats = new ArrayList<>();
@@ -45,9 +55,7 @@ public class SwarmChatManager {
             return;
         }
 
-        JAXBContext context = JAXBContext.newInstance(
-            SwarmChatsWrapper.class, SavedSwarmChat.class, SavedSwarmMessage.class, SavedSwarmServerSummary.class);
-        Unmarshaller unmarshaller = context.createUnmarshaller();
+        Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
         SwarmChatsWrapper wrapper = (SwarmChatsWrapper) unmarshaller.unmarshal(file.toFile());
 
         chats.clear();
@@ -69,9 +77,7 @@ public class SwarmChatManager {
         SwarmChatsWrapper wrapper = new SwarmChatsWrapper();
         wrapper.setChats(copyChats(chats));
 
-        JAXBContext context = JAXBContext.newInstance(
-            SwarmChatsWrapper.class, SavedSwarmChat.class, SavedSwarmMessage.class, SavedSwarmServerSummary.class);
-        Marshaller marshaller = context.createMarshaller();
+        Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         marshaller.marshal(wrapper, file.toFile());
         logger.info("Saved {} swarm chats to {}", chats.size(), file);

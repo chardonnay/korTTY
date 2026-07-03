@@ -712,12 +712,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
             return;
         }
-        try {
-            if (app.getSwarmChatManager() != null && app.getSwarmChatManager().deleteChat(selected.getId())) {
-                refreshSwarmChats();
-            }
-        } catch (Exception e) {
-            logger.warn("Could not delete swarm chat", e);
+        if (ownerWindow.deleteSavedSwarmChat(selected)) {
+            refreshSwarmChats();
         }
     }
 

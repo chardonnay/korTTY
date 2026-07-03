@@ -28,8 +28,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
@@ -71,10 +69,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Dedicated AI swarm window: a live per-server agent dashboard on the left and a chat (query +
@@ -136,6 +130,7 @@ public class SwarmAgentTab extends Tab {
     private String lastSentPrompt;
     private boolean restartPending;
     private SwarmModels.SwarmPhase lastSwarmPhase;
+    private long runStartMillis;
     private final Timeline timer;
 
     private String savedChatId;
@@ -485,20 +480,12 @@ public class SwarmAgentTab extends Tab {
             includeLocalShell, readOnly, 4, policy);
 
         // Re-key rows by the (stable) target agentIds for this run (open + headless targets).
-        rowsByAgentId.clear();
-        transcriptBuffers.clear();
-        agentRowsBox.getChildren().clear();
-        statusStrip.clearAgents();
-        for (SwarmTarget target : runTargets) {
-            SwarmAgentRow row = new SwarmAgentRow(target.agentId(), target.displayName());
-            rowsByAgentId.put(target.agentId(), row);
-            agentRowsBox.getChildren().add(row);
-            statusStrip.addAgent(target.agentId(), target.displayName());
-        }
+        resetRowsForRun(runTargets);
 
         busy = true;
         restartPending = false;
         lastSwarmPhase = null;
+        runStartMillis = System.currentTimeMillis();
         swarmControl = new SwarmRunControl();
         SwarmRunControl control = swarmControl;
         timer.playFromStart();
@@ -709,9 +696,31 @@ public class SwarmAgentTab extends Tab {
         return summaries;
     }
 
+    /** Rebuilds the agent rows/orbs keyed by the (stable) target agentIds for a fresh AI or script run. */
+    private void resetRowsForRun(List<SwarmTarget> runTargets) {
+        rowsByAgentId.clear();
+        transcriptBuffers.clear();
+        agentRowsBox.getChildren().clear();
+        statusStrip.clearAgents();
+        for (SwarmTarget target : runTargets) {
+            SwarmAgentRow row = new SwarmAgentRow(target.agentId(), target.displayName());
+            rowsByAgentId.put(target.agentId(), row);
+            agentRowsBox.getChildren().add(row);
+            statusStrip.addAgent(target.agentId(), target.displayName());
+        }
+    }
+
     private void cancelSwarm() {
         if (swarmControl != null) {
             swarmControl.cancelAll();
+        }
+    }
+
+    /** Cancels any active run and removes this tab, e.g. when its saved chat is deleted elsewhere. */
+    public void closeTab() {
+        cancelSwarm();
+        if (getTabPane() != null) {
+            getTabPane().getTabs().remove(this);
         }
     }
 
@@ -764,21 +773,13 @@ public class SwarmAgentTab extends Tab {
         appendUserMessage(I18n.get("ai.swarm.script.user.message",
             prepared.snippetName(), prepared.arguments().size()));
 
-        rowsByAgentId.clear();
-        transcriptBuffers.clear();
-        agentRowsBox.getChildren().clear();
-        statusStrip.clearAgents();
-        for (SwarmTarget target : runTargets) {
-            SwarmAgentRow row = new SwarmAgentRow(target.agentId(), target.displayName());
-            rowsByAgentId.put(target.agentId(), row);
-            agentRowsBox.getChildren().add(row);
-            statusStrip.addAgent(target.agentId(), target.displayName());
-        }
+        resetRowsForRun(runTargets);
 
         busy = true;
         scriptRunActive = true;
         restartPending = false;
         lastSwarmPhase = null;
+        runStartMillis = System.currentTimeMillis();
         swarmControl = new SwarmRunControl();
         SwarmRunControl control = swarmControl;
         timer.playFromStart();
@@ -931,78 +932,10 @@ public class SwarmAgentTab extends Tab {
 
     private TerminalAgentService.ApprovalDecision requestApprovalBlocking(
         TerminalAgentModels.Approval approval, String agentId, SwarmRunControl control) {
-        CompletableFuture<TerminalAgentService.ApprovalDecision> future = new CompletableFuture<>();
-        AtomicReference<Alert> openAlert = new AtomicReference<>();
         SwarmAgentRow row = rowsByAgentId.get(agentId);
         String serverName = row != null ? row.displayName : agentId;
-        Runnable show = () -> {
-            try {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle(I18n.get("ai.swarm.approve.title"));
-                alert.setHeaderText(null);
-                StringBuilder commands = new StringBuilder();
-                if (approval != null && approval.commands() != null) {
-                    for (TerminalAgentModels.PlannedCommand command : approval.commands()) {
-                        if (command != null && command.command() != null) {
-                            commands.append(command.command()).append('\n');
-                        }
-                    }
-                }
-                alert.setContentText(I18n.get("ai.swarm.approve.message", serverName, commands.toString().trim()));
-                ButtonType approveAll = new ButtonType(I18n.get("ai.swarm.approve.approveAll"), ButtonBar.ButtonData.OK_DONE);
-                ButtonType cancel = new ButtonType(I18n.get("ai.swarm.approve.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-                alert.getButtonTypes().setAll(approveAll, cancel);
-                // Owner + toFront: an ownerless alert can open BEHIND the (large) main window or
-                // without focus on macOS — invisible to the user while the agent waits forever.
-                Window owner = ownerWindowRef();
-                if (owner != null) {
-                    alert.initOwner(owner);
-                }
-                alert.setOnShown(shownEvent -> {
-                    if (alert.getDialogPane().getScene() != null
-                        && alert.getDialogPane().getScene().getWindow() instanceof javafx.stage.Stage stage) {
-                        stage.toFront();
-                        stage.requestFocus();
-                    }
-                });
-                openAlert.set(alert);
-                Optional<ButtonType> choice = alert.showAndWait();
-                future.complete(choice.isPresent() && choice.get() == approveAll
-                    ? TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS
-                    : TerminalAgentService.ApprovalDecision.CANCEL);
-            } catch (Exception ex) {
-                // a broken dialog must never leave the agent blocked forever
-                future.complete(TerminalAgentService.ApprovalDecision.CANCEL);
-            } finally {
-                openAlert.set(null);
-            }
-        };
-        if (Platform.isFxApplicationThread()) {
-            show.run();
-        } else {
-            Platform.runLater(show);
-        }
-        try {
-            // Poll instead of waiting unbounded: Stop / tab close (cancelAll) must abort a pending
-            // approval instead of holding the agent hostage to an unanswered dialog.
-            while (true) {
-                try {
-                    return future.get(500, TimeUnit.MILLISECONDS);
-                } catch (TimeoutException stillWaiting) {
-                    if (control != null && control.isSwarmCancelled()) {
-                        Platform.runLater(() -> {
-                            Alert alert = openAlert.get();
-                            if (alert != null && alert.isShowing()) {
-                                alert.close();
-                            }
-                        });
-                        return TerminalAgentService.ApprovalDecision.CANCEL;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            return TerminalAgentService.ApprovalDecision.CANCEL;
-        }
+        return SwarmApprovalDialogSupport.requestBlocking(
+            approval, serverName, ownerWindowRef(), () -> control != null && control.isSwarmCancelled());
     }
 
     // ---- Chat / messages ----------------------------------------------------
@@ -1262,14 +1195,20 @@ public class SwarmAgentTab extends Tab {
             getTabPane() != null && getTabPane().getScene() != null ? getTabPane().getScene().getWindow() : null);
     }
 
+    /** Open-terminal targets plus selected-but-unconnected headless candidates: schedule/workflow drafts don't require an open terminal. */
     private List<ServerConnection> connectionsForWorkflow() {
-        List<ServerConnection> connections = new ArrayList<>();
+        java.util.LinkedHashMap<String, ServerConnection> byId = new java.util.LinkedHashMap<>();
         for (SwarmTarget target : targets) {
-            if (target.connection() != null) {
-                connections.add(target.connection());
+            if (target.connection() != null && target.connection().getId() != null) {
+                byId.put(target.connection().getId(), target.connection());
             }
         }
-        return connections;
+        for (ServerConnection connection : headlessCandidates()) {
+            if (connection != null && connection.getId() != null) {
+                byId.putIfAbsent(connection.getId(), connection);
+            }
+        }
+        return new ArrayList<>(byId.values());
     }
 
     private String lastUserPrompt() {
@@ -1288,6 +1227,11 @@ public class SwarmAgentTab extends Tab {
         }
         statusStrip.tick();
         refreshAgentControlIndicators();
+        // AI runs also get a real elapsed time from applySwarmState's periodic rollup; script runs
+        // have no such rollup, so this tick is their only source of an advancing elapsed clock.
+        if (busy) {
+            refreshDashboardHeader();
+        }
     }
 
     /** Scrolls the dashboard to the row of the clicked orb and flashes it briefly. */
@@ -1317,7 +1261,10 @@ public class SwarmAgentTab extends Tab {
                 }
             }
         }
-        dashboardHeader.setText(I18n.get("ai.swarm.progress", running, done, failed, formatElapsed(0)));
+        long elapsed = busy && runStartMillis > 0
+            ? Math.max(0L, (System.currentTimeMillis() - runStartMillis) / 1000L)
+            : 0L;
+        dashboardHeader.setText(I18n.get("ai.swarm.progress", running, done, failed, formatElapsed(elapsed)));
     }
 
     private void updateSendAvailability() {

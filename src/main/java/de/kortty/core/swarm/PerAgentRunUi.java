@@ -72,8 +72,8 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
             this.currentActivity = message;
         }
         switch (state.phase()) {
-            case DONE, BLOCKED -> this.finalAnswer = firstNonBlank(state.userMessage(), state.summary());
-            case FAILED -> this.errorMessage = firstNonBlank(state.userMessage(), state.summary());
+            case DONE -> this.finalAnswer = firstNonBlank(state.userMessage(), state.summary());
+            case BLOCKED, FAILED -> this.errorMessage = firstNonBlank(state.userMessage(), state.summary());
             default -> {
                 // running states keep currentActivity only
             }

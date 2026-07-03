@@ -100,7 +100,10 @@ public class JobSchedulerAiSwarmSupport {
             new HeadlessSwarmCallback(action.isAiAutoApproveCommands(), Thread.currentThread());
 
         try {
-            new SwarmOrchestrator(null).run(
+            // Same as the interactive path's MainWindow.terminalAgentService: a bare, un-wired
+            // TerminalAgentService — SwarmOrchestrator's own null-coalescing constructor would build
+            // the same instance, this just makes that explicit at the call site.
+            new SwarmOrchestrator(new TerminalAgentService()).run(
                 request, swarmTargets, profile, () -> safeCreateService(profile), callback);
         } finally {
             for (JobSwarmAgentRunner runner : runners) {

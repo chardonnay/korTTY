@@ -73,6 +73,11 @@ public final class WorkflowScriptGenerator {
             this.kind = kind;
         }
 
+        public GenerationException(FailureKind kind, String message, Throwable cause) {
+            super(message, cause);
+            this.kind = kind;
+        }
+
         public FailureKind kind() {
             return kind;
         }
@@ -194,8 +199,13 @@ public final class WorkflowScriptGenerator {
         if (profile == null) {
             throw new GenerationException(FailureKind.NO_PROFILE, "No AI profile available");
         }
+        // Same LM-Studio-MCP guard as generate() above: forcing DISABLED unconditionally would route
+        // an LM-Studio-MCP profile through the OpenAI-compatible service instead of the native one.
         AiProfile generationProfile = new AiProfile(profile);
-        generationProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        if (generationProfile.getInternetAccessMode() == null
+            || !generationProfile.getInternetAccessMode().usesLmStudioMcp()) {
+            generationProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        }
         String apiKey = resolveApiKey(generationProfile);
 
         WorkflowContext context = data.representativeRun() != null
@@ -237,7 +247,7 @@ public final class WorkflowScriptGenerator {
         } catch (Exception e) {
             logger.warn("Swarm workflow script generation failed", e);
             throw new GenerationException(FailureKind.AI_ERROR,
-                e.getMessage() != null && !e.getMessage().isBlank() ? e.getMessage() : e.toString());
+                e.getMessage() != null && !e.getMessage().isBlank() ? e.getMessage() : e.toString(), e);
         }
         if (result == null || result.content() == null || result.content().isBlank()) {
             throw new GenerationException(FailureKind.AI_ERROR, "The AI returned an empty response");

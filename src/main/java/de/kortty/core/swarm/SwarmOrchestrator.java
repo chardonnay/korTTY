@@ -134,8 +134,9 @@ public final class SwarmOrchestrator {
             awaitWindDown(outstanding);
             backfillCancelledAgents(targetsById, results, callback);
             callback.onSwarmState(rollup(SwarmModels.SwarmPhase.CANCELLED, states, total, start, null));
-            callback.onAggregationResult(aggregator.aggregate(
-                new SwarmModels.SwarmAggregationRequest(request.query(), orderedResults(targetsById, results)), null));
+            callback.onAggregationResult(aggregator.aggregateLocally(
+                new SwarmModels.SwarmAggregationRequest(request.query(), orderedResults(targetsById, results)),
+                "Cancelled"));
             return;
         }
 

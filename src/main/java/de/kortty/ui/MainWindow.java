@@ -6132,9 +6132,21 @@ public class MainWindow {
         TerminalTab tab;
         try {
             String password = ensurePasswordForConnection(connection, null);
+            boolean requiresPassword = !connection.isLocalShell()
+                && connection.getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY;
+            if (requiresPassword && (password == null || password.isBlank())) {
+                logger.warn("Swarm skipping connection {}: no password provided", connection.getDisplayName());
+                connectSwarmNext(iterator, onConnected, onComplete);
+                return;
+            }
             tab = openConnectionAndReturnTab(connection, password, null, null);
         } catch (Exception e) {
             logger.warn("Swarm could not open connection {}", connection.getDisplayName(), e);
+            connectSwarmNext(iterator, onConnected, onComplete);
+            return;
+        }
+        if (tab == null) {
+            logger.warn("Swarm could not open connection {}: no tab returned", connection.getDisplayName());
             connectSwarmNext(iterator, onConnected, onComplete);
             return;
         }
@@ -6373,6 +6385,29 @@ public class MainWindow {
             return true;
         } catch (Exception e) {
             logger.error("Failed to delete saved AI chat {}", chat.getId(), e);
+            showError(I18n.get("error.title"), e.getMessage());
+            return false;
+        }
+    }
+
+    /** Closes and unregisters the chat's open swarm tab (if any) before deleting it, mirroring {@link #deleteSavedAiChat}. */
+    boolean deleteSavedSwarmChat(de.kortty.model.SavedSwarmChat chat) {
+        if (chat == null || chat.getId() == null || chat.getId().isBlank() || app.getSwarmChatManager() == null) {
+            return false;
+        }
+        try {
+            boolean deleted = app.getSwarmChatManager().deleteChat(chat.getId());
+            if (!deleted) {
+                return false;
+            }
+            SwarmAgentTab openTab = openSavedSwarmChatTabs.get(chat.getId());
+            if (openTab != null) {
+                openTab.closeTab();
+            }
+            unregisterSavedSwarmChatTab(chat.getId());
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to delete saved swarm chat {}", chat.getId(), e);
             showError(I18n.get("error.title"), e.getMessage());
             return false;
         }

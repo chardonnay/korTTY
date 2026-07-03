@@ -34,16 +34,30 @@ class SwarmCoreTest {
         assertThat(SwarmModels.SwarmTargetKey.of(a1)).isNotEqualTo(SwarmModels.SwarmTargetKey.of(other));
     }
 
+    private static final String VALID_TABLE = "| Server | Fehler |\n|---|---|\n| srv-1 | - |";
+
     @Test
     void aggregatorUsesLlmWhenAvailable() {
         SwarmAggregator aggregator = new SwarmAggregator();
         SwarmModels.SwarmAgentStatus status = doneStatus("srv-1", "free=10G");
 
         SwarmModels.SwarmAggregationResult result = aggregator.aggregate(
+            new SwarmModels.SwarmAggregationRequest("disk?", List.of(status)), new FakeAiService(VALID_TABLE));
+
+        assertThat(result.markdown()).isEqualTo(VALID_TABLE);
+        assertThat(result.error()).isNull();
+    }
+
+    @Test
+    void aggregatorFallsBackWhenLlmResponseIsMissingTheFehlerColumn() {
+        SwarmAggregator aggregator = new SwarmAggregator();
+        SwarmModels.SwarmAgentStatus status = doneStatus("srv-1", "free=10G");
+
+        SwarmModels.SwarmAggregationResult result = aggregator.aggregate(
             new SwarmModels.SwarmAggregationRequest("disk?", List.of(status)), new FakeAiService("TABLE"));
 
-        assertThat(result.markdown()).isEqualTo("TABLE");
-        assertThat(result.error()).isNull();
+        assertThat(result.error()).isNotNull();
+        assertThat(result.markdown()).contains("| Server | Status | Antwort | Fehler |");
     }
 
     @Test
@@ -100,10 +114,10 @@ class SwarmCoreTest {
             new SwarmTarget("run-3", conn("C", "hostC", 22, "root"), null, null, "sess-3", "hostC"));
         CollectingCallback callback = new CollectingCallback();
 
-        orchestrator.run(request, targets, new AiProfile(), () -> new FakeAiService("AGGREGATED"), callback);
+        orchestrator.run(request, targets, new AiProfile(), () -> new FakeAiService(VALID_TABLE), callback);
 
         assertThat(callback.aggregation).isNotNull();
-        assertThat(callback.aggregation.markdown()).isEqualTo("AGGREGATED");
+        assertThat(callback.aggregation.markdown()).isEqualTo(VALID_TABLE);
         assertThat(callback.lastState).isNotNull();
         assertThat(callback.lastState.phase()).isEqualTo(SwarmModels.SwarmPhase.DONE);
         assertThat(callback.lastState.done()).isEqualTo(3);

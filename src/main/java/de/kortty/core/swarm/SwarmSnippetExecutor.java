@@ -71,9 +71,16 @@ public final class SwarmSnippetExecutor {
         CountDownLatch done = new CountDownLatch(runTargets.size());
         for (SwarmTarget target : runTargets) {
             pool.submit(() -> {
-                TargetOutcome outcome = runOne(target, command, control, listener);
-                outcomes.put(target.agentId(), outcome);
                 try {
+                    TargetOutcome outcome = runOne(target, command, control, listener);
+                    outcomes.put(target.agentId(), outcome);
+                    listener.onTargetFinished(outcome);
+                } catch (Exception e) {
+                    logger.warn("Swarm script worker failed on {}", target.displayName(), e);
+                    TargetOutcome outcome = new TargetOutcome(
+                        target.agentId(), target.displayName(), OutcomeKind.ERROR, -1, "",
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(), 0L);
+                    outcomes.put(target.agentId(), outcome);
                     listener.onTargetFinished(outcome);
                 } finally {
                     done.countDown();

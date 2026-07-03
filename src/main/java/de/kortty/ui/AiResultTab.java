@@ -45,9 +45,8 @@ import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -93,7 +92,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -140,6 +138,7 @@ public class AiResultTab extends Tab {
     private String activeProfileName;
     private String baseTitle;
     private final ComboBox<BroadcastTarget> targetComboBox = new ComboBox<>();
+    private final CheckBox broadcastReadOnlyCheck = new CheckBox(I18n.get("ai.swarm.readOnly"));
     private AtomicBoolean broadcastCancelled;
 
     /** Where a chat query is sent: only the active connection, or every open terminal (deduped per server). */
@@ -316,8 +315,14 @@ public class AiResultTab extends Tab {
                 return null;
             }
         });
-        HBox profileRow = new HBox(8, profileLabel, profileComboBox, languageLabel, languageComboBox, targetLabel, targetComboBox);
+        HBox profileRow = new HBox(8, profileLabel, profileComboBox, languageLabel, languageComboBox,
+            targetLabel, targetComboBox, broadcastReadOnlyCheck);
         profileRow.setAlignment(Pos.CENTER_LEFT);
+        // Only relevant when broadcasting to every open terminal — a single connection's commands
+        // are approved per the usual single-run flow, not this batch-approval read-only gate.
+        broadcastReadOnlyCheck.visibleProperty().bind(
+            targetComboBox.valueProperty().isEqualTo(BroadcastTarget.ALL_OPEN_TERMINALS));
+        broadcastReadOnlyCheck.managedProperty().bind(broadcastReadOnlyCheck.visibleProperty());
 
         Label composerLabel = new Label(I18n.get("ai.result.followup.label"));
         StackPane promptFrame = new StackPane(promptInputArea);
@@ -758,14 +763,15 @@ public class AiResultTab extends Tab {
 
         broadcastCancelled = new AtomicBoolean(false);
         AtomicBoolean cancelled = broadcastCancelled;
+        boolean readOnly = broadcastReadOnlyCheck.isSelected();
         SwarmModels.SwarmRequest request = new SwarmModels.SwarmRequest(
             prompt,
             profile.getId(),
             SwarmModels.SwarmSource.OPEN_TERMINALS,
             false,
-            false,
+            readOnly,
             4,
-            SwarmModels.BatchApprovalPolicy.ONE_APPROVAL_FOR_ALL);
+            readOnly ? SwarmModels.BatchApprovalPolicy.READ_ONLY : SwarmModels.BatchApprovalPolicy.ONE_APPROVAL_FOR_ALL);
 
         busy = true;
         statusLabel.setText(I18n.get("ai.swarm.progress.preparing"));
@@ -836,75 +842,9 @@ public class AiResultTab extends Tab {
 
     private TerminalAgentService.ApprovalDecision requestSwarmApprovalBlocking(
         TerminalAgentModels.Approval approval, AtomicBoolean cancelled) {
-        CompletableFuture<TerminalAgentService.ApprovalDecision> future = new CompletableFuture<>();
-        java.util.concurrent.atomic.AtomicReference<Alert> openAlert = new java.util.concurrent.atomic.AtomicReference<>();
-        Runnable show = () -> {
-            try {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle(I18n.get("ai.swarm.approve.title"));
-                alert.setHeaderText(null);
-                StringBuilder commands = new StringBuilder();
-                if (approval != null && approval.commands() != null) {
-                    for (TerminalAgentModels.PlannedCommand command : approval.commands()) {
-                        if (command != null && command.command() != null) {
-                            commands.append(command.command()).append('\n');
-                        }
-                    }
-                }
-                alert.setContentText(I18n.get("ai.swarm.approve.message",
-                    I18n.get("ai.swarm.broadcast.targetMode.allOpen"), commands.toString().trim()));
-                ButtonType approveAll = new ButtonType(I18n.get("ai.swarm.approve.approveAll"), ButtonBar.ButtonData.OK_DONE);
-                ButtonType cancel = new ButtonType(I18n.get("ai.swarm.approve.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-                alert.getButtonTypes().setAll(approveAll, cancel);
-                // Owner + toFront: an ownerless alert can open behind the main window on macOS.
-                Window owner = getOwnerWindow();
-                if (owner != null) {
-                    alert.initOwner(owner);
-                }
-                alert.setOnShown(shownEvent -> {
-                    if (alert.getDialogPane().getScene() != null
-                        && alert.getDialogPane().getScene().getWindow() instanceof javafx.stage.Stage stage) {
-                        stage.toFront();
-                        stage.requestFocus();
-                    }
-                });
-                openAlert.set(alert);
-                var choice = alert.showAndWait();
-                future.complete(choice.isPresent() && choice.get() == approveAll
-                    ? TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS
-                    : TerminalAgentService.ApprovalDecision.CANCEL);
-            } catch (Exception ex) {
-                // a broken dialog must never leave the broadcast blocked forever
-                future.complete(TerminalAgentService.ApprovalDecision.CANCEL);
-            } finally {
-                openAlert.set(null);
-            }
-        };
-        if (Platform.isFxApplicationThread()) {
-            show.run();
-        } else {
-            Platform.runLater(show);
-        }
-        try {
-            // Poll so a broadcast cancel aborts a pending approval instead of hanging on it.
-            while (true) {
-                try {
-                    return future.get(500, java.util.concurrent.TimeUnit.MILLISECONDS);
-                } catch (java.util.concurrent.TimeoutException stillWaiting) {
-                    if (cancelled != null && cancelled.get()) {
-                        Platform.runLater(() -> {
-                            Alert alert = openAlert.get();
-                            if (alert != null && alert.isShowing()) {
-                                alert.close();
-                            }
-                        });
-                        return TerminalAgentService.ApprovalDecision.CANCEL;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            return TerminalAgentService.ApprovalDecision.CANCEL;
-        }
+        return SwarmApprovalDialogSupport.requestBlocking(
+            approval, I18n.get("ai.swarm.broadcast.targetMode.allOpen"), getOwnerWindow(),
+            () -> cancelled != null && cancelled.get());
     }
 
     private void updateSendAvailability() {
@@ -950,6 +890,7 @@ public class AiResultTab extends Tab {
     private void cancelActiveRequest() {
         if (broadcastCancelled != null) {
             broadcastCancelled.set(true);
+            showCancelled();
         }
         Task<?> task = activeTask;
         Thread thread = activeThread;

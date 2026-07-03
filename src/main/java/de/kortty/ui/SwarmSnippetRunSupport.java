@@ -124,6 +124,9 @@ public class SwarmSnippetRunSupport {
         OutcomeLabels labels,
         int outputCap) {
 
+        if (headers == null || headers.size() != 3) {
+            throw new IllegalArgumentException("buildResultMarkdown expects exactly 3 headers (server, exit, output)");
+        }
         StringBuilder sb = new StringBuilder();
         if (heading != null && !heading.isBlank()) {
             sb.append("**").append(escapeCell(heading.trim())).append("**\n\n");

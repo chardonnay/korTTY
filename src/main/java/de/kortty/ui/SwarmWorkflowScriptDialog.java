@@ -51,6 +51,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Generates a multi-server workflow script from the swarm's selected hosts and the last query. The
@@ -126,6 +127,7 @@ public final class SwarmWorkflowScriptDialog {
         Timeline elapsedTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e ->
             status.setText(I18n.get("ai.workflow.generating.elapsed", formatElapsed(startedAtMillis.get())))));
         elapsedTimeline.setCycleCount(Timeline.INDEFINITE);
+        AtomicReference<Task<?>> activeTask = new AtomicReference<>();
 
         Button generateButton = new Button(I18n.get("ai.workflow.generate"));
         Button copyButton = new Button(I18n.get("ai.workflow.copy"));
@@ -177,6 +179,7 @@ public final class SwarmWorkflowScriptDialog {
                     return new WorkflowScriptGenerator(KorTTYApplication.getInstance()).generateSwarm(data, request);
                 }
             };
+            activeTask.set(task);
             task.setOnSucceeded(ev -> {
                 elapsedTimeline.stop();
                 busyIndicator.setVisible(false);
@@ -203,6 +206,10 @@ public final class SwarmWorkflowScriptDialog {
         // dialog open leaks a native WebKit page with running Monaco workers until a late GC.
         dialog.setOnHidden(e -> {
             elapsedTimeline.stop();
+            Task<?> running = activeTask.get();
+            if (running != null) {
+                running.cancel();
+            }
             preview.dispose();
         });
 
