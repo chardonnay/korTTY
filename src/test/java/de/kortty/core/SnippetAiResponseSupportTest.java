@@ -288,4 +288,84 @@ class SnippetAiResponseSupportTest {
             """);
         assertThat(multiLine.isUsable()).isFalse();
     }
+
+    @Test
+    void parsePlantUmlDiagramIgnoresLeakedThinkReasoningWithBraces() {
+        // Reasoning models (LM Studio / Ollama serving DeepSeek-R1 etc.) leak <think>…</think> into
+        // the answer; the reasoning text often contains braces. The greedy first-brace-to-last-brace
+        // extractor captured those braces and failed to parse. The real JSON must still be found.
+        SnippetAiResponseSupport.PlantUmlDiagram diagram =
+            SnippetAiResponseSupport.parsePlantUmlDiagram("""
+            <think>
+            I should return an object like {title, plantUml}. Let me build the @startuml block.
+            </think>
+            {
+              "title": "Flow",
+              "plantUml": "@startuml\\nstart\\n:Run;\\nstop\\n@enduml"
+            }
+            """);
+
+        assertThat(diagram.title()).isEqualTo("Flow");
+        assertThat(diagram.isUsable()).isTrue();
+    }
+
+    @Test
+    void parsePlantUmlDiagramExtractsJsonWrappedInProseAndFences() {
+        // Prose braces before the JSON, plus a ```json fence, used to corrupt greedy extraction.
+        SnippetAiResponseSupport.PlantUmlDiagram diagram =
+            SnippetAiResponseSupport.parsePlantUmlDiagram("""
+            Sure! Use a map like {key: value} internally. Here is the diagram:
+            ```json
+            { "title": "Flow", "plantUml": "@startuml\\nstart\\nstop\\n@enduml" }
+            ```
+            """);
+
+        assertThat(diagram.title()).isEqualTo("Flow");
+        assertThat(diagram.isUsable()).isTrue();
+    }
+
+    @Test
+    void parseSecurityFindingsPrefersFindingsObjectOverStrayProseList() {
+        // A stray bracketed list in the model's prose must not shadow the real {"findings": [...]}
+        // object (objects are preferred over arrays during extraction).
+        List<SnippetAiResponseSupport.SecurityFinding> findings =
+            SnippetAiResponseSupport.parseSecurityFindings("""
+            Severity levels I considered: ["high", "medium", "low"]
+            { "findings": [ { "title": "SQL injection", "severity": "high" } ] }
+            """);
+
+        assertThat(findings).hasSize(1);
+        assertThat(findings.get(0).title()).isEqualTo("SQL injection");
+    }
+
+    @Test
+    void parseCodeReviewFindingsFindsRootArrayPastADecoyObjectWithAList() {
+        // A prose object that itself contains a bracketed list, before the real root array, must not
+        // hide it: the array-of-objects fallback skips the primitive list nested in the decoy.
+        List<SnippetAiResponseSupport.CodeReviewFinding> findings =
+            SnippetAiResponseSupport.parseCodeReviewFindings("""
+            Config used: {"tags": ["shell", "sh"]}
+            [ { "title": "Unquoted var" }, { "title": "No set -e" } ]
+            """);
+
+        assertThat(findings).hasSize(2);
+        assertThat(findings.get(0).title()).isEqualTo("Unquoted var");
+    }
+
+    @Test
+    void parseCodeReviewFindingsStillReadsRootArrayAfterExtractionChange() {
+        // Regression guard: array-returning parsers must not be mis-read as the first inner object.
+        List<SnippetAiResponseSupport.CodeReviewFinding> findings =
+            SnippetAiResponseSupport.parseCodeReviewFindings("""
+            Here are the findings:
+            [
+              { "title": "Unquoted variable", "severity": "warning" },
+              { "title": "Missing set -e", "severity": "info" }
+            ]
+            """);
+
+        assertThat(findings).hasSize(2);
+        assertThat(findings.get(0).title()).isEqualTo("Unquoted variable");
+        assertThat(findings.get(1).title()).isEqualTo("Missing set -e");
+    }
 }

@@ -15,8 +15,6 @@ import java.util.regex.Pattern;
  */
 public final class SnippetAiResponseSupport {
 
-    private static final Pattern JSON_OBJECT_PATTERN = Pattern.compile("(?s)\\{.*}");
-    private static final Pattern JSON_ARRAY_PATTERN = Pattern.compile("(?s)\\[.*]");
     private static final Pattern MARKDOWN_CODE_BLOCK_PATTERN =
         Pattern.compile("(?s)```[A-Za-z0-9_+.#-]*\\R(.*?)\\R?```");
 
@@ -323,12 +321,107 @@ public final class SnippetAiResponseSupport {
         if (responseText == null || responseText.isBlank()) {
             return null;
         }
-        Matcher objectMatcher = JSON_OBJECT_PATTERN.matcher(responseText);
-        if (objectMatcher.find()) {
-            return objectMatcher.group();
+        // Strip <think>…</think> reasoning first: reasoning-capable local models (LM Studio, Ollama,
+        // llama.cpp serving DeepSeek-R1/QwQ/gpt-oss) leak their chain-of-thought into the answer, and
+        // its braces used to corrupt extraction. Fall back to the raw text if sanitizing left nothing.
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(responseText);
+        String payload = firstBalancedJson(sanitized);
+        return payload != null ? payload : firstBalancedJson(responseText);
+    }
+
+    /**
+     * Returns the first balanced JSON value in {@code text} that actually parses, replacing a greedy
+     * "first brace to last brace" match that broke whenever the model wrapped the JSON in prose or a
+     * fenced block that also contained braces.
+     *
+     * <p>Passes are ordered so neither prose nor a stray list can shadow the real payload:
+     * strictness first (a STRICT pass rejects prose like {@code &#123;key: value&#125;} with unquoted
+     * names, then a LENIENT pass tolerates a model's minor JSON deviations, then an "allow empty"
+     * pass as a last resort); and within each pass OBJECTS are preferred over ARRAYS — the snippet
+     * prompts ask for objects, and a decoy bracketed list in prose must not win over the real object.
+     * Root-array answers still resolve via {@link #parseArrayField}'s own array fallback.</p>
+     */
+    private static String firstBalancedJson(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
         }
-        Matcher arrayMatcher = JSON_ARRAY_PATTERN.matcher(responseText);
-        return arrayMatcher.find() ? arrayMatcher.group() : null;
+        String strict = scanBalancedJson(text, true, true);
+        if (strict != null) {
+            return strict;
+        }
+        String lenientNonEmpty = scanBalancedJson(text, false, true);
+        return lenientNonEmpty != null ? lenientNonEmpty : scanBalancedJson(text, false, false);
+    }
+
+    private static String scanBalancedJson(String text, boolean strict, boolean requireNonEmpty) {
+        String object = firstBalancedContainer(text, '{', '}', strict, requireNonEmpty);
+        return object != null ? object : firstBalancedContainer(text, '[', ']', strict, requireNonEmpty);
+    }
+
+    private static String firstBalancedContainer(
+        String text, char open, char close, boolean strict, boolean requireNonEmpty) {
+        for (int i = text.indexOf(open); i >= 0; i = text.indexOf(open, i + 1)) {
+            String span = balancedSpan(text, i, open, close);
+            if (span == null) {
+                continue;
+            }
+            JsonElement parsed = strict ? parseStrictJsonElement(span) : parseJsonElement(span);
+            if (parsed != null && (!requireNonEmpty || isNonEmptyContainer(parsed))) {
+                return span;
+            }
+        }
+        return null;
+    }
+
+    private static JsonElement parseStrictJsonElement(String candidate) {
+        try (com.google.gson.stream.JsonReader reader =
+                 new com.google.gson.stream.JsonReader(new java.io.StringReader(candidate))) {
+            reader.setStrictness(com.google.gson.Strictness.STRICT);
+            JsonElement element = JsonParser.parseReader(reader);
+            return reader.peek() == com.google.gson.stream.JsonToken.END_DOCUMENT ? element : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String balancedSpan(String text, int start, char open, char close) {
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = start; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (c == '"') {
+                inString = true;
+            } else if (c == open) {
+                depth++;
+            } else if (c == close) {
+                depth--;
+                if (depth == 0) {
+                    return text.substring(start, i + 1);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isNonEmptyContainer(JsonElement element) {
+        if (element.isJsonObject()) {
+            return !element.getAsJsonObject().keySet().isEmpty();
+        }
+        if (element.isJsonArray()) {
+            return !element.getAsJsonArray().isEmpty();
+        }
+        return false;
     }
 
     private static String extractReplacementText(JsonElement element) {
@@ -490,10 +583,48 @@ public final class SnippetAiResponseSupport {
         if (array != null) {
             return array;
         }
-        Matcher arrayMatcher = responseText != null ? JSON_ARRAY_PATTERN.matcher(responseText) : null;
-        return arrayMatcher != null && arrayMatcher.find()
-            ? parseArrayFieldRoot(parseJsonElement(arrayMatcher.group()), fieldName)
-            : null;
+        // Root-array answer (e.g. "[ {finding}, {finding} ]") that the object-preferring payload
+        // extraction above did not surface. Use a balanced array scan that favours an array OF
+        // OBJECTS (findings/solutions/segments are all object lists), so a stray primitive list in
+        // prose — even one nested inside a decoy object — cannot shadow the real array.
+        String arrayPayload = firstBalancedArray(responseText);
+        return arrayPayload != null ? parseArrayFieldRoot(parseJsonElement(arrayPayload), fieldName) : null;
+    }
+
+    /**
+     * Finds the first balanced {@code [...]} array to use as an array-field fallback: an array whose
+     * first element is an object wins over any other array, so a decoy list of primitives never
+     * shadows the real list of findings/solutions. Sanitized (reasoning-stripped) text is tried
+     * first, then the raw text if sanitizing removed too much.
+     */
+    private static String firstBalancedArray(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(text);
+        String objectsArray = firstBalancedArrayOfObjects(sanitized);
+        if (objectsArray != null) {
+            return objectsArray;
+        }
+        String anyArray = firstBalancedContainer(sanitized, '[', ']', false, true);
+        return anyArray != null ? anyArray : firstBalancedContainer(text, '[', ']', false, true);
+    }
+
+    private static String firstBalancedArrayOfObjects(String text) {
+        for (int i = text.indexOf('['); i >= 0; i = text.indexOf('[', i + 1)) {
+            String span = balancedSpan(text, i, '[', ']');
+            if (span == null) {
+                continue;
+            }
+            JsonElement parsed = parseJsonElement(span);
+            if (parsed != null && parsed.isJsonArray()) {
+                JsonArray array = parsed.getAsJsonArray();
+                if (!array.isEmpty() && array.get(0).isJsonObject()) {
+                    return span;
+                }
+            }
+        }
+        return null;
     }
 
     private static JsonElement parseJsonElement(String jsonCandidate) {

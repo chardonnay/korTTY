@@ -54,6 +54,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Dialog for creating or editing a code snippet.
@@ -61,7 +63,9 @@ import java.util.regex.Pattern;
  * a syntax-highlighted content editor with placeholder help.
  */
 public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(SnippetEditDialog.class);
+
     private final TextField nameField;
     private final ComboBox<String> languageCombo;
     private final ComboBox<String> categoryCombo;
@@ -2569,10 +2573,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             setStatus(successStatus);
             finishSnippetAiAction(task);
         });
-        task.setOnFailed(event -> {
-            setStatus(failedStatus);
-            finishSnippetAiAction(task);
-        });
+        task.setOnFailed(event -> handleSnippetAiActionFailure(task, failedStatus));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-selection-transform");
         thread.setDaemon(true);
@@ -2633,10 +2634,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             dialog.showAndWait();
             setStatus(I18n.get("snippets.ai.description.generated"));
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.ai.description.generateFailed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.description.generateFailed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-description");
         thread.setDaemon(true);
@@ -2764,10 +2763,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             showCompletionSuggestion(suggestion, contentSnapshot, caretOffset);
             setStatus(I18n.get("snippets.ai.complete.ready"));
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.ai.complete.failed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.complete.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, autoCompletion ? "snippet-ai-auto-complete" : "snippet-ai-complete");
         thread.setDaemon(true);
@@ -2877,10 +2874,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 task.getValue()).showAndWait();
             setStatus(I18n.get("snippets.ai.review.ready"));
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.ai.review.failed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.review.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-review");
         thread.setDaemon(true);
@@ -3010,10 +3005,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.improve.applied"));
             }
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.ai.improve.failed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.improve.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-improve");
         thread.setDaemon(true);
@@ -3083,10 +3076,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.assistant.applied"));
             }
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.ai.assistant.failed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.assistant.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-assistant");
         thread.setDaemon(true);
@@ -3210,10 +3201,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             dialog.showAndWait().ifPresent(this::runSecurityFixes);
             setStatus(I18n.get("snippets.ai.security.ready"));
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.ai.security.failed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.security.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-security-review");
         thread.setDaemon(true);
@@ -3263,10 +3252,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.security.fix.applied"));
             }
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.ai.security.fix.failed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.security.fix.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-security-fix");
         thread.setDaemon(true);
@@ -3434,10 +3421,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             setStatus(I18n.get("snippets.ai.diagram.ready"));
             openOrCreateDiagram();
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.ai.diagram.failed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.diagram.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-diagram");
         thread.setDaemon(true);
@@ -3706,6 +3691,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             setStatus(I18n.get("snippets.ai.metadata.generated"));
         });
         task.setOnFailed(event -> {
+            Throwable failure = task.getException();
+            if (failure != null) {
+                logger.warn("Snippet AI metadata suggestion failed", failure);
+            }
             finishMetadataTask(task);
             setStatus(I18n.get("snippets.ai.metadata.generateFailed"));
         });
@@ -3786,6 +3775,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             setStatus(I18n.get("snippets.ai.description.corrected"));
         });
         task.setOnFailed(event -> {
+            Throwable failure = task.getException();
+            if (failure != null) {
+                logger.warn("Snippet AI description correction failed", failure);
+            }
             finishDescriptionCorrectionTask(task);
             setStatus(I18n.get("snippets.ai.description.correctFailed"));
         });
@@ -3906,6 +3899,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         updateOneLinerButtonState();
     }
 
+    /**
+     * Uniform failure handling for a snippet AI action's background task. Logs the actual cause —
+     * previously every handler discarded {@code task.getException()}, so a misconfigured profile
+     * (a {@link de.kortty.core.FailingAiService} throwing "Select a model…") or any provider/network
+     * error left NO trace in the log and only a generic "…failed" status. When the cause carries a
+     * message it is surfaced to the user (e.g. the configuration error that breaks every AI function)
+     * instead of the bare generic status.
+     */
+    private void handleSnippetAiActionFailure(Task<?> task, String genericFailedStatus) {
+        Throwable failure = task != null ? task.getException() : null;
+        if (failure != null) {
+            logger.warn("Snippet AI action failed ({})", genericFailedStatus, failure);
+        }
+        String detail = failure != null && failure.getMessage() != null && !failure.getMessage().isBlank()
+            ? failure.getMessage().strip()
+            : null;
+        setStatus(detail != null
+            ? I18n.get("snippets.ai.actionFailed", shortenStatusMessage(detail))
+            : genericFailedStatus);
+        finishSnippetAiAction(task);
+    }
+
     private void runOneLiner(boolean compact) {
         String text = contentArea.getText();
         String lang = languageCombo.getValue();
@@ -3962,10 +3977,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
             copyOneLinerToClipboard(suggestion.command());
         });
-        task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
-            setStatus(I18n.get("snippets.oneliner.generateFailed"));
-        });
+        task.setOnFailed(event ->
+            handleSnippetAiActionFailure(task, I18n.get("snippets.oneliner.generateFailed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
         Thread thread = new Thread(task, "snippet-ai-one-liner");
         thread.setDaemon(true);
@@ -4240,9 +4253,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
         });
         task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.format.failed"));
             updateFormatLintButtonState();
-            setStatus(I18n.get("snippets.ai.format.failed"));
         });
         task.setOnCancelled(event -> {
             finishSnippetAiAction(task);
@@ -4366,9 +4378,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             setStatus(I18n.get("snippets.ai.lint.ready"));
         });
         task.setOnFailed(event -> {
-            finishSnippetAiAction(task);
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.lint.failed"));
             updateFormatLintButtonState();
-            setStatus(I18n.get("snippets.ai.lint.failed"));
         });
         task.setOnCancelled(event -> {
             finishSnippetAiAction(task);
