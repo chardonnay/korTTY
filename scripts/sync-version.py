@@ -11,6 +11,7 @@ Targets kept in sync:
   * README.adoc                                     (leading ``*vX.Y.Z*`` badge on the intro line)
   * app-docs/site/docs/en/about/release-notes.md    (top ``# vX.Y.Z`` heading, if present)
   * app-docs/RELEASE_NOTES.adoc                      (legacy top ``== vX.Y.Z`` heading, if present)
+  * app-docs/USER_GUIDE.adoc                         (leading ``*vX.Y.Z*`` badge and trailing footer)
   * app-docs/doc-manifest.yaml                       (top-level ``version: "X.Y.Z"`` field)
 
 The MkDocs site does NOT hard-code the version: it is injected at build time via
@@ -78,6 +79,18 @@ TARGETS: list[Target] = [
         pattern=re.compile(r'(?m)^(==\s+v)(' + SEMVER + r')(\b)'),
         label="RELEASE_NOTES.adoc top heading",
         required=False,
+    ),
+    Target(
+        # Leading badge, same shape as the README badge: `*v2.2.2* | ...`.
+        path=REPO_ROOT / "app-docs/USER_GUIDE.adoc",
+        pattern=re.compile(r'(?m)^(\*v)(' + SEMVER + r')(\*)'),
+        label="USER_GUIDE.adoc version badge",
+    ),
+    Target(
+        # Trailing footer line: `_KorTTY v2.2.2_`.
+        path=REPO_ROOT / "app-docs/USER_GUIDE.adoc",
+        pattern=re.compile(r'(?m)^(_KorTTY\s+v)(' + SEMVER + r')(_)'),
+        label="USER_GUIDE.adoc footer",
     ),
     Target(
         # Top-level `version: "X.Y.Z"` field consumed by the doc validators.
