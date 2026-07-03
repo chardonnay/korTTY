@@ -2,6 +2,10 @@
 
 == Unreleased
 
+=== Fixes
+
+* *macOS: "Quit korTTY" actually quits the app*: On the packaged macOS app, a native quit (Cmd+Q, the app menu's *Quit korTTY*, the Dock's *Quit*, or logout) left korTTY running in the background — the process had to be killed. The packaged app deliberately keeps running after the last window closes (so the JobScheduler can run background jobs), but JavaFX only translated a native quit into "close the windows", never an actual exit. korTTY now intercepts the native quit and runs its real quit sequence. A shutdown watchdog additionally guarantees the process always terminates, the "waiting for running jobs" dialog gained a *Force quit now* button, and the menu-bar-icon cleanup no longer risks stalling shutdown.
+
 == v2.3.2
 
 === Fixes

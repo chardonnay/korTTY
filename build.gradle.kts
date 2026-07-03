@@ -255,6 +255,10 @@ tasks.withType<JavaCompile>().configureEach {
     if (!javaFxJsObject.isEmpty) {
         options.compilerArgs.addAll(listOf("--upgrade-module-path", javaFxJsObject.asPath))
     }
+    // NOTE: MacGlassQuitHook uses the internal com.sun.glass.ui.Application. No --add-exports is
+    // needed at COMPILE time because the JavaFX artifacts are on the compile CLASS PATH here (the
+    // unnamed module can read every package). The dev-run task and jpackage DO add the export,
+    // because they put JavaFX on the module path where com.sun.glass.ui is only a qualified export.
 }
 
 // ==================== jpackage Konfiguration ====================
@@ -1015,7 +1019,12 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         // a JSObject crashes the JVM in JNI get_method_id (NULL class / NoClassDefFoundError) on macOS.
         "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.unsupported",
         "--java-options", "-Djava.awt.headless=false",
-        "--java-options", "--enable-native-access=ALL-UNNAMED"
+        "--java-options", "--enable-native-access=ALL-UNNAMED",
+        // Belt-and-braces for MacGlassQuitHook: the packaged app loads JavaFX from the class path
+        // (unnamed module) so this is not strictly required, but it keeps the native-quit hook
+        // working if a future packaging change ever puts JavaFX on the module path. With no
+        // javafx.graphics MODULE present it degrades to an ignorable "unknown module" warning.
+        "--java-options", "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
     )
     googleJavaFormatJvmArgs.forEach { javaOption ->
         args.addAll(listOf("--java-options", javaOption))
@@ -1373,6 +1382,9 @@ tasks.named<JavaExec>("run") {
     jvmArgs(listOf(
         // Öffne Zugriff auf interne JavaFX-Module (reduziert Warnungen über restricted methods)
         "--add-opens=javafx.graphics/com.sun.glass.utils=ALL-UNNAMED",
+        // MacGlassQuitHook subclasses Glass's internal Application.EventHandler to catch the
+        // native macOS quit; com.sun.glass.ui is a qualified export (dev run module-paths JavaFX).
+        "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED",
         "--add-opens=javafx.graphics/com.sun.javafx.tk.quantum=ALL-UNNAMED",
         "--add-opens=javafx.graphics/com.sun.marlin=ALL-UNNAMED",
         "--add-opens=java.base/java.lang=ALL-UNNAMED",

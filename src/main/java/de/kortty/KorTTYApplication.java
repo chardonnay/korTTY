@@ -305,6 +305,7 @@ public class KorTTYApplication extends Application {
      * Idempotent via {@link #shuttingDown}.
      */
     public void shutdownAndExit() {
+        startShutdownWatchdog();
         performShutdown();
         // Hard-halt instead of System.exit(0). Once AWT is loaded (the Dock menu &
         // menu-bar icon pull in the lwawt toolkit), the normal JVM exit sequence runs
@@ -319,6 +320,31 @@ public class KorTTYApplication extends Application {
     }
 
     /**
+     * Guarantees the process dies once a quit is committed: if any shutdown step
+     * wedges (a stuck SSH close, an AWT main/EDT deadlock, …) before the final
+     * {@code halt(0)}, this daemon hard-halts after a bounded grace period. Without
+     * it a single blocked step turns "quit" into a process that must be killed.
+     */
+    private void startShutdownWatchdog() {
+        Thread watchdog = new Thread(() -> {
+            try {
+                Thread.sleep(SHUTDOWN_WATCHDOG_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            logger.error("Shutdown did not complete within {} ms — forcing process termination",
+                SHUTDOWN_WATCHDOG_MILLIS);
+            Runtime.getRuntime().halt(1);
+        }, "kortty-shutdown-watchdog");
+        watchdog.setDaemon(true);
+        watchdog.start();
+    }
+
+    /** Grace period for a clean shutdown before the watchdog force-halts the process. */
+    private static final long SHUTDOWN_WATCHDOG_MILLIS = 25_000;
+
+    /**
      * Flushes all persistent state and stops background services, each step guarded
      * independently so one failure cannot skip the rest. Idempotent via {@link #shuttingDown}.
      */
@@ -328,7 +354,6 @@ public class KorTTYApplication extends Application {
         }
         shuttingDown = true;
         logger.info("Shutting down {}...", APP_NAME);
-        shutdownStep("remove macOS menu-bar icon", de.kortty.ui.MacMenuBarIcon::remove);
 
         // Close all SSH sessions first.
         if (sessionManager != null) {
@@ -393,6 +418,10 @@ public class KorTTYApplication extends Application {
             shutdownStep("stop log maintenance", logMaintenanceExecutor::shutdownNow);
             logMaintenanceExecutor = null;
         }
+        // LAST and fire-and-forget: a synchronous SystemTray removal from the FX thread
+        // can deadlock against the AWT EDT (see MacMenuBarIcon.removeAsync) — and it
+        // used to run FIRST, before any state was saved. Purely cosmetic before halt().
+        shutdownStep("remove macOS menu-bar icon", de.kortty.ui.MacMenuBarIcon::removeAsync);
 
         logger.info("{} shutdown complete", APP_NAME);
     }
@@ -416,9 +445,16 @@ public class KorTTYApplication extends Application {
         void run() throws Exception;
     }
 
+    /**
+     * Set when the native-quit hook could not be installed: the keep-alive mode is
+     * then disabled so a native quit (close-all-windows + implicit exit) still
+     * terminates the app instead of stranding a headless process.
+     */
+    private volatile boolean macKeepAliveDisabled = false;
+
     /** True only for the packaged macOS app, where korTTY stays alive after the last window closes. */
     public boolean shouldKeepRunningAfterLastWindowClosed() {
-        return isMacOs() && isPackagedMacApplication();
+        return !macKeepAliveDisabled && isMacOs() && isPackagedMacApplication();
     }
     
     private boolean handleMasterPassword(Stage ownerStage) {
@@ -517,14 +553,29 @@ public class KorTTYApplication extends Application {
             return;
         }
 
-        // Keep the packaged macOS app alive after the last window is closed so the
-        // JobScheduler keeps running scheduled background jobs. Quit is handled
-        // explicitly by korTTY (Cmd+Q scene accelerator, File->Quit, and the Dock
-        // menu's Quit item) ending in Runtime.getRuntime().halt(0) — see
+        // The keep-alive design requires intercepting the NATIVE macOS quit first:
+        // Glass owns the NSApplication delegate and translates every native quit
+        // (Cmd+Q via the apple menu, app menu "Quit korTTY", the system Dock Quit,
+        // logout) into mere per-window close requests — which the keep-alive branch
+        // swallows (windows closed, process lingering headless; once headless the
+        // native quit is a complete no-op). MacGlassQuitHook reroutes Glass's
+        // handleQuitAction into MainWindow.requestApplicationQuit(), the same path
+        // as File->Quit, ending in Runtime.getRuntime().halt(0) — see
         // shutdownAndExit(). halt() (not System.exit) is deliberate: it skips the
         // AWT/JavaFX shutdown hooks that otherwise hang the macOS Dock-stuck quit.
-        // We do NOT rely on JavaFX/AWT's native Quit: on JavaFX 21.0.2+ (JDK-8332656)
-        // Glass owns the macOS app delegate and the AWT Desktop quit handler never fires.
+        // The AWT Desktop quit handler is NOT an alternative: on JavaFX 21.0.2+
+        // (JDK-8332656) Glass's delegate never forwards the quit to AWT.
+        if (!de.kortty.ui.MacGlassQuitHook.install()) {
+            // Without the hook a native quit must keep working: leave implicit exit
+            // ON so closing the windows exits the toolkit -> stop() -> shutdownAndExit().
+            // Quittability wins over the background keep-alive.
+            macKeepAliveDisabled = true;
+            logger.warn("macOS keep-alive disabled: native-quit hook unavailable, keeping JavaFX implicit exit");
+            return;
+        }
+
+        // Keep the packaged macOS app alive after the last window is closed so the
+        // JobScheduler keeps running scheduled background jobs.
         Platform.setImplicitExit(false);
         logger.info("Configured JavaFX implicit exit to keep the packaged macOS app alive after the last window closes (JobScheduler keeps running)");
     }

@@ -83,6 +83,28 @@ public final class MacMenuBarIcon {
         }
     }
 
+    /**
+     * Fire-and-forget removal for the shutdown path. {@link #remove()} must NOT run
+     * on the JavaFX thread there: {@code TrayIcon.removeNotify} disposes an AWT
+     * frame, and from a non-EDT caller {@code Window.doDispose} parks the caller in
+     * an untimed {@code EventQueue.invokeAndWait} — on macOS the FX thread IS the
+     * AppKit main thread, so a concurrently blocked EDT turns that into a permanent
+     * main/EDT deadlock before any state is saved. Dispatching the removal onto the
+     * EDT without waiting removes that risk entirely; the icon is cosmetic at this
+     * point (the NSStatusItem vanishes with the process anyway). No-op when the
+     * icon was never installed, so shutdown never initializes AWT just to clean up.
+     */
+    public static void removeAsync() {
+        if (installed == null) {
+            return;
+        }
+        try {
+            java.awt.EventQueue.invokeLater(MacMenuBarIcon::remove);
+        } catch (Throwable ignored) {
+            // Best-effort cleanup; the process is about to halt anyway.
+        }
+    }
+
     /** Loads the menu-bar icon image from the classpath, or {@code null} if missing/unreadable. */
     private static Image loadIcon() {
         try (InputStream in = MacMenuBarIcon.class.getResourceAsStream("/icon/kortty_icon.png")) {

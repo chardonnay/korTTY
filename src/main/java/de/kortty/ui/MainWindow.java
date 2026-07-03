@@ -2665,7 +2665,17 @@ public class MainWindow {
             new Label(I18n.get("jobscheduler.quit.waiting.content")));
         content.setPadding(new Insets(20));
         dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getButtonTypes().setAll();
+        // A "Force quit now" button so the drain wait is always escapable — awaitDrain()
+        // has no timeout, and a wedged job must never make the app unquittable (the user
+        // would otherwise have to kill the process). Closing the dialog via this button
+        // exits immediately regardless of drain state.
+        ButtonType forceQuit = new ButtonType(I18n.get("jobscheduler.quit.force"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().setAll(forceQuit);
+        dialog.setOnCloseRequest(e -> {
+            logger.info("JobScheduler drain force-quit requested by user");
+            schedulerDrainInProgress = false;
+            application.shutdownAndExit();
+        });
         dialog.show();
 
         Thread waiter = new Thread(() -> {
@@ -2680,6 +2690,7 @@ public class MainWindow {
             Platform.runLater(() -> {
                 schedulerDrainApproved = completed;
                 schedulerDrainInProgress = false;
+                dialog.setOnCloseRequest(null);
                 dialog.close();
                 if (completed) {
                     afterDrain.run();

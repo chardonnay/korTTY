@@ -5,6 +5,19 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+### Korrekturen
+
+- **macOS: „Quit korTTY“ beendet tatsächlich die App** – auf der paketierten macOS-App, a
+natives Beenden (Befehl+Q, **Beenden von korTTY** im App-Menü, **Beenden** des Docks oder
+logout) ließ korTTY im Hintergrund laufen, sodass der Prozess abgebrochen werden musste.
+Die gepackte App läuft absichtlich weiter, nachdem das letzte Fenster geschlossen wurde (so
+der JobScheduler kann Hintergrundjobs ausführen), aber JavaFX hat nur einen nativen Job übersetzt
+Beenden Sie mit „Schließen Sie die Fenster“, niemals einen tatsächlichen Ausgang. korTTY fängt jetzt das ab
+native quit und führt seine eigentliche Quit-Sequenz aus. Zusätzlich ein Shutdown-Watchdog
+garantiert, dass der Prozess immer beendet wird, der Dialog „Warten auf laufende Jobs“.
+Ich habe die Schaltfläche **Jetzt Beenden erzwingen** erhalten und die Bereinigung der Menüleistensymbole entfällt
+Es besteht die Gefahr, dass das Herunterfahren verzögert wird.
+
 ## v2.3.2
 
 ### Korrekturen
