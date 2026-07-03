@@ -7,14 +7,30 @@ shown in the footer.
 
 ### Fixes
 
-- **"Load as text file" works in local shells** — right-clicking a selected file
-  name in a local-shell tab and choosing **Load as text file** no longer fails
-  with "No active SSH connection is available". The file is read from the local
-  filesystem — resolved against the working directory shown in the shell prompt
-  when available, otherwise the directory the shell was started in — and opens
-  in the snippet editor with **Overwrite local file** and **Save as...** just
-  like the SSH/SFTP variant. The not-connected error message is now
-  transport-neutral.
+- **"Load as text file" follows `cd` in local shells** — in a local-shell tab,
+  loading a selected file with **Load as text file** after changing directory no
+  longer fails to find the file. korTTY now reads the shell's live working
+  directory straight from the operating system (the shell process's current
+  directory) instead of relying only on the prompt text, which does not reveal
+  the full path when the prompt shows just the folder name (the macOS zsh
+  default). On macOS/Linux this resolves the selection against the directory the
+  shell is actually in; on Windows it falls back to the previous prompt-based
+  behavior.
+- **Snippet-editor AI functions work with reasoning models and chatty
+  responses** — AI actions in the snippet editor (**Diagram**, **Review**,
+  **Improve**, **Assistant**, **Security**, **Alternatives**, **Describe**,
+  **Complete**, **One-liner**) no longer fail — e.g. *"PlantUML generation
+  failed"* — when the model wraps its JSON answer in prose or a code fence, or
+  when a local reasoning model (LM Studio, Ollama, llama.cpp serving
+  DeepSeek-R1/QwQ/gpt-oss) emits a `<think>…</think>` block. The response parser
+  now strips leaked reasoning and extracts the real JSON payload robustly instead
+  of a greedy match that broke on any stray brace.
+- **Snippet-editor AI errors are now visible** — when a snippet-editor AI action
+  fails, the real cause is written to the log and its message is shown in the
+  status bar. Previously the exception was discarded, so a misconfigured AI
+  profile (e.g. a cloud profile with no model selected, which reports *"Select a
+  model…"*) made every AI function fail silently with only a generic message and
+  nothing in the log.
 
 ## v2.3.0
 
@@ -186,6 +202,21 @@ shown in the footer.
   is now transport-neutral ("Active sessions").
 - **No password prompt for local shells** — opening a local shell no longer shows
   an irrelevant password dialog (local shells use no authentication).
+- **"Load as text file" works in local shells** — right-clicking a selected file
+  name in a local-shell tab and choosing **Load as text file** no longer fails
+  with "No active SSH connection is available". The file is read from the local
+  filesystem — resolved against the working directory shown in the shell prompt
+  when available, otherwise the directory the shell was started in — and opens
+  in the snippet editor with **Overwrite local file** and **Save as...** just
+  like the SSH/SFTP variant. The not-connected error message is now
+  transport-neutral.
+- **Local file overwrites are now atomic** — both "Overwrite local file" flows
+  (local-shell **Load as text file** and the SFTP-manager local-file editor)
+  used to truncate the target file in place, so a mid-write failure (disk full,
+  process killed, power loss) could leave it truncated with no recovery.
+  Overwrites now write to a sibling temp file and move it into place, preserve
+  the original file's POSIX permissions, and write through symlinks to their
+  real target instead of replacing the link itself.
 
 ## v2.2.3
 

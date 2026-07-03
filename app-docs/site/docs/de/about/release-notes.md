@@ -7,15 +7,30 @@ in der Fußzeile angezeigt.
 
 ### Korrekturen
 
-- **„Als Textdatei laden“ funktioniert in lokalen Shells** – ein Rechtsklick auf
-einen markierten Dateinamen in einem Local-Shell-Tab mit **Als Textdatei
-laden** schlägt nicht mehr mit „Es ist keine aktive SSH-Verbindung verfügbar“
-fehl. Die Datei wird vom lokalen Dateisystem gelesen – aufgelöst gegen das im
-Shell-Prompt angezeigte Arbeitsverzeichnis, sonst gegen das Verzeichnis, in dem
-die Shell gestartet wurde – und öffnet sich im Snippet-Editor mit
-**Lokale Datei überschreiben** und **Speichern unter...** – genau wie in der
-SSH/SFTP-Variante. Die Nicht-verbunden-Fehlermeldung ist jetzt
-transportneutral formuliert.
+- **„Als Textdatei laden“ folgt `cd` in lokalen Shells** – in einer Registerkarte einer lokalen Shell,
+Laden einer ausgewählten Datei mit **Als Textdatei laden** nach Änderung der Verzeichnis-Nr
+Die Datei wird nicht mehr gefunden. korTTY liest jetzt die Live-Funktion der Shell
+Verzeichnis direkt vom Betriebssystem (das aktuelle Verzeichnis des Shell-Prozesses).
+Verzeichnis), anstatt sich nur auf den Eingabeaufforderungstext zu verlassen, der nichts preisgibt
+den vollständigen Pfad, wenn in der Eingabeaufforderung nur der Ordnername angezeigt wird (das macOS zsh
+Standard). Unter macOS/Linux wird dadurch die Auswahl anhand des Verzeichnisses aufgelöst
+Shell ist tatsächlich drin; Unter Windows wird auf die vorherige Eingabeaufforderung zurückgegriffen
+Verhalten.
+- **Die KI-Funktionen des Snippet-Editors arbeiten mit Argumentationsmodellen und sind gesprächig
+Antworten** – KI-Aktionen im Snippet-Editor (**Diagramm**, **Rezension**,
+**Verbessern**, **Assistent**, **Sicherheit**, **Alternativen**, **Beschreiben**,
+**Vollständig**, **Einzeiler**) schlagen nicht mehr fehl – ​​z.B. *"PlantUML-Generierung
+failed“* – wenn das Modell seine JSON-Antwort in Prosa oder einen Code-Fence verpackt, oder
+Wenn ein lokales Argumentationsmodell (LM Studio, Ollama, llama.cpp) verwendet wird
+DeepSeek-R1/QwQ/gpt-oss) gibt einen `<think>…</think>`-Block aus. Der Antwortparser
+Entfernt jetzt durchgesickerte Argumente und extrahiert stattdessen robust die echte JSON-Nutzlast
+eines gierigen Streichholzes, das bei jeder verirrten Zahnspange zerbrach.
+- **Fehler der Snippet-Editor-KI sind jetzt sichtbar** – wenn eine Snippet-Editor-KI-Aktion ausgeführt wird
+Schlägt ein Fehler fehl, wird die eigentliche Ursache in das Protokoll geschrieben und die entsprechende Meldung im angezeigt
+Statusleiste. Zuvor wurde die Ausnahme verworfen, also eine falsch konfigurierte KI
+Profil (z. B. ein Cloud-Profil ohne ausgewähltes Modell, das *„Wählen Sie ein
+Modell…"*) führte dazu, dass jede KI-Funktion stillschweigend mit nur einer generischen Nachricht fehlschlug und
+nichts im Protokoll.
 
 ## v2.3.0
 
@@ -37,7 +52,7 @@ Die Antwort dieses Agenten.
 - **Erweiterbare Live-Transkripte** – Klicken Sie mit der linken Maustaste auf eine Agentenzeile, um sie live anzusehen
 Befehls-/Ausgabetranskript inline während der Ausführung.
 - **Konversation kopieren und exportieren** – Kopieren Sie die gesamte Schwarmkonversation in die
-in die Zwischenablage kopieren oder als einfachen Text, Markdown oder PDF exportieren; Gespeicherte Schwarm-Chats erhalten
+in die Zwischenablage kopieren oder als einfachen Text, Markdown oder PDF exportieren; Gespeicherte Schwarmchats erhalten
 ihren eigenen **Schwarm-Chats**-Bereich im AI Manager.
 - **Lesbare Ergebniszeilen** – Durch Klicken auf eine Zeile der kombinierten Antworttabelle wird geöffnet
 es in einem separaten **Zeilendetails**-Fenster mit der Schriftgröße A−/A+ und
@@ -63,20 +78,17 @@ Feld „Zusatzanweisungen“ mit einem deduplizierten Verlauf mit 10 Einträgen 
 ### Aussehen
 
 - **Fünf neue App-Designs** – *Amber CRT* (warmes Bernstein-Phosphor-Retro-Terminal),
-*Synthwave '84* (80er-Outrun-Neon), *Gruvbox Retro* (gemütlich warm-erdig),
-*Nord Arctic* (ruhiges, flaches arktisches Blaugrau) und *Dracula* (sanftes
-Violett/Pink) ergänzen die bestehenden Designs in *Einstellungen →
-Erscheinungsbild*, jeweils mit eigenem Vorschaubild. Die bestehenden Designs
-sind unverändert.
-- **Schalter für dezente Design-Animationen** – eine neue
-Erscheinungsbild-Einstellung (standardmäßig eingeschaltet) lässt bei den
-Glow-Designs einen kleinen Akzentpunkt in der Statusleiste „atmen“; das
-Ausschalten dient zugleich als Reduce-Motion-Option, und die Animation stoppt,
-solange das Fenster verborgen ist.
-- **Konsistentere Design-Darstellung** – die Farben eines eigenen Designs werden
-jetzt zuverlässig auf Menüs und Dialoge angewendet, und das dynamische
-Stylesheet des Terminal-Themes überschreibt nicht mehr die Farben des aktiven
-Designs.
+*Synthwave '84* (80er Outrun Neon), *Gruvbox Retro* (gemütlich warm erdig),
+*Nord Arctic* (ruhiges, flaches arktisches Blaugrau) und *Dracula* (sanftes Lila/Rosa)
+Fügen Sie die vorhandenen Designs unter *Einstellungen → Erscheinungsbild* hinzu, jedes mit seinem eigenen
+Vorschau-Miniaturansicht. Die bestehenden Designs bleiben unverändert.
+- **Subtile Designanimationen umschaltbar** – eine neue Darstellungseinstellung (standardmäßig aktiviert)
+lässt die leuchtenden Designs einen kleinen Akzentpunkt in der Statusleiste einhauchen; es ausschalten
+dient gleichzeitig als Option zur Bewegungsreduzierung und die Animation stoppt, während das Fenster geöffnet ist
+ist versteckt.
+- **Konsistenteres Design-Chrom** – es gelten jetzt die Farben eines benutzerdefinierten Designs
+deterministisch über Menüs und Dialoge hinweg sowie die Dynamik des Terminalthemas
+Das Stylesheet überschreibt nicht mehr die Chromfarben des aktiven Designs.
 - **App-Design `Normal` in *Einstellungen → Erscheinungsbild* in `Default`** umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.
 - Mit den Schaltflächen „Zurück/Weiter“ neben dem Dropdown-Menü „App-Design“ können Sie durch die Designs vor- und zurückblättern (an den Enden umschließen), ohne das Dropdown-Menü zu öffnen.
 - **Die Designvorschau wurde unter die Steuerelemente verschoben** in einen Bereich mit fester Größe, sodass beim Wechseln der Designs (oder zurück zu `Default`, wo es keine Vorschau gibt) die Vorschau nicht mehr über dem Dropdown-Menü angezeigt wird.
@@ -100,7 +112,7 @@ Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Lee
 `"C:\Program Files\Git\bin\bash.exe"`) korrekt starten.
 - **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
 Haken wurden auf eine gemeinsame `ObservableTtyConnector`-Schnittstelle gehoben, also auch
-Arbeit für lokale Shells. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
+Arbeit für lokale Muscheln. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
 - **AI Agent & Planning in lokalen Shells** – die Befehlsausführungs-Engine des Agenten
 wurde hinter einer `AgentCommandRunner`-Abstraktion (SSH exec.) von SSH entkoppelt
 Kanal- und lokale Prozess-Backends). Der **KI-Agent** und **KI-Planung** jetzt
@@ -150,23 +162,20 @@ Klicken Sie auf die Schaltfläche „Aktualisieren“, um die Live-Modellliste d
 Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option **Auto** ist nicht mehr vorhanden
 Wird für Cloud-Endpunkte angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).
 
-### KI-Suche in der Anleitung
+### Anleitung zur Suche nach AI-Dokumenten
 
-- **Die Anleitung in natürlicher Sprache fragen** – die integrierte Anleitung
-(**Hilfe → Anleitung**, ++f1++) erhält ein **KI-Suche**-Seitenpanel: Eine Frage
-in der eigenen Sprache eingeben und eine Antwort erhalten, die ausschließlich
-aus der mitgelieferten Dokumentation erzeugt wird – mit klickbaren
-Quellenangaben, die das Handbuch direkt zur referenzierten Seite springen
-lassen.
-- **Nutzt das Standard-KI-Profil; die Suche läuft vollständig offline** – kein
-Server, keine zusätzlichen API-Schlüssel, keine neuen Abhängigkeiten. Die Suche
-läuft lokal über den mitgelieferten Suchindex (mit zweisprachigen Synonymen,
-deutscher Komposita-Zerlegung und Umlaut-Normalisierung); themenfremde Fragen
-werden lokal beantwortet, ohne den KI-Endpunkt überhaupt zu kontaktieren.
-- **Belegte Antworten** – das Modell ist auf die gefundenen Textauszüge
-beschränkt, erfundene Links werden repariert oder entfernt, und eine native
-**Quellen**-Liste zeigt unabhängig von der Modellantwort immer die zitierten
-Seiten.
+- **Fragen Sie die Anleitung in natürlicher Sprache** – die integrierte Anleitung (**Hilfe → Anleitung**,
+++f1++) erhält ein Seitenfeld **KI-Suche**: Geben Sie eine Frage in Ihrer Sprache ein und
+Erhalten Sie eine Antwort, die ausschließlich aus der mitgelieferten Dokumentation generiert wird, mit
+Anklickbare Zitate, die den Anleitung direkt zur verwiesenen Seite weiterleiten.
+- **Verwendet Ihr Standard-KI-Profil; Der Abruf erfolgt vollständig offline** – kein Server, nein
+zusätzliche API-Schlüssel, keine neuen Abhängigkeiten. Der Abruf erfolgt lokal über das Bundle
+Suchindex (mit zweisprachigen Synonymen, deutscher Kompositumsteilung und Umlaut).
+falten); Off-Topic-Fragen werden vor Ort beantwortet, ohne dass die KI kontaktiert werden muss
+Endpunkt überhaupt.
+- **Fundierte Antworten** – das Modell ist auf die abgerufenen Auszüge beschränkt,
+erfundene Links werden repariert oder entfernt, und es gibt immer eine native **Quellen**-Liste
+zeigt die zitierten Seiten unabhängig von der Antwort des Modells an.
 
 ### Workflow-Skriptgenerator
 
@@ -193,6 +202,21 @@ sagt länger: „SSH-Verbindung beenden?“ für eine lokale Shell und die Einga
 ist nun transportneutral („Aktive Sitzungen“).
 - **Keine Passwortabfrage für lokale Shells** – Das Öffnen einer lokalen Shell wird nicht mehr angezeigt
 ein irrelevanter Passwortdialog (lokale Shells verwenden keine Authentifizierung).
+- **„Als Textdatei laden“ funktioniert in lokalen Shells** – Rechtsklick auf eine ausgewählte Datei
+Name in einer lokalen Shell-Registerkarte und die Auswahl von **Als Textdatei laden** schlägt nicht mehr fehl
+mit „Es ist keine aktive SSH-Verbindung verfügbar“. Die Datei wird lokal gelesen
+Dateisystem – wird anhand des in der Shell-Eingabeaufforderung angezeigten Arbeitsverzeichnisses aufgelöst
+wenn verfügbar, andernfalls das Verzeichnis, in dem die Shell gestartet wurde – und geöffnet wird
+im Snippet-Editor mit **Lokale Datei überschreiben** und **Speichern unter...** einfach
+wie die SSH/SFTP-Variante. Die Fehlermeldung „Nicht verbunden“ lautet jetzt
+transportneutral.
+- **Überschreibungen lokaler Dateien sind jetzt atomar** – beide „Lokale Datei überschreiben“-Abläufe
+(local-Shell **Als Textdatei laden** und der lokale Dateieditor des SFTP-Managers)
+Wird verwendet, um die Zieldatei an Ort und Stelle zu kürzen, so dass ein Fehler während des Schreibvorgangs auftritt (Festplatte voll,
+Prozess abgebrochen, Stromausfall) könnte dazu führen, dass es ohne Wiederherstellung abgeschnitten wird.
+Überschreibt jetzt, schreibt in eine temporäre Geschwisterdatei und verschiebt sie an ihren Platz, behält sie bei
+die POSIX-Berechtigungen der Originaldatei und schreiben Sie über symbolische Links darauf
+echtes Ziel, anstatt den Link selbst zu ersetzen.
 
 ## v2.2.3
 
@@ -254,7 +278,7 @@ MÄSSIG); protobuf-java `4.28.2 → 4.35.1`.
 
 ### KI-Agenten-Panel und -Aktivität
 
-- **AI Agent Panel-Platzierung**: *Unten* (Standard), *Links andocken* oder *Andocken
+- **Platzierung des AI Agent Panels**: *Unten* (Standard), *Links andocken* oder *Andocken
 Richtig*, über alle Neustarts hinweg im Gedächtnis geblieben.
 - **Mehrere gleichzeitige Läufe pro Split** (Kapitel 5), Pause/Fortsetzung pro Lauf und
 Dashboard-/Tab-Statusabzeichen (✋ wartend · ⚡ in Arbeit · ⏸ pausiert · ✓ fertig).
