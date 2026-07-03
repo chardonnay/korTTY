@@ -4,9 +4,12 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 
 /**
- * Validates terminal selections that should be opened as remote text files.
+ * Validates terminal selections that should be opened as text files — from the remote host of an
+ * SSH session (via SFTP paths) or from the local filesystem for local-shell sessions.
  */
 public final class RemoteTextFileSelectionSupport {
 
@@ -38,6 +41,89 @@ public final class RemoteTextFileSelectionSupport {
             return "/" + fileName;
         }
         return directory.endsWith("/") ? directory + fileName : directory + "/" + fileName;
+    }
+
+    /**
+     * Resolves the selected file name against the local filesystem for local-shell sessions.
+     * Mirrors {@link #resolveRemoteFilePath}: the tracked working directory (prompt-derived) wins
+     * when it is an absolute local path, {@code ~} and {@code ~/rel} resolve against
+     * {@code homeDirectory}, anything else falls back to {@code startDirectory} — the directory
+     * the shell was actually spawned in. Tracked directories that are not absolute in local
+     * filesystem terms (e.g. POSIX-style {@code /mnt/c/...} prompts from Git Bash/Cygwin/WSL on
+     * Windows) are ignored in favor of the fallback rather than fabricating a wrong path.
+     *
+     * @throws IllegalArgumentException if the selection is not a plain file name (multiple path
+     *     elements, a root/drive component like {@code C:notes.txt}, or characters the local
+     *     filesystem rejects)
+     * @throws UnmappableWorkingDirectoryException if the tracked working directory proves the
+     *     shell is in a filesystem namespace this process cannot address (a POSIX-style
+     *     {@code /mnt/c/...} prompt from Git Bash/Cygwin/WSL on Windows) — resolving against the
+     *     start directory instead could silently target a same-named different file
+     */
+    public static Path resolveLocalFilePath(
+        String workingDirectory,
+        String selectedFileName,
+        String startDirectory,
+        String homeDirectory
+    ) throws UnmappableWorkingDirectoryException {
+        String fileName = normalizeSelectedFileName(selectedFileName);
+        Path namePath;
+        try {
+            namePath = Path.of(fileName);
+        } catch (InvalidPathException e) {
+            throw new IllegalArgumentException("Selected text must be a valid local file name", e);
+        }
+        if (namePath.getRoot() != null || namePath.getNameCount() != 1) {
+            throw new IllegalArgumentException("Selected text must be a file name in the current directory");
+        }
+        return resolveLocalDirectory(workingDirectory, startDirectory, homeDirectory)
+            .resolve(namePath)
+            .normalize();
+    }
+
+    private static Path resolveLocalDirectory(String workingDirectory, String startDirectory, String homeDirectory)
+        throws UnmappableWorkingDirectoryException {
+        Path fallback = toLocalPathOrCurrent(startDirectory);
+        if (workingDirectory == null || workingDirectory.isBlank()) {
+            return fallback;
+        }
+        String tracked = workingDirectory.trim();
+        Path home = homeDirectory != null && !homeDirectory.isBlank() ? toLocalPathOrNull(homeDirectory) : null;
+        if ("~".equals(tracked)) {
+            return home != null ? home : fallback;
+        }
+        if (tracked.startsWith("~/")) {
+            String relativeToHome = tracked.substring(2).trim();
+            if (relativeToHome.isEmpty()) {
+                return home != null ? home : fallback;
+            }
+            return home != null ? home.resolve(relativeToHome) : fallback;
+        }
+        Path candidate = toLocalPathOrNull(tracked);
+        if (candidate != null && candidate.isAbsolute()) {
+            return candidate;
+        }
+        if (candidate != null && candidate.getRoot() != null) {
+            // Rooted but not absolute: a POSIX prompt path surfacing on Windows (Git Bash /c/...,
+            // WSL /mnt/c/...). The shell is provably somewhere the start directory is not —
+            // refuse rather than silently resolving a same-named file elsewhere.
+            throw new UnmappableWorkingDirectoryException(tracked);
+        }
+        // Unparseable or relative: no trustworthy base — use the shell's start directory.
+        return fallback;
+    }
+
+    private static Path toLocalPathOrCurrent(String directory) {
+        Path path = directory != null && !directory.isBlank() ? toLocalPathOrNull(directory.trim()) : null;
+        return path != null ? path : Path.of(".");
+    }
+
+    private static Path toLocalPathOrNull(String path) {
+        try {
+            return Path.of(path);
+        } catch (InvalidPathException e) {
+            return null;
+        }
     }
 
     public static String decodeUtf8TextFile(byte[] bytes) throws BinaryOrNonTextFileException {
@@ -139,6 +225,20 @@ public final class RemoteTextFileSelectionSupport {
             }
         }
         return false;
+    }
+
+    /** The tracked shell working directory cannot be mapped to a local filesystem path. */
+    public static final class UnmappableWorkingDirectoryException extends Exception {
+        private final String workingDirectory;
+
+        public UnmappableWorkingDirectoryException(String workingDirectory) {
+            super("Shell working directory cannot be mapped to a local path: " + workingDirectory);
+            this.workingDirectory = workingDirectory;
+        }
+
+        public String workingDirectory() {
+            return workingDirectory;
+        }
     }
 
     public static final class BinaryOrNonTextFileException extends Exception {

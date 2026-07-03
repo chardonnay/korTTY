@@ -32,6 +32,8 @@ import de.kortty.core.SSHSession;
 import de.kortty.core.SessionManager;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetManager;
+import de.kortty.core.LocalShellTtyConnector;
+import de.kortty.core.ObservableTtyConnector;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentCommandRunners;
@@ -112,6 +114,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.zip.ZipOutputStream;
 import java.util.zip.ZipEntry;
 import java.nio.file.Files;
@@ -4933,35 +4936,80 @@ public class MainWindow {
         TerminalView.TerminalAgentRunContext resolvedContext = runContext != null
             ? runContext
             : terminalTab.getTerminalView().captureTerminalAgentRunContext();
-        if (resolvedContext == null
-            || !(resolvedContext.connector() instanceof SshTtyConnector connector)
-            || !connector.isConnected()
-            || connector.getSession() == null) {
-            showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
+        ObservableTtyConnector contextConnector = resolvedContext != null ? resolvedContext.connector() : null;
+        if (contextConnector instanceof SshTtyConnector connector
+            && connector.isConnected()
+            && connector.getSession() != null) {
+            String workingDirectory = resolvedContext.workingDirectory() != null && !resolvedContext.workingDirectory().isBlank()
+                ? resolvedContext.workingDirectory()
+                : connector.getCurrentRemoteDirectory();
+            runTerminalTextFileLoadTask(selectedFileName, () ->
+                readTerminalRemoteTextFile(connector, workingDirectory, selectedFileName),
+                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile));
             return;
         }
+        if (contextConnector instanceof LocalShellTtyConnector localConnector && localConnector.isConnected()) {
+            Path filePath;
+            try {
+                filePath = RemoteTextFileSelectionSupport.resolveLocalFilePath(
+                    resolvedContext.workingDirectory(),
+                    selectedFileName,
+                    localConnector.getStartDirectory(),
+                    localConnector.getHomeRemoteDirectory());
+            } catch (RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException e) {
+                showError(I18n.get("error.title"),
+                    I18n.get("terminal.loadTextFile.unmappableWorkingDirectory", e.workingDirectory()));
+                return;
+            } catch (IllegalArgumentException e) {
+                showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.invalidSelection"));
+                return;
+            }
+            runTerminalTextFileLoadTask(selectedFileName, () ->
+                readTerminalLocalTextFile(filePath, selectedFileName),
+                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile));
+            return;
+        }
+        showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
+    }
 
-        String workingDirectory = resolvedContext.workingDirectory() != null && !resolvedContext.workingDirectory().isBlank()
-            ? resolvedContext.workingDirectory()
-            : connector.getCurrentRemoteDirectory();
+    private void runTerminalTextFileLoadTask(
+        String selectedFileName,
+        Callable<TerminalRemoteTextFile> reader,
+        Consumer<TerminalRemoteTextFile> editorOpener
+    ) {
         updateStatus(I18n.get("terminal.loadTextFile.loading", selectedFileName));
-
         Task<TerminalRemoteTextFile> task = new Task<>() {
             @Override
             protected TerminalRemoteTextFile call() throws Exception {
-                return readTerminalRemoteTextFile(connector, workingDirectory, selectedFileName);
+                return reader.call();
             }
         };
-        task.setOnSucceeded(event ->
-            openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, task.getValue()));
+        task.setOnSucceeded(event -> editorOpener.accept(task.getValue()));
         task.setOnFailed(event -> {
             Throwable failure = task.getException();
-            logger.error("Failed to load selected terminal text as remote text file '{}'", selectedFileName, failure);
+            logger.error("Failed to load selected terminal text as text file '{}'", selectedFileName, failure);
             showTerminalTextFileLoadFailure(selectedFileName, failure);
         });
         Thread thread = new Thread(task, "terminal-text-file-loader");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private TerminalRemoteTextFile readTerminalLocalTextFile(Path filePath, String selectedFileName) throws Exception {
+        if (!Files.exists(filePath)) {
+            throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_FOUND, filePath.toString());
+        }
+        if (!Files.isRegularFile(filePath)) {
+            throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_REGULAR_FILE, filePath.toString());
+        }
+        byte[] bytes = Files.readAllBytes(filePath);
+        String content;
+        try {
+            content = RemoteTextFileSelectionSupport.decodeUtf8TextFile(bytes);
+        } catch (RemoteTextFileSelectionSupport.BinaryOrNonTextFileException e) {
+            throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.BINARY_OR_NON_TEXT, filePath.toString(), e);
+        }
+        return new TerminalRemoteTextFile(selectedFileName, filePath.toString(), content);
     }
 
     private TerminalRemoteTextFile readTerminalRemoteTextFile(
@@ -5026,22 +5074,43 @@ public class MainWindow {
         SshTtyConnector connector,
         TerminalRemoteTextFile remoteFile
     ) {
+        openTerminalTextFileInSnippetEditor(terminalTab, remoteFile,
+            I18n.get("sftp.snippetEditor.overwriteRemote"),
+            draft -> overwriteTerminalRemoteTextFile(connector, remoteFile.remotePath(), draft),
+            draft -> saveTerminalRemoteTextFileAs(connector, remoteFile.remotePath(), remoteFile.fileName(), draft));
+    }
+
+    private void openTerminalLocalTextFileInSnippetEditor(TerminalTab terminalTab, TerminalRemoteTextFile localFile) {
+        Path filePath = Path.of(localFile.remotePath());
+        openTerminalTextFileInSnippetEditor(terminalTab, localFile,
+            I18n.get("sftp.snippetEditor.overwriteLocal"),
+            draft -> overwriteTerminalLocalTextFile(filePath, draft),
+            draft -> saveTerminalLocalTextFileAs(filePath, draft));
+    }
+
+    private void openTerminalTextFileInSnippetEditor(
+        TerminalTab terminalTab,
+        TerminalRemoteTextFile file,
+        String overwriteLabel,
+        SnippetEditDialog.ExternalFileAction overwriteAction,
+        SnippetEditDialog.ExternalFileAction saveAsAction
+    ) {
         SnippetManager snippetManager = app.getSnippetManager();
         if (snippetManager == null) {
             showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.snippetManagerMissing"));
             return;
         }
-        Snippet snippet = createTerminalFileSnippetDraft(remoteFile.fileName(), remoteFile.content());
+        Snippet snippet = createTerminalFileSnippetDraft(file.fileName(), file.content());
         SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
-            remoteFile.remotePath(),
-            I18n.get("sftp.snippetEditor.overwriteRemote"),
+            file.remotePath(),
+            overwriteLabel,
             I18n.get("sftp.snippetEditor.saveAs"),
             I18n.get("sftp.snippetEditor.saveSnippet"),
             I18n.get("sftp.snippetEditor.savedFile"),
             I18n.get("sftp.snippetEditor.savedFile"),
             I18n.get("sftp.snippetEditor.savedSnippet"),
-            draft -> overwriteTerminalRemoteTextFile(connector, remoteFile.remotePath(), draft),
-            draft -> saveTerminalRemoteTextFileAs(connector, remoteFile.remotePath(), remoteFile.fileName(), draft),
+            overwriteAction,
+            saveAsAction,
             this::saveTerminalDraftAsSnippet
         );
         List<String> categoryNames = snippetManager.getAllCategories().stream()
@@ -5051,7 +5120,42 @@ public class MainWindow {
         SnippetEditDialog dialog = new SnippetEditDialog(snippet, categoryNames, aiAssist, config);
         dialog.initOwner(stage);
         dialog.showNonBlocking(null);
-        updateStatus(I18n.get("terminal.loadTextFile.loaded", remoteFile.remotePath()));
+        updateStatus(I18n.get("terminal.loadTextFile.loaded", file.remotePath()));
+    }
+
+    private boolean overwriteTerminalLocalTextFile(Path filePath, Snippet draft) throws IOException {
+        Files.writeString(
+            filePath,
+            draft.getContent() != null ? draft.getContent() : "",
+            StandardCharsets.UTF_8,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING);
+        return true;
+    }
+
+    private boolean saveTerminalLocalTextFileAs(Path sourcePath, Snippet draft) throws Exception {
+        File targetFile = callOnFxThread(() -> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle(I18n.get("sftp.snippetEditor.saveAs"));
+            if (sourcePath.getParent() != null && Files.isDirectory(sourcePath.getParent())) {
+                chooser.setInitialDirectory(sourcePath.getParent().toFile());
+            }
+            if (sourcePath.getFileName() != null) {
+                chooser.setInitialFileName(sourcePath.getFileName().toString());
+            }
+            return chooser.showSaveDialog(stage);
+        });
+        if (targetFile == null) {
+            return false;
+        }
+        Files.writeString(
+            targetFile.toPath(),
+            draft.getContent() != null ? draft.getContent() : "",
+            StandardCharsets.UTF_8,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING);
+        return true;
     }
 
     private Snippet createTerminalFileSnippetDraft(String fileName, String content) {

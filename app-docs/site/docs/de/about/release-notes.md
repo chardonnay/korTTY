@@ -3,6 +3,20 @@
 Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.
 
+## Unveröffentlicht
+
+### Korrekturen
+
+- **„Als Textdatei laden“ funktioniert in lokalen Shells** – ein Rechtsklick auf
+einen markierten Dateinamen in einem Local-Shell-Tab mit **Als Textdatei
+laden** schlägt nicht mehr mit „Es ist keine aktive SSH-Verbindung verfügbar“
+fehl. Die Datei wird vom lokalen Dateisystem gelesen – aufgelöst gegen das im
+Shell-Prompt angezeigte Arbeitsverzeichnis, sonst gegen das Verzeichnis, in dem
+die Shell gestartet wurde – und öffnet sich im Snippet-Editor mit
+**Lokale Datei überschreiben** und **Speichern unter...** – genau wie in der
+SSH/SFTP-Variante. Die Nicht-verbunden-Fehlermeldung ist jetzt
+transportneutral formuliert.
+
 ## v2.3.0
 
 ### KI-Schwarm

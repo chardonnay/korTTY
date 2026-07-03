@@ -99,6 +99,7 @@ class AiI18nCoverageTest {
         "terminal.contextMenu.ai.plan",
         "terminal.contextMenu.loadAsTextFile",
         "terminal.loadTextFile.invalidSelection",
+        "terminal.loadTextFile.unmappableWorkingDirectory",
         "terminal.loadTextFile.notConnected",
         "terminal.loadTextFile.loading",
         "terminal.loadTextFile.loaded",

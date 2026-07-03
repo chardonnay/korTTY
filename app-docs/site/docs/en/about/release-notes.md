@@ -3,6 +3,19 @@
 The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.
 
+## Unreleased
+
+### Fixes
+
+- **"Load as text file" works in local shells** — right-clicking a selected file
+  name in a local-shell tab and choosing **Load as text file** no longer fails
+  with "No active SSH connection is available". The file is read from the local
+  filesystem — resolved against the working directory shown in the shell prompt
+  when available, otherwise the directory the shell was started in — and opens
+  in the snippet editor with **Overwrite local file** and **Save as...** just
+  like the SSH/SFTP variant. The not-connected error message is now
+  transport-neutral.
+
 ## v2.3.0
 
 ### AI Swarm
