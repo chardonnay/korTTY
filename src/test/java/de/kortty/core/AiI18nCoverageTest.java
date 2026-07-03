@@ -106,6 +106,7 @@ class AiI18nCoverageTest {
         "terminal.loadTextFile.notFound",
         "terminal.loadTextFile.notRegularFile",
         "terminal.loadTextFile.binary",
+        "terminal.loadTextFile.tooLarge",
         "terminal.loadTextFile.failed",
         "terminal.loadTextFile.unknownError",
         "terminal.loadTextFile.snippetManagerMissing",

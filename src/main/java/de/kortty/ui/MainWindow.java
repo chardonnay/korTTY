@@ -4995,12 +4995,19 @@ public class MainWindow {
         thread.start();
     }
 
+    // SFTP reads are naturally bounded by transfer time; a local read has no such deterrent
+    // against accidentally selecting a huge file (e.g. a multi-GB log), so guard it explicitly.
+    private static final long MAX_LOCAL_TEXT_FILE_LOAD_BYTES = 10L * 1024 * 1024;
+
     private TerminalRemoteTextFile readTerminalLocalTextFile(Path filePath, String selectedFileName) throws Exception {
         if (!Files.exists(filePath)) {
             throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_FOUND, filePath.toString());
         }
         if (!Files.isRegularFile(filePath)) {
             throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_REGULAR_FILE, filePath.toString());
+        }
+        if (Files.size(filePath) > MAX_LOCAL_TEXT_FILE_LOAD_BYTES) {
+            throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.TOO_LARGE, filePath.toString());
         }
         byte[] bytes = Files.readAllBytes(filePath);
         String content;
@@ -5301,6 +5308,7 @@ public class MainWindow {
                 case NOT_FOUND -> I18n.get("terminal.loadTextFile.notFound", remotePath);
                 case NOT_REGULAR_FILE -> I18n.get("terminal.loadTextFile.notRegularFile", remotePath);
                 case BINARY_OR_NON_TEXT -> I18n.get("terminal.loadTextFile.binary", remotePath);
+                case TOO_LARGE -> I18n.get("terminal.loadTextFile.tooLarge", remotePath);
             };
             showError(I18n.get("error.title"), message);
             updateStatus(message);
@@ -5320,7 +5328,8 @@ public class MainWindow {
     private enum TerminalTextFileLoadFailure {
         NOT_FOUND,
         NOT_REGULAR_FILE,
-        BINARY_OR_NON_TEXT
+        BINARY_OR_NON_TEXT,
+        TOO_LARGE
     }
 
     private static final class TerminalTextFileLoadException extends Exception {
