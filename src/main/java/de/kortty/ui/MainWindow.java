@@ -4950,23 +4950,38 @@ public class MainWindow {
             return;
         }
         if (contextConnector instanceof LocalShellTtyConnector localConnector && localConnector.isConnected()) {
-            Path filePath;
-            try {
-                filePath = RemoteTextFileSelectionSupport.resolveLocalFilePath(
-                    resolvedContext.workingDirectory(),
-                    selectedFileName,
-                    localConnector.getStartDirectory(),
-                    localConnector.getHomeRemoteDirectory());
-            } catch (RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException e) {
-                showError(I18n.get("error.title"),
-                    I18n.get("terminal.loadTextFile.unmappableWorkingDirectory", e.workingDirectory()));
-                return;
-            } catch (IllegalArgumentException e) {
-                showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.invalidSelection"));
-                return;
-            }
-            runTerminalTextFileLoadTask(selectedFileName, () ->
-                readTerminalLocalTextFile(filePath, selectedFileName),
+            // The prompt-derived directory is the JAT-safe fallback; capture it now. The live OS-level
+            // cwd query (lsof on macOS) must NOT run on the JavaFX thread, so it and the path
+            // resolution happen inside the background load task below.
+            String promptWorkingDirectory = resolvedContext.workingDirectory();
+            String startDirectory = localConnector.getStartDirectory();
+            String homeDirectory = localConnector.getHomeRemoteDirectory();
+            runTerminalTextFileLoadTask(selectedFileName,
+                () -> {
+                    // Ground truth first: the shell's live OS cwd, which reflects every cd and beats the
+                    // prompt-derived directory (null whenever the prompt shows only the folder basename,
+                    // the macOS zsh default). Fall back to the prompt directory when the OS query is
+                    // unavailable (Windows), then to the shell's start directory downstream.
+                    String liveWorkingDirectory = localConnector.readLiveWorkingDirectory();
+                    String workingDirectory = liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()
+                        ? liveWorkingDirectory
+                        : promptWorkingDirectory;
+                    Path filePath;
+                    try {
+                        filePath = RemoteTextFileSelectionSupport.resolveLocalFilePath(
+                            workingDirectory,
+                            selectedFileName,
+                            startDirectory,
+                            homeDirectory);
+                    } catch (RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException e) {
+                        throw new TerminalTextFileLoadException(
+                            TerminalTextFileLoadFailure.UNMAPPABLE_WORKING_DIRECTORY, e.workingDirectory(), e);
+                    } catch (IllegalArgumentException e) {
+                        throw new TerminalTextFileLoadException(
+                            TerminalTextFileLoadFailure.INVALID_SELECTION, selectedFileName, e);
+                    }
+                    return readTerminalLocalTextFile(filePath, selectedFileName);
+                },
                 localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile));
             return;
         }
@@ -5305,6 +5320,9 @@ public class MainWindow {
                 case NOT_REGULAR_FILE -> I18n.get("terminal.loadTextFile.notRegularFile", remotePath);
                 case BINARY_OR_NON_TEXT -> I18n.get("terminal.loadTextFile.binary", remotePath);
                 case TOO_LARGE -> I18n.get("terminal.loadTextFile.tooLarge", remotePath);
+                case UNMAPPABLE_WORKING_DIRECTORY ->
+                    I18n.get("terminal.loadTextFile.unmappableWorkingDirectory", remotePath);
+                case INVALID_SELECTION -> I18n.get("terminal.loadTextFile.invalidSelection");
             };
             showError(I18n.get("error.title"), message);
             updateStatus(message);
@@ -5325,7 +5343,9 @@ public class MainWindow {
         NOT_FOUND,
         NOT_REGULAR_FILE,
         BINARY_OR_NON_TEXT,
-        TOO_LARGE
+        TOO_LARGE,
+        UNMAPPABLE_WORKING_DIRECTORY,
+        INVALID_SELECTION
     }
 
     private static final class TerminalTextFileLoadException extends Exception {

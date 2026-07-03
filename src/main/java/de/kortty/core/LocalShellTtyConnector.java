@@ -50,6 +50,13 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     private volatile InputStreamReader reader;
     private volatile Thread monitorThread;
 
+    // Short-lived cache for the OS-level cwd lookup: coalesces the two calls made during a single
+    // "Load as text file" action (run-context capture + resolution) into one query, without ever
+    // serving a directory from a previous user action (the TTL is far below human action cadence).
+    private static final long WORKING_DIRECTORY_CACHE_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
+    private volatile String cachedWorkingDirectory;
+    private volatile long cachedWorkingDirectoryAtNanos;
+
     public LocalShellTtyConnector(ServerConnection connection) {
         this.connection = connection;
     }
@@ -318,6 +325,57 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
         }
         String resolved = resolveWorkingDirectory(connection.getLocalShellWorkingDirectory());
         return resolved != null ? resolved : System.getProperty("user.dir");
+    }
+
+    /**
+     * The shell's tracked working directory. Deliberately NON-BLOCKING: it returns only the last
+     * value cached by {@link #readLiveWorkingDirectory()} (while still fresh) and never forks the OS
+     * query itself, because this runs on the JavaFX thread during terminal run-context capture (for
+     * every AI-agent / "Load as text file" menu action). A cold or stale cache returns {@code null};
+     * callers then fall back to the prompt-derived directory. The actual live query is done off the
+     * JavaFX thread via {@link #readLiveWorkingDirectory()}.
+     */
+    @Override
+    public String getCurrentRemoteDirectory() {
+        if (!connected.get()) {
+            return null;
+        }
+        String cached = cachedWorkingDirectory;
+        if (cached != null && System.nanoTime() - cachedWorkingDirectoryAtNanos < WORKING_DIRECTORY_CACHE_NANOS) {
+            return cached;
+        }
+        return null;
+    }
+
+    /**
+     * Reads the shell's live working directory straight from the OS (its PTY process' cwd), so it
+     * reflects every {@code cd} the user has run, and refreshes the short cache read by
+     * {@link #getCurrentRemoteDirectory()}. This is the ground truth that
+     * {@link RemoteTextFileSelectionSupport#resolveLocalFilePath} needs: unlike SSH there is no
+     * OSC-7 stream to track, and prompt parsing alone fails whenever the prompt shows only the
+     * directory's basename (the macOS zsh default).
+     *
+     * <p>BLOCKING — on macOS this forks {@code lsof}; call it OFF the JavaFX thread (e.g. from a
+     * background load task). Returns {@code null} when unavailable (Windows, or the query failing),
+     * leaving callers to fall back to the prompt-derived path.</p>
+     */
+    public String readLiveWorkingDirectory() {
+        PtyProcess localPty = ptyProcess;
+        if (localPty == null || !connected.get()) {
+            return null;
+        }
+        long pid;
+        try {
+            pid = localPty.pid();
+        } catch (UnsupportedOperationException e) {
+            return null;
+        }
+        String live = LocalProcessDirectory.read(pid);
+        if (live != null) {
+            cachedWorkingDirectory = live;
+            cachedWorkingDirectoryAtNanos = System.nanoTime();
+        }
+        return live;
     }
 
     /**
