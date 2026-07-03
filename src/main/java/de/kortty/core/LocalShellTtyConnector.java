@@ -43,6 +43,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     private final CopyOnWriteArrayList<InputActivityListener> inputActivityListeners = new CopyOnWriteArrayList<>();
     private volatile InputInterceptor inputInterceptor;
 
+    private volatile String startDirectory;
     private volatile PtyProcess ptyProcess;
     private volatile InputStream inputStream;
     private volatile OutputStream outputStream;
@@ -83,6 +84,9 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             if (workingDirectory != null) {
                 builder.setDirectory(workingDirectory);
             }
+            // Freeze the effective spawn directory: the live ServerConnection can be edited while
+            // this tab is open, and the existence check above can flip later.
+            this.startDirectory = workingDirectory != null ? workingDirectory : System.getProperty("user.dir");
 
             logger.info("Starting local shell ({}x{}) cmd={}", cols, rows, String.join(" ", command));
             ptyProcess = builder.start();
@@ -297,6 +301,34 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
         }
         logger.warn("Configured local shell working directory does not exist, ignoring: {}", configured);
         return null;
+    }
+
+    /**
+     * The directory the local shell actually started in: the configured start directory when it
+     * existed at spawn time, otherwise the JVM's working directory — pty4j spawns the child there
+     * when no directory is set on the builder. Captured once in {@link #connect()} so later edits
+     * to the connection cannot make it drift; before connect it reflects the current
+     * configuration. Used by features that resolve terminal selections against the shell's
+     * filesystem (e.g. "Load as text file").
+     */
+    public String getStartDirectory() {
+        String captured = startDirectory;
+        if (captured != null) {
+            return captured;
+        }
+        String resolved = resolveWorkingDirectory(connection.getLocalShellWorkingDirectory());
+        return resolved != null ? resolved : System.getProperty("user.dir");
+    }
+
+    /**
+     * On POSIX systems the local shell's home is the user home, which lets the terminal's
+     * prompt-based working-directory tracking expand {@code ~}-prefixed prompt paths. On Windows
+     * this stays {@code null}: the POSIX-path presets (Git Bash, Cygwin, WSL) have shell-private
+     * home directories that do not map onto {@code user.home}.
+     */
+    @Override
+    public String getHomeRemoteDirectory() {
+        return isWindows() ? null : System.getProperty("user.home");
     }
 
     private int terminalColumns() {

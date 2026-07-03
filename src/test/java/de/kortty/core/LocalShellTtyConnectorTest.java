@@ -55,6 +55,36 @@ class LocalShellTtyConnectorTest {
     }
 
     @Test
+    void startDirectoryMatchesPtySpawnSemantics() {
+        // No configured directory: pty4j spawns the child in the JVM's working directory.
+        de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
+        assertThat(new LocalShellTtyConnector(connection).getStartDirectory())
+            .isEqualTo(System.getProperty("user.dir"));
+
+        // A configured but nonexistent directory is ignored at spawn time — same here.
+        connection.setLocalShellWorkingDirectory("/definitely/not/a/real/dir/xyz");
+        assertThat(new LocalShellTtyConnector(connection).getStartDirectory())
+            .isEqualTo(System.getProperty("user.dir"));
+
+        // A configured existing directory is used as-is (absolute form).
+        String home = System.getProperty("user.home");
+        connection.setLocalShellWorkingDirectory(home);
+        assertThat(new LocalShellTtyConnector(connection).getStartDirectory())
+            .isEqualTo(new java.io.File(home).getAbsolutePath());
+    }
+
+    @Test
+    void homeDirectoryIsUserHomeOnPosixAndUntrackedOnWindows() {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        LocalShellTtyConnector connector = new LocalShellTtyConnector(new de.kortty.model.ServerConnection());
+        if (windows) {
+            assertThat(connector.getHomeRemoteDirectory()).isNull();
+        } else {
+            assertThat(connector.getHomeRemoteDirectory()).isEqualTo(System.getProperty("user.home"));
+        }
+    }
+
+    @Test
     void connectRejectsNonLocalShellProtocol() {
         de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
         connection.setProtocol(ConnectionProtocol.SSH_TCP);

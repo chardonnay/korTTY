@@ -1773,6 +1773,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unveroffentlicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unveröffentlicht
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unveröffentlicht">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#korrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Korrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v230" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1862,7 +1890,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#korrekturen" class="md-nav__link">
+  <a href="#korrekturen_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Korrekturen
@@ -2093,6 +2121,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unveroffentlicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unveröffentlicht
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unveröffentlicht">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#korrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Korrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v230" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2182,7 +2238,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#korrekturen" class="md-nav__link">
+  <a href="#korrekturen_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Korrekturen
@@ -2362,6 +2418,19 @@
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.</p>
+<h2 id="unveroffentlicht">Unveröffentlicht<a class="headerlink" href="#unveroffentlicht" title="Permanent link">&para;</a></h2>
+<h3 id="korrekturen">Korrekturen<a class="headerlink" href="#korrekturen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>„Als Textdatei laden“ funktioniert in lokalen Shells</strong> – ein Rechtsklick auf
+einen markierten Dateinamen in einem Local-Shell-Tab mit <strong>Als Textdatei
+laden</strong> schlägt nicht mehr mit „Es ist keine aktive SSH-Verbindung verfügbar“
+fehl. Die Datei wird vom lokalen Dateisystem gelesen – aufgelöst gegen das im
+Shell-Prompt angezeigte Arbeitsverzeichnis, sonst gegen das Verzeichnis, in dem
+die Shell gestartet wurde – und öffnet sich im Snippet-Editor mit
+<strong>Lokale Datei überschreiben</strong> und <strong>Speichern unter...</strong> – genau wie in der
+SSH/SFTP-Variante. Die Nicht-verbunden-Fehlermeldung ist jetzt
+transportneutral formuliert.</li>
+</ul>
 <h2 id="v230">v2.3.0<a class="headerlink" href="#v230" title="Permanent link">&para;</a></h2>
 <h3 id="ki-schwarm">KI-Schwarm<a class="headerlink" href="#ki-schwarm" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2527,7 +2596,7 @@ AI-Server (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::m
 kurzer, umsetzbarer Hinweis anstelle des rohen Stack-Trace; Alle anderen KI-Fehler sind es
 auf eine einzige Zeile reduziert.</li>
 </ul>
-<h3 id="korrekturen">Korrekturen<a class="headerlink" href="#korrekturen" title="Permanent link">&para;</a></h3>
+<h3 id="korrekturen_1">Korrekturen<a class="headerlink" href="#korrekturen_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Das Schließen einer lokalen Shell friert korTTY nicht mehr ein</strong> – der PTY-Prozess ist jetzt
 zerstört, bevor seine Streams geschlossen werden, wodurch ein Terminal-Reader-Thread freigegeben wird
