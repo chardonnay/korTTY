@@ -36,6 +36,12 @@ public class JobAction {
     private boolean aiAutoApproveCommands;
 
     @XmlElement
+    private Integer swarmMaxParallelism;
+
+    @XmlElement
+    private boolean swarmReadOnly = true;
+
+    @XmlElement
     private String localPath;
 
     @XmlElement
@@ -164,6 +170,28 @@ public class JobAction {
 
     public void setAiAutoApproveCommands(boolean aiAutoApproveCommands) {
         this.aiAutoApproveCommands = aiAutoApproveCommands;
+    }
+
+    public Integer getSwarmMaxParallelism() {
+        return swarmMaxParallelism;
+    }
+
+    public void setSwarmMaxParallelism(Integer swarmMaxParallelism) {
+        this.swarmMaxParallelism = swarmMaxParallelism;
+    }
+
+    /** Effective swarm parallelism: persisted value clamped to 1..16, default 4. */
+    public int effectiveSwarmParallelism() {
+        int value = swarmMaxParallelism != null ? swarmMaxParallelism : 4;
+        return Math.max(1, Math.min(16, value));
+    }
+
+    public boolean isSwarmReadOnly() {
+        return swarmReadOnly;
+    }
+
+    public void setSwarmReadOnly(boolean swarmReadOnly) {
+        this.swarmReadOnly = swarmReadOnly;
     }
 
     public String getLocalPath() {

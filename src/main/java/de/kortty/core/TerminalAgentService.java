@@ -314,7 +314,11 @@ public class TerminalAgentService {
         TerminalAgentModels.Request request,
         String requestedRunId,
         RunUi ui) throws Exception {
-        Objects.requireNonNull(terminalTab, "terminalTab");
+        // Either a terminal tab or a connected runner must be supplied. Swarm runs drive a connector
+        // directly and may have no active tab; requireRunner validates the actual connection below.
+        if (terminalTab == null && runner == null) {
+            throw new NullPointerException("Either terminalTab or runner must be provided");
+        }
         Objects.requireNonNull(profile, "profile");
         Objects.requireNonNull(aiService, "aiService");
         Objects.requireNonNull(request, "request");
@@ -2082,6 +2086,11 @@ public class TerminalAgentService {
     }
 
     private AgentCommandRunner requireRunner(TerminalTab terminalTab, AgentCommandRunner runner) {
+        // A supplied, connected runner makes the terminal tab unnecessary (e.g. swarm runs that
+        // drive a connector without an active tab). Short-circuit before touching the tab/view.
+        if (runner != null && runner.isConnected()) {
+            return runner;
+        }
         TerminalView terminalView = terminalTab != null ? terminalTab.getTerminalView() : null;
         if (terminalView == null) {
             throw new IllegalStateException("No connected terminal is active.");

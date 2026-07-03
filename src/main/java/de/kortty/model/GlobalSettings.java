@@ -383,6 +383,11 @@ public class GlobalSettings {
     @XmlElement(name = "question")
     private java.util.List<String> guideAskHistory;
 
+    /** Recent extra instructions from the workflow-script generator (max 10, newest first). */
+    @XmlElementWrapper(name = "workflowInstructionsHistory")
+    @XmlElement(name = "entry")
+    private java.util.List<String> workflowInstructionsHistory;
+
     /** Recent terminal AI-agent prompts, offered via TAB after the agent command + space. */
     @XmlElementWrapper(name = "terminalAgentInputHistory")
     @XmlElement(name = "input")
@@ -1627,6 +1632,31 @@ public class GlobalSettings {
         }
         java.util.List<String> history = getGuideAskHistory();
         String normalized = question.trim();
+        history.remove(normalized);
+        history.add(0, normalized);
+        while (history.size() > 10) {
+            history.remove(history.size() - 1);
+        }
+    }
+
+    public java.util.List<String> getWorkflowInstructionsHistory() {
+        if (workflowInstructionsHistory == null) {
+            workflowInstructionsHistory = new java.util.ArrayList<>();
+        }
+        return workflowInstructionsHistory;
+    }
+
+    public void setWorkflowInstructionsHistory(java.util.List<String> workflowInstructionsHistory) {
+        this.workflowInstructionsHistory = workflowInstructionsHistory;
+    }
+
+    /** Records a workflow-generator instruction: deduplicated, newest first, capped at 10 entries. */
+    public void addWorkflowInstructionsHistoryEntry(String instructions) {
+        if (instructions == null || instructions.trim().isEmpty()) {
+            return;
+        }
+        java.util.List<String> history = getWorkflowInstructionsHistory();
+        String normalized = instructions.trim();
         history.remove(normalized);
         history.add(0, normalized);
         while (history.size() > 10) {

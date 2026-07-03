@@ -211,7 +211,7 @@ Open **Tools > AI Manager** or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS)
 The AI Manager has two working areas:
 
 * **Profiles** - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile.
-* **Saved Chats** - Open, rename, refresh, or delete previously saved AI conversations.
+* **Saved Chats** - Open, rename, refresh, or delete previously saved AI conversations. Saved [AI Swarm](ai-swarm.md) conversations appear in their own **Swarm Chats** section, including those produced by scheduled swarm jobs.
 
 Use **Settings > AI** for the global defaults and behavior switches, and **AI Manager** for day-to-day profile/chat management.
 
@@ -374,6 +374,10 @@ korTTY adds guardrails around agent execution:
 * While a terminal-targeted run is active, normal typing is still allowed; only run-control keys (++Esc++/++Ctrl+C++ to cancel the selected run, ++Ctrl+R++ to toggle its thinking details) are intercepted.
 * Web-search failures, HTTP errors, authentication errors, empty results, and timeouts are surfaced as explicit tool errors.
 * If the AI response does not match the required JSON schema, korTTY asks for a repair. If repair also fails, the run is blocked with an explanation.
+
+## AI Swarm (multi-server)
+
+The [AI Swarm](ai-swarm.md) broadcasts one AI-agent task to many servers at once: each selected server gets its own agent run — including servers **without an open terminal** — and the per-server answers are combined into a single comparison table. The swarm tab adds an animated per-agent status strip, expandable live transcripts, pause/resume/restart/stop controls per agent and swarm-wide, AI-free script execution from the Snippet Manager, and a **Schedule…** button that turns the run into an unattended [JobScheduler](jobscheduler.md) job. Open it with **AI > AI Swarm...** or ++ctrl+alt+s++ (Cmd on macOS); see the [AI Swarm](ai-swarm.md) page for the full feature set.
 
 ## Generate Workflow Script
 

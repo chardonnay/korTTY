@@ -211,7 +211,7 @@ $$a^2 + b^2 = c^2$$
 Der AI Manager verfügt über zwei Arbeitsbereiche:
 
 * **Profile** – KI-Profile erstellen, bearbeiten, testen, speichern und entfernen. Die Profilliste zeigt den aktuellen Kontingent-/Nutzungsstatus für jedes Profil.
-* **Gespeicherte Chats** – Öffnen, umbenennen, aktualisieren oder löschen Sie zuvor gespeicherte KI-Konversationen.
+* **Gespeicherte Chats** – Öffnen, umbenennen, aktualisieren oder löschen Sie zuvor gespeicherte KI-Konversationen. Gespeicherte [AI Swarm](ai-swarm.md)-Konversationen werden in einem eigenen Abschnitt **Swarm-Chats** angezeigt, einschließlich derjenigen, die durch geplante Swarm-Jobs erstellt wurden.
 
 Verwenden Sie **Einstellungen > AI** für die globalen Standardeinstellungen und Verhaltensänderungen und **AI Manager** für die tägliche Profil-/Chatverwaltung.
 
@@ -374,6 +374,10 @@ korTTY fügt Leitplanken für die Agentenausführung hinzu:
 * Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist normales Tippen weiterhin zulässig; Es werden nur die Run-Control-Tasten (++Esc++/++Strg+C++ to cancel the selected run, ++Strg+R++ zum Umschalten der Denkdetails) abgefangen.
 * Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.
 * Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.
+
+## AI Swarm (Multiserver)
+
+Der [AI Swarm](ai-swarm.md) sendet eine KI-Agentenaufgabe gleichzeitig an viele Server: Jeder ausgewählte Server erhält seinen eigenen Agentenlauf – einschließlich Server **ohne offenes Terminal** – und die Antworten pro Server werden in einer einzigen Vergleichstabelle zusammengefasst. Die Schwarm-Registerkarte fügt einen animierten Statusstreifen pro Agent, erweiterbare Live-Transkripte, Steuerelemente zum Anhalten/Fortsetzen/Neustarten/Stoppen pro Agent und im gesamten Schwarm, eine KI-freie Skriptausführung über den Snippet-Manager sowie eine Schaltfläche **Planen…** hinzu, die die Ausführung in einen unbeaufsichtigten Job [JobScheduler](jobscheduler.md)] umwandelt. Öffnen Sie es mit **AI > AI Swarm...** oder ++Strg+Alt+S++ (Cmd unter macOS); Den vollständigen Funktionsumfang finden Sie auf der Seite [AI Swarm](ai-swarm.md)].
 
 ## Workflow-Skript generieren
 

@@ -195,6 +195,8 @@ KorTTY enforces multiple guardrails around agent execution:
 
 After a finished agent run completes successfully, a **Workflow** button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook, **Windows-CMD** batch, or **AppleScript**) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time).
 
+For fleet-wide tasks, the [AI Swarm](ai-swarm.md#generate-multi-server-workflow) tab has its own **Generate multi-server workflow** dialog that additionally handles host lists and multi-server hardening options, shows the generated script with syntax highlighting and a live elapsed counter, keeps a history of additional instructions, and saves to Snippets with a pre-filled name.
+
 ### Script generation capabilities
 
 - **Auto-load matching AI Skills** — Skills like language-quality guidelines for the target language are automatically included.

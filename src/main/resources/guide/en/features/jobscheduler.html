@@ -1090,6 +1090,8 @@
       
         
       
+        
+      
     
     
     
@@ -1641,6 +1643,34 @@
   
   
     <li class="md-nav__item">
+      <a href="ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="security.html" class="md-nav__link">
         
   
@@ -2122,11 +2152,12 @@
 <p>Open it with <strong>Tools &gt; JobScheduler...</strong>. The dialog remembers its window position and size.</p>
 <p><img alt="JobScheduler execution" src="../assets/diagrams/jobscheduler-execution.svg" /></p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>JobScheduler supports five types of actions:</p>
+<p>JobScheduler supports six types of actions:</p>
 <ul>
 <li><strong>COMMAND</strong> — Run a non-interactive remote shell command</li>
 <li><strong>SNIPPET_SCRIPT</strong> — Execute a SnippetManager script on the target with optional parameters</li>
 <li><strong>AI_AGENT</strong> — Run a headless AI agent with explicit auto-approval</li>
+<li><strong>AI_SWARM</strong> — Broadcast one AI-agent task to all selected targets in parallel and store the combined answer as a saved swarm chat</li>
 <li><strong>SFTP</strong> — Upload, download, sync, delete, rename, create directories, set permissions, change ownership, remote-copy, or create archives</li>
 <li><strong>RSYNC_SYNC</strong> — Synchronize directories via external <code>rsync</code> over SSH</li>
 </ul>
@@ -2223,6 +2254,10 @@
 <td>Run the headless scheduler AI agent. Unattended command execution requires <strong>Auto-approve AI commands</strong> on the job.</td>
 </tr>
 <tr>
+<td><strong>AI_SWARM</strong></td>
+<td>Run the <a href="ai-swarm.html">AI Swarm</a> headlessly on every selected target in parallel and combine the answers into one comparison table.</td>
+</tr>
+<tr>
 <td><strong>SFTP_UPLOAD</strong></td>
 <td>Upload a local path to a remote path.</td>
 </tr>
@@ -2271,6 +2306,32 @@
 <p>Path fields provide local Finder/Explorer selection where the path is local and remote directory browsing where the path is remote. Remote browsing requires a selected target and host-key verification unless the job explicitly disables host-key verification.</p>
 <h4 id="snippet-script-jobs">Snippet Script Jobs<a class="headerlink" href="#snippet-script-jobs" title="Permanent link">&para;</a></h4>
 <p>Snippet script jobs use the selected SnippetManager entry without requiring an open terminal tab. KorTTY resolves built-in snippet variables and stored SnippetManager variables before execution. Missing snippets, missing stored variable values, and unsupported snippet languages block the job and write the reason to the journal. Additional snippet parameters are entered one per line so values with spaces are passed as single script arguments.</p>
+<h4 id="ai-swarm-jobs">AI Swarm Jobs<a class="headerlink" href="#ai-swarm-jobs" title="Permanent link">&para;</a></h4>
+<p>AI Swarm jobs run one AI-agent prompt on <strong>all selected targets in parallel</strong> over background SSH sessions — no terminal tabs are opened. Beyond the shared <strong>AI profile</strong>, <strong>AI prompt</strong>, and <strong>Auto-approve AI commands</strong> fields, two swarm-specific fields apply:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Swarm parallelism</strong></td>
+<td>How many targets run concurrently (1–16, default 4).</td>
+</tr>
+<tr>
+<td><strong>Swarm read-only</strong></td>
+<td>Restricts every agent to non-mutating commands. On by default.</td>
+</tr>
+</tbody>
+</table>
+<p>Results are stored twice: the <strong>journal</strong> records the run outcome, and the full conversation — including the combined per-server comparison table — is saved as a <strong>swarm chat</strong> that can be reopened from the AI Manager's <em>Swarm Chats</em> section.</p>
+<p>The fastest way to create an AI Swarm job is the <strong>Schedule…</strong> button in the <a href="ai-swarm.html#scheduling-swarm-runs-jobscheduler">AI Swarm tab</a>: it prefills a new job with the tab's current targets, prompt, AI profile, and read-only setting. See that page for recommended swarm/scheduler usage scenarios.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>A scheduled swarm with <strong>Swarm read-only</strong> off and <strong>Auto-approve AI commands</strong> on changes systems unattended. Test the prompt interactively in the AI Swarm tab before enabling such a job.</p>
+</div>
 <h4 id="sftp-archive-jobs">SFTP Archive Jobs<a class="headerlink" href="#sftp-archive-jobs" title="Permanent link">&para;</a></h4>
 <p>SFTP archive jobs support ZIP, password-protected ZIP, TAR, and TAR.BZ2. Archive sources and exclude patterns accept one path or pattern per line. The archive can optionally be downloaded after creation.</p>
 <p>When <strong>Use sudo staging for SFTP paths</strong> is enabled, KorTTY stages files in a temporary location and uses sudo-assisted remote commands such as <code>mv</code>, <code>cp</code>, <code>tar</code>, <code>chmod</code>, and <code>chown</code> where elevated rights are required. Cleanup failures are written to the journal.</p>

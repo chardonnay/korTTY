@@ -1090,6 +1090,8 @@
       
         
       
+        
+      
     
     
     
@@ -1759,6 +1761,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ai-swarm-multi-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Swarm (multi-server)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#generate-workflow-script" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1793,6 +1806,34 @@
     
   
     Terminal AI agent & tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Swarm
   
 
     
@@ -2434,6 +2475,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ai-swarm-multi-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Swarm (multi-server)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#generate-workflow-script" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2687,7 +2739,7 @@
 <p>The AI Manager has two working areas:</p>
 <ul>
 <li><strong>Profiles</strong> - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile.</li>
-<li><strong>Saved Chats</strong> - Open, rename, refresh, or delete previously saved AI conversations.</li>
+<li><strong>Saved Chats</strong> - Open, rename, refresh, or delete previously saved AI conversations. Saved <a href="ai-swarm.html">AI Swarm</a> conversations appear in their own <strong>Swarm Chats</strong> section, including those produced by scheduled swarm jobs.</li>
 </ul>
 <p>Use <strong>Settings &gt; AI</strong> for the global defaults and behavior switches, and <strong>AI Manager</strong> for day-to-day profile/chat management.</p>
 <h2 id="ask-the-manual-ai-docs-search">Ask the manual (AI docs search)<a class="headerlink" href="#ask-the-manual-ai-docs-search" title="Permanent link">&para;</a></h2>
@@ -2877,6 +2929,8 @@ headless AI-agent action stays SSH-only.</p>
 <li>Web-search failures, HTTP errors, authentication errors, empty results, and timeouts are surfaced as explicit tool errors.</li>
 <li>If the AI response does not match the required JSON schema, korTTY asks for a repair. If repair also fails, the run is blocked with an explanation.</li>
 </ul>
+<h2 id="ai-swarm-multi-server">AI Swarm (multi-server)<a class="headerlink" href="#ai-swarm-multi-server" title="Permanent link">&para;</a></h2>
+<p>The <a href="ai-swarm.html">AI Swarm</a> broadcasts one AI-agent task to many servers at once: each selected server gets its own agent run — including servers <strong>without an open terminal</strong> — and the per-server answers are combined into a single comparison table. The swarm tab adds an animated per-agent status strip, expandable live transcripts, pause/resume/restart/stop controls per agent and swarm-wide, AI-free script execution from the Snippet Manager, and a <strong>Schedule…</strong> button that turns the run into an unattended <a href="jobscheduler.html">JobScheduler</a> job. Open it with <strong>AI &gt; AI Swarm...</strong> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> (Cmd on macOS); see the <a href="ai-swarm.html">AI Swarm</a> page for the full feature set.</p>
 <h2 id="generate-workflow-script">Generate Workflow Script<a class="headerlink" href="#generate-workflow-script" title="Permanent link">&para;</a></h2>
 <p>After a finished agent run completes successfully, a <strong>Workflow</strong> button turns the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook, <strong>Windows-CMD</strong> batch, or <strong>AppleScript</strong>) with robust error handling, detailed comments, and a header (script name, creator, date/time).</p>
 <p>Script generation:</p>

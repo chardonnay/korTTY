@@ -1090,6 +1090,8 @@
       
         
       
+        
+      
     
     
     
@@ -1641,6 +1643,34 @@
   
   
     <li class="md-nav__item">
+      <a href="ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Schwarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="security.html" class="md-nav__link">
         
   
@@ -2122,11 +2152,12 @@
 <p>Öffnen Sie es mit <strong>Tools &gt; JobScheduler...</strong>. Der Dialog merkt sich seine Fensterposition und -größe.</p>
 <p><img alt="JobScheduler execution" src="../assets/diagrams/jobscheduler-execution.svg" /></p>
 <h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
-<p>JobScheduler unterstützt fünf Arten von Aktionen:</p>
+<p>JobScheduler unterstützt sechs Arten von Aktionen:</p>
 <ul>
 <li><strong>BEFEHL</strong> – Führen Sie einen nicht interaktiven Remote-Shell-Befehl aus</li>
 <li><strong>SNIPPET_SCRIPT</strong> – Führen Sie ein SnippetManager-Skript auf dem Ziel mit optionalen Parametern aus</li>
 <li><strong>AI_AGENT</strong> – Führen Sie einen kopflosen KI-Agenten mit expliziter automatischer Genehmigung aus</li>
+<li><strong>AI_SWARM</strong> – Senden Sie eine KI-Agent-Aufgabe parallel an alle ausgewählten Ziele und speichern Sie die kombinierte Antwort als gespeicherten Schwarm-Chat</li>
 <li><strong>SFTP</strong> – Hochladen, Herunterladen, Synchronisieren, Löschen, Umbenennen, Verzeichnisse erstellen, Berechtigungen festlegen, Eigentümer ändern, Remote-Kopieren oder Archive erstellen</li>
 <li><strong>RSYNC_SYNC</strong> – Verzeichnisse über externes <code>rsync</code> über SSH synchronisieren</li>
 </ul>
@@ -2223,6 +2254,10 @@
 <td>Führen Sie den Headless-Scheduler-KI-Agenten aus. Die unbeaufsichtigte Befehlsausführung erfordert die <strong>automatische Genehmigung von KI-Befehlen</strong> während des Auftrags.</td>
 </tr>
 <tr>
+<td><strong>AI_SWARM</strong></td>
+<td>Führen Sie den <a href="ai-swarm.html">AI Swarm</a> kopflos parallel auf jedem ausgewählten Ziel aus und kombinieren Sie die Antworten in einer Vergleichstabelle.</td>
+</tr>
+<tr>
 <td><strong>SFTP_UPLOAD</strong></td>
 <td>Laden Sie einen lokalen Pfad auf einen Remote-Pfad hoch.</td>
 </tr>
@@ -2271,6 +2306,32 @@
 <p>Pfadfelder bieten eine lokale Finder-/Explorer-Auswahl, wenn der Pfad lokal ist, und das Durchsuchen von Remote-Verzeichnissen, wenn der Pfad remote ist. Remote-Browsing erfordert eine ausgewählte Ziel- und Hostschlüsselüberprüfung, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.</p>
 <h4 id="snippet-skript-jobs">Snippet-Skript-Jobs<a class="headerlink" href="#snippet-skript-jobs" title="Permanent link">&para;</a></h4>
 <p>Snippet-Skriptjobs verwenden den ausgewählten SnippetManager-Eintrag, ohne dass eine geöffnete Terminalregisterkarte erforderlich ist. KorTTY löst integrierte Snippet-Variablen und gespeicherte SnippetManager-Variablen vor der Ausführung auf. Fehlende Snippets, fehlende gespeicherte Variablenwerte und nicht unterstützte Snippet-Sprachen blockieren den Job und schreiben den Grund in das Journal. Zusätzliche Snippet-Parameter werden einzeln pro Zeile eingegeben, sodass Werte mit Leerzeichen als einzelne Skriptargumente übergeben werden.</p>
+<h4 id="ki-schwarm-jobs">KI-Schwarm-Jobs<a class="headerlink" href="#ki-schwarm-jobs" title="Permanent link">&para;</a></h4>
+<p>AI Swarm-Jobs führen eine AI-Agent-Eingabeaufforderung auf <strong>allen ausgewählten Zielen parallel</strong> über Hintergrund-SSH-Sitzungen aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder <strong>KI-Profil</strong>, <strong>KI-Eingabeaufforderung</strong> und <strong>Automatisch genehmigende KI-Befehle</strong> hinaus gelten zwei schwarmspezifische Felder:</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Schwarmparallelität</strong></td>
+<td>Wie viele Ziele gleichzeitig ausgeführt werden (1–16, Standard 4).</td>
+</tr>
+<tr>
+<td><strong>Schwarm schreibgeschützt</strong></td>
+<td>Beschränkt jeden Agenten auf nicht mutierende Befehle. Standardmäßig aktiviert.</td>
+</tr>
+</tbody>
+</table>
+<p>Die Ergebnisse werden zweimal gespeichert: Das <strong>Journal</strong> zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als <strong>Schwarm-Chat</strong> gespeichert, der über den Abschnitt <em>Schwarm-Chats</em> des AI Managers erneut geöffnet werden kann.</p>
+<p>Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche <strong>Planen…</strong> in der Registerkarte <a href="ai-swarm.html#scheduling-swarm-runs-jobscheduler">AI Swarm</a>: Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.</p>
+<div class="admonition warnung">
+<p class="admonition-title">Warnung</p>
+</div>
+<p>Ein geplanter Schwarm mit deaktiviertem <strong>Schwarm-Schreibschutz</strong> und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.</p>
 <h4 id="sftp-archivjobs">SFTP-Archivjobs<a class="headerlink" href="#sftp-archivjobs" title="Permanent link">&para;</a></h4>
 <p>SFTP-Archivierungsjobs unterstützen ZIP, passwortgeschütztes ZIP, TAR und TAR.BZ2. Archivquellen und Ausschlussmuster akzeptieren einen Pfad oder ein Muster pro Zeile. Das Archiv kann optional nach der Erstellung heruntergeladen werden.</p>
 <p>Wenn <strong>Sudo-Staging für SFTP-Pfade verwenden</strong> aktiviert ist, stellt KorTTY Dateien an einem temporären Speicherort bereit und verwendet sudo-unterstützte Remote-Befehle wie <code>mv</code>, <code>cp</code>, <code>tar</code>, <code>chmod</code> und <code>chown</code>, wenn erhöhte Rechte erforderlich sind. Bereinigungsfehler werden in das Journal geschrieben.</p>

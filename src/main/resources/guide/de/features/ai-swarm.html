@@ -1,0 +1,2508 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/features/ai-swarm.html">
+      
+      
+        <link rel="prev" href="ai-tools.html">
+      
+      
+        <link rel="next" href="security.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>KI-Schwarm - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ki-schwarm" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              KI-Schwarm
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../en/features/ai-swarm.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Schwarm
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="ai-swarm.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Schwarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#der-schwarm-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Der Schwarm-Tab
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Der Schwarm-Tab">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ziele-auswahlen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ziele auswählen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#statusstreifen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Statusstreifen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agentenzeilen-und-live-transkripte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agentenzeilen und Live-Transkripte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steuerung-ausfuhren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steuerung ausführen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schreibgeschutzter-modus-und-genehmigungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schreibgeschützter Modus und Genehmigungen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kombinierte-antwort-und-zeilendetails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kombinierte Antwort- und Zeilendetails
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#konversation-kopieren-exportieren-und-speichern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Konversation kopieren, exportieren und speichern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#skripte-ohne-ki-ausfuhren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skripte ohne KI ausführen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generieren-sie-einen-multi-server-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generieren Sie einen Multi-Server-Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tab-aktivitatsanzeige" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tab-Aktivitätsanzeige
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schwarmlaufe-planen-jobscheduler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schwarmläufe planen (JobScheduler)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback und Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#der-schwarm-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Der Schwarm-Tab
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Der Schwarm-Tab">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ziele-auswahlen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ziele auswählen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#statusstreifen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Statusstreifen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agentenzeilen-und-live-transkripte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agentenzeilen und Live-Transkripte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steuerung-ausfuhren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steuerung ausführen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schreibgeschutzter-modus-und-genehmigungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schreibgeschützter Modus und Genehmigungen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kombinierte-antwort-und-zeilendetails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kombinierte Antwort- und Zeilendetails
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#konversation-kopieren-exportieren-und-speichern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Konversation kopieren, exportieren und speichern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#skripte-ohne-ki-ausfuhren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skripte ohne KI ausführen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generieren-sie-einen-multi-server-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generieren Sie einen Multi-Server-Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tab-aktivitatsanzeige" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tab-Aktivitätsanzeige
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schwarmlaufe-planen-jobscheduler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schwarmläufe planen (JobScheduler)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="ki-schwarm">KI-Schwarm<a class="headerlink" href="#ki-schwarm" title="Permanent link">&para;</a></h1>
+<p>Der KI-Schwarm sendet eine KI-Agentenaufgabe gleichzeitig an viele Server. Jeder ausgewählt
+Der Server erhält seinen eigenen unabhängigen Agenten, der über seine SSH-Sitzung ausgeführt wird, und der
+Die Antworten pro Server werden in einer einzigen Vergleichstabelle zusammengefasst – eine Zeile pro Server
+Server – in einem gemeinsamen Gespräch.</p>
+<p>Öffnen Sie es mit <strong>Tools &gt; AI Swarm...</strong> oder ++Strg+Alt+S++ (Cmd unter macOS). Der Schwarm
+Wird als normale Registerkarte geöffnet, sodass Terminals während der Ausführung eines Schwarms nutzbar bleiben.</p>
+<h2 id="der-schwarm-tab">Der Schwarm-Tab<a class="headerlink" href="#der-schwarm-tab" title="Permanent link">&para;</a></h2>
+<p>Die Registerkarte ist in drei Bereiche unterteilt:</p>
+<table>
+<thead>
+<tr>
+<th>Bereich</th>
+<th>Zweck</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Statusleiste</strong></td>
+<td>Animierte Kugel pro Agent über dem Gespräch – Live-Statusübersicht</td>
+</tr>
+<tr>
+<td><strong>Agenten</strong></td>
+<td>Eine Zeile pro Server mit Status-Badge, verstrichener Zeit, Token-Anzahl und einem erweiterbaren Live-Transkript</td>
+</tr>
+<tr>
+<td><strong>Gespräch</strong></td>
+<td>Der gemeinsame Chat: Ihre Eingabeaufforderung, der Fortschritt pro Lauf und die kombinierte Antwort</td>
+</tr>
+</tbody>
+</table>
+<p>Der Composer unten (<em>Alle ausgewählten Server fragen…</em>) ist ein klar umrahmter,
+dreizeilige Eingabe. <strong>Senden</strong> startet einen Lauf auf jedes ausgewählte Ziel; nachverfolgen
+Aufforderungen setzen das gleiche Gespräch fort.</p>
+<h3 id="ziele-auswahlen">Ziele auswählen<a class="headerlink" href="#ziele-auswahlen" title="Permanent link">&para;</a></h3>
+<p><strong>Server auswählen…</strong> öffnet eine Auswahl für Ihre gespeicherten Verbindungen. Das Ziel
+Die Übersicht daneben zeigt, wie viele Server ausgewählt sind und wie viele bereits über einen verfügen
+offenes Terminal (<em>Offen: n</em>) und wie viele davon ohne eines laufen (<em>Ohne
+Terminal: n</em>).</p>
+<p>Server <strong>ohne offenes Terminal werden vollständig unterstützt</strong>: Der Schwarm öffnet a
+Hintergrund-SSH-Sitzung für sie bei Bedarf – es wird kein Terminal-Tab geöffnet oder
+erforderlich. Dazu muss der Master-Passwort-Tresor entsperrt werden (das gespeicherte Passwort).
+Anmeldeinformationen werden verwendet) und der Serverschlüssel wird beim ersten Kontakt akzeptiert
+Vertrauensmodell, das das Terminal für neue Verbindungen verwendet. <strong>Verbindung fehlt (n)</strong>
+bleibt als explizite Opt-in-Option verfügbar, wenn Sie stattdessen die Öffnung von Terminals <em>wollen</em>.
+<strong>Lokale Shell einschließen</strong> fügt Ihren lokalen Computer zum Schwarm hinzu (lokale Shells).
+benötigen immer ihren offenen Tab und sind von Headless-Läufen ausgeschlossen.</p>
+<h2 id="statusstreifen">Statusstreifen<a class="headerlink" href="#statusstreifen" title="Permanent link">&para;</a></h2>
+<p>Eine Kugel pro Agent, gefärbt und animiert nach Bundesstaat:</p>
+<p><img alt="Swarm status strip states" src="../assets/diagrams/swarm-status-strip.svg" /></p>
+<table>
+<thead>
+<tr>
+<th>Staat</th>
+<th>Kugel</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>In der Warteschlange</strong></td>
+<td>grau</td>
+<td>Warten auf einen freien Slot</td>
+</tr>
+<tr>
+<td><strong>Laufen</strong></td>
+<td>blau, pulsierend mit einem umlaufenden Punkt</td>
+<td>Agent arbeitet; verstrichene Zeit tickt</td>
+</tr>
+<tr>
+<td><strong>Warte auf Eingabe</strong></td>
+<td>bernsteinfarben, blinkender Ring</td>
+<td>Ein Genehmigungsdialog erwartet Sie</td>
+</tr>
+<tr>
+<td><strong>Pausiert</strong></td>
+<td>violett mit Pausenbalken</td>
+<td>Über die Laufsteuerung angehalten; der Timer stoppt</td>
+</tr>
+<tr>
+<td><strong>Ungewöhnlich lang</strong></td>
+<td>blau mit einem bernsteinfarbenen Ping-Ring</td>
+<td>Läuft viel länger als seine Mitbewerber (siehe unten)</td>
+</tr>
+<tr>
+<td><strong>Fertig</strong></td>
+<td>grün</td>
+<td>Antwort gesammelt</td>
+</tr>
+<tr>
+<td><strong>Fehlgeschlagen</strong></td>
+<td>rot</td>
+<td>Der Lauf ist fehlerhaft; Einzelheiten finden Sie in der Agentenzeile</td>
+</tr>
+<tr>
+<td><strong>Abgebrochen / Übersprungen</strong></td>
+<td>dunkelgrau</td>
+<td>Angehalten oder übersprungen (z. B. nicht unterstützte Shell)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Adaptive Langsamerkennung</strong> – ein Agent wird <em>ungewöhnlich lange</em> markiert, wenn er aktiv ist
+verstrichene Zeit überschreitet <code>max(60 s, 2 × median of the finished agents)</code>; bis um
+Wenn mindestens zwei Agenten fertig sind, gilt ein fester Schwellenwert von 180 Sekunden. Angehalten und
+Wartende Agenten werden nie markiert und die Pausenzeit wird von der verstrichenen abgezogen
+Zeit, so dass der Vergleich fair bleibt.</p>
+<p>Während ein Lauf aktiv ist, wird durch <strong>Klicken auf eine Kugel</strong> zu dieser gescrollt und diese hervorgehoben
+Zeile des Agenten in der Agentenliste; Beim Schweben werden der Servername und die verstrichene Zeit angezeigt.
+Legendenchips unter den Kugeln fassen die Zählungen zusammen (Laufen, Warten, Pause,
+erledigt, fehlgeschlagen). Nach dem Lauf friert der Streifen im Endzustand ein.</p>
+<p>Der Streifen lässt sich von einem einzelnen Server bis hin zu großen Flotten skalieren – die Kugeln schrumpfen und packen sich
+in Zeilen, wenn die Anzahl der Agenten wächst:</p>
+<p><img alt="Status strip with all states" src="../assets/screenshots/ai/swarm-status-strip-states.png" /></p>
+<p><img alt="Status strip with 50 agents" src="../assets/screenshots/ai/swarm-status-strip-many.png" /></p>
+<h2 id="agentenzeilen-und-live-transkripte">Agentenzeilen und Live-Transkripte<a class="headerlink" href="#agentenzeilen-und-live-transkripte" title="Permanent link">&para;</a></h2>
+<p>Für jeden Server gibt es in der <strong>Agents</strong>-Liste eine Zeile mit seinem Statusabzeichen „Abgelaufen“.
+Zeit und Tokenanzahl. <strong>Klicken Sie mit der linken Maustaste auf eine Zeile</strong>, um sie inline zu erweitern und anzusehen
+Live-Transkript des Agenten (Befehle, Ausgabe und Fortschritt) während der Ausführung – nein
+Zusätzliches Fenster erforderlich. Sehr lange Transkripte werden von vorne beschnitten
+Die neueste Ausgabe ist immer sichtbar.</p>
+<p><strong>Klicken Sie mit der rechten Maustaste auf eine Zeile</strong>, um die Kontrolle pro Agent zu erhalten: <strong>Pause</strong>, <strong>Fortsetzen</strong>,
+<strong>Neustart</strong> und <strong>Stop</strong> gelten nur für diesen Agenten. Der Neustart eines Agenten reicht aus
+die anderen nicht stören; seine Antwort wird im kombinierten Ergebnis ersetzt.</p>
+<h2 id="steuerung-ausfuhren">Steuerung ausführen<a class="headerlink" href="#steuerung-ausfuhren" title="Permanent link">&para;</a></h2>
+<p>Die Symbolleiste bietet die gleichen vier Steuerelemente für den <strong>gesamten Schwarm</strong>: <strong>Pause</strong>,
+<strong>Fortsetzen</strong>, <strong>Neustart</strong> und <strong>Stop</strong>. Das Pausieren ist kooperativ – jeder Agent
+hält an seinem nächsten sicheren Kontrollpunkt an (auf dem Badge steht <em>Pause…</em>, bis es dauert).
+Effekt), und abgelaufene Timer stoppen, während sie angehalten werden.</p>
+<h2 id="schreibgeschutzter-modus-und-genehmigungen">Schreibgeschützter Modus und Genehmigungen<a class="headerlink" href="#schreibgeschutzter-modus-und-genehmigungen" title="Permanent link">&para;</a></h2>
+<p>Durch das Kontrollkästchen <strong>Schreibgeschützt</strong> wird sichergestellt, dass jeder Agent nicht mutiert
+Befehle. Wenn der schreibgeschützte Zugriff deaktiviert ist, entscheidet die <strong>Genehmigungsrichtlinie</strong> darüber, wie
+Systemverändernde Befehle werden bestätigt:</p>
+<table>
+<thead>
+<tr>
+<th>Politik</th>
+<th>Verhalten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Eine Genehmigung für alle</strong></td>
+<td>Der erste Agent, der eine Änderung benötigt, löst einen Dialog aus; <strong>Approve on all</strong> deckt jeden Server im Lauf</td>
+</tr>
+<tr>
+<td><strong>Pro Server</strong></td>
+<td>Die Änderungen jedes Servers werden einzeln genehmigt</td>
+</tr>
+</tbody>
+</table>
+<p>Der Genehmigungsdialog bietet außerdem die Option <strong>Schwarm abbrechen</strong>, um den gesamten Lauf zu stoppen.</p>
+<h2 id="kombinierte-antwort-und-zeilendetails">Kombinierte Antwort- und Zeilendetails<a class="headerlink" href="#kombinierte-antwort-und-zeilendetails" title="Permanent link">&para;</a></h2>
+<p>Wenn alle Agenten fertig sind, kombiniert der Schwarm die Antworten pro Server zu einer einzigen
+Markdown-Vergleichstabelle mit genau einer Zeile pro Server. Die letzte Spalte ist
+immer mit <strong>"Fehler"</strong> betitelt und Abweichungen, fehlende Daten und Fehler (bzw
+<code>-</code>, wenn nichts zu melden ist), unabhängig von der Antwortsprache.</p>
+<p>Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – <strong>klicken Sie auf eine beliebige Tabelle
+row</strong>, um es in einem separaten <em>Zeilendetails</em>-Fenster mit lesbarem Layout zu öffnen,
+Schaltflächen für die Schriftgröße <strong>A− / A+</strong> und eine Schaltfläche zum Kopieren in die Zwischenablage.</p>
+<h2 id="konversation-kopieren-exportieren-und-speichern">Konversation kopieren, exportieren und speichern<a class="headerlink" href="#konversation-kopieren-exportieren-und-speichern" title="Permanent link">&para;</a></h2>
+<p>Der Konversationsheader verfügt über eine Schaltfläche <strong>Kopieren</strong> (die gesamte Konversation wird in die Kopfzeile verschoben).
+Zwischenablage) und ein <strong>Exportieren</strong>-Menü mit <strong>Nur-Text</strong>, <strong>Markdown</strong> und
+<strong>PDF</strong>. <strong>Speichern</strong> speichert die Konversation als benannten Schwarm-Chat; geretteter Schwarm
+Chats erscheinen in einem speziellen <strong>Swarm Chats</strong>-Bereich des
+<a href="ai-assistant.html#ai-manager">AI Manager</a> und kann später wieder geöffnet werden.</p>
+<h2 id="skripte-ohne-ki-ausfuhren">Skripte ohne KI ausführen<a class="headerlink" href="#skripte-ohne-ki-ausfuhren" title="Permanent link">&para;</a></h2>
+<p><strong>Skript ausführen…</strong> führt ein Snippet-Manager-Skript auf <strong>allen Schwarmzielen in aus
+parallel – ohne KI-Beteiligung</strong>. Der Dialog bietet ein durchsuchbares Skript
+Auswahl (nach Name, Kategorie, Sprache oder ID), ein Parameterfeld (ein Parameter).
+pro Zeile) und eine Live-Zusammenfassung; Die Schaltfläche <strong>Ausführen</strong> ist die einzige Bestätigung.</p>
+<p>Das Skript wird Base64-kodiert übertragen (keine Anführungszeichen oder Sonderzeichen).
+Probleme) und auf dem Server dekodiert, wobei die Parameter als <code>$1</code>, <code>$2</code>, … übergeben werden.
+Der Fortschritt wird in denselben Agentenzeilen angezeigt. Erweitern Sie eine Zeile, um den Live-Vorgang anzusehen
+Ausgabe – und das Ergebnis ist eine Tabelle pro Server mit Exit-Code und Ausgabe.
+Nicht-POSIX-Shells (z. B. Windows-Ziele) werden mit einem <em>Skipped: Shell übersprungen
+nicht POSIX</em>-Notiz, während der Rest des Schwarms fortschreitet; nicht erreichbare Server sind
+als <em>Nicht verbunden</em> gemeldet. <strong>Stop</strong> bricht eine laufende Skriptausführung ab.</p>
+<h2 id="generieren-sie-einen-multi-server-workflow">Generieren Sie einen Multi-Server-Workflow<a class="headerlink" href="#generieren-sie-einen-multi-server-workflow" title="Permanent link">&para;</a></h2>
+<p>Die Schaltfläche <strong>Workflow</strong> verwandelt die aktuelle Schwarmaufgabe in eine einzelne wiederverwendbare Aufgabe
+Multi-Server-Skript über den Dialog <strong>Multi-Server-Workflow generieren</strong>: Wählen Sie
+die Skriptsprache, die Hostlistenquelle (ausgewählte Verbindungen, manuelle Liste oder
+externe Hostdatei/Inventar) und Multi-Server-Härtungsoptionen (parallel).
+Fan-Out, Timeout pro Host, Wiederholung mit Backoff, aggregierter End-of-Run-Bericht,
+Jump Host, Sudo/Become, Dry-Run und mehr).</p>
+<p>Der Dialog beinhaltet:</p>
+<ul>
+<li><strong>Syntaxhervorhebung</strong> – das generierte Skript wird in einem vollständigen Editor mit angezeigt
+Hervorhebung für die ausgewählte Sprache.</li>
+<li><strong>Sichtbarer Fortschritt</strong> – eine funktionierende Animation mit einem Live-Zähler
+(<em>Generieren… 0:42</em>), während die KI arbeitet, und die Gesamtdauer (<em>Fertig – hat gedauert
+1:37</em>), wenn es fertig ist.</li>
+<li><strong>Zusätzliche Anweisungen</strong> – ein dreizeiliges Feld zur zusätzlichen Anleitung der KI
+muss folgen, mit einem <strong>Verlauf</strong>-Menü Ihrer letzten 10 einzelnen Einträge.</li>
+<li><strong>In Snippets speichern</strong> – speichert das Skript mit einem im Snippet-Manager
+passenden, vorausgefüllten Skriptnamen und die richtige Dateierweiterung.</li>
+</ul>
+<h2 id="tab-aktivitatsanzeige">Tab-Aktivitätsanzeige<a class="headerlink" href="#tab-aktivitatsanzeige" title="Permanent link">&para;</a></h2>
+<p>Auf der Registerkarte „AI Swarm“ selbst wird ein farbiger Statuspunkt angezeigt, sodass Sie den Fortschritt verfolgen können
+von jeder anderen Registerkarte:</p>
+<table>
+<thead>
+<tr>
+<th>Punkt</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blau, pulsierend</td>
+<td>Schwarm läuft</td>
+</tr>
+<tr>
+<td>Bernsteinfarbener, schneller Puls</td>
+<td>Ein Agent <strong>wartet auf Ihre Eingabe</strong></td>
+</tr>
+<tr>
+<td>Violett, stetig</td>
+<td>Schwarm ist pausiert</td>
+</tr>
+<tr>
+<td>Grün, stetig</td>
+<td>Lauf beendet – bleibt bis zum Start des nächsten Laufs</td>
+</tr>
+</tbody>
+</table>
+<h2 id="schwarmlaufe-planen-jobscheduler">Schwarmläufe planen (JobScheduler)<a class="headerlink" href="#schwarmlaufe-planen-jobscheduler" title="Permanent link">&para;</a></h2>
+<p>Schwarmläufe können unbeaufsichtigt als <a href="jobscheduler.html">JobScheduler</a>-Jobs mit ausgeführt werden
+der Aktionstyp <strong>KI-Schwarm</strong>. Die Schaltfläche <strong>Planen…</strong> in der Schwarmsymbolleiste ist
+Der schnellste Weg: Er öffnet den JobScheduler mit einem neuen Job, der aus dem vorab ausgefüllt ist
+Aktuelle Registerkarte – die ausgewählten Server, die aktuelle Eingabeaufforderung, das AI-Profil und die
+schreibgeschützte Einstellung. Der Job wird deaktiviert erstellt, sodass Sie den Zeitplan überprüfen können
+bevor Sie es aktivieren.</p>
+<p>Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – nein
+Terminalregisterkarten werden geöffnet. Schwarmspezifische Berufsfelder:</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>KI-Profil</strong></td>
+<td>Das AI-Profil, das für alle Agenten im Lauf</td>
+</tr>
+<tr>
+<td><strong>KI-Eingabeaufforderung</strong></td>
+<td>Die Aufgabe wird an jeden Zielserver gesendet</td>
+</tr>
+<tr>
+<td><strong>Automatisch genehmigen</strong></td>
+<td>Genehmigen Sie systemverändernde Befehle ohne Dialog (bei unbeaufsichtigten Ausführungen muss niemand gefragt werden)</td>
+</tr>
+<tr>
+<td><strong>Schwarmparallelität</strong></td>
+<td>Wie viele Server laufen gleichzeitig (1–16, Standard 4)</td>
+</tr>
+<tr>
+<td><strong>Schwarm schreibgeschützt</strong></td>
+<td>Alle Agenten auf nicht mutierende Befehle beschränken (Standard: Ein)</td>
+</tr>
+</tbody>
+</table>
+<p>Die Ergebnisse landen an <strong>zwei Stellen</strong>: Das Job-Journal<strong> zeichnet die Ergebnisse pro auf
+ausgeführt, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – ist
+als </strong>gespeicherter Schwarm-Chat<em><em> gespeichert, sodass Sie ihn später von der KI aus öffnen können
+Gehen Sie zum Abschnitt </em>Swarm Chats</em> des Managers und klicken Sie sich wie ein durch die Ergebnistabelle
+interaktiver Lauf. Es gelten die Master-Passwort- und Host-Key-Gates des Schedulers
+für andere Jobtypen.</p>
+<p>!!! Tipp „Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen“
+Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus.
+Verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf
+<strong>Zeitplan…</strong> – die abgestimmte Eingabeaufforderung und Zielliste werden in den Job übernommen.</p>
+<p>Typische Kombinationen von Schwarm + Scheduler:</p>
+<ul>
+<li><strong>Nächtlicher Flottenzustandsbericht</strong> – eine schreibgeschützte Eingabeaufforderung wie <em>„Datenträger melden“.
+Nutzung, ausgefallene Systemd-Einheiten und ausstehende Sicherheitsupdates"</em> für alle
+Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle an
+der KI-Manager.</li>
+<li><strong>Erkennung von Konfigurationsabweichungen</strong> – Fragen Sie nach den effektiven Einstellungen von a
+Service auf jedem Host; Abweichungen fallen in den Zeilen pro Server auf
+Spalte <em>Fehler</em>.</li>
+<li><strong>Bestandsaufnahme auf Patch-Ebene</strong> – Sammeln Sie Kernel- und Paketversionen im gesamten
+Flotte nach einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.</li>
+</ul>
+<p>!!! Warnung „Unbeaufsichtigte Änderungen“
+Ein geplanter Schwarm mit Änderungen, die <strong>schreibgeschützt aus</strong> und <strong>automatisch genehmigen ein</strong> sind
+Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die
+prompt ist bewusst darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.2.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

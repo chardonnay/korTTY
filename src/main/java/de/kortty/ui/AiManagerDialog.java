@@ -28,6 +28,7 @@ import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
+import de.kortty.model.SavedSwarmChat;
 import de.kortty.security.EncryptionService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -95,8 +96,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final MainWindow ownerWindow;
     private final KorTTYApplication app;
     private final ObservableList<SavedAiChat> chats;
+    private final ObservableList<SavedSwarmChat> swarmChats;
     private final ObservableList<AiProfile> profiles;
     private final TableView<SavedAiChat> chatTable;
+    private final TableView<SavedSwarmChat> swarmChatTable;
     private final ListView<AiProfile> profileListView;
     private final ComboBox<AiProfile> defaultProfileCombo;
     private final TextField profileNameField;
@@ -143,9 +146,11 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
 
         chats = FXCollections.observableArrayList();
+        swarmChats = FXCollections.observableArrayList();
         profiles = FXCollections.observableArrayList();
 
         chatTable = buildChatTable();
+        swarmChatTable = buildSwarmChatTable();
         profileListView = buildProfileListView();
         defaultProfileCombo = new ComboBox<>();
         profileNameField = new TextField();
@@ -187,7 +192,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabPane.getTabs().addAll(buildProfilesTab(), buildSavedChatsTab());
+        tabPane.getTabs().addAll(buildProfilesTab(), buildSavedChatsTab(), buildSwarmChatsTab());
 
         VBox root = new VBox(10, tabPane, statusLabel);
         root.setPadding(new Insets(8, 0, 0, 0));
@@ -609,9 +614,113 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return tab;
     }
 
+    private TableView<SavedSwarmChat> buildSwarmChatTable() {
+        TableView<SavedSwarmChat> table = new TableView<>(swarmChats);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+
+        TableColumn<SavedSwarmChat, String> titleColumn = new TableColumn<>(I18n.get("ai.swarm.manager.title"));
+        titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+            cell.getValue().getTitle() != null && !cell.getValue().getTitle().isBlank()
+                ? cell.getValue().getTitle()
+                : I18n.get("ai.saved.defaultTitle")));
+        titleColumn.setMinWidth(240);
+
+        TableColumn<SavedSwarmChat, String> profileColumn = new TableColumn<>(I18n.get("ai.manager.column.profile"));
+        profileColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+            cell.getValue().getActiveAiProfileName() != null ? cell.getValue().getActiveAiProfileName() : ""));
+        profileColumn.setMinWidth(150);
+
+        TableColumn<SavedSwarmChat, String> targetsColumn = new TableColumn<>(I18n.get("ai.swarm.manager.targets"));
+        targetsColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+            String.valueOf(cell.getValue().getTargetConnectionIds() != null
+                ? cell.getValue().getTargetConnectionIds().size() : 0)));
+        targetsColumn.setMinWidth(100);
+
+        TableColumn<SavedSwarmChat, String> updatedColumn = new TableColumn<>(I18n.get("ai.swarm.manager.updated"));
+        updatedColumn.setCellValueFactory(cell -> new SimpleStringProperty(formatUpdatedAt(cell.getValue().getUpdatedAt())));
+        updatedColumn.setMinWidth(160);
+
+        table.getColumns().addAll(List.of(titleColumn, profileColumn, targetsColumn, updatedColumn));
+        table.setPlaceholder(new Label(I18n.get("ai.swarm.manager.empty")));
+        table.setRowFactory(view -> {
+            TableRow<SavedSwarmChat> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && !row.isEmpty()) {
+                    ownerWindow.openSavedSwarmChat(new SavedSwarmChat(row.getItem()));
+                }
+            });
+            return row;
+        });
+        return table;
+    }
+
+    private Tab buildSwarmChatsTab() {
+        Button openButton = new Button(I18n.get("ai.manager.open"));
+        openButton.setOnAction(event -> openSelectedSwarmChat());
+        applyButtonIcon(openButton, ICON_OPEN);
+        Button deleteButton = new Button(I18n.get("ai.manager.delete"));
+        deleteButton.setOnAction(event -> deleteSelectedSwarmChat());
+        applyButtonIcon(deleteButton, ICON_DELETE);
+        Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
+        refreshButton.setOnAction(event -> refreshSwarmChats());
+        applyButtonIcon(refreshButton, ICON_REFRESH);
+
+        openButton.disableProperty().bind(swarmChatTable.getSelectionModel().selectedItemProperty().isNull());
+        deleteButton.disableProperty().bind(swarmChatTable.getSelectionModel().selectedItemProperty().isNull());
+
+        HBox buttonBar = new HBox(8, openButton, deleteButton, refreshButton);
+        VBox root = new VBox(10, swarmChatTable, buttonBar);
+        root.setPadding(new Insets(6));
+        VBox.setVgrow(swarmChatTable, Priority.ALWAYS);
+
+        Tab tab = new Tab(I18n.get("ai.swarm.manager.section"));
+        tab.setContent(root);
+        return tab;
+    }
+
+    private void refreshSwarmChats() {
+        swarmChats.setAll(loadSwarmChats());
+    }
+
+    private List<SavedSwarmChat> loadSwarmChats() {
+        return app != null && app.getSwarmChatManager() != null
+            ? app.getSwarmChatManager().getAllChats()
+            : List.of();
+    }
+
+    private void openSelectedSwarmChat() {
+        SavedSwarmChat selected = swarmChatTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            return;
+        }
+        ownerWindow.openSavedSwarmChat(new SavedSwarmChat(selected));
+    }
+
+    private void deleteSelectedSwarmChat() {
+        SavedSwarmChat selected = swarmChatTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(confirm);
+        confirm.initOwner(ownerWindow.getStage());
+        confirm.setTitle(I18n.get("ai.manager.delete.title"));
+        confirm.setHeaderText(I18n.get("ai.manager.delete.header"));
+        confirm.setContentText(I18n.get("ai.manager.delete.content",
+            selected.getTitle() != null ? selected.getTitle() : I18n.get("ai.saved.defaultTitle")));
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        if (ownerWindow.deleteSavedSwarmChat(selected)) {
+            refreshSwarmChats();
+        }
+    }
+
     private void refreshAll() {
         refreshProfiles();
         refreshChats();
+        refreshSwarmChats();
     }
 
     private void refreshProfiles() {

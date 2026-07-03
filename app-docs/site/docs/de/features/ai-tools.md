@@ -195,6 +195,8 @@ KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 
 Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).
 
+Für flottenweite Aufgaben verfügt die Registerkarte [AI Swarm](ai-swarm.md#generate-multi-server-workflow)] über ein eigenes Dialogfeld **Multi-Server-Workflow generieren**, das zusätzlich Hostlisten und Multi-Server-Härtungsoptionen verwaltet, das generierte Skript mit Syntaxhervorhebung und einem Live-Ablaufzähler anzeigt, einen Verlauf zusätzlicher Anweisungen führt und in Snippets mit einem vorab ausgefüllten Namen speichert.
+
 ### Funktionen zur Skriptgenerierung
 
 - **Passende KI-Fähigkeiten automatisch laden** – Fähigkeiten wie Sprachqualitätsrichtlinien für die Zielsprache werden automatisch einbezogen.

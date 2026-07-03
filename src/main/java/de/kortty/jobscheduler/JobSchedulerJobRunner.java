@@ -17,6 +17,7 @@ public class JobSchedulerJobRunner {
     private final EncryptionService encryptionService = new EncryptionService();
     private final JobSchedulerArchiveCommandBuilder archiveCommandBuilder = new JobSchedulerArchiveCommandBuilder();
     private final JobSchedulerAiSupport aiSupport;
+    private final JobSchedulerAiSwarmSupport aiSwarmSupport;
     private final JobSchedulerSnippetSupport snippetSupport;
     private final JobSchedulerRsyncSupport rsyncSupport;
 
@@ -34,6 +35,7 @@ public class JobSchedulerJobRunner {
         this.connectionResolver = new JobSchedulerConnectionResolver(app);
         this.sudoService = new JobSchedulerSudoService(repository);
         this.aiSupport = new JobSchedulerAiSupport(app);
+        this.aiSwarmSupport = new JobSchedulerAiSwarmSupport(app, this.aiSupport);
         this.snippetSupport = new JobSchedulerSnippetSupport(
             app != null ? app.getSnippetManager() : null,
             app != null ? app.getSnippetVariableManager() : null);
@@ -44,9 +46,16 @@ public class JobSchedulerJobRunner {
         JobSchedulerSecretRedactor redactor = new JobSchedulerSecretRedactor();
         try {
             List<ServerConnection> targets = connectionResolver.resolveTargets(job);
-            JobExecutionOutcome outcome = targets.size() == 1
-                ? runForConnection(job, runId, targets.get(0), redactor, targets.size())
-                : runForTargets(job, runId, targets, redactor);
+            JobExecutionOutcome outcome;
+            if (job.getAction() != null && job.getAction().getType() == JobActionType.AI_SWARM) {
+                // The swarm gets ALL targets at once (parallel agents + one aggregated report),
+                // never the sequential per-connection loop.
+                outcome = runAiSwarm(job, runId, targets, redactor);
+            } else {
+                outcome = targets.size() == 1
+                    ? runForConnection(job, runId, targets.get(0), redactor, targets.size())
+                    : runForTargets(job, runId, targets, redactor);
+            }
             return sanitizeOutcome(outcome, job.getJournalDetailMode(), redactor);
         } catch (JobBlockedException e) {
             return JobExecutionOutcome.blocked(e.getMessage(), e.getMessage());
@@ -127,6 +136,34 @@ public class JobSchedulerJobRunner {
             emptyToNull(detail));
     }
 
+    /**
+     * AI_SWARM bypasses {@code runForConnection}, so its master-password and host-key gates are
+     * enforced here explicitly (fail fast: whole job BLOCKED) before any session is opened.
+     */
+    private JobExecutionOutcome runAiSwarm(
+        ScheduledJob job,
+        String runId,
+        List<ServerConnection> targets,
+        JobSchedulerSecretRedactor redactor) throws Exception {
+
+        if (targets == null || targets.isEmpty()) {
+            throw new JobBlockedException("No target connections are configured for this job.");
+        }
+        char[] masterPassword = app.getMasterPasswordManager() != null
+            ? app.getMasterPasswordManager().getMasterPassword()
+            : null;
+        if (masterPassword == null) {
+            throw new JobBlockedException("Master password is locked; required job secrets are unavailable.");
+        }
+        List<PinnedHostKey> hostKeys = new java.util.ArrayList<>(targets.size());
+        for (ServerConnection target : targets) {
+            hostKeys.add(resolvePinnedHostKeyForJob(job, target));
+        }
+        JobExecutionOutcome outcome = aiSwarmSupport.runAiSwarm(
+            job, runId, targets, hostKeys, masterPassword, redactor);
+        return addHostKeyVerificationNotice(job, outcome);
+    }
+
     private JobExecutionOutcome runForConnection(
         ScheduledJob job,
         String runId,
@@ -202,6 +239,8 @@ public class JobSchedulerJobRunner {
                 remote,
                 sudoPassword,
                 redactor);
+            case AI_SWARM -> throw new IllegalStateException(
+                "AI_SWARM is dispatched before per-connection execution");
             case SFTP_UPLOAD -> executeUpload(action, runId, remote, sudoPassword);
             case SFTP_DOWNLOAD -> executeDownload(action, runId, remote, sudoPassword);
             case SFTP_SYNC -> executeSync(action, runId, remote, sudoPassword);

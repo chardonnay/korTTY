@@ -13,11 +13,12 @@ Der JobScheduler führt unbeaufsichtigte Hintergrundjobs aus, während KorTTY ge
 
 ## Übersicht
 
-JobScheduler unterstützt fünf Arten von Aktionen:
+JobScheduler unterstützt sechs Arten von Aktionen:
 
 - **BEFEHL** – Führen Sie einen nicht interaktiven Remote-Shell-Befehl aus
 - **SNIPPET_SCRIPT** – Führen Sie ein SnippetManager-Skript auf dem Ziel mit optionalen Parametern aus
 - **AI_AGENT** – Führen Sie einen kopflosen KI-Agenten mit expliziter automatischer Genehmigung aus
+- **AI_SWARM** – Senden Sie eine KI-Agent-Aufgabe parallel an alle ausgewählten Ziele und speichern Sie die kombinierte Antwort als gespeicherten Schwarm-Chat
 - **SFTP** – Hochladen, Herunterladen, Synchronisieren, Löschen, Umbenennen, Verzeichnisse erstellen, Berechtigungen festlegen, Eigentümer ändern, Remote-Kopieren oder Archive erstellen
 - **RSYNC_SYNC** – Verzeichnisse über externes `rsync` über SSH synchronisieren
 
@@ -71,6 +72,7 @@ Verwenden Sie die Registerkarte **Aktion**, um auszuwählen, was der Job tun sol
 | **BEFEHL** | Führen Sie einen nicht interaktiven Remote-Befehl aus. |
 | **SNIPPET_SCRIPT** | Führen Sie ein SnippetManager-Skript auf dem ausgewählten Ziel aus. Das Feld **Snippet-Suche** filtert das Skript-Dropdown nach Snippet-Name, Kategorie, Sprache oder ID; **Snippet-Parameter** übergibt zusätzliche Argumente als einen argv-Wert pro Zeile. |
 | **AI_AGENT** | Führen Sie den Headless-Scheduler-KI-Agenten aus. Die unbeaufsichtigte Befehlsausführung erfordert die **automatische Genehmigung von KI-Befehlen** während des Auftrags. |
+| **AI_SWARM** | Führen Sie den [AI Swarm](ai-swarm.md) kopflos parallel auf jedem ausgewählten Ziel aus und kombinieren Sie die Antworten in einer Vergleichstabelle. |
 | **SFTP_UPLOAD** | Laden Sie einen lokalen Pfad auf einen Remote-Pfad hoch. |
 | **SFTP_DOWNLOAD** | Laden Sie einen Remote-Pfad auf einen lokalen Pfad herunter. |
 | **SFTP_SYNC** | Synchronisieren Sie lokale und Remote-Pfade in der ausgewählten Upload-/Download-Richtung. |
@@ -88,6 +90,22 @@ Pfadfelder bieten eine lokale Finder-/Explorer-Auswahl, wenn der Pfad lokal ist,
 #### Snippet-Skript-Jobs
 
 Snippet-Skriptjobs verwenden den ausgewählten SnippetManager-Eintrag, ohne dass eine geöffnete Terminalregisterkarte erforderlich ist. KorTTY löst integrierte Snippet-Variablen und gespeicherte SnippetManager-Variablen vor der Ausführung auf. Fehlende Snippets, fehlende gespeicherte Variablenwerte und nicht unterstützte Snippet-Sprachen blockieren den Job und schreiben den Grund in das Journal. Zusätzliche Snippet-Parameter werden einzeln pro Zeile eingegeben, sodass Werte mit Leerzeichen als einzelne Skriptargumente übergeben werden.
+
+#### KI-Schwarm-Jobs
+
+AI Swarm-Jobs führen eine AI-Agent-Eingabeaufforderung auf **allen ausgewählten Zielen parallel** über Hintergrund-SSH-Sitzungen aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder **KI-Profil**, **KI-Eingabeaufforderung** und **Automatisch genehmigende KI-Befehle** hinaus gelten zwei schwarmspezifische Felder:
+
+| Feld | Beschreibung |
+|-------|-------------|
+| **Schwarmparallelität** | Wie viele Ziele gleichzeitig ausgeführt werden (1–16, Standard 4). |
+| **Schwarm schreibgeschützt** | Beschränkt jeden Agenten auf nicht mutierende Befehle. Standardmäßig aktiviert. |
+
+Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als **Schwarm-Chat** gespeichert, der über den Abschnitt *Schwarm-Chats* des AI Managers erneut geöffnet werden kann.
+
+Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche **Planen…** in der Registerkarte [AI Swarm](ai-swarm.md#scheduling-swarm-runs-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.
+
+!!! Warnung
+Ein geplanter Schwarm mit deaktiviertem **Schwarm-Schreibschutz** und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
 
 #### SFTP-Archivjobs
 

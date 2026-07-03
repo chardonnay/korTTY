@@ -148,6 +148,10 @@ final class ThemeCssSupport {
             ".text-field:focused, .password-field:focused { -fx-border-color: " + accent + "; }",
             ".text-area { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; -fx-prompt-text-fill: " + promptText + "; }",
             ".text-area .content { -fx-background-color: " + bg + "; }",
+            // The swarm composer must read as an input on dark themes: lighter inner surface than
+            // the surrounding panel (inline styles cannot reach the .content child region).
+            ".swarm-composer-input { -fx-background-color: " + bgAlt + "; -fx-text-fill: " + fg + "; -fx-prompt-text-fill: " + promptText + "; }",
+            ".swarm-composer-input .content { -fx-background-color: " + bgAlt + "; }",
             ".tree-view { -fx-background-color: " + bg + "; }",
             ".tree-cell { -fx-background-color: transparent; -fx-text-fill: " + fg + "; }",
             ".tree-cell .tree-disclosure-node { -fx-background-color: transparent; }",
@@ -309,7 +313,7 @@ final class ThemeCssSupport {
         }
     }
 
-    private static String toHex(Color color) {
+    static String toHex(Color color) {
         return String.format("#%02x%02x%02x",
             (int) (color.getRed() * 255),
             (int) (color.getGreen() * 255),
