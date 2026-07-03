@@ -3,7 +3,7 @@
 The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.
 
-## Unreleased
+## v2.3.0
 
 ### AI Swarm
 
@@ -48,6 +48,18 @@ shown in the footer.
 
 ### Appearance
 
+- **Five new app designs** — *Amber CRT* (warm amber-phosphor retro terminal),
+  *Synthwave '84* (80s Outrun neon), *Gruvbox Retro* (cozy warm earthy),
+  *Nord Arctic* (calm, flat arctic blue-grey) and *Dracula* (soft purple/pink)
+  join the existing designs in *Settings → Appearance*, each with its own
+  preview thumbnail. The existing designs are unchanged.
+- **Subtle design animations toggle** — a new Appearance setting (default on)
+  lets the glow designs breathe a small status-bar accent dot; turning it off
+  doubles as a reduce-motion option, and the animation stops while the window
+  is hidden.
+- **More consistent design chrome** — a custom design's colors now apply
+  deterministically across menus and dialogs, and the terminal theme's dynamic
+  stylesheet no longer overrides the active design's chrome colors.
 - **App design `Normal` renamed to `Default`** in *Settings → Appearance*. The stored value is unchanged, so existing configurations keep their selected design.
 - **Previous/next buttons next to the App Design dropdown** let you step backward and forward through the designs (wrapping around at the ends) without opening the dropdown.
 - **Design preview moved below the controls** into a fixed-size area, so switching designs (or back to `Default`, which has no preview) no longer draws the preview over the dropdown.
@@ -120,6 +132,21 @@ shown in the footer.
   refresh button merges the endpoint's live model list, clicking a model in the
   dropdown now reliably applies it, and the unusable **Auto** option is no longer
   offered for cloud endpoints (with a clearer error when no model is selected).
+
+### Guide AI docs search
+
+- **Ask the manual in natural language** — the built-in guide (**Help → Manual**,
+  ++f1++) gets an **AI search** side panel: type a question in your language and
+  get an answer generated exclusively from the bundled documentation, with
+  clickable citations that jump the guide directly to the referenced page.
+- **Uses your default AI profile; retrieval is fully offline** — no server, no
+  extra API keys, no new dependencies. Retrieval runs locally over the bundled
+  search index (with bilingual synonyms, German compound splitting and umlaut
+  folding); off-topic questions are answered locally without contacting the AI
+  endpoint at all.
+- **Grounded answers** — the model is restricted to the retrieved excerpts,
+  invented links are repaired or removed, and a native **Sources** list always
+  shows the cited pages regardless of the model's answer.
 
 ### Workflow Script Generator
 

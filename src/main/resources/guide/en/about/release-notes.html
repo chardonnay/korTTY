@@ -1773,15 +1773,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
+  <a href="#v230" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unreleased
+        v2.3.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+    <nav class="md-nav" aria-label="v2.3.0">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1833,6 +1833,17 @@
     <span class="md-ellipsis">
       
         AI chat &amp; agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#guide-ai-docs-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guide AI docs search
       
     </span>
   </a>
@@ -2082,15 +2093,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
+  <a href="#v230" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unreleased
+        v2.3.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+    <nav class="md-nav" aria-label="v2.3.0">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2142,6 +2153,17 @@
     <span class="md-ellipsis">
       
         AI chat &amp; agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#guide-ai-docs-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guide AI docs search
       
     </span>
   </a>
@@ -2340,7 +2362,7 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.</p>
-<h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="v230">v2.3.0<a class="headerlink" href="#v230" title="Permanent link">&para;</a></h2>
 <h3 id="ai-swarm">AI Swarm<a class="headerlink" href="#ai-swarm" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>AI Swarm tab</strong> (<strong>AI → AI Swarm...</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> / Cmd on macOS) — broadcast
@@ -2384,6 +2406,18 @@ shown in the footer.</p>
 </ul>
 <h3 id="appearance">Appearance<a class="headerlink" href="#appearance" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Five new app designs</strong> — <em>Amber CRT</em> (warm amber-phosphor retro terminal),
+  <em>Synthwave '84</em> (80s Outrun neon), <em>Gruvbox Retro</em> (cozy warm earthy),
+  <em>Nord Arctic</em> (calm, flat arctic blue-grey) and <em>Dracula</em> (soft purple/pink)
+  join the existing designs in <em>Settings → Appearance</em>, each with its own
+  preview thumbnail. The existing designs are unchanged.</li>
+<li><strong>Subtle design animations toggle</strong> — a new Appearance setting (default on)
+  lets the glow designs breathe a small status-bar accent dot; turning it off
+  doubles as a reduce-motion option, and the animation stops while the window
+  is hidden.</li>
+<li><strong>More consistent design chrome</strong> — a custom design's colors now apply
+  deterministically across menus and dialogs, and the terminal theme's dynamic
+  stylesheet no longer overrides the active design's chrome colors.</li>
 <li><strong>App design <code>Normal</code> renamed to <code>Default</code></strong> in <em>Settings → Appearance</em>. The stored value is unchanged, so existing configurations keep their selected design.</li>
 <li><strong>Previous/next buttons next to the App Design dropdown</strong> let you step backward and forward through the designs (wrapping around at the ends) without opening the dropdown.</li>
 <li><strong>Design preview moved below the controls</strong> into a fixed-size area, so switching designs (or back to <code>Default</code>, which has no preview) no longer draws the preview over the dropdown.</li>
@@ -2456,6 +2490,21 @@ shown in the footer.</p>
   refresh button merges the endpoint's live model list, clicking a model in the
   dropdown now reliably applies it, and the unusable <strong>Auto</strong> option is no longer
   offered for cloud endpoints (with a clearer error when no model is selected).</li>
+</ul>
+<h3 id="guide-ai-docs-search">Guide AI docs search<a class="headerlink" href="#guide-ai-docs-search" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Ask the manual in natural language</strong> — the built-in guide (<strong>Help → Manual</strong>,
+  <span class="keys"><kbd class="key-f1">F1</kbd></span>) gets an <strong>AI search</strong> side panel: type a question in your language and
+  get an answer generated exclusively from the bundled documentation, with
+  clickable citations that jump the guide directly to the referenced page.</li>
+<li><strong>Uses your default AI profile; retrieval is fully offline</strong> — no server, no
+  extra API keys, no new dependencies. Retrieval runs locally over the bundled
+  search index (with bilingual synonyms, German compound splitting and umlaut
+  folding); off-topic questions are answered locally without contacting the AI
+  endpoint at all.</li>
+<li><strong>Grounded answers</strong> — the model is restricted to the retrieved excerpts,
+  invented links are repaired or removed, and a native <strong>Sources</strong> list always
+  shows the cited pages regardless of the model's answer.</li>
 </ul>
 <h3 id="workflow-script-generator">Workflow Script Generator<a class="headerlink" href="#workflow-script-generator" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2589,7 +2638,7 @@ and will be migrated here in full.</p>
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.2.3</strong>
+    korTTY <strong>v2.3.0</strong>
   </div>
 </div>
       

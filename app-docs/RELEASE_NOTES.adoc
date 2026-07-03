@@ -1,6 +1,29 @@
 = Release Notes
 
-== Unreleased
+== v2.3.0
+
+=== AI Swarm
+
+* *AI Swarm tab* (*AI → AI Swarm...*, Ctrl+Alt+S / Cmd on macOS): Broadcast one AI-agent task to many servers at once; each server runs its own agent and the answers are combined into a single comparison table with one row per server and a literal *"Fehler"* column for deviations and errors.
+* *Animated status strip*: One orb per agent above the conversation shows queued/running/awaiting-input/paused/done/failed/cancelled at a glance, flags _unusually long_ runs via an adaptive threshold (`max(60 s, 2 × median of finished agents)`), and clicking an orb jumps to the agent's row. The strip scales from 1 to 50+ servers.
+* *Per-agent and swarm-wide run control*: Pause, resume, restart, and stop either a single agent (right-click its row) or the whole swarm (toolbar). Pausing is cooperative and stops the elapsed timers; restarts replace only that agent's answer.
+* *Expandable live transcripts*: Left-click an agent row to watch its live command/output transcript inline while it runs.
+* *Conversation copy & export*: Copy the whole swarm conversation to the clipboard or export it as plain text, Markdown, or PDF; saved swarm chats get their own *Swarm Chats* section in the AI Manager.
+* *Readable result rows*: Clicking a row of the combined answer table opens it in a separate *Row details* window with A−/A+ font sizing and copy-to-clipboard.
+* *Targets without open terminals*: Swarm runs (AI and script) now work on saved servers with no open terminal via background SSH sessions; no terminal tab is opened. Requires an unlocked master-password vault.
+* *Run scripts without AI*: Execute a Snippet Manager script with parameters on all swarm targets in parallel (Base64-transferred, single confirmation), with live output per server and a per-server exit-code/output result table.
+* *Schedule swarm runs*: A new JobScheduler action type *AI_SWARM* with *Swarm parallelism* (1–16) and *Swarm read-only* fields; the swarm tab's *Schedule…* button prefills a job from the current targets and prompt. Results go to the journal _and_ a saved swarm chat.
+* *Visible composer and tab status dot*: The swarm input is a clearly framed three-line field, and the tab shows a colored activity dot (running / waiting for input / paused / finished — the green dot stays until the next run).
+* *Multi-server workflow dialog reworked*: Syntax-highlighted script view, a visible working animation with live elapsed time and total duration, an additional-instructions field with a de-duplicated 10-entry history, and *Save to Snippets* with a fitting pre-filled script name.
+
+=== Appearance
+
+* *Five new app designs*: _Amber CRT_ (warm amber-phosphor retro terminal), _Synthwave '84_ (80s Outrun neon), _Gruvbox Retro_ (cozy warm earthy), _Nord Arctic_ (calm, flat arctic blue-grey) and _Dracula_ (soft purple/pink) join the existing designs in _Settings → Appearance_, each with its own preview thumbnail. The existing designs are unchanged.
+* *Subtle design animations toggle*: A new Appearance setting (default on) lets the glow designs breathe a small status-bar accent dot; turning it off doubles as a reduce-motion option, and the animation stops while the window is hidden.
+* *More consistent design chrome*: A custom design's colors now apply deterministically across menus and dialogs, and the terminal theme's dynamic stylesheet no longer overrides the active design's chrome colors.
+* *App design `Normal` renamed to `Default`* in _Settings → Appearance_: The stored value is unchanged, so existing configurations keep their selected design.
+* *Previous/next buttons next to the App Design dropdown*: Step backward and forward through the designs (wrapping around at the ends) without opening the dropdown.
+* *Design preview moved below the controls*: The preview now lives in a fixed-size area, so switching designs (or back to `Default`, which has no preview) no longer draws the preview over the dropdown.
 
 === Local Shell Connections
 
@@ -13,6 +36,21 @@
 
 * *Ctrl + mouse wheel zoom*: Holding *Ctrl* (or *Cmd* on macOS) and scrolling the mouse wheel over the terminal now changes the font size — wheel up enlarges, wheel down shrinks — instead of scrolling the buffer. This complements the existing Alt+Plus / Alt+Minus / Alt+0 shortcuts.
 * *Ctrl+D closes a local cmd.exe/PowerShell tab*: Those Windows shells do not exit on EOF, so Ctrl+D had no effect there. Ctrl+D now closes the tab for local cmd.exe/PowerShell sessions. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, Ctrl+D keeps its normal EOF meaning (the shell exits on EOF and the local tab then auto-closes).
+
+=== AI Chat & Agent
+
+* *Images, diagrams, and math render in AI chats*: AI answers containing an SVG document, a base64 raster image (`data:image/png;base64,...` — PNG, JPEG, GIF, BMP), a `plantuml` code block, a `mermaid` code block, or LaTeX math (`latex`/`tex`/`math` code blocks and `$$...$$` in prose) are shown as images instead of raw markup, each with a *Show code / Show image* toggle and copy button. Mermaid and MathJax are bundled (no network); PlantUML uses the local toolchain (`java` + Graphviz `dot`); SVG output is sanitized and shown with JavaScript disabled.
+* *Full model reasoning in agent thinking rows*: Expanding a 💭 row in the agent activity panel now shows the model's actual reasoning when the provider exposes it (Anthropic extended thinking per the profile's Reasoning effort, OpenAI-compatible `reasoning_content`, LM Studio reasoning output, `<think>` blocks from local CLI models), falling back to the decision summary otherwise.
+* *Run log records the AI profile*: Every agent run starts with an `AI profile: <name> (<model>)` activity row.
+* *Reload uses the currently active profile*: The activity panel's reload button re-runs the command with the profile that is active now, not the one the original run was started with.
+* *Agent Ask includes the terminal selection*: Starting *AI → Ask AI Agent* from the right-click menu with text selected sends the selection as context, so the question is answered about the selected output or script.
+* *Concrete models for cloud profiles*: The model selector is pre-filled with common model names for known cloud providers (offline, no API key needed), the refresh button merges the endpoint's live model list, clicking a model in the dropdown now reliably applies it, and the unusable *Auto* option is no longer offered for cloud endpoints (with a clearer error when no model is selected).
+
+=== Guide AI Docs Search
+
+* *Ask the manual in natural language*: The built-in guide (*Help → Manual*, F1) gets an *AI search* side panel — type a question in your language and get an answer generated exclusively from the bundled documentation, with clickable citations that jump the guide directly to the referenced page.
+* *Uses your default AI profile; retrieval is fully offline*: No server, no extra API keys, no new dependencies. Retrieval runs locally over the bundled search index (with bilingual synonyms, German compound splitting and umlaut folding); off-topic questions are answered locally without contacting the AI endpoint at all.
+* *Grounded answers*: The model is restricted to the retrieved excerpts, invented links are repaired or removed, and a native *Sources* list always shows the cited pages regardless of the model's answer.
 
 === Workflow Script Generator
 

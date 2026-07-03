@@ -11,6 +11,7 @@ Targets kept in sync:
   * README.adoc                                     (leading ``*vX.Y.Z*`` badge on the intro line)
   * app-docs/site/docs/en/about/release-notes.md    (top ``# vX.Y.Z`` heading, if present)
   * app-docs/RELEASE_NOTES.adoc                      (legacy top ``== vX.Y.Z`` heading, if present)
+  * app-docs/doc-manifest.yaml                       (top-level ``version: "X.Y.Z"`` field)
 
 The MkDocs site does NOT hard-code the version: it is injected at build time via
 the ``KORTTY_VERSION`` env var (``extra.kortty_version: !ENV [KORTTY_VERSION, 'dev']``),
@@ -77,6 +78,12 @@ TARGETS: list[Target] = [
         pattern=re.compile(r'(?m)^(==\s+v)(' + SEMVER + r')(\b)'),
         label="RELEASE_NOTES.adoc top heading",
         required=False,
+    ),
+    Target(
+        # Top-level `version: "X.Y.Z"` field consumed by the doc validators.
+        path=REPO_ROOT / "app-docs/doc-manifest.yaml",
+        pattern=re.compile(r'(?m)^(version:\s*")(' + SEMVER + r')(")'),
+        label="doc-manifest.yaml version",
     ),
 ]
 

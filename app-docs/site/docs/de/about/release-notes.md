@@ -3,7 +3,7 @@
 Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.
 
-## Unveröffentlicht
+## v2.3.0
 
 ### KI-Schwarm
 
@@ -48,6 +48,21 @@ Feld „Zusatzanweisungen“ mit einem deduplizierten Verlauf mit 10 Einträgen 
 
 ### Aussehen
 
+- **Fünf neue App-Designs** – *Amber CRT* (warmes Bernstein-Phosphor-Retro-Terminal),
+*Synthwave '84* (80er-Outrun-Neon), *Gruvbox Retro* (gemütlich warm-erdig),
+*Nord Arctic* (ruhiges, flaches arktisches Blaugrau) und *Dracula* (sanftes
+Violett/Pink) ergänzen die bestehenden Designs in *Einstellungen →
+Erscheinungsbild*, jeweils mit eigenem Vorschaubild. Die bestehenden Designs
+sind unverändert.
+- **Schalter für dezente Design-Animationen** – eine neue
+Erscheinungsbild-Einstellung (standardmäßig eingeschaltet) lässt bei den
+Glow-Designs einen kleinen Akzentpunkt in der Statusleiste „atmen“; das
+Ausschalten dient zugleich als Reduce-Motion-Option, und die Animation stoppt,
+solange das Fenster verborgen ist.
+- **Konsistentere Design-Darstellung** – die Farben eines eigenen Designs werden
+jetzt zuverlässig auf Menüs und Dialoge angewendet, und das dynamische
+Stylesheet des Terminal-Themes überschreibt nicht mehr die Farben des aktiven
+Designs.
 - **App-Design `Normal` in *Einstellungen → Erscheinungsbild* in `Default`** umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.
 - Mit den Schaltflächen „Zurück/Weiter“ neben dem Dropdown-Menü „App-Design“ können Sie durch die Designs vor- und zurückblättern (an den Enden umschließen), ohne das Dropdown-Menü zu öffnen.
 - **Die Designvorschau wurde unter die Steuerelemente verschoben** in einen Bereich mit fester Größe, sodass beim Wechseln der Designs (oder zurück zu `Default`, wo es keine Vorschau gibt) die Vorschau nicht mehr über dem Dropdown-Menü angezeigt wird.
@@ -120,6 +135,24 @@ gängige Modellnamen für bekannte Cloud-Anbieter (offline, kein API-Schlüssel 
 Klicken Sie auf die Schaltfläche „Aktualisieren“, um die Live-Modellliste des Endpunkts zusammenzuführen
 Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option **Auto** ist nicht mehr vorhanden
 Wird für Cloud-Endpunkte angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).
+
+### KI-Suche in der Anleitung
+
+- **Die Anleitung in natürlicher Sprache fragen** – die integrierte Anleitung
+(**Hilfe → Anleitung**, ++f1++) erhält ein **KI-Suche**-Seitenpanel: Eine Frage
+in der eigenen Sprache eingeben und eine Antwort erhalten, die ausschließlich
+aus der mitgelieferten Dokumentation erzeugt wird – mit klickbaren
+Quellenangaben, die das Handbuch direkt zur referenzierten Seite springen
+lassen.
+- **Nutzt das Standard-KI-Profil; die Suche läuft vollständig offline** – kein
+Server, keine zusätzlichen API-Schlüssel, keine neuen Abhängigkeiten. Die Suche
+läuft lokal über den mitgelieferten Suchindex (mit zweisprachigen Synonymen,
+deutscher Komposita-Zerlegung und Umlaut-Normalisierung); themenfremde Fragen
+werden lokal beantwortet, ohne den KI-Endpunkt überhaupt zu kontaktieren.
+- **Belegte Antworten** – das Modell ist auf die gefundenen Textauszüge
+beschränkt, erfundene Links werden repariert oder entfernt, und eine native
+**Quellen**-Liste zeigt unabhängig von der Modellantwort immer die zitierten
+Seiten.
 
 ### Workflow-Skriptgenerator
 
