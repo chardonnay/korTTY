@@ -47,7 +47,16 @@ public class GlobalSettings {
 
     @XmlElement
     private String lastAutomaticUpdatePromptLocalDate;
-    
+
+    @XmlElement
+    private boolean telemetryEnabled = false; // Anonymous usage statistics: opt-in, default OFF
+
+    @XmlElement
+    private Integer telemetryConsentVersion = 0; // 0 = never asked; >=1 = decided for that consent text version
+
+    @XmlElement
+    private String telemetryConsentDate; // ISO-8601 instant of the last consent decision (GDPR Art. 7 record)
+
     @XmlElement
     private int maxBackupCount = 10; // Default: 10 backups, 0 = unlimited
     
@@ -566,6 +575,32 @@ public class GlobalSettings {
 
     public void setUpdateChecksEnabled(boolean updateChecksEnabled) {
         this.updateChecksEnabled = updateChecksEnabled;
+    }
+
+    public boolean isTelemetryEnabled() {
+        return telemetryEnabled;
+    }
+
+    public void setTelemetryEnabled(boolean telemetryEnabled) {
+        this.telemetryEnabled = telemetryEnabled;
+    }
+
+    public int getTelemetryConsentVersion() {
+        return telemetryConsentVersion != null ? Math.max(0, telemetryConsentVersion) : 0;
+    }
+
+    public void setTelemetryConsentVersion(Integer telemetryConsentVersion) {
+        this.telemetryConsentVersion = telemetryConsentVersion != null ? Math.max(0, telemetryConsentVersion) : 0;
+    }
+
+    public String getTelemetryConsentDate() {
+        return telemetryConsentDate;
+    }
+
+    public void setTelemetryConsentDate(String telemetryConsentDate) {
+        this.telemetryConsentDate = telemetryConsentDate != null && !telemetryConsentDate.isBlank()
+            ? telemetryConsentDate
+            : null;
     }
 
     public int getUpdateCheckIntervalDays() {

@@ -111,6 +111,8 @@ public class GPGKeyManagementDialog extends ThemeAwareDialog<Boolean> {
         dialog.showAndWait().ifPresent(key -> {
             keyManager.addKey(key);
             refreshKeyList();
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
+                java.util.Map.of("manager", "gpg_keys", "op", "add", "via", "manual"));
         });
     }
     
@@ -122,6 +124,8 @@ public class GPGKeyManagementDialog extends ThemeAwareDialog<Boolean> {
             dialog.showAndWait().ifPresent(key -> {
                 keyManager.updateKey(key);
                 refreshKeyList();
+                de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
+                    java.util.Map.of("manager", "gpg_keys", "op", "edit", "via", "manual"));
             });
         }
     }
@@ -199,6 +203,8 @@ public class GPGKeyManagementDialog extends ThemeAwareDialog<Boolean> {
                     keyManager.addKey(selectedKey);
                     refreshKeyList();
                     showInfo(I18n.get("gpg.import.successful"), I18n.get("gpg.import.successfulMessage"));
+                    de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
+                        java.util.Map.of("manager", "gpg_keys", "op", "add", "via", "gpg_import"));
                 });
             }
             

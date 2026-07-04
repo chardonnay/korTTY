@@ -130,6 +130,8 @@ public class SwarmChatManager {
         }
         sortChatsInPlace();
         save();
+        de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.AI_CHAT_SAVED,
+            java.util.Map.of("kind", "swarm", "is_new", existingIndex < 0));
         return new SavedSwarmChat(normalized);
     }
 

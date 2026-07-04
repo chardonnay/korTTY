@@ -63,4 +63,44 @@ class SnippetLanguageSupportTest {
 
         assertThat(detected).isEqualTo("plain");
     }
+
+    /**
+     * Regression test for KNOWN_LANGUAGES drifting out of sync with normalizeSnippetLanguage:
+     * every non-default switch branch must map to a token telemetryLanguageToken accepts as
+     * "known" (not silently bucketed into "other"). Exercised via the public API only, so a
+     * newly added switch case that forgets to update KNOWN_LANGUAGES fails this test.
+     */
+    @Test
+    void telemetryLanguageTokenRecognizesEveryNormalizedLanguage() {
+        String[] representativeAliases = {
+            "sh", "shell", "zsh", "bash",
+            "py", "python", "python3",
+            "pl", "perl",
+            "rb", "ruby",
+            "js", "javascript", "node", "nodejs",
+            "ps", "ps1", "pwsh", "powershell",
+            "groovy",
+            "java",
+            "json",
+            "yaml", "yml",
+            "xml",
+            "markdown", "md",
+            "asciidoctor", "asciidoc", "adoc",
+            "sql",
+            "dockerfile",
+            "properties", "ini",
+            "html",
+            "plain", "text", "txt"
+        };
+
+        for (String alias : representativeAliases) {
+            assertThat(SnippetLanguageSupport.telemetryLanguageToken(alias, "")).isNotEqualTo("other");
+        }
+    }
+
+    @Test
+    void telemetryLanguageTokenClampsFreeTextToOther() {
+        assertThat(SnippetLanguageSupport.telemetryLanguageToken("cobol", "")).isEqualTo("other");
+        assertThat(SnippetLanguageSupport.telemetryLanguageToken("some made-up language name", "")).isEqualTo("other");
+    }
 }

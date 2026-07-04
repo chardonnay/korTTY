@@ -121,6 +121,8 @@ public final class GuideViewer {
 
     /** Opens the guide, or focuses the existing window if one is already open. */
     public static void show(KorTTYApplication app, Window owner) {
+        de.kortty.telemetry.Telemetry.track(
+            de.kortty.telemetry.TelemetryEvents.TOOL_OPENED, java.util.Map.of("tool", "manual"));
         GuideViewer existing = openInstance.get();
         if (existing != null && !existing.disposed && existing.stage.isShowing()) {
             existing.stage.toFront();
@@ -129,6 +131,23 @@ public final class GuideViewer {
         }
         GuideViewer viewer = new GuideViewer(app, owner);
         openInstance = new WeakReference<>(viewer);
+        viewer.stage.show();
+    }
+
+    /** Opens the guide directly at a documentation location (e.g. {@code "about/anonymous-data.html"}). */
+    public static void show(KorTTYApplication app, Window owner, String location) {
+        de.kortty.telemetry.Telemetry.track(
+            de.kortty.telemetry.TelemetryEvents.TOOL_OPENED, java.util.Map.of("tool", "manual"));
+        GuideViewer existing = openInstance.get();
+        if (existing != null && !existing.disposed && existing.stage.isShowing()) {
+            existing.navigateToLocation(location);
+            existing.stage.toFront();
+            existing.stage.requestFocus();
+            return;
+        }
+        GuideViewer viewer = new GuideViewer(app, owner);
+        openInstance = new WeakReference<>(viewer);
+        viewer.navigateToLocation(location);
         viewer.stage.show();
     }
 
@@ -265,8 +284,44 @@ public final class GuideViewer {
                 });
             } else {
                 lastInternalLocation = newLoc;
+                trackGuidePageView(newLoc);
             }
         });
+    }
+
+    private String lastTrackedGuidePage;
+
+    /**
+     * Counts internal guide page views. The raw location is a {@code jar:file:/...} URL
+     * containing the install path (PII) — only the bare page filename is sent.
+     */
+    private void trackGuidePageView(String location) {
+        String page = sanitizeGuidePage(location);
+        if (page == null || page.equals(lastTrackedGuidePage)) {
+            return;
+        }
+        lastTrackedGuidePage = page;
+        de.kortty.telemetry.Telemetry.track(
+            de.kortty.telemetry.TelemetryEvents.GUIDE_PAGE_VIEWED, java.util.Map.of("page", page));
+    }
+
+    /** Reduces a full location URL to just the page filename, dropping the path, query, and fragment. */
+    static String sanitizeGuidePage(String location) {
+        if (location == null || location.isBlank()) {
+            return null;
+        }
+        String stripped = location;
+        int fragment = stripped.indexOf('#');
+        if (fragment >= 0) {
+            stripped = stripped.substring(0, fragment);
+        }
+        int query = stripped.indexOf('?');
+        if (query >= 0) {
+            stripped = stripped.substring(0, query);
+        }
+        int lastSlash = stripped.lastIndexOf('/');
+        String page = lastSlash >= 0 ? stripped.substring(lastSlash + 1) : stripped;
+        return page.isBlank() ? null : page;
     }
 
     /** True if the location points outside the bundled site (http/https/mailto/ftp) and should open externally. */
