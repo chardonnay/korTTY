@@ -1455,6 +1455,14 @@ tasks.register<JavaExec>("guideAskPanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("guideBackgroundUnloadSmoke") {
+    group = "verification"
+    description = "Verifies the guide WebView drops its page in the background and reloads the same URL on return."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.GuideBackgroundUnloadSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("swarmStatusStripSmoke") {
     group = "verification"
     description = "Renders the AI-swarm status strip in every agent state and snapshots it to build/smoke/swarm-strip-*.png."
