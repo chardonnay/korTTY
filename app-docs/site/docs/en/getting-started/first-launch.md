@@ -8,7 +8,11 @@ using **AES-256-GCM**.
    long enough and **red** when too short; a strength indicator rates the quality.
    A weak or common password shows a warning but can still be used if you confirm.
 2. Confirm the password.
-3. Click **Setup**.
+3. Optionally tick **Share anonymous usage statistics** to help improve korTTY. This
+   is off by default, fully anonymous and GDPR-compliant, and can be changed any time
+   in **Settings → Privacy**. The **?** button opens
+   [Anonymous data for application optimization](../about/anonymous-data.md).
+4. Click **Setup**.
 
 On subsequent launches you are prompted to enter the master password to unlock
 your encrypted data.

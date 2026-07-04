@@ -17,7 +17,26 @@ public final class SnippetLanguageSupport {
         "groovy",
         "powershell");
 
+    /**
+     * The complete set of normalized tokens {@link #normalizeSnippetLanguage} maps to.
+     * Anything else (its raw-passthrough default branch) is off-list, unbounded text.
+     */
+    private static final Set<String> KNOWN_LANGUAGES = Set.of(
+        "bash", "python", "perl", "ruby", "javascript", "powershell", "groovy", "java",
+        "json", "yaml", "xml", "markdown", "asciidoctor", "sql", "dockerfile",
+        "properties", "html", "plain");
+
     private SnippetLanguageSupport() {
+    }
+
+    /**
+     * A stable, bounded language token for anonymous telemetry: one of the known
+     * normalized languages, or {@code "other"} for anything off-list. Never returns
+     * free-form text (AI-generated or user-typed language names must not leak).
+     */
+    public static String telemetryLanguageToken(String language, String content) {
+        String detected = detectSnippetLanguage(language, content);
+        return detected != null && KNOWN_LANGUAGES.contains(detected) ? detected : "other";
     }
 
     public static String detectSnippetLanguage(String language, String content) {

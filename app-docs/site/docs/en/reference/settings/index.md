@@ -26,6 +26,7 @@ Each per-tab page lists settings as a table:
 | [Backup](backup.md) | Encryption type (ZIP-password / GPG), max backup count |
 | [Updates](updates.md) | Automatic update checking and interval |
 | [Security](security.md) | Master-password prompt, change master password, temporary SSH keys |
+| [Privacy](../../about/anonymous-data.md) | Opt-in for anonymous usage statistics (Aptabase, EU/GDPR) |
 | [Language](language.md) | UI language selection (8 built-in) + auto-detect |
 | [Translation](translation.md) | Dynamic-translation provider, API key, target language, generate language file |
 | [Video](video.md) | Terminal recording / `ffmpeg` video export |

@@ -127,6 +127,27 @@ public class TeamworkSettingsDialog extends ThemeAwareDialog<Void> {
                     alert.showAndWait();
                     return null;
                 }
+                // Telemetry: configuration snapshot (never source names/URLs). runSync() is not tracked (timer flood).
+                int gitCount = 0;
+                for (TeamworkSourceConfig source : candidateSources) {
+                    if (source.getType() == TeamworkSourceType.GIT) {
+                        gitCount++;
+                    }
+                }
+                java.util.Map<String, Object> teamworkProps = new java.util.LinkedHashMap<>();
+                teamworkProps.put("source_count", candidateSources.size());
+                teamworkProps.put("git_count", gitCount);
+                teamworkProps.put("shared_file_count", candidateSources.size() - gitCount);
+                int effectiveInterval = candidateSources.stream()
+                    .filter(TeamworkSourceConfig::isEnabled)
+                    .mapToInt(TeamworkSourceConfig::getCheckIntervalMinutes)
+                    .filter(interval -> interval >= 1)
+                    .min()
+                    .orElse(candidateInterval);
+                teamworkProps.put("interval_min", effectiveInterval < 1 ? 15 : effectiveInterval);
+                de.kortty.telemetry.Telemetry.track(
+                    de.kortty.telemetry.TelemetryEvents.TEAMWORK_CONFIGURED, teamworkProps);
+
                 // Save succeeded – trigger sync
                 if (app.getTeamworkSyncService() != null) {
                     app.getTeamworkSyncService().syncNow();

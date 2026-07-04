@@ -125,6 +125,8 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
             credentialManager.addCredential(result.credential);
             saveCredentialSecrets(result);
             refreshCredentialList();
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
+                java.util.Map.of("manager", "credentials", "op", "add", "via", "manual"));
         });
     }
     
@@ -137,6 +139,8 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
                 credentialManager.updateCredential(result.credential);
                 saveCredentialSecrets(result);
                 refreshCredentialList();
+                de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
+                    java.util.Map.of("manager", "credentials", "op", "edit", "via", "manual"));
             });
         }
     }

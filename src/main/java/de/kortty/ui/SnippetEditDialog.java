@@ -48,8 +48,11 @@ import javafx.stage.Modality;
 import javafx.stage.Popup;
 import javafx.util.Duration;
 
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -161,6 +164,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private int currentHistoryIndex = -1;
     private boolean sliderActive;
     private boolean updatingHistorySlider;
+    // Telemetry: adoption flags — count content-history usage once per dialog instance, not per keystroke.
+    private boolean telemetryUndoTracked;
+    private boolean telemetryHistorySliderTracked;
     private String pendingHistoryContent = ""; // content pending for history (debounced)
     private final PauseTransition historyDebounce = new PauseTransition(Duration.millis(500));
     private String lastTrackedContent = ""; // last content that was added to history
@@ -786,11 +792,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
         generateMetadataButton = new Button(aiActionLabel("snippets.ai.metadata.generate"));
         generateMetadataButton.setTooltip(new Tooltip(I18n.get("snippets.ai.metadata.generate.tooltip")));
-        generateMetadataButton.setOnAction(e -> beginMetadataGeneration(true));
+        generateMetadataButton.setOnAction(e -> { trackSnippetAiAction("metadata_generate"); beginMetadataGeneration(true); });
 
         correctDescriptionButton = new Button(aiActionLabel("snippets.description.correct"));
         correctDescriptionButton.setTooltip(new Tooltip(I18n.get("snippets.description.correct.tooltip")));
-        correctDescriptionButton.setOnAction(e -> runDescriptionCorrection());
+        correctDescriptionButton.setOnAction(e -> { trackSnippetAiAction("description_correct"); runDescriptionCorrection(); });
 
         HBox descriptionHeader = new HBox(10,
             new Label(I18n.get("common.description") + ":"),
@@ -858,32 +864,32 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
 
         correctSelectionTextItem = new MenuItem(aiActionLabel("snippets.ai.menu.correct"));
-        correctSelectionTextItem.setOnAction(e -> runSelectionCorrection());
+        correctSelectionTextItem.setOnAction(e -> { trackSnippetAiAction("text_correct"); runSelectionCorrection(); });
         translateSelectionTextItem = new MenuItem(aiActionLabel("snippets.ai.menu.translate"));
-        translateSelectionTextItem.setOnAction(e -> runSelectionTranslation());
+        translateSelectionTextItem.setOnAction(e -> { trackSnippetAiAction("text_translate"); runSelectionTranslation(); });
         describeSnippetItem = new MenuItem(aiActionLabel("snippets.ai.menu.describe"));
-        describeSnippetItem.setOnAction(e -> runSnippetDescription());
+        describeSnippetItem.setOnAction(e -> { trackSnippetAiAction("text_describe"); runSnippetDescription(); });
         aiTextMenu = new MenuButton(aiActionLabel("snippets.ai.menu"));
         aiTextMenu.getItems().addAll(correctSelectionTextItem, translateSelectionTextItem, describeSnippetItem);
 
         completeCodeItem = new MenuItem(aiActionLabel("snippets.ai.code.complete"));
-        completeCodeItem.setOnAction(e -> runCompletion(false));
+        completeCodeItem.setOnAction(e -> { trackSnippetAiAction("code_complete"); runCompletion(false); });
         autoCompleteItem = new CheckMenuItem(aiActionLabel("snippets.ai.code.autoComplete"));
-        autoCompleteItem.setOnAction(e -> handleAutoCompletionToggle());
+        autoCompleteItem.setOnAction(e -> { trackSnippetAiAction("code_autocomplete_toggle"); handleAutoCompletionToggle(); });
         reviewCodeItem = new MenuItem(aiActionLabel("snippets.ai.code.review"));
-        reviewCodeItem.setOnAction(e -> runCodeReview());
+        reviewCodeItem.setOnAction(e -> { trackSnippetAiAction("code_review"); runCodeReview(); });
         improveReadabilityItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.readability"));
-        improveReadabilityItem.setOnAction(e -> runCodeImprovement(I18n.get("snippets.ai.code.improve.readability.theme")));
+        improveReadabilityItem.setOnAction(e -> { trackSnippetAiAction("code_improve_readability"); runCodeImprovement(I18n.get("snippets.ai.code.improve.readability.theme")); });
         improveRobustnessItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.robustness"));
-        improveRobustnessItem.setOnAction(e -> runCodeImprovement(I18n.get("snippets.ai.code.improve.robustness.theme")));
+        improveRobustnessItem.setOnAction(e -> { trackSnippetAiAction("code_improve_robustness"); runCodeImprovement(I18n.get("snippets.ai.code.improve.robustness.theme")); });
         improvePerformanceItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.performance"));
-        improvePerformanceItem.setOnAction(e -> runCodeImprovement(I18n.get("snippets.ai.code.improve.performance.theme")));
+        improvePerformanceItem.setOnAction(e -> { trackSnippetAiAction("code_improve_performance"); runCodeImprovement(I18n.get("snippets.ai.code.improve.performance.theme")); });
         improveCustomItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.custom"));
-        improveCustomItem.setOnAction(e -> runCustomCodeImprovement());
+        improveCustomItem.setOnAction(e -> { trackSnippetAiAction("code_improve_custom"); runCustomCodeImprovement(); });
         securityCheckItem = new MenuItem(aiActionLabel("snippets.ai.security.title"));
-        securityCheckItem.setOnAction(e -> runSecurityCheck());
+        securityCheckItem.setOnAction(e -> { trackSnippetAiAction("code_security_check"); runSecurityCheck(); });
         diagramItem = new MenuItem(aiActionLabel("snippets.ai.diagram.menu"));
-        diagramItem.setOnAction(e -> openOrCreateDiagram());
+        diagramItem.setOnAction(e -> { trackSnippetAiAction("code_diagram"); openOrCreateDiagram(); });
         aiCodeMenu = new MenuButton(aiActionLabel("snippets.ai.code.menu"));
         aiCodeMenu.getItems().addAll(
             completeCodeItem,
@@ -904,9 +910,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         toggleLastAiChangeButton.setDisable(true);
 
         MenuItem oneLinerCompactItem = new MenuItem(I18n.get("snippets.oneliner.compact"));
-        oneLinerCompactItem.setOnAction(e -> runOneLiner(true));
+        oneLinerCompactItem.setOnAction(e -> {
+            Telemetry.track(TelemetryEvents.SNIPPET_ONELINER_USED, Map.of("variant", "compact"));
+            runOneLiner(true);
+        });
         MenuItem oneLinerEmbeddedItem = new MenuItem(I18n.get("snippets.oneliner.embedded"));
-        oneLinerEmbeddedItem.setOnAction(e -> runOneLiner(false));
+        oneLinerEmbeddedItem.setOnAction(e -> {
+            Telemetry.track(TelemetryEvents.SNIPPET_ONELINER_USED, Map.of("variant", "base64"));
+            runOneLiner(false);
+        });
         oneLinerMenu = new MenuButton("\u2192 " + I18n.get("snippets.oneliner.menu"));
         oneLinerMenu.getItems().addAll(oneLinerCompactItem, oneLinerEmbeddedItem);
         oneLinerMenu.setTooltip(new Tooltip(I18n.get("snippets.oneliner.tooltip")));
@@ -1246,6 +1258,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
 
         liveSavedSnippet = saved;
+        trackSnippetSaved(saved);
         initialContentSnapshot = safeContentText();
         initialFormSnapshot = currentFormSnapshot();
         lastTrackedContent = initialContentSnapshot;
@@ -1299,10 +1312,34 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
     }
 
+    /** One event per snippet-editor AI action; stable literal (never a localized theme string). */
+    private void trackSnippetAiAction(String action) {
+        Telemetry.track(TelemetryEvents.SNIPPET_AI_ACTION, Map.of("action", action));
+    }
+
+    /** Fires on save so "most used language" reflects persisted work, not combo clicks. Never sends name/content. */
+    private void trackSnippetSaved(Snippet saved) {
+        if (saved == null) {
+            return;
+        }
+        // Clamp to a bounded known-language token — never send AI-/user-produced free text.
+        String language = SnippetLanguageSupport.telemetryLanguageToken(saved.getLanguage(), saved.getContent());
+        String content = saved.getContent();
+        int lineCount = content == null || content.isEmpty() ? 0 : content.split("\n", -1).length;
+        Telemetry.track(TelemetryEvents.SNIPPET_SAVED, Map.of(
+            "language", language,
+            "has_category", saved.getCategory() != null && !saved.getCategory().isBlank(),
+            "content_lines", lineCount));
+    }
+
     private void undoContentChange() {
         if (!contentArea.isUndoAvailable()) {
             updateUndoControls();
             return;
+        }
+        if (!telemetryUndoTracked) {
+            telemetryUndoTracked = true;
+            Telemetry.track(TelemetryEvents.SNIPPET_HISTORY_USED, Map.of("kind", "undo"));
         }
         contentArea.undo();
         refreshBlockCaretSoon();
@@ -1436,6 +1473,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void navigateToHistoryEntry(int index) {
         if (index < 0 || index >= contentHistory.size()) {
             return;
+        }
+        if (sliderActive && !telemetryHistorySliderTracked) {
+            telemetryHistorySliderTracked = true;
+            Telemetry.track(TelemetryEvents.SNIPPET_HISTORY_USED, Map.of("kind", "history_slider"));
         }
         currentHistoryIndex = index;
         String historicalContent = contentHistory.get(currentHistoryIndex).getContent();

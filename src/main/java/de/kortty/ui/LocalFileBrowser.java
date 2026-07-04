@@ -6,6 +6,8 @@ import de.kortty.core.SnippetManager;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -230,50 +232,54 @@ public class LocalFileBrowser extends VBox {
         return node.hidden() ? HIDDEN_ICON_COLOR : (node.directory() ? FOLDER_ICON_COLOR : FILE_ICON_COLOR);
     }
 
+    private void trackFileBrowserAction(String action) {
+        Telemetry.track(TelemetryEvents.FILE_BROWSER_ACTION, java.util.Map.of("action", action));
+    }
+
     private ContextMenu createContextMenu() {
         ContextMenu menu = new ContextMenu();
 
         MenuItem openItem = new MenuItem(I18n.get("filebrowser.context.open"));
-        openItem.setOnAction(event -> openSelected());
+        openItem.setOnAction(event -> { trackFileBrowserAction("open"); openSelected(); });
 
         MenuItem loadAsTextFileItem = new MenuItem(I18n.get("filebrowser.context.loadAsTextFile"));
-        loadAsTextFileItem.setOnAction(event -> loadSelectedFileAsTextFile());
+        loadAsTextFileItem.setOnAction(event -> { trackFileBrowserAction("load_as_text"); loadSelectedFileAsTextFile(); });
 
         MenuItem copyItem = new MenuItem(I18n.get("filebrowser.context.copy"));
-        copyItem.setOnAction(event -> copySelectedFiles(false));
+        copyItem.setOnAction(event -> { trackFileBrowserAction("copy"); copySelectedFiles(false); });
 
         MenuItem cutItem = new MenuItem(I18n.get("filebrowser.context.cut"));
-        cutItem.setOnAction(event -> copySelectedFiles(true));
+        cutItem.setOnAction(event -> { trackFileBrowserAction("cut"); copySelectedFiles(true); });
 
         MenuItem pasteItem = new MenuItem(I18n.get("filebrowser.context.paste"));
-        pasteItem.setOnAction(event -> pasteFiles());
+        pasteItem.setOnAction(event -> { trackFileBrowserAction("paste"); pasteFiles(); });
 
         MenuItem deleteItem = new MenuItem(I18n.get("filebrowser.context.delete"));
-        deleteItem.setOnAction(event -> deleteSelectedFiles());
+        deleteItem.setOnAction(event -> { trackFileBrowserAction("delete"); deleteSelectedFiles(); });
 
         MenuItem selectAllItem = new MenuItem(I18n.get("filebrowser.context.selectAll"));
         selectAllItem.setOnAction(event -> selectAllFiles());
 
         MenuItem detailsItem = new MenuItem(I18n.get("filebrowser.context.details"));
-        detailsItem.setOnAction(event -> showDetails());
+        detailsItem.setOnAction(event -> { trackFileBrowserAction("details"); showDetails(); });
 
         Menu archiveMenu = new Menu(I18n.get("filebrowser.context.archive"));
         MenuItem zipItem = new MenuItem("ZIP");
-        zipItem.setOnAction(event -> archiveSelected("zip"));
+        zipItem.setOnAction(event -> { trackFileBrowserAction("archive"); archiveSelected("zip"); });
         MenuItem tarItem = new MenuItem("TAR");
-        tarItem.setOnAction(event -> archiveSelected("tar"));
+        tarItem.setOnAction(event -> { trackFileBrowserAction("archive"); archiveSelected("tar"); });
         MenuItem tgzItem = new MenuItem("TAR.GZ");
-        tgzItem.setOnAction(event -> archiveSelected("tgz"));
+        tgzItem.setOnAction(event -> { trackFileBrowserAction("archive"); archiveSelected("tgz"); });
         archiveMenu.getItems().addAll(zipItem, tarItem, tgzItem);
 
         MenuItem newFolderItem = new MenuItem(I18n.get("filebrowser.context.newFolder"));
-        newFolderItem.setOnAction(event -> createNewFolder());
+        newFolderItem.setOnAction(event -> { trackFileBrowserAction("new_folder"); createNewFolder(); });
 
         MenuItem newFileItem = new MenuItem(I18n.get("filebrowser.context.newFile"));
-        newFileItem.setOnAction(event -> createNewFile());
+        newFileItem.setOnAction(event -> { trackFileBrowserAction("new_file"); createNewFile(); });
 
         MenuItem ownerPermissionsItem = new MenuItem(I18n.get("sftp.setOwner.title"));
-        ownerPermissionsItem.setOnAction(event -> setOwnerPermissionsDialog());
+        ownerPermissionsItem.setOnAction(event -> { trackFileBrowserAction("owner_permissions"); setOwnerPermissionsDialog(); });
 
         showHiddenMenuItem = new CheckMenuItem(I18n.get("filebrowser.showHidden"));
         showHiddenMenuItem.setSelected(showHiddenFiles);
@@ -356,6 +362,7 @@ public class LocalFileBrowser extends VBox {
             try {
                 byte[] bytes = Files.readAllBytes(filePath);
                 String content = RemoteTextFileSelectionSupport.decodeUtf8TextFile(bytes);
+                Telemetry.track(TelemetryEvents.FILE_LOADED_AS_TEXT, java.util.Map.of("source", "file_browser"));
                 Platform.runLater(() -> openSnippetFileDialog(filePath, content));
             } catch (RemoteTextFileSelectionSupport.BinaryOrNonTextFileException e) {
                 Platform.runLater(() -> showLoadAsTextAlert(Alert.AlertType.WARNING,

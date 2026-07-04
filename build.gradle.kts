@@ -1487,6 +1487,14 @@ tasks.register<JavaExec>("generateDesignPreviews") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generatePrivacyTabScreenshot") {
+    group = "build"
+    description = "Renders the Settings > Privacy tab screenshot for the manual via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.PrivacyTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.jar {
     val implementationTitle = project.name
     val implementationVersion = project.version

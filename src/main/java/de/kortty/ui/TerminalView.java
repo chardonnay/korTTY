@@ -89,6 +89,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -378,6 +379,11 @@ public class TerminalView extends BorderPane {
             applyTerminalScrollbarVisibility(widget);
         }, widget -> gutterMap.get(widget), this::createTerminalAgentActivityPanel, this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
         splitPane.setOnWidgetClosed(this::discardTerminalAgentRunsForWidget); // Cancel + discard a widget's agent runs when its split closes
+        // Telemetry: count broadcast toggles (never keystrokes — the data path stays uninstrumented).
+        splitPane.setOnBroadcastModeChanged(enabled ->
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.BROADCAST_TOGGLED, Map.of(
+                "enabled", enabled,
+                "split_count", splitPane != null ? splitPane.getWidgetCount() : 0)));
         splitPane.setResetZoomCallback(this::resetZoom); // Reset zoom to connection or global default (not hardcoded 14)
         
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
@@ -906,6 +912,9 @@ public class TerminalView extends BorderPane {
             if (session == null) {
                 throw new IllegalStateException("Plugin returned no terminal effect session");
             }
+            // Plugin id only — resolved successfully, so this counts real on-screen usage.
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_EFFECT_APPLIED,
+                Map.of("effect", normalizedPluginId));
             activeTerminalEffect = new ActiveTerminalEffect(
                     normalizedPluginId,
                     session,
@@ -2028,13 +2037,17 @@ public class TerminalView extends BorderPane {
             return null;
         }
         
-        // Handle NEW_CONNECTION mode - ask user for a new connection
-        if (request.getSplitMode() == SplitRequest.SplitMode.NEW_CONNECTION) {
-            return createNewConnectionForSplit();
+        // NEW_CONNECTION asks the user for a new connection; SAME_SERVER_NEW_SHELL
+        // opens a new session to the same server.
+        TtyConnector connector = request.getSplitMode() == SplitRequest.SplitMode.NEW_CONNECTION
+            ? createNewConnectionForSplit()
+            : createSameServerConnection();
+        if (connector != null) {
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_SPLIT_CREATED, Map.of(
+                "mode", request.getSplitMode().name().toLowerCase(Locale.ROOT),
+                "split_count", (splitPane != null ? splitPane.getWidgetCount() : 0) + 1));
         }
-        
-        // SAME_SERVER_NEW_SHELL mode - create new SSH session to same server
-        return createSameServerConnection();
+        return connector;
     }
 
     private TtyConnector createConnectorForConnection(ServerConnection targetConnection, String targetPassword) {
@@ -4551,6 +4564,11 @@ public class TerminalView extends BorderPane {
         try {
             terminalLogger = new de.kortty.core.TerminalLogger(logConfig, connection.getDisplayName());
             terminalLogger.start();
+            if (logConfig.getFormat() != null) {
+                // Measures actual logging sessions, not just configuration.
+                de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_LOG_STARTED,
+                    Map.of("format", logConfig.getFormat().name().toLowerCase(Locale.ROOT)));
+            }
             
             // Register data listener to capture terminal output (SSH or local shell)
             if (ttyConnector instanceof ObservableTtyConnector observableConnector) {
