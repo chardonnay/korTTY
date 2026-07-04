@@ -89,6 +89,12 @@ public final class TerminalEffectPreviewSmoke {
         } catch (Throwable t) {
             failures.add("manager-dialog: " + t);
         }
+        try {
+            runOverlayVisibilityCheck();
+            System.out.println("  overlay visibility -> hidden overlays release their backing store");
+        } catch (Throwable t) {
+            failures.add("overlay-visibility: " + t);
+        }
 
         Platform.runLater(Platform::exit);
         if (!failures.isEmpty()) {
@@ -204,6 +210,22 @@ public final class TerminalEffectPreviewSmoke {
             }
         });
         awaitStep(captured, failure, "manager dialog snapshot");
+    }
+
+    private static void runOverlayVisibilityCheck() throws Exception {
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        CountDownLatch done = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                de.kortty.plugin.terminaleffects.pack.PackOverlayVisibilitySmokeSupport
+                        .verifyHiddenOverlayReleasesBackingStore();
+            } catch (Throwable t) {
+                failure.set(t);
+            } finally {
+                done.countDown();
+            }
+        });
+        awaitStep(done, failure, "overlay visibility check");
     }
 
     private static void awaitStep(

@@ -3,10 +3,13 @@ package de.kortty.plugin.terminaleffects.pack;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.Random;
@@ -19,6 +22,12 @@ import java.util.function.DoubleSupplier;
  *
  * <p>The animation speed multiplier is read per frame and must scale phase advancement
  * (band positions, event intervals) — never the frame interval — so CPU load stays constant.</p>
+ *
+ * <p>When bound to a terminal container via {@link #bindToContainer(StackPane)}, the overlay
+ * releases its canvas backing store (unbinds and shrinks to 0x0) while it is not visible in the
+ * scene — e.g. in a background tab — and rebinds automatically when it becomes visible again.
+ * A full-window canvas texture per hidden tab would otherwise exhaust the Prism texture pool
+ * once several effect tabs are open (RTTexture allocation returns null and rendering fails).</p>
  */
 abstract class AbstractPackOverlay extends Canvas {
 
@@ -29,6 +38,8 @@ abstract class AbstractPackOverlay extends Canvas {
     private final DoubleSupplier animationSpeedSupplier;
     private long frameIndex;
     private long startedAtNanos = System.nanoTime();
+    private @Nullable StackPane boundContainer;
+    private boolean boundToContainer;
 
     protected AbstractPackOverlay(DoubleSupplier animationSpeedSupplier) {
         this(animationSpeedSupplier, DEFAULT_FRAME_INTERVAL_MILLIS);
@@ -38,15 +49,15 @@ abstract class AbstractPackOverlay extends Canvas {
         this.animationSpeedSupplier = Objects.requireNonNull(animationSpeedSupplier, "animationSpeedSupplier");
         setMouseTransparent(true);
         setManaged(false);
-        timeline = new Timeline(new KeyFrame(Duration.millis(frameIntervalMillis), event -> draw()));
+        timeline = new Timeline(new KeyFrame(Duration.millis(frameIntervalMillis), event -> tick()));
         timeline.setCycleCount(Timeline.INDEFINITE);
         widthProperty().addListener((observable, oldValue, newValue) -> {
             onSizeChanged(getWidth(), getHeight());
-            draw();
+            tick();
         });
         heightProperty().addListener((observable, oldValue, newValue) -> {
             onSizeChanged(getWidth(), getHeight());
-            draw();
+            tick();
         });
     }
 
@@ -54,7 +65,7 @@ abstract class AbstractPackOverlay extends Canvas {
         frameIndex = 0L;
         startedAtNanos = System.nanoTime();
         timeline.playFromStart();
-        draw();
+        tick();
     }
 
     final void stop() {
@@ -62,7 +73,58 @@ abstract class AbstractPackOverlay extends Canvas {
         onStopped();
     }
 
-    private void draw() {
+    /**
+     * Sizes this overlay from the terminal container and enables background-tab handling.
+     * Must be called on the JavaFX thread.
+     */
+    final void bindToContainer(StackPane container) {
+        boundContainer = Objects.requireNonNull(container, "container");
+        rebindToContainer();
+    }
+
+    /**
+     * Unbinds, releases the canvas backing store and removes this overlay from its container.
+     * Must be called on the JavaFX thread.
+     */
+    final void detachFromContainer() {
+        StackPane container = boundContainer;
+        boundContainer = null;
+        releaseBackingStore();
+        if (container != null) {
+            container.getChildren().remove(this);
+        }
+    }
+
+    private void rebindToContainer() {
+        StackPane container = boundContainer;
+        if (container == null) {
+            return;
+        }
+        widthProperty().bind(container.widthProperty());
+        heightProperty().bind(container.heightProperty());
+        boundToContainer = true;
+    }
+
+    private void releaseBackingStore() {
+        widthProperty().unbind();
+        heightProperty().unbind();
+        boundToContainer = false;
+        setWidth(0.0);
+        setHeight(0.0);
+    }
+
+    final void tick() {
+        if (boundContainer != null) {
+            if (!isShowingInScene()) {
+                if (boundToContainer) {
+                    releaseBackingStore();
+                }
+                return;
+            }
+            if (!boundToContainer) {
+                rebindToContainer();
+            }
+        }
         double width = getWidth();
         double height = getHeight();
         if (width <= 0.0 || height <= 0.0) {
@@ -74,6 +136,20 @@ abstract class AbstractPackOverlay extends Canvas {
         double elapsedSeconds = (System.nanoTime() - startedAtNanos) / 1_000_000_000.0;
         double speed = TerminalEffectAnimationSpeed.normalize(animationSpeedSupplier.getAsDouble());
         paintFrame(gc, width, height, frameIndex, elapsedSeconds, speed);
+    }
+
+    private boolean isShowingInScene() {
+        if (getScene() == null) {
+            return false;
+        }
+        Node node = this;
+        while (node != null) {
+            if (!node.isVisible()) {
+                return false;
+            }
+            node = node.getParent();
+        }
+        return true;
     }
 
     /**

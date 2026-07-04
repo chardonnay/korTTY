@@ -39,26 +39,22 @@ class PackEffectSession implements TerminalEffectSession {
             overlay = installed;
         }
         StackPane overlayRoot = context.overlayRoot();
-        installed.widthProperty().bind(overlayRoot.widthProperty());
-        installed.heightProperty().bind(overlayRoot.heightProperty());
         if (!overlayRoot.getChildren().contains(installed)) {
             overlayRoot.getChildren().add(installed);
         }
+        installed.bindToContainer(overlayRoot);
         installed.start();
     }
 
     @Override
     public void stop() {
-        AbstractPackOverlay installed = overlay;
-        if (installed == null) {
+        AbstractPackOverlay toRemove = overlay;
+        if (toRemove == null) {
             return;
         }
-        AbstractPackOverlay toRemove = installed;
         Platform.runLater(() -> {
             toRemove.stop();
-            toRemove.widthProperty().unbind();
-            toRemove.heightProperty().unbind();
-            context.overlayRoot().getChildren().remove(toRemove);
+            toRemove.detachFromContainer();
         });
     }
 }
