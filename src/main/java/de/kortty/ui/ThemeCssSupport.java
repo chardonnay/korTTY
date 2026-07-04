@@ -356,7 +356,7 @@ final class ThemeCssSupport {
             ".ai-chat-messages { -fx-background-color: " + bg + "; }",
             ".ai-chat-role { -fx-text-fill: " + muted + "; }",
             ".ai-chat-role-assistant { -fx-text-fill: " + accent + "; }",
-            ".ai-chat-assistant { -fx-background-color: transparent; }",
+            ".ai-chat-assistant { -fx-background-color: transparent; -fx-border-color: " + border + "; -fx-border-radius: 12; -fx-padding: 10 14 10 14; }",
             ".ai-chat-text { -fx-text-fill: " + fg + "; -fx-highlight-fill: " + accent + "; -fx-highlight-text-fill: " + onAccent + "; }",
             ".ai-chat-text .content { -fx-background-color: transparent; }",
             ".ai-chat-user-row { -fx-background-color: transparent; }",

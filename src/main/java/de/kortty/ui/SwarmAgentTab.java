@@ -1118,6 +1118,11 @@ public class SwarmAgentTab extends Tab {
 
     // ---- Chat theming + search ---------------------------------------------
 
+    /** Re-applies the globally selected chat color profile; called when the profile changes. */
+    public void refreshChatColorProfile() {
+        applyChatTheme();
+    }
+
     private void applyChatTheme() {
         if (contentRoot == null) {
             return;

@@ -2283,6 +2283,7 @@ public class MainWindow {
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
                 refreshTerminalRecordingControlsVisibility();
+                refreshOpenChatColorProfiles();
                 if (menuBar != null && !menuBar.isVisible()) {
                     updateStatus(I18n.get("menu.view.menuBar.hiddenHint", MENU_BAR_TOGGLE_SHORTCUT_LABEL));
                 } else {
@@ -2292,6 +2293,17 @@ public class MainWindow {
         });
         
         dialog.showAndWait();
+    }
+
+    /** Re-applies the selected chat color profile to every open AI/swarm chat tab. */
+    void refreshOpenChatColorProfiles() {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof AiResultTab aiResultTab) {
+                aiResultTab.refreshChatColorProfile();
+            } else if (tab instanceof SwarmAgentTab swarmAgentTab) {
+                swarmAgentTab.refreshChatColorProfile();
+            }
+        }
     }
 
     private void refreshTerminalTabsUsingGlobalDefaults() {

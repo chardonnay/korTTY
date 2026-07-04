@@ -147,6 +147,9 @@ public class AiResultTab extends Tab {
     private BorderPane contentRoot;
     private final ComboBox<ChatColorProfile> chatProfileComboBox = new ComboBox<>();
     private String currentChatStylesheetUrl;
+    // Guards the combo listener while the selection is synced programmatically (from a broadcast),
+    // so re-theming other tabs does not re-persist or re-broadcast in a loop.
+    private boolean syncingChatProfile;
     // Parallel to messageEntries: the top-level node (used to scroll a match into view) and the node
     // that gets the search-hit outline (the user bubble, not its full-width row).
     private final List<Node> messageNodes = new ArrayList<>();
@@ -1098,12 +1101,28 @@ public class AiResultTab extends Tab {
         chatProfileComboBox.getSelectionModel().select(
             ChatColorProfileSupport.activeProfile(KorTTYApplication.getInstance()));
         chatProfileComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue == null) {
+            if (newValue == null || syncingChatProfile) {
                 return;
             }
             persistChatColorProfile(newValue.id());
-            applyChatTheme();
+            // Persist once, then let the window re-theme every open chat tab (including this one).
+            ownerWindow.refreshOpenChatColorProfiles();
         });
+    }
+
+    /** Re-selects the persisted profile and re-applies the chat theme; safe to call from a broadcast. */
+    public void refreshChatColorProfile() {
+        ChatColorProfile persisted = ChatColorProfileSupport.activeProfile(KorTTYApplication.getInstance());
+        ChatColorProfile current = chatProfileComboBox.getSelectionModel().getSelectedItem();
+        if (current == null || !current.id().equals(persisted.id())) {
+            syncingChatProfile = true;
+            try {
+                chatProfileComboBox.getSelectionModel().select(persisted);
+            } finally {
+                syncingChatProfile = false;
+            }
+        }
+        applyChatTheme();
     }
 
     private void persistChatColorProfile(String profileId) {

@@ -30,17 +30,42 @@ final class ChatColorProfileSupport {
 
     /**
      * Built-in profiles, in menu order. {@code AUTO} is first so the chat matches the terminal theme
-     * out of the box; the fixed palettes below are starting points that supplied screenshots refine.
+     * out of the box; the fixed palettes below are derived from the Odysseus reference screenshots.
+     * Slot order: background, surface, foreground, muted, accent, border, codeBackground,
+     * userBubbleBackground, userBubbleBorder.
      */
     private static final List<ChatColorProfile> BUILT_INS = List.of(
         ChatColorProfile.followTheme(AUTO_ID, null),
-        DARK_FALLBACK,
         ChatColorProfile.of(
-            "nord", "Nord",
-            "#2e3440", "#3b4252", "#eceff4", "#8f9bb0", "#88c0d0", "#434c5e", "#272c36", "#3b4a5c", "#4c6178"),
+            "original", "Original",
+            "#f1ebdf", "#e7dfce", "#35322b", "#8f887a", "#2f8f84", "#d9cfbb", "#e7dfce", "#f6f0e4", "#d9cfbb"),
         ChatColorProfile.of(
-            "solarized-dark", "Solarized Dark",
-            "#002b36", "#073642", "#93a1a1", "#586e75", "#268bd2", "#0e4b57", "#00212b", "#0a4451", "#1a6b7a"));
+            "paper", "Paper",
+            "#f7f3ea", "#efe9dc", "#33302a", "#918a7c", "#2f8f84", "#e0d8c6", "#efe9dc", "#fbf7ef", "#e0d8c6"),
+        ChatColorProfile.of(
+            "midnight", "Midnight",
+            "#0d0f14", "#171a21", "#c6cdd6", "#6a7280", "#45b3bd", "#262b34", "#090a0d", "#161922", "#2c313c"),
+        ChatColorProfile.of(
+            "cyberpunk", "Cyberpunk",
+            "#08070d", "#13101c", "#b6e3e6", "#7c6d92", "#c94fd6", "#7a3d9e", "#060509", "#150e1e", "#b64fce"),
+        ChatColorProfile.of(
+            "retrowave", "Retrowave",
+            "#16131f", "#1e1a2c", "#cdc9e0", "#7d7596", "#e0607f", "#57497d", "#0f0d18", "#1c1730", "#6d5399"),
+        ChatColorProfile.of(
+            "forest", "Forest",
+            "#0d130e", "#151d16", "#c6d2c2", "#7e8b78", "#5cb874", "#2c3f2a", "#080c08", "#131d15", "#3a5738"),
+        ChatColorProfile.of(
+            "ocean", "Ocean",
+            "#0a0e15", "#121824", "#c3ccd8", "#6a7688", "#4a90d9", "#26303f", "#070a10", "#121a28", "#2e4159"),
+        ChatColorProfile.of(
+            "terminal", "Terminal",
+            "#030803", "#0a1a0d", "#5fd88a", "#3f7a50", "#4ade80", "#14401f", "#020602", "#08160c", "#1f5a2c"),
+        ChatColorProfile.of(
+            "gpt", "GPT",
+            "#131315", "#1c1c20", "#cdcdce", "#7a7a7d", "#2f9e8f", "#2c2c31", "#0d0d0f", "#1b1b1f", "#34343a"),
+        ChatColorProfile.of(
+            "cute", "Cute",
+            "#fce7ee", "#f6d9e4", "#4a3540", "#a98a97", "#dd5c8e", "#f0c7d6", "#faecf2", "#fdf2f6", "#f0c7d6"));
 
     private ChatColorProfileSupport() {
     }
