@@ -219,6 +219,8 @@ public final class TerminalEffectPreviewSmoke {
             try {
                 de.kortty.plugin.terminaleffects.pack.PackOverlayVisibilitySmokeSupport
                         .verifyHiddenOverlayReleasesBackingStore();
+                de.kortty.plugin.terminaleffects.mother.MotherOverlayVisibilitySmokeSupport
+                        .verifyHiddenOverlayReleasesBackingStore();
             } catch (Throwable t) {
                 failure.set(t);
             } finally {

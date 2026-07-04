@@ -100,11 +100,10 @@ public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
 
         private void installOverlay() {
             StackPane overlayRoot = context.overlayRoot();
-            overlay.widthProperty().bind(overlayRoot.widthProperty());
-            overlay.heightProperty().bind(overlayRoot.heightProperty());
             if (!overlayRoot.getChildren().contains(overlay)) {
                 overlayRoot.getChildren().add(overlay);
             }
+            overlay.bindToContainer(overlayRoot);
             overlay.start();
         }
 
@@ -128,9 +127,7 @@ public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
             detachFlashListener();
             Platform.runLater(() -> {
                 overlay.stop();
-                overlay.widthProperty().unbind();
-                overlay.heightProperty().unbind();
-                context.overlayRoot().getChildren().remove(overlay);
+                overlay.detachFromContainer();
             });
         }
 

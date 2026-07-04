@@ -4,16 +4,26 @@ import com.sithtermfx.ui.SithTermFxWidget;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
+/**
+ * Green CRT overlay. When bound to a terminal container via {@link #bindToContainer(StackPane)},
+ * it releases its canvas backing store (unbinds and shrinks to 0x0) while it is not visible in
+ * the scene — e.g. in a background tab — and rebinds automatically when it becomes visible again,
+ * so hidden tabs do not keep full-window textures alive in the Prism texture pool.
+ */
 final class MotherCrtOverlay extends Canvas {
 
     private static final long LINE_FLASH_DURATION_NANOS = 260_000_000L;
@@ -22,24 +32,80 @@ final class MotherCrtOverlay extends Canvas {
     private final Random random = new Random();
     private final Timeline timeline;
     private final List<LineFlash> lineFlashes = new ArrayList<>();
+    private @Nullable StackPane boundContainer;
+    private boolean boundToContainer;
 
     MotherCrtOverlay() {
         setMouseTransparent(true);
         setManaged(false);
-        timeline = new Timeline(new KeyFrame(Duration.millis(35), event -> draw()));
+        timeline = new Timeline(new KeyFrame(Duration.millis(35), event -> tick()));
         timeline.setCycleCount(Timeline.INDEFINITE);
-        widthProperty().addListener((observable, oldValue, newValue) -> draw());
-        heightProperty().addListener((observable, oldValue, newValue) -> draw());
+        widthProperty().addListener((observable, oldValue, newValue) -> tick());
+        heightProperty().addListener((observable, oldValue, newValue) -> tick());
     }
 
     void start() {
         timeline.playFromStart();
-        draw();
+        tick();
     }
 
     void stop() {
         timeline.stop();
         lineFlashes.clear();
+    }
+
+    /**
+     * Sizes this overlay from the terminal container and enables background-tab handling.
+     * Must be called on the JavaFX thread.
+     */
+    void bindToContainer(StackPane container) {
+        boundContainer = Objects.requireNonNull(container, "container");
+        rebindToContainer();
+    }
+
+    /**
+     * Unbinds, releases the canvas backing store and removes this overlay from its container.
+     * Must be called on the JavaFX thread.
+     */
+    void detachFromContainer() {
+        StackPane container = boundContainer;
+        boundContainer = null;
+        releaseBackingStore();
+        if (container != null) {
+            container.getChildren().remove(this);
+        }
+    }
+
+    private void rebindToContainer() {
+        StackPane container = boundContainer;
+        if (container == null) {
+            return;
+        }
+        widthProperty().bind(container.widthProperty());
+        heightProperty().bind(container.heightProperty());
+        boundToContainer = true;
+    }
+
+    private void releaseBackingStore() {
+        widthProperty().unbind();
+        heightProperty().unbind();
+        boundToContainer = false;
+        setWidth(0.0);
+        setHeight(0.0);
+    }
+
+    private boolean isShowingInScene() {
+        if (getScene() == null) {
+            return false;
+        }
+        Node node = this;
+        while (node != null) {
+            if (!node.isVisible()) {
+                return false;
+            }
+            node = node.getParent();
+        }
+        return true;
     }
 
     void flashCurrentLine(SithTermFxWidget widget) {
@@ -62,7 +128,18 @@ final class MotherCrtOverlay extends Canvas {
         flashLine(row, cellHeight);
     }
 
-    private void draw() {
+    void tick() {
+        if (boundContainer != null) {
+            if (!isShowingInScene()) {
+                if (boundToContainer) {
+                    releaseBackingStore();
+                }
+                return;
+            }
+            if (!boundToContainer) {
+                rebindToContainer();
+            }
+        }
         double width = getWidth();
         double height = getHeight();
         if (width <= 0.0 || height <= 0.0) {
@@ -82,12 +159,12 @@ final class MotherCrtOverlay extends Canvas {
             LineFlash flash = lineFlashes.get(i);
             if (flash.row() == row) {
                 lineFlashes.set(i, new LineFlash(row, cellHeight, now));
-                draw();
+                tick();
                 return;
             }
         }
         lineFlashes.add(new LineFlash(row, cellHeight, now));
-        draw();
+        tick();
     }
 
     private void drawLineFlashes(GraphicsContext gc, double width, double height) {
