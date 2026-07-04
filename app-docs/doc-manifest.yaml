@@ -261,7 +261,7 @@ pages:
     owns_code: [src/main/java/de/kortty/plugin]
     diagrams: [terminal-effect-plugin-flow.svg]
     screenshots: [plugins/terminal-effects.png]
-    last_synced_ref: "4c7bad5"
+    last_synced_ref: "7e1ac40"
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/LanguageManager.java]

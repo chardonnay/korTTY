@@ -320,7 +320,7 @@ Gutes Overlay-Verhalten:
 - Stoppen Sie Zeitleisten/Animationen und lösen Sie die Bindung von Eigenschaften in `stop()`
 - Zeichnen Sie so günstig, dass Sie es immer wieder neu bemalen können
 - Entfernen Sie beim Herunterfahren den Overlay-Knoten von `overlayRoot()`
-- Geben Sie den Canvas-Backing-Speicher frei, während sich die Registerkarte im Hintergrund befindet: Eine fensterlose Canvas-Textur pro ausgeblendeter Registerkarte kann den Prism-Texturpool erschöpfen, sobald mehrere Effekt-Registerkarten geöffnet sind, was zum Absturz des Renderings führt. Das integrierte Effektpaket löst die Bindung und verkleinert die Overlay-Leinwand auf 0x0, während sie in der Szene nicht sichtbar ist, und bindet sie erneut, wenn die Registerkarte erneut angezeigt wird
+- Geben Sie den Canvas-Backing-Speicher frei, während sich die Registerkarte im Hintergrund befindet: Eine fensterlose Canvas-Textur pro ausgeblendeter Registerkarte kann den Prism-Texturpool erschöpfen, sobald mehrere Effekt-Registerkarten geöffnet sind, was zum Absturz des Renderings führt. Alle integrierten Effekte (MOTHER und das Effektpaket) lösen die Bindung und verkleinern ihre Overlay-Leinwand auf 0x0, während sie in der Szene nicht sichtbar ist, und binden sie erneut, wenn die Registerkarte erneut angezeigt wird
 
 Entscheiden Sie bei geteilten Terminals, ob das Overlay die gesamte Terminal-Registerkarte abdecken oder einzelne SithTermFX-Widgets verfolgen soll. `context.widgets()` kann mehr als ein Widget zurückgeben.
 
