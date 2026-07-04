@@ -87,6 +87,9 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
+import de.kortty.telemetry.TelemetryProps;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -698,6 +701,12 @@ public class AiResultTab extends Tab {
         appendUserMessage(prompt);
         promptInputArea.clear();
 
+        Map<String, Object> followUpProps = new LinkedHashMap<>(TelemetryProps.aiProfileProps(selectedProfile));
+        followUpProps.put("first", false);
+        followUpProps.put("broadcast", false);
+        followUpProps.put("action", "follow_up");
+        Telemetry.track(TelemetryEvents.AI_CHAT_MESSAGE, followUpProps);
+
         AiRequest request = new AiRequest(
             AiAction.ASK,
             selectedText,
@@ -760,6 +769,12 @@ public class AiResultTab extends Tab {
         }
         appendUserMessage(prompt);
         promptInputArea.clear();
+
+        Map<String, Object> broadcastProps = new LinkedHashMap<>(TelemetryProps.aiProfileProps(profile));
+        broadcastProps.put("first", false);
+        broadcastProps.put("broadcast", true);
+        broadcastProps.put("action", "follow_up");
+        Telemetry.track(TelemetryEvents.AI_CHAT_MESSAGE, broadcastProps);
 
         broadcastCancelled = new AtomicBoolean(false);
         AtomicBoolean cancelled = broadcastCancelled;

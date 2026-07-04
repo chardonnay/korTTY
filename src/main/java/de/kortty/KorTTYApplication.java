@@ -20,6 +20,12 @@ import de.kortty.teamwork.TeamworkRecycleBinService;
 import de.kortty.jobscheduler.JobSchedulerService;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.TeamworkSourceConfig;
+import de.kortty.model.TeamworkSourceType;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
+import de.kortty.telemetry.TelemetryProps;
+import de.kortty.telemetry.TelemetryService;
 import de.kortty.update.UpdateCheckService;
 import de.kortty.jmx.SSHClientMonitor;
 import de.kortty.security.MasterPasswordManager;
@@ -40,6 +46,10 @@ import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -78,6 +88,7 @@ public class KorTTYApplication extends Application {
     private TeamworkRecycleBinService teamworkRecycleBinService;
     private JobSchedulerService jobSchedulerService;
     private UpdateCheckService updateCheckService;
+    private TelemetryService telemetryService;
     private ScheduledExecutorService logMaintenanceExecutor;
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
@@ -122,6 +133,8 @@ public class KorTTYApplication extends Application {
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
         aiChatManager = new AiChatManager(configDir);
         swarmChatManager = new SwarmChatManager(configDir);
+        telemetryService = new TelemetryService(globalSettingsManager, configDir);
+        Telemetry.init(telemetryService);
 
         // Register JMX MBean
         registerJMXBean();
@@ -265,6 +278,10 @@ public class KorTTYApplication extends Application {
                     getConfigDirectory(), e);
             }
             
+            // Start telemetry before the main window: consent from the setup dialog is
+            // already persisted here, and the error appender is live during window construction.
+            telemetryService.start();
+
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
@@ -280,6 +297,15 @@ public class KorTTYApplication extends Application {
                 de.kortty.ui.MacMenuBarIcon.install();
             }
             startUpdateCheckService();
+
+            // One-time consent prompt for existing installations (first-run installs
+            // decide in the password-setup dialog; testMode never prompts).
+            if (!testMode) {
+                Platform.runLater(() -> de.kortty.ui.TelemetryConsentDialog.maybeShow(this, primaryStage));
+            }
+
+            trackUsageSnapshot("startup");
+            trackAiProfileSnapshots();
 
             logger.info("{} started successfully", APP_NAME);
             
@@ -414,6 +440,10 @@ public class KorTTYApplication extends Application {
             shutdownStep("stop update check", updateCheckService::stop);
             updateCheckService = null;
         }
+        if (telemetryService != null) {
+            trackUsageSnapshot("shutdown");
+            shutdownStep("flush telemetry", () -> telemetryService.shutdown(Duration.ofSeconds(3)));
+        }
         if (logMaintenanceExecutor != null) {
             shutdownStep("stop log maintenance", logMaintenanceExecutor::shutdownNow);
             logMaintenanceExecutor = null;
@@ -459,7 +489,87 @@ public class KorTTYApplication extends Application {
     
     private boolean handleMasterPassword(Stage ownerStage) {
         MasterPasswordDialog dialog = new MasterPasswordDialog(ownerStage, masterPasswordManager);
-        return dialog.showAndWait();
+        boolean confirmed = dialog.showAndWait();
+        if (confirmed && telemetryService != null) {
+            // First-run setup: persist the consent decision made next to the password fields.
+            dialog.getTelemetryConsentChoice().ifPresent(telemetryService::recordConsent);
+        }
+        return confirmed;
+    }
+
+    /**
+     * Consolidated inventory snapshot for the anonymous usage statistics,
+     * sent twice per session (startup + shutdown). Counts only — no content.
+     */
+    private void trackUsageSnapshot(String phase) {
+        try {
+            GlobalSettings settings = globalSettingsManager != null ? globalSettingsManager.getSettings() : null;
+            if (settings == null) {
+                return;
+            }
+            Map<String, Object> props = new LinkedHashMap<>();
+            props.put("phase", phase);
+            if (credentialManager != null) {
+                props.put("credential_count", credentialManager.getAllCredentials().size());
+            }
+            if (gpgKeyManager != null) {
+                props.put("gpg_key_count", gpgKeyManager.getAllKeys().size());
+            }
+            if (sshKeyManager != null) {
+                props.put("ssh_key_count", sshKeyManager.getAllKeys().size());
+            }
+            if (snippetManager != null) {
+                props.put("snippet_category_count", snippetManager.getAllCategories().size());
+            }
+            props.put("ai_enabled", settings.isAiFeaturesEnabled());
+            props.put("ai_profile_count", settings.getAiProfiles().size());
+            List<TeamworkSourceConfig> teamworkSources = settings.getTeamworkSources();
+            int gitCount = 0;
+            for (TeamworkSourceConfig source : teamworkSources) {
+                if (source.getType() == TeamworkSourceType.GIT) {
+                    gitCount++;
+                }
+            }
+            props.put("teamwork_source_count", teamworkSources.size());
+            props.put("teamwork_git_count", gitCount);
+            props.put("teamwork_shared_file_count", teamworkSources.size() - gitCount);
+            if (!teamworkSources.isEmpty()) {
+                // Same effective-interval formula as TeamworkSyncService.scheduleSync().
+                int intervalMinutes = teamworkSources.stream()
+                    .filter(TeamworkSourceConfig::isEnabled)
+                    .mapToInt(TeamworkSourceConfig::getCheckIntervalMinutes)
+                    .filter(interval -> interval >= 1)
+                    .min()
+                    .orElse(settings.getTeamworkDefaultCheckIntervalMinutes());
+                if (intervalMinutes < 1) {
+                    intervalMinutes = 15;
+                }
+                props.put("teamwork_interval_min", intervalMinutes);
+            }
+            props.put("window_count", MainWindow.getOpenWindowCount());
+            props.put("terminal_tab_count", MainWindow.getOpenTerminalTabCount());
+            Telemetry.track(TelemetryEvents.USAGE_SNAPSHOT, props);
+        } catch (Exception e) {
+            logger.debug("Usage snapshot failed: {}", e.toString());
+        }
+    }
+
+    /** One event per configured AI profile, once per session (metric: which model is used). */
+    private void trackAiProfileSnapshots() {
+        try {
+            GlobalSettings settings = globalSettingsManager != null ? globalSettingsManager.getSettings() : null;
+            if (settings == null) {
+                return;
+            }
+            List<de.kortty.model.AiProfile> profiles = settings.getAiProfiles();
+            for (int i = 0; i < profiles.size(); i++) {
+                Map<String, Object> props = new LinkedHashMap<>(TelemetryProps.aiProfileProps(profiles.get(i)));
+                props.put("index", i);
+                Telemetry.track(TelemetryEvents.AI_PROFILE_SNAPSHOT, props);
+            }
+        } catch (Exception e) {
+            logger.debug("AI profile snapshot failed: {}", e.toString());
+        }
     }
 
     public void applyLoggingSettings() {
@@ -469,6 +579,11 @@ public class KorTTYApplication extends Application {
         GlobalSettings settings = globalSettingsManager.getSettings();
         try {
             LoggingConfiguration.applyRuntimeSettings(settings, getConfigDirectory());
+            // applyRuntimeSettings resets the Logback context, which detaches every
+            // programmatic appender — the telemetry error appender must be re-attached.
+            if (telemetryService != null) {
+                telemetryService.onLoggingReconfigured();
+            }
             restartLogMaintenance(settings);
             logger.info(
                 "Logging configured: directory={}, retentionDays={}",
@@ -744,5 +859,9 @@ public class KorTTYApplication extends Application {
 
     public UpdateCheckService getUpdateCheckService() {
         return updateCheckService;
+    }
+
+    public TelemetryService getTelemetryService() {
+        return telemetryService;
     }
 }

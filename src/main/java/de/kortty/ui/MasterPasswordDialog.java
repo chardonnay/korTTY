@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Dialog for setting up or entering the master password.
@@ -51,7 +52,7 @@ public class MasterPasswordDialog {
     private static final double ELEGANT_LOGIN_DIALOG_WIDTH = 520;
     private static final double ELEGANT_LOGIN_DIALOG_HEIGHT = 320;
     private static final double SETUP_DIALOG_WIDTH = 780;
-    private static final double SETUP_DIALOG_HEIGHT = 520;
+    private static final double SETUP_DIALOG_HEIGHT = 600;
     private static final double LOGIN_BRAND_PANEL_WIDTH = 675;
     private static final double SETUP_BRAND_PANEL_WIDTH = 220;
     private static final double TACTICAL_AUTH_PANEL_WIDTH = 104;
@@ -79,6 +80,7 @@ public class MasterPasswordDialog {
     private final boolean customAppDesign;
     private MediaPlayer animatedLogoPlayer;
     private boolean result = false;
+    private CheckBox telemetryConsentCheck;
     
     public MasterPasswordDialog(Stage owner, MasterPasswordManager passwordManager) {
         this.passwordManager = passwordManager;
@@ -685,8 +687,41 @@ public class MasterPasswordDialog {
         
         HBox strengthBox = new HBox(10, strengthLabel, strengthBar);
         strengthBox.setAlignment(Pos.CENTER);
-        
-        root.getChildren().addAll(titleLabel, infoLabel, grid, strengthBox, errorLabel, buttonBox);
+
+        // Anonymous usage statistics: opt-in consent asked together with the password setup.
+        telemetryConsentCheck = new CheckBox(I18n.get("masterPassword.telemetry.consent"));
+        telemetryConsentCheck.setWrapText(true);
+        telemetryConsentCheck.setSelected(false);
+        telemetryConsentCheck.getStyleClass().add("field-label");
+        if (!isCustomAppDesign()) {
+            telemetryConsentCheck.setStyle("-fx-text-fill: #f1f5fb;");
+        }
+        Button telemetryInfoButton = new Button("?");
+        styleSecondaryButton(telemetryInfoButton);
+        telemetryInfoButton.setMinWidth(Region.USE_PREF_SIZE);
+        telemetryInfoButton.setPrefWidth(36);
+        telemetryInfoButton.setFocusTraversable(false);
+        telemetryInfoButton.setTooltip(new Tooltip(I18n.get("masterPassword.telemetry.info.tooltip")));
+        telemetryInfoButton.setOnAction(e -> {
+            try {
+                // Owner must be this APPLICATION_MODAL dialog, or the guide window would be frozen.
+                GuideViewer.show(KorTTYApplication.getInstance(), dialog, "about/anonymous-data.html");
+            } catch (RuntimeException ex) {
+                logger.warn("Could not open the guide chapter on anonymous data", ex);
+            }
+        });
+        Label telemetryDetailsLabel = new Label(I18n.get("masterPassword.telemetry.details"));
+        telemetryDetailsLabel.setWrapText(true);
+        telemetryDetailsLabel.getStyleClass().add("field-label");
+        if (!isCustomAppDesign()) {
+            telemetryDetailsLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 11px;");
+        }
+        HBox telemetryConsentRow = new HBox(8, telemetryConsentCheck, telemetryInfoButton);
+        telemetryConsentRow.setAlignment(Pos.CENTER_LEFT);
+        VBox telemetryConsentBox = new VBox(4, telemetryConsentRow, telemetryDetailsLabel);
+        telemetryConsentBox.setAlignment(Pos.CENTER_LEFT);
+
+        root.getChildren().addAll(titleLabel, infoLabel, grid, strengthBox, telemetryConsentBox, errorLabel, buttonBox);
         
         setupButton.setOnAction(e -> {
             String password = passwordField.getText();
@@ -1323,5 +1358,16 @@ public class MasterPasswordDialog {
         dialog.showAndWait();
         logger.info("Master password dialog closed, result={}", result);
         return result;
+    }
+
+    /**
+     * The telemetry consent choice from the first-run setup dialog: empty in
+     * login mode or when the setup was cancelled, otherwise the checkbox state.
+     */
+    public Optional<Boolean> getTelemetryConsentChoice() {
+        if (telemetryConsentCheck == null || !result) {
+            return Optional.empty();
+        }
+        return Optional.of(telemetryConsentCheck.isSelected());
     }
 }

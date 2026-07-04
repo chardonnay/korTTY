@@ -99,6 +99,9 @@ public class TerminalSplitPane extends StackPane {
     // per-widget resources such as terminal-agent runs/panels.
     private Consumer<SithTermFxWidget> onWidgetClosed;
 
+    // Optional hook invoked when broadcast mode actually changes state (host-app telemetry).
+    private Consumer<Boolean> onBroadcastModeChanged;
+
     /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
     private Runnable resetZoomCallback;
 
@@ -297,6 +300,10 @@ public class TerminalSplitPane extends StackPane {
     /** Sets a hook invoked for each widget being closed (split close or close-all). */
     public void setOnWidgetClosed(@Nullable Consumer<SithTermFxWidget> onWidgetClosed) {
         this.onWidgetClosed = onWidgetClosed;
+    }
+
+    public void setOnBroadcastModeChanged(@Nullable Consumer<Boolean> onBroadcastModeChanged) {
+        this.onBroadcastModeChanged = onBroadcastModeChanged;
     }
 
     private void notifyWidgetClosed(@Nullable SithTermFxWidget widget) {
@@ -549,8 +556,16 @@ public class TerminalSplitPane extends StackPane {
     }
     
     public void setBroadcastMode(boolean enabled) {
+        boolean changed = this.broadcastMode != enabled;
         this.broadcastMode = enabled;
         logger.info("Broadcast mode {}", enabled ? "enabled" : "disabled");
+        if (changed && onBroadcastModeChanged != null) {
+            try {
+                onBroadcastModeChanged.accept(enabled);
+            } catch (RuntimeException e) {
+                logger.debug("onBroadcastModeChanged hook failed: {}", e.getMessage());
+            }
+        }
     }
     
     public void toggleBroadcastMode() {

@@ -203,9 +203,11 @@ public class SSHKeyManagementDialog extends ThemeAwareDialog<Boolean> {
                 }
             }
             refreshKeyList();
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
+                java.util.Map.of("manager", "ssh_keys", "op", "add", "via", "manual"));
         });
     }
-    
+
     private void editKey() {
         SSHKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
@@ -223,10 +225,12 @@ public class SSHKeyManagementDialog extends ThemeAwareDialog<Boolean> {
                     }
                 }
                 refreshKeyList();
+                de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
+                    java.util.Map.of("manager", "ssh_keys", "op", "edit", "via", "manual"));
             });
         }
     }
-    
+
     private void removeKey() {
         SSHKey selected = keyListView.getSelectionModel().getSelectedItem();
         if (selected != null) {

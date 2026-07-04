@@ -130,6 +130,9 @@ final class GuideAskPanel extends VBox {
             return;
         }
         recordHistory(question);
+        // Question text is never sent — only that a search happened and in which guide language.
+        de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.GUIDE_AI_SEARCH,
+            java.util.Map.of("lang", guideLang != null ? guideLang : "en"));
         int sequence = ++requestSequence;
         setBusy(true);
         showSources(List.of());
@@ -309,7 +312,10 @@ final class GuideAskPanel extends VBox {
                 : excerpt.pageTitle() + " › " + excerpt.sectionTitle();
             Hyperlink link = new Hyperlink(label);
             link.setWrapText(true);
-            link.setOnAction(event -> locationNavigator.accept(excerpt.location()));
+            link.setOnAction(event -> {
+                trackCitationClick(excerpt.location());
+                locationNavigator.accept(excerpt.location());
+            });
             sourcesBox.getChildren().add(link);
         }
     }
@@ -335,8 +341,29 @@ final class GuideAskPanel extends VBox {
                 if (lastAnswerHtml != null) {
                     engine.loadContent(lastAnswerHtml);
                 }
+                trackCitationClick(location);
                 locationNavigator.accept(location);
             });
         });
+    }
+
+    /** Counts clicks on AI-search result links; the location is already a relative {@code page.html#anchor}. */
+    private void trackCitationClick(String location) {
+        if (location == null || location.isBlank()) {
+            return;
+        }
+        String page = location;
+        int fragment = page.indexOf('#');
+        if (fragment >= 0) {
+            page = page.substring(0, fragment);
+        }
+        int lastSlash = page.lastIndexOf('/');
+        if (lastSlash >= 0) {
+            page = page.substring(lastSlash + 1);
+        }
+        if (!page.isBlank()) {
+            de.kortty.telemetry.Telemetry.track(
+                de.kortty.telemetry.TelemetryEvents.GUIDE_CITATION_CLICKED, java.util.Map.of("page", page));
+        }
     }
 }

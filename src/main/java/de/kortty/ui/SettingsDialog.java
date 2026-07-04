@@ -1,6 +1,9 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
+import de.kortty.telemetry.TelemetryService;
 import de.kortty.ui.I18n;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
@@ -153,6 +156,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
+    private final CheckBox telemetryEnabledCheck;
     private final CheckBox temporarySshKeyEnabledCheck;
     
     // SSH Keep-Alive settings
@@ -1096,7 +1100,69 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         securityGrid.add(temporarySshKeyEnabledCheck, 0, securityRow++, 2, 1);
         
         securityTab.setContent(securityGrid);
-        
+
+        // Privacy tab (anonymous usage statistics: opt-in, EU servers, GDPR)
+        Tab privacyTab = new Tab(I18n.get("settings.tab.privacy"));
+        GridPane privacyGrid = new GridPane();
+        privacyGrid.setHgap(10);
+        privacyGrid.setVgap(10);
+        privacyGrid.setPadding(new Insets(20));
+
+        int privacyRow = 0;
+
+        Label privacyHeader = new Label(I18n.get("settings.telemetry.header"));
+        privacyHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        privacyGrid.add(privacyHeader, 0, privacyRow++, 2, 1);
+
+        Label privacySummaryLabel = new Label(I18n.get("settings.telemetry.summary"));
+        privacySummaryLabel.setWrapText(true);
+        privacySummaryLabel.setMaxWidth(640);
+        privacySummaryLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        privacyGrid.add(privacySummaryLabel, 0, privacyRow++, 2, 1);
+
+        telemetryEnabledCheck = new CheckBox(I18n.get("settings.telemetry.enable"));
+        telemetryEnabledCheck.setSelected(globalSettings != null && globalSettings.isTelemetryEnabled());
+        telemetryEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.telemetry.enable.tooltip")));
+        Button telemetryLearnMoreButton = new Button("?");
+        telemetryLearnMoreButton.setMinWidth(Region.USE_PREF_SIZE);
+        telemetryLearnMoreButton.setTooltip(new Tooltip(I18n.get("settings.telemetry.learnMore.tooltip")));
+        telemetryLearnMoreButton.setOnAction(e -> {
+            try {
+                GuideViewer.show(app, getDialogPane().getScene().getWindow(), "about/anonymous-data.html");
+            } catch (RuntimeException ex) {
+                org.slf4j.LoggerFactory.getLogger(getClass())
+                    .warn("Could not open the guide chapter on anonymous data", ex);
+            }
+        });
+        HBox telemetryEnableRow = new HBox(8, telemetryEnabledCheck, telemetryLearnMoreButton);
+        telemetryEnableRow.setAlignment(Pos.CENTER_LEFT);
+        privacyGrid.add(telemetryEnableRow, 0, privacyRow++, 2, 1);
+
+        privacyGrid.add(new Separator(), 0, privacyRow++, 2, 1);
+
+        Label telemetryCollectedLabel = new Label(I18n.get("settings.telemetry.collected"));
+        telemetryCollectedLabel.setWrapText(true);
+        telemetryCollectedLabel.setMaxWidth(640);
+        telemetryCollectedLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        privacyGrid.add(telemetryCollectedLabel, 0, privacyRow++, 2, 1);
+
+        Label telemetryNotCollectedLabel = new Label(I18n.get("settings.telemetry.notCollected"));
+        telemetryNotCollectedLabel.setWrapText(true);
+        telemetryNotCollectedLabel.setMaxWidth(640);
+        telemetryNotCollectedLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        privacyGrid.add(telemetryNotCollectedLabel, 0, privacyRow++, 2, 1);
+
+        String telemetryConsentDate = globalSettings != null ? globalSettings.getTelemetryConsentDate() : null;
+        if (telemetryConsentDate != null && globalSettings.getTelemetryConsentVersion() > 0) {
+            Label telemetryDecisionLabel =
+                new Label(I18n.get("settings.telemetry.decisionDate", formatConsentDate(telemetryConsentDate)));
+            telemetryDecisionLabel.setWrapText(true);
+            telemetryDecisionLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+            privacyGrid.add(telemetryDecisionLabel, 0, privacyRow++, 2, 1);
+        }
+
+        privacyTab.setContent(privacyGrid);
+
         // Language tab
         Tab languageTab = new Tab(I18n.get("settings.tab.language"));
         GridPane languageGrid = new GridPane();
@@ -2279,7 +2345,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Themes tab
         Tab themesTab = createThemesTab(owner);
         
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, updatesTab, windowTab, securityTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, updatesTab, windowTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
         
         final double defaultContentWidth = 1000;
         final double minimumContentWidth = 860;
@@ -2327,6 +2393,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     app.getGlobalSettingsManager().save();
                     app.applyLoggingSettings();
                     app.restartUpdateCheckService();
+                    if (app.getTelemetryService() != null) {
+                        // Enable starts the pipeline; disable discards the queue immediately.
+                        app.getTelemetryService().applyEnabledState();
+                    }
                     
                     // Update language manager if language was changed
                     if (globalSettings != null && globalSettings.getLanguage() != null) {
@@ -2417,6 +2487,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     
     /** @return true if save may continue, false to abort (e.g. vault locked and translation API key cannot be encrypted) */
     private boolean applySettings() {
+        // Snapshot for the "most changed settings" metric — read from the models
+        // before any setter runs, diffed again on the success path.
+        java.util.Map<String, Object> trackedSettingsBefore = captureTrackedSettings();
+
         settings.setFontFamily(fontFamilyCombo.getValue());
         settings.setFontSize(fontSizeSpinner.getValue());
         settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
@@ -2456,6 +2530,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
+
+            // Privacy tab: persist the consent decision (date only when it actually changed).
+            boolean telemetrySelected = telemetryEnabledCheck != null && telemetryEnabledCheck.isSelected();
+            if (telemetrySelected != globalSettings.isTelemetryEnabled()
+                    || globalSettings.getTelemetryConsentVersion() < TelemetryService.CURRENT_CONSENT_VERSION) {
+                globalSettings.setTelemetryEnabled(telemetrySelected);
+                globalSettings.setTelemetryConsentVersion(TelemetryService.CURRENT_CONSENT_VERSION);
+                globalSettings.setTelemetryConsentDate(java.time.Instant.now().toString());
+            }
             if (!saveLoggingSettingsToSettings()) {
                 return false;
             }
@@ -2600,7 +2683,142 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             
             globalSettings.setSnippetCursorColor(toHex(snippetCursorColorPicker.getValue()));
         }
+        trackChangedSettings(trackedSettingsBefore);
         return true;
+    }
+
+    // ------------------------------------------------------------------
+    // Anonymous usage statistics: "most changed settings" diff
+    // ------------------------------------------------------------------
+
+    private static final int MAX_SETTING_CHANGE_EVENTS_PER_APPLY = 25;
+
+    /** One tracked logical setting; {@code sendValue} only for non-sensitive bool/number/enum values. */
+    private record TrackedSetting(String tab, String key, java.util.function.Supplier<Object> reader, boolean sendValue) {}
+
+    /** Explicit catalog — deterministic and PII-auditable; extend with one line per setting. */
+    private java.util.List<TrackedSetting> trackedSettings() {
+        java.util.List<TrackedSetting> tracked = new java.util.ArrayList<>();
+        tracked.add(new TrackedSetting("font", "family", settings::getFontFamily, false));
+        tracked.add(new TrackedSetting("font", "size", settings::getFontSize, true));
+        tracked.add(new TrackedSetting("colors", "theme_id", settings::getThemeId, true));
+        tracked.add(new TrackedSetting("colors", "foreground", settings::getForegroundColor, false));
+        tracked.add(new TrackedSetting("colors", "background", settings::getBackgroundColor, false));
+        tracked.add(new TrackedSetting("colors", "cursor", settings::getCursorColor, false));
+        tracked.add(new TrackedSetting("colors", "selection", settings::getSelectionColor, false));
+        tracked.add(new TrackedSetting("colors", "bold_as_bright", settings::isBoldAsBright, true));
+        tracked.add(new TrackedSetting("colors", "terminal_colors_enabled", settings::isTerminalColorsEnabled, true));
+        tracked.add(new TrackedSetting("terminal", "columns", settings::getTerminalColumns, true));
+        tracked.add(new TrackedSetting("terminal", "rows", settings::getTerminalRows, true));
+        tracked.add(new TrackedSetting("terminal", "scrollback_lines", settings::getScrollbackLines, true));
+        tracked.add(new TrackedSetting("terminal", "encoding", settings::getEncoding, true));
+        tracked.add(new TrackedSetting("terminal", "command_timestamps", settings::isCommandTimestampsEnabled, true));
+        tracked.add(new TrackedSetting("terminal", "cursor_style", settings::getCursorStyle, true));
+        tracked.add(new TrackedSetting("terminal", "ssh_keepalive_enabled", settings::isSshKeepAliveEnabled, true));
+        tracked.add(new TrackedSetting("terminal", "ssh_keepalive_interval", settings::getSshKeepAliveInterval, true));
+        GlobalSettings gs = globalSettings;
+        if (gs != null) {
+            tracked.add(new TrackedSetting("appearance", "app_design", gs::getAppDesign, true));
+            tracked.add(new TrackedSetting("appearance", "animations_enabled", gs::isAppDesignAnimationsEnabled, true));
+            tracked.add(new TrackedSetting("appearance", "apply_theme_fonts", gs::isApplyThemeFonts, true));
+            tracked.add(new TrackedSetting("terminal", "connection_retries_enabled", gs::isConnectionRetriesEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "scrollbar_visible", gs::isShowTerminalScrollbar, true));
+            tracked.add(new TrackedSetting("terminal", "drag_drop_enabled", gs::isTerminalDragDropEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
+                gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
+            tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
+            tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
+            tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));
+            tracked.add(new TrackedSetting("backup", "encryption_type", gs::getBackupEncryptionType, true));
+            tracked.add(new TrackedSetting("logging", "retention_days", gs::getLogRetentionDays, true));
+            tracked.add(new TrackedSetting("logging", "directory_customized",
+                () -> gs.getLogDirectoryPath() != null && !gs.getLogDirectoryPath().isBlank(), true));
+            tracked.add(new TrackedSetting("updates", "checks_enabled", gs::isUpdateChecksEnabled, true));
+            tracked.add(new TrackedSetting("updates", "interval_days", gs::getUpdateCheckIntervalDays, true));
+            tracked.add(new TrackedSetting("window", "remember_geometry", gs::isRememberWindowGeometry, true));
+            tracked.add(new TrackedSetting("window", "remember_dashboard", gs::isRememberDashboardState, true));
+            tracked.add(new TrackedSetting("window", "fixed_geometry", gs::isUseFixedWindowGeometry, true));
+            tracked.add(new TrackedSetting("security", "require_master_password_on_startup",
+                gs::isRequireMasterPasswordOnStartup, true));
+            tracked.add(new TrackedSetting("security", "temporary_ssh_key_enabled", gs::isTemporarySshKeyEnabled, true));
+            tracked.add(new TrackedSetting("language", "ui_language", gs::getLanguage, true));
+            tracked.add(new TrackedSetting("translation", "provider", gs::getTranslationApiProvider, true));
+            tracked.add(new TrackedSetting("translation", "api_url_set",
+                () -> gs.getTranslationApiUrl() != null && !gs.getTranslationApiUrl().isBlank(), true));
+            tracked.add(new TrackedSetting("ai", "features_enabled", gs::isAiFeaturesEnabled, true));
+            tracked.add(new TrackedSetting("ai", "agent_execution_enabled", gs::isTerminalAgentExecutionEnabled, true));
+            tracked.add(new TrackedSetting("ai", "confirm_before_send", gs::isAiConfirmBeforeSend, true));
+            tracked.add(new TrackedSetting("sftp", "auto_close_minutes", gs::getSftpAutoCloseMinutes, true));
+        }
+        return tracked;
+    }
+
+    private java.util.Map<String, Object> captureTrackedSettings() {
+        java.util.Map<String, Object> values = new java.util.LinkedHashMap<>();
+        for (TrackedSetting tracked : trackedSettings()) {
+            try {
+                values.put(tracked.tab() + "." + tracked.key(), normalizeTrackedValue(tracked.reader().get()));
+            } catch (RuntimeException e) {
+                // a broken reader must never affect saving
+            }
+        }
+        return values;
+    }
+
+    /** Emits one {@code setting_changed} event per changed catalog entry (capped per apply). */
+    private void trackChangedSettings(java.util.Map<String, Object> before) {
+        try {
+            int emitted = 0;
+            for (TrackedSetting tracked : trackedSettings()) {
+                if (emitted >= MAX_SETTING_CHANGE_EVENTS_PER_APPLY) {
+                    break;
+                }
+                String settingKey = tracked.tab() + "." + tracked.key();
+                Object afterValue;
+                try {
+                    afterValue = normalizeTrackedValue(tracked.reader().get());
+                } catch (RuntimeException e) {
+                    continue;
+                }
+                if (java.util.Objects.equals(before.get(settingKey), afterValue)) {
+                    continue;
+                }
+                java.util.Map<String, Object> props = new java.util.LinkedHashMap<>();
+                props.put("setting", settingKey);
+                props.put("tab", tracked.tab());
+                if (tracked.sendValue() && afterValue != null) {
+                    props.put("value", afterValue);
+                }
+                Telemetry.track(TelemetryEvents.SETTING_CHANGED, props);
+                emitted++;
+            }
+        } catch (RuntimeException e) {
+            // tracking must never break saving
+        }
+    }
+
+    /** Booleans/numbers/strings pass; enums become lowercase names; other objects compare by toString. */
+    private static Object normalizeTrackedValue(Object value) {
+        if (value == null || value instanceof Boolean || value instanceof Number || value instanceof String) {
+            return value;
+        }
+        if (value instanceof Enum<?> enumValue) {
+            return enumValue.name().toLowerCase(java.util.Locale.ROOT);
+        }
+        return value.toString();
+    }
+
+    /** Localized display form of the stored ISO-8601 consent instant. */
+    private static String formatConsentDate(String isoInstant) {
+        try {
+            return java.time.format.DateTimeFormatter
+                .ofLocalizedDateTime(java.time.format.FormatStyle.MEDIUM)
+                .withZone(java.time.ZoneId.systemDefault())
+                .format(java.time.Instant.parse(isoInstant));
+        } catch (RuntimeException e) {
+            return isoInstant;
+        }
     }
 
     private void chooseLogDirectory() {
@@ -3195,7 +3413,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 
                 // Change master password
                 app.getMasterPasswordManager().changePassword(oldPasswordChars, newPasswordChars);
-                
+                Telemetry.track(TelemetryEvents.MASTER_PASSWORD_CHANGED);
+
                 // Re-encrypt all connection passwords
                 PasswordVault oldVault = new PasswordVault(
                     app.getMasterPasswordManager().getEncryptionService(),
