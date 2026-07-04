@@ -117,6 +117,22 @@ class TelemetryServiceTest {
     }
 
     @Test
+    void failedConsentPersistenceDoesNotEnableTelemetryNowOrLater() throws Exception {
+        // Force settingsManager.save() to fail by blocking the settings file path with a directory.
+        Files.createDirectories(configDir.resolve("global-settings.xml"));
+
+        service.recordConsent(true);
+
+        assertThat(service.isActive()).isFalse();
+        assertThat(settingsManager.getSettings().isTelemetryEnabled()).isFalse();
+
+        // A later, unrelated applyEnabledState() call (e.g. from a Settings dialog save) must
+        // not retroactively activate telemetry for a grant that was never durably persisted.
+        service.applyEnabledState();
+        assertThat(service.isActive()).isFalse();
+    }
+
+    @Test
     void detectsCrashOfPreviousRunViaStaleMarker() throws Exception {
         // Marker with a certainly-dead PID from a previous "crashed" run.
         Files.writeString(configDir.resolve(TelemetryService.RUN_MARKER_FILE), "999999999\n2.3.2\n");

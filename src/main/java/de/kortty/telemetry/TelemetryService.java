@@ -298,10 +298,13 @@ public final class TelemetryService {
         } catch (Exception e) {
             logger.warn("Failed to persist telemetry consent decision", e);
         }
-        // Only enable telemetry after successful persistence; always apply revocation immediately.
-        if (!granted || saved) {
-            applyEnabledState();
+        if (!saved && granted) {
+            // Don't leave an unpersisted "enabled" flag in memory — a later, unrelated
+            // applyEnabledState() call (e.g. from a Settings save) must not silently
+            // start collection for a grant that was never durably recorded.
+            settings.setTelemetryEnabled(false);
         }
+        applyEnabledState();
     }
 
     // ------------------------------------------------------------------
