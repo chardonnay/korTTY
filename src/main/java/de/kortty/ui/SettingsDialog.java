@@ -1128,7 +1128,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         telemetryLearnMoreButton.setTooltip(new Tooltip(I18n.get("settings.telemetry.learnMore.tooltip")));
         telemetryLearnMoreButton.setOnAction(e -> {
             try {
-                GuideViewer.show(app, getDialogPane().getScene().getWindow(), "about/anonymous-data.html");
+                GuideViewer.show(app, getDialogPane().getScene().getWindow(), de.kortty.telemetry.TelemetryEvents.GUIDE_LOCATION);
             } catch (RuntimeException ex) {
                 org.slf4j.LoggerFactory.getLogger(getClass())
                     .warn("Could not open the guide chapter on anonymous data", ex);
@@ -2531,11 +2531,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
 
-            // Privacy tab: persist the consent decision (date only when it actually changed).
+            // Privacy tab: persist the consent decision (date only when the user actually changed it).
             boolean telemetrySelected = telemetryEnabledCheck != null && telemetryEnabledCheck.isSelected();
-            if (telemetrySelected != globalSettings.isTelemetryEnabled()
-                    || globalSettings.getTelemetryConsentVersion() < TelemetryService.CURRENT_CONSENT_VERSION) {
-                globalSettings.setTelemetryEnabled(telemetrySelected);
+            boolean telemetryChanged = telemetrySelected != globalSettings.isTelemetryEnabled();
+            globalSettings.setTelemetryEnabled(telemetrySelected);
+            if (telemetryChanged) {
                 globalSettings.setTelemetryConsentVersion(TelemetryService.CURRENT_CONSENT_VERSION);
                 globalSettings.setTelemetryConsentDate(java.time.Instant.now().toString());
             }

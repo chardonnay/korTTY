@@ -3,6 +3,7 @@ package de.kortty.telemetry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -32,6 +33,6 @@ final class TelemetrySession {
     }
 
     static String newSessionId(long epochSeconds, int random) {
-        return epochSeconds + String.format("%08d", Math.floorMod(random, 100_000_000));
+        return epochSeconds + String.format(Locale.ROOT, "%08d", Math.floorMod(random, 100_000_000));
     }
 }

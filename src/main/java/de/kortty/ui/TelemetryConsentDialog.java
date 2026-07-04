@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryService;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -21,7 +22,6 @@ import org.slf4j.LoggerFactory;
 public final class TelemetryConsentDialog {
 
     private static final Logger logger = LoggerFactory.getLogger(TelemetryConsentDialog.class);
-    private static final String GUIDE_LOCATION = "about/anonymous-data.html";
 
     /** Shows the prompt once per installation; a no-op after any consent decision. */
     public static void maybeShow(KorTTYApplication app, Stage owner) {
@@ -55,7 +55,7 @@ public final class TelemetryConsentDialog {
                     Window dialogWindow = alert.getDialogPane().getScene() != null
                         ? alert.getDialogPane().getScene().getWindow()
                         : owner;
-                    GuideViewer.show(app, dialogWindow, GUIDE_LOCATION);
+                    GuideViewer.show(app, dialogWindow, TelemetryEvents.GUIDE_LOCATION);
                 } catch (RuntimeException e) {
                     logger.warn("Could not open the guide chapter on anonymous data", e);
                 }

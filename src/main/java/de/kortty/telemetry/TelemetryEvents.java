@@ -6,6 +6,9 @@ package de.kortty.telemetry;
  */
 public final class TelemetryEvents {
 
+    /** Guide chapter location for the anonymous data / telemetry documentation. */
+    public static final String GUIDE_LOCATION = "about/anonymous-data.html";
+
     // Lifecycle
     public static final String APP_STARTED = "app_started";
     public static final String APP_CRASH_DETECTED = "app_crash_detected";

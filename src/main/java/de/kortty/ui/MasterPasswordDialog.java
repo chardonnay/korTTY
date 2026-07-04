@@ -705,7 +705,7 @@ public class MasterPasswordDialog {
         telemetryInfoButton.setOnAction(e -> {
             try {
                 // Owner must be this APPLICATION_MODAL dialog, or the guide window would be frozen.
-                GuideViewer.show(KorTTYApplication.getInstance(), dialog, "about/anonymous-data.html");
+                GuideViewer.show(KorTTYApplication.getInstance(), dialog, de.kortty.telemetry.TelemetryEvents.GUIDE_LOCATION);
             } catch (RuntimeException ex) {
                 logger.warn("Could not open the guide chapter on anonymous data", ex);
             }

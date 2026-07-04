@@ -291,12 +291,17 @@ public final class TelemetryService {
         settings.setTelemetryEnabled(granted);
         settings.setTelemetryConsentVersion(CURRENT_CONSENT_VERSION);
         settings.setTelemetryConsentDate(DateTimeFormatter.ISO_INSTANT.format(clock.instant()));
+        boolean saved = false;
         try {
             settingsManager.save();
+            saved = true;
         } catch (Exception e) {
             logger.warn("Failed to persist telemetry consent decision", e);
         }
-        applyEnabledState();
+        // Only enable telemetry after successful persistence; always apply revocation immediately.
+        if (!granted || saved) {
+            applyEnabledState();
+        }
     }
 
     // ------------------------------------------------------------------
@@ -419,15 +424,18 @@ public final class TelemetryService {
     private void writeRunMarker() {
         Path marker = configDir.resolve(RUN_MARKER_FILE);
         try {
-            if (Files.exists(marker)) {
-                return; // concurrent instance — do not steal its marker
-            }
             SystemProps currentSystemProps = systemProps;
             String version = currentSystemProps != null ? currentSystemProps.appVersion() : "unknown";
+            String content = ProcessHandle.current().pid() + "\n" + version + "\n";
+            // Atomic create: only succeeds if the file does not exist
             Files.writeString(marker,
-                ProcessHandle.current().pid() + "\n" + version + "\n",
-                StandardCharsets.UTF_8);
+                content,
+                StandardCharsets.UTF_8,
+                java.nio.file.StandardOpenOption.CREATE_NEW);
             runMarkerOwned = true;
+        } catch (java.nio.file.FileAlreadyExistsException e) {
+            // Another instance already owns the marker
+            logger.debug("Telemetry run marker already owned by another instance");
         } catch (IOException e) {
             logger.debug("Could not write telemetry run marker: {}", e.toString());
         }
