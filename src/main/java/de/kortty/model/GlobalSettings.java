@@ -250,6 +250,10 @@ public class GlobalSettings {
     @XmlElement
     private String aiCodeTextDefaultLanguage;
 
+    /** Selected color profile id for the AI chat surfaces; null/blank = follow the terminal theme. */
+    @XmlElement
+    private String chatColorProfileId;
+
     /** Font size used in temporary AI result tabs. */
     @XmlElement
     private Integer aiResultFontSize = 13;
@@ -1176,6 +1180,17 @@ public class GlobalSettings {
         this.aiCodeTextDefaultLanguage =
             aiCodeTextDefaultLanguage != null && !aiCodeTextDefaultLanguage.isBlank()
                 ? aiCodeTextDefaultLanguage.trim()
+                : null;
+    }
+
+    public String getChatColorProfileId() {
+        return chatColorProfileId;
+    }
+
+    public void setChatColorProfileId(String chatColorProfileId) {
+        this.chatColorProfileId =
+            chatColorProfileId != null && !chatColorProfileId.isBlank()
+                ? chatColorProfileId.trim()
                 : null;
     }
 

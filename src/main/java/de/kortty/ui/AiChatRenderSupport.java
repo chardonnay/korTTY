@@ -54,6 +54,7 @@ public final class AiChatRenderSupport {
 
     private static Node selectableText(String text, int fontSize) {
         Label label = new Label(text != null ? text.trim() : "");
+        label.getStyleClass().add("ai-chat-text");
         label.setWrapText(true);
         label.setMaxWidth(Double.MAX_VALUE);
         label.setFont(Font.font(fontSize));
@@ -62,6 +63,7 @@ public final class AiChatRenderSupport {
 
     private static Node codeBlock(String code, int fontSize) {
         TextArea area = new TextArea(code != null ? code : "");
+        area.getStyleClass().add("ai-chat-code-area");
         area.setEditable(false);
         area.setWrapText(false);
         area.setStyle(String.format("-fx-font-family: 'monospace'; -fx-font-size: %dpx;", fontSize));

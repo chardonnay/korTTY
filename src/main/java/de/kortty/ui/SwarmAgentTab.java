@@ -26,6 +26,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -41,11 +42,14 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -101,6 +105,17 @@ public class SwarmAgentTab extends Tab {
     private final VBox messagesBox = new VBox(12);
     private final ScrollPane messagesScrollPane;
     private final ScrollPane dashboardScroll = new ScrollPane(agentRowsBox);
+    private BorderPane contentRoot;
+    private String currentChatStylesheetUrl;
+    // Parallel to messageEntries: the top-level node (used to scroll a match into view) and the node
+    // that gets the search-hit outline (the user bubble, not its full-width row).
+    private final List<Node> messageNodes = new ArrayList<>();
+    private final List<Node> highlightNodes = new ArrayList<>();
+    private HBox searchBar;
+    private TextField searchField;
+    private Label searchCountLabel;
+    private final List<Integer> searchMatches = new ArrayList<>();
+    private int currentSearchIndex = -1;
     private final SwarmStatusStrip statusStrip = new SwarmStatusStrip();
     private final Button copyChatButton = new Button(I18n.get("ai.result.copy"));
     private final MenuButton exportChatButton = new MenuButton(I18n.get("ai.result.export"));
@@ -224,6 +239,9 @@ public class SwarmAgentTab extends Tab {
         messagesBox.setFillWidth(true);
         messagesScrollPane = new ScrollPane(messagesBox);
         messagesScrollPane.setFitToWidth(true);
+        messagesScrollPane.getStyleClass().add("ai-chat-scroll");
+        messagesBox.getStyleClass().add("ai-chat-messages");
+        messagesBox.setPadding(new Insets(14, 16, 14, 16));
         promptInputArea.setWrapText(true);
         promptInputArea.setPrefRowCount(3);
         promptInputArea.setMinHeight(Region.USE_PREF_SIZE);
@@ -242,7 +260,8 @@ public class SwarmAgentTab extends Tab {
         HBox.setHgrow(promptFrame, Priority.ALWAYS);
         HBox composer = new HBox(10, promptFrame, sendButton);
         composer.setAlignment(Pos.BOTTOM_RIGHT);
-        VBox chat = new VBox(8, buildChatHeader(), messagesScrollPane, composer);
+        searchBar = createChatSearchBar();
+        VBox chat = new VBox(8, buildChatHeader(), searchBar, messagesScrollPane, composer);
         chat.setPadding(new Insets(8));
         VBox.setVgrow(messagesScrollPane, Priority.ALWAYS);
 
@@ -250,9 +269,12 @@ public class SwarmAgentTab extends Tab {
         split.setDividerPositions(0.42);
 
         BorderPane content = new BorderPane();
+        contentRoot = content;
         content.setTop(new VBox(toolBar, statusStrip));
         content.setCenter(split);
+        content.addEventFilter(KeyEvent.KEY_PRESSED, this::handleChatShortcut);
         setContent(content);
+        applyChatTheme();
 
         statusStrip.setOnOrbClicked(this::highlightAgentRow);
         statusStrip.setTabSelected(isSelected());
@@ -952,8 +974,12 @@ public class SwarmAgentTab extends Tab {
         exportChatButton.getItems().setAll(plainItem, markdownItem, pdfItem);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
+        Button findButton = new Button(I18n.get("ai.chat.search"));
+        findButton.setTooltip(new Tooltip(I18n.get("ai.chat.search.tooltip")));
+        findButton.setOnAction(e -> toggleChatSearch());
         HBox header = new HBox(8,
-            new Label(I18n.get("ai.swarm.chat.title")), chatStatusLabel, spacer, copyChatButton, exportChatButton);
+            new Label(I18n.get("ai.swarm.chat.title")), chatStatusLabel, spacer,
+            findButton, copyChatButton, exportChatButton);
         header.setAlignment(Pos.CENTER_LEFT);
         return header;
     }
@@ -1052,17 +1078,217 @@ public class SwarmAgentTab extends Tab {
 
     private void renderMessage(SavedSwarmMessage message) {
         boolean assistant = SavedSwarmMessage.ROLE_ASSISTANT.equals(message.getRole());
-        VBox card = new VBox(6);
-        card.setFillWidth(true);
-        card.setStyle(assistant
-            ? "-fx-background-color: rgba(42,42,42,0.18); -fx-background-radius: 8; -fx-padding: 10;"
-            : "-fx-background-color: rgba(0,102,204,0.08); -fx-background-radius: 8; -fx-padding: 10;");
-        Label roleLabel = new Label(assistant ? I18n.get("ai.swarm.assistant") : I18n.get("ai.swarm.user"));
-        roleLabel.setStyle("-fx-font-weight: bold;");
-        card.getChildren().add(roleLabel);
-        AiChatRenderSupport.renderInto(card, assistant, message.getContent(), FONT_SIZE);
-        messagesBox.getChildren().add(card);
+        Node topNode;
+        Node highlightTarget;
+        if (assistant) {
+            VBox block = new VBox(6);
+            block.setFillWidth(true);
+            block.getStyleClass().add("ai-chat-assistant");
+            Label roleLabel = new Label(I18n.get("ai.swarm.assistant"));
+            roleLabel.getStyleClass().addAll("ai-chat-role", "ai-chat-role-assistant");
+            roleLabel.setStyle("-fx-font-weight: bold;");
+            block.getChildren().add(roleLabel);
+            AiChatRenderSupport.renderInto(block, true, message.getContent(), FONT_SIZE);
+            topNode = block;
+            highlightTarget = block;
+        } else {
+            VBox bubble = new VBox(4);
+            bubble.setFillWidth(true);
+            bubble.getStyleClass().add("ai-chat-user-bubble");
+            Label roleLabel = new Label(I18n.get("ai.swarm.user"));
+            roleLabel.getStyleClass().add("ai-chat-role");
+            roleLabel.setStyle("-fx-font-weight: bold;");
+            roleLabel.setMaxWidth(Double.MAX_VALUE);
+            roleLabel.setAlignment(Pos.CENTER_RIGHT);
+            bubble.getChildren().add(roleLabel);
+            AiChatRenderSupport.renderInto(bubble, false, message.getContent(), FONT_SIZE);
+            HBox row = new HBox(bubble);
+            row.getStyleClass().add("ai-chat-user-row");
+            row.setAlignment(Pos.CENTER_RIGHT);
+            // Cap the bubble to ~74% of the viewport so the user's turn reads as an indented reply.
+            bubble.maxWidthProperty().bind(messagesScrollPane.widthProperty().multiply(0.74));
+            topNode = row;
+            highlightTarget = bubble;
+        }
+        messagesBox.getChildren().add(topNode);
+        messageNodes.add(topNode);
+        highlightNodes.add(highlightTarget);
         Platform.runLater(() -> messagesScrollPane.setVvalue(1.0));
+    }
+
+    // ---- Chat theming + search ---------------------------------------------
+
+    private void applyChatTheme() {
+        if (contentRoot == null) {
+            return;
+        }
+        ThemeCssSupport.ChatPalette palette = ChatColorProfileSupport.resolvePalette(
+            ChatColorProfileSupport.activeProfile(KorTTYApplication.getInstance()),
+            KorTTYApplication.getInstance());
+        String url = ThemeCssSupport.getChatStylesheetUrl(palette);
+        if (currentChatStylesheetUrl != null) {
+            contentRoot.getStylesheets().remove(currentChatStylesheetUrl);
+        }
+        if (url != null) {
+            contentRoot.getStylesheets().add(url);
+        }
+        currentChatStylesheetUrl = url;
+    }
+
+    private HBox createChatSearchBar() {
+        searchField = new TextField();
+        searchField.getStyleClass().add("ai-chat-search-field");
+        searchField.setPromptText(I18n.get("ai.chat.search.prompt"));
+        HBox.setHgrow(searchField, Priority.ALWAYS);
+        searchField.textProperty().addListener((obs, oldValue, newValue) -> runChatSearch());
+        searchField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                gotoRelativeMatch(event.isShiftDown() ? -1 : 1);
+                event.consume();
+            } else if (event.getCode() == KeyCode.ESCAPE) {
+                hideChatSearch();
+                event.consume();
+            }
+        });
+
+        Button prevButton = new Button("↑");
+        prevButton.getStyleClass().add("ai-chat-icon-button");
+        prevButton.setTooltip(new Tooltip(I18n.get("ai.chat.search.previous")));
+        prevButton.setOnAction(e -> gotoRelativeMatch(-1));
+        Button nextButton = new Button("↓");
+        nextButton.getStyleClass().add("ai-chat-icon-button");
+        nextButton.setTooltip(new Tooltip(I18n.get("ai.chat.search.next")));
+        nextButton.setOnAction(e -> gotoRelativeMatch(1));
+
+        searchCountLabel = new Label("");
+        searchCountLabel.getStyleClass().add("ai-chat-search-count");
+
+        Button closeSearch = new Button("✕");
+        closeSearch.getStyleClass().add("ai-chat-icon-button");
+        closeSearch.setOnAction(e -> hideChatSearch());
+
+        HBox bar = new HBox(8, new Label(I18n.get("ai.chat.search")), searchField, prevButton, nextButton,
+            searchCountLabel, closeSearch);
+        bar.getStyleClass().add("ai-chat-search-bar");
+        bar.setAlignment(Pos.CENTER_LEFT);
+        bar.setVisible(false);
+        bar.setManaged(false);
+        return bar;
+    }
+
+    private void handleChatShortcut(KeyEvent event) {
+        if (event.getCode() == KeyCode.F && event.isShortcutDown()) {
+            toggleChatSearch();
+            event.consume();
+        }
+    }
+
+    private void toggleChatSearch() {
+        if (searchBar == null) {
+            return;
+        }
+        if (searchBar.isVisible()) {
+            hideChatSearch();
+        } else {
+            searchBar.setVisible(true);
+            searchBar.setManaged(true);
+            searchField.requestFocus();
+            searchField.selectAll();
+            runChatSearch();
+        }
+    }
+
+    private void hideChatSearch() {
+        if (searchBar == null) {
+            return;
+        }
+        searchBar.setVisible(false);
+        searchBar.setManaged(false);
+        clearSearchHighlights();
+        searchMatches.clear();
+        currentSearchIndex = -1;
+    }
+
+    private void clearSearchHighlights() {
+        for (Node node : highlightNodes) {
+            node.getStyleClass().removeAll("ai-chat-hit", "ai-chat-hit-current");
+        }
+    }
+
+    private void runChatSearch() {
+        clearSearchHighlights();
+        searchMatches.clear();
+        currentSearchIndex = -1;
+        String query = searchField != null ? searchField.getText() : null;
+        if (query == null || query.isBlank()) {
+            updateSearchCount();
+            return;
+        }
+        String needle = query.toLowerCase(Locale.ROOT);
+        for (int i = 0; i < messageEntries.size() && i < highlightNodes.size(); i++) {
+            SavedSwarmMessage entry = messageEntries.get(i);
+            String content = entry != null ? entry.getContent() : null;
+            if (content != null && content.toLowerCase(Locale.ROOT).contains(needle)) {
+                searchMatches.add(i);
+                highlightNodes.get(i).getStyleClass().add("ai-chat-hit");
+            }
+        }
+        if (!searchMatches.isEmpty()) {
+            currentSearchIndex = 0;
+            focusCurrentMatch();
+        }
+        updateSearchCount();
+    }
+
+    private void gotoRelativeMatch(int delta) {
+        if (searchMatches.isEmpty()) {
+            return;
+        }
+        currentSearchIndex = (currentSearchIndex + delta + searchMatches.size()) % searchMatches.size();
+        focusCurrentMatch();
+        updateSearchCount();
+    }
+
+    private void focusCurrentMatch() {
+        for (Node node : highlightNodes) {
+            node.getStyleClass().remove("ai-chat-hit-current");
+        }
+        if (currentSearchIndex < 0 || currentSearchIndex >= searchMatches.size()) {
+            return;
+        }
+        int messageIndex = searchMatches.get(currentSearchIndex);
+        if (messageIndex < 0 || messageIndex >= messageNodes.size()) {
+            return;
+        }
+        highlightNodes.get(messageIndex).getStyleClass().add("ai-chat-hit-current");
+        scrollNodeIntoView(messageNodes.get(messageIndex));
+    }
+
+    private void scrollNodeIntoView(Node node) {
+        Platform.runLater(() -> {
+            double contentHeight = messagesBox.getHeight();
+            double viewportHeight = messagesScrollPane.getViewportBounds().getHeight();
+            double scrollable = contentHeight - viewportHeight;
+            if (scrollable <= 0) {
+                return;
+            }
+            double nodeTop = node.getBoundsInParent().getMinY();
+            double target = (nodeTop - 12) / scrollable;
+            messagesScrollPane.setVvalue(Math.max(0, Math.min(1, target)));
+        });
+    }
+
+    private void updateSearchCount() {
+        if (searchCountLabel == null) {
+            return;
+        }
+        if (searchMatches.isEmpty()) {
+            String query = searchField != null ? searchField.getText() : null;
+            searchCountLabel.setText(query == null || query.isBlank() ? "" : I18n.get("ai.chat.search.noMatches"));
+        } else {
+            searchCountLabel.setText(I18n.get("ai.chat.search.count",
+                Integer.toString(currentSearchIndex + 1), Integer.toString(searchMatches.size())));
+        }
     }
 
     // ---- Persistence --------------------------------------------------------
