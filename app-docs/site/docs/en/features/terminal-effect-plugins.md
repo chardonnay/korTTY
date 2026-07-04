@@ -320,6 +320,7 @@ Good overlay behavior:
 - Stop timelines/animations and unbind properties in `stop()`
 - Keep drawing cheap enough for repeated repainting
 - Remove the overlay node from `overlayRoot()` on shutdown
+- Release the canvas backing store while the tab is in the background: a full-window canvas texture per hidden tab can exhaust the Prism texture pool once several effect tabs are open, which crashes rendering. The built-in effect pack unbinds and shrinks its overlay canvas to 0x0 while it is not visible in the scene and rebinds when the tab is shown again
 
 For split terminals, decide whether the overlay should cover the full terminal tab or track individual SithTermFX widgets. `context.widgets()` can return more than one widget.
 
