@@ -1064,7 +1064,7 @@ public class TerminalView extends BorderPane {
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_EFFECT_APPLIED,
                 Map.of("effect", normalizedPluginId));
             session.start();
-            logger.info("Activated terminal effect plugin '{}' on a pane of {}", normalizedPluginId, connection.getDisplayName());
+            logger.info("Activated terminal effect plugin '{}' on a pane", normalizedPluginId);
         } catch (Exception e) {
             logger.warn("Could not activate terminal effect plugin '{}': {}", normalizedPluginId, e.getMessage(), e);
             paneEffects.remove(pane);
