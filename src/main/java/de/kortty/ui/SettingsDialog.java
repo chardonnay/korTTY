@@ -49,6 +49,7 @@ import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.AppDesign;
+import de.kortty.model.ChatColorProfile;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
@@ -152,6 +153,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
+    private ComboBox<ChatColorProfile> chatColorProfileCombo;
     private CheckBox appDesignAnimationsCheck;
     
     // Security settings
@@ -401,6 +403,24 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         appDesignAnimationsCheck = new CheckBox(I18n.get("settings.appearance.animations"));
         appDesignAnimationsCheck.setSelected(globalSettings == null || globalSettings.isAppDesignAnimationsEnabled());
 
+        // Chat color profile (themes for the AI/swarm chat surfaces).
+        chatColorProfileCombo = new ComboBox<>();
+        chatColorProfileCombo.getItems().setAll(ChatColorProfileSupport.all());
+        chatColorProfileCombo.setPrefWidth(220);
+        Supplier<ListCell<ChatColorProfile>> chatProfileCellFactory = () -> new ListCell<>() {
+            @Override
+            protected void updateItem(ChatColorProfile profile, boolean empty) {
+                super.updateItem(profile, empty);
+                setText(empty || profile == null ? null : ChatColorProfileSupport.displayName(profile));
+            }
+        };
+        chatColorProfileCombo.setCellFactory(listView -> chatProfileCellFactory.get());
+        chatColorProfileCombo.setButtonCell(chatProfileCellFactory.get());
+        chatColorProfileCombo.setValue(ChatColorProfileSupport.activeProfile(app));
+        HBox chatColorProfileControls = new HBox(8,
+            new Label(I18n.get("settings.appearance.chatColorProfile")), chatColorProfileCombo);
+        chatColorProfileControls.setAlignment(Pos.CENTER_LEFT);
+
         Label appearanceInfo = new Label(I18n.get("settings.appearance.appDesign.info"));
         appearanceInfo.setWrapText(true);
         appearanceInfo.setMaxWidth(460);
@@ -437,7 +457,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         updateAppDesignPreview(appDesignPreviewImage, appDesignPreviewPlaceholder, appDesignPreviewBox, appDesignCombo.getValue());
 
         // Plain top-to-bottom stack: controls row, the info text, then the fixed preview box below.
-        VBox appearanceContent = new VBox(14, appDesignControls, appDesignAnimationsCheck, appearanceInfo, appDesignPreviewBox);
+        VBox appearanceContent = new VBox(14, appDesignControls, appDesignAnimationsCheck,
+            chatColorProfileControls, appearanceInfo, appDesignPreviewBox);
         appearanceContent.setPadding(new Insets(20));
         appearanceTab.setContent(appearanceContent);
         
@@ -2516,6 +2537,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setApplyThemeFonts(applyThemeFontsProperty.get());
             globalSettings.setAppDesign(appDesignCombo.getValue());
             globalSettings.setAppDesignAnimationsEnabled(appDesignAnimationsCheck.isSelected());
+            globalSettings.setChatColorProfileId(
+                chatColorProfileCombo.getValue() != null ? chatColorProfileCombo.getValue().id() : null);
         }
         
         // Save backup settings to GlobalSettings

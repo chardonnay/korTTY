@@ -22,6 +22,7 @@ final class ThemeCssSupport {
     private static final Logger logger = LoggerFactory.getLogger(ThemeCssSupport.class);
     private static final Map<String, String> DYNAMIC_STYLESHEET_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, String> AGENT_ACTIVITY_STYLESHEET_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, String> CHAT_STYLESHEET_CACHE = new ConcurrentHashMap<>();
 
     private ThemeCssSupport() {
     }
@@ -301,6 +302,86 @@ final class ThemeCssSupport {
         );
     }
 
+    /**
+     * Returns a cached {@code file:} URL for a stylesheet that themes the AI chat surfaces with the
+     * given palette, or {@code null} when the temp file cannot be written. Attach the URL to the chat
+     * container's {@code getStylesheets()}; the classes below are applied to the chat nodes.
+     */
+    static String getChatStylesheetUrl(ChatPalette palette) {
+        if (palette == null) {
+            return null;
+        }
+        String cacheKey = String.join("|",
+            palette.background(), palette.surface(), palette.foreground(), palette.muted(),
+            palette.accent(), palette.border(), palette.codeBackground(),
+            palette.userBubbleBackground(), palette.userBubbleBorder());
+        return CHAT_STYLESHEET_CACHE.computeIfAbsent(cacheKey, ignored -> {
+            try {
+                Path tempCss = Files.createTempFile("kortty-chat-", ".css");
+                tempCss.toFile().deleteOnExit();
+                Files.writeString(tempCss, buildChatCss(palette));
+                return tempCss.toUri().toString();
+            } catch (Exception e) {
+                logger.debug("Could not create dynamic chat stylesheet: {}", e.getMessage());
+                return null;
+            }
+        });
+    }
+
+    static String buildChatCss(ChatPalette palette) {
+        String bg = normalizeColorOrDefault(palette.background(), "#1e2228");
+        String surface = normalizeColorOrDefault(palette.surface(), "#262b33");
+        String fg = normalizeColorOrDefault(palette.foreground(), "#d7dee8");
+        String muted = normalizeColorOrDefault(palette.muted(), "#8a94a3");
+        String accent = normalizeColorOrDefault(palette.accent(), "#4f9cf0");
+        String border = normalizeColorOrDefault(palette.border(), "#333a44");
+        String codeBg = normalizeColorOrDefault(palette.codeBackground(), "#14181e");
+        String userBg = normalizeColorOrDefault(palette.userBubbleBackground(), "#243244");
+        String userBorder = normalizeColorOrDefault(palette.userBubbleBorder(), "#3b5273");
+
+        Color bgColor = Color.web(bg);
+        double luminance = 0.299 * bgColor.getRed() + 0.587 * bgColor.getGreen() + 0.114 * bgColor.getBlue();
+        Color blendTarget = luminance < 0.5 ? Color.WHITE : Color.BLACK;
+        String surfaceHover = toHex(Color.web(surface).interpolate(blendTarget, 0.10));
+        String onAccent = luminance < 0.5 ? "#0a1420" : "#ffffff";
+        // Current search hit: a stronger wash of the accent so it stands out from other matches.
+        String hitFill = toHex(bgColor.interpolate(Color.web(accent), 0.30));
+
+        return String.join("\n",
+            ".ai-chat-scroll { -fx-background-color: " + bg + "; -fx-background: " + bg + "; }",
+            ".ai-chat-scroll > .viewport { -fx-background-color: " + bg + "; }",
+            ".ai-chat-scroll .scroll-bar { -fx-background-color: " + surface + "; }",
+            ".ai-chat-scroll .scroll-bar .thumb { -fx-background-color: " + border + "; }",
+            ".ai-chat-scroll .scroll-bar .thumb:hover { -fx-background-color: " + surfaceHover + "; }",
+            ".ai-chat-messages { -fx-background-color: " + bg + "; }",
+            ".ai-chat-role { -fx-text-fill: " + muted + "; }",
+            ".ai-chat-role-assistant { -fx-text-fill: " + accent + "; }",
+            ".ai-chat-assistant { -fx-background-color: transparent; -fx-border-color: " + border + "; -fx-border-radius: 12; -fx-padding: 10 14 10 14; }",
+            ".ai-chat-text { -fx-text-fill: " + fg + "; -fx-highlight-fill: " + accent + "; -fx-highlight-text-fill: " + onAccent + "; }",
+            ".ai-chat-text .content { -fx-background-color: transparent; }",
+            ".ai-chat-user-row { -fx-background-color: transparent; }",
+            ".ai-chat-user-bubble { -fx-background-color: " + userBg + "; -fx-background-radius: 12; -fx-border-color: " + userBorder + "; -fx-border-radius: 12; -fx-padding: 8 12 8 12; }",
+            ".ai-chat-code { -fx-background-color: " + codeBg + "; -fx-background-radius: 8; -fx-border-color: " + border + "; -fx-border-radius: 8; -fx-padding: 8; }",
+            ".ai-chat-code-lang { -fx-text-fill: " + muted + "; -fx-font-weight: bold; }",
+            ".ai-chat-code-area { -fx-control-inner-background: " + codeBg + "; -fx-background-color: " + codeBg + "; -fx-text-fill: " + fg + "; -fx-border-color: " + border + "; -fx-border-radius: 6; -fx-background-radius: 6; }",
+            ".ai-chat-code-area .content { -fx-background-color: " + codeBg + "; }",
+            ".ai-chat-block-surface { -fx-background-color: " + surface + "; -fx-background-radius: 8; -fx-border-color: " + border + "; -fx-border-radius: 8; -fx-padding: 8; }",
+            ".ai-chat-icon-button { -fx-background-color: transparent; -fx-border-color: " + border + "; -fx-border-radius: 4; -fx-text-fill: " + muted + "; }",
+            ".ai-chat-icon-button:hover { -fx-background-color: " + surfaceHover + "; -fx-text-fill: " + fg + "; }",
+            ".ai-chat-composer-frame { -fx-background-color: " + surface + "; -fx-background-radius: 8; -fx-border-color: " + border + "; -fx-border-radius: 8; }",
+            ".ai-chat-composer-frame:focus-within { -fx-border-color: " + accent + "; }",
+            ".ai-chat-composer-input { -fx-background-color: transparent; -fx-text-fill: " + fg + "; -fx-prompt-text-fill: " + muted + "; }",
+            ".ai-chat-composer-input .content { -fx-background-color: transparent; }",
+            ".ai-chat-search-bar { -fx-background-color: " + surface + "; -fx-border-color: " + border + "; -fx-border-width: 0 0 1 0; -fx-padding: 6 10 6 10; }",
+            ".ai-chat-search-bar .label { -fx-text-fill: " + muted + "; }",
+            ".ai-chat-search-field { -fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; -fx-prompt-text-fill: " + muted + "; -fx-border-color: " + border + "; -fx-border-radius: 4; -fx-background-radius: 4; }",
+            ".ai-chat-search-field:focused { -fx-border-color: " + accent + "; }",
+            ".ai-chat-search-count { -fx-text-fill: " + muted + "; }",
+            ".ai-chat-hit { -fx-border-color: " + border + "; -fx-border-radius: 12; -fx-border-width: 1; }",
+            ".ai-chat-hit-current { -fx-border-color: " + accent + "; -fx-border-radius: 12; -fx-border-width: 2; -fx-background-color: " + hitFill + "; -fx-background-radius: 12; }"
+        );
+    }
+
     private static String normalizeColorOrDefault(String color, String fallback) {
         if (color == null || color.isBlank()) {
             return fallback;
@@ -321,6 +402,18 @@ final class ThemeCssSupport {
     }
 
     record ThemeColors(String backgroundColor, String foregroundColor) {
+    }
+
+    record ChatPalette(
+        String background,
+        String surface,
+        String foreground,
+        String muted,
+        String accent,
+        String border,
+        String codeBackground,
+        String userBubbleBackground,
+        String userBubbleBorder) {
     }
 
     record AgentActivityColors(
