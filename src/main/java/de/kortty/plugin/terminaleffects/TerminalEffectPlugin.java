@@ -29,4 +29,13 @@ public interface TerminalEffectPlugin {
      * Creates a new effect session for one terminal tab.
      */
     TerminalEffectSession createSession(TerminalEffectContext context);
+
+    /**
+     * Creates an animated preview for the plugin manager, or {@code null} if the plugin does not
+     * provide one. Implementations must not touch JavaFX before
+     * {@link TerminalEffectPreview#node()} is called.
+     */
+    default TerminalEffectPreview createPreview() {
+        return null;
+    }
 }

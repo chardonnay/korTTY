@@ -14,8 +14,27 @@ A terminal-effect plugin can:
 - Add JavaFX overlay nodes above the terminal area (for example scanlines, noise, vignettes, or line highlights)
 - Wrap the SithTermFX `TtyConnector` to observe, pace, or transform terminal output before the terminal emulator receives it
 - React to the user-selected terminal-effect animation speed
+- Provide an animated preview that the plugin manager shows for the selected plugin (optional `createPreview()`)
 
-The built-in MOTHER effect is implemented as a bundled, exportable plugin JAR and serves as the reference implementation.
+## Built-in Effects
+
+KorTTY ships eleven built-in effects as two bundled, exportable plugin JARs: the MOTHER reference implementation (`kortty-terminal-effect-mother.jar`) and the effect pack (`kortty-terminal-effect-pack.jar`) with ten themed effects.
+
+| ID | Name | Description |
+|----|------|-------------|
+| `mother` | MU/TH/UR 6000 | ALIEN-style green CRT terminal appearance with paced line output. |
+| `amber-crt-90` | Amber CRT '90 | Amber phosphor CRT monitor from the 90s with scanlines, glow, flicker and a rolling refresh band. |
+| `commodore-blue` | Commodore Heritage | Classic C64 home computer look: light blue on blue with a chunky cursor and loader bars. |
+| `neon-city` | Neon City | Cyberpunk neon look with glitch tears, RGB-split flickers and pulsing glow. |
+| `digital-rain` | Digital Rain | Green-on-black matrix style with a faint stream of falling glyphs. |
+| `hologram-hud` | Hologram HUD | Translucent sci-fi hologram with interference bands, HUD corner brackets and flicker. |
+| `poltergeist` | Poltergeist | Haunted monochrome terminal with a breathing vignette, static bursts and ghostly flashes. |
+| `vhs-1987` | VHS 1987 | Worn VHS tape playback with tracking noise, rolling distortion and a PLAY overlay. |
+| `synthwave-horizon` | Synthwave Horizon | Retro-80s synthwave palette with a glowing perspective grid on the horizon. |
+| `deep-space-radar` | Deep Space Radar | Tactical deep-space console with a slow radar sweep, faint blips and frame corners. |
+| `typewriter-noir` | Typewriter Noir | Sepia paper and ink noir look with per-character typewriter output pacing. |
+
+All built-in effects override the terminal appearance (font, colors, cursor) while active and draw their animation as a mouse-transparent canvas overlay. Typewriter Noir additionally wraps the connector to pace output character by character. Effect names are proper nouns and stay untranslated; descriptions are localized through the `plugin.terminalEffects.desc.*` message keys with an English fallback.
 
 ## Runtime Model
 
@@ -46,11 +65,13 @@ The dialog shows the loaded plugin list with:
 - Display name
 - Short description
 
+Next to the table, a preview panel plays a live animated preview of the selected plugin (a small fake terminal in the effect's colors with the effect overlay on top). If a plugin does not implement `createPreview()`, the panel shows a placeholder text instead. The preview stops when the selection changes, the global terminal-effects switch is turned off, or the dialog closes.
+
 Users can:
 
 - Enable or disable a plugin
 - Import an external `.jar` plugin, which KorTTY copies to `~/.kortty/plugins`
-- Export plugins that have a source JAR (bundled MOTHER is exportable because it is loaded from `kortty-terminal-effect-mother.jar`)
+- Export plugins that have a source JAR (the bundled MOTHER and effect-pack JARs are exportable)
 
 Users select effects per terminal session from the terminal context menu or **View > Terminal Effect**. Saved connections can also store the selected effect and animation speed through Quick Connect and Connection Manager. The speed slider covers `1x` through `10x`; the numeric field accepts values up to `99x`.
 
@@ -68,6 +89,7 @@ public interface TerminalEffectPlugin {
     String displayName();
     default String description() { return ""; }
     TerminalEffectSession createSession(TerminalEffectContext context);
+    default TerminalEffectPreview createPreview() { return null; }
 }
 ```
 
@@ -78,6 +100,7 @@ Rules:
 - `displayName()` must not be blank
 - `description()` is shown in the plugin-management table and should be one short sentence
 - The provider class must be loadable by `ServiceLoader`; use a public class with a public no-argument constructor
+- `createPreview()` is optional; returning `null` (the default) shows a placeholder in the plugin manager
 
 ### TerminalEffectSession
 
@@ -139,6 +162,26 @@ public record TerminalEffectAppearance(
 Use only the fields your effect needs. `null` leaves the current value unchanged.
 
 The current implementation passes color values as strings, for example `#19FF4C`. Cursor style is also a string; the MOTHER effect uses `BLINK_BLOCK`. Reuse values already accepted by KorTTY's terminal settings instead of inventing new names.
+
+### TerminalEffectPreview
+
+`createPreview()` returns the animated preview shown in the plugin manager:
+
+```java
+public interface TerminalEffectPreview {
+    @NotNull Node node();
+    default void start() {}
+    default void stop() {}
+}
+```
+
+Contract:
+
+- One preview instance backs one displayed preview; the caller requests `node()` once, calls `start()` after attaching it, and `stop()` before discarding it
+- Do not construct JavaFX objects before `node()` is called, so plugin metadata stays usable without a running JavaFX toolkit
+- `stop()` must stop all timelines and release animation resources
+
+`TerminalEffectPreviewCanvas` (same package) is a reusable implementation used by all built-in effects: a 360x220 fake terminal with configurable colors, fake shell lines, a blinking cursor, and an optional effect overlay canvas on top. Its builder collects plain data only and creates JavaFX nodes lazily in `node()`.
 
 ### TerminalEffectConnectorWrapper
 
@@ -228,12 +271,17 @@ For development inside this repository, use the MOTHER source-set pattern in `bu
 - Package only the plugin source-set output into a plugin JAR
 - Include the ServiceLoader descriptor in the plugin JAR
 
-The MOTHER task is the concrete, tested example:
+The MOTHER and effect-pack tasks are the concrete, tested examples:
 
 ```bash
 ./gradlew motherTerminalEffectPluginJar
 jar tf build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
+
+./gradlew effectPackPluginJar
+jar tf build/terminal-effect-plugins/kortty-terminal-effect-pack.jar
 ```
+
+A single plugin JAR can register several effects: the effect pack lists all ten provider classes in one ServiceLoader descriptor. Bundled JARs must additionally be listed in `src/main/resources/bundled-plugins/terminal-effects.index`, otherwise they are never extracted and loaded.
 
 The generated JAR must contain:
 
@@ -272,6 +320,7 @@ Good overlay behavior:
 - Stop timelines/animations and unbind properties in `stop()`
 - Keep drawing cheap enough for repeated repainting
 - Remove the overlay node from `overlayRoot()` on shutdown
+- Release the canvas backing store while the tab is in the background: a full-window canvas texture per hidden tab can exhaust the Prism texture pool once several effect tabs are open, which crashes rendering. All built-in effects (MOTHER and the effect pack) unbind and shrink their overlay canvas to 0x0 while it is not visible in the scene and rebind when the tab is shown again
 
 For split terminals, decide whether the overlay should cover the full terminal tab or track individual SithTermFX widgets. `context.widgets()` can return more than one widget.
 
@@ -303,7 +352,8 @@ Do not persist a separate speed value inside the plugin. KorTTY stores the conne
 **Exports:**
 
 - A plugin is exportable when it was loaded from a real source JAR
-- Bundled MOTHER is exportable because KorTTY copies its bundled JAR to `~/.kortty/bundled-plugins/terminal-effects` before loading it
+- Bundled plugins are exportable because KorTTY copies their bundled JARs to `~/.kortty/bundled-plugins/terminal-effects` before loading them
+- Exporting one of the ten effect-pack effects exports the whole `kortty-terminal-effect-pack.jar`, because the JAR is the export unit
 - Application-classpath plugins without a source JAR are not exportable
 
 **Persistence:**
@@ -346,10 +396,13 @@ Run KorTTY:
 Validate plugin management:
 
 1. Open **Plugins > Terminal Effects**
-2. Confirm the plugin appears with name and description
-3. Disable and enable it
-4. Export it and inspect the exported JAR with `jar tf`
-5. Import the exported JAR into a clean KorTTY config or another build
+2. Confirm all built-in plugins appear with name and description
+3. Select a row and confirm the animated preview plays next to the table
+4. Disable and enable a plugin
+5. Export one and inspect the exported JAR with `jar tf`
+6. Import the exported JAR into a clean KorTTY config or another build
+
+The `terminalEffectPreviewSmoke` Gradle task renders every built-in preview and the manager dialog headless into `build/smoke/` for a quick offline check.
 
 Validate session behavior:
 

@@ -88,9 +88,41 @@ val motherTerminalEffectPluginJar = tasks.register<Jar>("motherTerminalEffectPlu
     from(motherPluginSourceSet.output)
 }
 
+val effectPackPluginJarName = "kortty-terminal-effect-pack.jar"
+val effectPackPluginSourceSet = sourceSets.create("effectPackPlugin") {
+    java.setSrcDirs(listOf("src/effectPackPlugin/java"))
+    resources.setSrcDirs(listOf("src/effectPackPlugin/resources"))
+    compileClasspath += sourceSets.main.get().output.classesDirs + configurations.compileClasspath.get()
+    runtimeClasspath += output + compileClasspath
+}
+
+tasks.named<JavaCompile>(effectPackPluginSourceSet.compileJavaTaskName) {
+    dependsOn(tasks.named("compileJava"))
+}
+
+sourceSets.named("test") {
+    // classesDirs only: adding the pack resources would double-register the plugins
+    // via ServiceLoader on the application classloader in tests.
+    compileClasspath += effectPackPluginSourceSet.output.classesDirs
+    runtimeClasspath += effectPackPluginSourceSet.output.classesDirs
+}
+
+val effectPackPluginJar = tasks.register<Jar>("effectPackPluginJar") {
+    group = "build"
+    description = "Builds the exportable terminal effect pack plugin JAR (10 built-in effects)."
+    dependsOn(tasks.named(effectPackPluginSourceSet.classesTaskName))
+    archiveFileName.set(effectPackPluginJarName)
+    destinationDirectory.set(layout.buildDirectory.dir("terminal-effect-plugins"))
+    from(effectPackPluginSourceSet.output)
+}
+
 tasks.named<ProcessResources>("processResources") {
     dependsOn(motherTerminalEffectPluginJar)
     from(motherTerminalEffectPluginJar.flatMap { it.archiveFile }) {
+        into("bundled-plugins/terminal-effects")
+    }
+    dependsOn(effectPackPluginJar)
+    from(effectPackPluginJar.flatMap { it.archiveFile }) {
         into("bundled-plugins/terminal-effects")
     }
 }
@@ -1484,6 +1516,14 @@ tasks.register<JavaExec>("generateDesignPreviews") {
     description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AppDesignPreviewGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("terminalEffectPreviewSmoke") {
+    group = "verification"
+    description = "Starts every built-in terminal effect preview and snapshots each to build/smoke/terminal-effect-<id>.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalEffectPreviewSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
