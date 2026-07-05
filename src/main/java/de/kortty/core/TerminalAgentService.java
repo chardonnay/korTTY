@@ -39,6 +39,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -222,8 +223,8 @@ public class TerminalAgentService {
         String customApproach) throws Exception {
         String systemPrompt = buildPlanOptionSystemPrompt();
         String userPrompt = buildPlanOptionUserPrompt(request, probe, questions, answers, customApproach);
-        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
-        AgentPlanOptionDecision decision = parsePlanOptionDecision(result.content());
+        AgentPlanOptionDecision decision = requestPlanDecisionWithRepair(
+            aiService, systemPrompt, userPrompt, this::parsePlanOptionDecision);
         List<TerminalAgentModels.PlanOption> options = new ArrayList<>();
         for (AgentPlanOptionDecisionItem item : safeList(decision.options())) {
             options.add(new TerminalAgentModels.PlanOption(
@@ -250,8 +251,8 @@ public class TerminalAgentService {
         String customApproach) throws Exception {
         String systemPrompt = buildPlanReportSystemPrompt();
         String userPrompt = buildPlanReportUserPrompt(request, probe, questions, answers, selectedOption, customApproach);
-        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
-        AgentPlanReportDecision decision = parsePlanReportDecision(result.content());
+        AgentPlanReportDecision decision = requestPlanDecisionWithRepair(
+            aiService, systemPrompt, userPrompt, this::parsePlanReportDecision);
         TerminalAgentModels.PlanReport report = new TerminalAgentModels.PlanReport(
             decision.title(),
             decision.summary(),
@@ -260,6 +261,48 @@ public class TerminalAgentService {
             safeList(decision.risks()),
             safeList(decision.successCriteria()));
         return new PlanningReport(report, decision.summary(), decision.userMessage());
+    }
+
+    /**
+     * Executes a planning JSON prompt and parses it, retrying once with a repair prompt when the
+     * first reply is not a valid/complete JSON object. Small models frequently return truncated or
+     * malformed JSON for the verbose planning schema; the repair round asks for exactly one complete,
+     * concise object and usually recovers without failing the whole planning step.
+     */
+    private <T> T requestPlanDecisionWithRepair(
+        AiPromptService aiService,
+        String systemPrompt,
+        String userPrompt,
+        Function<String, T> parser) throws Exception {
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        try {
+            return parser.apply(result.content());
+        } catch (RuntimeException firstFailure) {
+            logger.info("Planning response was not valid JSON ({}); retrying once with a repair prompt.",
+                firstFailure.getMessage());
+            AiExecutionResult repaired = executeAgentJsonPrompt(
+                aiService,
+                systemPrompt,
+                buildPlanRepairPrompt(userPrompt, result.content(), firstFailure.getMessage()));
+            try {
+                return parser.apply(repaired.content());
+            } catch (RuntimeException repairFailure) {
+                throw new JsonSyntaxException(repairFailure.getMessage()
+                    + " The AI returned invalid JSON twice — a larger or more capable model usually fixes this; "
+                    + "very small models often return truncated JSON for the planning schema.");
+            }
+        }
+    }
+
+    private String buildPlanRepairPrompt(String originalUserPrompt, String invalidResponse, String validationError) {
+        return "Your previous reply was not a single valid JSON object (it may have been truncated or malformed). "
+            + "Reply again with EXACTLY ONE complete JSON object that matches the required schema: no Markdown, no code "
+            + "fences, no prose before or after, and make sure the object is fully closed with all brackets balanced. "
+            + "Keep every field short so the whole object fits in one reply.\n"
+            + "Validation error: " + nonBlank(validationError, "unknown error") + "\n"
+            + "Original request context:\n<original_request_context>\n"
+            + nonBlank(originalUserPrompt, "") + "\n</original_request_context>\n\n"
+            + "Previous (invalid) reply:\n```text\n" + nonBlank(invalidResponse, "") + "\n```";
     }
 
     public String buildAcceptedPlanContext(TerminalAgentModels.PlanOption option) {
@@ -1481,8 +1524,13 @@ public class TerminalAgentService {
             }
             break;
         }
-        throw new JsonSyntaxException("AI response did not contain the required JSON object. Received: "
-            + trimForError(candidate));
+        boolean looksTruncated = candidate.indexOf('{') >= 0
+            && extractFirstBalancedJsonObject(candidate) == null;
+        String reason = looksTruncated
+            ? "AI response contained an incomplete or truncated JSON object (no balanced closing brace); "
+                + "the model likely stopped early or hit its output token limit."
+            : "AI response did not contain the required JSON object.";
+        throw new JsonSyntaxException(reason + " Received: " + trimForError(candidate));
     }
 
     private static JsonElement parseJsonElementWithStringRepairs(String candidate) {

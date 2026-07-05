@@ -47,6 +47,12 @@ public final class GuideViewer {
     private static final String ONLINE_FALLBACK_URL = "https://chardonnay.github.io/korTTY/";
     private static final double DEFAULT_WIDTH = 1120;
     private static final double DEFAULT_HEIGHT = 820;
+    // How long the window must stay in the background (unfocused or iconified) before its WebView is
+    // dropped. JavaFX-WebKit's JavaScriptCore GC can segfault natively in a backgrounded, idle WebView
+    // (Heap Helper Thread SIGSEGV); tearing the page down releases the JSC heap and its helper threads
+    // so nothing keeps churning while the user is in another app. The delay avoids thrashing on a quick
+    // alt-tab. The page (and scroll anchor) is reloaded from {@code lastInternalLocation} on return.
+    private static final Duration BACKGROUND_UNLOAD_DELAY = Duration.seconds(20);
 
     // Single open instance: re-focus instead of opening a second window.
     private static WeakReference<GuideViewer> openInstance = new WeakReference<>(null);
@@ -57,9 +63,11 @@ public final class GuideViewer {
     private final SplitPane splitPane = new SplitPane();
     private final GuideAskPanel askPanel;
     private final PauseTransition geometrySaveDelay = new PauseTransition(Duration.millis(500));
+    private final PauseTransition backgroundUnloadDelay = new PauseTransition(BACKGROUND_UNLOAD_DELAY);
 
     private boolean disposed;
     private boolean geometryListenersInstalled;
+    private boolean webViewUnloaded;
     private String lastInternalLocation;
 
     /**
@@ -106,12 +114,15 @@ public final class GuideViewer {
         stage.setOnShown(event -> installGeometryPersistence());
         stage.setOnCloseRequest(event -> dispose());
         stage.setOnHidden(event -> dispose());
+        installBackgroundUnload();
 
         loadGuide(engine);
     }
 
     /** Opens the guide, or focuses the existing window if one is already open. */
     public static void show(KorTTYApplication app, Window owner) {
+        de.kortty.telemetry.Telemetry.track(
+            de.kortty.telemetry.TelemetryEvents.TOOL_OPENED, java.util.Map.of("tool", "manual"));
         GuideViewer existing = openInstance.get();
         if (existing != null && !existing.disposed && existing.stage.isShowing()) {
             existing.stage.toFront();
@@ -120,6 +131,23 @@ public final class GuideViewer {
         }
         GuideViewer viewer = new GuideViewer(app, owner);
         openInstance = new WeakReference<>(viewer);
+        viewer.stage.show();
+    }
+
+    /** Opens the guide directly at a documentation location (e.g. {@code "about/anonymous-data.html"}). */
+    public static void show(KorTTYApplication app, Window owner, String location) {
+        de.kortty.telemetry.Telemetry.track(
+            de.kortty.telemetry.TelemetryEvents.TOOL_OPENED, java.util.Map.of("tool", "manual"));
+        GuideViewer existing = openInstance.get();
+        if (existing != null && !existing.disposed && existing.stage.isShowing()) {
+            existing.navigateToLocation(location);
+            existing.stage.toFront();
+            existing.stage.requestFocus();
+            return;
+        }
+        GuideViewer viewer = new GuideViewer(app, owner);
+        openInstance = new WeakReference<>(viewer);
+        viewer.navigateToLocation(location);
         viewer.stage.show();
     }
 
@@ -238,7 +266,9 @@ public final class GuideViewer {
      */
     private void installExternalLinkHandler(WebEngine engine) {
         engine.locationProperty().addListener((obs, oldLoc, newLoc) -> {
-            if (disposed || newLoc == null || newLoc.isBlank()) {
+            // While unloaded for the background, the engine sits on a blank page; ignore those
+            // location changes so the real page (kept in lastInternalLocation) survives for the reload.
+            if (disposed || webViewUnloaded || newLoc == null || newLoc.isBlank()) {
                 return;
             }
             if (isExternal(newLoc)) {
@@ -254,8 +284,44 @@ public final class GuideViewer {
                 });
             } else {
                 lastInternalLocation = newLoc;
+                trackGuidePageView(newLoc);
             }
         });
+    }
+
+    private String lastTrackedGuidePage;
+
+    /**
+     * Counts internal guide page views. The raw location is a {@code jar:file:/...} URL
+     * containing the install path (PII) — only the bare page filename is sent.
+     */
+    private void trackGuidePageView(String location) {
+        String page = sanitizeGuidePage(location);
+        if (page == null || page.equals(lastTrackedGuidePage)) {
+            return;
+        }
+        lastTrackedGuidePage = page;
+        de.kortty.telemetry.Telemetry.track(
+            de.kortty.telemetry.TelemetryEvents.GUIDE_PAGE_VIEWED, java.util.Map.of("page", page));
+    }
+
+    /** Reduces a full location URL to just the page filename, dropping the path, query, and fragment. */
+    static String sanitizeGuidePage(String location) {
+        if (location == null || location.isBlank()) {
+            return null;
+        }
+        String stripped = location;
+        int fragment = stripped.indexOf('#');
+        if (fragment >= 0) {
+            stripped = stripped.substring(0, fragment);
+        }
+        int query = stripped.indexOf('?');
+        if (query >= 0) {
+            stripped = stripped.substring(0, query);
+        }
+        int lastSlash = stripped.lastIndexOf('/');
+        String page = lastSlash >= 0 ? stripped.substring(lastSlash + 1) : stripped;
+        return page.isBlank() ? null : page;
     }
 
     /** True if the location points outside the bundled site (http/https/mailto/ftp) and should open externally. */
@@ -364,6 +430,67 @@ public final class GuideViewer {
         return app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null;
     }
 
+    // ---- Background WebView unload (guards against native JavaScriptCore GC crashes while idle) ----
+
+    /**
+     * Installs the focus/iconify listeners that drop the WebView after the window has been in the
+     * background for {@link #BACKGROUND_UNLOAD_DELAY}, and reload it the moment the window is active
+     * again. See {@link #BACKGROUND_UNLOAD_DELAY} for why this matters.
+     */
+    private void installBackgroundUnload() {
+        backgroundUnloadDelay.setOnFinished(event -> unloadWebViewForBackground());
+        stage.focusedProperty().addListener((obs, was, is) -> updateBackgroundActivity());
+        stage.iconifiedProperty().addListener((obs, was, is) -> updateBackgroundActivity());
+    }
+
+    /**
+     * Reacts to a focus/iconify change: reload immediately (and cancel any pending unload) when the
+     * window is active again, or arm the debounced unload when it has gone to the background.
+     */
+    private void updateBackgroundActivity() {
+        if (disposed) {
+            return;
+        }
+        boolean active = stage.isFocused() && !stage.isIconified();
+        if (active) {
+            backgroundUnloadDelay.stop();
+            if (webViewUnloaded) {
+                restoreWebViewFromBackground();
+            }
+        } else if (!webViewUnloaded) {
+            backgroundUnloadDelay.playFromStart();
+        }
+    }
+
+    /** Drops the guide page so the native WebKit/JSC context is released while the window sits idle in the background. */
+    private void unloadWebViewForBackground() {
+        // Re-check activity: focus may have returned during the debounce window.
+        if (disposed || webViewUnloaded || (stage.isFocused() && !stage.isIconified())) {
+            return;
+        }
+        // Set the flag BEFORE loading the blank page so the location listener leaves lastInternalLocation intact.
+        webViewUnloaded = true;
+        try {
+            webView.getEngine().loadContent("");
+        } catch (RuntimeException e) {
+            logger.debug("Guide viewer background unload failed", e);
+        }
+    }
+
+    /** Reloads the previously shown page (with its scroll anchor) after the window becomes active again. */
+    private void restoreWebViewFromBackground() {
+        webViewUnloaded = false;
+        try {
+            if (lastInternalLocation != null && !lastInternalLocation.isBlank()) {
+                webView.getEngine().load(lastInternalLocation);
+            } else {
+                loadGuide(webView.getEngine());
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Guide viewer background restore failed", e);
+        }
+    }
+
     /**
      * Tears down the viewer on the FX thread: flushes any pending geometry save,
      * stops the WebView, and clears the singleton. Idempotent and thread-safe.
@@ -382,6 +509,7 @@ public final class GuideViewer {
         // quick move/resize-then-close doesn't drop the final window geometry.
         boolean geometrySavePending = geometrySaveDelay.getStatus() == Animation.Status.RUNNING;
         geometrySaveDelay.stop();
+        backgroundUnloadDelay.stop();
         if (geometrySavePending) {
             saveGeometry();
         }

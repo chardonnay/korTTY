@@ -16,7 +16,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
 
@@ -84,7 +83,6 @@ public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
 
         private final TerminalEffectContext context;
         private final MotherCrtOverlay overlay = new MotherCrtOverlay();
-        private final AtomicBoolean visibleOutputPending = new AtomicBoolean(false);
         private @Nullable SithTermFxWidget watchedWidget;
         private @Nullable TerminalModelListener flashListener;
 
@@ -96,6 +94,14 @@ public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
         public void start() {
             context.applyAppearance(APPEARANCE);
             installOverlay();
+            // Drive the per-line glow from the pane's output model so it works even when the effect is
+            // applied to an already-connected pane (the connector read path can't be re-wrapped live).
+            attachFlashListener(primaryWidget());
+        }
+
+        private @Nullable SithTermFxWidget primaryWidget() {
+            java.util.List<SithTermFxWidget> widgets = context.widgets();
+            return widgets.isEmpty() ? null : widgets.get(0);
         }
 
         private void installOverlay() {
@@ -116,10 +122,7 @@ public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
             }
             attachFlashListener(widget);
             TtyConnector baseConnector = unwrap(connector);
-            return new MotherPacedTtyConnector(
-                    baseConnector,
-                    context::animationSpeed,
-                    () -> visibleOutputPending.set(true));
+            return new MotherPacedTtyConnector(baseConnector, context::animationSpeed);
         }
 
         @Override
@@ -137,11 +140,8 @@ public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
             }
             detachFlashListener();
             watchedWidget = widget;
-            flashListener = () -> {
-                if (visibleOutputPending.getAndSet(false)) {
-                    overlay.flashCurrentLine(widget);
-                }
-            };
+            // Glow the cursor line whenever the pane's buffer changes (throttled inside the overlay).
+            flashListener = () -> overlay.flashCurrentLine(widget);
             widget.getTerminalTextBuffer().addModelListener(flashListener);
         }
 
@@ -153,7 +153,6 @@ public final class MotherTerminalEffectPlugin implements TerminalEffectPlugin {
             }
             watchedWidget = null;
             flashListener = null;
-            visibleOutputPending.set(false);
         }
 
         private static TtyConnector unwrap(TtyConnector connector) {

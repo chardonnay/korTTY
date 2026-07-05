@@ -28,12 +28,16 @@ final class MotherCrtOverlay extends Canvas {
 
     private static final long LINE_FLASH_DURATION_NANOS = 260_000_000L;
     private static final double LINE_FLASH_MAX_ALPHA = 0.24;
+    // Minimum gap between glow triggers. Throttles the model-driven flash so heavy/scrolling output
+    // (cursor pinned at the bottom row) pulses steadily instead of firing on every buffer mutation.
+    private static final long FLASH_THROTTLE_NANOS = 40_000_000L;
 
     private final Random random = new Random();
     private final Timeline timeline;
     private final List<LineFlash> lineFlashes = new ArrayList<>();
     private @Nullable StackPane boundContainer;
     private boolean boundToContainer;
+    private long lastFlashNanos = 0L;
 
     MotherCrtOverlay() {
         setMouseTransparent(true);
@@ -52,6 +56,7 @@ final class MotherCrtOverlay extends Canvas {
     void stop() {
         timeline.stop();
         lineFlashes.clear();
+        lastFlashNanos = 0L;
     }
 
     /**
@@ -125,6 +130,11 @@ final class MotherCrtOverlay extends Canvas {
         if (row < 0 || row * cellHeight >= getHeight()) {
             return;
         }
+        long now = System.nanoTime();
+        if (now - lastFlashNanos < FLASH_THROTTLE_NANOS) {
+            return; // throttle model-driven glow so it doesn't fire on every buffer change
+        }
+        lastFlashNanos = now;
         flashLine(row, cellHeight);
     }
 

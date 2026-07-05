@@ -29,6 +29,7 @@ import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmTarget;
 import de.kortty.model.AiProfile;
+import de.kortty.model.ChatColorProfile;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
@@ -44,6 +45,7 @@ import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -58,6 +60,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
@@ -87,6 +90,9 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
+import de.kortty.telemetry.TelemetryProps;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -141,6 +147,22 @@ public class AiResultTab extends Tab {
     private final CheckBox broadcastReadOnlyCheck = new CheckBox(I18n.get("ai.swarm.readOnly"));
     private AtomicBoolean broadcastCancelled;
 
+    private BorderPane contentRoot;
+    private final ComboBox<ChatColorProfile> chatProfileComboBox = new ComboBox<>();
+    private String currentChatStylesheetUrl;
+    // Guards the combo listener while the selection is synced programmatically (from a broadcast),
+    // so re-theming other tabs does not re-persist or re-broadcast in a loop.
+    private boolean syncingChatProfile;
+    // Parallel to messageEntries: the top-level node (used to scroll a match into view) and the node
+    // that gets the search-hit outline (the user bubble, not its full-width row).
+    private final List<Node> messageNodes = new ArrayList<>();
+    private final List<Node> highlightNodes = new ArrayList<>();
+    private HBox searchBar;
+    private TextField searchField;
+    private Label searchCountLabel;
+    private final List<Integer> searchMatches = new ArrayList<>();
+    private int currentSearchIndex = -1;
+
     /** Where a chat query is sent: only the active connection, or every open terminal (deduped per server). */
     public enum BroadcastTarget { ACTIVE_CONNECTION, ALL_OPEN_TERMINALS }
 
@@ -178,6 +200,9 @@ public class AiResultTab extends Tab {
         messagesScrollPane.setFitToWidth(true);
         messagesScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         messagesScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        messagesScrollPane.getStyleClass().add("ai-chat-scroll");
+        messagesBox.getStyleClass().add("ai-chat-messages");
+        messagesBox.setPadding(new Insets(14, 16, 14, 16));
 
         profileComboBox = new ComboBox<>();
         profileComboBox.setPrefWidth(240);
@@ -234,6 +259,7 @@ public class AiResultTab extends Tab {
         promptInputArea = new TextArea();
         promptInputArea.setWrapText(true);
         promptInputArea.setPrefRowCount(4);
+        promptInputArea.getStyleClass().add("ai-chat-composer-input");
         promptInputArea.setPromptText(I18n.get("ai.result.followup.placeholder"));
         promptInputArea.textProperty().addListener((obs, oldValue, newValue) -> updateSendAvailability());
         promptInputArea.addEventFilter(KeyEvent.KEY_PRESSED, this::handlePromptKeyPressed);
@@ -246,6 +272,9 @@ public class AiResultTab extends Tab {
         copyButton.setOnAction(e -> copyContent());
         retryButton = new Button(I18n.get("ai.result.retry"));
         retryButton.setOnAction(e -> retryLastUserMessage());
+        Button findButton = new Button(I18n.get("ai.chat.search"));
+        findButton.setTooltip(new Tooltip(I18n.get("ai.chat.search.tooltip")));
+        findButton.setOnAction(e -> toggleChatSearch());
         Button zoomOutButton = new Button(I18n.get("ai.result.zoomOut"));
         zoomOutButton.setOnAction(e -> changeFontSize(-1));
         Button zoomInButton = new Button(I18n.get("ai.result.zoomIn"));
@@ -269,9 +298,13 @@ public class AiResultTab extends Tab {
         Button closeButton = new Button(I18n.get("ai.result.close"));
         closeButton.setOnAction(e -> closeTab());
 
+        setupChatProfileComboBox();
+        Label chatProfileLabel = new Label(I18n.get("ai.chat.colorProfile"));
+
         ToolBar toolBar = new ToolBar(
             copyButton,
             retryButton,
+            findButton,
             new Separator(),
             zoomOutButton,
             zoomInButton,
@@ -281,6 +314,9 @@ public class AiResultTab extends Tab {
             saveButton,
             exportButton,
             shareButton,
+            new Separator(),
+            chatProfileLabel,
+            chatProfileComboBox,
             new Separator(),
             cancelButton,
             new Separator(),
@@ -327,23 +363,25 @@ public class AiResultTab extends Tab {
         Label composerLabel = new Label(I18n.get("ai.result.followup.label"));
         StackPane promptFrame = new StackPane(promptInputArea);
         promptFrame.setPadding(new Insets(1));
-        promptFrame.setStyle("-fx-background-color: rgba(255,255,255,0.95);"
-            + "-fx-background-radius: 8;"
-            + "-fx-border-color: rgba(52,120,246,0.55);"
-            + "-fx-border-radius: 8;");
+        promptFrame.getStyleClass().add("ai-chat-composer-frame");
         HBox.setHgrow(promptFrame, Priority.ALWAYS);
         HBox composerRow = new HBox(10, promptFrame, sendButton);
         composerRow.setAlignment(Pos.BOTTOM_RIGHT);
         VBox composerBox = new VBox(6, profileRow, quotaLabel, composerLabel, composerRow);
         composerBox.setPadding(new Insets(8, 0, 0, 0));
 
+        searchBar = createChatSearchBar();
+
         BorderPane content = new BorderPane();
-        content.setTop(toolBar);
+        contentRoot = content;
+        content.setTop(new VBox(toolBar, searchBar));
         content.setCenter(messagesScrollPane);
         content.setBottom(new VBox(8, composerBox, new HBox(statusLabel)));
+        content.addEventFilter(KeyEvent.KEY_PRESSED, this::handleChatShortcut);
         setContent(content);
 
         applyFontSize();
+        applyChatTheme();
         refreshQuotaLabel();
 
         if (savedChat != null) {
@@ -623,7 +661,7 @@ public class AiResultTab extends Tab {
     private void applyFontSize() {
         String style = "-fx-font-family: 'Monospaced';"
             + " -fx-font-size: " + currentFontSize + "px;"
-            + " -fx-control-inner-background: rgba(255,255,255,0.98);"
+            + " -fx-control-inner-background: transparent;"
             + " -fx-background-color: transparent;"
             + " -fx-border-color: transparent;"
             + " -fx-padding: 8;";
@@ -698,6 +736,12 @@ public class AiResultTab extends Tab {
         appendUserMessage(prompt);
         promptInputArea.clear();
 
+        Map<String, Object> followUpProps = new LinkedHashMap<>(TelemetryProps.aiProfileProps(selectedProfile));
+        followUpProps.put("first", false);
+        followUpProps.put("broadcast", false);
+        followUpProps.put("action", "follow_up");
+        Telemetry.track(TelemetryEvents.AI_CHAT_MESSAGE, followUpProps);
+
         AiRequest request = new AiRequest(
             AiAction.ASK,
             selectedText,
@@ -760,6 +804,12 @@ public class AiResultTab extends Tab {
         }
         appendUserMessage(prompt);
         promptInputArea.clear();
+
+        Map<String, Object> broadcastProps = new LinkedHashMap<>(TelemetryProps.aiProfileProps(profile));
+        broadcastProps.put("first", false);
+        broadcastProps.put("broadcast", true);
+        broadcastProps.put("action", "follow_up");
+        Telemetry.track(TelemetryEvents.AI_CHAT_MESSAGE, broadcastProps);
 
         broadcastCancelled = new AtomicBoolean(false);
         AtomicBoolean cancelled = broadcastCancelled;
@@ -962,50 +1012,322 @@ public class AiResultTab extends Tab {
 
     private void rebuildMessages() {
         messagesBox.getChildren().clear();
+        messageNodes.clear();
+        highlightNodes.clear();
         for (SavedAiChatMessage entry : messageEntries) {
             renderMessage(entry);
+        }
+        if (searchBar != null && searchBar.isVisible()) {
+            runChatSearch();
         }
     }
 
     private void renderMessage(SavedAiChatMessage entry) {
-        VBox messageCard = new VBox(6);
-        messageCard.setFillWidth(true);
-        messageCard.setStyle(SavedAiChatMessage.ROLE_ASSISTANT.equals(entry.getRole())
-            ? "-fx-background-color: rgba(42,42,42,0.18); -fx-background-radius: 8; -fx-padding: 10;"
-            : "-fx-background-color: rgba(0,102,204,0.08); -fx-background-radius: 8; -fx-padding: 10;");
+        boolean assistant = SavedAiChatMessage.ROLE_ASSISTANT.equals(entry.getRole());
+        Node topNode;
+        Node highlightTarget;
+        if (assistant) {
+            VBox block = new VBox(6);
+            block.setFillWidth(true);
+            block.getStyleClass().add("ai-chat-assistant");
 
-        Label roleLabel = new Label(resolveRoleLabel(entry));
-        roleLabel.setStyle("-fx-font-weight: bold;");
-        roleLabel.setFont(Font.font(currentFontSize));
-        messageCard.getChildren().add(roleLabel);
+            Label roleLabel = new Label(resolveRoleLabel(entry));
+            roleLabel.getStyleClass().addAll("ai-chat-role", "ai-chat-role-assistant");
+            roleLabel.setStyle("-fx-font-weight: bold;");
+            roleLabel.setFont(Font.font(currentFontSize));
+            block.getChildren().add(roleLabel);
 
-        if (!SavedAiChatMessage.ROLE_ASSISTANT.equals(entry.getRole())) {
-            messageCard.getChildren().add(createSelectableTextBlock(entry.getContent()));
+            appendAssistantContent(block, entry);
+            topNode = block;
+            highlightTarget = block;
         } else {
-            for (AiChatContentSupport.ContentSection section : AiChatContentSupport.splitContent(entry.getContent())) {
-                if (section.code()) {
-                    messageCard.getChildren().add(createCodeBlock(section.language(), section.content()));
-                } else if (!section.content().isBlank()) {
-                    for (AiRasterImageSupport.Segment segment
-                        : AiRasterImageSupport.splitTextWithImages(section.content())) {
-                        if (segment.imageBytes() != null) {
-                            messageCard.getChildren().add(createRasterImageBlock(segment.imageBytes()));
-                        } else if (segment.text() != null && !segment.text().isBlank()) {
-                            for (AiChatDiagramSupport.MathSegment mathSegment
-                                : AiChatDiagramSupport.splitTextWithDisplayMath(segment.text())) {
-                                if (mathSegment.math() != null) {
-                                    messageCard.getChildren().add(createLatexMathBlock("math", mathSegment.math()));
-                                } else if (mathSegment.text() != null && !mathSegment.text().isBlank()) {
-                                    appendStructuredTextContent(messageCard, mathSegment.text());
-                                }
+            VBox bubble = new VBox(4);
+            bubble.setFillWidth(true);
+            bubble.getStyleClass().add("ai-chat-user-bubble");
+
+            Label roleLabel = new Label(resolveRoleLabel(entry));
+            roleLabel.getStyleClass().add("ai-chat-role");
+            roleLabel.setStyle("-fx-font-weight: bold;");
+            roleLabel.setFont(Font.font(currentFontSize));
+            roleLabel.setMaxWidth(Double.MAX_VALUE);
+            roleLabel.setAlignment(Pos.CENTER_RIGHT);
+            bubble.getChildren().addAll(roleLabel, createSelectableTextBlock(entry.getContent()));
+
+            HBox row = new HBox(bubble);
+            row.getStyleClass().add("ai-chat-user-row");
+            row.setAlignment(Pos.CENTER_RIGHT);
+            // Cap the bubble to ~74% of the viewport so the user's turn reads as an indented reply.
+            bubble.maxWidthProperty().bind(messagesScrollPane.widthProperty().multiply(0.74));
+            topNode = row;
+            highlightTarget = bubble;
+        }
+
+        messagesBox.getChildren().add(topNode);
+        messageNodes.add(topNode);
+        highlightNodes.add(highlightTarget);
+    }
+
+    /** Appends the rendered assistant content (text, code, tables, images, diagrams, math) into {@code target}. */
+    private void appendAssistantContent(VBox target, SavedAiChatMessage entry) {
+        for (AiChatContentSupport.ContentSection section : AiChatContentSupport.splitContent(entry.getContent())) {
+            if (section.code()) {
+                target.getChildren().add(createCodeBlock(section.language(), section.content()));
+            } else if (!section.content().isBlank()) {
+                for (AiRasterImageSupport.Segment segment
+                    : AiRasterImageSupport.splitTextWithImages(section.content())) {
+                    if (segment.imageBytes() != null) {
+                        target.getChildren().add(createRasterImageBlock(segment.imageBytes()));
+                    } else if (segment.text() != null && !segment.text().isBlank()) {
+                        for (AiChatDiagramSupport.MathSegment mathSegment
+                            : AiChatDiagramSupport.splitTextWithDisplayMath(segment.text())) {
+                            if (mathSegment.math() != null) {
+                                target.getChildren().add(createLatexMathBlock("math", mathSegment.math()));
+                            } else if (mathSegment.text() != null && !mathSegment.text().isBlank()) {
+                                appendStructuredTextContent(target, mathSegment.text());
                             }
                         }
                     }
                 }
             }
         }
+    }
 
-        messagesBox.getChildren().add(messageCard);
+    // ----- Chat color profile + theming -----
+
+    private void setupChatProfileComboBox() {
+        chatProfileComboBox.setPrefWidth(170);
+        chatProfileComboBox.getItems().setAll(ChatColorProfileSupport.all());
+        chatProfileComboBox.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(ChatColorProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : ChatColorProfileSupport.displayName(item));
+            }
+        });
+        chatProfileComboBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ChatColorProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : ChatColorProfileSupport.displayName(item));
+            }
+        });
+        // Select the persisted profile before wiring the listener so opening a tab does not persist
+        // or re-theme on the initial (programmatic) selection.
+        chatProfileComboBox.getSelectionModel().select(
+            ChatColorProfileSupport.activeProfile(KorTTYApplication.getInstance()));
+        chatProfileComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue == null || syncingChatProfile) {
+                return;
+            }
+            persistChatColorProfile(newValue.id());
+            // Persist once, then let the window re-theme every open chat tab (including this one).
+            ownerWindow.refreshOpenChatColorProfiles();
+        });
+    }
+
+    /** Re-selects the persisted profile and re-applies the chat theme; safe to call from a broadcast. */
+    public void refreshChatColorProfile() {
+        ChatColorProfile persisted = ChatColorProfileSupport.activeProfile(KorTTYApplication.getInstance());
+        ChatColorProfile current = chatProfileComboBox.getSelectionModel().getSelectedItem();
+        if (current == null || !current.id().equals(persisted.id())) {
+            syncingChatProfile = true;
+            try {
+                chatProfileComboBox.getSelectionModel().select(persisted);
+            } finally {
+                syncingChatProfile = false;
+            }
+        }
+        applyChatTheme();
+    }
+
+    private void persistChatColorProfile(String profileId) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setChatColorProfileId(profileId);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void applyChatTheme() {
+        if (contentRoot == null) {
+            return;
+        }
+        ChatColorProfile profile = chatProfileComboBox.getSelectionModel().getSelectedItem();
+        if (profile == null) {
+            profile = ChatColorProfileSupport.activeProfile(KorTTYApplication.getInstance());
+        }
+        ThemeCssSupport.ChatPalette palette =
+            ChatColorProfileSupport.resolvePalette(profile, KorTTYApplication.getInstance());
+        String url = ThemeCssSupport.getChatStylesheetUrl(palette);
+        if (currentChatStylesheetUrl != null) {
+            contentRoot.getStylesheets().remove(currentChatStylesheetUrl);
+        }
+        if (url != null) {
+            contentRoot.getStylesheets().add(url);
+        }
+        currentChatStylesheetUrl = url;
+    }
+
+    // ----- Full-chat search -----
+
+    private HBox createChatSearchBar() {
+        searchField = new TextField();
+        searchField.getStyleClass().add("ai-chat-search-field");
+        searchField.setPromptText(I18n.get("ai.chat.search.prompt"));
+        HBox.setHgrow(searchField, Priority.ALWAYS);
+        searchField.textProperty().addListener((obs, oldValue, newValue) -> runChatSearch());
+        searchField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                gotoRelativeMatch(event.isShiftDown() ? -1 : 1);
+                event.consume();
+            } else if (event.getCode() == KeyCode.ESCAPE) {
+                hideChatSearch();
+                event.consume();
+            }
+        });
+
+        Button prevButton = new Button("↑");
+        prevButton.getStyleClass().add("ai-chat-icon-button");
+        prevButton.setTooltip(new Tooltip(I18n.get("ai.chat.search.previous")));
+        prevButton.setOnAction(e -> gotoRelativeMatch(-1));
+        Button nextButton = new Button("↓");
+        nextButton.getStyleClass().add("ai-chat-icon-button");
+        nextButton.setTooltip(new Tooltip(I18n.get("ai.chat.search.next")));
+        nextButton.setOnAction(e -> gotoRelativeMatch(1));
+
+        searchCountLabel = new Label("");
+        searchCountLabel.getStyleClass().add("ai-chat-search-count");
+
+        Button closeSearch = new Button("✕");
+        closeSearch.getStyleClass().add("ai-chat-icon-button");
+        closeSearch.setOnAction(e -> hideChatSearch());
+
+        HBox bar = new HBox(8, new Label(I18n.get("ai.chat.search")), searchField, prevButton, nextButton,
+            searchCountLabel, closeSearch);
+        bar.getStyleClass().add("ai-chat-search-bar");
+        bar.setAlignment(Pos.CENTER_LEFT);
+        bar.setVisible(false);
+        bar.setManaged(false);
+        return bar;
+    }
+
+    private void handleChatShortcut(KeyEvent event) {
+        if (event.getCode() == KeyCode.F && event.isShortcutDown()) {
+            toggleChatSearch();
+            event.consume();
+        }
+    }
+
+    private void toggleChatSearch() {
+        if (searchBar == null) {
+            return;
+        }
+        if (searchBar.isVisible()) {
+            hideChatSearch();
+        } else {
+            searchBar.setVisible(true);
+            searchBar.setManaged(true);
+            searchField.requestFocus();
+            searchField.selectAll();
+            runChatSearch();
+        }
+    }
+
+    private void hideChatSearch() {
+        if (searchBar == null) {
+            return;
+        }
+        searchBar.setVisible(false);
+        searchBar.setManaged(false);
+        clearSearchHighlights();
+        searchMatches.clear();
+        currentSearchIndex = -1;
+    }
+
+    private void clearSearchHighlights() {
+        for (Node node : highlightNodes) {
+            node.getStyleClass().removeAll("ai-chat-hit", "ai-chat-hit-current");
+        }
+    }
+
+    private void runChatSearch() {
+        clearSearchHighlights();
+        searchMatches.clear();
+        currentSearchIndex = -1;
+        String query = searchField != null ? searchField.getText() : null;
+        if (query == null || query.isBlank()) {
+            updateSearchCount();
+            return;
+        }
+        String needle = query.toLowerCase(Locale.ROOT);
+        for (int i = 0; i < messageEntries.size() && i < highlightNodes.size(); i++) {
+            SavedAiChatMessage entry = messageEntries.get(i);
+            String content = entry != null ? entry.getContent() : null;
+            if (content != null && content.toLowerCase(Locale.ROOT).contains(needle)) {
+                searchMatches.add(i);
+                highlightNodes.get(i).getStyleClass().add("ai-chat-hit");
+            }
+        }
+        if (!searchMatches.isEmpty()) {
+            currentSearchIndex = 0;
+            focusCurrentMatch();
+        }
+        updateSearchCount();
+    }
+
+    private void gotoRelativeMatch(int delta) {
+        if (searchMatches.isEmpty()) {
+            return;
+        }
+        currentSearchIndex = (currentSearchIndex + delta + searchMatches.size()) % searchMatches.size();
+        focusCurrentMatch();
+        updateSearchCount();
+    }
+
+    private void focusCurrentMatch() {
+        for (Node node : highlightNodes) {
+            node.getStyleClass().remove("ai-chat-hit-current");
+        }
+        if (currentSearchIndex < 0 || currentSearchIndex >= searchMatches.size()) {
+            return;
+        }
+        int messageIndex = searchMatches.get(currentSearchIndex);
+        if (messageIndex < 0 || messageIndex >= messageNodes.size()) {
+            return;
+        }
+        highlightNodes.get(messageIndex).getStyleClass().add("ai-chat-hit-current");
+        scrollNodeIntoView(messageNodes.get(messageIndex));
+    }
+
+    private void scrollNodeIntoView(Node node) {
+        Platform.runLater(() -> {
+            double contentHeight = messagesBox.getHeight();
+            double viewportHeight = messagesScrollPane.getViewportBounds().getHeight();
+            double scrollable = contentHeight - viewportHeight;
+            if (scrollable <= 0) {
+                return;
+            }
+            double nodeTop = node.getBoundsInParent().getMinY();
+            double target = (nodeTop - 12) / scrollable;
+            messagesScrollPane.setVvalue(Math.max(0, Math.min(1, target)));
+        });
+    }
+
+    private void updateSearchCount() {
+        if (searchCountLabel == null) {
+            return;
+        }
+        if (searchMatches.isEmpty()) {
+            String query = searchField != null ? searchField.getText() : null;
+            searchCountLabel.setText(query == null || query.isBlank() ? "" : I18n.get("ai.chat.search.noMatches"));
+        } else {
+            searchCountLabel.setText(I18n.get("ai.chat.search.count",
+                Integer.toString(currentSearchIndex + 1), Integer.toString(searchMatches.size())));
+        }
     }
 
     private String resolveRoleLabel(SavedAiChatMessage entry) {
@@ -1044,16 +1366,18 @@ public class AiResultTab extends Tab {
     private VBox createPlainCodeBlock(String language, String code) {
         String normalizedLanguage = SnippetLanguageSupport.detectSnippetLanguage(language, code);
         Label languageLabel = new Label(language != null && !language.isBlank() ? language : I18n.get("ai.result.code"));
-        languageLabel.setStyle("-fx-font-weight: bold;");
+        languageLabel.getStyleClass().add("ai-chat-code-lang");
         Button copyCodeButton = new Button("⧉");
         copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
         copyCodeButton.setOnAction(e -> copyToClipboard(code));
+        copyCodeButton.getStyleClass().add("ai-chat-icon-button");
         copyCodeButton.setStyle("-fx-padding: 3 8 3 8;");
         Button saveSnippetButton = null;
         if (SnippetLanguageSupport.isScriptSnippetCandidate(language, code)) {
             saveSnippetButton = new Button(I18n.get("ai.result.saveSnippet"));
             saveSnippetButton.setTooltip(new Tooltip(I18n.get("ai.result.saveSnippet.tooltip")));
             saveSnippetButton.setOnAction(e -> saveCodeBlockAsSnippet(normalizedLanguage, code));
+            saveSnippetButton.getStyleClass().add("ai-chat-icon-button");
             saveSnippetButton.setStyle("-fx-padding: 3 10 3 10;");
         }
         Region spacer = new Region();
@@ -1063,7 +1387,7 @@ public class AiResultTab extends Tab {
             : new HBox(8, languageLabel, spacer, copyCodeButton);
 
         VBox codeBox = new VBox(6, header, createCodeEditorNode(normalizedLanguage, code));
-        codeBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+        codeBox.getStyleClass().add("ai-chat-code");
         return codeBox;
     }
 
@@ -1134,7 +1458,7 @@ public class AiResultTab extends Tab {
         canvas.setStyle("-fx-background-color: white; -fx-background-radius: 6; -fx-padding: 8;");
 
         VBox imageBox = new VBox(6, header, canvas);
-        imageBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+        imageBox.getStyleClass().add("ai-chat-block-surface");
         return imageBox;
     }
 
@@ -1164,7 +1488,7 @@ public class AiResultTab extends Tab {
             SnippetLanguageSupport.detectSnippetLanguage(language, code), code);
         StackPane contentHolder = new StackPane(codeNode);
         VBox diagramBox = new VBox(6, header, contentHolder);
-        diagramBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+        diagramBox.getStyleClass().add("ai-chat-block-surface");
 
         String source = AiChatDiagramSupport.normalizePlantUml(code);
         PLANT_UML_RENDER_POOL.submit(() -> {
@@ -1294,7 +1618,7 @@ public class AiResultTab extends Tab {
             SnippetLanguageSupport.detectSnippetLanguage(language, code), code);
         StackPane contentHolder = new StackPane(codeNode);
         VBox renderedBox = new VBox(6, header, contentHolder);
-        renderedBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+        renderedBox.getStyleClass().add("ai-chat-block-surface");
 
         String pageUrl = ChatRenderResourceBundle.writeRenderPage(pageNamePrefix, pageHtml);
         if (pageUrl == null) {
@@ -1396,7 +1720,7 @@ public class AiResultTab extends Tab {
         });
 
         VBox imageBox = new VBox(6, header, contentHolder);
-        imageBox.setStyle("-fx-background-color: rgba(20,20,20,0.75); -fx-background-radius: 8; -fx-padding: 8;");
+        imageBox.getStyleClass().add("ai-chat-block-surface");
         return imageBox;
     }
 
@@ -1536,6 +1860,7 @@ public class AiResultTab extends Tab {
 
     private TextArea createSelectableTextBlock(String text) {
         TextArea textArea = new TextArea(text != null ? text : "");
+        textArea.getStyleClass().add("ai-chat-text");
         textArea.setEditable(false);
         textArea.setWrapText(true);
         textArea.setFocusTraversable(false);

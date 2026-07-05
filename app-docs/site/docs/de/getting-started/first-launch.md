@@ -8,7 +8,11 @@ unter Verwendung von **AES-256-GCM**.
 lang genug und **rot**, wenn zu kurz; Ein Stärkeindikator bewertet die Qualität.
 Bei einem schwachen oder gebräuchlichen Passwort wird eine Warnung angezeigt, es kann jedoch weiterhin verwendet werden, wenn Sie es bestätigen.
 2. Bestätigen Sie das Passwort.
-3. Klicken Sie auf **Setup**.
+3. Aktivieren Sie optional **Anonyme Nutzungsstatistiken teilen**, um korTTY zu verbessern. Das
+ist standardmäßig deaktiviert, vollständig anonym und DSGVO-konform und kann jederzeit geändert werden
+unter **Einstellungen → Datenschutz**. Die Schaltfläche **?** wird geöffnet
+[Anonyme Daten zur Applikationsoptimierung](../about/anonymous-data.md).
+4. Klicken Sie auf **Setup**.
 
 Bei nachfolgenden Starts werden Sie aufgefordert, zum Entsperren das Master-Passwort einzugeben
 Ihre verschlüsselten Daten.

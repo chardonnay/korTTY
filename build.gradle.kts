@@ -1487,11 +1487,27 @@ tasks.register<JavaExec>("guideAskPanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("guideBackgroundUnloadSmoke") {
+    group = "verification"
+    description = "Verifies the guide WebView drops its page in the background and reloads the same URL on return."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.GuideBackgroundUnloadSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("swarmStatusStripSmoke") {
     group = "verification"
     description = "Renders the AI-swarm status strip in every agent state and snapshots it to build/smoke/swarm-strip-*.png."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.SwarmStatusStripSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("aiChatRedesignSmoke") {
+    group = "verification"
+    description = "Renders the redesigned AI chat for every color profile and snapshots it to build/smoke/ai-chat-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiChatRedesignSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
@@ -1508,6 +1524,14 @@ tasks.register<JavaExec>("terminalEffectPreviewSmoke") {
     description = "Starts every built-in terminal effect preview and snapshots each to build/smoke/terminal-effect-<id>.png."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.TerminalEffectPreviewSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generatePrivacyTabScreenshot") {
+    group = "build"
+    description = "Renders the Settings > Privacy tab screenshot for the manual via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.PrivacyTabScreenshotGenerator")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

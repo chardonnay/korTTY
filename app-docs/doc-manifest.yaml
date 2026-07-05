@@ -275,3 +275,11 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/persistence]
     last_synced_ref: "e7f0df8"
+
+  # ---- About: anonymous usage statistics --------------------------------------
+  - path: app-docs/site/docs/en/about/anonymous-data.md
+    owns_i18n: [settings.telemetry.]
+    owns_code: [src/main/java/de/kortty/telemetry]
+    diagrams: [telemetry-consent-flow.svg]
+    screenshots: [settings/telemetry.png]
+    last_synced_ref: "6b272d5"

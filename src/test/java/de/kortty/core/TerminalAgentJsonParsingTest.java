@@ -73,4 +73,12 @@ class TerminalAgentJsonParsingTest {
         expectThrows(JsonSyntaxException.class, () ->
             TerminalAgentService.extractJsonObjectContent("I would install tomcat with dnf."));
     }
+
+    @Test
+    void reportsTruncatedJsonObjectClearly() {
+        JsonSyntaxException failure = expectThrows(JsonSyntaxException.class, () ->
+            TerminalAgentService.extractJsonObjectContent(
+                "{\"status\":\"final_plan\",\"title\":\"x\",\"summary\":\"cut off here"));
+        assertThat(failure.getMessage()).contains("incomplete or truncated");
+    }
 }

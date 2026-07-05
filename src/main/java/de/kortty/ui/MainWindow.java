@@ -1,6 +1,9 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
+import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
 import de.kortty.core.AgentDashboardStatus;
 import de.kortty.core.AtomicFileWriter;
@@ -292,6 +295,14 @@ public class MainWindow {
         WindowCloseShortcutSupport.installForMainWindow(stage, openWindows.isEmpty(), this::fireCloseRequest);
         
         openWindows.add(this);
+        Telemetry.track(TelemetryEvents.WINDOW_OPENED, Map.of("open_windows", openWindows.size()));
+        // OS fullscreen can be entered via F11, the menu, or the macOS window button —
+        // the stage property is the single funnel for all of them.
+        stage.fullScreenProperty().addListener((obs, wasFullScreen, isFullScreen) -> {
+            if (Boolean.TRUE.equals(isFullScreen)) {
+                Telemetry.track(TelemetryEvents.FULLSCREEN_ENTERED, Map.of("mode", "os"));
+            }
+        });
     }
 
     private boolean configureWindowChrome(Stage stage) {
@@ -1947,6 +1958,9 @@ public class MainWindow {
             
             // Don't update dashboard immediately - wait for connection to establish
             // Dashboard will be updated after connection succeeds/fails
+            Telemetry.track(TelemetryEvents.TERMINAL_TAB_OPENED, Map.of(
+                "protocol", connection.getProtocol().name().toLowerCase(Locale.ROOT),
+                "open_tabs", countTerminalTabsInWindow()));
             return terminalTab;
         } catch (Exception e) {
             logger.error("Failed to create session", e);
@@ -1962,7 +1976,8 @@ public class MainWindow {
         }
         
         quickConnectDialogOpen = true;
-        
+        Telemetry.track(TelemetryEvents.CONNECT_UI_OPENED, Map.of("ui", "quick_connect"));
+
         try {
             // Create password vault for retrieving stored passwords
             PasswordVault vault = new PasswordVault(
@@ -2151,6 +2166,7 @@ public class MainWindow {
     }
     
     private void showConnectionManager() {
+        Telemetry.track(TelemetryEvents.CONNECT_UI_OPENED, Map.of("ui", "connection_manager"));
         logger.info("showConnectionManager() called - Opening Connection Manager");
         ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
         dialog.setOnConnectionsSavedCallback(this::refreshAllTerminalTabsConnectionSettings);
@@ -2283,6 +2299,7 @@ public class MainWindow {
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
                 refreshTerminalRecordingControlsVisibility();
+                refreshOpenChatColorProfiles();
                 if (menuBar != null && !menuBar.isVisible()) {
                     updateStatus(I18n.get("menu.view.menuBar.hiddenHint", MENU_BAR_TOGGLE_SHORTCUT_LABEL));
                 } else {
@@ -2292,6 +2309,17 @@ public class MainWindow {
         });
         
         dialog.showAndWait();
+    }
+
+    /** Re-applies the selected chat color profile to every open AI/swarm chat tab. */
+    void refreshOpenChatColorProfiles() {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof AiResultTab aiResultTab) {
+                aiResultTab.refreshChatColorProfile();
+            } else if (tab instanceof SwarmAgentTab swarmAgentTab) {
+                swarmAgentTab.refreshChatColorProfile();
+            }
+        }
     }
 
     private void refreshTerminalTabsUsingGlobalDefaults() {
@@ -2439,6 +2467,35 @@ public class MainWindow {
 
     public static boolean hasOpenWindows() {
         return !openWindows.isEmpty();
+    }
+
+    /** Number of currently open main windows (telemetry gauge; FX thread only). */
+    public static int getOpenWindowCount() {
+        return openWindows.size();
+    }
+
+    /** Open terminal tabs in this window, excluding AI tabs (telemetry gauge). */
+    private int countTerminalTabsInWindow() {
+        int count = 0;
+        for (javafx.scene.control.Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** Open terminal tabs across all windows, excluding AI tabs (telemetry gauge; FX thread only). */
+    public static int getOpenTerminalTabCount() {
+        int count = 0;
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (javafx.scene.control.Tab tab : window.tabPane.getTabs()) {
+                if (tab instanceof TerminalTab) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     public static void requestApplicationQuit() {
@@ -2914,6 +2971,11 @@ public class MainWindow {
     private void toggleFileBrowser(LocalFileBrowserManager.Position position) {
         ensureFileBrowserManager();
         fileBrowserManager.toggle(position);
+        LocalFileBrowserManager.Position current = fileBrowserManager.getPosition();
+        if (current != LocalFileBrowserManager.Position.HIDDEN) {
+            Telemetry.track(TelemetryEvents.FILE_BROWSER_TOGGLED,
+                Map.of("position", current.name().toLowerCase(Locale.ROOT)));
+        }
     }
 
     private void onFileBrowserPositionChanged(LocalFileBrowserManager.Position position) {
@@ -3282,6 +3344,7 @@ public class MainWindow {
                 : LocalFileBrowserManager.Position.HIDDEN;
 
             terminalOnlyFullscreenActive = true;
+            Telemetry.track(TelemetryEvents.FULLSCREEN_ENTERED, Map.of("mode", "terminal_only"));
             if (!stage.isFullScreen()) {
                 stage.setFullScreen(true);
             }
@@ -3417,9 +3480,11 @@ public class MainWindow {
             mainContentBox.getChildren().add(0, dashboardView);
             dashboardVisible = true;
             applyMainWindowThemeFromGlobalSettings();
+            Telemetry.track(TelemetryEvents.DASHBOARD_TOGGLED, Map.of("visible", true));
         } else if (!show && dashboardVisible) {
             mainContentBox.getChildren().remove(dashboardView);
             dashboardVisible = false;
+            Telemetry.track(TelemetryEvents.DASHBOARD_TOGGLED, Map.of("visible", false));
         }
         syncDashboardMenuItems(dashboardVisible);
     }
@@ -3431,6 +3496,8 @@ public class MainWindow {
     }
     
     private void handleDashboardAction(TerminalTab terminalTab, DashboardView.DashboardAction action) {
+        Telemetry.track(TelemetryEvents.DASHBOARD_ACTION,
+            Map.of("action", action.name().toLowerCase(Locale.ROOT)));
         switch (action) {
             case FOCUS:
                 // Focus the tab
@@ -3483,6 +3550,7 @@ public class MainWindow {
             try {
                 Project project = projectManager.loadProject(file.toPath());
                 loadProject(project);
+                Telemetry.track(TelemetryEvents.PROJECT_ACTION, Map.of("action", "open"));
                 updateStatus(I18n.get("status.projectLoaded", project.getName()));
             } catch (Exception e) {
                 logger.error("Failed to load project", e);
@@ -3515,6 +3583,7 @@ public class MainWindow {
                 
                 if (result.isPresent()) {
                     projectManager.saveProject(result.get(), file.toPath());
+                    Telemetry.track(TelemetryEvents.PROJECT_ACTION, Map.of("action", "save"));
                     updateStatus(I18n.get("status.projectSaved", file.getName()));
                 }
             } catch (Exception e) {
@@ -3845,6 +3914,10 @@ public class MainWindow {
                         app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
                         
                         showInfo(I18n.get("info.importSuccessful", imported.size(), importer.getName()), "");
+                        Telemetry.track(TelemetryEvents.CONNECTION_TRANSFER, Map.of(
+                            "direction", "import",
+                            "format", importer.getClass().getSimpleName().toLowerCase(Locale.ROOT),
+                            "count", imported.size()));
                         return;
                     } catch (Exception e) {
                         logger.error("Import failed", e);
@@ -3905,8 +3978,12 @@ public class MainWindow {
                 } else {
                     exportResult.exporter.exportConnections(exportResult.connections, file.toPath());
                 }
-                
-                showInfo(I18n.get("info.exportSuccessful", 
+
+                Telemetry.track(TelemetryEvents.CONNECTION_TRANSFER, Map.of(
+                    "direction", "export",
+                    "format", exportResult.exporter.getClass().getSimpleName().toLowerCase(Locale.ROOT),
+                    "count", exportResult.connections.size()));
+                showInfo(I18n.get("info.exportSuccessful",
                         exportResult.connections.size(), file.getName(),
                         "\n\nFormat: " + exportResult.exporter.getName() +
                         (exportResult.encrypted() ? "\n" + I18n.get("info.encrypted") : "")), "");
@@ -4089,6 +4166,7 @@ public class MainWindow {
         ProgressIndicator updateProgress,
         Label updateStatusLabel
     ) {
+        Telemetry.track(TelemetryEvents.UPDATE_CHECK_CLICKED);
         UpdateCheckService service = ensureUpdateCheckService();
         if (service == null) {
             updateStatusLabel.setText(I18n.get("updates.checkFailed"));
@@ -4298,6 +4376,11 @@ public class MainWindow {
         }
 
         AiRequest request = new AiRequest(action, requestText, connectionName, languageCode, draft.userPrompt());
+        Map<String, Object> aiChatProps = new java.util.LinkedHashMap<>(TelemetryProps.aiProfileProps(effectiveProfile));
+        aiChatProps.put("first", true);
+        aiChatProps.put("broadcast", false);
+        aiChatProps.put("action", action.name().toLowerCase(Locale.ROOT));
+        Telemetry.track(TelemetryEvents.AI_CHAT_MESSAGE, aiChatProps);
         String tabTitle = I18n.get("ai.tab.title", getAiActionLabel(action));
         AiResultTab resultTab = new AiResultTab(
             this,
@@ -4944,6 +5027,7 @@ public class MainWindow {
             showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.invalidSelection"));
             return;
         }
+        Telemetry.track(TelemetryEvents.FILE_LOADED_AS_TEXT, Map.of("source", "terminal_selection"));
 
         TerminalView.TerminalAgentRunContext resolvedContext = runContext != null
             ? runContext
@@ -5644,6 +5728,9 @@ public class MainWindow {
             return;
         }
         logger.info("Launching terminal AI agent with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
+        Map<String, Object> agentProps = new java.util.LinkedHashMap<>(TelemetryProps.aiProfileProps(profile));
+        agentProps.put("kind", request.queryOnly() ? "ask" : "execute");
+        Telemetry.track(TelemetryEvents.AI_AGENT_RUN_STARTED, agentProps);
         AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
         if (!(service instanceof AiPromptService aiService)) {
             suggestAiWizard(I18n.get("ai.agent.title"));
@@ -6045,6 +6132,7 @@ public class MainWindow {
             return;
         }
         logger.info("Launching terminal AI planning with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
+        Telemetry.track(TelemetryEvents.AI_PLAN_RUN_STARTED, TelemetryProps.aiProfileProps(profile));
         AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
         if (!(service instanceof AiPromptService aiService)) {
             suggestAiWizard(I18n.get("ai.plan.title"));
@@ -6376,6 +6464,7 @@ public class MainWindow {
 
     /** Opens a fresh AI swarm window. */
     private void showAiSwarm() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ai_swarm"));
         AiProfile profile = getDefaultAiProfile();
         String languageCode = LanguageManager.getInstance().getCurrentLanguageCode();
         SwarmAgentTab tab = new SwarmAgentTab(this, I18n.get("ai.swarm.tab.title"), profile, languageCode, null, false);
@@ -6384,6 +6473,7 @@ public class MainWindow {
 
     /** Reopens a saved swarm chat (or focuses it if already open). */
     public void openSavedSwarmChat(de.kortty.model.SavedSwarmChat chat) {
+        Telemetry.track(TelemetryEvents.AI_SAVED_CHAT_OPENED, Map.of("kind", "swarm"));
         if (chat == null) {
             return;
         }
@@ -6423,6 +6513,7 @@ public class MainWindow {
     }
 
     AiResultTab openSavedAiChat(SavedAiChat chat) {
+        Telemetry.track(TelemetryEvents.AI_SAVED_CHAT_OPENED, Map.of("kind", "chat"));
         if (chat == null) {
             return null;
         }
@@ -6729,6 +6820,7 @@ public class MainWindow {
     
     
     private void showCredentialManagement() {
+        Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "credentials"));
         try {
             CredentialManagementDialog dialog = new CredentialManagementDialog(
                 app.getCredentialManager(),
@@ -6744,6 +6836,7 @@ public class MainWindow {
     }
     
     private void showGPGKeyManagement() {
+        Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "gpg_keys"));
         try {
             GPGKeyManagementDialog dialog = new GPGKeyManagementDialog(app.getGpgKeyManager());
             dialog.initOwner(stage);
@@ -6755,6 +6848,7 @@ public class MainWindow {
     }
     
     private void showTeamworkSettings() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "teamwork_settings"));
         try {
             TeamworkSettingsDialog dialog = new TeamworkSettingsDialog(stage, app);
             dialog.showAndWait();
@@ -6765,6 +6859,7 @@ public class MainWindow {
     }
 
     private void showTerminalEffectPluginManager() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "terminal_effect_manager"));
         try {
             var manager = app.getTerminalEffectPluginManager();
             if (manager == null) {
@@ -6810,6 +6905,7 @@ public class MainWindow {
     }
     
     private void showSSHKeyManagement() {
+        Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "ssh_keys"));
         try {
             SSHKeyManagementDialog dialog = new SSHKeyManagementDialog(
                 app.getSSHKeyManager(),
@@ -6824,6 +6920,7 @@ public class MainWindow {
     }
     
     private void showAsciiArtBanner() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ascii_art"));
         try {
             AsciiArtBannerDialog dialog = new AsciiArtBannerDialog();
             dialog.initOwner(stage);
@@ -6835,6 +6932,7 @@ public class MainWindow {
     }
 
     private void showTerminalRecordingManager() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "video_manager"));
         try {
             TerminalRecordingManagerDialog dialog = new TerminalRecordingManagerDialog(
                 app.getGlobalSettingsManager(),
@@ -6870,6 +6968,7 @@ public class MainWindow {
      * Otherwise, shows a dialog to select a connection.
      */
     private void showSnippetManager() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "snippet_manager"));
         logger.info("showSnippetManager() called - Opening Snippet Manager");
         try {
             de.kortty.core.SnippetManager mgr = app.getSnippetManager();
@@ -6887,6 +6986,7 @@ public class MainWindow {
     }
 
     private void showJobScheduler() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "job_scheduler"));
         showJobSchedulerWithDraft(null);
     }
 
@@ -6910,6 +7010,7 @@ public class MainWindow {
     }
 
     private void showAiManager() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ai_manager"));
         if (!isAiFeaturesEnabled()) {
             return;
         }
@@ -6990,6 +7091,7 @@ public class MainWindow {
      * @param temporarySSHKey Optional temporary SSH key (only when opened from tab that used temp key)
      */
     private void openSFTPManagerForConnection(ServerConnection connection, de.kortty.model.TemporarySSHKey temporarySSHKey) {
+        Telemetry.track(TelemetryEvents.SFTP_OPENED);
         try {
             de.kortty.model.TemporarySSHKey keyToUse = temporarySSHKey;
             
@@ -7408,6 +7510,7 @@ public class MainWindow {
         };
         
         backupTask.setOnSucceeded(e -> {
+            Telemetry.track(TelemetryEvents.BACKUP_ACTION, Map.of("action", "create"));
             java.nio.file.Path backupFile = backupTask.getValue();
             try {
                 long fileSize = java.nio.file.Files.size(backupFile) / 1024; // KB
@@ -7551,6 +7654,7 @@ public class MainWindow {
         };
         
         importTask.setOnSucceeded(e -> {
+            Telemetry.track(TelemetryEvents.BACKUP_ACTION, Map.of("action", "import"));
             int filesImported = importTask.getValue();
             
             Alert success = new Alert(Alert.AlertType.INFORMATION);

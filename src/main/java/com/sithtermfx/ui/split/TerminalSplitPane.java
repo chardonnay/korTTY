@@ -38,9 +38,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javafx.scene.layout.HBox;
 
 /**
@@ -69,7 +71,8 @@ public class TerminalSplitPane extends StackPane {
         }
     }
 
-    private final SettingsProvider settingsProvider;
+    // Produces a fresh SettingsProvider per widget so each pane can carry its own appearance override.
+    private final Supplier<SettingsProvider> settingsProviderFactory;
     private final SplitConnectorFactory connectorFactory;
     private final Consumer<SithTermFxWidget> widgetConfigurator;
     private final Function<SithTermFxWidget, Region> leftPanelFactory;
@@ -88,6 +91,9 @@ public class TerminalSplitPane extends StackPane {
     private final Map<SithTermFxWidget, VBox> widgetBottomHosts = new HashMap<>();
     private boolean bottomPanelsDetached = false;
     private final Map<SithTermFxWidget, Button> widgetCloseButtons = new HashMap<>();
+    // Per-widget StackPane wrapper (the leaf cell's root node) used as the mount point for a per-pane
+    // effect overlay. Reused by reference across split/close/move, so an overlay follows its pane.
+    private final Map<SithTermFxWidget, StackPane> widgetOverlayHosts = new HashMap<>();
 
     // Track the currently showing context menu so we can hide it properly
     private ContextMenu activeContextMenu;
@@ -99,42 +105,53 @@ public class TerminalSplitPane extends StackPane {
     // per-widget resources such as terminal-agent runs/panels.
     private Consumer<SithTermFxWidget> onWidgetClosed;
 
+    // Optional hook invoked after a new widget is created by splitting an existing pane, carrying the
+    // originating SplitRequest (whose parentWidget is the source pane) so owners can inherit state.
+    private BiConsumer<SithTermFxWidget, SplitRequest> onWidgetSplitCreated;
+
+    // Optional hook invoked when the LAST remaining pane's session ends (e.g. Ctrl+D / exit), so the
+    // owner can close the whole tab. Splits with more than one pane just auto-close the single pane.
+    private Runnable onLastWidgetSessionEnded;
+
+    // Optional hook invoked when broadcast mode actually changes state (host-app telemetry).
+    private Consumer<Boolean> onBroadcastModeChanged;
+
     /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
     private Runnable resetZoomCallback;
 
-    public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
+    public TerminalSplitPane(@NotNull Supplier<SettingsProvider> settingsProviderFactory,
                              @NotNull SplitConnectorFactory connectorFactory) {
-        this(settingsProvider, connectorFactory, w -> {}, null);
+        this(settingsProviderFactory, connectorFactory, w -> {}, null);
     }
 
-    public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
+    public TerminalSplitPane(@NotNull Supplier<SettingsProvider> settingsProviderFactory,
                              @NotNull SplitConnectorFactory connectorFactory,
                              @NotNull Consumer<SithTermFxWidget> widgetConfigurator) {
-        this(settingsProvider, connectorFactory, widgetConfigurator, null);
+        this(settingsProviderFactory, connectorFactory, widgetConfigurator, null);
     }
 
-    public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
+    public TerminalSplitPane(@NotNull Supplier<SettingsProvider> settingsProviderFactory,
                              @NotNull SplitConnectorFactory connectorFactory,
                              @NotNull Consumer<SithTermFxWidget> widgetConfigurator,
                              @Nullable Function<SithTermFxWidget, Region> leftPanelFactory) {
-        this(settingsProvider, connectorFactory, widgetConfigurator, leftPanelFactory, (widget, connector) -> connector);
+        this(settingsProviderFactory, connectorFactory, widgetConfigurator, leftPanelFactory, (widget, connector) -> connector);
     }
 
-    public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
+    public TerminalSplitPane(@NotNull Supplier<SettingsProvider> settingsProviderFactory,
                              @NotNull SplitConnectorFactory connectorFactory,
                              @NotNull Consumer<SithTermFxWidget> widgetConfigurator,
                              @Nullable Function<SithTermFxWidget, Region> leftPanelFactory,
                              @NotNull BiFunction<SithTermFxWidget, TtyConnector, TtyConnector> connectorDecorator) {
-        this(settingsProvider, connectorFactory, widgetConfigurator, leftPanelFactory, null, connectorDecorator);
+        this(settingsProviderFactory, connectorFactory, widgetConfigurator, leftPanelFactory, null, connectorDecorator);
     }
 
-    public TerminalSplitPane(@NotNull SettingsProvider settingsProvider,
+    public TerminalSplitPane(@NotNull Supplier<SettingsProvider> settingsProviderFactory,
                              @NotNull SplitConnectorFactory connectorFactory,
                              @NotNull Consumer<SithTermFxWidget> widgetConfigurator,
                              @Nullable Function<SithTermFxWidget, Region> leftPanelFactory,
                              @Nullable Function<SithTermFxWidget, Region> bottomPanelFactory,
                              @NotNull BiFunction<SithTermFxWidget, TtyConnector, TtyConnector> connectorDecorator) {
-        this.settingsProvider = settingsProvider;
+        this.settingsProviderFactory = settingsProviderFactory;
         this.connectorFactory = connectorFactory;
         this.widgetConfigurator = widgetConfigurator;
         this.leftPanelFactory = leftPanelFactory;
@@ -215,7 +232,7 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private @NotNull SithTermFxWidget createWidget(@Nullable SplitRequest request) {
-        SithTermFxWidget widget = new SithTermFxWidget(80, 24, settingsProvider);
+        SithTermFxWidget widget = new SithTermFxWidget(80, 24, settingsProviderFactory.get());
         widgetConfigurator.accept(widget);
         TtyConnector connector = connectorFactory.createConnectorForSplit(request);
         if (connector != null) {
@@ -247,6 +264,9 @@ public class TerminalSplitPane extends StackPane {
                     if (rootCell != null && rootCell.countWidgets() > 1) {
                         logger.info("Session closed in split widget, auto-closing split pane");
                         closeSplit(widget);
+                    } else if (onLastWidgetSessionEnded != null) {
+                        logger.info("Session closed in the last pane, requesting tab close");
+                        onLastWidgetSessionEnded.run();
                     }
                 });
             }
@@ -297,6 +317,35 @@ public class TerminalSplitPane extends StackPane {
     /** Sets a hook invoked for each widget being closed (split close or close-all). */
     public void setOnWidgetClosed(@Nullable Consumer<SithTermFxWidget> onWidgetClosed) {
         this.onWidgetClosed = onWidgetClosed;
+    }
+
+    /** Sets a hook invoked after a split creates a new widget; receives (newWidget, originating request). */
+    public void setOnWidgetSplitCreated(@Nullable BiConsumer<SithTermFxWidget, SplitRequest> onWidgetSplitCreated) {
+        this.onWidgetSplitCreated = onWidgetSplitCreated;
+    }
+
+    /** Sets a hook invoked when the last remaining pane's session ends, so the owner can close the tab. */
+    public void setOnLastWidgetSessionEnded(@Nullable Runnable onLastWidgetSessionEnded) {
+        this.onLastWidgetSessionEnded = onLastWidgetSessionEnded;
+    }
+
+    /** Returns the per-pane StackPane wrapper used as the mount point for a per-pane effect overlay. */
+    public @Nullable StackPane getWidgetOverlayHost(@Nullable SithTermFxWidget widget) {
+        return widget != null ? widgetOverlayHosts.get(widget) : null;
+    }
+
+    private void notifyWidgetSplitCreated(@Nullable SithTermFxWidget widget, @NotNull SplitRequest request) {
+        if (onWidgetSplitCreated != null && widget != null) {
+            try {
+                onWidgetSplitCreated.accept(widget, request);
+            } catch (RuntimeException e) {
+                logger.debug("onWidgetSplitCreated hook failed: {}", e.getMessage());
+            }
+        }
+    }
+
+    public void setOnBroadcastModeChanged(@Nullable Consumer<Boolean> onBroadcastModeChanged) {
+        this.onBroadcastModeChanged = onBroadcastModeChanged;
     }
 
     private void notifyWidgetClosed(@Nullable SithTermFxWidget widget) {
@@ -493,6 +542,7 @@ public class TerminalSplitPane extends StackPane {
             VBox.setVgrow(rootCell.getNode(), Priority.ALWAYS);
             refreshDragAndDrop();
             refreshSplitCloseButtons();
+            notifyWidgetSplitCreated(newWidget, request);
         }
     }
 
@@ -507,6 +557,7 @@ public class TerminalSplitPane extends StackPane {
         widgetBottomPanels.remove(widget);
         widgetBottomHosts.remove(widget);
         widgetCloseButtons.remove(widget);
+        widgetOverlayHosts.remove(widget);
         SplitCell replacement = rootCell.removeWidget(widget);
         if (replacement != rootCell) {
             getChildren().clear();
@@ -549,8 +600,16 @@ public class TerminalSplitPane extends StackPane {
     }
     
     public void setBroadcastMode(boolean enabled) {
+        boolean changed = this.broadcastMode != enabled;
         this.broadcastMode = enabled;
         logger.info("Broadcast mode {}", enabled ? "enabled" : "disabled");
+        if (changed && onBroadcastModeChanged != null) {
+            try {
+                onBroadcastModeChanged.accept(enabled);
+            } catch (RuntimeException e) {
+                logger.debug("onBroadcastModeChanged hook failed: {}", e.getMessage());
+            }
+        }
     }
     
     public void toggleBroadcastMode() {
@@ -745,12 +804,14 @@ public class TerminalSplitPane extends StackPane {
         widgetBottomPanels.clear();
         widgetBottomHosts.clear();
         widgetCloseButtons.clear();
+        widgetOverlayHosts.clear();
     }
 
     private void refreshSplitCloseButtons() {
         boolean showButtons = rootCell != null && rootCell.countWidgets() > 1;
         List<SithTermFxWidget> activeWidgets = getAllWidgets();
         widgetCloseButtons.entrySet().removeIf(entry -> !activeWidgets.contains(entry.getKey()));
+        widgetOverlayHosts.keySet().removeIf(w -> !activeWidgets.contains(w));
         for (Button button : widgetCloseButtons.values()) {
             button.setVisible(showButtons);
             button.setManaged(showButtons);
@@ -814,6 +875,7 @@ public class TerminalSplitPane extends StackPane {
             wrapper.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
             VBox.setVgrow(wrapper, Priority.ALWAYS);
             wrapper.setUserData(widget);
+            widgetOverlayHosts.put(widget, wrapper);
             Button closeButton = new Button("x");
             closeButton.getStyleClass().add("split-close-button");
             closeButton.setFocusTraversable(false);

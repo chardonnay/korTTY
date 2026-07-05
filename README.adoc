@@ -65,6 +65,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *GPG Key Management*: Manage GPG keys for backup encryption
 * *Menu Bar Visibility Toggle*: Show or hide the in-window menu bar from *View* or *Settings → Window*; if hidden, restore it with *Ctrl/Cmd+Shift+L*
 * *Terminal-only Fullscreen*: Press *F12* or use *View → Terminal-only Fullscreen* to hide menu/status chrome, dashboard, and file browser while keeping only the terminal visible; *View → Hide terminal scrollbars in fullscreen* can also hide terminal scrollbars while fullscreen is active
+* *Anonymous Usage Analytics (opt-in)*: Optionally share anonymous, GDPR-compliant usage statistics (via https://aptabase.com[Aptabase], EU servers) to help prioritize features and find crashes — off by default, asked at first launch, and switchable any time in *Settings → Privacy*. No personal data, hostnames, credentials, or content is ever sent; unsent events are cached locally and retried when offline. See the *Privacy & Anonymous Analytics* section below
 
 == AI Integration Overview
 
@@ -1070,6 +1071,18 @@ For distraction-free terminal work, *F12* toggles *View → Terminal-only Fullsc
 * Passwords are never stored in plain text
 * SSH keys can optionally be copied to user directory (included in backups)
 * *Automated security scanning*: Dependabot, CodeQL, and CodeRabbit (with Gitleaks, Semgrep, and OSV Scanner) automatically surface dependency vulnerabilities and security issues in every pull request; merged security-labeled fixes trigger automated patch releases
+
+== Privacy & Anonymous Analytics
+
+KorTTY can collect *anonymous usage statistics* to help decide which features to improve and to find crashes and frequent errors. This is strictly opt-in, *off by default*, and can be changed at any time in *Settings → Privacy*.
+
+* You are asked once — together with the master-password setup on first launch (existing installations are asked once after unlocking).
+* Data is processed by https://aptabase.com[Aptabase] in its *EU region* (`eu.aptabase.com`), on servers in the European Union, in compliance with the *GDPR*.
+* *Collected*: event names, aggregate counts/flags, app version, OS name/version, app language, and an anonymous session id regenerated on every launch and after one hour of inactivity.
+* *Never collected*: hostnames, usernames, connection data, file paths, snippet/terminal/chat content, keys, passwords, or error-message text.
+* If offline, events are cached locally in `~/.kortty` and sent later (discarded if you opt out; dropped after three days).
+
+See the *Anonymous data for application optimization* chapter in the in-app manual (*Help → Manual*) for full details.
 
 == Documentation SVG Diagrams
 
