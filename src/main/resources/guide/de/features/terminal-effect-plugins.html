@@ -1663,6 +1663,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#eingebaute-effekte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eingebaute Effekte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#laufzeitmodell" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1734,6 +1745,17 @@
     <span class="md-ellipsis">
       
         TerminalEffectAppearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectpreview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectPreview
       
     </span>
   </a>
@@ -2047,6 +2069,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#eingebaute-effekte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eingebaute Effekte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#laufzeitmodell" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2118,6 +2151,17 @@
     <span class="md-ellipsis">
       
         TerminalEffectAppearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminaleffectpreview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TerminalEffectPreview
       
     </span>
   </a>
@@ -2254,8 +2298,77 @@
 <li>Fügen Sie JavaFX-Overlay-Knoten über dem Terminalbereich hinzu (z. B. Scanlines, Rauschen, Vignetten oder Linienhervorhebungen).</li>
 <li>Wickeln Sie den SithTermFX <code>TtyConnector</code> ein, um die Terminalausgabe zu beobachten, zu beschleunigen oder umzuwandeln, bevor der Terminalemulator sie empfängt</li>
 <li>Reagieren Sie auf die vom Benutzer ausgewählte Animationsgeschwindigkeit des Endeffekts</li>
+<li>Stellen Sie eine animierte Vorschau bereit, die der Plugin-Manager für das ausgewählte Plugin anzeigt (optional <code>createPreview()</code>)</li>
 </ul>
-<p>Der integrierte MOTHER-Effekt wird als gebündeltes, exportierbares Plugin-JAR implementiert und dient als Referenzimplementierung.</p>
+<h2 id="eingebaute-effekte">Eingebaute Effekte<a class="headerlink" href="#eingebaute-effekte" title="Permanent link">&para;</a></h2>
+<p>KorTTY liefert elf integrierte Effekte als zwei gebündelte, exportierbare Plugin-JARs: die MOTHER-Referenzimplementierung (<code>kortty-terminal-effect-mother.jar</code>) und das Effektpaket (<code>kortty-terminal-effect-pack.jar</code>) mit zehn thematischen Effekten.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mother</code></td>
+<td>MU/DO/UR 6000</td>
+<td>Grünes CRT-Terminal-Erscheinungsbild im ALIEN-Stil mit getakteter Zeilenausgabe.</td>
+</tr>
+<tr>
+<td><code>amber-crt-90</code></td>
+<td>Bernstein CRT '90</td>
+<td>Bernsteinfarbener Phosphor-CRT-Monitor aus den 90er Jahren mit Scanlines, Glühen, Flimmern und einem rollenden Bildwiederholband.</td>
+</tr>
+<tr>
+<td><code>commodore-blue</code></td>
+<td>Commodore Heritage</td>
+<td>Klassischer C64-Heimcomputer-Look: Hellblau auf Blau mit klobigem Cursor und Ladebalken.</td>
+</tr>
+<tr>
+<td><code>neon-city</code></td>
+<td>Neonstadt</td>
+<td>Cyberpunk-Neon-Look mit Glitch-Tears, RGB-Split-Flimmern und pulsierendem Leuchten.</td>
+</tr>
+<tr>
+<td><code>digital-rain</code></td>
+<td>Digitaler Regen</td>
+<td>Grün-auf-Schwarz-Matrixstil mit einem schwachen Strom fallender Glyphen.</td>
+</tr>
+<tr>
+<td><code>hologram-hud</code></td>
+<td>Hologramm-HUD</td>
+<td>Durchscheinendes Science-Fiction-Hologramm mit Interferenzbändern, HUD-Eckklammern und Flimmern.</td>
+</tr>
+<tr>
+<td><code>poltergeist</code></td>
+<td>Poltergeist</td>
+<td>Verwunschenes monochromes Terminal mit atmender Vignette, statischen Ausbrüchen und geisterhaften Blitzen.</td>
+</tr>
+<tr>
+<td><code>vhs-1987</code></td>
+<td>VHS 1987</td>
+<td>Abgenutzte VHS-Kassettenwiedergabe mit Tracking-Rauschen, Rollverzerrung und einer PLAY-Überlagerung.</td>
+</tr>
+<tr>
+<td><code>synthwave-horizon</code></td>
+<td>Synthwave-Horizont</td>
+<td>Synthwave-Palette im Retro-80er-Jahre-Stil mit einem leuchtenden perspektivischen Raster am Horizont.</td>
+</tr>
+<tr>
+<td><code>deep-space-radar</code></td>
+<td>Weltraumradar</td>
+<td>Taktische Weltraumkonsole mit langsamem Radarschwenk, schwachen Blips und Rahmenecken.</td>
+</tr>
+<tr>
+<td><code>typewriter-noir</code></td>
+<td>Schreibmaschine Noir</td>
+<td>Sepia-Papier und Ink-Noir-Look mit zeichenweiser Schreibmaschinen-Ausgabegeschwindigkeit.</td>
+</tr>
+</tbody>
+</table>
+<p>Alle integrierten Effekte überschreiben das Erscheinungsbild des Terminals (Schriftart, Farben, Cursor), solange sie aktiv sind, und zeichnen ihre Animation als maustransparente Leinwandüberlagerung. Typewriter Noir umschließt zusätzlich den Anschluss, um die Ausgabe Zeichen für Zeichen zu beschleunigen. Effektnamen sind Eigennamen und bleiben unübersetzt; Beschreibungen werden über die <code>plugin.terminalEffects.desc.*</code>-Nachrichtenschlüssel mit einem englischen Fallback lokalisiert.</p>
 <h2 id="laufzeitmodell">Laufzeitmodell<a class="headerlink" href="#laufzeitmodell" title="Permanent link">&para;</a></h2>
 <p>Terminaleffekt-Plugins werden von <code>de.kortty.core.TerminalEffectPluginManager</code> in dieser Reihenfolge geladen:</p>
 <ol>
@@ -2279,11 +2392,12 @@
 <li>Anzeigename</li>
 <li>Kurze Beschreibung</li>
 </ul>
+<p>Neben der Tabelle spielt ein Vorschaufenster eine animierte Live-Vorschau des ausgewählten Plugins ab (ein kleines gefälschtes Terminal in den Farben des Effekts mit der Effektüberlagerung darüber). Wenn ein Plugin <code>createPreview()</code> nicht implementiert, zeigt das Panel stattdessen einen Platzhaltertext an. Die Vorschau stoppt, wenn sich die Auswahl ändert, der globale Schalter für Terminaleffekte ausgeschaltet wird oder das Dialogfeld geschlossen wird.</p>
 <p>Benutzer können:</p>
 <ul>
 <li>Aktivieren oder deaktivieren Sie ein Plugin</li>
 <li>Importieren Sie ein externes <code>.jar</code>-Plugin, das KorTTY nach <code>~/.kortty/plugins</code> kopiert</li>
-<li>Exportieren Sie Plugins, die über eine Quell-JAR verfügen (gebündeltes MOTHER ist exportierbar, da es von <code>kortty-terminal-effect-mother.jar</code> geladen wird)</li>
+<li>Exportieren Sie Plugins, die über eine Quell-JAR verfügen (die gebündelten MOTHER- und Effect-Pack-JARs sind exportierbar)</li>
 </ul>
 <p>Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder <strong>Ansicht &gt; Terminaleffekt</strong> aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über Quick Connect und Connection Manager speichern. Der Geschwindigkeitsregler deckt <code>1x</code> bis <code>10x</code> ab; Das numerische Feld akzeptiert Werte bis zu <code>99x</code>.</p>
 <h2 id="spi-klassen">SPI-Klassen<a class="headerlink" href="#spi-klassen" title="Permanent link">&para;</a></h2>
@@ -2295,7 +2409,8 @@
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="nf">displayName</span><span class="p">();</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">default</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">description</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="n">TerminalEffectSession</span><span class="w"> </span><span class="nf">createSession</span><span class="p">(</span><span class="n">TerminalEffectContext</span><span class="w"> </span><span class="n">context</span><span class="p">);</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">}</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">default</span><span class="w"> </span><span class="n">TerminalEffectPreview</span><span class="w"> </span><span class="nf">createPreview</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Regeln:</p>
 <ul>
@@ -2304,6 +2419,7 @@
 <li><code>displayName()</code> darf nicht leer sein</li>
 <li><code>description()</code> wird in der Plugin-Verwaltungstabelle angezeigt und sollte ein kurzer Satz sein</li>
 <li>Die Provider-Klasse muss von <code>ServiceLoader</code> ladbar sein; Verwenden Sie eine öffentliche Klasse mit einem öffentlichen Konstruktor ohne Argumente</li>
+<li><code>createPreview()</code> ist optional; Die Rückgabe von <code>null</code> (Standard) zeigt einen Platzhalter im Plugin-Manager an</li>
 </ul>
 <h3 id="terminaleffectsession">TerminalEffectSession<a class="headerlink" href="#terminaleffectsession" title="Permanent link">&para;</a></h3>
 <p><code>createSession</code> gibt einen <code>TerminalEffectSession</code> pro Terminal-Tab-/Effektaktivierung zurück.</p>
@@ -2380,65 +2496,80 @@
 </span></code></pre></div>
 <p>Verwenden Sie nur die Felder, die Ihr Effekt benötigt. <code>null</code> lässt den aktuellen Wert unverändert.</p>
 <p>Die aktuelle Implementierung übergibt Farbwerte als Zeichenfolgen, beispielsweise <code>#19FF4C</code>. Der Cursorstil ist ebenfalls eine Zeichenfolge. Der MOTHER-Effekt verwendet <code>BLINK_BLOCK</code>. Verwenden Sie Werte wieder, die bereits von den Terminaleinstellungen von KorTTY akzeptiert wurden, anstatt neue Namen zu erfinden.</p>
+<h3 id="terminaleffectpreview">TerminalEffectPreview<a class="headerlink" href="#terminaleffectpreview" title="Permanent link">&para;</a></h3>
+<p><code>createPreview()</code> gibt die im Plugin-Manager angezeigte animierte Vorschau zurück:</p>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">TerminalEffectPreview</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="nd">@NotNull</span><span class="w"> </span><span class="n">Node</span><span class="w"> </span><span class="nf">node</span><span class="p">();</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">default</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">start</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">default</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">stop</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Vertrag:</p>
+<ul>
+<li>Eine Vorschauinstanz unterstützt eine angezeigte Vorschau. Der Anrufer fordert einmal <code>node()</code> an, ruft <code>start()</code> nach dem Anhängen und <code>stop()</code> auf, bevor er es verwirft</li>
+<li>Erstellen Sie keine JavaFX-Objekte, bevor <code>node()</code> aufgerufen wird, damit die Plugin-Metadaten auch ohne ein ausgeführtes JavaFX-Toolkit verwendbar bleiben</li>
+<li><code>stop()</code> muss alle Zeitleisten stoppen und Animationsressourcen freigeben</li>
+</ul>
+<p><code>TerminalEffectPreviewCanvas</code> (gleiches Paket) ist eine wiederverwendbare Implementierung, die von allen integrierten Effekten verwendet wird: ein 360x220 gefälschtes Terminal mit konfigurierbaren Farben, gefälschten Shell-Linien, einem blinkenden Cursor und einer optionalen Effekt-Overlay-Leinwand oben. Sein Builder sammelt nur einfache Daten und erstellt träge JavaFX-Knoten in <code>node()</code>.</p>
 <h3 id="terminaleffectconnectorwrapper">TerminalEffectConnectorWrapper<a class="headerlink" href="#terminaleffectconnectorwrapper" title="Permanent link">&para;</a></h3>
 <p>Wenn ein Plugin einen Connector umschließt, implementieren Sie <code>TerminalEffectConnectorWrapper</code> und delegieren Sie alle <code>TtyConnector</code>-Methoden an den umschlossenen Connector, es sei denn, der Effekt ändert diese Methode absichtlich.</p>
-<div class="language-java highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">TerminalEffectConnectorWrapper</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">TtyConnector</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="n">TtyConnector</span><span class="w"> </span><span class="nf">delegate</span><span class="p">();</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="p">}</span>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kd">public</span><span class="w"> </span><span class="kd">interface</span> <span class="nc">TerminalEffectConnectorWrapper</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">TtyConnector</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="n">TtyConnector</span><span class="w"> </span><span class="nf">delegate</span><span class="p">();</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>KorTTY verwendet diese Markierung, um Effekt-Konnektoren zu entpacken, bevor ein anderer Wrapper angewendet wird oder bevor auf den zugrunde liegenden SSH-Konnektor zugegriffen wird. Ohne sie kann es beim erneuten Herstellen einer Verbindung, beim Hochladen per Drag-and-Drop, bei der Nachverfolgung des aktuellen Verzeichnisses durch einen KI-Agenten oder bei zukünftigen Funktionen auf Connector-Ebene dazu kommen, dass der falsche Connector angezeigt wird.</p>
 <h2 id="minimales-plugin-beispiel">Minimales Plugin-Beispiel<a class="headerlink" href="#minimales-plugin-beispiel" title="Permanent link">&para;</a></h2>
 <p>Verzeichnislayout:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>example-terminal-effect/
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── build.gradle.kts
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>└── src/main
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    ├── java/com/example/kortty/effects/AmberTerminalEffectPlugin.java
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    └── resources/META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>example-terminal-effect/
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>├── build.gradle.kts
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>└── src/main
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    ├── java/com/example/kortty/effects/AmberTerminalEffectPlugin.java
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    └── resources/META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin
 </span></code></pre></div>
 <p>ServiceLoader-Deskriptor (<code>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin</code>):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>com.example.kortty.effects.AmberTerminalEffectPlugin
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>com.example.kortty.effects.AmberTerminalEffectPlugin
 </span></code></pre></div>
 <p>Beispielimplementierung:</p>
-<div class="language-java highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">package</span><span class="w"> </span><span class="nn">com.example.kortty.effects</span><span class="p">;</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectAppearance</span><span class="p">;</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectContext</span><span class="p">;</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectPlugin</span><span class="p">;</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectSession</span><span class="p">;</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="kd">public</span><span class="w"> </span><span class="kd">final</span><span class="w"> </span><span class="kd">class</span> <span class="nc">AmberTerminalEffectPlugin</span><span class="w"> </span><span class="kd">implements</span><span class="w"> </span><span class="n">TerminalEffectPlugin</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="nd">@Override</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">id</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;amber&quot;</span><span class="p">;</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="nd">@Override</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">displayName</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Amber&quot;</span><span class="p">;</span>
-</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>
-</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">    </span><span class="nd">@Override</span>
-</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">description</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Amber monochrome terminal colors.&quot;</span><span class="p">;</span>
-</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>
-</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="w">    </span><span class="nd">@Override</span>
-</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">TerminalEffectSession</span><span class="w"> </span><span class="nf">createSession</span><span class="p">(</span><span class="n">TerminalEffectContext</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">TerminalEffectSession</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="w">            </span><span class="nd">@Override</span>
-</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="w">            </span><span class="kd">public</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">start</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="w">                </span><span class="n">context</span><span class="p">.</span><span class="na">applyAppearance</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">TerminalEffectAppearance</span><span class="p">(</span>
-</span><span id="__span-6-31"><a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a><span class="w">                        </span><span class="s">&quot;Monospaced&quot;</span><span class="p">,</span>
-</span><span id="__span-6-32"><a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a><span class="w">                        </span><span class="kc">null</span><span class="p">,</span>
-</span><span id="__span-6-33"><a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a><span class="w">                        </span><span class="s">&quot;#FFB000&quot;</span><span class="p">,</span>
-</span><span id="__span-6-34"><a id="__codelineno-6-34" name="__codelineno-6-34" href="#__codelineno-6-34"></a><span class="w">                        </span><span class="s">&quot;#050200&quot;</span><span class="p">,</span>
-</span><span id="__span-6-35"><a id="__codelineno-6-35" name="__codelineno-6-35" href="#__codelineno-6-35"></a><span class="w">                        </span><span class="s">&quot;#FFD37A&quot;</span><span class="p">,</span>
-</span><span id="__span-6-36"><a id="__codelineno-6-36" name="__codelineno-6-36" href="#__codelineno-6-36"></a><span class="w">                        </span><span class="s">&quot;BLINK_BLOCK&quot;</span><span class="p">));</span>
-</span><span id="__span-6-37"><a id="__codelineno-6-37" name="__codelineno-6-37" href="#__codelineno-6-37"></a><span class="w">            </span><span class="p">}</span>
-</span><span id="__span-6-38"><a id="__codelineno-6-38" name="__codelineno-6-38" href="#__codelineno-6-38"></a><span class="w">        </span><span class="p">};</span>
-</span><span id="__span-6-39"><a id="__codelineno-6-39" name="__codelineno-6-39" href="#__codelineno-6-39"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-6-40"><a id="__codelineno-6-40" name="__codelineno-6-40" href="#__codelineno-6-40"></a><span class="p">}</span>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">package</span><span class="w"> </span><span class="nn">com.example.kortty.effects</span><span class="p">;</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectAppearance</span><span class="p">;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectContext</span><span class="p">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectPlugin</span><span class="p">;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="kn">import</span><span class="w"> </span><span class="nn">de.kortty.plugin.terminaleffects.TerminalEffectSession</span><span class="p">;</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="kd">public</span><span class="w"> </span><span class="kd">final</span><span class="w"> </span><span class="kd">class</span> <span class="nc">AmberTerminalEffectPlugin</span><span class="w"> </span><span class="kd">implements</span><span class="w"> </span><span class="n">TerminalEffectPlugin</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="nd">@Override</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">id</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;amber&quot;</span><span class="p">;</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="nd">@Override</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">displayName</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Amber&quot;</span><span class="p">;</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="w">    </span><span class="nd">@Override</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="nf">description</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Amber monochrome terminal colors.&quot;</span><span class="p">;</span>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-24"><a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a>
+</span><span id="__span-7-25"><a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a><span class="w">    </span><span class="nd">@Override</span>
+</span><span id="__span-7-26"><a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">TerminalEffectSession</span><span class="w"> </span><span class="nf">createSession</span><span class="p">(</span><span class="n">TerminalEffectContext</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-27"><a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">TerminalEffectSession</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-28"><a id="__codelineno-7-28" name="__codelineno-7-28" href="#__codelineno-7-28"></a><span class="w">            </span><span class="nd">@Override</span>
+</span><span id="__span-7-29"><a id="__codelineno-7-29" name="__codelineno-7-29" href="#__codelineno-7-29"></a><span class="w">            </span><span class="kd">public</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">start</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-30"><a id="__codelineno-7-30" name="__codelineno-7-30" href="#__codelineno-7-30"></a><span class="w">                </span><span class="n">context</span><span class="p">.</span><span class="na">applyAppearance</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">TerminalEffectAppearance</span><span class="p">(</span>
+</span><span id="__span-7-31"><a id="__codelineno-7-31" name="__codelineno-7-31" href="#__codelineno-7-31"></a><span class="w">                        </span><span class="s">&quot;Monospaced&quot;</span><span class="p">,</span>
+</span><span id="__span-7-32"><a id="__codelineno-7-32" name="__codelineno-7-32" href="#__codelineno-7-32"></a><span class="w">                        </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-7-33"><a id="__codelineno-7-33" name="__codelineno-7-33" href="#__codelineno-7-33"></a><span class="w">                        </span><span class="s">&quot;#FFB000&quot;</span><span class="p">,</span>
+</span><span id="__span-7-34"><a id="__codelineno-7-34" name="__codelineno-7-34" href="#__codelineno-7-34"></a><span class="w">                        </span><span class="s">&quot;#050200&quot;</span><span class="p">,</span>
+</span><span id="__span-7-35"><a id="__codelineno-7-35" name="__codelineno-7-35" href="#__codelineno-7-35"></a><span class="w">                        </span><span class="s">&quot;#FFD37A&quot;</span><span class="p">,</span>
+</span><span id="__span-7-36"><a id="__codelineno-7-36" name="__codelineno-7-36" href="#__codelineno-7-36"></a><span class="w">                        </span><span class="s">&quot;BLINK_BLOCK&quot;</span><span class="p">));</span>
+</span><span id="__span-7-37"><a id="__codelineno-7-37" name="__codelineno-7-37" href="#__codelineno-7-37"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-7-38"><a id="__codelineno-7-38" name="__codelineno-7-38" href="#__codelineno-7-38"></a><span class="w">        </span><span class="p">};</span>
+</span><span id="__span-7-39"><a id="__codelineno-7-39" name="__codelineno-7-39" href="#__codelineno-7-39"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-40"><a id="__codelineno-7-40" name="__codelineno-7-40" href="#__codelineno-7-40"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>In diesem Beispiel ändert sich nur das Erscheinungsbild. Es ist kein Overlay oder Connector-Wrapper erforderlich.</p>
 <h2 id="bauen-und-verpacken">Bauen und Verpacken<a class="headerlink" href="#bauen-und-verpacken" title="Permanent link">&para;</a></h2>
@@ -2450,14 +2581,18 @@
 <li>Packen Sie nur die Plugin-Quellsatzausgabe in eine Plugin-JAR</li>
 <li>Fügen Sie den ServiceLoader-Deskriptor in die Plugin-JAR ein</li>
 </ul>
-<p>Die MUTTER-Aufgabe ist das konkrete, erprobte Beispiel:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>./gradlew<span class="w"> </span>motherTerminalEffectPluginJar
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>jar<span class="w"> </span>tf<span class="w"> </span>build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
+<p>Die Aufgaben MOTHER und effect-pack sind die konkreten, erprobten Beispiele:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>./gradlew<span class="w"> </span>motherTerminalEffectPluginJar
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>jar<span class="w"> </span>tf<span class="w"> </span>build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>./gradlew<span class="w"> </span>effectPackPluginJar
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>jar<span class="w"> </span>tf<span class="w"> </span>build/terminal-effect-plugins/kortty-terminal-effect-pack.jar
 </span></code></pre></div>
+<p>Eine einzelne Plugin-JAR kann mehrere Effekte registrieren: Das Effektpaket listet alle zehn Anbieterklassen in einem ServiceLoader-Deskriptor auf. Gebündelte JARs müssen zusätzlich in <code>src/main/resources/bundled-plugins/terminal-effects.index</code> aufgeführt sein, sonst werden sie nie extrahiert und geladen.</p>
 <p>Das generierte JAR muss Folgendes enthalten:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>de/kortty/plugin/terminaleffects/mother/MotherTerminalEffectPlugin.class
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>...
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>de/kortty/plugin/terminaleffects/mother/MotherTerminalEffectPlugin.class
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>...
 </span></code></pre></div>
 <p>Für ein Out-of-Tree-Plugin gilt die gleiche Regel: Erstellen Sie eine importierbare JAR-Datei, die Ihre Plugin-Klassen und <code>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin</code> enthält. Wenn Sie Bibliotheken verwenden, die KorTTY nicht bereits ausliefert, schattieren Sie sie in dasselbe JAR oder entfernen Sie diese Abhängigkeit.</p>
 <h2 id="richtlinien-fur-das-connector-wrapping">Richtlinien für das Connector-Wrapping<a class="headerlink" href="#richtlinien-fur-das-connector-wrapping" title="Permanent link">&para;</a></h2>
@@ -2482,6 +2617,7 @@
 <li>Stoppen Sie Zeitleisten/Animationen und lösen Sie die Bindung von Eigenschaften in <code>stop()</code></li>
 <li>Zeichnen Sie so günstig, dass Sie es immer wieder neu bemalen können</li>
 <li>Entfernen Sie beim Herunterfahren den Overlay-Knoten von <code>overlayRoot()</code></li>
+<li>Geben Sie den Canvas-Backing-Speicher frei, während sich die Registerkarte im Hintergrund befindet: Eine fensterlose Canvas-Textur pro ausgeblendeter Registerkarte kann den Prism-Texturpool erschöpfen, sobald mehrere Effekt-Registerkarten geöffnet sind, was zum Absturz des Renderings führt. Alle integrierten Effekte (MOTHER und das Effektpaket) lösen die Bindung und verkleinern ihre Overlay-Leinwand auf 0x0, während sie in der Szene nicht sichtbar ist, und binden sie erneut, wenn die Registerkarte erneut angezeigt wird</li>
 </ul>
 <p>Entscheiden Sie bei geteilten Terminals, ob das Overlay die gesamte Terminal-Registerkarte abdecken oder einzelne SithTermFX-Widgets verfolgen soll. <code>context.widgets()</code> kann mehr als ein Widget zurückgeben.</p>
 <h2 id="animationsgeschwindigkeit">Animationsgeschwindigkeit<a class="headerlink" href="#animationsgeschwindigkeit" title="Permanent link">&para;</a></h2>
@@ -2493,7 +2629,7 @@
 – Ungültige, nicht endliche oder nicht positive Werte werden auf <code>1x</code> normalisiert</li>
 </ul>
 <p>Verwenden Sie <code>context.animationSpeed()</code>, wenn Sie das Effekt-Timing berechnen. Die von MOTHER verwendete Konvention lautet:</p>
-<div class="language-java highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kt">long</span><span class="w"> </span><span class="n">scaledDelayMillis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="na">max</span><span class="p">(</span><span class="mi">1L</span><span class="p">,</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="na">round</span><span class="p">(</span><span class="n">baseDelayMillis</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">context</span><span class="p">.</span><span class="na">animationSpeed</span><span class="p">()));</span>
+<div class="language-java highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kt">long</span><span class="w"> </span><span class="n">scaledDelayMillis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="na">max</span><span class="p">(</span><span class="mi">1L</span><span class="p">,</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="na">round</span><span class="p">(</span><span class="n">baseDelayMillis</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">context</span><span class="p">.</span><span class="na">animationSpeed</span><span class="p">()));</span>
 </span></code></pre></div>
 <p>Behalten Sie keinen separaten Geschwindigkeitswert im Plugin bei. KorTTY speichert die Verbindungs-/Sitzungsgeschwindigkeit und leitet den normalisierten Wert über <code>TerminalEffectContext</code> weiter.</p>
 <h2 id="import-export-und-persistenz">Import, Export und Persistenz<a class="headerlink" href="#import-export-und-persistenz" title="Permanent link">&para;</a></h2>
@@ -2505,7 +2641,8 @@
 </ul>
 <p><strong>Exporte:</strong></p>
 <p>– Ein Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurde
-- Das gebündelte MOTHER ist exportierbar, da KorTTY sein gebündeltes JAR vor dem Laden nach <code>~/.kortty/bundled-plugins/terminal-effects</code> kopiert
+- Gebündelte Plugins sind exportierbar, da KorTTY seine gebündelten JARs vor dem Laden nach <code>~/.kortty/bundled-plugins/terminal-effects</code> kopiert
+- Beim Exportieren eines der zehn Effektpaket-Effekte wird der gesamte <code>kortty-terminal-effect-pack.jar</code> exportiert, da das JAR die Exporteinheit ist
 - Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden</p>
 <p><strong>Beharrlichkeit:</strong></p>
 <ul>
@@ -2530,20 +2667,22 @@
 </ul>
 <h2 id="manuelle-validierung">Manuelle Validierung<a class="headerlink" href="#manuelle-validierung" title="Permanent link">&para;</a></h2>
 <p>Bauen und prüfen:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>./gradlew<span class="w"> </span>motherTerminalEffectPluginJar
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>jar<span class="w"> </span>tf<span class="w"> </span>build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>./gradlew<span class="w"> </span>motherTerminalEffectPluginJar
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>jar<span class="w"> </span>tf<span class="w"> </span>build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
 </span></code></pre></div>
 <p>Führen Sie KorTTY aus:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>./gradlew<span class="w"> </span>run
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>./gradlew<span class="w"> </span>run
 </span></code></pre></div>
 <p>Plugin-Verwaltung validieren:</p>
 <ol>
 <li>Öffnen Sie <strong>Plugins &gt; Terminaleffekte</strong></li>
-<li>Bestätigen Sie, dass das Plugin mit Namen und Beschreibung angezeigt wird</li>
-<li>Deaktivieren und aktivieren Sie es</li>
-<li>Exportieren Sie es und überprüfen Sie das exportierte JAR mit <code>jar tf</code></li>
+<li>Bestätigen Sie, dass alle integrierten Plugins mit Namen und Beschreibung angezeigt werden</li>
+<li>Wählen Sie eine Zeile aus und bestätigen Sie, dass die animierte Vorschau neben der Tabelle abgespielt wird</li>
+<li>Deaktivieren und aktivieren Sie ein Plugin</li>
+<li>Exportieren Sie eines und überprüfen Sie das exportierte JAR mit <code>jar tf</code></li>
 <li>Importieren Sie das exportierte JAR in eine saubere KorTTY-Konfiguration oder einen anderen Build</li>
 </ol>
+<p>Die Gradle-Aufgabe <code>terminalEffectPreviewSmoke</code> rendert alle integrierten Vorschau- und Manager-Dialogfelder kopflos in <code>build/smoke/</code> für eine schnelle Offline-Überprüfung.</p>
 <p>Sitzungsverhalten validieren:</p>
 <ol>
 <li>Aktivieren Sie den Effekt über das Terminal-Kontextmenü oder <strong>Ansicht &gt; Terminaleffekt</strong></li>
