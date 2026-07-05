@@ -702,6 +702,9 @@ public class TerminalTab extends Tab {
         terminalView.setOnMoshInterruptedCallback(this::showMoshInterruptedStatusBarIfNeeded);
         // Register disconnect listener: keep tab and split open, show red tab and red status bar
         terminalView.setDisconnectListener((reason, wasError) -> {
+            // Capture the pane count synchronously (before the split's auto-close runs): in a split, one
+            // pane's shell exit must close only that pane, never the whole tab.
+            boolean splitHasOtherPanes = terminalView.getTerminalPaneCount() > 1;
             Platform.runLater(() -> {
                 if (!wasError) {
                     if (reconnectInProgress) {
@@ -712,7 +715,11 @@ public class TerminalTab extends Tab {
                     boolean isRemoteLogout = reason != null
                             && reason.toLowerCase().contains("remote logout");
                     if (!isMoshSession || isRemoteLogout) {
-                        closeTabSilently();
+                        // The exiting pane is removed by the split's own auto-close; only close the whole
+                        // tab when this was the last remaining pane.
+                        if (!splitHasOtherPanes) {
+                            closeTabSilently();
+                        }
                         return;
                     }
                     // Transient mosh disconnect without hard error: keep tab open

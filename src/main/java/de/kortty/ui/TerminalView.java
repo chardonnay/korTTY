@@ -206,18 +206,57 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    private static final class ActiveTerminalEffect {
-        private final String pluginId;
-        private final TerminalEffectSession session;
-        private ConnectionSettings baselineSettings;
-        private TerminalEffectAppearance appearance;
+    /**
+     * Immutable per-pane appearance override contributed by an active terminal effect.
+     * Any {@code null} field means "inherit the tab baseline" (the connection settings).
+     */
+    private record PaneAppearanceOverride(
+            String foregroundColor,
+            String backgroundColor,
+            String cursorColor,
+            String cursorStyle,
+            String fontFamily,
+            Float fontSize) {
 
-        private ActiveTerminalEffect(
-            String pluginId,
-            TerminalEffectSession session,
-            ConnectionSettings baselineSettings) {
+        /** Builds an override from an effect appearance, blank-to-null normalized, preserving cursor-blink preference. */
+        static PaneAppearanceOverride from(TerminalEffectAppearance a, ConnectionSettings baseline) {
+            if (a == null) {
+                return null;
+            }
+            String cursorStyle = blankToNull(a.cursorStyle());
+            if (cursorStyle != null && baseline != null) {
+                boolean blinking = TerminalCursorStyleSupport.isBlinkingStyle(baseline.getCursorStyle());
+                cursorStyle = TerminalCursorStyleSupport.withBlinkingPreference(cursorStyle, blinking);
+            }
+            Float fontSize = (a.fontSize() != null && a.fontSize() > 0) ? a.fontSize().floatValue() : null;
+            return new PaneAppearanceOverride(
+                    blankToNull(a.foregroundColor()),
+                    blankToNull(a.backgroundColor()),
+                    blankToNull(a.cursorColor()),
+                    cursorStyle,
+                    blankToNull(a.fontFamily()),
+                    fontSize);
+        }
+
+        private static String blankToNull(String s) {
+            return (s == null || s.isBlank()) ? null : s;
+        }
+    }
+
+    /**
+     * Runtime state of a terminal effect active on a single pane (widget). Replaces the former
+     * tab-wide single-effect holder: effects are now owned per pane via {@link #paneEffects}.
+     */
+    private static final class PaneEffect {
+        private final String pluginId;
+        private TerminalEffectSession session;
+        private ConnectionSettings baselineSettings;
+        private double animationSpeed;
+        private PaneAppearanceOverride override;
+
+        private PaneEffect(String pluginId, double animationSpeed, ConnectionSettings baselineSettings) {
             this.pluginId = pluginId;
-            this.session = session;
+            this.animationSpeed = animationSpeed;
             this.baselineSettings = baselineSettings;
         }
     }
@@ -232,7 +271,12 @@ public class TerminalView extends BorderPane {
     private String terminalAgentBusyStylesheetUrl;
     private SithTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
     private TtyConnector ttyConnector;
-    private KorTTYSettingsProvider settingsProvider;
+    // Single tab-wide font-size source. Every per-pane provider delegates its font-size reads/writes
+    // here, so Cmd/Ctrl +/- zoom and reset stay global across all splits.
+    private DynamicFontSizeSettingsProvider sharedFontSource;
+    // One settings provider per pane (widget). Each carries a nullable per-pane appearance override so
+    // an effect can recolor / re-font a single pane without touching its siblings.
+    private final Map<SithTermFxWidget, KorTTYSettingsProvider> paneProviders = new ConcurrentHashMap<>();
     private final int defaultFontSize;
     /** Font size and family at tab open (from connection settings before theme/global). Reset uses these so zoom reset matches what user saw. */
     private final int connectionSavedFontSize;
@@ -286,8 +330,10 @@ public class TerminalView extends BorderPane {
     private TerminalAgentCompletionPopup agentCompletionPopup;
     private volatile boolean timestampGuttersVisibleState;
     private volatile boolean terminalScrollbarsVisible = true;
-    private double terminalEffectAnimationSpeed = TerminalEffectAnimationSpeed.DEFAULT;
-    private ActiveTerminalEffect activeTerminalEffect;
+    // Seed speed for panes that don't yet have an effect (used when a pane inherits/gains one).
+    private double defaultEffectAnimationSpeed = TerminalEffectAnimationSpeed.DEFAULT;
+    // One active effect per pane (widget). Absent key = no effect on that pane.
+    private final Map<SithTermFxWidget, PaneEffect> paneEffects = new ConcurrentHashMap<>();
     private volatile TerminalRecordingSession terminalRecordingSession;
     private volatile TerminalRecordingScope terminalRecordingScope = TerminalRecordingScope.ACTIVE_SPLIT;
     private volatile List<SithTermFxWidget> terminalRecordingTargetWidgets = List.of();
@@ -361,24 +407,37 @@ public class TerminalView extends BorderPane {
     }
     
     private void initializeTerminal() {
-        // Create settings provider with dynamic font size support (enables Cmd+Plus/Minus zoom)
-        settingsProvider = new KorTTYSettingsProvider(settings, defaultFontSize);
-        
-        // Add listener to re-render terminals when font size changes
-        settingsProvider.addFontSizeListener(this::updateAllTerminalFonts);
-        
+        // Single tab-wide font-size source (enables Cmd/Ctrl+Plus/Minus zoom). Every per-pane provider
+        // delegates its font size here, so zoom/reset stay global across all splits.
+        sharedFontSource = new DynamicFontSizeSettingsProvider(defaultFontSize);
+
+        // Re-render every terminal when the shared font size changes.
+        sharedFontSource.addFontSizeListener(this::updateAllTerminalFonts);
+
         // Create SplitConnectorFactory that creates new SSH connections for splits
         SplitConnectorFactory connectorFactory = this::createSplitConnector;
-        
+
+        // Each pane gets its OWN settings provider (carrying a nullable per-pane appearance override),
+        // all sharing the single font-size source above.
+        java.util.function.Supplier<com.sithtermfx.ui.settings.SettingsProvider> providerFactory =
+                () -> new KorTTYSettingsProvider(settings, sharedFontSource);
+
         // Create TerminalSplitPane with split support
         // Right-click context menu will show: Font size options + Split right/down + Close split
-        splitPane = new TerminalSplitPane(settingsProvider, connectorFactory, widget -> {
+        splitPane = new TerminalSplitPane(providerFactory, connectorFactory, widget -> {
+            registerPaneProvider(widget);
             setupWidgetEventHandlers(widget);
             applyCursorShape(widget);
             setupTimestampGutter(widget);
             applyTerminalScrollbarVisibility(widget);
         }, widget -> gutterMap.get(widget), this::createTerminalAgentActivityPanel, this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
-        splitPane.setOnWidgetClosed(this::discardTerminalAgentRunsForWidget); // Cancel + discard a widget's agent runs when its split closes
+        splitPane.setOnWidgetClosed(this::onPaneClosed); // Stop the pane's effect + release its provider/agent runs when its split closes
+        splitPane.setOnWidgetSplitCreated(this::inheritEffectOnSplit); // New split panes inherit the source pane's effect
+        splitPane.setOnLastWidgetSessionEnded(() -> { // Only the LAST pane's exit closes the tab (splits close just their pane)
+            if (onCloseTabRequest != null) {
+                onCloseTabRequest.run();
+            }
+        });
         // Telemetry: count broadcast toggles (never keystrokes — the data path stays uninstrumented).
         splitPane.setOnBroadcastModeChanged(enabled ->
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.BROADCAST_TOGGLED, Map.of(
@@ -457,6 +516,10 @@ public class TerminalView extends BorderPane {
             }
             if (!themeMenu.getItems().isEmpty()) {
                 items.add(themeMenu);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
+            if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+                items.add(buildPaneEffectMenu(widget));
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
             javafx.scene.control.MenuItem reconnectItem = new javafx.scene.control.MenuItem(I18n.get("dashboard.reconnect"));
@@ -848,38 +911,114 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /** The pane the tab-level (no-arg) effect API acts on: the focused split, else the first, else the primary. */
+    private @Nullable SithTermFxWidget getPrimaryPane() {
+        if (splitPane != null) {
+            SithTermFxWidget focused = splitPane.getFocusedWidget();
+            if (focused != null) {
+                return focused;
+            }
+            List<SithTermFxWidget> all = splitPane.getAllWidgets();
+            if (!all.isEmpty()) {
+                return all.get(0);
+            }
+        }
+        return terminalWidget;
+    }
+
+    /** Registers a pane's settings provider so its per-pane appearance override can be resolved later. */
+    private void registerPaneProvider(SithTermFxWidget widget) {
+        if (widget != null && widget.getSettingsProvider() instanceof KorTTYSettingsProvider provider) {
+            paneProviders.put(widget, provider);
+        }
+    }
+
+    /** Called when a split pane is closed: stop its effect and release its per-pane state. */
+    private void onPaneClosed(SithTermFxWidget widget) {
+        stopPaneEffect(widget);
+        paneProviders.remove(widget);
+        discardTerminalAgentRunsForWidget(widget);
+    }
+
+    /** New split panes inherit the source pane's effect (id + speed), per the feature design. */
+    private void inheritEffectOnSplit(SithTermFxWidget newWidget, SplitRequest request) {
+        if (newWidget == null || request == null) {
+            return;
+        }
+        SithTermFxWidget source = request.getParentWidget();
+        if (source == null) {
+            return;
+        }
+        String effectId = getTerminalEffectPluginId(source);
+        if (effectId == null) {
+            return;
+        }
+        setTerminalEffectAnimationSpeed(newWidget, getTerminalEffectAnimationSpeed(source));
+        setTerminalEffectPluginId(newWidget, effectId);
+    }
+
+    // ---- Tab-level (no-arg) API: forwards to the primary/focused pane so MainWindow and the
+    // connection-default tab-open path keep working unchanged. ----
+
     public @Nullable String getTerminalEffectPluginId() {
-        ActiveTerminalEffect effect = activeTerminalEffect;
-        return effect != null ? effect.pluginId : null;
+        return getTerminalEffectPluginId(getPrimaryPane());
     }
 
     public double getTerminalEffectAnimationSpeed() {
-        return terminalEffectAnimationSpeed;
+        return getTerminalEffectAnimationSpeed(getPrimaryPane());
     }
 
     public void setTerminalEffectAnimationSpeed(double speed) {
-        if (!Platform.isFxApplicationThread()) {
-            Platform.runLater(() -> setTerminalEffectAnimationSpeed(speed));
-            return;
-        }
-        terminalEffectAnimationSpeed = TerminalEffectAnimationSpeed.normalize(speed);
+        setTerminalEffectAnimationSpeed(getPrimaryPane(), speed);
     }
 
     public void setTerminalEffectPluginId(@Nullable String pluginId) {
+        setTerminalEffectPluginId(getPrimaryPane(), pluginId);
+    }
+
+    // ---- Per-pane API. ----
+
+    public @Nullable String getTerminalEffectPluginId(@Nullable SithTermFxWidget pane) {
+        PaneEffect effect = pane != null ? paneEffects.get(pane) : null;
+        return effect != null ? effect.pluginId : null;
+    }
+
+    public double getTerminalEffectAnimationSpeed(@Nullable SithTermFxWidget pane) {
+        PaneEffect effect = pane != null ? paneEffects.get(pane) : null;
+        return effect != null ? effect.animationSpeed : defaultEffectAnimationSpeed;
+    }
+
+    public void setTerminalEffectAnimationSpeed(@Nullable SithTermFxWidget pane, double speed) {
         if (!Platform.isFxApplicationThread()) {
-            Platform.runLater(() -> setTerminalEffectPluginId(pluginId));
+            Platform.runLater(() -> setTerminalEffectAnimationSpeed(pane, speed));
+            return;
+        }
+        double normalized = TerminalEffectAnimationSpeed.normalize(speed);
+        defaultEffectAnimationSpeed = normalized; // seed panes that gain an effect later (incl. inherit-on-split)
+        PaneEffect effect = pane != null ? paneEffects.get(pane) : null;
+        if (effect != null) {
+            effect.animationSpeed = normalized;
+        }
+    }
+
+    public void setTerminalEffectPluginId(@Nullable SithTermFxWidget pane, @Nullable String pluginId) {
+        if (pane == null) {
+            return;
+        }
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> setTerminalEffectPluginId(pane, pluginId));
             return;
         }
         if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
-            stopActiveTerminalEffect();
+            stopPaneEffect(pane);
             return;
         }
         String normalizedPluginId = normalizeTerminalEffectPluginId(pluginId);
-        if (Objects.equals(getTerminalEffectPluginId(), normalizedPluginId)) {
+        if (Objects.equals(getTerminalEffectPluginId(pane), normalizedPluginId)) {
             return;
         }
 
-        stopActiveTerminalEffect();
+        stopPaneEffect(pane);
         if (normalizedPluginId == null) {
             return;
         }
@@ -898,110 +1037,189 @@ public class TerminalView extends BorderPane {
         }
 
         ConnectionSettings baselineSettings = new ConnectionSettings(settings);
+        // Build the holder first so the context callbacks can capture it; the session is set once created.
+        PaneEffect effect = new PaneEffect(
+                normalizedPluginId,
+                getTerminalEffectAnimationSpeed(pane),
+                baselineSettings);
+        paneEffects.put(pane, effect);
+
+        StackPane overlayHost = resolveOverlayHost(pane);
         TerminalEffectContext context = new TerminalEffectContext(
                 normalizedPluginId,
                 this,
-                terminalContainer,
-                this::getTerminalEffectWidgets,
-                this::getTerminalEffectAnimationSpeed,
-                appearance -> applyTerminalEffectAppearance(normalizedPluginId, appearance),
-                () -> restoreTerminalEffectAppearance(normalizedPluginId));
+                overlayHost,
+                () -> List.of(pane),
+                () -> effect.animationSpeed,
+                appearance -> applyPaneEffectAppearance(pane, normalizedPluginId, appearance),
+                () -> restorePaneAppearance(pane, normalizedPluginId));
 
         try {
             TerminalEffectSession session = plugin.createSession(context);
             if (session == null) {
                 throw new IllegalStateException("Plugin returned no terminal effect session");
             }
+            effect.session = session;
             // Plugin id only — resolved successfully, so this counts real on-screen usage.
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_EFFECT_APPLIED,
                 Map.of("effect", normalizedPluginId));
-            activeTerminalEffect = new ActiveTerminalEffect(
-                    normalizedPluginId,
-                    session,
-                    baselineSettings);
             session.start();
-            logger.info("Activated terminal effect plugin '{}' for {}", normalizedPluginId, connection.getDisplayName());
+            logger.info("Activated terminal effect plugin '{}' on a pane", normalizedPluginId);
         } catch (Exception e) {
             logger.warn("Could not activate terminal effect plugin '{}': {}", normalizedPluginId, e.getMessage(), e);
-            activeTerminalEffect = null;
-            applyConnectionSettings(baselineSettings);
+            paneEffects.remove(pane);
+            clearPaneOverride(pane);
         }
     }
 
-    private void stopActiveTerminalEffect() {
-        ActiveTerminalEffect effect = activeTerminalEffect;
+    /** Stops and removes the effect on a single pane, restoring that pane's baseline appearance. */
+    private void stopPaneEffect(@Nullable SithTermFxWidget pane) {
+        if (pane == null) {
+            return;
+        }
+        PaneEffect effect = paneEffects.remove(pane);
         if (effect == null) {
             return;
         }
-        activeTerminalEffect = null;
         try {
-            effect.session.stop();
+            if (effect.session != null) {
+                effect.session.stop();
+            }
         } catch (Exception e) {
             logger.warn("Terminal effect plugin '{}' failed to stop: {}", effect.pluginId, e.getMessage(), e);
         } finally {
-            applyConnectionSettings(effect.baselineSettings);
+            clearPaneOverride(pane);
             logger.info("Deactivated terminal effect plugin '{}'", effect.pluginId);
         }
     }
 
-    private void applyTerminalEffectAppearance(String pluginId, TerminalEffectAppearance appearance) {
-        ActiveTerminalEffect effect = activeTerminalEffect;
+    /** Stops every pane's effect (used on tab dispose). */
+    private void stopAllEffects() {
+        for (SithTermFxWidget pane : List.copyOf(paneEffects.keySet())) {
+            stopPaneEffect(pane);
+        }
+    }
+
+    /**
+     * Where a pane's effect overlay is mounted: that pane's own StackPane wrapper, so the overlay is
+     * confined to the pane. Prefers the split pane's map; if that misses, walks up from the pane's node
+     * to its wrapper (the StackPane whose userData is the widget). Only a widget-less view uses the tab
+     * container as a last resort — never a real split pane, which would bleed across siblings.
+     */
+    private StackPane resolveOverlayHost(SithTermFxWidget pane) {
+        StackPane host = splitPane != null ? splitPane.getWidgetOverlayHost(pane) : null;
+        if (host == null && pane != null && pane.getPane() != null) {
+            javafx.scene.Node node = pane.getPane().getParent();
+            while (node != null) {
+                if (node instanceof StackPane sp && sp.getUserData() == pane) {
+                    host = sp;
+                    break;
+                }
+                node = node.getParent();
+            }
+        }
+        if (host == null) {
+            logger.warn("No per-pane overlay host found for a terminal pane; "
+                    + "the effect overlay will fall back to the whole tab container");
+        }
+        return host != null ? host : terminalContainer;
+    }
+
+    /** Applies an effect's appearance to a SINGLE pane via its provider override — never touches siblings. */
+    private void applyPaneEffectAppearance(SithTermFxWidget pane, String pluginId, TerminalEffectAppearance appearance) {
+        PaneEffect effect = paneEffects.get(pane);
         if (effect == null || !effect.pluginId.equals(pluginId) || appearance == null) {
             return;
         }
-        effect.appearance = appearance;
-        if (appearance.fontFamily() != null && !appearance.fontFamily().isBlank()) {
-            settings.setFontFamily(appearance.fontFamily());
+        PaneAppearanceOverride override = PaneAppearanceOverride.from(appearance, effect.baselineSettings);
+        effect.override = override;
+        KorTTYSettingsProvider provider = paneProviders.get(pane);
+        if (provider != null) {
+            provider.setOverride(override);
         }
-        if (appearance.fontSize() != null && appearance.fontSize() > 0) {
-            settings.setFontSize(appearance.fontSize());
-        }
-        if (appearance.foregroundColor() != null && !appearance.foregroundColor().isBlank()) {
-            settings.setForegroundColor(appearance.foregroundColor());
-        }
-        if (appearance.backgroundColor() != null && !appearance.backgroundColor().isBlank()) {
-            settings.setBackgroundColor(appearance.backgroundColor());
-        }
-        if (appearance.cursorColor() != null && !appearance.cursorColor().isBlank()) {
-            settings.setCursorColor(appearance.cursorColor());
-        }
-        if (appearance.cursorStyle() != null && !appearance.cursorStyle().isBlank()) {
-            boolean cursorBlinking = TerminalCursorStyleSupport.isBlinkingStyle(effect.baselineSettings.getCursorStyle());
-            settings.setCursorStyle(TerminalCursorStyleSupport.withBlinkingPreference(
-                    appearance.cursorStyle(),
-                    cursorBlinking));
-        }
-        settingsProvider.setFontSize(settings.getFontSize());
-        refreshTerminalAppearanceFromSettings();
+        refreshPaneAppearance(pane);
     }
 
-    private void restoreTerminalEffectAppearance(String pluginId) {
-        ActiveTerminalEffect effect = activeTerminalEffect;
-        if (effect != null && effect.pluginId.equals(pluginId)) {
-            applyConnectionSettings(effect.baselineSettings);
+    /** Restore callback a plugin may invoke; clears the pane's override if this plugin still owns the pane. */
+    private void restorePaneAppearance(SithTermFxWidget pane, String pluginId) {
+        PaneEffect effect = paneEffects.get(pane);
+        if (effect != null && !effect.pluginId.equals(pluginId)) {
+            return; // a different effect owns this pane now
         }
+        clearPaneOverride(pane);
     }
 
-    private List<SithTermFxWidget> getTerminalEffectWidgets() {
-        if (splitPane != null) {
-            return splitPane.getAllWidgets();
+    /** Drops a pane's appearance override and re-renders that pane at the baseline settings. */
+    private void clearPaneOverride(SithTermFxWidget pane) {
+        KorTTYSettingsProvider provider = paneProviders.get(pane);
+        if (provider != null) {
+            provider.setOverride(null);
         }
-        return terminalWidget != null ? List.of(terminalWidget) : List.of();
+        refreshPaneAppearance(pane);
     }
 
-    private void refreshTerminalAppearanceFromSettings() {
-        if (splitPane != null) {
-            for (SithTermFxWidget w : splitPane.getAllWidgets()) {
-                applyStyleStateColors(w);
-                applyCursorShape(w);
-                setCursorVisible(w, true);
-            }
-        } else if (terminalWidget != null) {
-            applyStyleStateColors(terminalWidget);
-            applyCursorShape(terminalWidget);
-            setCursorVisible(terminalWidget, true);
+    /** Re-applies colors, cursor shape and font to a single pane from its current (override-or-baseline) source. */
+    private void refreshPaneAppearance(SithTermFxWidget pane) {
+        if (pane == null) {
+            return;
         }
-        updateAllTerminalFonts();
+        applyStyleStateColors(pane);
+        applyCursorShape(pane);
+        setCursorVisible(pane, true);
+        reinitPaneFont(pane);
+    }
+
+    /**
+     * Builds the per-pane "Terminal Effect" submenu for the given pane's right-click menu. Selecting an
+     * effect here is runtime-only (never persisted to the connection), by design.
+     */
+    private javafx.scene.control.Menu buildPaneEffectMenu(SithTermFxWidget widget) {
+        javafx.scene.control.Menu menu = new javafx.scene.control.Menu(I18n.get("plugin.terminalEffect"));
+        if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            menu.setDisable(true);
+            return menu;
+        }
+        javafx.scene.control.ToggleGroup group = new javafx.scene.control.ToggleGroup();
+        String activePluginId = getTerminalEffectPluginId(widget);
+
+        javafx.scene.control.RadioMenuItem noneItem =
+                new javafx.scene.control.RadioMenuItem(I18n.get("plugin.none"));
+        noneItem.setToggleGroup(group);
+        noneItem.setSelected(activePluginId == null);
+        noneItem.setOnAction(e -> setTerminalEffectPluginId(widget, null));
+        menu.getItems().add(noneItem);
+
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        var manager = app != null ? app.getTerminalEffectPluginManager() : null;
+        if (manager == null || manager.getPlugins().isEmpty()) {
+            return menu;
+        }
+        menu.getItems().add(new javafx.scene.control.SeparatorMenuItem());
+        for (var plugin : manager.getPlugins()) {
+            javafx.scene.control.RadioMenuItem pluginItem =
+                    new javafx.scene.control.RadioMenuItem(plugin.displayName());
+            pluginItem.setToggleGroup(group);
+            pluginItem.setSelected(plugin.id().equals(activePluginId));
+            String id = plugin.id();
+            pluginItem.setOnAction(e -> setTerminalEffectPluginId(widget, id));
+            menu.getItems().add(pluginItem);
+        }
+        menu.getItems().add(new javafx.scene.control.SeparatorMenuItem());
+        menu.getItems().add(buildPaneEffectSpeedItem(widget, activePluginId != null));
+        return menu;
+    }
+
+    private javafx.scene.control.CustomMenuItem buildPaneEffectSpeedItem(SithTermFxWidget widget, boolean enabled) {
+        TerminalEffectUiSupport.AnimationSpeedControls speedControls =
+                TerminalEffectUiSupport.createAnimationSpeedControls(getTerminalEffectAnimationSpeed(widget));
+        speedControls.valueProperty().addListener((obs, oldValue, newValue) ->
+                setTerminalEffectAnimationSpeed(widget, newValue.doubleValue()));
+        javafx.scene.layout.VBox content = speedControls.root();
+        content.setPadding(new javafx.geometry.Insets(4, 8, 6, 8));
+        javafx.scene.control.CustomMenuItem item = new javafx.scene.control.CustomMenuItem(content);
+        item.setHideOnClick(false);
+        item.setDisable(!enabled);
+        return item;
     }
 
     private static @Nullable String normalizeTerminalEffectPluginId(@Nullable String pluginId) {
@@ -1345,6 +1563,11 @@ public class TerminalView extends BorderPane {
         this.onCloseTabRequest = onCloseTabRequest;
     }
 
+    /** Number of terminal panes (splits) in this tab; 1 when there is no split. */
+    public int getTerminalPaneCount() {
+        return splitPane != null ? splitPane.getWidgetCount() : 1;
+    }
+
     /**
      * True when Ctrl+D should close the tab instead of sending EOF: only for local cmd.exe/PowerShell
      * shells, which do not exit on EOF. Bash-family local shells (Git Bash/Cygwin/WSL), $SHELL, custom
@@ -1660,9 +1883,9 @@ public class TerminalView extends BorderPane {
         applyTerminalEmulation(widget, baseConnector);
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
-        ActiveTerminalEffect effect = activeTerminalEffect;
+        PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
-        if (effect == null) {
+        if (effect == null || effect.session == null) {
             return new TerminalColorFilteringTtyConnector(
                 decorated,
                 () -> settings == null || settings.isTerminalColorsEnabled());
@@ -2004,19 +2227,28 @@ public class TerminalView extends BorderPane {
      */
     private void updateAllTerminalFonts() {
         if (splitPane == null) return;
-        
+
         Platform.runLater(() -> {
             for (SithTermFxWidget widget : splitPane.getAllWidgets()) {
-                try {
-                    var terminalPanel = widget.getTerminalPanel();
-                    var method = terminalPanel.getClass().getDeclaredMethod("reinitFontAndResize");
-                    method.setAccessible(true);
-                    method.invoke(terminalPanel);
-                } catch (Exception e) {
-                    logger.warn("Failed to update font for terminal widget: {}", e.getMessage());
-                }
+                reinitPaneFont(widget);
             }
         });
+    }
+
+    /**
+     * Re-reads the font from a single pane's settings provider and re-renders it. Must run on the FX
+     * thread. Used both by {@link #updateAllTerminalFonts()} and the per-pane effect appearance path.
+     */
+    private void reinitPaneFont(SithTermFxWidget widget) {
+        if (widget == null) return;
+        try {
+            var terminalPanel = widget.getTerminalPanel();
+            var method = terminalPanel.getClass().getDeclaredMethod("reinitFontAndResize");
+            method.setAccessible(true);
+            method.invoke(terminalPanel);
+        } catch (Exception e) {
+            logger.warn("Failed to update font for terminal widget: {}", e.getMessage());
+        }
     }
     
     /**
@@ -2404,10 +2636,30 @@ public class TerminalView extends BorderPane {
         }
         applyTerminalAgentActivityTheme(theme);
         updateAllTerminalFonts();
-        ActiveTerminalEffect effect = activeTerminalEffect;
-        if (effect != null && effect.appearance != null) {
-            applyTerminalEffectAppearance(effect.pluginId, effect.appearance);
-        }
+        // Effect panes keep their own appearance override automatically (applyStyleStateColors /
+        // getTerminalFont resolve per pane), so a theme change never clobbers a pane running an effect.
+    }
+
+    /** The appearance override active on a pane (from its effect), or null when the pane has none. */
+    private PaneAppearanceOverride paneOverride(SithTermFxWidget widget) {
+        KorTTYSettingsProvider provider = widget != null ? paneProviders.get(widget) : null;
+        return provider != null ? provider.getOverride() : null;
+    }
+
+    /** Effective foreground for a pane: its effect override if set, else the shared connection baseline. */
+    private String effectiveForeground(SithTermFxWidget widget) {
+        PaneAppearanceOverride o = paneOverride(widget);
+        return (o != null && o.foregroundColor() != null) ? o.foregroundColor() : settings.getForegroundColor();
+    }
+
+    private String effectiveBackground(SithTermFxWidget widget) {
+        PaneAppearanceOverride o = paneOverride(widget);
+        return (o != null && o.backgroundColor() != null) ? o.backgroundColor() : settings.getBackgroundColor();
+    }
+
+    private String effectiveCursorStyle(SithTermFxWidget widget) {
+        PaneAppearanceOverride o = paneOverride(widget);
+        return (o != null && o.cursorStyle() != null) ? o.cursorStyle() : settings.getCursorStyle();
     }
 
     private void applyStyleStateColors(SithTermFxWidget widget) {
@@ -2415,18 +2667,20 @@ public class TerminalView extends BorderPane {
         var terminal = widget.getTerminal();
         if (!(terminal instanceof SithTerminal sithTerminal)) return;
         var styleState = sithTerminal.getStyleState();
+        String fgWeb = effectiveForeground(widget);
+        String bgWeb = effectiveBackground(widget);
         Color fg;
         Color bg;
         try {
-            fg = Color.web(settings.getForegroundColor());
+            fg = Color.web(fgWeb);
         } catch (IllegalArgumentException e) {
-            logger.warn("Invalid foreground color '{}', using white", settings.getForegroundColor(), e);
+            logger.warn("Invalid foreground color '{}', using white", fgWeb, e);
             fg = Color.WHITE;
         }
         try {
-            bg = Color.web(settings.getBackgroundColor());
+            bg = Color.web(bgWeb);
         } catch (IllegalArgumentException e) {
-            logger.warn("Invalid background color '{}', using black", settings.getBackgroundColor(), e);
+            logger.warn("Invalid background color '{}', using black", bgWeb, e);
             bg = Color.BLACK;
         }
         TerminalColor fgTc = TerminalColor.rgb(
@@ -2445,7 +2699,7 @@ public class TerminalView extends BorderPane {
 
     private void applyCursorShape(SithTermFxWidget widget) {
         if (widget == null || settings == null) return;
-        String style = settings.getCursorStyle();
+        String style = effectiveCursorStyle(widget);
         if (style == null || style.isEmpty()) return;
         String styleUpper = style.toUpperCase();
         try {
@@ -4304,7 +4558,7 @@ public class TerminalView extends BorderPane {
      * Gets the current font size from the settings provider (includes zoom level).
      */
     public int getCurrentFontSize() {
-        return (int) settingsProvider.getFontSize();
+        return (int) sharedFontSource.getFontSize();
     }
     
     /**
@@ -4788,7 +5042,7 @@ public class TerminalView extends BorderPane {
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();
         stopLogger();
-        stopActiveTerminalEffect();
+        stopAllEffects();
         if (ttyConnector != null) {
             try {
                 ttyConnector.close();
@@ -5058,11 +5312,11 @@ public class TerminalView extends BorderPane {
      */
     public void zoom(int delta) {
         if (delta > 0) {
-            settingsProvider.increaseFontSize(delta);
+            sharedFontSource.increaseFontSize(delta);
         } else if (delta < 0) {
-            settingsProvider.decreaseFontSize(-delta);
+            sharedFontSource.decreaseFontSize(-delta);
         }
-        logger.debug("Zoom changed to font size: {}", settingsProvider.getFontSize());
+        logger.debug("Zoom changed to font size: {}", sharedFontSource.getFontSize());
     }
     
     /**
@@ -5096,7 +5350,7 @@ public class TerminalView extends BorderPane {
         settings.setCursorColor(effective.getCursorColor());
         settings.setCursorStyle(effective.getCursorStyle());
         settings.setTerminalColorsEnabled(effective.isTerminalColorsEnabled());
-        settingsProvider.setFontSize(size);
+        sharedFontSource.setFontSize(size);
 
         if (splitPane != null) {
             for (SithTermFxWidget w : splitPane.getAllWidgets()) {
@@ -5117,7 +5371,7 @@ public class TerminalView extends BorderPane {
                 if (gutter != null) {
                     gutter.setGutterBackgroundColor(Color.web(settings.getBackgroundColor()));
                     gutter.setGutterTextColor(Color.web(settings.getForegroundColor()));
-                    gutter.setTimestampFont(settings.getFontFamily(), settingsProvider.getFontSize());
+                    gutter.setTimestampFont(settings.getFontFamily(), sharedFontSource.getFontSize());
                 }
             }
         } catch (Exception e) {
@@ -5125,13 +5379,8 @@ public class TerminalView extends BorderPane {
         }
 
         logger.debug("Applied connection settings: {} {}pt", family, size);
-        ActiveTerminalEffect effect = activeTerminalEffect;
-        if (effect != null) {
-            effect.baselineSettings = new ConnectionSettings(settings);
-            if (effect.appearance != null) {
-                applyTerminalEffectAppearance(effect.pluginId, effect.appearance);
-            }
-        }
+        // Effect panes keep their per-pane override (resolved in applyStyleStateColors / getTerminalFont),
+        // so applying connection settings tab-wide never overwrites a pane that is running an effect.
     }
 
     private boolean isThemeFontApplyEnabled() {
@@ -5154,7 +5403,7 @@ public class TerminalView extends BorderPane {
                     ? connectionSavedFontFamily : "Monospaced";
             settings.setFontFamily(family);
             settings.setFontSize(connectionSavedFontSize);
-            settingsProvider.setFontSize(connectionSavedFontSize);
+            sharedFontSource.setFontSize(connectionSavedFontSize);
             logger.debug("Zoom reset to tab-open baseline: {} {}pt", family, connectionSavedFontSize);
             return;
         }
@@ -5179,14 +5428,14 @@ public class TerminalView extends BorderPane {
         } catch (Exception e) {
             logger.debug("Could not get stored font for reset: {}", e.getMessage());
         }
-        settingsProvider.setFontSize(defaultFontSize);
+        sharedFontSource.setFontSize(defaultFontSize);
     }
     
     /**
      * Sets the terminal font size (e.g. when restoring project zoom level).
      */
     public void setFontSize(int fontSize) {
-        settingsProvider.setFontSize(fontSize);
+        sharedFontSource.setFontSize(fontSize);
         logger.debug("Font size set to: {}", fontSize);
     }
     
@@ -5649,40 +5898,107 @@ public class TerminalView extends BorderPane {
     private static class KorTTYSettingsProvider extends DynamicFontSizeSettingsProvider {
         
         private final ConnectionSettings settings;
-        
-        public KorTTYSettingsProvider(ConnectionSettings settings, int initialFontSize) {
-            super(initialFontSize);
+        // Single tab-wide font size. May be null during super() construction (guarded below).
+        private final DynamicFontSizeSettingsProvider sharedFontSource;
+        // Per-pane appearance override contributed by an active effect; null = inherit the baseline settings.
+        private volatile PaneAppearanceOverride override;
+
+        public KorTTYSettingsProvider(ConnectionSettings settings, DynamicFontSizeSettingsProvider sharedFontSource) {
+            super(sharedFontSource.getFontSize());
             this.settings = settings;
+            this.sharedFontSource = sharedFontSource;
         }
-        
+
+        void setOverride(PaneAppearanceOverride override) {
+            this.override = override;
+        }
+
+        PaneAppearanceOverride getOverride() {
+            return override;
+        }
+
+        // ---- Font size delegates to the single shared source so zoom/reset stay tab-wide. A pane may
+        // pin its own size via the override (mother leaves it null, so it keeps tracking the shared size). ----
+        @Override
+        public float getFontSize() {
+            if (sharedFontSource == null) {
+                return super.getFontSize();
+            }
+            PaneAppearanceOverride o = override;
+            if (o != null && o.fontSize() != null) {
+                return o.fontSize();
+            }
+            return sharedFontSource.getFontSize();
+        }
+
+        @Override
+        public float getTerminalFontSize() {
+            return getFontSize();
+        }
+
+        @Override
+        public void setFontSize(float size) {
+            if (sharedFontSource == null) {
+                super.setFontSize(size);
+                return;
+            }
+            sharedFontSource.setFontSize(size);
+        }
+
+        @Override
+        public void addFontSizeListener(Runnable listener) {
+            if (sharedFontSource == null) {
+                super.addFontSizeListener(listener);
+                return;
+            }
+            sharedFontSource.addFontSizeListener(listener);
+        }
+
+        @Override
+        public void removeFontSizeListener(Runnable listener) {
+            if (sharedFontSource == null) {
+                super.removeFontSizeListener(listener);
+                return;
+            }
+            sharedFontSource.removeFontSizeListener(listener);
+        }
+
         @Override
         public @NotNull Font getTerminalFont() {
-            String family = settings.getFontFamily();
+            PaneAppearanceOverride o = override;
+            String family = (o != null && o.fontFamily() != null) ? o.fontFamily() : settings.getFontFamily();
             if (family == null || family.isEmpty()) family = "Monospaced";
             if ("Monaco".equals(family) && !Font.getFamilies().contains("Monaco")) {
                 family = "Monospaced";
             }
             return Font.font(family, getFontSize());
         }
-        
+
         @Override
         public @NotNull TerminalColor getDefaultForeground() {
-            Color fgColor = Color.web(settings.getForegroundColor());
-            return TerminalColor.rgb(
-                    (int) (fgColor.getRed() * 255),
-                    (int) (fgColor.getGreen() * 255),
-                    (int) (fgColor.getBlue() * 255)
-            );
+            PaneAppearanceOverride o = override;
+            String color = (o != null && o.foregroundColor() != null) ? o.foregroundColor() : settings.getForegroundColor();
+            return webToTerminalColor(color, Color.WHITE);
         }
-        
+
         @Override
         public @NotNull TerminalColor getDefaultBackground() {
-            Color bgColor = Color.web(settings.getBackgroundColor());
+            PaneAppearanceOverride o = override;
+            String color = (o != null && o.backgroundColor() != null) ? o.backgroundColor() : settings.getBackgroundColor();
+            return webToTerminalColor(color, Color.BLACK);
+        }
+
+        private static TerminalColor webToTerminalColor(String web, Color fallback) {
+            Color c;
+            try {
+                c = Color.web(web);
+            } catch (RuntimeException e) {
+                c = fallback;
+            }
             return TerminalColor.rgb(
-                    (int) (bgColor.getRed() * 255),
-                    (int) (bgColor.getGreen() * 255),
-                    (int) (bgColor.getBlue() * 255)
-            );
+                    (int) (c.getRed() * 255),
+                    (int) (c.getGreen() * 255),
+                    (int) (c.getBlue() * 255));
         }
         
         @Override
@@ -5701,8 +6017,10 @@ public class TerminalView extends BorderPane {
 
         @Override
         public int caretBlinkingMs() {
+            PaneAppearanceOverride o = override;
+            String cursorStyle = (o != null && o.cursorStyle() != null) ? o.cursorStyle() : settings.getCursorStyle();
             return TerminalCursorStyleSupport.caretBlinkingPeriodMs(
-                    settings.getCursorStyle(),
+                    cursorStyle,
                     super.caretBlinkingMs());
         }
         
