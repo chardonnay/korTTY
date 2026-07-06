@@ -27,6 +27,9 @@ import { WORKER_SOURCES } from "./generated/workerSources.js";
 let diffEditor;
 let originalModel;
 let modifiedModel;
+let changeDecorations = [];
+let changeReasons = [];
+let changeReasonListenerAttached = false;
 let booted = false;
 let currentThemeName = "kortty-monaco-diff-theme";
 let currentTheme = {};
@@ -229,6 +232,123 @@ function setValue(originalValue, modifiedValue, originalLanguage, modifiedLangua
   modifiedModel.setValue(modifiedValue || "");
   monaco.editor.setModelLanguage(originalModel, originalLanguage || "plaintext");
   monaco.editor.setModelLanguage(modifiedModel, modifiedLanguage || "plaintext");
+  clearChangeReasons();
+}
+
+function clearChangeReasons() {
+  if (diffEditor) {
+    changeDecorations = diffEditor.getModifiedEditor().deltaDecorations(changeDecorations, []);
+  } else {
+    changeDecorations = [];
+  }
+}
+
+// Adds "why did this change?" hover annotations on the modified side. The change MARKING itself comes
+// from Monaco's own diff computation; these decorations cover the WHOLE changed block and, on hover,
+// name the finding id(s) it belongs to (e.g. "S1" or "S1 + S2", matching the list below the diff) plus
+// the reason(s). Anchors (verbatim lines the model copied from the fixed code) only LOCATE a block;
+// the block extent comes from Monaco, so we never rely on AI line numbers.
+function setChangeReasons(reasonsJson) {
+  try {
+    changeReasons = JSON.parse(reasonsJson || "[]");
+  } catch (_error) {
+    changeReasons = [];
+  }
+  if (!Array.isArray(changeReasons)) changeReasons = [];
+  if (!diffEditor) return;
+  if (!changeReasonListenerAttached) {
+    // Monaco computes the diff asynchronously after setValue, so re-apply on every diff update.
+    diffEditor.onDidUpdateDiff(function () { applyReasonDecorations(); });
+    changeReasonListenerAttached = true;
+  }
+  applyReasonDecorations();
+}
+
+function firstAnchorLine(text) {
+  const raw = String(text || "");
+  const line = raw.split(/\r?\n/).find((l) => l.trim().length > 0) || raw;
+  return line.trim();
+}
+
+function applyReasonDecorations() {
+  if (!diffEditor || !modifiedModel) return;
+  const modifiedEditor = diffEditor.getModifiedEditor();
+  changeDecorations = modifiedEditor.deltaDecorations(changeDecorations, []);
+  const reasons = Array.isArray(changeReasons) ? changeReasons : [];
+  if (reasons.length === 0) return;
+
+  // Locate each reason's anchor line on the modified side (best-effort; may stay null).
+  const located = [];
+  for (const change of reasons) {
+    if (!change || !change.reason) continue;
+    const anchor = firstAnchorLine(change.anchor);
+    let line = null;
+    if (anchor) {
+      const matches = modifiedModel.findMatches(anchor, false, false, true, null, false, 4);
+      if (matches.length > 0) line = matches[0].range.startLineNumber;
+    }
+    located.push({ finding: String(change.finding || "").trim(), reason: change.reason, line: line });
+  }
+  if (located.length === 0) return;
+
+  // Monaco's own computed changed-line ranges on the modified side define the block extents.
+  const lineChanges =
+    (typeof diffEditor.getLineChanges === "function" ? diffEditor.getLineChanges() : null) || [];
+  const blocks = lineChanges
+    .filter((c) => c.modifiedEndLineNumber > 0 && c.modifiedEndLineNumber >= c.modifiedStartLineNumber)
+    .map((c) => ({ start: c.modifiedStartLineNumber, end: c.modifiedEndLineNumber }));
+
+  const decorations = [];
+  const assigned = new Set();
+  for (const block of blocks) {
+    const group = [];
+    for (let i = 0; i < located.length; i++) {
+      const item = located[i];
+      if (item.line != null && item.line >= block.start && item.line <= block.end) {
+        group.push(item);
+        assigned.add(i);
+      }
+    }
+    if (group.length > 0) {
+      decorations.push(reasonDecoration(block.start, block.end, group));
+    }
+  }
+  // Reasons whose anchor did not fall inside a detected block: fall back to a single-line marker.
+  for (let i = 0; i < located.length; i++) {
+    if (assigned.has(i)) continue;
+    const item = located[i];
+    if (item.line == null) continue;
+    decorations.push(reasonDecoration(item.line, item.line, [item]));
+  }
+  changeDecorations = modifiedEditor.deltaDecorations([], decorations);
+}
+
+function reasonDecoration(startLine, endLine, group) {
+  const ids = [];
+  for (const item of group) {
+    if (item.finding && ids.indexOf(item.finding) < 0) ids.push(item.finding);
+  }
+  const header = ids.length > 0 ? "**" + ids.join(" + ") + "**" : "";
+  let message;
+  if (group.length === 1) {
+    // Single finding: show the id once as a header, then just the reason.
+    message = (header ? header + "\n\n" : "") + group[0].reason;
+  } else {
+    // Multiple findings on one block: combined header (e.g. "S1 + S2") then each reason, id-prefixed.
+    const body = group
+      .map((item) => (item.finding ? "**" + item.finding + "**: " : "") + item.reason)
+      .join("\n\n");
+    message = (header ? header + "\n\n" : "") + body;
+  }
+  const endColumn = modifiedModel.getLineMaxColumn(endLine);
+  return {
+    range: new monaco.Range(startLine, 1, endLine, endColumn),
+    options: {
+      isWholeLine: true,
+      linesDecorationsClassName: "kortty-change-reason-bar",
+      hoverMessage: { value: message }
+    }
+  };
 }
 
 function setFont(fontFamily, fontSize) {
@@ -253,6 +373,9 @@ function dispose() {
   diffEditor = null;
   originalModel = null;
   modifiedModel = null;
+  changeDecorations = [];
+  changeReasons = [];
+  changeReasonListenerAttached = false;
 }
 
 window.korttyMonacoDiff = {
@@ -260,5 +383,6 @@ window.korttyMonacoDiff = {
   setValue,
   setFont,
   setTheme,
+  setChangeReasons,
   dispose
 };

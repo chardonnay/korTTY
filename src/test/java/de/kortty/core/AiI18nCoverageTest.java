@@ -542,7 +542,19 @@ class AiI18nCoverageTest {
         "ai.swarm.script.outcome.notConnected",
         "ai.swarm.script.outcome.unsupportedShell",
         "ai.swarm.script.outcome.error",
-        "ai.swarm.target.headlessCount");
+        "ai.swarm.target.headlessCount",
+        "snippets.copied",
+        "snippets.ai.diff.reasons.title",
+        "snippets.ai.security.profile",
+        "snippets.ai.security.profile.default",
+        "snippets.ai.security.profile.hint",
+        "snippets.ai.security.rerun",
+        "snippets.ai.security.rerun.hint",
+        "snippets.ai.security.selectAll",
+        "settings.ai.securityProfile",
+        "settings.ai.securityProfile.default",
+        "settings.ai.securityProfile.clear",
+        "settings.ai.securityProfile.hint");
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\d+}");
 

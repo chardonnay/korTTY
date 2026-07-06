@@ -1787,6 +1787,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#snippet-sicherheitsuberprufung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet-Sicherheitsüberprüfung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2308,6 +2319,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#snippet-sicherheitsuberprufung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet-Sicherheitsüberprüfung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2739,6 +2761,25 @@
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.</p>
 <h2 id="unveroffentlicht">Unveröffentlicht<a class="headerlink" href="#unveroffentlicht" title="Permanent link">&para;</a></h2>
+<h3 id="snippet-sicherheitsuberprufung">Snippet-Sicherheitsüberprüfung<a class="headerlink" href="#snippet-sicherheitsuberprufung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Erläuterte Sicherheitsfixes</strong> – das Fenster <strong>Sicherheitsfixes überprüfen</strong> wird jetzt angezeigt
+das Original und der korrigierte Snippet in einem Side-by-Side-Diff, der hervorhebt
+geänderte Zeilen automatisch. Wenn Sie mit der Maus über einen geänderten Block fahren, benennen Sie die Ergebnisse
+Adressen (zum Beispiel <code>S1</code> oder <code>S1 + S2</code>, wenn ein Block zwei Befunde umfasst) und
+zeigt den/die Grund(e) an, und jeder Grund wird auch als Karte unter dem Diff aufgeführt
+Die Begründung bleibt sichtbar.</li>
+<li><strong>Spezielles KI-Profil für Sicherheitsüberprüfungen</strong> – Sie können ein separates KI-Profil auswählen
+nur für Sicherheitskontrollen und KorTTY merkt sich es dauerhaft. Stellen Sie es ein
+Fenster „Sicherheitsüberprüfung“ oder unter <strong>Konfiguration → Globale Einstellungen → AI</strong>; beide
+Orte haben dieselbe Einstellung und wenn sie leer bleibt, wird das Standardprofil wiederverwendet.</li>
+<li><strong>Verbesserungen des Sicherheitsüberprüfungsfensters</strong> – anpassbare (und gespeicherte) Schriftgröße,
+eine Schaltfläche zum Kopieren in die Zwischenablage für alle Ergebnisse, farbcodierte Schweregrad-Abzeichen mit
+Sortierung nach dem „Schweresten“ zuerst, ein „Alle auswählen“-Schalter und eine Schaltfläche <strong>Prüfung erneut ausführen</strong>
+Dadurch wird die Überprüfung mit dem ausgewählten Profil wiederholt.</li>
+<li><strong>Diff-Zoom gespeichert</strong> – die Schriftgröße in den AI-Diff-/Überprüfungsfenstern ist jetzt
+global statt nur für die aktuelle Sitzung gespeichert.</li>
+</ul>
 <h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Anpassbare Terminal-Hintergrundtransparenz</strong> – eine neue <strong>Ansicht → Zoom → Hintergrund
@@ -2754,6 +2795,9 @@ Es gibt etwas zu verlieren: Die Registerkarte hat geteilte Bereiche oder ein Bef
 (erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein
 Ein einzelnes inaktives Terminal wird sofort geschlossen. Die Pro-Verbindung <em>Schließen ohne
 Mit der Option „Bestätigung</em>“ wird die Eingabeaufforderung weiterhin vollständig unterdrückt.</li>
+<li><strong>Klarere Kontextmenübezeichnung</strong> – die Terminal-Rechtsklick-Aktion, die a lädt
+Die ausgewählte Remote-Datei im Snippet-Editor heißt jetzt <strong>In Snippet öffnen
+Editor</strong> (bisher <em>Als Textdatei laden</em>).</li>
 </ul>
 <h2 id="v240">v2.4.0<a class="headerlink" href="#v240" title="Permanent link">&para;</a></h2>
 <h3 id="endgultige-auswirkungen">Endgültige Auswirkungen<a class="headerlink" href="#endgultige-auswirkungen" title="Permanent link">&para;</a></h3>
@@ -2784,7 +2828,7 @@ Zurücksetzen gilt weiterhin für die gesamte Registerkarte.</li>
 erhält ein Untermenü „Terminaleffekt“, in dem Sie „Keine“ oder einen beliebigen installierten Effekt auswählen können
 nur für diesen Bereich, plus einen Schieberegler für die Animationsgeschwindigkeit; Die Auswahl erfolgt nur zur Laufzeit
 und wird nicht in der Verbindung gespeichert. Durch das Teilen eines Bereichs wird der neue Bereich mit gestartet
-den gleichen Effekt und die gleiche Animationsgeschwindigkeit wie der Bereich, von dem es geteilt wurde.</li>
+den gleichen Effekt und die gleiche Animationsgeschwindigkeit wie der Bereich, von dem es getrennt wurde.</li>
 <li><strong>Animierte Effektvorschauen im Plugin-Manager</strong> – <strong>Plugins → Terminal
 Effekte</strong> zeigt jetzt eine animierte Live-Vorschau des ausgewählten Effekts neben dem an
 Plugin-Liste, sodass Effekte verglichen werden können, bevor sie in einer Sitzung aktiviert werden.
@@ -3013,7 +3057,7 @@ Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.</li>
 <li><strong>Strg + Mausrad-Zoom</strong> – <strong>Strg</strong> (oder <strong>Befehl</strong> unter macOS) gedrückt halten und
 Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
 Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
-Abkürzungen.</li>
+Verknüpfungen.</li>
 <li><strong>Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte</strong> – diese Windows-Shells tun dies nicht
 Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
 (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.</li>

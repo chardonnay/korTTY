@@ -49,8 +49,8 @@ final class SnippetAiAssistFactory {
             request -> reviewSnippetCode(ownerWindow, profile, aiService, request, contextDisplayName),
             request -> improveSnippetCode(ownerWindow, profile, aiService, request, contextDisplayName),
             request -> assistSnippetCode(ownerWindow, profile, aiService, request, contextDisplayName),
-            request -> reviewSnippetSecurity(ownerWindow, profile, aiService, request, contextDisplayName),
-            request -> applySnippetSecurityFixes(ownerWindow, profile, aiService, request, contextDisplayName),
+            request -> reviewSnippetSecurity(ownerWindow, request, contextDisplayName),
+            request -> applySnippetSecurityFixes(ownerWindow, request, contextDisplayName),
             request -> generateCompactOneLiner(ownerWindow, profile, aiService, request, contextDisplayName),
             request -> generateSnippetPlantUml(ownerWindow, profile, aiService, request, contextDisplayName));
     }
@@ -260,11 +260,11 @@ final class SnippetAiAssistFactory {
 
     private static List<SnippetAiResponseSupport.SecurityFinding> reviewSnippetSecurity(
         MainWindow ownerWindow,
-        AiProfile profile,
-        AiService aiService,
         SnippetEditDialog.SecurityReviewRequest request,
         String connectionDisplayName) throws Exception {
 
+        AiProfile profile = resolveSecurityProfile(ownerWindow);
+        AiService aiService = securityAiService(ownerWindow, profile);
         return SnippetAiWorkflowSupport.reviewSnippetSecurity(
             aiService,
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
@@ -275,13 +275,13 @@ final class SnippetAiAssistFactory {
             request.additionalInstructions());
     }
 
-    private static SnippetAiResponseSupport.CodeImprovement applySnippetSecurityFixes(
+    private static SnippetAiResponseSupport.SnippetSecurityFix applySnippetSecurityFixes(
         MainWindow ownerWindow,
-        AiProfile profile,
-        AiService aiService,
         SnippetEditDialog.SecurityFixRequest request,
         String connectionDisplayName) throws Exception {
 
+        AiProfile profile = resolveSecurityProfile(ownerWindow);
+        AiService aiService = securityAiService(ownerWindow, profile);
         return SnippetAiWorkflowSupport.applySnippetSecurityFixes(
             aiService,
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
@@ -291,6 +291,27 @@ final class SnippetAiAssistFactory {
             request.fallbackLanguageCode(),
             request.selectedFindings(),
             request.additionalInstructions());
+    }
+
+    /**
+     * Resolves the AI profile for security checks fresh on every call so a change to the dedicated
+     * security profile (in the findings dialog or the settings) takes effect immediately, without
+     * reopening the snippet editor. Falls back to the default profile.
+     */
+    private static AiProfile resolveSecurityProfile(MainWindow ownerWindow) {
+        AiProfile profile = ownerWindow.getSecurityCheckAiProfile();
+        return profile != null ? profile : ownerWindow.getDefaultAiProfile();
+    }
+
+    private static AiService securityAiService(MainWindow ownerWindow, AiProfile profile) {
+        if (profile == null) {
+            throw new IllegalStateException("No AI profile is available for the security check.");
+        }
+        AiService aiService = ownerWindow.createAiServiceForProfile(profile);
+        if (aiService == null) {
+            throw new IllegalStateException("No AI service could be created for the security-check profile.");
+        }
+        return aiService;
     }
 
     private static SnippetAiResponseSupport.PlantUmlDiagram generateSnippetPlantUml(

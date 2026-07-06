@@ -116,11 +116,23 @@ Die Schaltfläche ↺ wechselt zwischen dem Originalcode und der letzten KI-gene
 - **AI Assistant…** – Öffnet einen Anweisungsdialog für die aktuelle Cursorposition. KorTTY sendet das vollständige Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil. Das Ergebnis wird als Vorher/Nachher-Vorschau angezeigt.
 - **Fehler und Verbesserungen überprüfen** – Erstellt einen Informationsbericht, ohne den Inhalt zu ändern.
 - **Verbessern…** – Schreibt nur den ausgewählten Codebereich neu.
-- **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus; KorTTY wendet sie mit einer Vorher/Nachher-Vorschau an.
+- **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#security-check) unten].
 - **Diagramm** – Erzeugt und speichert ein persistentes PlantUML-Logikstrukturdiagramm für das Snippet.
 
 !!! Warnung
-Snippet-KI-Aktionen senden den aktuellen Snippet-Inhalt, Auswahl- oder Cursor-Metadaten, Eingabeaufforderungsanweisungen und optional aktivierte KI-Fähigkeiten an das konfigurierte Standard-KI-Profil. Snippet-KI-Aktionen aktivieren keine Internet-Tools, selbst wenn das ausgewählte Profil über Internetzugang verfügt. Die automatische Vervollständigung kann das Snippet wiederholt senden, während sie aktiv ist. Deaktivieren Sie sie daher für sensible Snippets, es sei denn, Sie vertrauen dem konfigurierten Endpunkt.
+Snippet-KI-Aktionen senden den aktuellen Snippet-Inhalt, Auswahl- oder Cursor-Metadaten, Eingabeaufforderungsanweisungen und optional aktivierte KI-Fähigkeiten an das konfigurierte Standard-KI-Profil (oder, für die Sicherheitsprüfung, das dedizierte Sicherheitsprüfungsprofil). Snippet-KI-Aktionen aktivieren keine Internet-Tools, selbst wenn das ausgewählte Profil über Internetzugang verfügt. Die automatische Vervollständigung kann das Snippet wiederholt senden, während sie aktiv ist. Deaktivieren Sie sie daher für sensible Snippets, es sei denn, Sie vertrauen dem konfigurierten Endpunkt.
+
+#### Sicherheitsüberprüfung
+
+Im Berichtsfenster **Sicherheitsüberprüfung** wird jeder Befund mit einem farblich gekennzeichneten Schweregradsymbol aufgeführt (Befunde werden nach dem schwerwiegendsten zuerst sortiert). In diesem Fenster können Sie:
+
+- Passen Sie die Leseschriftgröße mit **A−** / **A+** an (wird sitzungsübergreifend gespeichert).
+- Kopieren Sie alle Ergebnisse in die Zwischenablage.
+- **Wählen Sie alle Ergebnisse auf einmal aus und wenden Sie dann die ausgewählten Korrekturen an.
+- Wählen Sie ein dediziertes **Sicherheitsprofil** – das KI-Profil, das für Sicherheitsüberprüfungen verwendet wird. Die Auswahl wird dauerhaft gespeichert und ist auch unter **Konfiguration → Globale Einstellungen → AI** verfügbar; Lassen Sie es auf *Standardprofil verwenden*, um die Standardeinstellung wiederzuverwenden. Änderungen werden sofort wirksam.
+- **Prüfung erneut ausführen**, um die Überprüfung mit dem neu ausgewählten Profil zu wiederholen.
+
+Wenn Sie Fixes anwenden, werden im Fenster **Sicherheitsfixes überprüfen** der ursprüngliche und der korrigierte Code nebeneinander angezeigt. Geänderte Zeilen werden automatisch hervorgehoben und tragen eine Markierung am Rand. Bewegen Sie den Mauszeiger an eine beliebige Stelle in einem geänderten Block, um zu sehen, auf welche(s) Ergebnis(se) er sich bezieht (zum Beispiel `S1` oder `S1 + S2`, wenn ein Block zwei Ergebnisse abdeckt), zusammen mit dem Grund für die Änderung. Die gleichen Erklärungen werden auch als Karten unterhalb des Unterschieds aufgeführt, sodass die Begründung auch dann sichtbar bleibt, wenn kein Marker platziert werden kann. Die Schriftgröße der Vorschau kann gezoomt werden und wird sitzungsübergreifend gespeichert.
 
 ### Textkorrektur und Übersetzung
 
@@ -247,4 +259,4 @@ Wählen Sie für skriptspezifische Exporte Folgendes:
 - **GPG-verschlüsselt** – Erstellt eine `.zip.gpg`-Datei; erfordert den lokalen Befehl `gpg` und einen verwendbaren öffentlichen Schlüssel
 
 !!! Tipp
-Wählen Sie zwei Snippets aus, exportieren Sie sie als Nur-Text und bestätigen Sie, dass die erstellten Dateien die Namen aus der Spalte **Name** verwenden. Exportieren Sie dann dieselbe Auswahl als ZIP mit der erzwungenen Erweiterung `.txt` und überprüfen Sie, ob alle ZIP-Einträge `.txt` verwenden. Bestätigen Sie für den Passwortexport, dass die ZIP-Datei vor dem Extrahieren das Passwort erfordert. For GPG export, decrypt the `.zip.gpg` with your local GPG setup and inspect the ZIP entries.
+Wählen Sie zwei Snippets aus, exportieren Sie sie als Nur-Text und bestätigen Sie, dass die erstellten Dateien die Namen aus der Spalte **Name** verwenden. Exportieren Sie dann dieselbe Auswahl als ZIP mit der erzwungenen Erweiterung `.txt` und überprüfen Sie, ob alle ZIP-Einträge `.txt` verwenden. Bestätigen Sie für den Passwortexport, dass die ZIP-Datei vor dem Extrahieren das Passwort erfordert. Für den GPG-Export entschlüsseln Sie `.zip.gpg` mit Ihrem lokalen GPG-Setup und überprüfen Sie die ZIP-Einträge.

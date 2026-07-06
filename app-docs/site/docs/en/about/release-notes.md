@@ -5,6 +5,25 @@ shown in the footer.
 
 ## Unreleased
 
+### Snippet Security Check
+
+- **Explained security fixes** — the **Review security fixes** window now renders
+  the original and corrected snippet in a side-by-side diff that highlights
+  changed lines automatically. Hovering a changed block names the finding(s) it
+  addresses (for example `S1`, or `S1 + S2` when a block covers two findings) and
+  shows the reason(s), and every reason is also listed as a card below the diff so
+  the rationale stays visible.
+- **Dedicated security-check AI profile** — you can pick a separate AI profile
+  just for security checks and KorTTY remembers it permanently. Set it in the
+  Security Check window or under **Configuration → Global Settings → AI**; both
+  places share the same setting, and leaving it empty reuses the default profile.
+- **Security Check window improvements** — adjustable (and remembered) font size,
+  a copy-to-clipboard button for all findings, colour-coded severity badges with
+  most-severe-first sorting, a select-all toggle, and a **Re-run check** button
+  that repeats the review with the selected profile.
+- **Remembered diff zoom** — the font size in the AI diff / review windows is now
+  stored globally instead of only for the current session.
+
 ### Terminal
 
 - **Adjustable terminal background transparency** — a new **View → Zoom → Background
@@ -20,6 +39,9 @@ shown in the footer.
   (detected from the local shell's process tree, or from the SSH shell prompt). An
   idle single terminal closes immediately. The per-connection *Close without
   confirmation* option still suppresses the prompt entirely.
+- **Clearer context-menu label** — the terminal right-click action that loads a
+  selected remote file into the snippet editor is now called **Open in Snippet
+  Editor** (previously *Load as text file*).
 
 ## v2.4.0
 

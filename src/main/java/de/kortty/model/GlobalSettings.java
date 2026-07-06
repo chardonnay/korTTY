@@ -225,6 +225,10 @@ public class GlobalSettings {
     @XmlElement
     private String defaultAiProfileId;
 
+    /** AI profile dedicated to snippet security checks. When null the default profile is used. */
+    @XmlElement
+    private String securityCheckAiProfileId;
+
     /** Encrypted Tavily API key used by KorTTY's direct web-search tool and Tavily MCP. */
     @XmlElement
     private String encryptedAiTavilyApiKey;
@@ -272,6 +276,14 @@ public class GlobalSettings {
     /** Font size used in temporary AI result tabs. */
     @XmlElement
     private Integer aiResultFontSize = 13;
+
+    /** Font size used in the snippet security-check findings window. */
+    @XmlElement
+    private Integer securityReportFontSize = 13;
+
+    /** Font size used in the AI diff / "review changes" windows. */
+    @XmlElement
+    private Integer aiDiffFontSize = 14;
 
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
@@ -1134,6 +1146,17 @@ public class GlobalSettings {
         normalizeAiProfiles();
     }
 
+    public String getSecurityCheckAiProfileId() {
+        return securityCheckAiProfileId;
+    }
+
+    public void setSecurityCheckAiProfileId(String securityCheckAiProfileId) {
+        this.securityCheckAiProfileId = securityCheckAiProfileId != null && !securityCheckAiProfileId.isBlank()
+            ? securityCheckAiProfileId.trim()
+            : null;
+        normalizeAiProfiles();
+    }
+
     public String getEncryptedAiTavilyApiKey() {
         return encryptedAiTavilyApiKey;
     }
@@ -1212,6 +1235,22 @@ public class GlobalSettings {
 
     public void setAiResultFontSize(Integer aiResultFontSize) {
         this.aiResultFontSize = aiResultFontSize;
+    }
+
+    public Integer getSecurityReportFontSize() {
+        return securityReportFontSize;
+    }
+
+    public void setSecurityReportFontSize(Integer securityReportFontSize) {
+        this.securityReportFontSize = securityReportFontSize;
+    }
+
+    public Integer getAiDiffFontSize() {
+        return aiDiffFontSize;
+    }
+
+    public void setAiDiffFontSize(Integer aiDiffFontSize) {
+        this.aiDiffFontSize = aiDiffFontSize;
     }
 
     public Integer getWorkflowScriptFontSize() {
@@ -1514,6 +1553,11 @@ public class GlobalSettings {
             .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())
             .noneMatch(profile -> defaultAiProfileId.equals(profile.getId()))) {
             defaultAiProfileId = null;
+        }
+        if (securityCheckAiProfileId != null && aiProfiles.stream()
+            .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())
+            .noneMatch(profile -> securityCheckAiProfileId.equals(profile.getId()))) {
+            securityCheckAiProfileId = null;
         }
     }
 

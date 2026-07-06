@@ -100,6 +100,17 @@ public class MonacoDiffPane extends StackPane {
         executeWhenReady("window.korttyMonacoDiff.setTheme(" + themeJson() + ");");
     }
 
+    /**
+     * Adds hover annotations ("why did this change?") to the modified side. Expects a JSON array of
+     * {@code { finding, anchor, reason }} objects. The change highlighting itself comes from Monaco's
+     * own diff; these decorations only attach the reason on hover, anchored by the verbatim line.
+     * Queued until the diff host is ready and always runs after the pending {@code setComparison}.
+     */
+    public void setChangeReasons(String reasonsJson) {
+        runWhenReady("window.korttyMonacoDiff.setChangeReasons("
+                + jsString(reasonsJson != null ? reasonsJson : "[]") + ");");
+    }
+
     public void setWorkerReadyHandler(Consumer<String> workerReadyHandler) {
         this.workerReadyHandler = workerReadyHandler;
     }

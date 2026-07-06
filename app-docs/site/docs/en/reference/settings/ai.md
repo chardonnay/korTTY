@@ -35,6 +35,9 @@ Configure AI profiles and terminal AI Agent settings. This is the largest settin
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
 | Default profile | dropdown | (list of configured profiles) | — | `defaultAiProfileId` |
+| Security-check profile | dropdown | (list of configured profiles; empty = use default profile) | — | `securityCheckAiProfileId` |
+
+The security-check profile is a dedicated AI profile for snippet **Security Check** actions. Leave it empty (or use **Clear**) to reuse the default profile. It can also be set directly in the snippet Security Check window, and both places share the same remembered setting.
 
 ### Profile Settings (in Editor Grid)
 

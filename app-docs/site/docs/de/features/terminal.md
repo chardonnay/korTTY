@@ -42,9 +42,9 @@ Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die
 | ++alt+plus++ | Vergrößern (Schriftgröße vergrößern) |
 | ++alt+minus++ | Verkleinern (Schriftgröße verringern) |
 | ++alt+0++ | Zoom auf gespeicherte/Standardschriftart zurücksetzen |
-| ++ctrl++ + Mausrad | Über dem Terminal hinein-/herauszoomen (Cmd + Mausrad auf macOS) |
+| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie das Terminal (Befehlstaste + Rad unter macOS) |
 
-Wenn Sie ++ctrl++ (oder ++cmd++ auf macOS) gedrückt halten und mit dem Mausrad über dem Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, nach unten verkleinert – statt den Puffer zu scrollen. Dies ergänzt die Tastenkürzel ++alt+plus++ / ++alt+minus++ / ++alt+0++.
+Wenn Sie ++ctrl++ (oder ++cmd++ unter macOS) gedrückt halten und mit dem Mausrad über das Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, Rad nach unten verkleinert – anstatt durch den Puffer zu scrollen. Dies ergänzt die Tastenkombinationen ++alt+plus++ / ++alt+minus++ / ++alt+0++.
 
 **Zoom zurücksetzen** stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → **Schriftgröße** → **Zurücksetzen**. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.
 
@@ -58,12 +58,12 @@ Da ein durchsichtiges Fenster einen anderen Fensterstil verwendet, den das Betri
 
 Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native macOS-Menüleiste kann keinen Schieberegler hosten).
 
-## Lokale-Shell-Registerkarten
+## Lokale Shell-Registerkarten
 
 Neben SSH und Mosh kann eine Terminal-Registerkarte eine **Lokale Shell** hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe [Lokale Shell](connections.md#local-shell)). Einige Terminalverhalten sind lokal-Shell-bewusst:
 
 - **++ctrl+d++ closes the tab for local cmd.exe/PowerShell sessions.** Those Windows shells do not exit on EOF, so ++ctrl+d++ would otherwise have no effect. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, ++ctrl+d++ behält seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.
-- **Die Schließbestätigung** verwendet eine lokale-Shell-Formulierung statt „SSH-Verbindung beenden?“, und die Fenster-Schließabfrage ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und lokale-Shell-Registerkarten mischen kann.
+- **Bestätigung schließen** verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.
 
 ## Geteilter Bildschirm mit Übertragung
 

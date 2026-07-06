@@ -368,4 +368,58 @@ class SnippetAiResponseSupportTest {
         assertThat(findings.get(0).title()).isEqualTo("Unquoted variable");
         assertThat(findings.get(1).title()).isEqualTo("Missing set -e");
     }
+
+    @Test
+    void parseSecurityFixReadsReplacementSummaryAndChanges() {
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiResponseSupport.parseSecurityFix(
+            """
+            {
+              "replacement": "#!/bin/bash\\nset -euo pipefail\\necho \\"$name\\"",
+              "summary": "Quoted the variable and enabled strict mode.",
+              "changes": [
+                { "finding": "S1", "anchor": "echo \\"$name\\"", "reason": "Quoted to prevent word splitting." },
+                { "finding": "S2", "anchor": "set -euo pipefail", "reason": "Fail fast on errors." }
+              ]
+            }
+            """);
+
+        assertThat(fix.isUsable()).isTrue();
+        assertThat(fix.replacement()).contains("set -euo pipefail");
+        assertThat(fix.summary()).isEqualTo("Quoted the variable and enabled strict mode.");
+        assertThat(fix.changes()).hasSize(2);
+        assertThat(fix.changes().get(0).finding()).isEqualTo("S1");
+        assertThat(fix.changes().get(0).anchor()).isEqualTo("echo \"$name\"");
+        assertThat(fix.changes().get(1).reason()).isEqualTo("Fail fast on errors.");
+    }
+
+    @Test
+    void parseSecurityFixToleratesMissingChangesArray() {
+        // A model that omits the explanations must still yield a usable fix (empty changes list).
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiResponseSupport.parseSecurityFix(
+            """
+            { "replacement": "echo safe", "summary": "Applied the fix." }
+            """);
+
+        assertThat(fix.isUsable()).isTrue();
+        assertThat(fix.replacement()).isEqualTo("echo safe");
+        assertThat(fix.changes()).isEmpty();
+    }
+
+    @Test
+    void parseSecurityFixDropsChangesWithoutReason() {
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiResponseSupport.parseSecurityFix(
+            """
+            {
+              "replacement": "echo ok",
+              "summary": "",
+              "changes": [
+                { "finding": "S1", "anchor": "echo ok" },
+                { "finding": "S2", "anchor": "echo ok", "reason": "Explained." }
+              ]
+            }
+            """);
+
+        assertThat(fix.changes()).hasSize(1);
+        assertThat(fix.changes().get(0).finding()).isEqualTo("S2");
+    }
 }

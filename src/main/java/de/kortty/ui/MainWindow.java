@@ -6595,6 +6595,27 @@ public class MainWindow {
         return AiProfileSelectionSupport.defaultProfile(getAvailableAiProfiles(), getDefaultAiProfileId());
     }
 
+    String getSecurityCheckAiProfileId() {
+        refreshGlobalSettingsIfChangedBeforeAiProfileResolution();
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return settings != null ? settings.getSecurityCheckAiProfileId() : null;
+    }
+
+    /**
+     * Resolves the AI profile dedicated to snippet security checks: the configured security profile
+     * when it exists, otherwise the default profile.
+     */
+    AiProfile getSecurityCheckAiProfile() {
+        List<AiProfile> profiles = getAvailableAiProfiles();
+        String securityProfileId = getSecurityCheckAiProfileId();
+        AiProfile chosen = securityProfileId != null
+            ? AiProfileSelectionSupport.findById(profiles, securityProfileId)
+            : null;
+        return chosen != null
+            ? chosen
+            : AiProfileSelectionSupport.defaultProfile(profiles, getDefaultAiProfileId());
+    }
+
     /**
      * Resolves the AI profile for a connection: the connection's fixed profile when it is
      * available, otherwise the default profile (until the fixed profile is available again).

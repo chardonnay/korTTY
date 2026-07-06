@@ -116,11 +116,23 @@ The ↺ button switches between the original code and the last AI-generated edit
 - **AI Assistant…** — Opens an instruction dialog for the current cursor position. KorTTY sends the full snippet, cursor offset, line, column, and your instruction to the configured AI profile. The result is shown as a before/after preview.
 - **Review errors and improvements** — Generates an informational report without changing content.
 - **Improve…** — Rewrites only the selected code region.
-- **Security Check** — Generates a security report. Select findings to fix; KorTTY applies them with a before/after preview.
+- **Security Check** — Generates a security report. Select findings to fix; KorTTY applies them with a before/after preview that highlights what changed and why. See [Security Check](#security-check) below.
 - **Diagram** — Generates and saves a persisted PlantUML logical-structure diagram for the snippet.
 
 !!! warning
-    Snippet AI actions send the current snippet content, selection or cursor metadata, prompt instructions, and optionally enabled AI Skills to the configured default AI profile. Snippet AI actions do not enable internet tools, even when the selected profile has internet access. Auto-completion can send the snippet repeatedly while active, so disable it for sensitive snippets unless you trust the configured endpoint.
+    Snippet AI actions send the current snippet content, selection or cursor metadata, prompt instructions, and optionally enabled AI Skills to the configured default AI profile (or, for Security Check, the dedicated security-check profile). Snippet AI actions do not enable internet tools, even when the selected profile has internet access. Auto-completion can send the snippet repeatedly while active, so disable it for sensitive snippets unless you trust the configured endpoint.
+
+#### Security Check
+
+The **Security Check** report window lists each finding with a colour-coded severity badge (findings are sorted most-severe first). From this window you can:
+
+- Adjust the reading font size with **A−** / **A+** (remembered across sessions).
+- Copy all findings to the clipboard.
+- **Select all** findings at once, then apply the selected fixes.
+- Choose a dedicated **Security profile** — the AI profile used for security checks. The choice is remembered permanently and is also available in **Configuration → Global Settings → AI**; leave it on *Use default profile* to reuse the default. Changing it takes effect immediately.
+- **Re-run check** to repeat the review with the newly selected profile.
+
+When you apply fixes, the **Review security fixes** window shows the original and corrected code side by side. Changed lines are highlighted automatically and carry a marker in the margin. Hover anywhere in a changed block to see which finding(s) it addresses — for example `S1`, or `S1 + S2` when one block covers two findings — together with the reason for the change. The same explanations are also listed as cards below the diff, so the reasoning stays visible even when a marker cannot be placed. The preview font size can be zoomed and is remembered across sessions.
 
 ### Text correction and translation
 

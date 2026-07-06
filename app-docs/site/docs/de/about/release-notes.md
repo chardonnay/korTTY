@@ -5,6 +5,25 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+### Snippet-Sicherheitsüberprüfung
+
+- **Erläuterte Sicherheitsfixes** – das Fenster **Sicherheitsfixes überprüfen** wird jetzt angezeigt
+das Original und der korrigierte Snippet in einem Side-by-Side-Diff, der hervorhebt
+geänderte Zeilen automatisch. Wenn Sie mit der Maus über einen geänderten Block fahren, benennen Sie die Ergebnisse
+Adressen (zum Beispiel `S1` oder `S1 + S2`, wenn ein Block zwei Befunde umfasst) und
+zeigt den/die Grund(e) an, und jeder Grund wird auch als Karte unter dem Diff aufgeführt
+Die Begründung bleibt sichtbar.
+- **Spezielles KI-Profil für Sicherheitsüberprüfungen** – Sie können ein separates KI-Profil auswählen
+nur für Sicherheitskontrollen und KorTTY merkt sich es dauerhaft. Stellen Sie es ein
+Fenster „Sicherheitsüberprüfung“ oder unter **Konfiguration → Globale Einstellungen → AI**; beide
+Orte haben dieselbe Einstellung und wenn sie leer bleibt, wird das Standardprofil wiederverwendet.
+- **Verbesserungen des Sicherheitsüberprüfungsfensters** – anpassbare (und gespeicherte) Schriftgröße,
+eine Schaltfläche zum Kopieren in die Zwischenablage für alle Ergebnisse, farbcodierte Schweregrad-Abzeichen mit
+Sortierung nach dem „Schweresten“ zuerst, ein „Alle auswählen“-Schalter und eine Schaltfläche **Prüfung erneut ausführen**
+Dadurch wird die Überprüfung mit dem ausgewählten Profil wiederholt.
+- **Diff-Zoom gespeichert** – die Schriftgröße in den AI-Diff-/Überprüfungsfenstern ist jetzt
+global statt nur für die aktuelle Sitzung gespeichert.
+
 ### Terminal
 
 - **Anpassbare Terminal-Hintergrundtransparenz** – eine neue **Ansicht → Zoom → Hintergrund
@@ -20,6 +39,9 @@ Es gibt etwas zu verlieren: Die Registerkarte hat geteilte Bereiche oder ein Bef
 (erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein
 Ein einzelnes inaktives Terminal wird sofort geschlossen. Die Pro-Verbindung *Schließen ohne
 Mit der Option „Bestätigung*“ wird die Eingabeaufforderung weiterhin vollständig unterdrückt.
+- **Klarere Kontextmenübezeichnung** – die Terminal-Rechtsklick-Aktion, die a lädt
+Die ausgewählte Remote-Datei im Snippet-Editor heißt jetzt **In Snippet öffnen
+Editor** (bisher *Als Textdatei laden*).
 
 ## v2.4.0
 
@@ -51,7 +73,7 @@ Zurücksetzen gilt weiterhin für die gesamte Registerkarte.
 erhält ein Untermenü „Terminaleffekt“, in dem Sie „Keine“ oder einen beliebigen installierten Effekt auswählen können
 nur für diesen Bereich, plus einen Schieberegler für die Animationsgeschwindigkeit; Die Auswahl erfolgt nur zur Laufzeit
 und wird nicht in der Verbindung gespeichert. Durch das Teilen eines Bereichs wird der neue Bereich mit gestartet
-den gleichen Effekt und die gleiche Animationsgeschwindigkeit wie der Bereich, von dem es geteilt wurde.
+den gleichen Effekt und die gleiche Animationsgeschwindigkeit wie der Bereich, von dem es getrennt wurde.
 - **Animierte Effektvorschauen im Plugin-Manager** – **Plugins → Terminal
 Effekte** zeigt jetzt eine animierte Live-Vorschau des ausgewählten Effekts neben dem an
 Plugin-Liste, sodass Effekte verglichen werden können, bevor sie in einer Sitzung aktiviert werden.
@@ -284,7 +306,7 @@ Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.
 - **Strg + Mausrad-Zoom** – **Strg** (oder **Befehl** unter macOS) gedrückt halten und
 Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
 Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
-Abkürzungen.
+Verknüpfungen.
 - **Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte** – diese Windows-Shells tun dies nicht
 Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
 (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.
