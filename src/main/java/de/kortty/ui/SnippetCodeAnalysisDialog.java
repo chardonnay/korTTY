@@ -2,7 +2,6 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
-import de.kortty.core.PlantUmlRenderService;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.PauseTransition;
@@ -17,8 +16,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
@@ -26,7 +23,6 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.Window;
@@ -72,23 +68,16 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private boolean pageReady;
     private int fontSize;
 
-    private final Supplier<CompletableFuture<PlantUmlRenderService.RenderResult>> diagramLoader;
-    private final WebView diagramView = new WebView();
-    private final ScrollPane diagramScroll = new ScrollPane(diagramView);
-    private final VBox spinnerBox;
-    private final Label diagramStatus = new Label();
-    private final Button diagramRegenerateButton;
-    private double diagramZoom = 1.0;
+    private final SnippetDiagramView diagramView;
 
     public SnippetCodeAnalysisDialog(
             Window owner,
             SnippetAiResponseSupport.ScriptAnalysis analysis,
-            Supplier<CompletableFuture<PlantUmlRenderService.RenderResult>> diagramLoader,
+            Supplier<CompletableFuture<String>> diagramPlantUmlSupplier,
             String activeProfileId,
             Consumer<String> onRerun) {
 
         this.analysis = analysis != null ? analysis : new SnippetAiResponseSupport.ScriptAnalysis("", List.of(), List.of());
-        this.diagramLoader = diagramLoader;
         this.fontSize = clampFontSize(loadPersistedFontSize());
         indexItems();
 
@@ -110,36 +99,19 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         });
         findingsView.getEngine().loadContent(buildAnalysisHtml());
 
-        spinnerBox = buildSpinnerBox();
-        diagramView.setContextMenuEnabled(false);
-        diagramScroll.setPannable(true);
-        diagramScroll.setFitToWidth(false);
-        diagramScroll.setFitToHeight(false);
-        diagramScroll.setVisible(false);
-        diagramScroll.setManaged(false);
-        StackPane diagramStack = new StackPane(diagramScroll, spinnerBox);
-        diagramStack.setMinSize(1, 1);
-        VBox.setVgrow(diagramStack, Priority.ALWAYS);
-
-        diagramRegenerateButton = new Button(SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.diagram.regenerate"));
-        diagramRegenerateButton.setOnAction(event -> startDiagram());
-        Button diagramZoomOut = new Button(I18n.get("editor.zoomOut"));
-        diagramZoomOut.setOnAction(event -> setDiagramZoom(diagramZoom - 0.1));
-        Button diagramZoomIn = new Button(I18n.get("editor.zoomIn"));
-        diagramZoomIn.setOnAction(event -> setDiagramZoom(diagramZoom + 0.1));
-        Region diagramSpacer = new Region();
-        HBox diagramToolbar = new HBox(6,
-            new Label(I18n.get("snippets.ai.analysis.diagram.title")), diagramSpacer,
-            diagramRegenerateButton, diagramZoomOut, diagramZoomIn);
-        diagramToolbar.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(diagramSpacer, Priority.ALWAYS);
-        VBox rightPane = new VBox(8, diagramToolbar, diagramStack);
+        // Right pane: the full-featured, embeddable diagram viewer (fit-to-window, zoom, save/copy,
+        // background, regenerate) — same functionality as the standalone "Snippet diagrams" dialog.
+        diagramView = new SnippetDiagramView(diagramPlantUmlSupplier, true);
+        Label diagramTitle = new Label(I18n.get("snippets.ai.analysis.diagram.title"));
+        VBox rightPane = new VBox(6, diagramTitle, diagramView);
+        VBox.setVgrow(diagramView, Priority.ALWAYS);
+        rightPane.setPadding(new Insets(0, 0, 0, 4));
 
         SplitPane splitPane = new SplitPane(findingsView, rightPane);
-        splitPane.setDividerPositions(0.55);
+        splitPane.setDividerPositions(0.52);
         SplitPane.setResizableWithParent(rightPane, true);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
-        Platform.runLater(() -> splitPane.setDividerPositions(0.55));
+        Platform.runLater(() -> splitPane.setDividerPositions(0.52));
 
         VBox root = new VBox(10, infoLabel, buildToolbar(activeProfileId, onRerun), splitPane);
         root.setPadding(new Insets(14));
@@ -159,7 +131,8 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         getDialogPane().setPrefHeight(720);
         setResultConverter(buttonType -> buttonType == applyButton ? readSelection() : null);
 
-        setOnShown(event -> startDiagram());
+        setOnShown(event -> diagramView.loadIfNeeded());
+        setOnHidden(event -> diagramView.dispose());
     }
 
     private HBox buildToolbar(String activeProfileId, Consumer<String> onRerun) {
@@ -191,19 +164,6 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         toolbar.getChildren().addAll(spacer, selectAll, zoomOutButton, fontSizeLabel, zoomInButton, copyButton);
         HBox.setHgrow(spacer, Priority.ALWAYS);
         return toolbar;
-    }
-
-    private VBox buildSpinnerBox() {
-        ProgressIndicator indicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
-        indicator.setPrefSize(38, 38);
-        indicator.setMaxSize(38, 38);
-        diagramStatus.setStyle("-fx-text-fill: gray;");
-        diagramStatus.setWrapText(true);
-        diagramStatus.setText(I18n.get("snippets.ai.analysis.diagram.loading"));
-        VBox box = new VBox(10, indicator, diagramStatus);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(20));
-        return box;
     }
 
     private void indexItems() {
@@ -315,79 +275,6 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         PauseTransition pause = new PauseTransition(Duration.seconds(2));
         pause.setOnFinished(event -> button.setText(original));
         pause.play();
-    }
-
-    // ---- Diagram (async) ------------------------------------------------------------------------
-
-    private void startDiagram() {
-        if (diagramLoader == null) {
-            showDiagramError(I18n.get("snippets.ai.analysis.diagram.unavailable"));
-            return;
-        }
-        diagramScroll.setVisible(false);
-        diagramScroll.setManaged(false);
-        spinnerBox.setVisible(true);
-        spinnerBox.setManaged(true);
-        diagramStatus.setText(I18n.get("snippets.ai.analysis.diagram.loading"));
-        CompletableFuture<PlantUmlRenderService.RenderResult> future;
-        try {
-            future = diagramLoader.get();
-        } catch (RuntimeException e) {
-            showDiagramError(String.valueOf(e.getMessage()));
-            return;
-        }
-        if (future == null) {
-            showDiagramError(I18n.get("snippets.ai.analysis.diagram.unavailable"));
-            return;
-        }
-        future.whenComplete((render, error) -> Platform.runLater(() -> onDiagramReady(render, error)));
-    }
-
-    private void onDiagramReady(PlantUmlRenderService.RenderResult result, Throwable error) {
-        if (error == null && result != null && result.success() && result.imagePath() != null) {
-            spinnerBox.setVisible(false);
-            spinnerBox.setManaged(false);
-            diagramScroll.setVisible(true);
-            diagramScroll.setManaged(true);
-            diagramZoom = 1.0;
-            diagramView.setZoom(1.0);
-            diagramView.getEngine().loadContent(buildDiagramHtml(result.imagePath().toUri().toString()));
-        } else {
-            String message = error != null ? error.getMessage()
-                : (result != null ? result.message() : "");
-            showDiagramError(message);
-        }
-    }
-
-    private void showDiagramError(String message) {
-        diagramScroll.setVisible(false);
-        diagramScroll.setManaged(false);
-        spinnerBox.setVisible(true);
-        spinnerBox.setManaged(true);
-        // Reuse the spinner box but hide the spinner: show the message + let the regenerate button retry.
-        for (javafx.scene.Node node : spinnerBox.getChildren()) {
-            if (node instanceof ProgressIndicator indicator) {
-                indicator.setVisible(false);
-                indicator.setManaged(false);
-            }
-        }
-        diagramStatus.setText(I18n.get("snippets.ai.diagram.renderFailed",
-            message != null && !message.isBlank() ? message : "?"));
-    }
-
-    private void setDiagramZoom(double zoom) {
-        diagramZoom = Math.max(0.3, Math.min(3.0, zoom));
-        diagramView.setZoom(diagramZoom);
-    }
-
-    private String buildDiagramHtml(String svgUri) {
-        ThemeCssSupport.ThemeColors colors = SnippetAiDialogSupport.resolveThemeColors();
-        String background = colors != null ? colors.backgroundColor() : SnippetAiDialogSupport.FALLBACK_BG;
-        return "<!doctype html><html><head><meta charset=\"UTF-8\"><style>"
-            + "html,body{margin:0;padding:0;background:" + background + ";}"
-            + "body{display:flex;justify-content:center;align-items:flex-start;padding:10px;}"
-            + "img{max-width:100%;height:auto;}"
-            + "</style></head><body><img src=\"" + SnippetAiDialogSupport.escapeHtml(svgUri) + "\" alt=\"\"></body></html>";
     }
 
     // ---- Left-pane HTML -------------------------------------------------------------------------

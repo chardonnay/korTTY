@@ -5,7 +5,6 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import de.kortty.core.LanguageManager;
-import de.kortty.core.PlantUmlRenderService;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.PauseTransition;
@@ -121,9 +120,10 @@ public final class SnippetAiDialogsSmoke {
                 new SnippetAiResponseSupport.ScriptImprovement(
                     "OPT-1", "optimization", "low", "Avoid re-downloading",
                     "The asset is fetched twice.", "Cache the download.", null)));
-        // A completed (failed) render future exercises the async diagram lifecycle without invoking PlantUML.
-        java.util.function.Supplier<CompletableFuture<PlantUmlRenderService.RenderResult>> diagramLoader =
-            () -> CompletableFuture.completedFuture(new PlantUmlRenderService.RenderResult(false, null, "n/a (smoke)"));
+        // The diagram viewer only renders when the dialog is shown (setOnShown), which the smoke never does,
+        // so no PlantUML is invoked; the supplier is just a placeholder plantUml source.
+        java.util.function.Supplier<CompletableFuture<String>> diagramLoader =
+            () -> CompletableFuture.completedFuture("@startuml\nstart\n:Analyze;\nstop\n@enduml");
         SnippetCodeAnalysisDialog analysisDialog = new SnippetCodeAnalysisDialog(
             null, analysis, diagramLoader, null, id -> { });
         if (findNodes(analysisDialog.getDialogPane(), SplitPane.class).isEmpty()) {

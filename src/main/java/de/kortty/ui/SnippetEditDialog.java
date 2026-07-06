@@ -3148,14 +3148,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String fallback = resolveAiTextFallbackLanguageCode();
         String extra = additionalInstructions();
 
-        // Kick the diagram render off in parallel with the analysis; the dialog awaits the first (memoized)
-        // future and requests a fresh render only on "regenerate".
-        AtomicReference<CompletableFuture<PlantUmlRenderService.RenderResult>> firstDiagram = new AtomicReference<>();
-        Supplier<CompletableFuture<PlantUmlRenderService.RenderResult>> diagramLoader = () -> {
-            CompletableFuture<PlantUmlRenderService.RenderResult> memoized = firstDiagram.getAndSet(null);
-            return memoized != null ? memoized : startDiagramRender(fullContent, language, fallback);
+        // Kick the diagram's AI generation off in parallel with the analysis; the dialog's diagram viewer
+        // awaits the first (memoized) future and requests a fresh generation only on "regenerate".
+        AtomicReference<CompletableFuture<String>> firstDiagram = new AtomicReference<>();
+        Supplier<CompletableFuture<String>> diagramLoader = () -> {
+            CompletableFuture<String> memoized = firstDiagram.getAndSet(null);
+            return memoized != null ? memoized : generateDiagramPlantUml(fullContent, language, fallback);
         };
-        firstDiagram.set(startDiagramRender(fullContent, language, fallback));
+        firstDiagram.set(generateDiagramPlantUml(fullContent, language, fallback));
 
         Task<SnippetAiResponseSupport.ScriptAnalysis> task = new Task<>() {
             @Override
@@ -3193,20 +3193,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         thread.start();
     }
 
-    /** Starts an AI diagram generation + local SVG render on a daemon thread; returns the completion future. */
-    private CompletableFuture<PlantUmlRenderService.RenderResult> startDiagramRender(
-        String fullContent, String language, String fallback) {
-        CompletableFuture<PlantUmlRenderService.RenderResult> future = new CompletableFuture<>();
-        Task<PlantUmlRenderService.RenderResult> task = new Task<>() {
+    /** Generates the diagram's PlantUML text (AI, with a local fallback) on a daemon thread; the diagram
+     *  viewer in the analysis dialog renders + fits it. */
+    private CompletableFuture<String> generateDiagramPlantUml(String fullContent, String language, String fallback) {
+        CompletableFuture<String> future = new CompletableFuture<>();
+        Task<String> task = new Task<>() {
             @Override
-            protected PlantUmlRenderService.RenderResult call() throws Exception {
+            protected String call() throws Exception {
                 SnippetAiResponseSupport.PlantUmlDiagram diagram = aiAssist.diagramProvider() != null
                     ? aiAssist.diagramProvider().generate(new DiagramRequest(fullContent, language, fallback, ""))
                     : null;
-                String plantUml = diagram != null && diagram.isUsable()
+                return diagram != null && diagram.isUsable()
                     ? diagram.plantUml()
                     : SnippetDiagramSupport.buildFallbackLogicalStructurePlantUml(fullContent, language);
-                return new PlantUmlRenderService().renderSvg(plantUml);
             }
         };
         task.setOnSucceeded(event -> future.complete(task.getValue()));
