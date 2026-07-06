@@ -3357,7 +3357,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             optionChecks.put(option, check);
             optionsGrid.add(check, i % 2, i / 2);
         }
-        TitledPane optionsPane = new TitledPane(I18n.get("ai.workflow.options.title"), optionsGrid);
+        Label optionsHeader = new Label(I18n.get("ai.workflow.options.title"));
+        ThemeCssSupport.ThemeColors optionsColors = SnippetAiDialogSupport.resolveThemeColors();
+        optionsHeader.setStyle("-fx-font-weight: bold; -fx-text-fill: "
+            + (optionsColors != null ? optionsColors.foregroundColor() : SnippetAiDialogSupport.FALLBACK_FG) + ";");
+        TitledPane optionsPane = new TitledPane();
+        optionsPane.setText(null);
+        optionsPane.setGraphic(optionsHeader);
+        optionsPane.setContent(optionsGrid);
         optionsPane.setExpanded(true);
 
         TextArea instructionArea = withInstruction ? new TextArea() : null;

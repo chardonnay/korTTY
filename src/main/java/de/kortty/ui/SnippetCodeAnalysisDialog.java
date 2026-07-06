@@ -235,7 +235,16 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             hardeningChecks.put(option, check);
             grid.add(check, i % 2, i / 2);
         }
-        TitledPane pane = new TitledPane(I18n.get("ai.workflow.options.title"), grid);
+        // Use a bold Label as the title graphic so the section name is clearly visible next to the
+        // expand arrow (the theme's TitledPane title text is otherwise too faint and easy to miss).
+        Label header = new Label(I18n.get("ai.workflow.options.title"));
+        ThemeCssSupport.ThemeColors colors = SnippetAiDialogSupport.resolveThemeColors();
+        String foreground = colors != null ? colors.foregroundColor() : SnippetAiDialogSupport.FALLBACK_FG;
+        header.setStyle("-fx-font-weight: bold; -fx-text-fill: " + foreground + ";");
+        TitledPane pane = new TitledPane();
+        pane.setText(null);
+        pane.setGraphic(header);
+        pane.setContent(grid);
         pane.setExpanded(false);
         return pane;
     }
