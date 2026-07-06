@@ -115,6 +115,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.awt.Desktop;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -4519,9 +4520,11 @@ public class MainWindow {
             if (service != null) {
                 service.recordDownloadedVersion(update.versionLabel());
             }
-            showInfo(
-                I18n.get("updates.download.complete.title"),
-                I18n.get("updates.download.complete", task.getValue()));
+            // Defer to the next pulse so the progress dialog's modal loop fully unwinds first. Showing a
+            // modal from inside another modal's showAndWait() teardown renders it blank/unthemed on macOS
+            // Glass — that is the reported white, empty "Download complete" window.
+            Path downloadedFile = task.getValue();
+            Platform.runLater(() -> showDownloadCompleteDialog(update, downloadedFile));
         });
         task.setOnFailed(event -> {
             progressDialog.close();
@@ -4532,12 +4535,103 @@ public class MainWindow {
             if (error instanceof DownloadException && error.getCause() != null && error.getCause().getMessage() != null) {
                 message = error.getCause().getMessage();
             }
-            showError(I18n.get("updates.download.failed.title"), message);
+            // Defer for the same reason as the success path: a modal shown during the progress dialog's
+            // showAndWait() teardown renders blank/unthemed on macOS Glass.
+            String finalMessage = message;
+            Platform.runLater(() -> showError(I18n.get("updates.download.failed.title"), finalMessage));
         });
         Thread thread = new Thread(task, "kortty-update-download");
         thread.setDaemon(true);
         thread.start();
         progressDialog.showAndWait();
+    }
+
+    /** Bundled guide page that documents the update / download-and-install flow. */
+    private static final String UPDATE_GUIDE_LOCATION = "reference/settings/updates.html";
+
+    /**
+     * Shown once an update asset finishes downloading: a themed dialog that names where the file was
+     * saved and offers two actions — open the downloaded installer and jump to the matching guide page.
+     */
+    private void showDownloadCompleteDialog(AvailableUpdate update, Path downloadedFile) {
+        buildDownloadCompleteDialog(app, stage, update, downloadedFile).showAndWait();
+    }
+
+    /**
+     * Builds the "download complete" dialog. Replaces the plain {@link Alert} that rendered unthemed
+     * (white on the dark app); a {@link Dialog} themed through {@link DialogThemeHelper} matches the
+     * rest of the chrome. Static + owner-parameterised so it can be rendered headless in a smoke test.
+     */
+    static Dialog<Void> buildDownloadCompleteDialog(KorTTYApplication app, Window owner,
+            AvailableUpdate update, Path downloadedFile) {
+        Dialog<Void> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
+        dialog.setTitle(I18n.get("updates.download.complete.title"));
+        dialog.setHeaderText(I18n.get("updates.download.complete.header", update.versionLabel()));
+
+        ButtonType closeButton = new ButtonType(I18n.get("dialog.close"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().add(closeButton);
+
+        Label intro = new Label(I18n.get("updates.download.complete.intro"));
+        intro.setWrapText(true);
+
+        Label locationCaption = new Label(I18n.get("updates.download.complete.location"));
+
+        TextField pathField = new TextField(downloadedFile != null ? downloadedFile.toString() : "");
+        pathField.setEditable(false);
+        pathField.setFocusTraversable(false);
+
+        Button openButton = new Button(I18n.get("updates.download.complete.open"));
+        openButton.setDisable(downloadedFile == null);
+        openButton.setOnAction(event -> openDownloadedUpdate(downloadedFile));
+
+        Button guideButton = new Button(I18n.get("updates.download.complete.guide"));
+        guideButton.setOnAction(event -> GuideViewer.show(app, owner, UPDATE_GUIDE_LOCATION));
+
+        HBox actions = new HBox(10, openButton, guideButton);
+        actions.setAlignment(Pos.CENTER_LEFT);
+
+        VBox content = new VBox(12, intro, locationCaption, pathField, actions);
+        content.setPrefWidth(480);
+        dialog.getDialogPane().setContent(content);
+
+        return dialog;
+    }
+
+    /**
+     * Opens the freshly downloaded update with the OS default handler (mounts the {@code .dmg} /
+     * launches the installer). Falls back to revealing the containing folder when the file itself
+     * cannot be opened, so the user can always reach the download.
+     */
+    private static void openDownloadedUpdate(Path file) {
+        if (file == null || !Desktop.isDesktopSupported()) {
+            logger.warn("Cannot open downloaded update (file={}, desktopSupported={})",
+                file, Desktop.isDesktopSupported());
+            return;
+        }
+        Desktop desktop = Desktop.getDesktop();
+        try {
+            if (Files.exists(file)) {
+                desktop.open(file.toFile());
+                return;
+            }
+        } catch (Exception e) {
+            logger.debug("Could not open downloaded update {}, falling back to its folder", file, e);
+        }
+        Path parent = file.getParent();
+        if (parent == null) {
+            return;
+        }
+        try {
+            if (Files.exists(parent)) {
+                desktop.open(parent.toFile());
+            }
+        } catch (Exception e) {
+            logger.warn("Could not open download location {}", parent, e);
+        }
     }
 
     private UpdateCheckService ensureUpdateCheckService() {

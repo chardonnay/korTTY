@@ -1511,6 +1511,14 @@ tasks.register<JavaExec>("aiChatRedesignSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
+    group = "verification"
+    description = "Renders the update 'download complete' dialog and snapshots it to build/smoke/update-download-complete.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.UpdateDownloadCompleteSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateDesignPreviews") {
     group = "build"
     description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."
