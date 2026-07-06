@@ -5342,7 +5342,7 @@ public class MainWindow {
             case DESCRIBE_SNIPPET_SELECTION, DESCRIBE_SNIPPET_FULL -> I18n.get("snippets.ai.menu.describe");
             case GENERATE_SNIPPET_ALTERNATIVES -> I18n.get("snippets.ai.alternatives.context");
             case COMPLETE_SNIPPET_CODE -> I18n.get("snippets.ai.code.complete");
-            case REVIEW_SNIPPET_CODE -> I18n.get("snippets.ai.code.review");
+            case REVIEW_SNIPPET_CODE, ANALYZE_SNIPPET_CODE, APPLY_SNIPPET_IMPROVEMENTS -> I18n.get("snippets.ai.code.review");
             case IMPROVE_SNIPPET_CODE -> I18n.get("snippets.ai.code.improve.custom");
             case ASSIST_SNIPPET_CODE -> I18n.get("snippets.ai.assistant.context");
             case SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES -> I18n.get("snippets.ai.security.title");

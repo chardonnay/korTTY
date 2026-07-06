@@ -145,6 +145,65 @@ public final class SnippetAiResponseSupport {
         }
     }
 
+    /**
+     * A single categorized improvement from the rich code-analysis flow. {@code category} is normalized to
+     * one of {@code security|optimization|design|dependency}. Mirrors {@link CodeReviewFinding} plus a category.
+     */
+    public record ScriptImprovement(String id, String category, String severity, String title,
+                                    String detail, String recommendation, Integer line) {
+        public ScriptImprovement {
+            id = id != null && !id.isBlank() ? id.trim() : "I";
+            category = normalizeImprovementCategory(category);
+            severity = severity != null && !severity.isBlank() ? severity.trim() : "info";
+            title = title != null ? title.trim() : "";
+            detail = detail != null ? detail.trim() : "";
+            recommendation = recommendation != null ? recommendation.trim() : "";
+        }
+
+        public boolean isUsable() {
+            return !title.isBlank() || !detail.isBlank() || !recommendation.isBlank();
+        }
+    }
+
+    /** An external dependency the script relies on, plus a reduce/replace suggestion. */
+    public record ScriptDependency(String id, String name, String kind, String purpose, String suggestion) {
+        public ScriptDependency {
+            id = id != null && !id.isBlank() ? id.trim() : "D";
+            name = name != null ? name.trim() : "";
+            kind = kind != null ? kind.trim() : "";
+            purpose = purpose != null ? purpose.trim() : "";
+            suggestion = suggestion != null ? suggestion.trim() : "";
+        }
+
+        public boolean isUsable() {
+            return !name.isBlank();
+        }
+    }
+
+    /** Rich code-analysis result: a plain-language summary, external dependencies and categorized improvements. */
+    public record ScriptAnalysis(String summary, List<ScriptDependency> dependencies,
+                                 List<ScriptImprovement> improvements) {
+        public ScriptAnalysis {
+            summary = summary != null ? summary.trim() : "";
+            dependencies = dependencies != null ? List.copyOf(dependencies) : List.of();
+            improvements = improvements != null ? List.copyOf(improvements) : List.of();
+        }
+
+        public boolean isUsable() {
+            return !summary.isBlank() || !dependencies.isEmpty() || !improvements.isEmpty();
+        }
+    }
+
+    private static String normalizeImprovementCategory(String category) {
+        String value = category != null ? category.trim().toLowerCase() : "";
+        return switch (value) {
+            case "security", "sicherheit", "sec", "vulnerability" -> "security";
+            case "optimization", "optimisation", "performance", "optimierung", "perf", "efficiency" -> "optimization";
+            case "dependency", "dependencies", "abhängigkeit", "abhaengigkeit", "deps", "dep" -> "dependency";
+            default -> "design";
+        };
+    }
+
     public static List<String> parseSegmentReplacements(String responseText, int expectedCount) {
         if (expectedCount <= 0) {
             return List.of();
@@ -759,6 +818,82 @@ public final class SnippetAiResponseSupport {
             firstString(object, "impact", "detail", "description"),
             firstString(object, "recommendation", "fix", "suggestion"));
         return finding.isUsable() ? finding : null;
+    }
+
+    /**
+     * Parses the rich code-analysis response: a {@code summary}, a {@code dependencies} array and a
+     * categorized {@code improvements} array. Tolerant of fences/prose (multi-pass {@link #parseJsonObject}),
+     * missing ids (fallback ids) and empty arrays, mirroring the other parsers here.
+     */
+    public static ScriptAnalysis parseScriptAnalysis(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        if (object == null) {
+            return new ScriptAnalysis("", List.of(), List.of());
+        }
+        String summary = firstString(object, "summary", "explanation", "description", "overview");
+        return new ScriptAnalysis(summary, parseScriptDependencies(object), parseScriptImprovements(object));
+    }
+
+    private static List<ScriptImprovement> parseScriptImprovements(JsonObject object) {
+        JsonArray array = firstArray(object, "improvements", "findings", "suggestions", "tips");
+        if (array == null) {
+            return List.of();
+        }
+        List<ScriptImprovement> result = new ArrayList<>();
+        int fallbackIndex = 1;
+        for (JsonElement element : array) {
+            ScriptImprovement item = parseScriptImprovement(element, fallbackIndex++);
+            if (item != null && item.isUsable()) {
+                result.add(item);
+            }
+        }
+        return result;
+    }
+
+    private static ScriptImprovement parseScriptImprovement(JsonElement element, int fallbackIndex) {
+        if (element == null || !element.isJsonObject()) {
+            return null;
+        }
+        JsonObject object = element.getAsJsonObject();
+        ScriptImprovement item = new ScriptImprovement(
+            nonBlank(firstString(object, "id"), "I" + fallbackIndex),
+            firstString(object, "category", "kind", "type"),
+            firstString(object, "severity", "priority"),
+            firstString(object, "title", "name"),
+            firstString(object, "detail", "impact", "description"),
+            firstString(object, "recommendation", "fix", "suggestion"),
+            firstInt(object, "line", "lineNumber"));
+        return item.isUsable() ? item : null;
+    }
+
+    private static List<ScriptDependency> parseScriptDependencies(JsonObject object) {
+        JsonArray array = firstArray(object, "dependencies", "deps", "requirements");
+        if (array == null) {
+            return List.of();
+        }
+        List<ScriptDependency> result = new ArrayList<>();
+        int fallbackIndex = 1;
+        for (JsonElement element : array) {
+            ScriptDependency dependency = parseScriptDependency(element, fallbackIndex++);
+            if (dependency != null && dependency.isUsable()) {
+                result.add(dependency);
+            }
+        }
+        return result;
+    }
+
+    private static ScriptDependency parseScriptDependency(JsonElement element, int fallbackIndex) {
+        if (element == null || !element.isJsonObject()) {
+            return null;
+        }
+        JsonObject object = element.getAsJsonObject();
+        ScriptDependency dependency = new ScriptDependency(
+            nonBlank(firstString(object, "id"), "D" + fallbackIndex),
+            firstString(object, "name", "dependency", "tool", "service"),
+            firstString(object, "kind", "type", "category"),
+            firstString(object, "purpose", "reason", "detail", "description"),
+            firstString(object, "suggestion", "recommendation", "replacement", "reduce", "alternative"));
+        return dependency.isUsable() ? dependency : null;
     }
 
     private static String firstString(JsonObject object, String... names) {

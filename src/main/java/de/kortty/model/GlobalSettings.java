@@ -297,6 +297,10 @@ public class GlobalSettings {
     @XmlElement
     private Integer aiAlternativesFontSize = 14;
 
+    /** Font size used in the AI code-analysis window (left analysis pane). */
+    @XmlElement
+    private Integer codeAnalysisFontSize = 14;
+
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
     private Integer workflowScriptFontSize = 14;
@@ -1287,6 +1291,14 @@ public class GlobalSettings {
 
     public void setAiAlternativesFontSize(Integer aiAlternativesFontSize) {
         this.aiAlternativesFontSize = aiAlternativesFontSize;
+    }
+
+    public Integer getCodeAnalysisFontSize() {
+        return codeAnalysisFontSize;
+    }
+
+    public void setCodeAnalysisFontSize(Integer codeAnalysisFontSize) {
+        this.codeAnalysisFontSize = codeAnalysisFontSize;
     }
 
     public Integer getWorkflowScriptFontSize() {
