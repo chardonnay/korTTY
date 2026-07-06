@@ -121,11 +121,12 @@ public final class SnippetAiDialogsSmoke {
                     "OPT-1", "optimization", "low", "Avoid re-downloading",
                     "The asset is fetched twice.", "Cache the download.", null)));
         // The diagram viewer only renders when the dialog is shown (setOnShown), which the smoke never does,
-        // so no PlantUML is invoked; the supplier is just a placeholder plantUml source.
-        java.util.function.Supplier<CompletableFuture<String>> diagramLoader =
-            () -> CompletableFuture.completedFuture("@startuml\nstart\n:Analyze;\nstop\n@enduml");
+        // so no PlantUML is invoked; the supplier is just a placeholder source.
+        java.util.function.Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader =
+            () -> CompletableFuture.completedFuture(new SnippetDiagramView.DiagramSource(
+                "@startuml\nstart\n:Analyze;\nstop\n@enduml", "print 'x';\n", java.util.List.of()));
         SnippetCodeAnalysisDialog analysisDialog = new SnippetCodeAnalysisDialog(
-            null, analysis, diagramLoader, null, id -> { });
+            null, "server_monitor_stats.pl", analysis, diagramLoader, null, id -> { });
         if (findNodes(analysisDialog.getDialogPane(), SplitPane.class).isEmpty()) {
             throw new AssertionError("SnippetCodeAnalysisDialog is missing the split pane");
         }

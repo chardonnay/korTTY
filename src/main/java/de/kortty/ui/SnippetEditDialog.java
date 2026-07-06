@@ -1184,6 +1184,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             validateForm(validationButton);
             updateSaveButtonState();
             updateExternalFileButtonState();
+            updateEditorTitle();
         });
         contentArea.textProperty().addListener((obs, o, n) -> {
             validateForm(validationButton);
@@ -1441,6 +1442,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (undoItem != null) {
             undoItem.setDisable(!contentArea.isUndoAvailable());
         }
+    }
+
+    /** Keeps the window title showing the current file/snippet name so it's identifiable in the taskbar. */
+    private void updateEditorTitle() {
+        String base = externalFileActionConfig != null
+            ? I18n.get("snippets.fileEdit.title", externalFileActionConfig.sourceLabel())
+            : existingSnippet == null ? I18n.get("snippets.addTitle") : I18n.get("snippets.editTitle");
+        String name = nameField != null ? nameField.getText() : null;
+        // External-file titles already contain the file name; only the internal snippet name needs appending.
+        if (externalFileActionConfig == null && name != null && !name.isBlank()) {
+            setTitle(base + " — " + name.trim());
+        } else {
+            setTitle(base);
+        }
+    }
+
+    /** The current snippet/file name for use in secondary window titles (e.g. the analysis window). */
+    String currentSnippetName() {
+        String name = nameField != null ? nameField.getText() : null;
+        if (name != null && !name.isBlank()) {
+            return name.trim();
+        }
+        return externalFileActionConfig != null ? externalFileActionConfig.sourceLabel() : "";
     }
 
     private void updateSaveButtonState() {
@@ -3150,9 +3174,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
         // Kick the diagram's AI generation off in parallel with the analysis; the dialog's diagram viewer
         // awaits the first (memoized) future and requests a fresh generation only on "regenerate".
-        AtomicReference<CompletableFuture<String>> firstDiagram = new AtomicReference<>();
-        Supplier<CompletableFuture<String>> diagramLoader = () -> {
-            CompletableFuture<String> memoized = firstDiagram.getAndSet(null);
+        AtomicReference<CompletableFuture<SnippetDiagramView.DiagramSource>> firstDiagram = new AtomicReference<>();
+        Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader = () -> {
+            CompletableFuture<SnippetDiagramView.DiagramSource> memoized = firstDiagram.getAndSet(null);
             return memoized != null ? memoized : generateDiagramPlantUml(fullContent, language, fallback);
         };
         firstDiagram.set(generateDiagramPlantUml(fullContent, language, fallback));
@@ -3174,15 +3198,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             finishSnippetAiAction(task);
             SnippetCodeAnalysisDialog dialog = new SnippetCodeAnalysisDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                currentSnippetName(),
                 task.getValue(),
                 diagramLoader,
                 aiProfileId,
                 profileSwitchingSupported() ? this::runCodeReview : null);
-            dialog.showAndWait().ifPresent(selection -> {
-                if (!selection.isEmpty()) {
+            // Non-modal: the editor stays usable. Apply the selection (if any) once the window closes.
+            dialog.setOnHidden(hidden -> {
+                SnippetCodeAnalysisDialog.ApplySelection selection = dialog.getResult();
+                if (selection != null && !selection.isEmpty()) {
                     runImprovementFixes(selection);
                 }
             });
+            dialog.show();
             setStatus(I18n.get("snippets.ai.review.ready"));
         });
         task.setOnFailed(event ->
@@ -3193,19 +3221,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         thread.start();
     }
 
-    /** Generates the diagram's PlantUML text (AI, with a local fallback) on a daemon thread; the diagram
-     *  viewer in the analysis dialog renders + fits it. */
-    private CompletableFuture<String> generateDiagramPlantUml(String fullContent, String language, String fallback) {
-        CompletableFuture<String> future = new CompletableFuture<>();
-        Task<String> task = new Task<>() {
+    /** Generates the diagram source (AI PlantUML + code references, with a local fallback) on a daemon
+     *  thread; the diagram viewer in the analysis dialog renders + fits it and shows hover code hotspots. */
+    private CompletableFuture<SnippetDiagramView.DiagramSource> generateDiagramPlantUml(
+        String fullContent, String language, String fallback) {
+        CompletableFuture<SnippetDiagramView.DiagramSource> future = new CompletableFuture<>();
+        Task<SnippetDiagramView.DiagramSource> task = new Task<>() {
             @Override
-            protected String call() throws Exception {
+            protected SnippetDiagramView.DiagramSource call() throws Exception {
                 SnippetAiResponseSupport.PlantUmlDiagram diagram = aiAssist.diagramProvider() != null
                     ? aiAssist.diagramProvider().generate(new DiagramRequest(fullContent, language, fallback, ""))
                     : null;
-                return diagram != null && diagram.isUsable()
-                    ? diagram.plantUml()
-                    : SnippetDiagramSupport.buildFallbackLogicalStructurePlantUml(fullContent, language);
+                if (diagram != null && diagram.isUsable()) {
+                    return new SnippetDiagramView.DiagramSource(diagram.plantUml(), fullContent, diagram.codeReferences());
+                }
+                String plantUml = SnippetDiagramSupport.buildFallbackLogicalStructurePlantUml(fullContent, language);
+                return new SnippetDiagramView.DiagramSource(plantUml, fullContent, List.of());
             }
         };
         task.setOnSucceeded(event -> future.complete(task.getValue()));
@@ -3222,6 +3253,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         String originalContent = contentArea.getText();
+        // Fold any chosen hardening options into the apply instructions (computed on the FX thread).
+        String effectiveInstructions = withHardeningRules(additionalInstructions(), selection.hardening());
         Task<SnippetAiResponseSupport.SnippetSecurityFix> task = new Task<>() {
             @Override
             protected SnippetAiResponseSupport.SnippetSecurityFix call() throws Exception {
@@ -3231,7 +3264,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     resolveAiTextFallbackLanguageCode(),
                     selection.improvements(),
                     selection.dependencies(),
-                    additionalInstructions(),
+                    effectiveInstructions,
                     null));
             }
         };

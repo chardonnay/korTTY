@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiResponseSupport;
+import de.kortty.core.WorkflowScriptSupport.HardeningOption;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -17,9 +18,11 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -30,6 +33,8 @@ import javafx.util.Duration;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,17 +56,19 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private static final int DEFAULT_FONT_SIZE = 14;
     private static final List<String> CATEGORY_ORDER = List.of("security", "optimization", "design");
 
-    /** The mixed selection the user ticked for a combined apply. */
+    /** The mixed selection the user ticked for a combined apply, plus any chosen script-hardening options. */
     public record ApplySelection(List<SnippetAiResponseSupport.ScriptImprovement> improvements,
-                                 List<SnippetAiResponseSupport.ScriptDependency> dependencies) {
+                                 List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+                                 EnumSet<HardeningOption> hardening) {
         public boolean isEmpty() {
-            return improvements.isEmpty() && dependencies.isEmpty();
+            return improvements.isEmpty() && dependencies.isEmpty() && hardening.isEmpty();
         }
     }
 
     private final SnippetAiResponseSupport.ScriptAnalysis analysis;
     private final Map<String, SnippetAiResponseSupport.ScriptImprovement> improvementsById = new LinkedHashMap<>();
     private final Map<String, SnippetAiResponseSupport.ScriptDependency> dependenciesById = new LinkedHashMap<>();
+    private final Map<HardeningOption, CheckBox> hardeningChecks = new EnumMap<>(HardeningOption.class);
 
     private final WebView findingsView = new WebView();
     private final Label fontSizeLabel = new Label();
@@ -72,8 +79,9 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
 
     public SnippetCodeAnalysisDialog(
             Window owner,
+            String scriptName,
             SnippetAiResponseSupport.ScriptAnalysis analysis,
-            Supplier<CompletableFuture<String>> diagramPlantUmlSupplier,
+            Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramPlantUmlSupplier,
             String activeProfileId,
             Consumer<String> onRerun) {
 
@@ -81,8 +89,11 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         this.fontSize = clampFontSize(loadPersistedFontSize());
         indexItems();
 
-        setTitle(I18n.get("snippets.ai.analysis.title"));
+        String title = I18n.get("snippets.ai.analysis.title");
+        setTitle(scriptName != null && !scriptName.isBlank() ? title + " — " + scriptName.trim() : title);
         setResizable(true);
+        // Non-modal so the snippet editor stays usable while the analysis window is open.
+        initModality(javafx.stage.Modality.NONE);
         if (owner != null) {
             initOwner(owner);
         }
@@ -113,7 +124,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         Platform.runLater(() -> splitPane.setDividerPositions(0.52));
 
-        VBox root = new VBox(10, infoLabel, buildToolbar(activeProfileId, onRerun), splitPane);
+        VBox root = new VBox(10, infoLabel, buildToolbar(activeProfileId, onRerun), splitPane, buildHardeningPane());
         root.setPadding(new Insets(14));
 
         ButtonType applyButton = new ButtonType(
@@ -181,13 +192,13 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         List<SnippetAiResponseSupport.ScriptImprovement> improvements = new ArrayList<>();
         List<SnippetAiResponseSupport.ScriptDependency> dependencies = new ArrayList<>();
         if (!pageReady) {
-            return new ApplySelection(improvements, dependencies);
+            return new ApplySelection(improvements, dependencies, selectedHardening());
         }
         Object result;
         try {
             result = findingsView.getEngine().executeScript("window.korttyAnalysis.getSelected();");
         } catch (RuntimeException ignored) {
-            return new ApplySelection(improvements, dependencies);
+            return new ApplySelection(improvements, dependencies, selectedHardening());
         }
         if (result instanceof String value && !value.isBlank()) {
             for (String token : value.split(",")) {
@@ -210,7 +221,33 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                 }
             }
         }
-        return new ApplySelection(improvements, dependencies);
+        return new ApplySelection(improvements, dependencies, selectedHardening());
+    }
+
+    private TitledPane buildHardeningPane() {
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(4);
+        HardeningOption[] all = HardeningOption.values();
+        for (int i = 0; i < all.length; i++) {
+            HardeningOption option = all[i];
+            CheckBox check = new CheckBox(I18n.get("ai.workflow.option." + option.name()));
+            hardeningChecks.put(option, check);
+            grid.add(check, i % 2, i / 2);
+        }
+        TitledPane pane = new TitledPane(I18n.get("ai.workflow.options.title"), grid);
+        pane.setExpanded(false);
+        return pane;
+    }
+
+    private EnumSet<HardeningOption> selectedHardening() {
+        EnumSet<HardeningOption> selected = EnumSet.noneOf(HardeningOption.class);
+        hardeningChecks.forEach((option, check) -> {
+            if (check.isSelected()) {
+                selected.add(option);
+            }
+        });
+        return selected;
     }
 
     // ---- Font zoom + copy -----------------------------------------------------------------------
