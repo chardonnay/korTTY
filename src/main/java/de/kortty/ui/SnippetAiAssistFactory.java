@@ -52,7 +52,37 @@ final class SnippetAiAssistFactory {
             request -> reviewSnippetSecurity(ownerWindow, request, contextDisplayName),
             request -> applySnippetSecurityFixes(ownerWindow, request, contextDisplayName),
             request -> generateCompactOneLiner(ownerWindow, profile, aiService, request, contextDisplayName),
-            request -> generateSnippetPlantUml(ownerWindow, profile, aiService, request, contextDisplayName));
+            request -> generateSnippetPlantUml(ownerWindow, profile, aiService, request, contextDisplayName),
+            true);
+    }
+
+    /**
+     * Resolves the AI profile + service for a single re-runnable request: the profile the user picked in
+     * the dialog ({@code requestProfileId}) when it exists, otherwise the captured default profile. This
+     * is what lets the review / describe / alternatives / improve / assist dialogs repeat a run with a
+     * different profile without changing the default used elsewhere.
+     */
+    private static ResolvedProfile resolveForRequest(
+        MainWindow ownerWindow,
+        AiProfile defaultProfile,
+        AiService defaultService,
+        String requestProfileId) {
+
+        if (requestProfileId == null || requestProfileId.isBlank()) {
+            return new ResolvedProfile(defaultProfile, defaultService);
+        }
+        AiProfile chosen = ownerWindow.findAiProfileById(requestProfileId);
+        if (chosen == null || chosen.getId() == null || chosen.getId().equals(defaultProfile.getId())) {
+            return new ResolvedProfile(defaultProfile, defaultService);
+        }
+        AiService chosenService = ownerWindow.createAiServiceForProfile(chosen);
+        if (chosenService == null) {
+            return new ResolvedProfile(defaultProfile, defaultService);
+        }
+        return new ResolvedProfile(chosen, chosenService);
+    }
+
+    private record ResolvedProfile(AiProfile profile, AiService service) {
     }
 
     private static SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(
@@ -146,10 +176,11 @@ final class SnippetAiAssistFactory {
         SnippetEditDialog.SnippetDescriptionRequest request,
         String connectionDisplayName) throws Exception {
 
+        ResolvedProfile resolved = resolveForRequest(ownerWindow, profile, aiService, request.aiProfileId());
         return SnippetAiWorkflowSupport.describeSnippet(
             request.wholeSnippet() ? AiAction.DESCRIBE_SNIPPET_FULL : AiAction.DESCRIBE_SNIPPET_SELECTION,
-            aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            resolved.service(),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
             request.fullContent(),
             request.selectedText(),
             request.snippetLanguage(),
@@ -165,9 +196,10 @@ final class SnippetAiAssistFactory {
         SnippetEditDialog.AlternativeSolutionsRequest request,
         String connectionDisplayName) throws Exception {
 
+        ResolvedProfile resolved = resolveForRequest(ownerWindow, profile, aiService, request.aiProfileId());
         return SnippetAiWorkflowSupport.generateAlternativeSolutions(
-            aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            resolved.service(),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
             request.fullContent(),
             request.selectedText(),
             request.wholeSnippet(),
@@ -203,9 +235,10 @@ final class SnippetAiAssistFactory {
         SnippetEditDialog.CodeReviewRequest request,
         String connectionDisplayName) throws Exception {
 
+        ResolvedProfile resolved = resolveForRequest(ownerWindow, profile, aiService, request.aiProfileId());
         return SnippetAiWorkflowSupport.reviewSnippetCode(
-            aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            resolved.service(),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
             request.fullContent(),
             request.selectedText(),
             request.wholeSnippet(),
@@ -223,9 +256,10 @@ final class SnippetAiAssistFactory {
         SnippetEditDialog.CodeImprovementRequest request,
         String connectionDisplayName) throws Exception {
 
+        ResolvedProfile resolved = resolveForRequest(ownerWindow, profile, aiService, request.aiProfileId());
         return SnippetAiWorkflowSupport.improveSnippetCode(
-            aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            resolved.service(),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
             request.fullContent(),
             request.selectedText(),
             request.snippetLanguage(),
@@ -243,9 +277,10 @@ final class SnippetAiAssistFactory {
         SnippetEditDialog.CodeAssistantRequest request,
         String connectionDisplayName) throws Exception {
 
+        ResolvedProfile resolved = resolveForRequest(ownerWindow, profile, aiService, request.aiProfileId());
         return SnippetAiWorkflowSupport.assistSnippetCode(
-            aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            resolved.service(),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
             request.fullContent(),
             request.snippetLanguage(),
             connectionDisplayName,

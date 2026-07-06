@@ -318,7 +318,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String selectedText,
         boolean wholeSnippet,
         String fallbackLanguageCode,
-        String additionalInstructions) {
+        String additionalInstructions,
+        String aiProfileId) {
     }
 
     public record AlternativeSolutionsRequest(
@@ -328,7 +329,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         boolean wholeSnippet,
         String fallbackLanguageCode,
         String additionalInstructions,
-        int maxSolutions) {
+        int maxSolutions,
+        String aiProfileId) {
     }
 
     public record CompletionRequest(
@@ -346,7 +348,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         boolean wholeSnippet,
         String fallbackLanguageCode,
         String reviewTheme,
-        String additionalInstructions) {
+        String additionalInstructions,
+        String aiProfileId) {
     }
 
     public record CodeImprovementRequest(
@@ -356,7 +359,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String fallbackLanguageCode,
         String improvementTheme,
         String additionalInstructions,
-        boolean allowPlainTextFallback) {
+        boolean allowPlainTextFallback,
+        String aiProfileId) {
 
         public CodeImprovementRequest(
             String fullContent,
@@ -373,7 +377,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 fallbackLanguageCode,
                 improvementTheme,
                 additionalInstructions,
-                false);
+                false,
+                null);
+        }
+
+        public CodeImprovementRequest(
+            String fullContent,
+            String snippetLanguage,
+            String selectedText,
+            String fallbackLanguageCode,
+            String improvementTheme,
+            String additionalInstructions,
+            boolean allowPlainTextFallback) {
+
+            this(
+                fullContent,
+                snippetLanguage,
+                selectedText,
+                fallbackLanguageCode,
+                improvementTheme,
+                additionalInstructions,
+                allowPlainTextFallback,
+                null);
         }
     }
 
@@ -386,7 +411,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String fallbackLanguageCode,
         String userInstruction,
         String additionalInstructions,
-        boolean includeAiSkills) {
+        boolean includeAiSkills,
+        String aiProfileId) {
     }
 
     public record SecurityReviewRequest(
@@ -435,7 +461,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         SecurityReportProvider securityReportProvider,
         SecurityFixProvider securityFixProvider,
         OneLinerProvider oneLinerProvider,
-        DiagramProvider diagramProvider) {
+        DiagramProvider diagramProvider,
+        boolean profileSwitchingSupported) {
     }
 
     private record LastAiChangeSnapshot(
@@ -2438,6 +2465,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return aiAssist != null && aiAssist.alternativeSolutionsProvider() != null;
     }
 
+    /**
+     * Whether the AI backing supports re-running a check/adjustment with a different profile. Only the
+     * {@link MainWindow}-backed assist resolves the profile per request; the {@code AiResultTab} assist
+     * uses a single fixed profile, so its dialogs hide the profile picker.
+     */
+    private boolean profileSwitchingSupported() {
+        return aiAssist != null && aiAssist.profileSwitchingSupported();
+    }
+
     private boolean hasCompletionProvider() {
         return aiAssist != null && aiAssist.completionProvider() != null;
     }
@@ -2622,6 +2658,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runSnippetDescription() {
+        runSnippetDescription(null);
+    }
+
+    private void runSnippetDescription(String aiProfileId) {
         if (aiAssist == null || aiAssist.snippetDescriptionProvider() == null) {
             return;
         }
@@ -2646,7 +2686,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     selectedText,
                     wholeSnippet,
                     resolveAiTextFallbackLanguageCode(),
-                    additionalInstructions()));
+                    additionalInstructions(),
+                    aiProfileId));
             }
         };
         snippetAiActionTask = task;
@@ -2671,7 +2712,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 description,
                 languageCombo.getValue(),
                 indentation,
-                text -> insertTechnicalDescription(text, insertOffset));
+                text -> insertTechnicalDescription(text, insertOffset),
+                aiProfileId,
+                profileSwitchingSupported() ? this::runSnippetDescription : null);
             dialog.showAndWait();
             setStatus(I18n.get("snippets.ai.description.generated"));
         });
@@ -2703,14 +2746,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         AlternativeSnippetSolutionsDialog dialog = new AlternativeSnippetSolutionsDialog(
             getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
             languageCombo.getValue(),
-            additionalInstructions -> aiAssist.alternativeSolutionsProvider().generate(new AlternativeSolutionsRequest(
+            (additionalInstructions, aiProfileId) -> aiAssist.alternativeSolutionsProvider().generate(new AlternativeSolutionsRequest(
                 fullContent,
                 languageCombo.getValue(),
                 targetText,
                 !hasSelection,
                 resolveAiTextFallbackLanguageCode(),
                 additionalInstructions,
-                configuredAlternativeSolutionCount())));
+                configuredAlternativeSolutionCount(),
+                aiProfileId)),
+            profileSwitchingSupported(),
+            null);
         dialog.showAndWait().ifPresent(solution -> {
             applyAiContentChange(replacementStart, replacementEnd, solution.code(), I18n.get("snippets.ai.toggle.action.alternative"));
             setStatus(I18n.get("snippets.ai.alternatives.applied"));
@@ -2878,6 +2924,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runCodeReview() {
+        runCodeReview(null);
+    }
+
+    private void runCodeReview(String aiProfileId) {
         if (!hasCodeReviewProvider() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
@@ -2898,7 +2948,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     wholeSnippet,
                     resolveAiTextFallbackLanguageCode(),
                     I18n.get("snippets.ai.code.review.theme"),
-                    additionalInstructions()));
+                    additionalInstructions(),
+                    aiProfileId));
             }
         };
         snippetAiActionTask = task;
@@ -2912,7 +2963,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             new SnippetAiReviewDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
                 I18n.get("snippets.ai.review.title"),
-                task.getValue()).showAndWait();
+                task.getValue(),
+                aiProfileId,
+                profileSwitchingSupported() ? this::runCodeReview : null).showAndWait();
             setStatus(I18n.get("snippets.ai.review.ready"));
         });
         task.setOnFailed(event ->
@@ -2995,6 +3048,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runCodeImprovement(String theme) {
+        runCodeImprovement(theme, null);
+    }
+
+    private void runCodeImprovement(String theme, String aiProfileId) {
         if (!hasCodeImprovementProvider() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
@@ -3016,7 +3073,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     selectedText,
                     resolveAiTextFallbackLanguageCode(),
                     theme,
-                    additionalInstructions()));
+                    additionalInstructions(),
+                    false,
+                    aiProfileId));
             }
         };
         snippetAiActionTask = task;
@@ -3041,6 +3100,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 languageCombo.getValue(),
                 editorSettings,
                 editorProfile);
+            diffDialog.setRerunHandler(aiProfileId,
+                profileSwitchingSupported() ? id -> runCodeImprovement(theme, id) : null);
             if (diffDialog.showAndWait().orElse(false)) {
                 applyAiContentChange(selectionStart, selectionEnd, improvement.replacement(), I18n.get("snippets.ai.toggle.action.improve"));
                 setStatus(I18n.get("snippets.ai.improve.applied"));
@@ -3066,11 +3127,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (prompt.isEmpty() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
+        runCodeAssistant(prompt.get(), null);
+    }
+
+    private void runCodeAssistant(CodeAssistantPrompt assistantPrompt, String aiProfileId) {
+        if (!hasCodeAssistantProvider() || assistantPrompt == null) {
+            return;
+        }
+        String fullContent = contentArea.getText();
+        if (fullContent == null || fullContent.isBlank()) {
+            return;
+        }
         String snippetLanguage = languageCombo.getValue();
         String fallbackLanguage = resolveAiTextFallbackLanguageCode();
         String additionalInstructions = additionalInstructions();
         CursorLocation cursor = cursorLocation(fullContent, contentArea.getCaretPosition());
-        CodeAssistantPrompt assistantPrompt = prompt.get();
         Task<SnippetAiResponseSupport.CodeImprovement> task = new Task<>() {
             @Override
             protected SnippetAiResponseSupport.CodeImprovement call() throws Exception {
@@ -3083,7 +3154,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     fallbackLanguage,
                     assistantPrompt.instruction(),
                     additionalInstructions,
-                    assistantPrompt.includeAiSkills()));
+                    assistantPrompt.includeAiSkills(),
+                    aiProfileId));
             }
         };
         snippetAiActionTask = task;
@@ -3108,6 +3180,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 snippetLanguage,
                 editorSettings,
                 editorProfile);
+            diffDialog.setRerunHandler(aiProfileId,
+                profileSwitchingSupported() ? id -> runCodeAssistant(assistantPrompt, id) : null);
             if (diffDialog.showAndWait().orElse(false)) {
                 applyAiContentChange(
                     0,
@@ -4229,6 +4303,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runAiFormat(Integer maxLineLength, AiFormatScope scope) {
+        runAiFormat(maxLineLength, scope, null);
+    }
+
+    private void runAiFormat(Integer maxLineLength, AiFormatScope scope, String aiProfileId) {
         String fullContent = contentArea.getText();
         if (fullContent == null || fullContent.isBlank()) {
             return;
@@ -4255,7 +4333,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     resolveAiTextFallbackLanguageCode(),
                     theme,
                     additionalInstructions(),
-                    true));
+                    true,
+                    aiProfileId));
             }
         };
         snippetAiActionTask = task;
@@ -4282,6 +4361,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 lang,
                 editorSettings,
                 editorProfile);
+            diffDialog.setRerunHandler(aiProfileId,
+                profileSwitchingSupported() ? id -> runAiFormat(maxLineLength, scope, id) : null);
             if (diffDialog.showAndWait().orElse(false)) {
                 applyAiContentChange(
                     replacementStart,
@@ -4377,6 +4458,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runAiSyntaxCheck() {
+        runAiSyntaxCheck(null);
+    }
+
+    private void runAiSyntaxCheck(String aiProfileId) {
         if (!hasCodeReviewProvider()) {
             return;
         }
@@ -4395,7 +4480,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     true,
                     resolveAiTextFallbackLanguageCode(),
                     I18n.get("snippets.ai.lint.theme"),
-                    additionalInstructions()));
+                    additionalInstructions(),
+                    aiProfileId));
             }
         };
         snippetAiActionTask = task;
@@ -4417,7 +4503,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             new SnippetAiReviewDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
                 I18n.get("snippets.ai.lint.title"),
-                findings).showAndWait();
+                findings,
+                aiProfileId,
+                profileSwitchingSupported() ? this::runAiSyntaxCheck : null).showAndWait();
             setStatus(I18n.get("snippets.ai.lint.ready"));
         });
         task.setOnFailed(event -> {

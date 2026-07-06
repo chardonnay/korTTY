@@ -285,6 +285,18 @@ public class GlobalSettings {
     @XmlElement
     private Integer aiDiffFontSize = 14;
 
+    /** Font size used in the AI code-review / syntax-check findings window. */
+    @XmlElement
+    private Integer aiReviewFontSize = 14;
+
+    /** Font size used in the AI technical-description window. */
+    @XmlElement
+    private Integer aiDescribeFontSize = 14;
+
+    /** Font size used in the AI alternative-solutions previews. */
+    @XmlElement
+    private Integer aiAlternativesFontSize = 14;
+
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
     private Integer workflowScriptFontSize = 14;
@@ -1251,6 +1263,30 @@ public class GlobalSettings {
 
     public void setAiDiffFontSize(Integer aiDiffFontSize) {
         this.aiDiffFontSize = aiDiffFontSize;
+    }
+
+    public Integer getAiReviewFontSize() {
+        return aiReviewFontSize;
+    }
+
+    public void setAiReviewFontSize(Integer aiReviewFontSize) {
+        this.aiReviewFontSize = aiReviewFontSize;
+    }
+
+    public Integer getAiDescribeFontSize() {
+        return aiDescribeFontSize;
+    }
+
+    public void setAiDescribeFontSize(Integer aiDescribeFontSize) {
+        this.aiDescribeFontSize = aiDescribeFontSize;
+    }
+
+    public Integer getAiAlternativesFontSize() {
+        return aiAlternativesFontSize;
+    }
+
+    public void setAiAlternativesFontSize(Integer aiAlternativesFontSize) {
+        this.aiAlternativesFontSize = aiAlternativesFontSize;
     }
 
     public Integer getWorkflowScriptFontSize() {
