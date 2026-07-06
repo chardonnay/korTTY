@@ -72,3 +72,13 @@ updates:
       - "ci"
     commit-message:
       prefix: "ci"
+    groups:
+      # init and analyze must land on the same codeql-action version --
+      # analyze refuses to run against a config file that init wrote with a
+      # different version. Bumping them in separate PRs (as happened with
+      # #77/#79) leaves one half of codeql.yml on the old version and breaks
+      # CI with "Loaded a configuration file for version 'X', but running
+      # version 'Y'". Group every codeql-action ref so they bump together.
+      codeql-action:
+        patterns:
+          - "github/codeql-action/*"
