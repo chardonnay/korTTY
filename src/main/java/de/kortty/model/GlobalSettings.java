@@ -77,7 +77,13 @@ public class GlobalSettings {
     
     @XmlElement
     private boolean rememberWindowGeometry = true; // Remember last window geometry
-    
+
+    // Terminal window background transparency in percent: 0 = fully opaque (default), 100 = fully
+    // transparent (desktop shows through). > 0 makes the window borderless (StageStyle.TRANSPARENT)
+    // with custom chrome; toggling between 0 and > 0 requires an app restart.
+    @XmlElement
+    private int terminalBackgroundTransparency = 0;
+
     @XmlElement
     private boolean useFixedWindowGeometry = false; // Use fixed geometry instead of last used
     
@@ -729,9 +735,18 @@ public class GlobalSettings {
     public boolean isRememberWindowGeometry() {
         return rememberWindowGeometry;
     }
-    
+
     public void setRememberWindowGeometry(boolean rememberWindowGeometry) {
         this.rememberWindowGeometry = rememberWindowGeometry;
+    }
+
+    /** Terminal background transparency in percent (0 = opaque, 100 = fully transparent). */
+    public int getTerminalBackgroundTransparency() {
+        return terminalBackgroundTransparency;
+    }
+
+    public void setTerminalBackgroundTransparency(int terminalBackgroundTransparency) {
+        this.terminalBackgroundTransparency = Math.max(0, Math.min(100, terminalBackgroundTransparency));
     }
     
     public boolean isUseFixedWindowGeometry() {

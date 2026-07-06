@@ -277,6 +277,10 @@ public class TerminalView extends BorderPane {
     // One settings provider per pane (widget). Each carries a nullable per-pane appearance override so
     // an effect can recolor / re-font a single pane without touching its siblings.
     private final Map<SithTermFxWidget, KorTTYSettingsProvider> paneProviders = new ConcurrentHashMap<>();
+    // Terminal background transparency as a percentage: 0 = fully opaque (default), 100 = fully
+    // transparent. Applied to the window/default background alpha only; glyph colours stay opaque.
+    // Read live by each pane's settings provider and by applyStyleStateColors.
+    private volatile int backgroundTransparencyPercent = 0;
     private final int defaultFontSize;
     /** Font size and family at tab open (from connection settings before theme/global). Reset uses these so zoom reset matches what user saw. */
     private final int connectionSavedFontSize;
@@ -420,7 +424,7 @@ public class TerminalView extends BorderPane {
         // Each pane gets its OWN settings provider (carrying a nullable per-pane appearance override),
         // all sharing the single font-size source above.
         java.util.function.Supplier<com.sithtermfx.ui.settings.SettingsProvider> providerFactory =
-                () -> new KorTTYSettingsProvider(settings, sharedFontSource);
+                () -> new KorTTYSettingsProvider(settings, sharedFontSource, () -> backgroundTransparencyPercent);
 
         // Create TerminalSplitPane with split support
         // Right-click context menu will show: Font size options + Split right/down + Close split
@@ -1569,6 +1573,38 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Whether closing this tab warrants a confirmation prompt. It does when there is more than one
+     * split pane (closing them all at once), or when the single active pane looks busy — a foreground
+     * command is running. An idle single-pane terminal sitting at its shell prompt closes without a
+     * prompt.
+     *
+     * <p>Busy detection is per connector: a local shell checks the OS process tree; SSH uses the shell
+     * prompt marker (there is no remote-process access). Mosh and anything unknown are treated as not
+     * busy — a Mosh session survives a client disconnect anyway.
+     */
+    public boolean shouldConfirmClose() {
+        if (getTerminalPaneCount() > 1) {
+            return true;
+        }
+        SithTermFxWidget widget = splitPane != null ? splitPane.getFocusedWidget() : null;
+        if (widget == null) {
+            widget = terminalWidget;
+        }
+        if (widget == null) {
+            return false;
+        }
+        TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (base instanceof LocalShellTtyConnector local) {
+            return local.hasRunningChildProcess();
+        }
+        if (base instanceof SshTtyConnector) {
+            // No remote-process visibility over SSH: "busy" means not currently at a shell prompt.
+            return !agentShortcutPromptReady;
+        }
+        return false;
+    }
+
+    /**
      * True when Ctrl+D should close the tab instead of sending EOF: only for local cmd.exe/PowerShell
      * shells, which do not exit on EOF. Bash-family local shells (Git Bash/Cygwin/WSL), $SHELL, custom
      * commands, and SSH/Mosh keep Ctrl+D as the normal EOF control character.
@@ -2687,14 +2723,68 @@ public class TerminalView extends BorderPane {
                 (int) (fg.getRed() * 255),
                 (int) (fg.getGreen() * 255),
                 (int) (fg.getBlue() * 255));
-        TerminalColor bgTc = TerminalColor.rgb(
-                (int) (bg.getRed() * 255),
-                (int) (bg.getGreen() * 255),
-                (int) (bg.getBlue() * 255));
+        // The default background carries the transparency alpha so plain cells match the translucent
+        // window background painted by doRepaint (which keeps the terminal see-through uniformly).
+        int bgAlpha = alphaForTransparencyPercent(backgroundTransparencyPercent);
+        int bgR = (int) (bg.getRed() * 255);
+        int bgG = (int) (bg.getGreen() * 255);
+        int bgB = (int) (bg.getBlue() * 255);
+        TerminalColor bgTc = bgAlpha >= 255
+                ? TerminalColor.rgb(bgR, bgG, bgB)
+                : TerminalColor.rgba(bgR, bgG, bgB, bgAlpha);
         TextStyle newStyle = new TextStyle(fgTc, bgTc);
         styleState.setDefaultStyle(newStyle);
         styleState.reset();
         Platform.runLater(() -> widget.getTerminalPanel().repaint());
+    }
+
+    /**
+     * Maps a background-transparency percentage (0 = opaque, 100 = fully transparent) to an alpha
+     * value in 0..255. Shared by the per-pane settings provider and applyStyleStateColors so the
+     * window background and the default cell background use exactly the same alpha.
+     */
+    static int alphaForTransparencyPercent(int percent) {
+        if (percent <= 0) return 255;
+        if (percent >= 100) return 0;
+        return (int) Math.round(255.0 * (100 - percent) / 100.0);
+    }
+
+    /**
+     * Makes this terminal view's own container chain (the view itself, the terminal content stack and
+     * the split pane) transparent so the desktop shows through the translucent terminal canvas. Needed
+     * because the split pane otherwise carries an opaque {@code .split-pane} background from the CSS.
+     * Only used in the borderless transparent-window mode.
+     */
+    public void setBackgroundTransparent(boolean transparent) {
+        String style = transparent ? "-fx-background-color: transparent;" : null;
+        setStyle(style);
+        if (terminalContainer != null) {
+            terminalContainer.setStyle(style);
+        }
+        if (splitPane != null) {
+            splitPane.setStyle(style);
+        }
+    }
+
+    /** Current terminal background transparency (0 = opaque, 100 = fully transparent). */
+    public int getBackgroundTransparency() {
+        return backgroundTransparencyPercent;
+    }
+
+    /**
+     * Sets the terminal background transparency (0 = opaque, 100 = fully transparent) and repaints
+     * every pane live. Only the background alpha changes; glyphs stay fully opaque.
+     */
+    public void setBackgroundTransparency(int percent) {
+        int clamped = Math.max(0, Math.min(100, percent));
+        if (clamped == backgroundTransparencyPercent) {
+            return;
+        }
+        backgroundTransparencyPercent = clamped;
+        // Re-apply colours (updates each pane's default-style alpha) and force a repaint.
+        for (SithTermFxWidget widget : paneProviders.keySet()) {
+            applyStyleStateColors(widget);
+        }
     }
 
     private void applyCursorShape(SithTermFxWidget widget) {
@@ -5900,13 +5990,17 @@ public class TerminalView extends BorderPane {
         private final ConnectionSettings settings;
         // Single tab-wide font size. May be null during super() construction (guarded below).
         private final DynamicFontSizeSettingsProvider sharedFontSource;
+        // Live source (0..100) for the terminal background transparency; see TerminalView.backgroundTransparencyPercent.
+        private final java.util.function.IntSupplier backgroundTransparencySupplier;
         // Per-pane appearance override contributed by an active effect; null = inherit the baseline settings.
         private volatile PaneAppearanceOverride override;
 
-        public KorTTYSettingsProvider(ConnectionSettings settings, DynamicFontSizeSettingsProvider sharedFontSource) {
+        public KorTTYSettingsProvider(ConnectionSettings settings, DynamicFontSizeSettingsProvider sharedFontSource,
+                                      java.util.function.IntSupplier backgroundTransparencySupplier) {
             super(sharedFontSource.getFontSize());
             this.settings = settings;
             this.sharedFontSource = sharedFontSource;
+            this.backgroundTransparencySupplier = backgroundTransparencySupplier;
         }
 
         void setOverride(PaneAppearanceOverride override) {
@@ -5985,20 +6079,30 @@ public class TerminalView extends BorderPane {
         public @NotNull TerminalColor getDefaultBackground() {
             PaneAppearanceOverride o = override;
             String color = (o != null && o.backgroundColor() != null) ? o.backgroundColor() : settings.getBackgroundColor();
-            return webToTerminalColor(color, Color.BLACK);
+            int alpha = backgroundTransparencySupplier != null
+                    ? alphaForTransparencyPercent(backgroundTransparencySupplier.getAsInt())
+                    : 255;
+            return webToTerminalColor(color, Color.BLACK, alpha);
         }
 
         private static TerminalColor webToTerminalColor(String web, Color fallback) {
+            return webToTerminalColor(web, fallback, 255);
+        }
+
+        private static TerminalColor webToTerminalColor(String web, Color fallback, int alpha) {
             Color c;
             try {
                 c = Color.web(web);
             } catch (RuntimeException e) {
                 c = fallback;
             }
-            return TerminalColor.rgb(
-                    (int) (c.getRed() * 255),
-                    (int) (c.getGreen() * 255),
-                    (int) (c.getBlue() * 255));
+            int r = (int) (c.getRed() * 255);
+            int g = (int) (c.getGreen() * 255);
+            int b = (int) (c.getBlue() * 255);
+            if (alpha >= 255) {
+                return TerminalColor.rgb(r, g, b);
+            }
+            return TerminalColor.rgba(r, g, b, Math.max(0, alpha));
         }
         
         @Override

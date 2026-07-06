@@ -1276,6 +1276,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#background-transparency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background transparency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#local-shell-tabs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2133,6 +2144,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#background-transparency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background transparency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#local-shell-tabs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2342,7 +2364,7 @@
 </tr>
 <tr>
 <td><strong>Close Tab</strong></td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> (Cmd+W on macOS) — closes the active tab with optional confirmation</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> (Cmd+W on macOS) — closes the active tab. You are only asked to confirm when there is something to lose: the tab has split panes, or a command is still running (a local shell with a running child process, or an SSH session that is not at its prompt). An idle single terminal closes immediately. The per-connection <em>Close without confirmation</em> setting suppresses the prompt entirely.</td>
 </tr>
 <tr>
 <td><strong>Next Tab</strong></td>
@@ -2399,6 +2421,11 @@
 </table>
 <p>Holding <span class="keys"><kbd class="key-control">Ctrl</kbd></span> (or <span class="keys"><kbd class="key-command">Cmd</kbd></span> on macOS) and scrolling the mouse wheel over the terminal changes the font size — wheel up enlarges, wheel down shrinks — instead of scrolling the buffer. This complements the <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-0">0</kbd></span> shortcuts.</p>
 <p><strong>Reset zoom</strong> restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right-click → <strong>Font size</strong> → <strong>Reset</strong>. The zoom level applies only to the currently focused terminal.</p>
+<h2 id="background-transparency">Background transparency<a class="headerlink" href="#background-transparency" title="Permanent link">&para;</a></h2>
+<p><strong>View → Zoom → Background Transparency</strong> is a slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays fully opaque and sharp. At 0 % the background is solid; higher values let more of the desktop show through. The value is saved and restored across restarts.</p>
+<p>Only the terminal area becomes transparent — the title bar, menu bar, status bar and any tab without a terminal stay solid, so the window never turns into a see-through hole.</p>
+<p>Because a see-through window uses a different window style that the operating system fixes when the window opens, <strong>switching transparency on or off (crossing 0 %) only takes full effect after a restart</strong>; the status bar shows a hint when you cross that threshold. Adjusting the level while already in transparent mode applies live. In transparent mode the window uses a lightweight custom title bar (drag to move, buttons to minimise/maximise/close, double-click the strip to maximise, drag the edges to resize).</p>
+<p>The slider lives in the in-window menu bar only (the native macOS menu bar cannot host a slider).</p>
 <h2 id="local-shell-tabs">Local shell tabs<a class="headerlink" href="#local-shell-tabs" title="Permanent link">&para;</a></h2>
 <p>Besides SSH and Mosh, a terminal tab can host a <strong>Local Shell</strong> — the local machine's own shell, opened via a pseudo-terminal (see <a href="connections.html#local-shell">Local Shell</a>). A few terminal behaviors are local-shell aware:</p>
 <ul>

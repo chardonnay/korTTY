@@ -1,0 +1,112 @@
+From 03a4402dbb761f14d49da71f00240d31ef286961 Mon Sep 17 00:00:00 2001
+From: Daniel Mengel <daniel.mengel@gmail.com>
+Date: Mon, 6 Jul 2026 11:27:18 +0200
+Subject: [PATCH] Terminal background transparency: clear canvas +
+ alpha-capable background
+
+Add TerminalColor.rgba(r,g,b,a) so a background colour can carry an alpha
+channel, and make TerminalPanel.doRepaint() clear the canvas before the
+window-background fill. Skip the redundant per-cell and margin fills when the
+window background is translucent, so a see-through background is painted
+exactly once instead of accumulating alpha frame-over-frame. Opaque rendering
+is byte-for-byte unchanged.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+---
+ .../com/sithtermfx/core/TerminalColor.java    | 10 +++++
+ .../java/com/sithtermfx/ui/TerminalPanel.java | 37 +++++++++++++++++--
+ 2 files changed, 43 insertions(+), 4 deletions(-)
+
+diff --git a/sithtermfx-core/src/main/java/com/sithtermfx/core/TerminalColor.java b/sithtermfx-core/src/main/java/com/sithtermfx/core/TerminalColor.java
+index 0107c56..132b6b8 100644
+--- a/sithtermfx-core/src/main/java/com/sithtermfx/core/TerminalColor.java
++++ b/sithtermfx-core/src/main/java/com/sithtermfx/core/TerminalColor.java
+@@ -54,6 +54,16 @@ public class TerminalColor {
+         return new TerminalColor(r, g, b);
+     }
+ 
++    /**
++     * Like {@link #rgb(int, int, int)} but carries an alpha channel (0 = fully transparent,
++     * 255 = fully opaque). Used by korTTY's adjustable terminal-background transparency: the
++     * resulting {@link Color} keeps its alpha through {@code FxTransformers.toFxColor}, so the
++     * window background can be painted translucent while glyphs stay opaque.
++     */
++    public static TerminalColor rgba(int r, int g, int b, int a) {
++        return new TerminalColor(-1, new Color(r, g, b, a), null);
++    }
++
+     public boolean isIndexed() {
+         return myColorIndex != -1;
+     }
+diff --git a/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java b/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
+index 5841a44..5d03dd7 100644
+--- a/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
++++ b/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
+@@ -215,6 +215,14 @@ public class TerminalPanel implements TerminalDisplay, TerminalActionProvider {
+ 
+     private final AtomicBoolean needRepaint = new AtomicBoolean(true);
+ 
++    /**
++     * The window background colour used by the most recent {@link #doRepaint()}, cached so the
++     * per-cell and margin fills can skip repainting it. That matters when the background is
++     * translucent (korTTY's adjustable terminal transparency): {@code doRepaint} already paints
++     * the whole canvas once, and stacking further translucent fills on top would darken it.
++     */
++    private javafx.scene.paint.Color myWindowBackgroundFx;
++
+     private int myMaxFPS = 50;
+ 
+     private int myBlinkingPeriod = 500;
+@@ -959,7 +967,13 @@ public class TerminalPanel implements TerminalDisplay, TerminalActionProvider {
+ 
+     private void doRepaint() {
+         resetColorCache();
+-        graphicsContext.setFill(getBackground());
++        javafx.scene.paint.Color windowBackground = getBackground();
++        myWindowBackgroundFx = windowBackground;
++        // Clear to fully transparent before painting the background. For an opaque background the
++        // following fillRect overwrites everything, so this is a no-op; for a translucent one
++        // (korTTY's terminal transparency) it prevents the previous frame from accumulating.
++        graphicsContext.clearRect(0, 0, this.canvas.getWidth(), this.canvas.getHeight());
++        graphicsContext.setFill(windowBackground);
+         graphicsContext.fillRect(0, 0, this.canvas.getWidth(), this.canvas.getHeight());
+         this.fixScrollBarThumbVisibility();
+         try {
+@@ -1509,8 +1523,17 @@ public class TerminalPanel implements TerminalDisplay, TerminalActionProvider {
+             }
+         }
+         javafx.scene.paint.Color backgroundColor = getEffectiveBackground(style);
+-        graphicsContext.setFill(backgroundColor);
+-        graphicsContext.fillRect(xCoord, yCoord, width, height);
++        // doRepaint already painted the whole canvas with the window background. When that
++        // background is translucent, repainting the same colour per cell would stack alpha and
++        // darken the terminal, so skip it. Opaque backgrounds keep the original behaviour.
++        javafx.scene.paint.Color windowBackground = myWindowBackgroundFx;
++        boolean redundantTranslucentDefault = windowBackground != null
++                && windowBackground.getOpacity() < 1.0
++                && backgroundColor.equals(windowBackground);
++        if (!redundantTranslucentDefault) {
++            graphicsContext.setFill(backgroundColor);
++            graphicsContext.fillRect(xCoord, yCoord, width, height);
++        }
+         if (buf.isNul()) {
+             return; // nothing more to do
+         }
+@@ -1700,7 +1723,13 @@ public class TerminalPanel implements TerminalDisplay, TerminalActionProvider {
+ 
+     private void drawMargins(double width, double height) {
+         //TODO
+-        graphicsContext.setFill(getBackground());
++        javafx.scene.paint.Color windowBackground = getBackground();
++        // doRepaint's full-canvas fill already covers the margins. Re-filling is harmless for an
++        // opaque background but would double the alpha of a translucent one, so skip it then.
++        if (windowBackground.getOpacity() < 1.0) {
++            return;
++        }
++        graphicsContext.setFill(windowBackground);
+         graphicsContext.fillRect(0, height, this.canvas.getWidth(), this.canvas.getHeight() - height);
+         graphicsContext.fillRect(width, 0, this.canvas.getWidth() - width, this.canvas.getHeight());
+     }
+-- 
+2.50.1 (Apple Git-155)
+

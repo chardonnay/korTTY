@@ -1783,6 +1783,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2287,6 +2304,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2705,6 +2739,22 @@
 <p>The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Adjustable terminal background transparency</strong> — a new <strong>View → Zoom → Background
+  Transparency</strong> slider (0–100 %) makes the terminal background see-through to the
+  desktop while the text stays fully opaque and sharp. The value is saved across
+  restarts. Only the terminal area turns transparent — the title, menu and status
+  bars stay solid. Because see-through mode uses a borderless window, turning it on
+  or off takes effect after a restart; in that mode a lightweight custom title bar
+  provides move, resize, minimise, maximise and close. Adjusting the level while
+  already transparent applies live.</li>
+<li><strong>Quieter tab close</strong> — closing a terminal tab now only asks for confirmation when
+  there is something to lose: the tab has split panes, or a command is still running
+  (detected from the local shell's process tree, or from the SSH shell prompt). An
+  idle single terminal closes immediately. The per-connection <em>Close without
+  confirmation</em> option still suppresses the prompt entirely.</li>
+</ul>
 <h2 id="v240">v2.4.0<a class="headerlink" href="#v240" title="Permanent link">&para;</a></h2>
 <h3 id="terminal-effects">Terminal Effects<a class="headerlink" href="#terminal-effects" title="Permanent link">&para;</a></h3>
 <ul>

@@ -5,6 +5,22 @@ shown in the footer.
 
 ## Unreleased
 
+### Terminal
+
+- **Adjustable terminal background transparency** — a new **View → Zoom → Background
+  Transparency** slider (0–100 %) makes the terminal background see-through to the
+  desktop while the text stays fully opaque and sharp. The value is saved across
+  restarts. Only the terminal area turns transparent — the title, menu and status
+  bars stay solid. Because see-through mode uses a borderless window, turning it on
+  or off takes effect after a restart; in that mode a lightweight custom title bar
+  provides move, resize, minimise, maximise and close. Adjusting the level while
+  already transparent applies live.
+- **Quieter tab close** — closing a terminal tab now only asks for confirmation when
+  there is something to lose: the tab has split panes, or a command is still running
+  (detected from the local shell's process tree, or from the SSH shell prompt). An
+  idle single terminal closes immediately. The per-connection *Close without
+  confirmation* option still suppresses the prompt entirely.
+
 ## v2.4.0
 
 ### Terminal Effects

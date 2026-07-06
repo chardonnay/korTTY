@@ -6,7 +6,7 @@ title: Anonyme Daten zur Applikationsoptimierung
 
 korTTY kann **anonyme Nutzungsstatistiken** sammeln, um zu entscheiden, welche Funktionen es wert sind, verbessert zu werden, und um Abstürze und häufige Fehler zu finden. Dies ist völlig optional, **standardmäßig deaktiviert** und kann jederzeit aktiviert oder deaktiviert werden.
 
-![Ablauf von Einwilligung und Datenfluss der anonymen Telemetrie](../assets/diagrams/telemetry-consent-flow.svg)
+![Anonymous telemetry consent and data flow](../assets/diagrams/telemetry-consent-flow.svg)
 
 ## Übersicht
 
@@ -57,7 +57,7 @@ Das Ziel besteht darin, korTTY mit echten, anonymen Beweisen statt mit Vermutung
 * **Jederzeit:** Öffnen Sie **Einstellungen → Datenschutz**, um die Erfassung zu aktivieren oder zu deaktivieren. Die gleiche Seite verweist auf dieses Kapitel.
 * **Durch Deaktivieren** wird die gesamte Erfassung sofort gestoppt und noch nicht gesendete Daten werden verworfen.
 
-![Datenschutz-Reiter in den Einstellungen](../assets/screenshots/settings/telemetry.png)
+![Privacy settings tab](../assets/screenshots/settings/telemetry.png)
 
 ## Ihr Einwilligungsdatensatz
 

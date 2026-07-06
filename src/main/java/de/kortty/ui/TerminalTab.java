@@ -124,7 +124,11 @@ public class TerminalTab extends Tab {
         
         // Handle tab close
         setOnCloseRequest(event -> {
-            if (terminalView.isConnected() && !settings.isCloseWithoutConfirmation()) {
+            // Only ask before closing when there is something to lose: multiple split panes, or a
+            // foreground command running in the single pane. An idle terminal at its prompt closes
+            // straight away. (Per-connection "close without confirmation" still suppresses it entirely.)
+            if (terminalView.isConnected() && !settings.isCloseWithoutConfirmation()
+                    && terminalView.shouldConfirmClose()) {
                 // Show confirmation dialog. Local shells are not network connections, so use
                 // dedicated wording instead of the SSH-flavored message.
                 boolean localShell = connection.isLocalShell();
@@ -173,7 +177,10 @@ public class TerminalTab extends Tab {
         // Always show status bar so transient network interruption details are visible.
         statusBarLabel = new Label();
         statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
-        
+        // Fill the row so its opaque background covers the full width. Otherwise, in the see-through
+        // window mode, the transparent area to the right of the label would reveal the desktop.
+        statusBarLabel.setMaxWidth(Double.MAX_VALUE);
+
         // Start timer to update status bar
         startStatusBarTimer();
     }
@@ -185,6 +192,7 @@ public class TerminalTab extends Tab {
     private void createDisconnectedStatusBar() {
         disconnectedStatusBar = new Label();
         disconnectedStatusBar.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 6 10; -fx-font-size: 12px; -fx-cursor: hand;");
+        disconnectedStatusBar.setMaxWidth(Double.MAX_VALUE); // full-width opaque bar (see createStatusBar note)
         disconnectedStatusBar.setVisible(false);
         disconnectedStatusBar.setManaged(false);
         disconnectedStatusBar.setOnMouseClicked(e -> {
@@ -203,6 +211,7 @@ public class TerminalTab extends Tab {
         recordingStatusLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 11px;");
         recordingBar = new HBox(8, recordingToggleButton, recordingStatusLabel);
         recordingBar.setStyle("-fx-background-color: #242424; -fx-padding: 4 8 4 8;");
+        recordingBar.setMaxWidth(Double.MAX_VALUE); // full-width opaque bar (see createStatusBar note)
         updateRecordingUi(TerminalRecordingState.IDLE);
     }
 
