@@ -15,9 +15,16 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 /**
  * Renders PlantUML locally. No remote PlantUML server is used.
+ *
+ * <p>Graphviz {@code dot} is <em>optional</em>: the activity and sequence diagrams korTTY
+ * generates from code render with PlantUML's own built-in layout engine and need no Graphviz at
+ * all. Only class/state/component diagrams require {@code dot}. So a missing {@code dot} must not
+ * block rendering — when it is present we merely pass its location to PlantUML via
+ * {@code GRAPHVIZ_DOT} so PlantUML need not rediscover it.
  */
 public class PlantUmlRenderService {
 
@@ -30,6 +37,7 @@ public class PlantUmlRenderService {
 
     private final HttpClient httpClient;
     private final Path cacheDir;
+    private final Supplier<String> dotResolver;
 
     public record RenderResult(boolean success, Path imagePath, String message) {
     }
@@ -42,8 +50,24 @@ public class PlantUmlRenderService {
     }
 
     PlantUmlRenderService(HttpClient httpClient, Path cacheDir) {
+        this(httpClient, cacheDir, PlantUmlRenderService::resolveDotExecutable);
+    }
+
+    PlantUmlRenderService(HttpClient httpClient, Path cacheDir, Supplier<String> dotResolver) {
         this.httpClient = httpClient;
         this.cacheDir = cacheDir;
+        this.dotResolver = dotResolver;
+    }
+
+    /**
+     * Test seam: a renderer that behaves as if Graphviz {@code dot} is not installed, so tests can
+     * reproduce a machine without Graphviz without touching the host's real {@code dot}.
+     */
+    static PlantUmlRenderService withoutDot() {
+        return new PlantUmlRenderService(
+            HttpClient.newBuilder().connectTimeout(DOWNLOAD_TIMEOUT).build(),
+            defaultCacheDir(),
+            () -> null);
     }
 
     public RenderResult renderPng(String plantUmlSource) {
@@ -62,10 +86,11 @@ public class PlantUmlRenderService {
         if (javaExecutable == null) {
             return new RenderResult(false, null, "Java is required to render PlantUML diagrams.");
         }
-        String dotExecutable = resolveDotExecutable();
-        if (dotExecutable == null) {
-            return new RenderResult(false, null, "Graphviz dot is required to render PlantUML diagrams.");
-        }
+        // Graphviz 'dot' is optional (see class javadoc): a missing dot must not block rendering,
+        // because the activity/sequence diagrams korTTY generates render without it. When dot IS
+        // present we pass its resolved path along, since a desktop-launched JVM often finds dot via
+        // Homebrew/common dirs that PlantUML's own subprocess search would otherwise miss.
+        String dotExecutable = dotResolver.get();
         try {
             Path jar = ensurePlantUmlJar();
             Path workDir = Files.createTempDirectory("kortty-snippet-plantuml-");
@@ -74,11 +99,9 @@ public class PlantUmlRenderService {
             ProcessBuilder builder =
                 new ProcessBuilder(javaExecutable, "-jar", jar.toString(), "-t" + format, sourceFile.toString())
                     .redirectErrorStream(true);
-            // PlantUML resolves Graphviz via the GRAPHVIZ_DOT env var (or falls back to its own PATH
-            // search), and this JVM's own PATH search above already found dot via Homebrew/common
-            // install dirs — those don't necessarily flow through to what PlantUML sees, so pass the
-            // resolved path explicitly rather than relying on PlantUML to rediscover it.
-            builder.environment().put("GRAPHVIZ_DOT", dotExecutable);
+            if (dotExecutable != null) {
+                builder.environment().put("GRAPHVIZ_DOT", dotExecutable);
+            }
             Process process = builder.start();
             boolean finished = process.waitFor(RENDER_TIMEOUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
             if (!finished) {
