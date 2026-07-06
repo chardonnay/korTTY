@@ -69,6 +69,38 @@ public final class SnippetAiResponseSupport {
         }
     }
 
+    /**
+     * A single explained change produced by the security-fix flow: {@code anchor} is a verbatim line
+     * from the fixed code used to locate the region, {@code reason} explains why it changed.
+     */
+    public record SecurityChange(String finding, String anchor, String reason) {
+        public SecurityChange {
+            finding = finding != null ? finding.trim() : "";
+            anchor = anchor != null ? anchor.strip() : "";
+            reason = reason != null ? reason.trim() : "";
+        }
+
+        public boolean isUsable() {
+            return !reason.isBlank() && (!anchor.isBlank() || !finding.isBlank());
+        }
+    }
+
+    /**
+     * Result of applying selected security findings: the full fixed snippet, an overall summary, and a
+     * per-change list with anchors + reasons for the diff hover annotations.
+     */
+    public record SnippetSecurityFix(String replacement, String summary, List<SecurityChange> changes) {
+        public SnippetSecurityFix {
+            replacement = replacement != null ? replacement : "";
+            summary = summary != null ? summary.trim() : "";
+            changes = changes != null ? List.copyOf(changes) : List.of();
+        }
+
+        public boolean isUsable() {
+            return !replacement.isBlank();
+        }
+    }
+
     public record OneLinerSuggestion(String command) {
         public OneLinerSuggestion {
             command = command != null ? command.trim() : "";
@@ -253,6 +285,45 @@ public final class SnippetAiResponseSupport {
         }
         CodeImprovement improvement = new CodeImprovement(replacement, summary);
         return improvement.isUsable() ? improvement : new CodeImprovement("", "");
+    }
+
+    /**
+     * Parses the security-fix response. Reuses the robust replacement/summary extraction of
+     * {@link #parseCodeImprovement} and additionally reads the optional {@code changes} array so a fix
+     * is still applied even when the model omits (or malforms) the explanations.
+     */
+    public static SnippetSecurityFix parseSecurityFix(String responseText) {
+        CodeImprovement improvement = parseCodeImprovement(responseText, true);
+        JsonObject object = parseJsonObject(responseText);
+        List<SecurityChange> changes = object != null ? parseSecurityChanges(object) : List.of();
+        return new SnippetSecurityFix(improvement.replacement(), improvement.summary(), changes);
+    }
+
+    private static List<SecurityChange> parseSecurityChanges(JsonObject object) {
+        JsonArray array = firstArray(object, "changes", "explanations", "reasons");
+        if (array == null) {
+            return List.of();
+        }
+        List<SecurityChange> changes = new ArrayList<>();
+        for (JsonElement element : array) {
+            SecurityChange change = parseSecurityChange(element);
+            if (change != null && change.isUsable()) {
+                changes.add(change);
+            }
+        }
+        return changes;
+    }
+
+    private static SecurityChange parseSecurityChange(JsonElement element) {
+        if (element == null || !element.isJsonObject()) {
+            return null;
+        }
+        JsonObject object = element.getAsJsonObject();
+        SecurityChange change = new SecurityChange(
+            firstString(object, "finding", "id", "findingId"),
+            firstString(object, "anchor", "snippet", "code", "line"),
+            firstString(object, "reason", "explanation", "why", "detail"));
+        return change.isUsable() ? change : null;
     }
 
     public static OneLinerSuggestion parseOneLinerSuggestion(String responseText) {

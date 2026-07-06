@@ -302,7 +302,7 @@ public final class SnippetAiWorkflowSupport {
         return SnippetAiResponseSupport.parseSecurityFindings(result != null ? result.content() : null);
     }
 
-    public static SnippetAiResponseSupport.CodeImprovement applySnippetSecurityFixes(
+    public static SnippetAiResponseSupport.SnippetSecurityFix applySnippetSecurityFixes(
         AiService aiService,
         UsageRecorder usageRecorder,
         String fullContent,
@@ -323,7 +323,7 @@ public final class SnippetAiWorkflowSupport {
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
-        return SnippetAiResponseSupport.parseCodeImprovement(result != null ? result.content() : null);
+        return SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
     }
 
     public static SnippetAiResponseSupport.PlantUmlDiagram generateSnippetPlantUml(

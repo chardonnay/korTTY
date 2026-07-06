@@ -60,11 +60,13 @@ class SnippetAiWorkflowSupportTest {
 
     @Test
     void securityFixRequestIncludesOnlySelectedFindings() throws Exception {
-        CapturingAiService aiService = new CapturingAiService("{\"replacement\":\"echo safe\",\"summary\":\"Fixed selected finding\"}");
+        CapturingAiService aiService = new CapturingAiService(
+            "{\"replacement\":\"echo safe\",\"summary\":\"Fixed selected finding\","
+                + "\"changes\":[{\"finding\":\"S2\",\"anchor\":\"echo safe\",\"reason\":\"Replaced eval\"}]}");
         List<SnippetAiResponseSupport.SecurityFinding> selectedFindings = List.of(
             new SnippetAiResponseSupport.SecurityFinding("S2", "high", "Unsafe eval", "Executes input", "Remove eval"));
 
-        SnippetAiResponseSupport.CodeImprovement improvement =
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
             SnippetAiWorkflowSupport.applySnippetSecurityFixes(
                 aiService,
                 null,
@@ -75,7 +77,9 @@ class SnippetAiWorkflowSupportTest {
                 selectedFindings,
                 "Do not rewrite logging");
 
-        assertThat(improvement.replacement()).isEqualTo("echo safe");
+        assertThat(fix.replacement()).isEqualTo("echo safe");
+        assertThat(fix.changes()).hasSize(1);
+        assertThat(fix.changes().get(0).reason()).isEqualTo("Replaced eval");
         assertThat(aiService.lastRequest.conversationContext()).contains("S2 [high] Unsafe eval");
         assertThat(aiService.lastRequest.conversationContext()).doesNotContain("S1");
         assertThat(aiService.lastRequest.userPrompt()).contains("Do not rewrite logging");

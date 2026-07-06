@@ -290,7 +290,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     @FunctionalInterface
     public interface SecurityFixProvider {
-        SnippetAiResponseSupport.CodeImprovement applyFixes(SecurityFixRequest request) throws Exception;
+        SnippetAiResponseSupport.SnippetSecurityFix applyFixes(SecurityFixRequest request) throws Exception;
     }
 
     @FunctionalInterface
@@ -3238,7 +3238,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             finishSnippetAiAction(task);
             SnippetSecurityReportDialog dialog = new SnippetSecurityReportDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
-                task.getValue());
+                task.getValue(),
+                this::runSecurityCheck);
             dialog.showAndWait().ifPresent(this::runSecurityFixes);
             setStatus(I18n.get("snippets.ai.security.ready"));
         });
@@ -3255,9 +3256,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         String originalContent = contentArea.getText();
-        Task<SnippetAiResponseSupport.CodeImprovement> task = new Task<>() {
+        Task<SnippetAiResponseSupport.SnippetSecurityFix> task = new Task<>() {
             @Override
-            protected SnippetAiResponseSupport.CodeImprovement call() throws Exception {
+            protected SnippetAiResponseSupport.SnippetSecurityFix call() throws Exception {
                 return aiAssist.securityFixProvider().applyFixes(new SecurityFixRequest(
                     originalContent,
                     languageCombo.getValue(),
@@ -3274,7 +3275,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         task.setOnSucceeded(event -> {
             finishSnippetAiAction(task);
-            SnippetAiResponseSupport.CodeImprovement fix = task.getValue();
+            SnippetAiResponseSupport.SnippetSecurityFix fix = task.getValue();
             if (fix == null || !fix.isUsable()) {
                 setStatus(I18n.get("snippets.ai.security.fix.empty"));
                 return;
@@ -3288,6 +3289,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 languageCombo.getValue(),
                 editorSettings,
                 editorProfile);
+            diffDialog.setChangeExplanations(fix.changes());
             if (diffDialog.showAndWait().orElse(false)) {
                 applyAiContentChange(0, originalContent.length(), fix.replacement(), I18n.get("snippets.ai.toggle.action.security"));
                 setStatus(I18n.get("snippets.ai.security.fix.applied"));

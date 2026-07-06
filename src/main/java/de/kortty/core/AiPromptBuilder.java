@@ -109,10 +109,13 @@ public final class AiPromptBuilder {
         }
         if (request != null && request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES) {
             return "You apply only the selected security findings to the provided snippet. "
-                + "Return exactly one JSON object with keys replacement and summary. "
+                + "Return exactly one JSON object with keys replacement, summary and changes. "
                 + "replacement must contain the full updated snippet content. "
+                + "changes must be an array with one entry per edited region, each with keys finding (the "
+                + "finding id it addresses), anchor (a single line copied verbatim from replacement that "
+                + "locates the edited region) and reason (one short sentence explaining why this region changed). "
                 + "Do not apply findings that were not selected. Preserve unrelated behavior and formatting where possible. "
-                + "Write summary in language code " + languageCode + ". "
+                + "Write summary and every reason in language code " + languageCode + ". "
                 + "Do not include Markdown outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER) {
@@ -248,8 +251,10 @@ public final class AiPromptBuilder {
             case APPLY_SNIPPET_SECURITY_FIXES -> prompt.append(
                 "Apply only the selected security findings to the full snippet.\n"
                     + "Return exactly one JSON object with this shape:\n"
-                    + "{ \"replacement\": \"...\", \"summary\": \"...\" }\n"
-                    + "The replacement must be the full updated snippet content.\n");
+                    + "{ \"replacement\": \"...\", \"summary\": \"...\", "
+                    + "\"changes\": [ { \"finding\": \"S1\", \"anchor\": \"<verbatim line from replacement>\", \"reason\": \"...\" } ] }\n"
+                    + "The replacement must be the full updated snippet content. "
+                    + "Add one changes entry per edited region; anchor must be a line copied verbatim from replacement.\n");
             case GENERATE_SNIPPET_ONE_LINER -> prompt.append(
                 "Convert the snippet into a compact one-liner command.\n"
                     + "Return exactly one JSON object with this shape:\n"

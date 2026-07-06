@@ -35,6 +35,9 @@ Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die g
 | Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Standardprofil | Dropdown | (Liste der konfigurierten Profile) | — | `defaultAiProfileId` |
+| Sicherheitsüberprüfungsprofil | Dropdown | (Liste der konfigurierten Profile; leer = Standardprofil verwenden) | — | `securityCheckAiProfileId` |
+
+Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-**Sicherheitsüberprüfungsaktionen**. Lassen Sie es leer (oder verwenden Sie **Löschen**), um das Standardprofil wiederzuverwenden. Es kann auch direkt im Snippet-Sicherheitsüberprüfungsfenster festgelegt werden, und an beiden Stellen wird dieselbe gespeicherte Einstellung verwendet.
 
 ### Profileinstellungen (im Editor-Raster)
 

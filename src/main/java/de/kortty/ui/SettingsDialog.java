@@ -265,6 +265,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Map<String, String> aiPlainApiKeysByProfileId = new HashMap<>();
     private final Set<String> aiClearedApiKeysByProfileId = new HashSet<>();
     private final ComboBox<AiProfile> aiDefaultProfileCombo;
+    private final ComboBox<AiProfile> aiSecurityCheckProfileCombo;
     private final ComboBox<AiLanguageSupport.LanguageOption> aiCodeTextLanguageCombo;
     private final CheckBox aiSnippetEditorInstructionsCheck;
     private final Spinner<Integer> aiSnippetAlternativeSolutionCountSpinner;
@@ -1508,6 +1509,35 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiDefaultProfileHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         aiRoot.getChildren().addAll(aiDefaultProfileBox, aiDefaultProfileHint);
 
+        aiSecurityCheckProfileCombo = new ComboBox<>();
+        aiSecurityCheckProfileCombo.setPrefWidth(260);
+        aiSecurityCheckProfileCombo.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : getAiProfileDisplayName(item));
+            }
+        });
+        aiSecurityCheckProfileCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(AiProfile item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : getAiProfileDisplayName(item));
+            }
+        });
+        aiSecurityCheckProfileCombo.setPromptText(I18n.get("settings.ai.securityProfile.default"));
+        refreshSecurityCheckProfileSelection(globalSettings != null ? globalSettings.getSecurityCheckAiProfileId() : null);
+        Button aiSecurityCheckProfileClear = new Button(I18n.get("settings.ai.securityProfile.clear"));
+        aiSecurityCheckProfileClear.setOnAction(event -> aiSecurityCheckProfileCombo.getSelectionModel().clearSelection());
+        HBox aiSecurityCheckProfileBox = new HBox(10,
+            new Label(I18n.get("settings.ai.securityProfile")),
+            aiSecurityCheckProfileCombo,
+            aiSecurityCheckProfileClear);
+        Label aiSecurityCheckProfileHint = new Label(I18n.get("settings.ai.securityProfile.hint"));
+        aiSecurityCheckProfileHint.setWrapText(true);
+        aiSecurityCheckProfileHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiRoot.getChildren().addAll(aiSecurityCheckProfileBox, aiSecurityCheckProfileHint);
+
         aiCodeTextLanguageCombo = new ComboBox<>();
         aiCodeTextLanguageCombo.getItems().setAll(
             AiLanguageSupport.buildAvailableLanguageOptions(globalSettings != null ? globalSettings.getAiCodeTextDefaultLanguage() : null));
@@ -1678,6 +1708,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 selectedAiProfile.setName(newValue);
                 aiProfileListView.refresh();
                 refreshDefaultAiProfileSelection(getSelectedDefaultAiProfileId());
+                refreshSecurityCheckProfileSelection(getSelectedSecurityCheckAiProfileId());
             }
         });
         aiEditorGrid.add(aiProfileNameField, 1, aiRow++);
@@ -3617,6 +3648,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiProfiles.add(profile);
         aiProfileListView.getItems().setAll(aiProfiles);
         refreshDefaultAiProfileSelection(currentDefaultProfileId != null ? currentDefaultProfileId : profile.getId());
+        refreshSecurityCheckProfileSelection(getSelectedSecurityCheckAiProfileId());
         aiProfileListView.getSelectionModel().select(profile);
         aiProfileListView.refresh();
     }
@@ -3656,6 +3688,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         aiProfileListView.getItems().setAll(aiProfiles);
         refreshDefaultAiProfileSelection(currentDefaultProfileId);
+        refreshSecurityCheckProfileSelection(getSelectedSecurityCheckAiProfileId());
         if (aiProfiles.isEmpty()) {
             selectedAiProfile = null;
             loadAiProfileIntoEditor(null);
@@ -4753,6 +4786,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         globalSettings.setAiProfiles(profilesToSave);
         globalSettings.setDefaultAiProfileId(
             AiProfileSelectionSupport.normalizeDefaultProfileId(defaultProfileId, profilesToSave));
+        // A null security-check profile is intentional ("use default profile"), so do NOT run it
+        // through normalizeDefaultProfileId (which would fall back to the first profile). setter +
+        // normalizeAiProfiles() drop it if the referenced profile no longer exists.
+        globalSettings.setSecurityCheckAiProfileId(getSelectedSecurityCheckAiProfileId());
         globalSettings.setAiApiUrl(null);
         globalSettings.setAiModel(null);
         globalSettings.setEncryptedAiApiKey(null);
@@ -4911,6 +4948,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private String getSelectedDefaultAiProfileId() {
         AiProfile selectedDefaultProfile = aiDefaultProfileCombo.getSelectionModel().getSelectedItem();
         return selectedDefaultProfile != null ? selectedDefaultProfile.getId() : null;
+    }
+
+    private void refreshSecurityCheckProfileSelection(String preferredProfileId) {
+        if (aiSecurityCheckProfileCombo == null) {
+            return;
+        }
+        aiSecurityCheckProfileCombo.getItems().setAll(aiProfiles);
+        AiProfile selection = findLocalAiProfileById(preferredProfileId);
+        if (selection != null) {
+            aiSecurityCheckProfileCombo.getSelectionModel().select(selection);
+        } else {
+            // A blank selection means "use the default profile" (persisted as null).
+            aiSecurityCheckProfileCombo.getSelectionModel().clearSelection();
+        }
+    }
+
+    private String getSelectedSecurityCheckAiProfileId() {
+        if (aiSecurityCheckProfileCombo == null) {
+            return null;
+        }
+        AiProfile selected = aiSecurityCheckProfileCombo.getSelectionModel().getSelectedItem();
+        return selected != null ? selected.getId() : null;
     }
 
     private AiService createAiService(AiProfile profile) {

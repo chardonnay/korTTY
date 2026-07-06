@@ -50,9 +50,9 @@ Wenn Sie ++ctrl++ (oder ++cmd++ auf macOS) gedrückt halten und mit dem Mausrad 
 
 ## Lokale-Shell-Registerkarten
 
-Neben SSH und Mosh kann eine Terminal-Registerkarte auch eine **lokale Shell** beherbergen – die eigene Shell des lokalen Rechners, geöffnet über ein Pseudo-Terminal (siehe [Lokale Shell](connections.md#lokale-shell)). Einige Terminalverhalten sind lokale-Shell-bewusst:
+Neben SSH und Mosh kann eine Terminal-Registerkarte eine **Lokale Shell** hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe [Lokale Shell](connections.md#local-shell)). Einige Terminalverhalten sind lokal-Shell-bewusst:
 
-- **++ctrl+d++ schließt die Registerkarte bei lokalen cmd.exe-/PowerShell-Sitzungen.** Diese Windows-Shells beenden sich nicht bei EOF, sodass ++ctrl+d++ dort sonst keine Wirkung hätte. Bei Bash-Familien-Shells (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält ++ctrl+d++ seine normale EOF-Bedeutung – die Shell beendet sich, und die lokale Registerkarte schließt sich daraufhin automatisch.
+- **++ctrl+d++ closes the tab for local cmd.exe/PowerShell sessions.** Those Windows shells do not exit on EOF, so ++ctrl+d++ would otherwise have no effect. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, ++ctrl+d++ behält seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.
 - **Die Schließbestätigung** verwendet eine lokale-Shell-Formulierung statt „SSH-Verbindung beenden?“, und die Fenster-Schließabfrage ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und lokale-Shell-Registerkarten mischen kann.
 
 ## Geteilter Bildschirm mit Übertragung
