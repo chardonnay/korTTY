@@ -1783,6 +1783,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#snippet-security-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet Security Check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2287,6 +2315,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#snippet-security-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet Security Check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2705,6 +2761,44 @@
 <p>The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="snippet-security-check">Snippet Security Check<a class="headerlink" href="#snippet-security-check" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Explained security fixes</strong> — the <strong>Review security fixes</strong> window now renders
+  the original and corrected snippet in a side-by-side diff that highlights
+  changed lines automatically. Hovering a changed block names the finding(s) it
+  addresses (for example <code>S1</code>, or <code>S1 + S2</code> when a block covers two findings) and
+  shows the reason(s), and every reason is also listed as a card below the diff so
+  the rationale stays visible.</li>
+<li><strong>Dedicated security-check AI profile</strong> — you can pick a separate AI profile
+  just for security checks and KorTTY remembers it permanently. Set it in the
+  Security Check window or under <strong>Configuration → Global Settings → AI</strong>; both
+  places share the same setting, and leaving it empty reuses the default profile.</li>
+<li><strong>Security Check window improvements</strong> — adjustable (and remembered) font size,
+  a copy-to-clipboard button for all findings, colour-coded severity badges with
+  most-severe-first sorting, a select-all toggle, and a <strong>Re-run check</strong> button
+  that repeats the review with the selected profile.</li>
+<li><strong>Remembered diff zoom</strong> — the font size in the AI diff / review windows is now
+  stored globally instead of only for the current session.</li>
+</ul>
+<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Adjustable terminal background transparency</strong> — a new <strong>View → Zoom → Background
+  Transparency</strong> slider (0–100 %) makes the terminal background see-through to the
+  desktop while the text stays fully opaque and sharp. The value is saved across
+  restarts. Only the terminal area turns transparent — the title, menu and status
+  bars stay solid. Because see-through mode uses a borderless window, turning it on
+  or off takes effect after a restart; in that mode a lightweight custom title bar
+  provides move, resize, minimise, maximise and close. Adjusting the level while
+  already transparent applies live.</li>
+<li><strong>Quieter tab close</strong> — closing a terminal tab now only asks for confirmation when
+  there is something to lose: the tab has split panes, or a command is still running
+  (detected from the local shell's process tree, or from the SSH shell prompt). An
+  idle single terminal closes immediately. The per-connection <em>Close without
+  confirmation</em> option still suppresses the prompt entirely.</li>
+<li><strong>Clearer context-menu label</strong> — the terminal right-click action that loads a
+  selected remote file into the snippet editor is now called <strong>Open in Snippet
+  Editor</strong> (previously <em>Load as text file</em>).</li>
+</ul>
 <h2 id="v240">v2.4.0<a class="headerlink" href="#v240" title="Permanent link">&para;</a></h2>
 <h3 id="terminal-effects">Terminal Effects<a class="headerlink" href="#terminal-effects" title="Permanent link">&para;</a></h3>
 <ul>

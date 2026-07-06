@@ -1276,10 +1276,21 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hintergrundtransparenz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hintergrundtransparenz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lokale-shell-registerkarten" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Lokale-Shell-Registerkarten
+        Lokale Shell-Registerkarten
       
     </span>
   </a>
@@ -2133,10 +2144,21 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hintergrundtransparenz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hintergrundtransparenz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lokale-shell-registerkarten" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Lokale-Shell-Registerkarten
+        Lokale Shell-Registerkarten
       
     </span>
   </a>
@@ -2342,7 +2364,7 @@
 </tr>
 <tr>
 <td><strong>Tab schließen</strong></td>
-<td>++Strg+W++ (Befehl+W unter macOS) – schließt die aktive Registerkarte mit optionaler Bestätigung</td>
+<td>++Strg+W++ (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann um eine Bestätigung gebeten, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung <em>Ohne Bestätigung schließen</em> unterdrückt die Eingabeaufforderung vollständig.</td>
 </tr>
 <tr>
 <td><strong>Nächster Tab</strong></td>
@@ -2393,17 +2415,22 @@
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad</td>
-<td>Über dem Terminal hinein-/herauszoomen (Cmd + Mausrad auf macOS)</td>
+<td>Vergrößern/verkleinern Sie das Terminal (Befehlstaste + Rad unter macOS)</td>
 </tr>
 </tbody>
 </table>
-<p>Wenn Sie <span class="keys"><kbd class="key-control">Ctrl</kbd></span> (oder <span class="keys"><kbd class="key-command">Cmd</kbd></span> auf macOS) gedrückt halten und mit dem Mausrad über dem Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, nach unten verkleinert – statt den Puffer zu scrollen. Dies ergänzt die Tastenkürzel <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-0">0</kbd></span>.</p>
+<p>Wenn Sie <span class="keys"><kbd class="key-control">Ctrl</kbd></span> (oder <span class="keys"><kbd class="key-command">Cmd</kbd></span> unter macOS) gedrückt halten und mit dem Mausrad über das Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, Rad nach unten verkleinert – anstatt durch den Puffer zu scrollen. Dies ergänzt die Tastenkombinationen <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-0">0</kbd></span>.</p>
 <p><strong>Zoom zurücksetzen</strong> stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → <strong>Schriftgröße</strong> → <strong>Zurücksetzen</strong>. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.</p>
-<h2 id="lokale-shell-registerkarten">Lokale-Shell-Registerkarten<a class="headerlink" href="#lokale-shell-registerkarten" title="Permanent link">&para;</a></h2>
-<p>Neben SSH und Mosh kann eine Terminal-Registerkarte auch eine <strong>lokale Shell</strong> beherbergen – die eigene Shell des lokalen Rechners, geöffnet über ein Pseudo-Terminal (siehe <a href="connections.html#lokale-shell">Lokale Shell</a>). Einige Terminalverhalten sind lokale-Shell-bewusst:</p>
+<h2 id="hintergrundtransparenz">Hintergrundtransparenz<a class="headerlink" href="#hintergrundtransparenz" title="Permanent link">&para;</a></h2>
+<p><strong>Ansicht → Zoom → Hintergrundtransparenz</strong> ist ein Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Bei 0 % ist der Hintergrund einfarbig; Höhere Werte lassen mehr vom Desktop durchscheinen. Der Wert wird über Neustarts hinweg gespeichert und wiederhergestellt.</p>
+<p>Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben solide, sodass das Fenster nie zu einem durchsichtigen Loch wird.</p>
+<p>Da ein durchsichtiges Fenster einen anderen Fensterstil verwendet, den das Betriebssystem beim Öffnen des Fensters korrigiert, wird <strong>das Ein- oder Ausschalten der Transparenz (Überschreiten von 0 %) erst nach einem Neustart vollständig wirksam</strong>; Die Statusleiste zeigt einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Das Anpassen des Pegels bereits im transparenten Modus wird live angewendet. Im transparenten Modus verwendet das Fenster eine schlanke benutzerdefinierte Titelleiste (Ziehen zum Verschieben, Schaltflächen zum Minimieren/Maximieren/Schließen, Doppelklick auf den Streifen zum Maximieren, Ziehen an den Rändern zum Ändern der Größe).</p>
+<p>Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native macOS-Menüleiste kann keinen Schieberegler hosten).</p>
+<h2 id="lokale-shell-registerkarten">Lokale Shell-Registerkarten<a class="headerlink" href="#lokale-shell-registerkarten" title="Permanent link">&para;</a></h2>
+<p>Neben SSH und Mosh kann eine Terminal-Registerkarte eine <strong>Lokale Shell</strong> hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe <a href="connections.html#local-shell">Lokale Shell</a>). Einige Terminalverhalten sind lokal-Shell-bewusst:</p>
 <ul>
-<li><strong><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> schließt die Registerkarte bei lokalen cmd.exe-/PowerShell-Sitzungen.</strong> Diese Windows-Shells beenden sich nicht bei EOF, sodass <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> dort sonst keine Wirkung hätte. Bei Bash-Familien-Shells (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> seine normale EOF-Bedeutung – die Shell beendet sich, und die lokale Registerkarte schließt sich daraufhin automatisch.</li>
-<li><strong>Die Schließbestätigung</strong> verwendet eine lokale-Shell-Formulierung statt „SSH-Verbindung beenden?“, und die Fenster-Schließabfrage ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und lokale-Shell-Registerkarten mischen kann.</li>
+<li><strong><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> closes the tab for local cmd.exe/PowerShell sessions.</strong> Those Windows shells do not exit on EOF, so <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> would otherwise have no effect. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> behält seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.</li>
+<li><strong>Bestätigung schließen</strong> verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.</li>
 </ul>
 <h2 id="geteilter-bildschirm-mit-ubertragung">Geteilter Bildschirm mit Übertragung<a class="headerlink" href="#geteilter-bildschirm-mit-ubertragung" title="Permanent link">&para;</a></h2>
 <p>Teilen Sie die Terminalansicht, um mehrere Verbindungen nebeneinander anzuzeigen, und senden Sie optional Eingaben an alle Bereiche gleichzeitig.</p>

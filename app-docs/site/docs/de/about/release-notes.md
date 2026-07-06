@@ -26,6 +26,19 @@ global statt nur für die aktuelle Sitzung gespeichert.
 
 ### Terminal
 
+- **Anpassbare Terminal-Hintergrundtransparenz** – eine neue **Ansicht → Zoom → Hintergrund
+Der Schieberegler „Transparenz**“ (0–100 %) sorgt dafür, dass der Hintergrund des Terminals durchsichtig ist
+auf dem Desktop, während der Text vollständig undurchsichtig und scharf bleibt. Der Wert wird über gespeichert
+startet neu. Nur der Terminalbereich wird transparent – ​​Titel, Menü und Status
+Stäbe bleiben solide. Da der Durchsichtmodus ein randloses Fenster verwendet, wird er aktiviert
+oder off wird erst nach einem Neustart wirksam; in diesem Modus eine schlanke benutzerdefinierte Titelleiste
+Bietet Verschieben, Größenänderung, Minimieren, Maximieren und Schließen. Währenddessen den Pegel anpassen
+bereits transparent gilt live.
+- **Leiseres Schließen eines Tabs** – Beim Schließen eines Terminal-Tabs wird jetzt nur noch nach einer Bestätigung gefragt, wann
+Es gibt etwas zu verlieren: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt
+(erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein
+Ein einzelnes inaktives Terminal wird sofort geschlossen. Die Pro-Verbindung *Schließen ohne
+Mit der Option „Bestätigung*“ wird die Eingabeaufforderung weiterhin vollständig unterdrückt.
 - **Klarere Kontextmenübezeichnung** – die Terminal-Rechtsklick-Aktion, die a lädt
 Die ausgewählte Remote-Datei im Snippet-Editor heißt jetzt **In Snippet öffnen
 Editor** (bisher *Als Textdatei laden*).
@@ -60,7 +73,7 @@ Zurücksetzen gilt weiterhin für die gesamte Registerkarte.
 erhält ein Untermenü „Terminaleffekt“, in dem Sie „Keine“ oder einen beliebigen installierten Effekt auswählen können
 nur für diesen Bereich, plus einen Schieberegler für die Animationsgeschwindigkeit; Die Auswahl erfolgt nur zur Laufzeit
 und wird nicht in der Verbindung gespeichert. Durch das Teilen eines Bereichs wird der neue Bereich mit gestartet
-den gleichen Effekt und die gleiche Animationsgeschwindigkeit wie der Bereich, von dem es geteilt wurde.
+den gleichen Effekt und die gleiche Animationsgeschwindigkeit wie der Bereich, von dem es getrennt wurde.
 - **Animierte Effektvorschauen im Plugin-Manager** – **Plugins → Terminal
 Effekte** zeigt jetzt eine animierte Live-Vorschau des ausgewählten Effekts neben dem an
 Plugin-Liste, sodass Effekte verglichen werden können, bevor sie in einer Sitzung aktiviert werden.
@@ -230,7 +243,7 @@ auf allen Schwarmzielen parallel (Base64-übertragen, einmalige Bestätigung),
 mit Live-Ausgabe pro Server und einer Exit-Code-/Ausgabeergebnistabelle pro Server.
 - **Schedule Swarm Runs** – ein neuer JobScheduler-Aktionstyp **AI_SWARM** mit
 **Schwarm-Parallelität** (1–16) und **Schwarm-Lesefelder**; die Schwarm-Registerkarte
-Mit der Schaltfläche „Planen…“ wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
+Mit der Schaltfläche **Planen…** wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
 Die Ergebnisse gehen in das Journal *und* in einen gespeicherten Schwarm-Chat.
 - **Sichtbarer Composer- und Tab-Statuspunkt** – die Schwarmeingabe ist klar umrahmt
 dreizeiliges Feld und auf der Registerkarte wird ein farbiger Aktivitätspunkt angezeigt (läuft/wartet).
@@ -277,7 +290,7 @@ Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Lee
 `"C:\Program Files\Git\bin\bash.exe"`) korrekt starten.
 - **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
 Haken wurden auf eine gemeinsame `ObservableTtyConnector`-Schnittstelle gehoben, also auch
-Arbeit für lokale Muscheln. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
+Arbeit für lokale Shells. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
 - **AI Agent & Planning in lokalen Shells** – die Befehlsausführungs-Engine des Agenten
 wurde hinter einer `AgentCommandRunner`-Abstraktion (SSH exec.) von SSH entkoppelt
 Kanal- und lokale Prozess-Backends). Der **KI-Agent** und **KI-Planung** jetzt
@@ -324,7 +337,7 @@ Die Frage wird bezüglich der ausgewählten Ausgabe oder des ausgewählten Skrip
 - **Konkrete Modelle für Wolkenprofile** – die Modellauswahl ist vorab gefüllt
 gängige Modellnamen für bekannte Cloud-Anbieter (offline, kein API-Schlüssel erforderlich), die
 Klicken Sie auf die Schaltfläche „Aktualisieren“, um die Live-Modellliste des Endpunkts zusammenzuführen
-Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option **Auto** ist nicht mehr vorhanden
+Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option **Auto** ist nicht mehr verfügbar
 Wird für Cloud-Endpunkte angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).
 
 ### Anleitung zur Suche nach AI-Dokumenten

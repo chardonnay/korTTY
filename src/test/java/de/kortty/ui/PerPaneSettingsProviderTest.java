@@ -38,10 +38,20 @@ public class PerPaneSettingsProviderTest {
     }
 
     private static Object newProvider(ConnectionSettings settings, DynamicFontSizeSettingsProvider shared) throws Exception {
+        return newProvider(settings, shared, () -> 0);
+    }
+
+    private static Object newProvider(ConnectionSettings settings, DynamicFontSizeSettingsProvider shared,
+                                      java.util.function.IntSupplier transparency) throws Exception {
         Class<?> cls = Class.forName("de.kortty.ui.TerminalView$KorTTYSettingsProvider");
-        Constructor<?> ctor = cls.getDeclaredConstructor(ConnectionSettings.class, DynamicFontSizeSettingsProvider.class);
+        Constructor<?> ctor = cls.getDeclaredConstructor(
+                ConnectionSettings.class, DynamicFontSizeSettingsProvider.class, java.util.function.IntSupplier.class);
         ctor.setAccessible(true);
-        return ctor.newInstance(settings, shared);
+        return ctor.newInstance(settings, shared, transparency);
+    }
+
+    private static TerminalColor bg(Object provider) {
+        return ((SettingsProvider) provider).getDefaultBackground();
     }
 
     /** Builds a PaneAppearanceOverride; nulls mean "inherit baseline". */
@@ -131,5 +141,34 @@ public class PerPaneSettingsProviderTest {
 
         assertThat(fontSize(pinned)).isEqualTo(30f); // pinned pane ignores zoom
         assertThat(fontSize(tracking)).isEqualTo(9f); // tracking pane follows zoom
+    }
+
+    @Test
+    void transparencyPercentMapsToAlpha() {
+        // 0 % = fully opaque, 100 % = fully transparent, linear in between.
+        assertThat(TerminalView.alphaForTransparencyPercent(0)).isEqualTo(255);
+        assertThat(TerminalView.alphaForTransparencyPercent(100)).isEqualTo(0);
+        assertThat(TerminalView.alphaForTransparencyPercent(50)).isEqualTo(128);
+        assertThat(TerminalView.alphaForTransparencyPercent(-10)).isEqualTo(255); // clamped low
+        assertThat(TerminalView.alphaForTransparencyPercent(250)).isEqualTo(0);   // clamped high
+    }
+
+    @Test
+    void defaultBackgroundIsOpaqueWhenTransparencyIsZero() throws Exception {
+        DynamicFontSizeSettingsProvider shared = new DynamicFontSizeSettingsProvider(14f);
+        Object pane = newProvider(baselineSettings(), shared, () -> 0);
+        assertThat(bg(pane).toColor().getAlpha()).isEqualTo(255);
+    }
+
+    @Test
+    void defaultBackgroundCarriesAlphaWhenTransparent() throws Exception {
+        DynamicFontSizeSettingsProvider shared = new DynamicFontSizeSettingsProvider(14f);
+        Object pane = newProvider(baselineSettings(), shared, () -> 50);
+        // 50 % transparency -> alpha 128, RGB of #000000 preserved.
+        assertThat(bg(pane).toColor().getAlpha()).isEqualTo(128);
+        assertThat(bg(pane).toColor().getRed()).isEqualTo(0);
+
+        Object fully = newProvider(baselineSettings(), shared, () -> 100);
+        assertThat(bg(fully).toColor().getAlpha()).isEqualTo(0);
     }
 }

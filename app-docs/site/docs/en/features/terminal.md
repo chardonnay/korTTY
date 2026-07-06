@@ -19,7 +19,7 @@ Manage multiple SSH sessions with these tab operations:
 | Action | Shortcut |
 |--------|----------|
 | **New Tab** | ++ctrl+t++ (Cmd+T on macOS) — opens Quick Connect to start a new session |
-| **Close Tab** | ++ctrl+w++ (Cmd+W on macOS) — closes the active tab with optional confirmation |
+| **Close Tab** | ++ctrl+w++ (Cmd+W on macOS) — closes the active tab. You are only asked to confirm when there is something to lose: the tab has split panes, or a command is still running (a local shell with a running child process, or an SSH session that is not at its prompt). An idle single terminal closes immediately. The per-connection *Close without confirmation* setting suppresses the prompt entirely. |
 | **Next Tab** | ++ctrl+Tab++ |
 | **Previous Tab** | ++ctrl+shift+Tab++ |
 | **Reconnect** | Right-click a tab, the terminal area, or a server entry in the Dashboard. If the connection is active, it is closed and re-established immediately; if disconnected, it is re-established. The terminal window stays open. |
@@ -47,6 +47,16 @@ Adjust the font size of the active terminal on the fly without reconnecting:
 Holding ++ctrl++ (or ++cmd++ on macOS) and scrolling the mouse wheel over the terminal changes the font size — wheel up enlarges, wheel down shrinks — instead of scrolling the buffer. This complements the ++alt+plus++ / ++alt+minus++ / ++alt+0++ shortcuts.
 
 **Reset zoom** restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right-click → **Font size** → **Reset**. The zoom level applies only to the currently focused terminal.
+
+## Background transparency
+
+**View → Zoom → Background Transparency** is a slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays fully opaque and sharp. At 0 % the background is solid; higher values let more of the desktop show through. The value is saved and restored across restarts.
+
+Only the terminal area becomes transparent — the title bar, menu bar, status bar and any tab without a terminal stay solid, so the window never turns into a see-through hole.
+
+Because a see-through window uses a different window style that the operating system fixes when the window opens, **switching transparency on or off (crossing 0 %) only takes full effect after a restart**; the status bar shows a hint when you cross that threshold. Adjusting the level while already in transparent mode applies live. In transparent mode the window uses a lightweight custom title bar (drag to move, buttons to minimise/maximise/close, double-click the strip to maximise, drag the edges to resize).
+
+The slider lives in the in-window menu bar only (the native macOS menu bar cannot host a slider).
 
 ## Local shell tabs
 

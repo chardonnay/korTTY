@@ -103,6 +103,7 @@ Argumentationsaufwand, Internetzugang und Token-Budget) und Ihre gespeicherten C
 | Vergrößern | ++alt+plus++ | Terminal-Schriftgröße erhöhen |
 | Verkleinern | ++alt+minus++ | Terminal-Schriftgröße verringern |
 | Zoom zurücksetzen | ++alt+0++ | Terminal-Schriftgröße zurücksetzen |
+| Hintergrundtransparenz | | Schieberegler (0–100 %), der den Hintergrund des Terminals auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Der Wert bleibt über Neustarts hinweg gespeichert. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt. |
 | Vollbild | ++f11++ | Fenster-Vollbild umschalten |
 | Nur Terminal-Vollbild | ++f12++ | Alles Chrome ausblenden, nur das Terminal anzeigen |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
@@ -121,17 +122,17 @@ Argumentationsaufwand, Internetzugang und Token-Budget) und Ihre gespeicherten C
 | Anleitung | ++f1++ | Öffnen Sie diese Dokumentation in korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
 
-## macOS Dock & Menüleiste
+## macOS Dock und Menüleiste
 
-Unter macOS läuft die paketierte App im Hintergrund weiter (damit der
-JobScheduler geplante Jobs ausführen kann), auch nachdem das letzte Fenster
-geschlossen wurde. korTTY bietet daher zwei zusätzliche Einstiegspunkte, um auch
-ohne offenes Fenster erreich- und beendbar zu bleiben:
+Unter macOS läuft die gepackte App weiterhin im Hintergrund (also der JobScheduler
+kann geplante Jobs ausführen), auch nachdem das letzte Fenster geschlossen wurde. korTTY also
+Fügt zwei zusätzliche Einstiegspunkte hinzu, damit es ohne Probleme erreichbar – und aufrufbar – bleibt
+Fenster geöffnet:
 
-- **Dock-Icon-Menü** — Rechtsklick auf das Dock-Icon von korTTY für
-  Schnellaktionen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**,
-  **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
-- **Menüleisten-Icon (Statusleiste)** — ein System-Tray-Icon mit **Neues
-  Fenster** und **Beenden**; ein Klick auf das Icon öffnet ein neues Fenster.
+- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen durchzuführen: **Neu
+Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**,
+**Über korTTY** und **Quit**.
+- **Menüleisten-(Status-)Symbol** – ein Taskleistensymbol mit **Neues Fenster** und
+**Aufhören**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
 
-Beide bieten ein zuverlässiges **Beenden**, selbst wenn alle Fenster geschlossen sind.
+Beide bieten ein zuverlässiges **Beenden**, selbst wenn jedes Fenster geschlossen ist.
