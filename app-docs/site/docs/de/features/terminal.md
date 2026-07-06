@@ -19,7 +19,7 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 | Aktion | Verknüpfung |
 |--------|----------|
 | **Neuer Tab** | ++Strg+T++ (Befehl+T unter macOS) – öffnet Quick Connect, um eine neue Sitzung zu starten |
-| **Tab schließen** | ++Strg+W++ (Befehl+W unter macOS) – schließt die aktive Registerkarte mit optionaler Bestätigung |
+| **Tab schließen** | ++Strg+W++ (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann um eine Bestätigung gebeten, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung *Ohne Bestätigung schließen* unterdrückt die Eingabeaufforderung vollständig. |
 | **Nächster Tab** | ++Strg+Tab++ |
 | **Vorheriger Tab** | ++Strg+Umschalt+Tab++ |
 | **Wieder verbinden** | Klicken Sie mit der rechten Maustaste auf eine Registerkarte, den Terminalbereich oder einen Servereintrag im Dashboard. Ist die Verbindung aktiv, wird sie sofort geschlossen und wieder aufgebaut; Wenn die Verbindung getrennt wird, wird sie wiederhergestellt. Das Terminalfenster bleibt geöffnet. |
@@ -48,11 +48,21 @@ Wenn Sie ++ctrl++ (oder ++cmd++ auf macOS) gedrückt halten und mit dem Mausrad 
 
 **Zoom zurücksetzen** stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → **Schriftgröße** → **Zurücksetzen**. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.
 
+## Hintergrundtransparenz
+
+**Ansicht → Zoom → Hintergrundtransparenz** ist ein Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Bei 0 % ist der Hintergrund einfarbig; Höhere Werte lassen mehr vom Desktop durchscheinen. Der Wert wird über Neustarts hinweg gespeichert und wiederhergestellt.
+
+Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben solide, sodass das Fenster nie zu einem durchsichtigen Loch wird.
+
+Da ein durchsichtiges Fenster einen anderen Fensterstil verwendet, den das Betriebssystem beim Öffnen des Fensters korrigiert, wird **das Ein- oder Ausschalten der Transparenz (Überschreiten von 0 %) erst nach einem Neustart vollständig wirksam**; Die Statusleiste zeigt einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Das Anpassen des Pegels bereits im transparenten Modus wird live angewendet. Im transparenten Modus verwendet das Fenster eine schlanke benutzerdefinierte Titelleiste (Ziehen zum Verschieben, Schaltflächen zum Minimieren/Maximieren/Schließen, Doppelklick auf den Streifen zum Maximieren, Ziehen an den Rändern zum Ändern der Größe).
+
+Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native macOS-Menüleiste kann keinen Schieberegler hosten).
+
 ## Lokale-Shell-Registerkarten
 
-Neben SSH und Mosh kann eine Terminal-Registerkarte auch eine **lokale Shell** beherbergen – die eigene Shell des lokalen Rechners, geöffnet über ein Pseudo-Terminal (siehe [Lokale Shell](connections.md#lokale-shell)). Einige Terminalverhalten sind lokale-Shell-bewusst:
+Neben SSH und Mosh kann eine Terminal-Registerkarte eine **Lokale Shell** hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe [Lokale Shell](connections.md#local-shell)). Einige Terminalverhalten sind lokal-Shell-bewusst:
 
-- **++ctrl+d++ schließt die Registerkarte bei lokalen cmd.exe-/PowerShell-Sitzungen.** Diese Windows-Shells beenden sich nicht bei EOF, sodass ++ctrl+d++ dort sonst keine Wirkung hätte. Bei Bash-Familien-Shells (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält ++ctrl+d++ seine normale EOF-Bedeutung – die Shell beendet sich, und die lokale Registerkarte schließt sich daraufhin automatisch.
+- **++ctrl+d++ closes the tab for local cmd.exe/PowerShell sessions.** Those Windows shells do not exit on EOF, so ++ctrl+d++ would otherwise have no effect. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, ++ctrl+d++ behält seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.
 - **Die Schließbestätigung** verwendet eine lokale-Shell-Formulierung statt „SSH-Verbindung beenden?“, und die Fenster-Schließabfrage ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und lokale-Shell-Registerkarten mischen kann.
 
 ## Geteilter Bildschirm mit Übertragung

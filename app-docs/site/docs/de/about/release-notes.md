@@ -5,129 +5,131 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+### Terminal
+
+- **Anpassbare Terminal-Hintergrundtransparenz** – eine neue **Ansicht → Zoom → Hintergrund
+Der Schieberegler „Transparenz**“ (0–100 %) sorgt dafür, dass der Hintergrund des Terminals durchsichtig ist
+auf dem Desktop, während der Text vollständig undurchsichtig und scharf bleibt. Der Wert wird über gespeichert
+startet neu. Nur der Terminalbereich wird transparent – ​​Titel, Menü und Status
+Stäbe bleiben solide. Da der Durchsichtmodus ein randloses Fenster verwendet, wird er aktiviert
+oder off wird erst nach einem Neustart wirksam; in diesem Modus eine schlanke benutzerdefinierte Titelleiste
+Bietet Verschieben, Größenänderung, Minimieren, Maximieren und Schließen. Währenddessen den Pegel anpassen
+bereits transparent gilt live.
+- **Leiseres Schließen eines Tabs** – Beim Schließen eines Terminal-Tabs wird jetzt nur noch nach einer Bestätigung gefragt, wann
+Es gibt etwas zu verlieren: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt
+(erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein
+Ein einzelnes inaktives Terminal wird sofort geschlossen. Die Pro-Verbindung *Schließen ohne
+Mit der Option „Bestätigung*“ wird die Eingabeaufforderung weiterhin vollständig unterdrückt.
+
 ## v2.4.0
 
-### Terminaleffekte
+### Endgültige Auswirkungen
 
-- **Zehn neue integrierte Terminaleffekte** – neben MU/TH/UR 6000 bringt ein
-  mitgeliefertes Effektpaket jetzt zehn thematische Effekte von Cyberpunk über
-  Retro bis Grusel: **Amber CRT '90** (bernsteinfarbener 90er-Phosphormonitor mit
-  Scanlines, Nachleuchten, Flackern und laufendem Bildwechselband), **Commodore
-  Heritage** (C64-Blau mit Loader-Balken), **Neon City** (Glitch-Risse und
-  RGB-Versatz-Flackern), **Digital Rain** (dezent herabfallende Matrix-Zeichen),
-  **Hologram HUD** (Interferenzbänder und HUD-Eckklammern), **Poltergeist**
-  (atmende Vignette, Rauschsalven und geisterhafte Blitze), **VHS 1987**
-  (Tracking-Rauschen, laufende Verzerrung und PLAY-Einblendung), **Synthwave
-  Horizon** (leuchtendes Perspektivraster), **Deep Space Radar** (langsamer
-  Radarstrahl mit Blips) und **Typewriter Noir** (Sepia-Papier-Look mit
-  Zeichentakt bei der Ausgabe). Jeder Effekt berücksichtigt die Einstellung der
-  Animationsgeschwindigkeit, und seine Beschreibung ist in allen unterstützten
-  Sprachen lokalisiert.
-- **Zeichenweise Ausgabe bei Typewriter Noir** – der Effekt **Typewriter Noir**
-  gibt die Terminalausgabe Zeichen für Zeichen aus – für ein mechanisches
-  Schreibmaschinengefühl; große Ausgaben wie das Anzeigen einer großen Datei
-  umgehen den Takt und werden dadurch nicht verlangsamt.
-- **Terminaleffekte pro Bereich (Split)** – Terminaleffekte gelten jetzt für
-  jeden einzelnen geteilten Bereich statt für den gesamten Tab. Innerhalb eines
-  Tabs können Sie in einem Bereich einen Effekt laufen lassen, während ein
-  Nachbarbereich einen anderen oder gar keinen zeigt; Farben und Schriftart eines
-  Effekts bleiben auf den eigenen Bereich beschränkt. Zoom und Zurücksetzen
-  gelten weiterhin für den ganzen Tab.
-- **Effektmenü und Vererbung pro Bereich** – das Kontextmenü jedes geteilten
-  Bereichs erhält ein Untermenü **Terminal-Effekt**, um für genau diesen Bereich
-  keinen oder einen installierten Effekt zu wählen, samt Regler für die
-  Animationsgeschwindigkeit; die Auswahl gilt nur zur Laufzeit und wird nicht in
-  der Verbindung gespeichert. Beim Teilen eines Bereichs übernimmt der neue
-  Bereich Effekt und Animationsgeschwindigkeit des Ausgangsbereichs.
-- **Animierte Effektvorschauen im Plugin-Manager** – **Plugins → Terminal-Effekte**
-  zeigt jetzt neben der Plugin-Liste eine animierte Live-Vorschau des
-  ausgewählten Effekts, sodass Effekte vor dem Aktivieren in einer Sitzung
-  verglichen werden können. Plugins ohne Vorschau zeigen stattdessen einen
-  Platzhalter.
+- **Zehn neue integrierte Terminaleffekte** – neben MU/TH/UR 6000, ein Bundle
+Das Effektpaket enthält jetzt zehn thematische Effekte aus den Bereichen Cyberpunk, Retro und Grusel
+Stile: **Amber CRT '90** (Bernstein-Phosphor-Monitor der 90er Jahre mit Scanlines, Glow,
+Flackern und ein rollendes Bildwiederholband), **Commodore Heritage** (C64 blau mit
+Ladebalken), **Neon City** (Glitch Tears und RGB-Split-Flimmern), **Digital
+Regen** (schwach fallende Matrixglyphen), **Hologramm-HUD** (Interferenzbänder und
+HUD-Eckklammern), **Poltergeist** (atmende Vignette, statische Ausbrüche und
+gespenstische Blitze), **VHS 1987** (Spurgeräusch, Rollverzerrung und ein PLAY
+Overlay), **Synthwave Horizon** (leuchtendes perspektivisches Raster), **Deep Space
+Radar** (langsamer Radardurchlauf mit Blips) und **Typewriter Noir** (Sepiapapier).
+Blick mit zeichenweiser Ausgabegeschwindigkeit). Jeder Effekt respektiert die
+Die Einstellung der Animationsgeschwindigkeit und ihre Beschreibung sind in allen unterstützten Sprachen lokalisiert
+Sprachen.
+- **Getaktete Ausgabe mit Typewriter Noir** – die Effekttypen **Typewriter Noir**
+Terminalausgabe Zeichen für Zeichen für das Gefühl einer mechanischen Schreibmaschine; Schüttgut
+Bei der Ausgabe wie dem Drucken einer großen Datei wird die Geschwindigkeit umgangen, sodass sie nie verlangsamt wird
+runter.
+- **Terminaleffekte pro Bereich** – Terminaleffekte sind jetzt auf jeden Bereich beschränkt
+Einzelner geteilter Bereich anstelle der gesamten Registerkarte. Innerhalb einer Registerkarte können Sie eine ausführen
+Effekt in einem Bereich, während ein Geschwisterbereich einen anderen oder keinen Effekt zeigt, und
+Die Farben und Schriftarten jedes Effekts bleiben auf einen eigenen Bereich beschränkt. Globaler Zoom und
+Zurücksetzen gilt weiterhin für die gesamte Registerkarte.
+- **Fensterspezifisches Effektmenü und Vererbung** – das Rechtsklick-Menü jedes geteilten Fensters
+erhält ein Untermenü „Terminaleffekt“, in dem Sie „Keine“ oder einen beliebigen installierten Effekt auswählen können
+nur für diesen Bereich, plus einen Schieberegler für die Animationsgeschwindigkeit; Die Auswahl erfolgt nur zur Laufzeit
+und wird nicht in der Verbindung gespeichert. Durch das Teilen eines Bereichs wird der neue Bereich mit gestartet
+den gleichen Effekt und die gleiche Animationsgeschwindigkeit wie der Bereich, von dem es geteilt wurde.
+- **Animierte Effektvorschauen im Plugin-Manager** – **Plugins → Terminal
+Effekte** zeigt jetzt eine animierte Live-Vorschau des ausgewählten Effekts neben dem an
+Plugin-Liste, sodass Effekte verglichen werden können, bevor sie in einer Sitzung aktiviert werden.
+Plugins ohne Vorschau zeigen stattdessen einen Platzhalter an.
 
 ### KI-Chat
 
-- **Chat-Farbprofile** – der KI-Chat und der KI-Schwarm-Chat haben jetzt wählbare
-  Farbthemen. Elf integrierte Profile sind dabei: **Automatisch (Theme)**, das
-  dem aktiven Terminal-Theme folgt, sowie **Original**, **Paper**, **Midnight**,
-  **Cyberpunk**, **Retrowave**, **Forest**, **Ocean**, **Terminal**, **GPT** und
-  **Cute**. Wählen Sie eines im Farbprofil-Dropdown der Chat-Symbolleiste oder
-  unter **Einstellungen → Erscheinungsbild → Chat-Farbprofil**; die Auswahl wird
-  gespeichert und sofort auf jeden offenen Chat angewendet.
-- **Volltextsuche im Chat** (++ctrl+f++, Cmd+F auf macOS) – klicken Sie auf die
-  Schaltfläche **Suchen** in der Chat-Symbolleiste oder drücken Sie das
-  Tastenkürzel, um eine Suchleiste über einer KI- oder Schwarm-Unterhaltung zu
-  öffnen. Sie durchsucht den gesamten Chat einschließlich Codeblöcken, zeigt eine
-  Live-Trefferzahl, springt mit den Pfeiltasten oder der Eingabetaste zwischen den
-  Treffern und hebt jeden Treffer hervor und scrollt ihn ins Bild. Esc schließt
-  die Leiste.
-- **Neu gestalteter, durchgehend gestylter Chat** – der KI-Chat und der
-  Schwarm-Chat wurden neu gestaltet: Ihre Nachrichten sitzen in einer rechts
-  eingerückten, abgerundeten Sprechblase, jede KI-Antwort ist eine Karte über die
-  volle Breite, und Codeblöcke, Tabellen, das Eingabefeld und die Bildlaufleisten
-  folgen dem gewählten Farbprofil statt einem festen hellen Stil.
+- **Chat-Farbprofile** – der AI-Chat und der AI-Swarm-Chat sind jetzt auswählbar
+Farbthemen. Elf integrierte Profile enthalten: **Automatisch (Thema)**, das
+folgt Ihrem aktiven Terminal-Thema, plus **Original**, **Paper**, **Midnight**,
+**Cyberpunk**, **Retrowave**, **Forest**, **Ocean**, **Terminal**, **GPT** und
+**Niedlich**. Wählen Sie eines aus der Dropdown-Liste „Farbprofil“ in der Chat-Symbolleiste oder darunter aus
+**Einstellungen → Erscheinungsbild → Chat-Farbprofil**; Die Auswahl wird gespeichert und angewendet
+Live zu jedem offenen Chat.
+- **Volltext-Chat-Suche** (++Strg+F++, Befehl+F unter macOS) – klicken Sie auf **Suchen**
+Klicken Sie auf die Schaltfläche in der Chat-Symbolleiste oder drücken Sie die Verknüpfung, um eine Suchleiste über einer KI zu öffnen
+oder Schwarmgespräch. Es durchsucht den gesamten Chat, einschließlich Codeblöcken und Shows
+eine Live-Match-Zählung, Sprünge zwischen Treffern mit den Pfeiltasten oder Enter und
+Umreißt und scrollt jedes Spiel in die Ansicht. Esc schließt die Leiste.
+- **Neu gestalteter, vollständig themenbezogener Chat** – der KI-Chat und der Schwarm-Chat wurden neu gestaltet
+Ihre Nachrichten befinden sich also in einer nach rechts eingerückten, abgerundeten Blase und jede KI-Antwort ist eine
+Karte in voller Breite, mit Codeblöcken, Tabellen, dem Komponisten und Bildlaufleisten
+Folgen Sie dem ausgewählten Farbprofil anstelle eines festen Lichtstils.
 
-### Datenschutz & Nutzungsstatistik
+### Datenschutz und Analyse
 
-- **Anonyme Nutzungsstatistik (freiwillig, standardmäßig aus)** – korTTY kann
-  optional anonyme, DSGVO-konforme Nutzungsstatistiken über Aptabase (Verarbeitung
-  auf EU-Servern) teilen, um Funktionen zu priorisieren und Abstürze und häufige
-  Fehler sichtbar zu machen. Das ist strikt freiwillig und standardmäßig
-  deaktiviert. Übertragen werden nur Ereignisnamen, aggregierte Zählwerte und
-  Kennzeichen, die App-Version, Name und Version des Betriebssystems, die
-  App-Sprache und eine anonyme Sitzungs-ID pro Start – Hostnamen, Benutzernamen,
-  Verbindungsdaten, Dateipfade, Snippet-, Terminal- und Chat-Inhalte, Schlüssel,
-  Passwörter und Fehlermeldungstexte werden niemals erfasst.
-- **Einmalige Zustimmungsabfrage** – Sie werden genau einmal gefragt, ob Sie
-  anonyme Daten teilen möchten: bei Neuinstallationen als Kontrollkästchen neben
-  der Master-Passwort-Einrichtung, bei bestehenden Installationen als einmalige
-  Abfrage nach dem Entsperren. Jedes Wegklicken zählt als *Nein*, und Sie werden
-  nicht erneut gefragt. Jede Zustimmungsstelle hat eine Schaltfläche **Mehr Infos**,
-  die das neue Handbuchkapitel *Anonyme Daten zur Applikationsoptimierung* öffnet.
-- **Einstellungen → Datenschutz** – ein neuer Tab **Datenschutz** unter
-  **Einstellungen** erlaubt es, die anonyme Nutzungsstatistik jederzeit ein- oder
-  auszuschalten, und zeigt genau, was erfasst wird und was nicht, sowie das Datum
-  Ihrer Entscheidung. Beim Ausschalten stoppt die Erfassung sofort, und sowohl die
-  wartende Warteschlange als auch lokal zwischengespeicherte Ereignisse werden
-  verworfen.
-- **Offline-Zwischenspeicherung von Ereignissen** – wenn Sie offline sind, werden
-  anonyme Ereignisse lokal unter `~/.kortty` zwischengespeichert und gesendet,
-  sobald eine Verbindung verfügbar ist; sie überstehen Neustarts der App, werden
-  nach drei Tagen verworfen und beim Widerruf vollständig gelöscht.
+- **Anonyme Nutzungsanalyse (opt-in, standardmäßig deaktiviert)** – korTTY kann optional
+Teilen Sie anonyme, DSGVO-konforme Nutzungsstatistiken über Aptabase (verarbeitet auf EU-Ebene).
+Servern), um Funktionen zu priorisieren und Oberflächenabstürze und häufige Fehler zu beheben.
+Es ist standardmäßig eine strikte Opt-in- und Deaktivierungsfunktion. Nur Ereignisnamen, aggregierte Anzahl
+und Flags, die App-Version, Betriebssystemname und -version, App-Sprache und eine anonyme
+Pro Start werden Sitzungs-IDs gesendet – Hostnamen, Benutzernamen, Verbindungsdaten, Datei
+Pfade, Snippet-/Terminal-/Chat-Inhalte, Schlüssel, Passwörter und Fehlermeldungstext
+werden nie gesammelt.
+- **Einmalige Einwilligungsaufforderung** – Sie werden nach der Weitergabe anonymer Daten gefragt
+genau einmal: bei Neuinstallationen als Kontrollkästchen neben der Master-Passwort-Einrichtung,
+und bei bestehenden Installationen als einmalige Eingabeaufforderung nach dem Entsperren. Irgendeine Entlassung
+gilt als *nein* und Sie werden nicht erneut gefragt. Jede Zustimmungsoberfläche verfügt über ein **Mehr
+Info**-Button, der das neue Anleitungkapitel öffnet *Anonyme Daten zur Bewerbung
+Optimierung*.
+- **Einstellungen → Registerkarte „Datenschutz“** – eine neue Registerkarte **Datenschutz** unter **Einstellungen** ermöglicht Ihnen
+Sie können die anonyme Nutzungsstatistik jederzeit ein- oder ausschalten und genau sehen, was passiert
+und wird nicht erfasst, zuzüglich des Datums, an dem Ihre Wahl erfasst wurde. Ausschalten
+stoppt die Sammlung sofort und verwirft sowohl die ausstehende Warteschlange als auch alle anderen
+lokal zwischengespeicherte Ereignisse.
+- **Offline-Ereignis-Caching** – während Sie offline sind, werden anonyme Ereignisse zwischengespeichert
+lokal unter `~/.kortty` und versendet, sobald eine Verbindung verfügbar ist; sie überleben
+Die App wird neu gestartet, nach drei Tagen gelöscht und vollständig verworfen, wenn Sie dies tun
+Opt-out.
 
 ### Korrekturen
 
-- **Effekte leuchten korrekt, wenn sie in einem laufenden Bereich aktiviert
-  werden** – das zeilenweise Nachleuchten des MU/TH/UR-Effekts funktioniert jetzt
-  auch, wenn Sie einen Effekt in einem bereits verbundenen Bereich einschalten,
-  nicht nur, wenn der Effekt schon vor dem Verbinden aktiv war; außerdem pulsiert
-  es bei schnell scrollender Ausgabe gleichmäßig statt zu flackern.
-- **Strg+D in einem geteilten Bereich schließt nur diesen Bereich** – das Beenden
-  der Shell (Strg+D oder `exit`) in einem Bereich eines Splits schließt jetzt nur
-  diesen Bereich und lässt die übrigen offen; der Tab schließt sich erst, wenn die
-  Sitzung des letzten verbleibenden Bereichs endet.
-- **Terminaleffekte lassen das Rendering bei vielen offenen Tabs nicht mehr
-  abstürzen** – mehrere Terminal-Tabs mit je einem aktiven Effekt konnten den
-  GPU-Texturpool erschöpfen und das Rendering zum Absturz bringen. Effekt-Overlays
-  (auch MU/TH/UR 6000) geben ihre fensterfüllende Leinwand-Textur jetzt frei,
-  während ihr Tab im Hintergrund ist, und binden sie automatisch neu, sobald der
-  Tab wieder angezeigt wird.
-- **KI-Planung verkraftet abgeschnittenes oder fehlerhaftes JSON** – der Tab
-  **KI-Planung** scheitert nicht mehr mit *„Die KI-Antwort enthielt nicht das
-  erforderliche JSON-Objekt“*, wenn ein Modell einen unvollständigen oder nicht
-  geschlossenen Plan zurückgibt – häufig bei sehr kleinen Modellen, die abbrechen,
-  bevor das Schema fertig ist. Die Planung wiederholt den Versuch nun einmal mit
-  einer Reparatur-Aufforderung und ist meist beim zweiten Mal erfolgreich; schlägt
-  sie weiterhin fehl, erklärt die Meldung, dass das Modell zweimal ungültiges JSON
-  lieferte, und empfiehlt ein größeres oder leistungsfähigeres Planungsmodell.
-- **Das Anleitungsfenster stürzt im Hintergrund nicht mehr ab** – die geöffnete
-  In-App-Anleitung (**Hilfe → Anleitung**, F1) offen zu lassen, während man zu
-  einer anderen App wechselt, konnte korTTY nach einer Weile nativ zum Absturz
-  bringen, weil der untätige eingebettete Browser im Hintergrund weiterarbeitete.
-  korTTY entlädt die Anleitungsseite jetzt, nachdem das Fenster 20 Sekunden lang
-  minimiert oder ohne Fokus war, und stellt beim Zurückkehren dieselbe Seite und
-  Scrollposition wieder her; außerdem läuft das Intro-Video der Anleitung nur noch
-  einmal statt in Endlosschleife.
+- **Effekte leuchten korrekt, wenn sie für ein Live-Fenster eingeschaltet sind** – MU/TH/UR
+Das zeilenweise Leuchten des Effekts funktioniert jetzt, wenn Sie einen Effekt auf einem aktivieren
+Bereich „bereits verbunden“, nicht nur, wenn der Effekt vor der Verbindung aktiv war,
+und es pulsiert bei schnell scrollender Ausgabe gleichmäßig, anstatt zu flackern.
+- **Strg+D in einem geteilten Bereich schließt nur diesen Bereich** – Verlassen der Shell (Strg+D oder
+`exit`) in einem Bereich einer Aufteilung schließt nun nur diesen Bereich und verlässt den anderen
+Scheiben offen; Die Registerkarte wird erst geschlossen, wenn die Sitzung des letzten verbleibenden Bereichs endet.
+- **Terminaleffekte stürzen beim Rendern nicht mehr ab, wenn viele Registerkarten geöffnet sind** – Öffnen
+Mehrere Terminal-Tabs mit jeweils aktivem Effekt könnten die GPU-Textur erschöpfen
+Pool- und Crash-Rendering. Effekt-Overlays (einschließlich MU/TH/UR 6000) sind jetzt verfügbar
+ihre Leinwandtextur im gesamten Fenster, während sich ihre Registerkarte im Hintergrund befindet und
+automatisch neu binden, wenn die Registerkarte erneut angezeigt wird.
+- **AI Planning stellt abgeschnittenes oder fehlerhaftes JSON wieder her** – das **AI Planning**
+Die Registerkarte schlägt nicht mehr vollständig mit der Fehlermeldung * „AI-Antwort enthielt nicht das Erforderliche“ fehl
+JSON-Objekt"*, wenn ein Modell einen unvollständigen oder nicht geschlossenen Plan zurückgibt, häufig bei
+Sehr kleine Modelle, die vor Abschluss des Schemas anhalten. Die Planung wird jetzt erneut durchgeführt
+einmal mit einer Reparaturaufforderung und meist beim zweiten Versuch erfolgreich; wenn es noch
+schlägt fehl, der Fehler erklärt, dass das Modell zweimal ungültiges JSON zurückgegeben hat und
+schlägt ein größeres oder leistungsfähigeres Planungsmodell vor.
+- **Guide-Fenster stürzt nicht mehr im Hintergrund ab** – der In-App-Guide bleibt erhalten
+(**Hilfe → Anleitung**, F1) beim Öffnen zu einer anderen App kann korTTY zum Absturz bringen
+nach einer Weile automatisch, da der eingebettete Browser im Leerlauf im Hintergrund lief.
+korTTY entlädt nun die Leitseite, nachdem das Fenster minimiert wurde oder
+20 Sekunden lang unfokussiert und stellt danach die gleiche Seite und Bildlaufposition wieder her
+Sie kehren zurück und das Einführungsvideo der Anleitungs wird einmal abgespielt, anstatt in einer Schleife
+endlos.
 
 ## v2.3.3
 
@@ -206,7 +208,7 @@ Die Antwort dieses Agenten.
 - **Erweiterbare Live-Transkripte** – Klicken Sie mit der linken Maustaste auf eine Agentenzeile, um sie live anzusehen
 Befehls-/Ausgabetranskript inline während der Ausführung.
 - **Konversation kopieren und exportieren** – Kopieren Sie die gesamte Schwarmkonversation in die
-in die Zwischenablage kopieren oder als einfachen Text, Markdown oder PDF exportieren; Gespeicherte Schwarmchats erhalten
+in die Zwischenablage kopieren oder als einfachen Text, Markdown oder PDF exportieren; Gespeicherte Schwarm-Chats erhalten
 ihren eigenen **Schwarm-Chats**-Bereich im AI Manager.
 - **Lesbare Ergebniszeilen** – Durch Klicken auf eine Zeile der kombinierten Antworttabelle wird geöffnet
 es in einem separaten **Zeilendetails**-Fenster mit der Schriftgröße A−/A+ und
@@ -219,7 +221,7 @@ auf allen Schwarmzielen parallel (Base64-übertragen, einmalige Bestätigung),
 mit Live-Ausgabe pro Server und einer Exit-Code-/Ausgabeergebnistabelle pro Server.
 - **Schedule Swarm Runs** – ein neuer JobScheduler-Aktionstyp **AI_SWARM** mit
 **Schwarm-Parallelität** (1–16) und **Schwarm-Lesefelder**; die Schwarm-Registerkarte
-Mit der Schaltfläche „Planen…“ wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
+Mit der Schaltfläche **Planen…** wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
 Die Ergebnisse gehen in das Journal *und* in einen gespeicherten Schwarm-Chat.
 - **Sichtbarer Composer- und Tab-Statuspunkt** – die Schwarmeingabe ist klar umrahmt
 dreizeiliges Feld und auf der Registerkarte wird ein farbiger Aktivitätspunkt angezeigt (läuft/wartet).
@@ -266,7 +268,7 @@ Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Lee
 `"C:\Program Files\Git\bin\bash.exe"`) korrekt starten.
 - **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
 Haken wurden auf eine gemeinsame `ObservableTtyConnector`-Schnittstelle gehoben, also auch
-Arbeit für lokale Muscheln. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
+Arbeit für lokale Shells. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
 - **AI Agent & Planning in lokalen Shells** – die Befehlsausführungs-Engine des Agenten
 wurde hinter einer `AgentCommandRunner`-Abstraktion (SSH exec.) von SSH entkoppelt
 Kanal- und lokale Prozess-Backends). Der **KI-Agent** und **KI-Planung** jetzt
@@ -282,7 +284,7 @@ Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.
 - **Strg + Mausrad-Zoom** – **Strg** (oder **Befehl** unter macOS) gedrückt halten und
 Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
 Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
-Verknüpfungen.
+Abkürzungen.
 - **Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte** – diese Windows-Shells tun dies nicht
 Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
 (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.
@@ -313,7 +315,7 @@ Die Frage wird bezüglich der ausgewählten Ausgabe oder des ausgewählten Skrip
 - **Konkrete Modelle für Wolkenprofile** – die Modellauswahl ist vorab gefüllt
 gängige Modellnamen für bekannte Cloud-Anbieter (offline, kein API-Schlüssel erforderlich), die
 Klicken Sie auf die Schaltfläche „Aktualisieren“, um die Live-Modellliste des Endpunkts zusammenzuführen
-Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option **Auto** ist nicht mehr vorhanden
+Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option **Auto** ist nicht mehr verfügbar
 Wird für Cloud-Endpunkte angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).
 
 ### Anleitung zur Suche nach AI-Dokumenten

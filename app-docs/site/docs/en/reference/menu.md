@@ -103,6 +103,7 @@ reasoning effort, internet access and token budget) and your saved chats:
 | Zoom In | ++alt+plus++ | Increase terminal font size |
 | Zoom Out | ++alt+minus++ | Decrease terminal font size |
 | Reset Zoom | ++alt+0++ | Reset terminal font size |
+| Background Transparency | | Slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays sharp; the value is saved across restarts. Switching it on or off needs a restart, so the status bar shows a hint when you cross that threshold. Shown in the in-window menu bar only. |
 | Fullscreen | ++f11++ | Toggle window fullscreen |
 | Terminal-only Fullscreen | ++f12++ | Hide all chrome, show only the terminal |
 | Hide terminal scrollbars in fullscreen | | Also hide scrollbars while in fullscreen |
