@@ -163,6 +163,11 @@ The dialog includes:
   must follow, with a **History** menu of your last 10 distinct entries.
 - **Save to Snippets** — saves the script to the Snippet Manager with a
   fitting, pre-filled script name and the correct file extension.
+- **Hardening options** — the same per-script
+  [Hardening options](../reference/hardening-options.md) as the single-host
+  workflow generator (strict mode, error traps, idempotency, dry-run, `--help`,
+  and more), applied to the generated script. These are separate from the
+  multi-server options above.
 
 ## Tab activity indicator
 

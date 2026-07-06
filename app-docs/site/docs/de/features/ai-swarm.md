@@ -163,6 +163,11 @@ Hervorhebung für die ausgewählte Sprache.
 muss folgen, mit einem **Verlauf**-Menü Ihrer letzten 10 einzelnen Einträge.
 - **In Snippets speichern** – speichert das Skript mit einem im Snippet-Manager
 passenden, vorausgefüllten Skriptnamen und die richtige Dateierweiterung.
+- **Härtungsoptionen** – pro Skript gleich
+[Härtungsoptionen](../reference/hardening-options.md) als Einzelhost
+Workflow-Generator (strenger Modus, Fehlerfallen, Idempotenz, Trockenlauf, `--help`,
+und mehr), die auf das generierte Skript angewendet werden. Diese sind getrennt von der
+Multi-Server-Optionen oben.
 
 ##Tab-Aktivitätsanzeige
 

@@ -39,7 +39,7 @@ Die Symbolleiste des Snippet-Editors bietet:
 - **Formatcode** – Formatieren Sie den Inhalt mit lokalen Formatierern oder KI-gestützter Formatierung.
 - **Syntax prüfen** – Validieren Sie die Syntax (lokal oder KI-unterstützt).
 - **KI-Text** – Korrigieren Sie die Rechtschreibung, übersetzen Sie oder erstellen Sie technische Beschreibungen.
-- **KI-Code** – Vervollständigen Sie den Code, überprüfen Sie Fehler, verbessern Sie die Auswahl, überprüfen Sie die Sicherheit oder erstellen Sie Diagramme.
+- **KI-Code** – Vervollständigen Sie den Code, führen Sie eine vollständige Codeanalyse durch, verbessern Sie eine Auswahl (Lesbarkeit, Robustheit, Leistung oder eine benutzerdefinierte Anweisung), überprüfen Sie die Sicherheit oder generieren Sie Diagramme.
 - **Einzeiler** – Export als Terminal-Einzeiler.
 - **Editor-Zoom** – Passen Sie die Textgröße mit ++Strg+Plus++ and ++Strg+Minus++ an.
 - **Editor-Profile** – Wechseln Sie zwischen integrierten, von IntelliJ inspirierten Profilen und benutzerdefinierten Farbschemata.
@@ -111,16 +111,44 @@ Die Schaltfläche ↺ wechselt zwischen dem Originalcode und der letzten KI-gene
 - **AI Complete** – Fordert die Vervollständigung des Codes an der aktuellen Cursorposition an und zeigt ihn als nicht editierbaren Ghost-Vorschlag an. Klicken Sie zum Einfügen.
 - **Auto AI Complete** – Fordert automatisch Abschlüsse an, nachdem Sie an einer Cursorposition angehalten haben. Standardmäßig deaktiviert; Nur für die aktuelle Editor-Sitzung aktiv.
 
-### Editor-Kontextmenü AI-Aktionen
+### AI-Code-Aktionen
 
-- **AI Assistant…** – Öffnet einen Anweisungsdialog für die aktuelle Cursorposition. KorTTY sendet das vollständige Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil. Das Ergebnis wird als Vorher/Nachher-Vorschau angezeigt.
-- **Fehler und Verbesserungen überprüfen** – Erstellt einen Informationsbericht, ohne den Inhalt zu ändern.
-- **Verbessern…** – Schreibt nur den ausgewählten Codebereich neu.
+Das Menü **AI-Code** gruppiert die Aktionen, die den Code selbst lesen oder neu schreiben:
+
+- **AI-Abschluss** / **Auto-AI-Abschluss** – Code-Vervollständigung am Cursor (siehe [AI-Code-Vervollständigungen](#ai-code-completions) oben).
+- **Vollständige Code-Analyse** – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts im Klartext, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe [Vollständige Codeanalyse](#full-code-analysis) unten].
+- **Verbesserung der Lesbarkeit/Robustheit/Leistung** – Schreibt den **ausgewählten** Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. *Robustheit verbessern* bietet zusätzlich [Härtungsoptionen](../reference/hardening-options.md) vor der Ausführung.
+- **Benutzerdefinierte Verbesserung…** – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu, mit den gleichen [Härtungsoptionen](../reference/hardening-options.md).
 - **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#security-check) unten].
 - **Diagramm** – Erzeugt und speichert ein persistentes PlantUML-Logikstrukturdiagramm für das Snippet.
 
+Das Editor-Kontextmenü bietet außerdem **AI Assistant…**, der einen Anweisungsdialog für die aktuelle Cursorposition öffnet: KorTTY sendet den vollständigen Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil und zeigt das Ergebnis als Vorher/Nachher-Vorschau an.
+
+Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also **wählen Sie zuerst eine Coderegion aus** – andernfalls fordert KorTTY Sie dazu auf. Die Umschreibung wird immer als Vorher-/Nachher-Vorschau (das Fenster *AI-Änderung überprüfen*) angezeigt, bevor etwas angewendet wird.
+
 !!! Warnung
 Snippet-KI-Aktionen senden den aktuellen Snippet-Inhalt, Auswahl- oder Cursor-Metadaten, Eingabeaufforderungsanweisungen und optional aktivierte KI-Fähigkeiten an das konfigurierte Standard-KI-Profil (oder, für die Sicherheitsprüfung, das dedizierte Sicherheitsprüfungsprofil). Snippet-KI-Aktionen aktivieren keine Internet-Tools, selbst wenn das ausgewählte Profil über Internetzugang verfügt. Die automatische Vervollständigung kann das Snippet wiederholt senden, während sie aktiv ist. Deaktivieren Sie sie daher für sensible Snippets, es sei denn, Sie vertrauen dem konfigurierten Endpunkt.
+
+#### Vollständige Code-Analyse
+
+**Vollständige Codeanalyse** öffnet ein spezielles Fenster, das das gesamte Snippet auf einmal untersucht und konkrete Verbesserungen anbietet, die Sie anwenden können. Das Fenster ist **nicht modal** – Sie können das Snippet weiter bearbeiten, während es geöffnet bleibt – und in der Titelleiste wird der Dateiname des Skripts angezeigt, sodass Sie mehrere Analysen unterscheiden können. In der Titelleiste des Snippet-Editors wird ebenfalls der Name der Datei angezeigt, die Sie bearbeiten.
+
+Das Fenster ist in zwei Bereiche aufgeteilt.
+
+**Links – Analyse und Verbesserungen:**
+
+- **Zusammenfassung** – Eine kurze, verständliche Beschreibung dessen, was das Skript tut.
+- **Verbesserungen** – Vorschläge gruppiert in die Kategorien **Sicherheit**, **Optimierung** und **Design**, jeweils mit einem Schweregrad-Abzeichen, einer Erklärung und einer konkreten Empfehlung. Kreuzen Sie die gewünschten an; Verwenden Sie **Alle auswählen**, um alles auf einmal anzukreuzen. Leere Kategorien werden ausgeblendet.
+- **Abhängigkeiten** – Externe Programme, Skripte oder Dienste, auf die sich das Snippet stützt, jedes mit seinem *Zweck* und einem *Reduzieren/Ersetzen*-Vorschlag. Markieren Sie eine Abhängigkeit, um deren Vorschlag ebenfalls anzuwenden.
+
+**Rechts – Flussdiagramm:**
+
+- Ein **automatisch generiertes Flussdiagramm** der Logik des Skripts wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom **−** / **Anpassen** / **+**, **SVG speichern** / **PNG speichern**, **Bild kopieren** / **PflanzenUML kopieren**, einen **Hintergrundfarbwähler** (gespeichert) und **Regenerieren**.
+- **Hover-Code-Referenzen** – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die passenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen [Diagram](#plantuml-diagrams)-Fenster.
+
+An der Unterseite können Sie über ein zusammenklappbares Feld mit **Härtungsoptionen** Techniken in Produktionsqualität zu den angewendeten Korrekturen hinzufügen. Unter [Härtungsoptionen](../reference/hardening-options.md)] erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.
+
+Wenn Sie auf **Ausgewählte anwenden** klicken, sendet KorTTY die angekreuzten Verbesserungen und Abhängigkeitsvorschläge (plus etwaige Härtungsoptionen) in einer Anfrage an die KI und zeigt das Ergebnis in einem Fenster *Verbesserungen anwenden – Änderungen überprüfen* an: das ursprüngliche und das neu geschriebene Skript nebeneinander, mit hervorgehobenen geänderten Zeilen und den Gründen für jede Änderung, genau wie die Sicherheitsüberprüfung unten. Übernehmen Sie die Änderung, um den Editor zu aktualisieren.
 
 #### Sicherheitsüberprüfung
 
@@ -133,6 +161,19 @@ Im Berichtsfenster **Sicherheitsüberprüfung** wird jeder Befund mit einem farb
 - **Prüfung erneut ausführen**, um die Überprüfung mit dem neu ausgewählten Profil zu wiederholen.
 
 Wenn Sie Fixes anwenden, werden im Fenster **Sicherheitsfixes überprüfen** der ursprüngliche und der korrigierte Code nebeneinander angezeigt. Geänderte Zeilen werden automatisch hervorgehoben und tragen eine Markierung am Rand. Bewegen Sie den Mauszeiger an eine beliebige Stelle in einem geänderten Block, um zu sehen, auf welche(s) Ergebnis(se) er sich bezieht (zum Beispiel `S1` oder `S1 + S2`, wenn ein Block zwei Ergebnisse abdeckt), zusammen mit dem Grund für die Änderung. Die gleichen Erklärungen werden auch als Karten unterhalb des Unterschieds aufgeführt, sodass die Begründung auch dann sichtbar bleibt, wenn kein Marker platziert werden kann. Die Schriftgröße der Vorschau kann gezoomt werden und wird sitzungsübergreifend gespeichert.
+
+### AI-Profil, erneut ausführen und zoomen
+
+Die AI-Code-Berichtsfenster (vollständige Codeanalyse, Sicherheitsprüfung, die Dialoge zur technischen Beschreibung und alternativen Lösung sowie der Änderungsüberprüfungsunterschied) teilen sich eine kleine Symbolleiste:
+
+- **KI-Profil** – Wählen Sie ein anderes KI-Profil für die **nächste** Ausführung dieses Fensters. Die Auswahl ist vorübergehend: Sie wird auf das Standardprofil zurückgesetzt, wenn das Fenster erneut geöffnet wird. (Security Check behält stattdessen sein eigenes, dauerhaft gespeichertes *Sicherheitsprofil*.)
+- **Erneut ausführen** – Wiederholen Sie die Anforderung mit dem aktuell ausgewählten Profil.
+- **A− / A+** – Passen Sie die Schriftgröße für das Lesen oder die Vorschau an; Die gewählte Größe wird sitzungsübergreifend gespeichert, getrennt pro Fenstertyp.
+- **Kopieren** – Kopieren Sie den Bericht oder Inhalt in die Zwischenablage.
+
+### KI-Fähigkeiten
+
+Wenn [KI-Fähigkeiten](../reference/settings/ai-skills.md) konfiguriert sind, zeigt der Snippet-Editor eine **KI-Fähigkeiten**-Auswahl an. Fertigkeiten, die für die Sprache des Snippets relevant sind, werden automatisch vorab ausgewählt, und jede Fertigkeit, die Sie hier ankreuzen, wird auf **jede** AI-Code-Aktion (Abschluss, Analyse, Verbesserung, Sicherheitsüberprüfung, Diagramm) angewendet, unabhängig vom konfigurierten Ziel der Fertigkeit. Die Auswahl erscheint nur, wenn mindestens eine KI-Fähigkeit aktiviert ist.
 
 ### Textkorrektur und Übersetzung
 

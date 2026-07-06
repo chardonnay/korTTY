@@ -31,7 +31,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *SFTP Archive Exclude*: Archive dialogs support exclude patterns (one pattern per line) for files/directories
 * *Snippet Manager*: Create, search, favorite, and organize reusable snippets with Monaco-powered syntax highlighting, line numbers, save-edited-as-new support, one-liner export, optional one-liner script arguments, JSON/XML/YAML import/export, plain-text script export, ZIP script archives with optional password or GPG encryption, a fixed non-deletable *Script-Header* category for reusable header templates, a *System* (operating system) column, and sortable columns
 * *Snippet Editor Profiles, Ruler, and Formatting*: Use IntelliJ-inspired built-in editor profiles or custom color/cursor profiles, zoom with toolbar buttons or Ctrl/Cmd +/- keys, track the current caret column in the fixed ruler label and live marker, set or remove a maximum line-length marker, preview line-width formatting before applying it, and use explicit AI-assisted fallback prompts when local formatting or syntax checking is unavailable
-* *AI-assisted Snippet Editing*: Generate snippet name/description/language from code, correct description text, transform selected comments and user-facing output text, create technical descriptions, request alternative implementations, use cursor-based AI completion, give direct right-click AI instructions at the cursor with full-script diff preview, run selected-code improvements and security checks with previews, and keep locally rendered PlantUML structure diagrams with snippets
+* *AI-assisted Snippet Editing*: Generate snippet name/description/language from code, correct description text, transform selected comments and user-facing output text, create technical descriptions, request alternative implementations, use cursor-based AI completion, give direct right-click AI instructions at the cursor with full-script diff preview, run selected-code improvements (readability/robustness/performance/custom, with optional hardening options) and security checks with previews, open a *Full code analysis* window (summary, dependencies, categorized selectable improvements, and an auto-generated flow diagram with hover code references), pin auto-detected AI Skills and pick a per-run AI profile, and keep locally rendered PlantUML structure diagrams with snippets
 * *AI Skills*: Define reusable local instruction blocks for AI Chat/functions and/or AI Agent, enable or disable them globally or per skill, import/export Markdown skills, and optionally send only skills that match the current request
 * *JobScheduler*: Schedule background command, SnippetManager script, AI Agent, AI Swarm, SFTP, and Rsync jobs for saved SSH TCP connections or connection groups while KorTTY is running; no terminal tab has to stay open
 * *JobScheduler Scheduling and Status*: Run jobs on selected weekdays, fixed times, active date ranges, time windows, and intervals; the optional menu-bar status shows running jobs or the next run countdown and exposes the next five queued jobs
@@ -1019,6 +1019,7 @@ The agent is designed for non-interactive SSH automation. It may inspect files, 
 After a finished agent run, a *Workflow* button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Windows-CMD, AppleScript, Ansible playbook) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time) injected by the application. The generator:
 
 * Auto-loads matching AI Skills (e.g. a language-quality skill)
+* Offers *Hardening options* (see below) that bake production-quality techniques into the generated script
 * Can produce several language variants and multiple suggestions as inline tabs
 * Supports header templates from a fixed *Script-Header* snippet category
 * Optionally includes a PlantUML diagram
@@ -1027,6 +1028,63 @@ After a finished agent run, a *Workflow* button converts the run into a single s
 * Tags the snippet "workflow" and auto-sets the System (OS) column from the agent's probed OS (any Linux distro → Linux)
 * Runs with internet access forced OFF
 * Resizable dialog that remembers size/position
+
+=== Full Code Analysis
+
+The Snippet Editor's *AI Code → Full code analysis* opens a non-modal window (its title bar shows the script's file name) that examines the whole snippet at once:
+
+* *Summary* — a plain-language description of what the script does
+* *Improvements* — suggestions grouped into *Security*, *Optimization* and *Design*, each with a severity badge, explanation and concrete recommendation; tick the ones to apply (or *Select all*)
+* *Dependencies* — external programs/scripts/services the snippet relies on, each with a purpose and a reduce/replace suggestion you can also apply
+* *Flow diagram* — an auto-generated diagram of the script logic with the full toolbar (zoom, fit, save SVG/PNG, copy image/PlantUML, background colour, regenerate) that highlights the matching source lines when you hover a node
+* *Hardening options* — a collapsible panel (see below) whose techniques are baked into the applied fixes
+* *Apply selected* — sends the ticked items to the AI in one request and shows a side-by-side before/after diff with per-change reasons before anything changes
+
+The AI-code windows also share a per-run AI-profile picker with a *Re-run* button and remembered font sizes, and the editor pre-selects relevant AI Skills that you can pin so they apply to every AI-code action.
+
+=== Hardening Options
+
+*Hardening options* are production-quality techniques the AI bakes into a generated or rewritten script. They appear in the *Generate Workflow Script* and *Generate multi-server workflow* dialogs and in the Snippet Editor's *AI Code → Improve robustness*, *Custom improvement*, and *Full code analysis* actions. Every option is ticked by default; untick the ones you do not want. Each ticked option becomes one instruction line appended to the AI prompt, phrased for imperative scripts (Bash, Python, Perl, Ruby, PowerShell, Windows-CMD, AppleScript) or, for Ansible playbooks and YAML snippets, in Ansible-idiomatic form.
+
+The first seven options harden and document the script _without changing what it does_; the last four can change control flow or add a command-line interface, so leave them off for a minimal rewrite.
+
+[cols="1,3a",options="header"]
+|===
+| Option | Meaning — and how it is applied
+
+| *Strict mode (abort on error)*
+| Stop on the first error. Scripts: enable the language's strict / abort-on-error mode (e.g. `set -euo pipefail`, `Set-StrictMode`, `use strict`). Ansible: `assert`/`failed_when` fail the play immediately.
+
+| *Error trap & cleanup*
+| Report failures clearly and always clean up temporary state. Scripts: an error trap / `finally` / `ensure` block. Ansible: `block`/`rescue`/`always`.
+
+| *Meaningful exit codes*
+| Let callers tell _why_ it failed. Scripts: distinct, documented non-zero exit codes per failure class. Ansible: failing tasks stop the play with a clear message (`any_errors_fatal` where sensible).
+
+| *Logging (--verbose)*
+| Make progress visible and debuggable. Scripts: timestamped messages to stderr plus a `--verbose`/`-v` flag. Ansible: the `debug` module (visible with `-v`).
+
+| *Configuration block for literals*
+| Collect changeable values (paths, hosts, packages) in one place. Scripts: a clearly commented configuration block near the top. Ansible: a `vars:` block at the top.
+
+| *Final summary*
+| End with a short report. Scripts: a final summary with success/failure counts. Ansible: a `debug` summary of what changed.
+
+| *Style-guide / linter clean*
+| Pass the standard linter. Scripts: follow the style guide (e.g. ShellCheck-clean). Ansible: `ansible-lint` conventions and fully-qualified module names.
+
+| *Precondition checks*
+| Fail fast if the environment is not ready. Scripts: verify required commands, privileges (root/sudo) and connectivity before doing work. Ansible: `pre_tasks`/`assert` checks before any change.
+
+| *Idempotency (skip completed steps)*
+| Safe to re-run. Scripts: detect already-completed steps and skip them. Ansible: rely on module idempotency and `creates`/`removes`.
+
+| *Safe mode (--dry-run + confirm)*
+| Preview without changing anything. Scripts: a `--dry-run` flag plus confirmation before destructive operations (suppressible with `--yes`). Ansible: check mode (`--check`) guarding destructive tasks.
+
+| *--help & argument parsing*
+| Turn the script into a real CLI tool. Scripts: a `--help`/usage message and command-line argument parsing for the configurable values. Ansible: document all variables and their `--extra-vars` overrides at the top.
+|===
 
 == SFTP Manager
 

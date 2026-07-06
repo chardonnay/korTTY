@@ -5,6 +5,29 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
+### Snippet-KI-Codeanalyse
+
+- **Vollständige Code-Analyse** – der *AI-Code des Snippet-Editors → Vollständige Code-Analyse*
+öffnet ein umfangreiches, nicht modales Fenster mit einer Zusammenfassung des Skripts im Klartext
+tut, seine externen Abhängigkeiten (jeweils mit einem Reduzierungs-/Ersetzungsvorschlag),
+Verbesserungsvorschläge, gruppiert in Sicherheit / Optimierung / Design, die Sie erhalten
+Ankreuzen und Anwenden sowie ein automatisch generiertes Flussdiagramm. Das Diagramm trägt das Ganze
+Symbolleiste (Zoom, Anpassen, SVG/PNG speichern, Bild kopieren/PlantUML, Hintergrundfarbe,
+neu generieren) und hebt die übereinstimmenden Quellzeilen hervor, wenn Sie mit der Maus über einen Knoten fahren.
+- **Dateinamen in Titelleisten** – jetzt der Snippet-Editor und das Analysefenster
+Zeigen Sie den Dateinamen des Skripts in der Titelleiste an.
+- **KI-Profil pro Lauf und erneuter Lauf** – die Analyse und andere AI-Code-Fenster ermöglichen es Ihnen
+Wählen Sie ein vorübergehendes KI-Profil für den nächsten Lauf und führen Sie es erneut aus. Schriftgrößen sind
+pro Fenster gespeichert.
+- **KI-Skills-Auswahl** – relevante KI-Skills werden automatisch vorgewählt und können
+angeheftet werden, damit sie für jede AI-Code-Aktion gelten.
+- **Härtungsoptionen** – *Stabilität verbessern*, *Benutzerdefinierte Verbesserung*, *Vollständiger Code
+Analyse*, und beide Workflow-Skript-Generatoren können einen ausgewählten Satz von erstellen
+Produktionsqualitätstechniken (strenger Modus, Fehlerfallen, sinnvolle Exit-Codes,
+Protokollierung, Idempotenz, Trockenlauf, `--help` und mehr) in das Ergebnis ein. Sehen Sie das Neue
+[Härtungsoptionen](../reference/hardening-options.md)-Referenz für was jeweils
+Option bedeutet und wie sie angewendet wird.
+
 ### Snippet-Sicherheitsüberprüfung
 
 - **Erläuterte Sicherheitsfixes** – das Fenster **Sicherheitsfixes überprüfen** wird jetzt angezeigt
