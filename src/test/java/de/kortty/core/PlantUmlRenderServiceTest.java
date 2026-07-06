@@ -53,6 +53,21 @@ public class PlantUmlRenderServiceTest {
     }
 
     @Test
+    void rendersActivityDiagramWhenGraphvizIsNotInstalled() {
+        // The reported failure: on a Mac without Graphviz, korTTY refused to render with
+        // "Graphviz dot is required to render PlantUML diagrams." — even though the activity
+        // diagrams it generates from code use PlantUML's built-in engine and need no Graphviz.
+        // withoutDot() reproduces "no dot installed" without touching the host's real dot.
+        PlantUmlRenderService.RenderResult result = PlantUmlRenderService.withoutDot().renderSvg(VALID_DIAGRAM);
+
+        if (!result.success()) {
+            skipIfNetworkUnavailable(result.message());
+        }
+        assertThat(result.message()).doesNotContain("Graphviz dot is required");
+        assertThat(result.success()).isTrue();
+    }
+
+    @Test
     void javaHomeExecutableIsUsedInsteadOfRequiringJavaOnPath() {
         // resolveJavaExecutable() is private, but its effect is directly observable: rendering must
         // not report "Java is required" while this very test is running inside a JVM.
