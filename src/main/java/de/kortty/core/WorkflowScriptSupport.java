@@ -327,8 +327,20 @@ public final class WorkflowScriptSupport {
     }
 
     private static String optionRules(ScriptLanguage lang, EnumSet<HardeningOption> opts) {
-        boolean ansible = lang.isDeclarative();
+        return hardeningRulesText(opts, lang.isDeclarative());
+    }
+
+    /**
+     * Renders the selected {@link HardeningOption}s as newline-separated prompt rules, reusable outside
+     * the workflow-script generator (e.g. the snippet editor's "improve robustness" / custom improvement).
+     * {@code declarative} switches to Ansible-style phrasing; pass {@code false} for imperative scripts.
+     */
+    public static String hardeningRulesText(EnumSet<HardeningOption> opts, boolean declarative) {
+        boolean ansible = declarative;
         List<String> rules = new ArrayList<>();
+        if (opts == null || opts.isEmpty()) {
+            return "";
+        }
         if (opts.contains(HardeningOption.STRICT_MODE)) {
             rules.add(ansible
                 ? "- Validate prerequisites with assert/failed_when so bad state fails the play immediately."

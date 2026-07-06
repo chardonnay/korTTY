@@ -78,6 +78,37 @@ class AiSkillRelevanceSelectorTest {
         assertThat(ids).containsExactly("a", "b").inOrder();
     }
 
+    @Test
+    void pinnedSkillBypassesTargetFilterForChat() {
+        AiSkill agentSkill = skill("agent-only", "Agent guidance.", List.of("agent"), "Agent rules");
+        agentSkill.setTarget(AiSkillTarget.AGENT);
+        AiSkill otherAgent = skill("agent-two", "More agent guidance.", List.of("agent"), "More rules");
+        otherAgent.setTarget(AiSkillTarget.AGENT);
+        AiRequest chatRequest = new AiRequest(AiAction.ASK, "code", "box", "en", "review this");
+
+        // Without pinning an AGENT-target skill is never part of a chat selection.
+        AiSkillRelevanceSelector unpinned = new AiSkillRelevanceSelector(true, true, List.of(agentSkill, otherAgent));
+        assertThat(unpinned.selectChatSkillsLocal(chatRequest)).isEmpty();
+
+        // Pinned (forced) the AGENT-target skill is included in the chat selection despite the mismatch.
+        AiSkillRelevanceSelector pinned = new AiSkillRelevanceSelector(
+            true, true, List.of(agentSkill, otherAgent), java.util.Set.of(agentSkill.getId()));
+        List<AiSkill> selected = pinned.selectChatSkillsLocal(chatRequest);
+
+        assertThat(selected.stream().map(AiSkill::getName).toList()).containsExactly("agent-only");
+    }
+
+    @Test
+    void disabledMasterSwitchDropsEvenPinnedSkills() {
+        AiSkill agentSkill = skill("agent-only", "Agent guidance.", List.of("agent"), "Agent rules");
+        agentSkill.setTarget(AiSkillTarget.AGENT);
+        AiSkillRelevanceSelector disabled = new AiSkillRelevanceSelector(
+            false, true, List.of(agentSkill), java.util.Set.of(agentSkill.getId()));
+
+        assertThat(disabled.selectChatSkillsLocal(new AiRequest(AiAction.ASK, "code", "box", "en", "review this")))
+            .isEmpty();
+    }
+
     private AiSkill skill(String name, String description, List<String> tags, String content) {
         AiSkill skill = new AiSkill();
         skill.setName(name);

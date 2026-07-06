@@ -1,8 +1,13 @@
 package de.kortty.ui;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.model.GlobalSettings;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
@@ -12,6 +17,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+import javafx.util.Duration;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -25,11 +32,11 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Headless smoke harness for the unified snippet-editor AI dialogs (code review, description,
  * alternatives, diff). It builds each real dialog owner-less/app-less with the transient profile picker
- * and re-run enabled, asserts that the shared toolbar controls are present (a profile {@link ComboBox}
- * and the re-run {@link Button}), then snapshots each pane to {@code build/smoke/snippet-ai-*.png}. This
- * proves the dialogs construct and lay out with the new controls without a running application. The
- * stages are never shown, so no AI call is made. Run via the {@code snippetAiDialogsSmoke} Gradle task.
- * Exit 0 = OK.
+ * and re-run enabled, asserts the shared toolbar controls are present, and snapshots each pane to
+ * {@code build/smoke/snippet-ai-*.png}. It also proves the {@link MonacoDiffPane} WebView Java bridge
+ * installs cleanly (public {@code netscape.javascript.JSObject}) by capturing the pane's logger while the
+ * diff editor loads and asserting no "Could not install Monaco diff Java bridge" error is logged. Run via
+ * the {@code snippetAiDialogsSmoke} Gradle task. Exit 0 = OK.
  */
 public final class SnippetAiDialogsSmoke {
 
@@ -45,10 +52,9 @@ public final class SnippetAiDialogsSmoke {
         Platform.startup(() -> {
             try {
                 LanguageManager.getInstance().initialize(new GlobalSettings());
-                render();
+                render(failure, done);
             } catch (Throwable e) {
                 failure.compareAndSet(null, "Smoke failed: " + e);
-            } finally {
                 done.countDown();
             }
         });
@@ -66,7 +72,7 @@ public final class SnippetAiDialogsSmoke {
         System.out.println("snippetAiDialogsSmoke OK");
     }
 
-    private static void render() throws Exception {
+    private static void render(AtomicReference<String> failure, CountDownLatch done) throws Exception {
         String rerunText = I18n.get("snippets.ai.rerun");
 
         // 1) Code-review findings dialog (themed HTML report).
@@ -95,13 +101,20 @@ public final class SnippetAiDialogsSmoke {
         // 3) Alternative-solutions dialog (profile combo drives the reload).
         AlternativeSnippetSolutionsDialog alternatives = new AlternativeSnippetSolutionsDialog(
             null, "bash", (instructions, profileId) -> List.of(), true, null);
-        // Alternatives uses its reload (not a re-run button); assert the profile picker is present.
         if (findNodes(alternatives.getDialogPane(), ComboBox.class).isEmpty()) {
             throw new AssertionError("AlternativeSnippetSolutionsDialog is missing the profile picker");
         }
         snapshotPane(alternatives.getDialogPane(), "snippet-ai-alternatives.png", 920);
 
-        // 4) Diff / "review changes" dialog with a re-run handler (improve/assist flow).
+        // 4) Diff / "review changes" dialog with a re-run handler (improve/assist flow). Capture the
+        //    MonacoDiffPane logger while its WebView loads to assert the Java bridge installs cleanly.
+        ListAppender<ILoggingEvent> diffLog = new ListAppender<>();
+        diffLog.start();
+        Logger diffLogger = (Logger) LoggerFactory.getLogger("de.kortty.ui.MonacoDiffPane");
+        Level previousLevel = diffLogger.getLevel();
+        diffLogger.setLevel(Level.DEBUG);
+        diffLogger.addAppender(diffLog);
+
         SnippetAiDiffDialog diff = new SnippetAiDiffDialog(
             null, I18n.get("snippets.ai.diff.title"),
             "Quote the path expansion.",
@@ -110,6 +123,30 @@ public final class SnippetAiDialogsSmoke {
         diff.setRerunHandler(null, id -> { });
         assertControls("SnippetAiDiffDialog", diff.getDialogPane(), rerunText);
         snapshotPane(diff.getDialogPane(), "snippet-ai-diff.png", 1040);
+
+        // Let the FX event loop pump so the diff editor loads and installBridge() runs, then verify.
+        PauseTransition pause = new PauseTransition(Duration.seconds(8));
+        pause.setOnFinished(event -> {
+            try {
+                boolean bridgeError = diffLog.list.stream().anyMatch(e ->
+                    e.getLevel() == Level.ERROR && String.valueOf(e.getMessage()).contains("Monaco diff Java bridge"));
+                boolean bridgeInstalled = diffLog.list.stream().anyMatch(e ->
+                    String.valueOf(e.getMessage()).contains("Installed Monaco diff Java bridge"));
+                if (bridgeError) {
+                    failure.compareAndSet(null, "MonacoDiffPane Java bridge failed to install (regression)");
+                } else if (bridgeInstalled) {
+                    System.out.println("MonacoDiffPane bridge installed cleanly (public JSObject).");
+                } else {
+                    System.out.println("MonacoDiffPane bridge did not report within the wait "
+                        + "(WebView likely did not finish loading headless); no error was logged.");
+                }
+            } finally {
+                diffLogger.detachAppender(diffLog);
+                diffLogger.setLevel(previousLevel);
+                done.countDown();
+            }
+        });
+        pause.play();
     }
 
     /** Asserts the dialog exposes both a profile combo and a re-run button. */

@@ -1974,7 +1974,8 @@ public class AiResultTab extends Tab {
             null,
             null,
             null,
-            false);
+            false,
+            new SnippetAiRuntimeOptions());
     }
 
     private SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(

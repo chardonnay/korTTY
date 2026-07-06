@@ -70,42 +70,66 @@ public final class AiSkillRelevanceSelector {
     }
 
     public List<AiSkill> select(SelectionContext context, AiSkillRelevanceClassifier classifier) {
-        List<AiSkill> candidates = applicableSkills(context);
-        if (candidates.isEmpty()) {
+        if (!enabled) {
             return List.of();
         }
+        List<AiSkill> candidates = applicableSkills(context);
+        List<AiSkill> pinned = pinnedSkills();
+        if (candidates.isEmpty()) {
+            // Forced/pinned skills apply even when nothing else is relevant for this target.
+            return pinned;
+        }
         if (!autoDetectionEnabled) {
-            return candidates;
+            return withPinnedSkills(candidates, pinned);
         }
 
         LocalSelection localSelection = selectLocal(context, candidates);
         if (!shouldUseHybrid(localSelection) || classifier == null) {
-            return withPinnedSkills(localSelection.skills(), candidates);
+            return withPinnedSkills(localSelection.skills(), pinned);
         }
 
         try {
             List<String> selectedIds = classifier.classify(context, metadataFor(candidates));
             List<AiSkill> hybridSelection = byClassifierIds(candidates, selectedIds);
             if (!hybridSelection.isEmpty()) {
-                return withPinnedSkills(hybridSelection, candidates);
+                return withPinnedSkills(hybridSelection, pinned);
             }
         } catch (Exception ignored) {
             // Hybrid classification must not block the main AI request.
         }
-        return withPinnedSkills(localSelection.skills(), candidates);
+        return withPinnedSkills(localSelection.skills(), pinned);
     }
 
-    /** Pinned skills (e.g. assigned to the active connection) always survive auto-detection. */
-    private List<AiSkill> withPinnedSkills(List<AiSkill> selected, List<AiSkill> candidates) {
+    /**
+     * Pinned skills always survive auto-detection AND bypass the chat/agent target filter — e.g. skills
+     * assigned to the active connection, or skills the user explicitly forced for a snippet AI run.
+     */
+    private List<AiSkill> pinnedSkills() {
         if (pinnedSkillIds.isEmpty()) {
-            return selected;
+            return List.of();
+        }
+        List<AiSkill> result = new ArrayList<>();
+        for (AiSkill skill : skills) {
+            if (skill != null
+                && skill.isEnabled()
+                && skill.getId() != null
+                && pinnedSkillIds.contains(skill.getId())
+                && skill.getContent() != null
+                && !skill.getContent().isBlank()) {
+                result.add(skill);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static List<AiSkill> withPinnedSkills(List<AiSkill> selected, List<AiSkill> pinned) {
+        if (pinned.isEmpty()) {
+            return List.copyOf(selected);
         }
         List<AiSkill> result = new ArrayList<>(selected);
-        for (AiSkill candidate : candidates) {
-            if (candidate.getId() != null
-                && pinnedSkillIds.contains(candidate.getId())
-                && result.stream().noneMatch(skill -> candidate.getId().equals(skill.getId()))) {
-                result.add(candidate);
+        for (AiSkill skill : pinned) {
+            if (result.stream().noneMatch(existing -> skill.getId().equals(existing.getId()))) {
+                result.add(skill);
             }
         }
         return List.copyOf(result);
