@@ -185,6 +185,10 @@ public class MainWindow {
     private VBox statusBar;
     private final HBox mainContentBox;
     private final boolean unifiedTitleBarEnabled;
+    // True when the window runs borderless (StageStyle.TRANSPARENT) so the terminal background can be
+    // see-through. Decided once at startup from the persisted transparency setting; toggling needs a
+    // restart because JavaFX locks the stage style before the window is shown.
+    private final boolean transparentWindowMode;
     private MenuBar menuBar;
     private MenuBar systemMenuBar;
     private String dynamicThemeStylesheetUrl;
@@ -278,7 +282,8 @@ public class MainWindow {
         this.app = KorTTYApplication.getInstance();
         this.sessionManager = app.getSessionManager();
         this.projectManager = new ProjectManager(KorTTYApplication.getConfigDirectory());
-        this.unifiedTitleBarEnabled = configureWindowChrome(stage);
+        this.transparentWindowMode = shouldUseTransparentWindow();
+        this.unifiedTitleBarEnabled = configureWindowChrome(stage, transparentWindowMode);
         
         // Initialize importers
         this.importers = List.of(new MTPuTTYImporter(), new MobaXTermImporter(), new PuTTYCMImporter());
@@ -291,6 +296,7 @@ public class MainWindow {
         
         setupUI();
         setupMenuBar();
+        installTransparentWindowChrome();
         setupKeyBindings();
         WindowCloseShortcutSupport.installForMainWindow(stage, openWindows.isEmpty(), this::fireCloseRequest);
         
@@ -305,7 +311,37 @@ public class MainWindow {
         });
     }
 
-    private boolean configureWindowChrome(Stage stage) {
+    /**
+     * Whether the window should start in see-through (borderless {@code StageStyle.TRANSPARENT}) mode.
+     * Driven by the persisted terminal background transparency: any value &gt; 0 opts in, provided the
+     * platform supports transparent windows. Decided before {@code stage.show()} and never changes at
+     * runtime — the transparency slider persists the new value and asks the user to restart.
+     */
+    private boolean shouldUseTransparentWindow() {
+        try {
+            GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
+            return gs != null
+                && gs.getTerminalBackgroundTransparency() > 0
+                && Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW);
+        } catch (Exception e) {
+            logger.debug("Could not read transparency setting: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Applies the initial stage style. Returns whether the macOS unified title bar is active (never in
+     * transparent mode, where custom chrome replaces the native decorations).
+     */
+    private boolean configureWindowChrome(Stage stage, boolean transparentMode) {
+        if (transparentMode) {
+            try {
+                stage.initStyle(StageStyle.TRANSPARENT);
+            } catch (IllegalStateException e) {
+                logger.debug("Could not enable transparent window decorations: {}", e.getMessage());
+            }
+            return false;
+        }
         try {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (!osName.contains("mac") || !Platform.isSupported(ConditionalFeature.UNIFIED_WINDOW)) {
@@ -319,7 +355,31 @@ public class MainWindow {
             return false;
         }
     }
-    
+
+    /**
+     * In borderless see-through mode, adds a custom title strip (drag + window buttons) above the
+     * menu bar and installs edge resizing, since {@code StageStyle.TRANSPARENT} has no native chrome.
+     * No-op in the normal decorated/unified window modes.
+     */
+    private void installTransparentWindowChrome() {
+        if (!transparentWindowMode) {
+            return;
+        }
+        Region titleBar = TransparentWindowChrome.buildTitleBar(
+            stage, KorTTYApplication.getAppName(), this::fireCloseRequest);
+        javafx.scene.Node currentTop = root.getTop();
+        VBox topStack = new VBox();
+        if (currentTop != null) {
+            topStack.getChildren().addAll(titleBar, currentTop);
+        } else {
+            topStack.getChildren().add(titleBar);
+        }
+        root.setTop(topStack);
+        if (stage.getScene() != null) {
+            TransparentWindowChrome.installResize(stage, stage.getScene());
+        }
+    }
+
     private void setupUI() {
         // Tab pane configuration
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
@@ -338,6 +398,8 @@ public class MainWindow {
                 Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
             }
             updateEditMenuItemsForSelection();
+            // See-through mode: only a terminal tab reveals the desktop; other/empty tabs stay opaque.
+            refreshTransparentModeContainers();
             // When the agent panel is docked to the side, swap it to show only the now-active tab.
             Platform.runLater(this::rebindAiAgentSidePanelToActiveTab);
         });
@@ -350,12 +412,14 @@ public class MainWindow {
                         if (addedTab instanceof TerminalTab terminalTab) {
                             terminalTab.setTerminalChromeVisible(false);
                             applyTerminalScrollbarVisibility(terminalTab);
+                            applyBackgroundTransparencyToTab(terminalTab);
                         }
                     }
                 } else if (change.wasAdded()) {
                     for (Tab addedTab : change.getAddedSubList()) {
                         if (addedTab instanceof TerminalTab terminalTab) {
                             applyTerminalScrollbarVisibility(terminalTab);
+                            applyBackgroundTransparencyToTab(terminalTab);
                         }
                     }
                 }
@@ -540,8 +604,9 @@ public class MainWindow {
         
         // Scene setup
         Scene scene = new Scene(root, 1000, 700);
-        if (unifiedTitleBarEnabled) {
-            // Let the themed root background flow into the macOS title bar area.
+        if (unifiedTitleBarEnabled || transparentWindowMode) {
+            // Unified title bar: let the themed root background flow into the macOS title bar area.
+            // Transparent mode: the scene fill must be clear so the desktop shows through the terminal.
             scene.setFill(Color.TRANSPARENT);
         }
         
@@ -1508,9 +1573,74 @@ public class MainWindow {
 
         viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
             new SeparatorMenuItem(),
-            zoomIn, zoomOut, resetZoom, new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(),
+            zoomIn, zoomOut, resetZoom);
+        // The background-transparency slider is a CustomMenuItem, which the macOS native system menu
+        // bar refuses to render (same limitation as the effect-speed slider), so it goes into the
+        // in-window menu bar only. Its own separator visually groups it under the zoom controls.
+        if (target != MenuBarTarget.SYSTEM) {
+            viewMenu.getItems().addAll(new SeparatorMenuItem(), buildBackgroundTransparencyMenuItem());
+        }
+        viewMenu.getItems().addAll(new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(),
             fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
+    }
+
+    /**
+     * Builds the Ansicht → Zoom background-transparency slider (0–100 %). Dragging applies live to all
+     * terminals; the value is persisted (debounced). Because JavaFX locks the window style before the
+     * window is shown, switching the see-through mode on or off only takes full effect after a restart,
+     * so the status bar shows a restart hint when the slider crosses the enable/disable boundary.
+     */
+    private CustomMenuItem buildBackgroundTransparencyMenuItem() {
+        int initial = currentBackgroundTransparencyPercent();
+
+        Label caption = new Label(I18n.get("menu.view.backgroundTransparency"));
+        Label valueLabel = new Label(initial + " %");
+        valueLabel.setMinWidth(42);
+
+        Slider slider = new Slider(0, 100, initial);
+        slider.setPrefWidth(200);
+        slider.setBlockIncrement(5);
+        slider.setMajorTickUnit(25);
+        slider.setMinorTickCount(4);
+        slider.setShowTickMarks(true);
+
+        HBox row = new HBox(8, slider, valueLabel);
+        row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        VBox content = new VBox(4, caption, row);
+        content.setPadding(new javafx.geometry.Insets(4, 8, 6, 8));
+
+        // Persist is debounced so dragging the slider doesn't rewrite the settings file every pixel.
+        javafx.animation.PauseTransition saveDebounce =
+            new javafx.animation.PauseTransition(javafx.util.Duration.millis(400));
+        saveDebounce.setOnFinished(e -> persistBackgroundTransparency());
+
+        slider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            int percent = (int) Math.round(newVal.doubleValue());
+            valueLabel.setText(percent + " %");
+            GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
+            if (gs != null) {
+                gs.setTerminalBackgroundTransparency(percent);
+            }
+            applyBackgroundTransparencyToAllTabs();
+            saveDebounce.playFromStart();
+            if ((percent > 0) != transparentWindowMode) {
+                // Enabling/disabling see-through mode changes the stage style, which needs a restart.
+                updateStatus(I18n.get("menu.view.backgroundTransparency.restart"));
+            }
+        });
+
+        CustomMenuItem item = new CustomMenuItem(content);
+        item.setHideOnClick(false);
+        return item;
+    }
+
+    private void persistBackgroundTransparency() {
+        try {
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.warn("Could not persist background transparency setting", e);
+        }
     }
 
     private Menu createTerminalEffectMenu(TerminalTab terminalTab) {
@@ -2359,6 +2489,19 @@ public class MainWindow {
 
             if (customAppDesign) {
                 clearMainWindowInlineThemeStyles();
+                if (transparentWindowMode) {
+                    applyTransparentModeContainerBackgrounds(AppDesignStyleSupport.activeBackgroundColor());
+                }
+            } else if (transparentWindowMode) {
+                // See-through mode: punch the content chain through to the desktop ONLY when a terminal
+                // is the active tab; otherwise keep it opaque-themed so there is no see-through hole.
+                // The status bar chrome always stays opaque (fall back to the default dark if unthemed).
+                applyTransparentModeContainerBackgrounds(bg);
+                String statusBg = (bg != null && !bg.isEmpty()) ? bg : "#2d2d2d";
+                statusBar.setStyle("-fx-padding: 5; -fx-background-color: " + statusBg + ";");
+                if (stage.getScene() != null) {
+                    stage.getScene().setFill(Color.TRANSPARENT);
+                }
             } else if (bg != null && !bg.isEmpty()) {
                 String bgStyle = "-fx-background-color: " + bg + ";";
                 root.setStyle(bgStyle);
@@ -2388,13 +2531,96 @@ public class MainWindow {
             if (stage.getScene() != null) {
                 AppDesignStyleSupport.applyToScene(stage.getScene());
                 if (customAppDesign) {
-                    stage.getScene().setFill(unifiedTitleBarEnabled
+                    stage.getScene().setFill(unifiedTitleBarEnabled || transparentWindowMode
                         ? Color.TRANSPARENT
                         : Color.web(AppDesignStyleSupport.activeBackgroundColor()));
                 }
             }
         } catch (Exception e) {
             logger.debug("Could not apply main window theme from global settings: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * In transparent (see-through) window mode, clears the background of the terminal content chain
+     * (root, mainContentBox, tabPane content) so the desktop shows through the translucent terminal.
+     * The title bar, menu bar and status bar keep their own opaque backgrounds and stay readable.
+     */
+    /**
+     * In see-through mode, chooses the content-chain background depending on whether a terminal is the
+     * active tab. With a terminal visible the chain (root/mainContentBox/tabPane content) is transparent
+     * so the desktop shows through the translucent terminal; otherwise it stays opaque-themed so an empty
+     * or non-terminal tab doesn't become a see-through hole. Reacts to tab switches via
+     * {@link #refreshTransparentModeContainers()}.
+     */
+    private void applyTransparentModeContainerBackgrounds(String bg) {
+        Tab active = tabPane.getSelectionModel().getSelectedItem();
+        if (active instanceof TerminalTab) {
+            root.setStyle("-fx-background-color: transparent;");
+            mainContentBox.setStyle("-fx-background-color: transparent;");
+            tabPane.setStyle("-fx-background-color: transparent; -fx-control-inner-background: transparent;");
+        } else {
+            String c = (bg != null && !bg.isEmpty()) ? bg : "#1e1e1e";
+            String bgStyle = "-fx-background-color: " + c + ";";
+            root.setStyle(bgStyle);
+            mainContentBox.setStyle(bgStyle);
+            tabPane.setStyle(bgStyle + " -fx-control-inner-background: " + c + ";");
+        }
+    }
+
+    /** Re-evaluates just the see-through container backgrounds when the active tab changes. */
+    private void refreshTransparentModeContainers() {
+        if (!transparentWindowMode) {
+            return;
+        }
+        try {
+            if (AppDesignStyleSupport.isCustomAppDesignActive()) {
+                applyTransparentModeContainerBackgrounds(AppDesignStyleSupport.activeBackgroundColor());
+            } else {
+                ThemeCssSupport.ThemeColors colors = ThemeCssSupport.resolveThemeColors(app);
+                applyTransparentModeContainerBackgrounds(colors != null ? colors.backgroundColor() : null);
+            }
+        } catch (Exception e) {
+            logger.debug("Could not refresh see-through containers: {}", e.getMessage());
+        }
+    }
+
+    /** Reads the persisted terminal background transparency (0..100), defaulting to 0 on error. */
+    private int currentBackgroundTransparencyPercent() {
+        try {
+            GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
+            if (gs != null) {
+                return gs.getTerminalBackgroundTransparency();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not read transparency setting: {}", e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Applies the current background transparency to one terminal tab. The translucent alpha is only
+     * used when the window actually runs in see-through mode; otherwise the terminal stays opaque so a
+     * lingering setting can't dim the terminal over an opaque window.
+     */
+    private void applyBackgroundTransparencyToTab(TerminalTab terminalTab) {
+        if (terminalTab == null) {
+            return;
+        }
+        TerminalView view = terminalTab.getTerminalView();
+        if (view == null) {
+            return;
+        }
+        view.setBackgroundTransparent(transparentWindowMode);
+        view.setBackgroundTransparency(transparentWindowMode ? currentBackgroundTransparencyPercent() : 0);
+    }
+
+    /** Live-applies the current background transparency to every open terminal tab (used by the slider). */
+    private void applyBackgroundTransparencyToAllTabs() {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof TerminalTab terminalTab) {
+                applyBackgroundTransparencyToTab(terminalTab);
+            }
         }
     }
 

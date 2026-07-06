@@ -389,6 +389,27 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
         return isWindows() ? null : System.getProperty("user.home");
     }
 
+    /**
+     * True when the local shell currently has at least one live child process — i.e. a command (or a
+     * backgrounded job) is running, as opposed to the shell sitting idle at its prompt. Used to decide
+     * whether closing the tab needs a confirmation. Best-effort: returns {@code false} if the process
+     * tree can't be read.
+     */
+    public boolean hasRunningChildProcess() {
+        PtyProcess localPty = ptyProcess;
+        if (localPty == null || !isConnected()) {
+            return false;
+        }
+        try {
+            long pid = localPty.pid();
+            return ProcessHandle.of(pid)
+                .map(handle -> handle.children().anyMatch(ProcessHandle::isAlive))
+                .orElse(false);
+        } catch (UnsupportedOperationException | SecurityException e) {
+            return false;
+        }
+    }
+
     private int terminalColumns() {
         int cols = connection.getSettings() != null ? connection.getSettings().getTerminalColumns() : 0;
         return cols > 0 ? cols : 80;
