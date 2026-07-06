@@ -2,6 +2,37 @@
 
 == Unreleased
 
+== v2.4.0
+
+=== Terminal Effects
+
+* *Ten new built-in terminal effects*: Alongside MU/TH/UR 6000, a bundled effect pack now ships ten themed effects spanning cyberpunk, retro, and creepy styles — _Amber CRT '90_ (90s amber-phosphor monitor with scanlines, glow, flicker, and a rolling refresh band), _Commodore Heritage_ (C64 blue with loader bars), _Neon City_ (glitch tears and RGB-split flickers), _Digital Rain_ (faint falling matrix glyphs), _Hologram HUD_ (interference bands and HUD corner brackets), _Poltergeist_ (breathing vignette, static bursts, and ghostly flashes), _VHS 1987_ (tracking noise, rolling distortion, and a PLAY overlay), _Synthwave Horizon_ (glowing perspective grid), _Deep Space Radar_ (slow radar sweep with blips), and _Typewriter Noir_ (sepia paper look with per-character output pacing). Every effect respects the animation-speed setting and its description is localized in all supported languages.
+* *Typewriter Noir paced output*: The _Typewriter Noir_ effect types terminal output character by character for a mechanical typewriter feel; bulk output such as printing a large file bypasses the pacing so it is never slowed down.
+* *Per-pane terminal effects*: Terminal effects are now scoped to each individual split pane instead of the whole tab. Within one tab you can run an effect in one pane while a sibling pane shows a different effect or none, and each effect's colors and font stay confined to its own pane. Global zoom and reset still apply to the whole tab.
+* *Per-pane effect menu and inheritance*: Each split pane's right-click menu gains a *Terminal Effect* submenu to pick *None* or any installed effect for just that pane, plus an animation-speed slider; the choice is runtime-only and is not saved to the connection. Splitting a pane starts the new pane with the same effect and animation speed as the pane it was split from.
+* *Animated effect previews in the plugin manager*: *Plugins → Terminal Effects* now shows a live animated preview of the selected effect next to the plugin list, so effects can be compared before activating them in a session. Plugins without a preview show a placeholder instead.
+
+=== AI Chat
+
+* *Chat color profiles*: The AI chat and AI Swarm chat now have selectable color themes. Eleven built-in profiles ship — _Automatic (theme)_, which follows your active terminal theme, plus _Original_, _Paper_, _Midnight_, _Cyberpunk_, _Retrowave_, _Forest_, _Ocean_, _Terminal_, _GPT_, and _Cute_. Pick one from the color-profile dropdown in the chat toolbar or under *Settings → Appearance → Chat color profile*; the choice is saved and applied live to every open chat.
+* *Full-text chat search (Ctrl+F, Cmd+F on macOS)*: Press Ctrl+F (Cmd+F on macOS), or click the *Search* button in the chat toolbar, to open a find bar over an AI or swarm conversation. It searches the entire chat including code blocks, shows a live match count, jumps between hits with the arrow keys or Enter, and outlines and scrolls each match into view. Esc closes the bar.
+* *Redesigned, fully themed chat*: The AI chat and swarm chat were redesigned so your messages sit in a right-indented rounded bubble and each AI reply is a full-width card, with code blocks, tables, the composer, and scrollbars all following the selected color profile instead of a fixed light style.
+
+=== Privacy & Analytics
+
+* *Anonymous usage analytics (opt-in, off by default)*: korTTY can optionally share anonymous, GDPR-compliant usage statistics via Aptabase (processed on EU servers) to help prioritize features and surface crashes and frequent errors. It is strictly opt-in and off by default. Only event names, aggregate counts and flags, the app version, OS name and version, app language, and an anonymous per-launch session id are sent — hostnames, usernames, connection data, file paths, snippet/terminal/chat content, keys, passwords, and error-message text are never collected.
+* *One-time consent prompt*: You are asked about sharing anonymous data exactly once — on new installs as a checkbox next to the master-password setup, and on existing installs as a one-time prompt after unlocking. Any dismissal counts as _no_ and you are not asked again. Each consent surface has a *More info* button that opens the new manual chapter _Anonymous data for application optimization_.
+* *Settings → Privacy tab*: A new *Privacy* tab under *Settings* lets you turn anonymous usage statistics on or off at any time and shows exactly what is and is not collected, plus the date your choice was recorded. Turning it off stops collection immediately and discards both the pending queue and any locally cached events.
+* *Offline event caching*: While you are offline, anonymous events are cached locally under `~/.kortty` and sent once a connection is available; they survive app restarts, are dropped after three days, and are discarded entirely if you opt out.
+
+=== Fixes
+
+* *Effects glow correctly when switched on for a live pane*: The MU/TH/UR effect's per-line glow now works when you enable an effect on an already-connected pane, not only when the effect was active before connecting, and it pulses steadily under fast-scrolling output instead of flickering.
+* *Ctrl+D in a split pane closes only that pane*: Exiting the shell (Ctrl+D or `exit`) in one pane of a split now closes just that pane and leaves the other panes open; the tab closes only when the last remaining pane's session ends.
+* *Terminal effects no longer crash rendering with many tabs open*: Opening several terminal tabs each with an active effect could exhaust the GPU texture pool and crash rendering. Effect overlays (including MU/TH/UR 6000) now release their full-window canvas texture while their tab is in the background and rebind automatically when the tab is shown again.
+* *AI Planning recovers from truncated or malformed JSON*: The *AI Planning* tab no longer fails outright with _"AI response did not contain the required JSON object"_ when a model returns an incomplete or unclosed plan — common with very small models that stop before finishing the schema. Planning now retries once with a repair prompt and usually succeeds on the second try; if it still fails, the error explains that the model returned invalid JSON twice and suggests a larger or more capable planning model.
+* *Guide window no longer crashes in the background*: Leaving the in-app guide (*Help → Manual*, F1) open while switching to another app could crash korTTY natively after a while, as the idle embedded browser churned in the background. korTTY now unloads the guide page after the window has been minimized or unfocused for 20 seconds and restores the same page and scroll position when you return, and the guide's intro video plays through once instead of looping endlessly.
+
 == v2.3.3
 
 === Fixes

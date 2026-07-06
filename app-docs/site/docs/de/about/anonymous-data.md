@@ -20,7 +20,7 @@ korTTY kann **anonyme Nutzungsstatistiken** sammeln, um zu entscheiden, welche F
 | --- | --- |
 | Ereignisnamen | App-Start, verwendete Funktion (z. B. ein Tool geöffnet, ein Backup erstellt) |
 | Aggregierte Anzahl und Flags | Anzahl der geöffneten Terminal-Tabs, ob AI aktiviert ist |
-| App-Version | 2.3.3 |
+| App-Version | 2.4.0 |
 | Betriebssystem und Version | macOS 15, Windows 11, Linux |
 | App-Sprache | de, en |
 | Eine anonyme Sitzungs-ID | eine Zufallszahl, die bei jedem Start und nach einer Stunde Inaktivität neu generiert wird |

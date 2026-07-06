@@ -5,25 +5,129 @@ in der Fußzeile angezeigt.
 
 ## Unveröffentlicht
 
-### Terminaleffekte: Zehn neue integrierte Effekte und animierte Vorschauen
+## v2.4.0
 
-- **Zehn neue integrierte Terminaleffekte** – neben MU/TH/UR 6000, ein Bundle
-Das Effektpaket enthält jetzt zehn thematische Effekte von Cyberpunk über Retro bis Grusel:
-**Bernsteinfarbener CRT '90** (bernsteinfarbener 90er-Jahre-Phosphormonitor mit Scanlines, Glühen, Flimmern
-und ein rollendes Aktualisierungsband), **Commodore Heritage** (C64 blau mit Lader
-Balken), **Neon City** (Glitch Tears und RGB-Split-Flimmern), **Digital Rain**
-(schwache fallende Matrixglyphen), **Hologramm-HUD** (Interferenzbänder und HUD
-Eckklammern), **Poltergeist** (atmende Vignette, statische Ausbrüche und
-gespenstische Blitze), **VHS 1987** (Tracking-Rauschen, Rollverzerrung und a
-PLAY-Overlay), **Synthwave Horizon** (leuchtendes perspektivisches Raster), **Deep Space
-Radar** (langsamer Radardurchlauf mit Blips) und **Typewriter Noir** (Sepiapapier
-sehen Sie sich die Schreibmaschinen-Ausgabegeschwindigkeit pro Zeichen an). Alle Effekte respektieren die
-Die Einstellungen für die Animationsgeschwindigkeit und ihre Beschreibungen sind in allen neun lokalisiert
-Sprachen.
-- **Animierte Vorschauen im Plugin-Manager** — **Plugins → Terminaleffekte**
-Zeigt jetzt neben dem Plugin eine animierte Live-Vorschau des ausgewählten Effekts an
-Tabelle, sodass Effekte verglichen werden können, bevor sie in einer Sitzung aktiviert werden.
-Plugins ohne Vorschau zeigen stattdessen einen Platzhalter an.
+### Terminaleffekte
+
+- **Zehn neue integrierte Terminaleffekte** – neben MU/TH/UR 6000 bringt ein
+  mitgeliefertes Effektpaket jetzt zehn thematische Effekte von Cyberpunk über
+  Retro bis Grusel: **Amber CRT '90** (bernsteinfarbener 90er-Phosphormonitor mit
+  Scanlines, Nachleuchten, Flackern und laufendem Bildwechselband), **Commodore
+  Heritage** (C64-Blau mit Loader-Balken), **Neon City** (Glitch-Risse und
+  RGB-Versatz-Flackern), **Digital Rain** (dezent herabfallende Matrix-Zeichen),
+  **Hologram HUD** (Interferenzbänder und HUD-Eckklammern), **Poltergeist**
+  (atmende Vignette, Rauschsalven und geisterhafte Blitze), **VHS 1987**
+  (Tracking-Rauschen, laufende Verzerrung und PLAY-Einblendung), **Synthwave
+  Horizon** (leuchtendes Perspektivraster), **Deep Space Radar** (langsamer
+  Radarstrahl mit Blips) und **Typewriter Noir** (Sepia-Papier-Look mit
+  Zeichentakt bei der Ausgabe). Jeder Effekt berücksichtigt die Einstellung der
+  Animationsgeschwindigkeit, und seine Beschreibung ist in allen unterstützten
+  Sprachen lokalisiert.
+- **Zeichenweise Ausgabe bei Typewriter Noir** – der Effekt **Typewriter Noir**
+  gibt die Terminalausgabe Zeichen für Zeichen aus – für ein mechanisches
+  Schreibmaschinengefühl; große Ausgaben wie das Anzeigen einer großen Datei
+  umgehen den Takt und werden dadurch nicht verlangsamt.
+- **Terminaleffekte pro Bereich (Split)** – Terminaleffekte gelten jetzt für
+  jeden einzelnen geteilten Bereich statt für den gesamten Tab. Innerhalb eines
+  Tabs können Sie in einem Bereich einen Effekt laufen lassen, während ein
+  Nachbarbereich einen anderen oder gar keinen zeigt; Farben und Schriftart eines
+  Effekts bleiben auf den eigenen Bereich beschränkt. Zoom und Zurücksetzen
+  gelten weiterhin für den ganzen Tab.
+- **Effektmenü und Vererbung pro Bereich** – das Kontextmenü jedes geteilten
+  Bereichs erhält ein Untermenü **Terminal-Effekt**, um für genau diesen Bereich
+  keinen oder einen installierten Effekt zu wählen, samt Regler für die
+  Animationsgeschwindigkeit; die Auswahl gilt nur zur Laufzeit und wird nicht in
+  der Verbindung gespeichert. Beim Teilen eines Bereichs übernimmt der neue
+  Bereich Effekt und Animationsgeschwindigkeit des Ausgangsbereichs.
+- **Animierte Effektvorschauen im Plugin-Manager** – **Plugins → Terminal-Effekte**
+  zeigt jetzt neben der Plugin-Liste eine animierte Live-Vorschau des
+  ausgewählten Effekts, sodass Effekte vor dem Aktivieren in einer Sitzung
+  verglichen werden können. Plugins ohne Vorschau zeigen stattdessen einen
+  Platzhalter.
+
+### KI-Chat
+
+- **Chat-Farbprofile** – der KI-Chat und der KI-Schwarm-Chat haben jetzt wählbare
+  Farbthemen. Elf integrierte Profile sind dabei: **Automatisch (Theme)**, das
+  dem aktiven Terminal-Theme folgt, sowie **Original**, **Paper**, **Midnight**,
+  **Cyberpunk**, **Retrowave**, **Forest**, **Ocean**, **Terminal**, **GPT** und
+  **Cute**. Wählen Sie eines im Farbprofil-Dropdown der Chat-Symbolleiste oder
+  unter **Einstellungen → Erscheinungsbild → Chat-Farbprofil**; die Auswahl wird
+  gespeichert und sofort auf jeden offenen Chat angewendet.
+- **Volltextsuche im Chat** (++ctrl+f++, Cmd+F auf macOS) – klicken Sie auf die
+  Schaltfläche **Suchen** in der Chat-Symbolleiste oder drücken Sie das
+  Tastenkürzel, um eine Suchleiste über einer KI- oder Schwarm-Unterhaltung zu
+  öffnen. Sie durchsucht den gesamten Chat einschließlich Codeblöcken, zeigt eine
+  Live-Trefferzahl, springt mit den Pfeiltasten oder der Eingabetaste zwischen den
+  Treffern und hebt jeden Treffer hervor und scrollt ihn ins Bild. Esc schließt
+  die Leiste.
+- **Neu gestalteter, durchgehend gestylter Chat** – der KI-Chat und der
+  Schwarm-Chat wurden neu gestaltet: Ihre Nachrichten sitzen in einer rechts
+  eingerückten, abgerundeten Sprechblase, jede KI-Antwort ist eine Karte über die
+  volle Breite, und Codeblöcke, Tabellen, das Eingabefeld und die Bildlaufleisten
+  folgen dem gewählten Farbprofil statt einem festen hellen Stil.
+
+### Datenschutz & Nutzungsstatistik
+
+- **Anonyme Nutzungsstatistik (freiwillig, standardmäßig aus)** – korTTY kann
+  optional anonyme, DSGVO-konforme Nutzungsstatistiken über Aptabase (Verarbeitung
+  auf EU-Servern) teilen, um Funktionen zu priorisieren und Abstürze und häufige
+  Fehler sichtbar zu machen. Das ist strikt freiwillig und standardmäßig
+  deaktiviert. Übertragen werden nur Ereignisnamen, aggregierte Zählwerte und
+  Kennzeichen, die App-Version, Name und Version des Betriebssystems, die
+  App-Sprache und eine anonyme Sitzungs-ID pro Start – Hostnamen, Benutzernamen,
+  Verbindungsdaten, Dateipfade, Snippet-, Terminal- und Chat-Inhalte, Schlüssel,
+  Passwörter und Fehlermeldungstexte werden niemals erfasst.
+- **Einmalige Zustimmungsabfrage** – Sie werden genau einmal gefragt, ob Sie
+  anonyme Daten teilen möchten: bei Neuinstallationen als Kontrollkästchen neben
+  der Master-Passwort-Einrichtung, bei bestehenden Installationen als einmalige
+  Abfrage nach dem Entsperren. Jedes Wegklicken zählt als *Nein*, und Sie werden
+  nicht erneut gefragt. Jede Zustimmungsstelle hat eine Schaltfläche **Mehr Infos**,
+  die das neue Handbuchkapitel *Anonyme Daten zur Applikationsoptimierung* öffnet.
+- **Einstellungen → Datenschutz** – ein neuer Tab **Datenschutz** unter
+  **Einstellungen** erlaubt es, die anonyme Nutzungsstatistik jederzeit ein- oder
+  auszuschalten, und zeigt genau, was erfasst wird und was nicht, sowie das Datum
+  Ihrer Entscheidung. Beim Ausschalten stoppt die Erfassung sofort, und sowohl die
+  wartende Warteschlange als auch lokal zwischengespeicherte Ereignisse werden
+  verworfen.
+- **Offline-Zwischenspeicherung von Ereignissen** – wenn Sie offline sind, werden
+  anonyme Ereignisse lokal unter `~/.kortty` zwischengespeichert und gesendet,
+  sobald eine Verbindung verfügbar ist; sie überstehen Neustarts der App, werden
+  nach drei Tagen verworfen und beim Widerruf vollständig gelöscht.
+
+### Korrekturen
+
+- **Effekte leuchten korrekt, wenn sie in einem laufenden Bereich aktiviert
+  werden** – das zeilenweise Nachleuchten des MU/TH/UR-Effekts funktioniert jetzt
+  auch, wenn Sie einen Effekt in einem bereits verbundenen Bereich einschalten,
+  nicht nur, wenn der Effekt schon vor dem Verbinden aktiv war; außerdem pulsiert
+  es bei schnell scrollender Ausgabe gleichmäßig statt zu flackern.
+- **Strg+D in einem geteilten Bereich schließt nur diesen Bereich** – das Beenden
+  der Shell (Strg+D oder `exit`) in einem Bereich eines Splits schließt jetzt nur
+  diesen Bereich und lässt die übrigen offen; der Tab schließt sich erst, wenn die
+  Sitzung des letzten verbleibenden Bereichs endet.
+- **Terminaleffekte lassen das Rendering bei vielen offenen Tabs nicht mehr
+  abstürzen** – mehrere Terminal-Tabs mit je einem aktiven Effekt konnten den
+  GPU-Texturpool erschöpfen und das Rendering zum Absturz bringen. Effekt-Overlays
+  (auch MU/TH/UR 6000) geben ihre fensterfüllende Leinwand-Textur jetzt frei,
+  während ihr Tab im Hintergrund ist, und binden sie automatisch neu, sobald der
+  Tab wieder angezeigt wird.
+- **KI-Planung verkraftet abgeschnittenes oder fehlerhaftes JSON** – der Tab
+  **KI-Planung** scheitert nicht mehr mit *„Die KI-Antwort enthielt nicht das
+  erforderliche JSON-Objekt“*, wenn ein Modell einen unvollständigen oder nicht
+  geschlossenen Plan zurückgibt – häufig bei sehr kleinen Modellen, die abbrechen,
+  bevor das Schema fertig ist. Die Planung wiederholt den Versuch nun einmal mit
+  einer Reparatur-Aufforderung und ist meist beim zweiten Mal erfolgreich; schlägt
+  sie weiterhin fehl, erklärt die Meldung, dass das Modell zweimal ungültiges JSON
+  lieferte, und empfiehlt ein größeres oder leistungsfähigeres Planungsmodell.
+- **Das Anleitungsfenster stürzt im Hintergrund nicht mehr ab** – die geöffnete
+  In-App-Anleitung (**Hilfe → Anleitung**, F1) offen zu lassen, während man zu
+  einer anderen App wechselt, konnte korTTY nach einer Weile nativ zum Absturz
+  bringen, weil der untätige eingebettete Browser im Hintergrund weiterarbeitete.
+  korTTY entlädt die Anleitungsseite jetzt, nachdem das Fenster 20 Sekunden lang
+  minimiert oder ohne Fokus war, und stellt beim Zurückkehren dieselbe Seite und
+  Scrollposition wieder her; außerdem läuft das Intro-Video der Anleitung nur noch
+  einmal statt in Endlosschleife.
 
 ## v2.3.3
 
