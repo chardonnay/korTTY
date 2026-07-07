@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.PlantUmlRenderService;
 import de.kortty.core.SnippetDiagramSupport;
+import de.kortty.core.SystemThemeDetector;
 import de.kortty.model.GlobalSettings;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -13,8 +14,11 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
@@ -87,7 +91,11 @@ final class SnippetDiagramView extends VBox {
     private final Label statusLabel = new Label();
     private final Label zoomLabel = new Label("100%");
     private final ColorPicker backgroundPicker;
+    private final MenuButton darkModeButton = new MenuButton();
 
+    private SnippetDiagramSupport.DiagramColorMode colorMode;
+    private long renderGeneration;
+    private boolean lastResolvedDark;
     private String currentPlantUml;
     private String currentContent = "";
     private List<SnippetDiagramSupport.SourceCodeReference> currentSourceReferences = List.of();
@@ -110,8 +118,11 @@ final class SnippetDiagramView extends VBox {
     SnippetDiagramView(Supplier<CompletableFuture<DiagramSource>> diagramSupplier, boolean showRegenerate) {
         this.diagramSupplier = diagramSupplier;
         this.backgroundColor = SnippetDiagramSupport.normalizeHexColor(loadConfiguredBackground(), DEFAULT_BACKGROUND);
+        this.colorMode = SnippetDiagramSupport.DiagramColorMode.fromKey(loadConfiguredColorMode());
+        this.lastResolvedDark = colorMode.isDarkActive();
         this.backgroundPicker = new ColorPicker(Color.web(backgroundColor));
         setSpacing(8);
+        installSystemThemeFocusWatcher();
 
         diagramView.setContextMenuEnabled(false);
         diagramView.setMinSize(1, 1);
@@ -183,31 +194,55 @@ final class SnippetDiagramView extends VBox {
         currentPlantUml = source.plantUml();
         currentContent = source.content() != null ? source.content() : "";
         currentSourceReferences = source.codeReferences() != null ? source.codeReferences() : List.of();
-        renderSvgAsync(currentPlantUml);
+        renderSvgAsync(currentPlantUml, true);
     }
 
-    private void renderSvgAsync(String plantUml) {
-        renderTask = new Task<>() {
+    /**
+     * @param resetZoom {@code true} for a genuinely new diagram (fit to viewport); {@code false} for a
+     *                  re-render that only changes appearance (background colour, dark mode) so the user's
+     *                  current zoom is preserved.
+     */
+    private void renderSvgAsync(String plantUml, boolean resetZoom) {
+        // Bake the chosen appearance (background colour, and dark-mode palette when active) into the PlantUML
+        // source so the rendered SVG itself is themed, not only the HTML padding around it. Without this the
+        // diagram keeps PlantUML's default white page while only the surrounding page area picks up the colour.
+        String renderSource = styledPlantUml(plantUml);
+        // Cancel any in-flight render (e.g. a rapid background-colour change) and stamp this render with a
+        // generation id so a superseded task — even one that already finished call() and cannot be cancelled —
+        // can never deliver a stale SVG through the shared handlers.
+        cancelRenderTask();
+        long generation = ++renderGeneration;
+        Task<PlantUmlRenderService.RenderResult> task = new Task<>() {
             @Override
             protected PlantUmlRenderService.RenderResult call() {
-                return new PlantUmlRenderService().renderSvg(plantUml);
+                return new PlantUmlRenderService().renderSvg(renderSource);
             }
         };
-        renderTask.setOnSucceeded(event -> onRendered(renderTask.getValue()));
-        renderTask.setOnFailed(event -> showError(
-            renderTask.getException() != null ? renderTask.getException().getMessage() : ""));
-        Thread thread = new Thread(renderTask, "snippet-diagram-view-render");
+        task.setOnSucceeded(event -> {
+            if (generation == renderGeneration) {
+                onRendered(task.getValue(), resetZoom);
+            }
+        });
+        task.setOnFailed(event -> {
+            if (generation == renderGeneration) {
+                showError(task.getException() != null ? task.getException().getMessage() : "");
+            }
+        });
+        renderTask = task;
+        Thread thread = new Thread(task, "snippet-diagram-view-render");
         thread.setDaemon(true);
         thread.start();
     }
 
-    private void onRendered(PlantUmlRenderService.RenderResult result) {
+    private void onRendered(PlantUmlRenderService.RenderResult result, boolean resetZoom) {
         if (result == null || !result.success() || result.imagePath() == null) {
             showError(result != null ? result.message() : "");
             return;
         }
         renderedSvgPath = result.imagePath();
-        zoomFactor = 1.0;
+        if (resetZoom) {
+            zoomFactor = 1.0;
+        }
         double[] size = readSvgSize(renderedSvgPath);
         baseWidth = size[0];
         baseHeight = size[1];
@@ -252,7 +287,7 @@ final class SnippetDiagramView extends VBox {
         String hotspots = buildHotspotHtml(currentHotspots, imageLeft, imageTop, scaleX, scaleY);
         return "<!doctype html><html><head><meta charset=\"UTF-8\"><style>"
             + "html,body{margin:0;width:" + fmt(canvasWidth) + "px;height:" + fmt(canvasHeight)
-            + "px;overflow:hidden;background:" + backgroundColor + ";}"
+            + "px;overflow:hidden;background:" + effectiveBackgroundColor() + ";}"
             + "body{position:relative;}"
             + "img{display:block;position:absolute;left:" + fmt(imageLeft) + "px;top:" + fmt(imageTop)
             + "px;width:" + fmt(displayWidth) + "px;height:" + fmt(displayHeight) + "px;}"
@@ -459,8 +494,12 @@ final class SnippetDiagramView extends VBox {
             toolbar.getChildren().add(regenerate);
         }
 
+        buildDarkModeButton();
+        toolbar.getChildren().add(darkModeButton);
+
         backgroundPicker.setOnAction(event -> changeBackground(toHex(backgroundPicker.getValue())));
         toolbar.getChildren().addAll(new Label(I18n.get("snippets.ai.diagram.backgroundColor")), backgroundPicker);
+        updateBackgroundPickerState();
 
         Button saveSvg = new Button(I18n.get("snippets.ai.diagram.saveSvg"));
         saveSvg.setOnAction(event -> saveSvg());
@@ -597,8 +636,13 @@ final class SnippetDiagramView extends VBox {
     }
 
     private void renderPngAsync(String runningStatus, Consumer<PlantUmlRenderService.RenderResult> handler) {
-        String plantUml = currentPlantUml;
-        if (plantUml == null) {
+        if (currentPlantUml == null) {
+            return;
+        }
+        // Bake the current appearance (dark palette or the picked background) into the exported/copied image too,
+        // so a saved PNG / clipboard image matches exactly what is shown on screen.
+        String plantUml = styledPlantUml(currentPlantUml);
+        if (plantUml.isBlank()) {
             return;
         }
         statusLabel.setText(runningStatus);
@@ -633,19 +677,132 @@ final class SnippetDiagramView extends VBox {
         return path.resolveSibling(name + dottedExtension);
     }
 
-    // ---- Background -----------------------------------------------------------------------------
+    // ---- Background & dark mode -----------------------------------------------------------------
 
     private void changeBackground(String color) {
-        backgroundColor = SnippetDiagramSupport.normalizeHexColor(color, DEFAULT_BACKGROUND);
-        applyBackgroundStyle();
+        String normalized = SnippetDiagramSupport.normalizeHexColor(color, DEFAULT_BACKGROUND);
+        if (normalized.equals(backgroundColor)) {
+            return;
+        }
+        backgroundColor = normalized;
         saveConfiguredBackground(backgroundColor);
-        if (renderedSvgPath != null) {
+        // The manual background colour only applies in light mode; dark mode uses its own dark canvas.
+        if (isDarkActive()) {
+            return;
+        }
+        applyBackgroundStyle();
+        // Re-render the SVG so the diagram page itself takes the new colour (baked into the PlantUML source in
+        // renderSvgAsync); a plain HTML rebuild would only recolour the surrounding page. Preserve the zoom.
+        if (currentPlantUml != null && !currentPlantUml.isBlank()) {
+            renderSvgAsync(currentPlantUml, false);
+        } else if (renderedSvgPath != null) {
             renderDiagramToFitViewport();
         }
     }
 
+    /** Builds the "Dark mode" menu button (Auto / Light / Dark), reflecting and persisting the choice. */
+    private void buildDarkModeButton() {
+        darkModeButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.darkMode.tooltip")));
+        ToggleGroup group = new ToggleGroup();
+        for (SnippetDiagramSupport.DiagramColorMode mode : SnippetDiagramSupport.DiagramColorMode.values()) {
+            RadioMenuItem item = new RadioMenuItem(colorModeLabel(mode));
+            item.setToggleGroup(group);
+            item.setSelected(mode == colorMode);
+            item.setOnAction(event -> changeColorMode(mode));
+            darkModeButton.getItems().add(item);
+        }
+        updateDarkModeButtonText();
+    }
+
+    private static String colorModeLabel(SnippetDiagramSupport.DiagramColorMode mode) {
+        return switch (mode) {
+            case AUTO -> I18n.get("snippets.ai.diagram.darkMode.auto");
+            case LIGHT -> I18n.get("snippets.ai.diagram.darkMode.light");
+            case DARK -> I18n.get("snippets.ai.diagram.darkMode.dark");
+        };
+    }
+
+    private void updateDarkModeButtonText() {
+        darkModeButton.setText(I18n.get("snippets.ai.diagram.darkMode") + ": " + colorModeLabel(colorMode));
+    }
+
+    private void changeColorMode(SnippetDiagramSupport.DiagramColorMode mode) {
+        if (mode == null || mode == colorMode) {
+            return;
+        }
+        colorMode = mode;
+        saveConfiguredColorMode(mode.key());
+        updateDarkModeButtonText();
+        reapplyAppearance();
+    }
+
+    /** Re-applies background/dark styling and re-renders (preserving zoom) after a colour-mode change. */
+    private void reapplyAppearance() {
+        lastResolvedDark = isDarkActive();
+        updateBackgroundPickerState();
+        applyBackgroundStyle();
+        if (currentPlantUml != null && !currentPlantUml.isBlank()) {
+            renderSvgAsync(currentPlantUml, false);
+        } else if (renderedSvgPath != null) {
+            renderDiagramToFitViewport();
+        }
+    }
+
+    private boolean isDarkActive() {
+        return colorMode != null && colorMode.isDarkActive();
+    }
+
+    /** The colour actually shown behind the diagram: the dark canvas in dark mode, else the picked colour. */
+    private String effectiveBackgroundColor() {
+        return isDarkActive() ? SnippetDiagramSupport.DARK_BACKGROUND_COLOR : backgroundColor;
+    }
+
+    /** Themes the PlantUML source: dark palette in dark mode, else the picked background colour. */
+    private String styledPlantUml(String plantUml) {
+        return isDarkActive()
+            ? SnippetDiagramSupport.applyDarkMode(plantUml)
+            : SnippetDiagramSupport.applyBackgroundColor(plantUml, backgroundColor);
+    }
+
+    private void updateBackgroundPickerState() {
+        // The manual background colour is meaningless while dark mode drives the appearance.
+        backgroundPicker.setDisable(isDarkActive());
+    }
+
+    /**
+     * When the window regains focus and the mode is AUTO, re-probe the OS appearance and re-render if it
+     * flipped — so switching the system to dark/light while the diagram is open takes effect on return.
+     */
+    private void installSystemThemeFocusWatcher() {
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.windowProperty().addListener((o, oldWindow, newWindow) -> {
+                    if (newWindow != null) {
+                        newWindow.focusedProperty().addListener((f, wasFocused, isFocused) -> {
+                            if (Boolean.TRUE.equals(isFocused)) {
+                                onWindowFocused();
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    private void onWindowFocused() {
+        if (colorMode != SnippetDiagramSupport.DiagramColorMode.AUTO) {
+            return;
+        }
+        SystemThemeDetector.invalidateCache();
+        boolean darkNow = isDarkActive();
+        if (darkNow != lastResolvedDark) {
+            reapplyAppearance();
+        }
+    }
+
     private void applyBackgroundStyle() {
-        diagramScroll.setStyle("-fx-background: " + backgroundColor + "; -fx-background-color: " + backgroundColor + ";");
+        String color = effectiveBackgroundColor();
+        diagramScroll.setStyle("-fx-background: " + color + "; -fx-background-color: " + color + ";");
     }
 
     private String loadConfiguredBackground() {
@@ -653,11 +810,27 @@ final class SnippetDiagramView extends VBox {
         return settings != null ? settings.getSnippetDiagramBackgroundColor() : DEFAULT_BACKGROUND;
     }
 
+    private String loadConfiguredColorMode() {
+        GlobalSettings settings = currentSettings();
+        return settings != null ? settings.getSnippetDiagramColorMode() : "auto";
+    }
+
     private void saveConfiguredBackground(String color) {
         try {
             GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
             if (manager != null && manager.getSettings() != null) {
                 manager.getSettings().setSnippetDiagramBackgroundColor(color);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void saveConfiguredColorMode(String mode) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            if (manager != null && manager.getSettings() != null) {
+                manager.getSettings().setSnippetDiagramColorMode(mode);
                 manager.save();
             }
         } catch (Exception ignored) {

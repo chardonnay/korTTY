@@ -75,6 +75,37 @@ public class PlantUmlRenderServiceTest {
         assertThat(result.message()).isNotEqualTo("Java is required to render PlantUML diagrams.");
     }
 
+    @Test
+    void bakedBackgroundColorAppearsInTheRenderedActivitySvg() throws Exception {
+        // The AI Code Analysis diagram viewer (SnippetDiagramView) bakes the chosen background colour into
+        // the PlantUML source (skinparam backgroundColor) so the rendered SVG page itself is coloured — not
+        // only the HTML padding around it. This proves the colour reaches the SVG the viewer displays/exports.
+        String colored = SnippetDiagramSupport.applyBackgroundColor(VALID_DIAGRAM, "#123456");
+        PlantUmlRenderService.RenderResult result = PlantUmlRenderService.withoutDot().renderSvg(colored);
+
+        if (!result.success()) {
+            skipIfNetworkUnavailable(result.message());
+        }
+        assertThat(result.success()).isTrue();
+        String svg = java.nio.file.Files.readString(result.imagePath());
+        assertThat(svg.toLowerCase(java.util.Locale.ROOT)).contains("123456");
+    }
+
+    @Test
+    void darkModeRendersDarkCanvasInActivitySvg() throws Exception {
+        // The diagram viewers' "Dark mode" bakes a dark canvas (and light connectors) into the source via
+        // SnippetDiagramSupport.applyDarkMode; this proves the dark background reaches the rendered SVG.
+        String dark = SnippetDiagramSupport.applyDarkMode(VALID_DIAGRAM);
+        PlantUmlRenderService.RenderResult result = PlantUmlRenderService.withoutDot().renderSvg(dark);
+
+        if (!result.success()) {
+            skipIfNetworkUnavailable(result.message());
+        }
+        assertThat(result.success()).isTrue();
+        String svg = java.nio.file.Files.readString(result.imagePath()).toLowerCase(java.util.Locale.ROOT);
+        assertThat(svg).contains("1e1e1e");
+    }
+
     private static void skipIfNetworkUnavailable(String message) {
         String lower = message != null ? message.toLowerCase(java.util.Locale.ROOT) : "";
         if (lower.contains("download failed") || lower.contains("unknownhost")

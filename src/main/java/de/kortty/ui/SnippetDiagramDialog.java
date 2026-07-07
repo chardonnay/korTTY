@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.PlantUmlRenderService;
 import de.kortty.core.SnippetDiagramSupport;
+import de.kortty.core.SystemThemeDetector;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SnippetDiagram;
 import javafx.application.Platform;
@@ -19,7 +20,10 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.SplitPane;
 import javafx.scene.image.Image;
@@ -83,6 +87,10 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
     private final Button copyImageButton;
     private final Button copyPlantUmlButton;
     private final ColorPicker backgroundColorPicker;
+    private final MenuButton darkModeButton = new MenuButton();
+    private SnippetDiagramSupport.DiagramColorMode colorMode;
+    private boolean lastResolvedDark;
+    private long renderGeneration;
     private Task<PlantUmlRenderService.RenderResult> renderTask;
     private Task<PlantUmlRenderService.RenderResult> exportTask;
     private Path renderedSvgPath;
@@ -138,10 +146,13 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         this.newDiagramHandler = newDiagramHandler;
         this.codeNavigationHandler = codeNavigationHandler;
         this.diagramBackgroundColor = loadConfiguredDiagramBackgroundColor();
+        this.colorMode = SnippetDiagramSupport.DiagramColorMode.fromKey(loadConfiguredColorMode());
+        this.lastResolvedDark = colorMode.isDarkActive();
 
         setTitle(I18n.get("snippets.ai.diagram.title"));
         setResizable(true);
         initModality(Modality.NONE);
+        installSystemThemeFocusWatcher();
         if (owner != null) {
             initOwner(owner);
         }
@@ -220,6 +231,7 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         backgroundColorPicker.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.backgroundColor")));
         backgroundColorPicker.setOnAction(event -> changeDiagramBackgroundColor(toHex(backgroundColorPicker.getValue())));
         Label backgroundColorLabel = new Label(I18n.get("snippets.ai.diagram.backgroundColor"));
+        buildDarkModeButton();
 
         Region toolbarSpacer = new Region();
         HBox toolbar = new HBox(
@@ -230,6 +242,7 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
             copyImageButton,
             copyPlantUmlButton,
             toolbarSpacer,
+            darkModeButton,
             backgroundColorLabel,
             backgroundColorPicker,
             zoomOutButton,
@@ -323,14 +336,21 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         currentCodeReferences = codeReferencesForDisplay(diagram, plantUmlSource);
         setStatusText(staleText + " " + I18n.get("snippets.ai.diagram.rendering"));
 
-        renderTask = new Task<>() {
+        // Stamp each render with a generation id and capture the task in a local: a superseded render (e.g. a
+        // dark-mode or focus-driven re-render) can finish call() and can no longer be cancelled, so its handler
+        // must be ignored rather than reading the newer field task or applying a stale SVG.
+        long generation = ++renderGeneration;
+        Task<PlantUmlRenderService.RenderResult> task = new Task<>() {
             @Override
             protected PlantUmlRenderService.RenderResult call() {
                 return new PlantUmlRenderService().renderSvg(renderPlantUmlSource);
             }
         };
-        renderTask.setOnSucceeded(event -> {
-            PlantUmlRenderService.RenderResult result = renderTask.getValue();
+        task.setOnSucceeded(event -> {
+            if (generation != renderGeneration) {
+                return;
+            }
+            PlantUmlRenderService.RenderResult result = task.getValue();
             if (result != null && result.success() && result.imagePath() != null) {
                 renderedSvgPath = result.imagePath();
                 diagramZoomFactor = 1.0;
@@ -349,14 +369,18 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
                     result != null ? result.message() : ""));
             }
         });
-        renderTask.setOnFailed(event -> {
+        task.setOnFailed(event -> {
+            if (generation != renderGeneration) {
+                return;
+            }
             renderedSvgPath = null;
             currentSvgHotspots = List.of();
             diagramView.getEngine().loadContent("");
             setDiagramImageVisible(false);
             setStatusText(staleText + " " + I18n.get("snippets.ai.diagram.renderFailed", ""));
         });
-        Thread thread = new Thread(renderTask, "snippet-diagram-render");
+        renderTask = task;
+        Thread thread = new Thread(task, "snippet-diagram-render");
         thread.setDaemon(true);
         thread.start();
     }
@@ -517,7 +541,7 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
             """,
             canvasWidth,
             canvasHeight,
-            escapeHtml(diagramBackgroundColor),
+            escapeHtml(effectiveDiagramBackgroundColor()),
             imageLeft,
             imageTop,
             displayWidth,
@@ -910,8 +934,12 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
             return;
         }
         diagramBackgroundColor = normalized;
-        applyDiagramBackgroundStyle();
         boolean saved = saveConfiguredDiagramBackgroundColor(normalized);
+        // The manual background colour only applies in light mode; dark mode drives its own dark canvas.
+        if (isDarkActive()) {
+            return;
+        }
+        applyDiagramBackgroundStyle();
         SnippetDiagram selected = diagramListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             showDiagram(selected);
@@ -921,8 +949,87 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
     }
 
     private void applyDiagramBackgroundStyle() {
-        String color = SnippetDiagramSupport.normalizeHexColor(diagramBackgroundColor, DEFAULT_DIAGRAM_BACKGROUND_COLOR);
+        String color = effectiveDiagramBackgroundColor();
         diagramScrollPane.setStyle("-fx-background: " + color + "; -fx-background-color: " + color + ";");
+    }
+
+    // ---- Dark mode ------------------------------------------------------------------------------
+
+    private void buildDarkModeButton() {
+        darkModeButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.darkMode.tooltip")));
+        ToggleGroup group = new ToggleGroup();
+        for (SnippetDiagramSupport.DiagramColorMode mode : SnippetDiagramSupport.DiagramColorMode.values()) {
+            RadioMenuItem item = new RadioMenuItem(colorModeLabel(mode));
+            item.setToggleGroup(group);
+            item.setSelected(mode == colorMode);
+            item.setOnAction(event -> changeColorMode(mode));
+            darkModeButton.getItems().add(item);
+        }
+        updateDarkModeButtonText();
+    }
+
+    private static String colorModeLabel(SnippetDiagramSupport.DiagramColorMode mode) {
+        return switch (mode) {
+            case AUTO -> I18n.get("snippets.ai.diagram.darkMode.auto");
+            case LIGHT -> I18n.get("snippets.ai.diagram.darkMode.light");
+            case DARK -> I18n.get("snippets.ai.diagram.darkMode.dark");
+        };
+    }
+
+    private void updateDarkModeButtonText() {
+        darkModeButton.setText(I18n.get("snippets.ai.diagram.darkMode") + ": " + colorModeLabel(colorMode));
+    }
+
+    private void changeColorMode(SnippetDiagramSupport.DiagramColorMode mode) {
+        if (mode == null || mode == colorMode) {
+            return;
+        }
+        colorMode = mode;
+        saveConfiguredColorMode(mode.key());
+        updateDarkModeButtonText();
+        reapplyAppearance();
+    }
+
+    private void reapplyAppearance() {
+        lastResolvedDark = isDarkActive();
+        applyDiagramBackgroundStyle();
+        updateDiagramControls(diagramScrollPane.isVisible());
+        SnippetDiagram selected = diagramListView.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            showDiagram(selected);
+        }
+    }
+
+    private boolean isDarkActive() {
+        return colorMode != null && colorMode.isDarkActive();
+    }
+
+    private String effectiveDiagramBackgroundColor() {
+        return isDarkActive()
+            ? SnippetDiagramSupport.DARK_BACKGROUND_COLOR
+            : SnippetDiagramSupport.normalizeHexColor(diagramBackgroundColor, DEFAULT_DIAGRAM_BACKGROUND_COLOR);
+    }
+
+    private void installSystemThemeFocusWatcher() {
+        setOnShown(event -> {
+            if (getDialogPane().getScene() != null && getDialogPane().getScene().getWindow() != null) {
+                getDialogPane().getScene().getWindow().focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+                    if (Boolean.TRUE.equals(isFocused)) {
+                        onWindowFocused();
+                    }
+                });
+            }
+        });
+    }
+
+    private void onWindowFocused() {
+        if (colorMode != SnippetDiagramSupport.DiagramColorMode.AUTO) {
+            return;
+        }
+        SystemThemeDetector.invalidateCache();
+        if (isDarkActive() != lastResolvedDark) {
+            reapplyAppearance();
+        }
     }
 
     private String loadConfiguredDiagramBackgroundColor() {
@@ -949,6 +1056,24 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         }
     }
 
+    private String loadConfiguredColorMode() {
+        GlobalSettingsManager manager = globalSettingsManager();
+        GlobalSettings settings = manager != null ? manager.getSettings() : null;
+        return settings != null ? settings.getSnippetDiagramColorMode() : "auto";
+    }
+
+    private void saveConfiguredColorMode(String mode) {
+        GlobalSettingsManager manager = globalSettingsManager();
+        if (manager == null || manager.getSettings() == null) {
+            return;
+        }
+        try {
+            manager.getSettings().setSnippetDiagramColorMode(mode);
+            manager.save();
+        } catch (Exception ignored) {
+        }
+    }
+
     private GlobalSettingsManager globalSettingsManager() {
         KorTTYApplication application = KorTTYApplication.getInstance();
         return application != null ? application.getGlobalSettingsManager() : null;
@@ -969,7 +1094,7 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         zoomResetButton.setDisable(!enabled);
         zoomInButton.setDisable(!enabled);
         zoomLabel.setDisable(!enabled);
-        backgroundColorPicker.setDisable(exportRunning);
+        backgroundColorPicker.setDisable(exportRunning || isDarkActive());
         saveSvgButton.setDisable(!controlsEnabled || renderedSvgPath == null);
         savePngButton.setDisable(!controlsEnabled);
         copyImageButton.setDisable(!controlsEnabled);
@@ -983,7 +1108,10 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
     }
 
     private String plantUmlSourceForRender(SnippetDiagram diagram) {
-        return SnippetDiagramSupport.applyBackgroundColor(plantUmlSourceForDisplay(diagram), diagramBackgroundColor);
+        String display = plantUmlSourceForDisplay(diagram);
+        return isDarkActive()
+            ? SnippetDiagramSupport.applyDarkMode(display)
+            : SnippetDiagramSupport.applyBackgroundColor(display, diagramBackgroundColor);
     }
 
     private List<SnippetDiagramSupport.CodeReference> codeReferencesForDisplay(

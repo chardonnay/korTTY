@@ -495,6 +495,10 @@ public class GlobalSettings {
     @XmlElement
     private String snippetDiagramBackgroundColor = "#FFFFFF";
 
+    /** Diagram light/dark appearance: "auto" (follow OS), "light" or "dark". */
+    @XmlElement
+    private String snippetDiagramColorMode = "auto";
+
     @XmlElement
     private String selectedSnippetEditorProfileId; // null = use explicit snippet editor colors
 
@@ -2084,6 +2088,18 @@ public class GlobalSettings {
         this.snippetDiagramBackgroundColor = snippetDiagramBackgroundColor != null && !snippetDiagramBackgroundColor.isBlank()
             ? snippetDiagramBackgroundColor.trim()
             : "#FFFFFF";
+    }
+
+    public String getSnippetDiagramColorMode() {
+        return snippetDiagramColorMode != null && !snippetDiagramColorMode.isBlank()
+            ? snippetDiagramColorMode
+            : "auto";
+    }
+
+    public void setSnippetDiagramColorMode(String snippetDiagramColorMode) {
+        this.snippetDiagramColorMode = snippetDiagramColorMode != null && !snippetDiagramColorMode.isBlank()
+            ? snippetDiagramColorMode.trim().toLowerCase(java.util.Locale.ROOT)
+            : "auto";
     }
 
     public String getSelectedSnippetEditorProfileId() { return selectedSnippetEditorProfileId; }

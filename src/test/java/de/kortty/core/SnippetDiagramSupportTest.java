@@ -269,4 +269,58 @@ class SnippetDiagramSupportTest {
             .findFirst()
             .orElseThrow();
     }
+
+    @Test
+    void applyDarkModeDarkensKnownNodeColoursAndSetsDarkCanvas() {
+        String source = """
+            @startuml
+            start
+            :Read configured values; <<#EAF7EF>>
+            :Run main snippet logic; <<#EAF4FF>>
+            :Send failure notification; <<#FDECEC>>
+            stop
+            @enduml""";
+
+        String dark = SnippetDiagramSupport.applyDarkMode(source);
+
+        assertThat(dark).contains("skinparam backgroundColor " + SnippetDiagramSupport.DARK_BACKGROUND_COLOR);
+        assertThat(dark).contains("skinparam defaultFontColor");
+        assertThat(dark).contains("skinparam ArrowColor");
+        // The known light activity-node colours are swapped for dark equivalents.
+        assertThat(dark).doesNotContain("#EAF7EF");
+        assertThat(dark).doesNotContain("#EAF4FF");
+        assertThat(dark).doesNotContain("#FDECEC");
+        assertThat(dark).startsWith("@startuml");
+        assertThat(dark).endsWith("@enduml");
+    }
+
+    @Test
+    void applyDarkModeIsCaseInsensitiveOnKnownColours() {
+        String dark = SnippetDiagramSupport.applyDarkMode("@startuml\n:x; <<#eaf7ef>>\n@enduml");
+
+        assertThat(dark).doesNotContain("#eaf7ef");
+        assertThat(dark).doesNotContain("#EAF7EF");
+    }
+
+    @Test
+    void applyDarkModeReturnsBlankForBlankSource() {
+        assertThat(SnippetDiagramSupport.applyDarkMode("   ")).isEmpty();
+        assertThat(SnippetDiagramSupport.applyDarkMode(null)).isEmpty();
+    }
+
+    @Test
+    void diagramColorModeParsesSerializesAndResolves() {
+        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey("dark"))
+            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.DARK);
+        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey("LIGHT"))
+            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.LIGHT);
+        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey(null))
+            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.AUTO);
+        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey("bogus"))
+            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.AUTO);
+        assertThat(SnippetDiagramSupport.DiagramColorMode.DARK.key()).isEqualTo("dark");
+        // DARK/LIGHT resolve deterministically; AUTO depends on the OS and is not asserted here.
+        assertThat(SnippetDiagramSupport.DiagramColorMode.DARK.isDarkActive()).isTrue();
+        assertThat(SnippetDiagramSupport.DiagramColorMode.LIGHT.isDarkActive()).isFalse();
+    }
 }
