@@ -3,7 +3,7 @@
 The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.
 
-## Unreleased
+## v2.4.1
 
 ### Snippet AI code analysis
 

@@ -3,7 +3,7 @@
 Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.
 
-## Unveröffentlicht
+## v2.4.1
 
 ### Snippet-KI-Codeanalyse
 
