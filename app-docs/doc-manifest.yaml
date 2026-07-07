@@ -205,7 +205,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/SnippetManager.java]
     diagrams: [snippet-editor-workflow.svg]
-    last_synced_ref: "dcff3f4"
+    last_synced_ref: "790e3ef"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/jobscheduler]

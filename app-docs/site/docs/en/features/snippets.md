@@ -143,7 +143,7 @@ The window is split into two panes.
 
 **Right — flow diagram:**
 
-- An **auto-generated flow diagram** of the script's logic renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom **−** / **Fit** / **+**, **Save SVG** / **Save PNG**, **Copy image** / **Copy PlantUML**, a **Background** colour picker (remembered), and **Regenerate**.
+- An **auto-generated flow diagram** of the script's logic renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom **−** / **Fit** / **+**, **Save SVG** / **Save PNG**, **Copy image** / **Copy PlantUML**, a **Dark mode** control and a **Background** colour picker (both remembered), and **Regenerate**. See [Diagram appearance](#diagram-appearance) below.
 - **Hover code references** — Moving the mouse over a diagram node shows the matching lines from the snippet, so you can trace each step back to the code — the same behaviour as the standalone [Diagram](#plantuml-diagrams) window.
 
 At the bottom, a collapsible **Hardening options** panel lets you attach production-quality techniques to the fixes that get applied. See [Hardening options](../reference/hardening-options.md) for what each option means and how it is applied.
@@ -205,8 +205,20 @@ Right-click a selected code region and choose **Alternative solution** to:
 PlantUML diagrams are stored with the snippet. If the snippet content changes after diagram generation, KorTTY marks the diagram as possibly outdated and offers regeneration.
 
 - **Rendering:** Local only — KorTTY uses a checksum-verified PlantUML JAR and Graphviz `dot`; no remote server is used.
-- **Dialog features:** Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, and clipboard copy.
+- **Dialog features:** Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, clipboard copy, and the shared [Diagram appearance](#diagram-appearance) controls.
 - **Dependency errors:** If local rendering is unavailable, KorTTY shows the error so Java/Graphviz can be fixed.
+
+### Diagram appearance
+
+Both diagram windows — the standalone **Diagram** dialog and the **Full code analysis** flow diagram — share two appearance controls, and each remembers its setting across sessions:
+
+- **Dark mode** — A **Dark mode** button with three choices:
+    - **Auto** — follows the operating system's light/dark appearance. When you switch the OS to dark mode the diagram follows on the next render (and when the window regains focus).
+    - **Light** — always light.
+    - **Dark** — always dark.
+
+    A manual choice is permanent until you change it. Dark mode recolours the **whole** diagram — a dark canvas, darkened node cards with light text, and light connectors and labels — not just the page margin.
+- **Background** — A colour picker for the page/canvas colour in light mode. It applies to the diagram itself and to any exported SVG/PNG. The picker is disabled while dark mode is active, because dark mode drives the appearance.
 
 ## Placeholder variables
 

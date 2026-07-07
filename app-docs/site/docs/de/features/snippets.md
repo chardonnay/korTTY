@@ -143,7 +143,7 @@ Das Fenster ist in zwei Bereiche aufgeteilt.
 
 **Rechts – Flussdiagramm:**
 
-- Ein **automatisch generiertes Flussdiagramm** der Logik des Skripts wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom **−** / **Anpassen** / **+**, **SVG speichern** / **PNG speichern**, **Bild kopieren** / **PflanzenUML kopieren**, einen **Hintergrundfarbwähler** (gespeichert) und **Regenerieren**.
+- Ein **automatisch generiertes Flussdiagramm** der Logik des Skripts wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom **−** / **Anpassen** / **+**, **SVG speichern** / **PNG speichern**, **Bild kopieren** / **PflanzenUML kopieren**, ein Steuerelement **Dunkelmodus** und einen Farbwähler **Hintergrund** (beide gespeichert) und **Regenerieren**. Siehe [Diagrammdarstellung](#diagram-appearance) unten].
 - **Hover-Code-Referenzen** – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die passenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen [Diagram](#plantuml-diagrams)-Fenster.
 
 An der Unterseite können Sie über ein zusammenklappbares Feld mit **Härtungsoptionen** Techniken in Produktionsqualität zu den angewendeten Korrekturen hinzufügen. Unter [Härtungsoptionen](../reference/hardening-options.md)] erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.
@@ -205,8 +205,20 @@ Klicken Sie mit der rechten Maustaste auf eine ausgewählte Coderegion und wähl
 PlantUML-Diagramme werden mit dem Snippet gespeichert. Wenn sich der Snippet-Inhalt nach der Diagrammgenerierung ändert, markiert KorTTY das Diagramm als möglicherweise veraltet und bietet eine Neugenerierung an.
 
 - **Rendering:** Nur lokal – KorTTY verwendet ein prüfsummenverifiziertes PlantUML-JAR und Graphviz `dot`; Es wird kein Remote-Server verwendet.
-- **Dialogfunktionen:** Gerendertes Bild, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export und Kopieren in die Zwischenablage.
+- **Dialogfunktionen:** Gerendertes Bild, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export, Kopieren in die Zwischenablage und die gemeinsamen [Diagrammdarstellung](#diagram-appearance)-Steuerelemente.
 - **Abhängigkeitsfehler:** Wenn lokales Rendering nicht verfügbar ist, zeigt KorTTY den Fehler an, damit Java/Graphviz behoben werden kann.
+
+### Diagrammdarstellung
+
+Beide Diagrammfenster – das eigenständige **Diagramm**-Dialogfeld und das **Vollständige Codeanalyse**-Flussdiagramm – teilen sich zwei Darstellungssteuerelemente und jedes merkt sich seine Einstellung sitzungsübergreifend:
+
+- **Dunkelmodus** – Eine **Dunkelmodus**-Taste mit drei Auswahlmöglichkeiten:
+- **Auto** – folgt dem Hell/Dunkel-Erscheinungsbild des Betriebssystems. Wenn Sie das Betriebssystem in den Dunkelmodus schalten, folgt das Diagramm beim nächsten Rendern (und wenn das Fenster wieder den Fokus erhält).
+- **Licht** – immer hell.
+- **Dunkel** – immer dunkel.
+
+Eine manuelle Auswahl bleibt so lange bestehen, bis Sie sie ändern. Im Dunkelmodus wird das **gesamte** Diagramm neu eingefärbt – eine dunkle Leinwand, abgedunkelte Knotenkarten mit hellem Text sowie helle Anschlüsse und Beschriftungen – nicht nur der Seitenrand.
+- **Hintergrund** – Ein Farbwähler für die Seiten-/Leinwandfarbe im hellen Modus. Dies gilt für das Diagramm selbst und für jedes exportierte SVG/PNG. Der Picker ist deaktiviert, während der Dunkelmodus aktiv ist, da der Dunkelmodus das Erscheinungsbild steuert.
 
 ## Platzhaltervariablen
 

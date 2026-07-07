@@ -27,6 +27,15 @@ shown in the footer.
   logging, idempotency, dry-run, `--help`, and more) into the result. See the new
   [Hardening options](../reference/hardening-options.md) reference for what each
   option means and how it is applied.
+- **Diagram Dark mode** — both diagram windows (Full code analysis and the
+  standalone Diagram dialog) gained a **Dark mode** button with *Auto* (follow the
+  operating-system appearance), *Light* and *Dark*. The choice is remembered and
+  recolours the whole diagram — dark canvas, darkened node cards with light text,
+  and light connectors — while the manual background-colour picker now colours the
+  diagram page itself (not just its margin) and applies to exported SVG/PNG.
+- **Windows no longer lock the main window** — the snippet **Diff** and **Manage
+  variables** windows opened from the Snippet Manager no longer freeze the main
+  KorTTY window while they are open.
 
 ### Snippet Security Check
 

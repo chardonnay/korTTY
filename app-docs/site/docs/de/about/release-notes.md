@@ -27,6 +27,15 @@ Produktionsqualitätstechniken (strenger Modus, Fehlerfallen, sinnvolle Exit-Cod
 Protokollierung, Idempotenz, Trockenlauf, `--help` und mehr) in das Ergebnis ein. Sehen Sie das Neue
 [Härtungsoptionen](../reference/hardening-options.md)-Referenz für was jeweils
 Option bedeutet und wie sie angewendet wird.
+- **Diagramm-Dunkelmodus** – beide Diagrammfenster (vollständige Codeanalyse und die
+eigenständiges Diagrammdialogfeld) hat eine **Dunkelmodus**-Schaltfläche mit *Auto* erhalten (folgen Sie den Anweisungen).
+Erscheinungsbild des Betriebssystems), *Hell* und *Dunkel*. Die Wahl wird erinnert und
+färbt das gesamte Diagramm neu – dunkle Leinwand, abgedunkelte Knotenkarten mit hellem Text,
+und Lichtanschlüsse – während der manuelle Hintergrundfarbwähler jetzt die Farben einfärbt
+Diagrammseite selbst (nicht nur deren Rand) und gilt für exportierte SVG/PNG.
+- **Windows sperrt das Hauptfenster nicht mehr** – die Snippets **Diff** und **Manage
+Variablen**-Fenster, die über den Snippet-Manager geöffnet werden, frieren das Hauptfenster nicht mehr ein
+KorTTY-Fenster, solange sie geöffnet sind.
 
 ### Snippet-Sicherheitsüberprüfung
 

@@ -1036,7 +1036,8 @@ The Snippet Editor's *AI Code → Full code analysis* opens a non-modal window (
 * *Summary* — a plain-language description of what the script does
 * *Improvements* — suggestions grouped into *Security*, *Optimization* and *Design*, each with a severity badge, explanation and concrete recommendation; tick the ones to apply (or *Select all*)
 * *Dependencies* — external programs/scripts/services the snippet relies on, each with a purpose and a reduce/replace suggestion you can also apply
-* *Flow diagram* — an auto-generated diagram of the script logic with the full toolbar (zoom, fit, save SVG/PNG, copy image/PlantUML, background colour, regenerate) that highlights the matching source lines when you hover a node
+* *Flow diagram* — an auto-generated diagram of the script logic with the full toolbar (zoom, fit, save SVG/PNG, copy image/PlantUML, *Dark mode*, background colour, regenerate) that highlights the matching source lines when you hover a node
+* *Diagram Dark mode* — both diagram windows (Full code analysis and the standalone Diagram dialog) have a *Dark mode* button with *Auto* (follow the OS appearance), *Light* and *Dark*; the choice is remembered and recolours the whole diagram (dark canvas, light text and connectors), while the manual background-colour picker applies in light mode
 * *Hardening options* — a collapsible panel (see below) whose techniques are baked into the applied fixes
 * *Apply selected* — sends the ticked items to the AI in one request and shows a side-by-side before/after diff with per-change reasons before anything changes
 
