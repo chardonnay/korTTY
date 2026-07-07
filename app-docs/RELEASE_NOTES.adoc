@@ -2,6 +2,30 @@
 
 == v2.4.1
 
+=== Snippet AI code analysis
+
+* *Full code analysis*: The snippet editor's *AI Code → Full code analysis* opens a rich, non-modal window with a plain-language summary of what the script does, its external dependencies (each with a reduce/replace suggestion), improvement suggestions grouped into Security / Optimization / Design that you tick and apply, and an auto-generated flow diagram. The diagram carries the full toolbar (zoom, fit, save SVG/PNG, copy image/PlantUML, background colour, regenerate) and highlights the matching source lines when you hover a node.
+* *File names in title bars*: The snippet editor and the analysis window now show the script's file name in their title bars.
+* *Per-run AI profile & re-run*: The analysis and other AI-code windows let you pick a transient AI profile for the next run and re-run with it; font sizes are remembered per window.
+* *AI skills picker*: Relevant AI Skills are pre-selected automatically and can be pinned so they apply to every AI-code action.
+* *Hardening options*: _Improve robustness_, _Custom improvement_, _Full code analysis_, and both workflow-script generators can bake a chosen set of production-quality techniques (strict mode, error traps, meaningful exit codes, logging, idempotency, dry-run, `--help`, and more) into the result. See link:site/docs/en/reference/hardening-options.md[Hardening options] for what each option means and how it is applied.
+* *Diagram Dark mode*: Both diagram windows (Full code analysis and the standalone Diagram dialog) gained a *Dark mode* button with _Auto_ (follow the operating-system appearance), _Light_ and _Dark_. The choice is remembered and recolours the whole diagram — dark canvas, darkened node cards with light text, and light connectors — while the manual background-colour picker now colours the diagram page itself (not just its margin) and applies to exported SVG/PNG.
+* *Windows no longer lock the main window*: The snippet *Diff* and *Manage variables* windows opened from the Snippet Manager no longer freeze the main KorTTY window while they are open.
+* *Hardening options — All / Clear / Save*: Every hardening-options panel gained *All* (tick everything), *Clear* (untick everything) and *Save* buttons. Save remembers your selection permanently, so every hardening panel then opens with your preferred options instead of the all-on default.
+
+=== Snippet Security Check
+
+* *Explained security fixes*: The *Review security fixes* window now renders the original and corrected snippet in a side-by-side diff that highlights changed lines automatically. Hovering a changed block names the finding(s) it addresses (for example `S1`, or `S1 + S2` when a block covers two findings) and shows the reason(s), and every reason is also listed as a card below the diff so the rationale stays visible.
+* *Dedicated security-check AI profile*: You can pick a separate AI profile just for security checks and KorTTY remembers it permanently. Set it in the Security Check window or under *Configuration → Global Settings → AI*; both places share the same setting, and leaving it empty reuses the default profile.
+* *Security Check window improvements*: Adjustable (and remembered) font size, a copy-to-clipboard button for all findings, colour-coded severity badges with most-severe-first sorting, a select-all toggle, and a *Re-run check* button that repeats the review with the selected profile.
+* *Remembered diff zoom*: The font size in the AI diff / review windows is now stored globally instead of only for the current session.
+
+=== Terminal
+
+* *Adjustable terminal background transparency*: A new *View → Zoom → Background Transparency* slider (0–100 %) makes the terminal background see-through to the desktop while the text stays fully opaque and sharp. The value is saved across restarts. Only the terminal area turns transparent — the title, menu and status bars stay solid. Because see-through mode uses a borderless window, turning it on or off takes effect after a restart; in that mode a lightweight custom title bar provides move, resize, minimise, maximise and close. Adjusting the level while already transparent applies live.
+* *Quieter tab close*: Closing a terminal tab now only asks for confirmation when there is something to lose: the tab has split panes, or a command is still running (detected from the local shell's process tree, or from the SSH shell prompt). An idle single terminal closes immediately. The per-connection _Close without confirmation_ option still suppresses the prompt entirely.
+* *Clearer context-menu label*: The terminal right-click action that loads a selected remote file into the snippet editor is now called *Open in Snippet Editor* (previously _Load as text file_).
+
 == v2.4.0
 
 === Terminal Effects
