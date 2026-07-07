@@ -499,6 +499,10 @@ public class GlobalSettings {
     @XmlElement
     private String snippetDiagramColorMode = "auto";
 
+    /** Persisted hardening-option selection (comma-separated enum names); null = never saved → use defaults. */
+    @XmlElement
+    private String snippetHardeningOptions;
+
     @XmlElement
     private String selectedSnippetEditorProfileId; // null = use explicit snippet editor colors
 
@@ -2100,6 +2104,15 @@ public class GlobalSettings {
         this.snippetDiagramColorMode = snippetDiagramColorMode != null && !snippetDiagramColorMode.isBlank()
             ? snippetDiagramColorMode.trim().toLowerCase(java.util.Locale.ROOT)
             : "auto";
+    }
+
+    /** Raw persisted hardening selection (may be null = never saved, or "" = saved empty). */
+    public String getSnippetHardeningOptions() {
+        return snippetHardeningOptions;
+    }
+
+    public void setSnippetHardeningOptions(String snippetHardeningOptions) {
+        this.snippetHardeningOptions = snippetHardeningOptions;
     }
 
     public String getSelectedSnippetEditorProfileId() { return selectedSnippetEditorProfileId; }

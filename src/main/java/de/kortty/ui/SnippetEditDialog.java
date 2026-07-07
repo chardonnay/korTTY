@@ -3344,19 +3344,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         DialogPane pane = dialog.getDialogPane();
         pane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        Map<HardeningOption, CheckBox> optionChecks = new EnumMap<>(HardeningOption.class);
-        GridPane optionsGrid = new GridPane();
-        optionsGrid.setHgap(16);
-        optionsGrid.setVgap(4);
-        EnumSet<HardeningOption> defaults = HardeningOption.defaults();
-        HardeningOption[] all = HardeningOption.values();
-        for (int i = 0; i < all.length; i++) {
-            HardeningOption option = all[i];
-            CheckBox check = new CheckBox(I18n.get("ai.workflow.option." + option.name()));
-            check.setSelected(defaults.contains(option));
-            optionChecks.put(option, check);
-            optionsGrid.add(check, i % 2, i / 2);
-        }
+        HardeningOptionsSelector hardeningSelector = new HardeningOptionsSelector();
         Label optionsHeader = new Label(I18n.get("ai.workflow.options.title"));
         ThemeCssSupport.ThemeColors optionsColors = SnippetAiDialogSupport.resolveThemeColors();
         optionsHeader.setStyle("-fx-font-weight: bold; -fx-text-fill: "
@@ -3364,7 +3352,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         TitledPane optionsPane = new TitledPane();
         optionsPane.setText(null);
         optionsPane.setGraphic(optionsHeader);
-        optionsPane.setContent(optionsGrid);
+        optionsPane.setContent(hardeningSelector);
         optionsPane.setExpanded(true);
 
         TextArea instructionArea = withInstruction ? new TextArea() : null;
@@ -3395,12 +3383,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             if (buttonType != ButtonType.OK) {
                 return null;
             }
-            EnumSet<HardeningOption> selected = EnumSet.noneOf(HardeningOption.class);
-            optionChecks.forEach((option, check) -> {
-                if (check.isSelected()) {
-                    selected.add(option);
-                }
-            });
+            EnumSet<HardeningOption> selected = hardeningSelector.selectedOptions();
             String instruction = finalInstruction != null ? finalInstruction.getText() : null;
             return new ImprovementOptions(instruction != null ? instruction.trim() : null, selected);
         });

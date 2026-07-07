@@ -68,7 +68,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private final SnippetAiResponseSupport.ScriptAnalysis analysis;
     private final Map<String, SnippetAiResponseSupport.ScriptImprovement> improvementsById = new LinkedHashMap<>();
     private final Map<String, SnippetAiResponseSupport.ScriptDependency> dependenciesById = new LinkedHashMap<>();
-    private final Map<HardeningOption, CheckBox> hardeningChecks = new EnumMap<>(HardeningOption.class);
+    private final HardeningOptionsSelector hardeningSelector = new HardeningOptionsSelector();
 
     private final WebView findingsView = new WebView();
     private final Label fontSizeLabel = new Label();
@@ -225,16 +225,6 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     }
 
     private TitledPane buildHardeningPane() {
-        GridPane grid = new GridPane();
-        grid.setHgap(16);
-        grid.setVgap(4);
-        HardeningOption[] all = HardeningOption.values();
-        for (int i = 0; i < all.length; i++) {
-            HardeningOption option = all[i];
-            CheckBox check = new CheckBox(I18n.get("ai.workflow.option." + option.name()));
-            hardeningChecks.put(option, check);
-            grid.add(check, i % 2, i / 2);
-        }
         // Use a bold Label as the title graphic so the section name is clearly visible next to the
         // expand arrow (the theme's TitledPane title text is otherwise too faint and easy to miss).
         Label header = new Label(I18n.get("ai.workflow.options.title"));
@@ -244,19 +234,13 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         TitledPane pane = new TitledPane();
         pane.setText(null);
         pane.setGraphic(header);
-        pane.setContent(grid);
+        pane.setContent(hardeningSelector);
         pane.setExpanded(false);
         return pane;
     }
 
     private EnumSet<HardeningOption> selectedHardening() {
-        EnumSet<HardeningOption> selected = EnumSet.noneOf(HardeningOption.class);
-        hardeningChecks.forEach((option, check) -> {
-            if (check.isSelected()) {
-                selected.add(option);
-            }
-        });
-        return selected;
+        return hardeningSelector.selectedOptions();
     }
 
     // ---- Font zoom + copy -----------------------------------------------------------------------

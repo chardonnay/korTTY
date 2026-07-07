@@ -405,4 +405,21 @@ class WorkflowScriptSupportTest {
         // Blank prompt falls back to the default stem.
         assertThat(WorkflowScriptSupport.buildShortScriptStem("   ")).isEqualTo("workflow_script");
     }
+
+    @Test
+    void hardeningOptionsSerializeAndParseRoundTrip() {
+        EnumSet<HardeningOption> chosen = EnumSet.of(
+            HardeningOption.STRICT_MODE, HardeningOption.SAFE_MODE, HardeningOption.HELP_USAGE);
+
+        String csv = HardeningOption.serializeOptions(chosen);
+        assertThat(HardeningOption.parseOptions(csv)).isEqualTo(chosen);
+
+        // null means "never saved" -> all options; an empty string means a saved "clear" -> none.
+        assertThat(HardeningOption.parseOptions(null)).isEqualTo(HardeningOption.defaults());
+        assertThat(HardeningOption.parseOptions("")).isEmpty();
+        assertThat(HardeningOption.serializeOptions(EnumSet.noneOf(HardeningOption.class))).isEmpty();
+        // Unknown / stale tokens are ignored, valid ones kept.
+        assertThat(HardeningOption.parseOptions("STRICT_MODE, BOGUS ,IDEMPOTENCY"))
+            .isEqualTo(EnumSet.of(HardeningOption.STRICT_MODE, HardeningOption.IDEMPOTENCY));
+    }
 }

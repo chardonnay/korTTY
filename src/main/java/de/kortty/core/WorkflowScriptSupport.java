@@ -151,6 +151,45 @@ public final class WorkflowScriptSupport {
         public boolean isOptIn() {
             return this == PRECONDITION_CHECKS || this == IDEMPOTENCY || this == SAFE_MODE || this == HELP_USAGE;
         }
+
+        /**
+         * Parses a persisted comma-separated selection (enum names). {@code null} means "never saved" and
+         * yields {@link #defaults()} (all options); an empty string yields an empty set (a saved "clear").
+         * Unknown tokens are ignored.
+         */
+        public static EnumSet<HardeningOption> parseOptions(String csv) {
+            if (csv == null) {
+                return defaults();
+            }
+            EnumSet<HardeningOption> selected = EnumSet.noneOf(HardeningOption.class);
+            for (String token : csv.split(",")) {
+                String name = token.trim();
+                if (name.isEmpty()) {
+                    continue;
+                }
+                try {
+                    selected.add(HardeningOption.valueOf(name));
+                } catch (IllegalArgumentException ignored) {
+                    // Drop tokens from older/newer builds that no longer map to an option.
+                }
+            }
+            return selected;
+        }
+
+        /** Serialises a selection to a comma-separated list of enum names (empty string for an empty set). */
+        public static String serializeOptions(EnumSet<HardeningOption> options) {
+            if (options == null || options.isEmpty()) {
+                return "";
+            }
+            StringBuilder builder = new StringBuilder();
+            for (HardeningOption option : options) {
+                if (builder.length() > 0) {
+                    builder.append(',');
+                }
+                builder.append(option.name());
+            }
+            return builder.toString();
+        }
     }
 
     /** Authoritative header facts injected verbatim so the model cannot hallucinate them. */
