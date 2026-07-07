@@ -2577,7 +2577,7 @@
 <p>KorTTY kann ausgewählten Terminaltext mit einem OpenAI-kompatiblen KI-Endpunkt analysieren und die Antwort in einer temporären KI-Ergebnisregisterkarte öffnen. Sie können auch Workflows im Agentenstil starten, um SSH-Aufgaben zu automatisieren oder Pläne vor der Implementierung überprüfen zu lassen.</p>
 <p><img alt="AI request/integration flow" src="../assets/diagrams/ai-api-integration.svg" /></p>
 <p>!!! Warnung „Datensicherheit“
-Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt übertragen. Dieser Text kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder andere Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong> oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden. Wenn Sie einen <strong>API-Schlüssel</strong> angeben, speichert korTTY diesen verschlüsselt mit Ihrem Master-Passwort.</p>
+    Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt übertragen. Dieser Text kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder andere Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong> oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden. Wenn Sie einen <strong>API-Schlüssel</strong> angeben, speichert korTTY diesen verschlüsselt mit Ihrem Master-Passwort.</p>
 <h2 id="aufstellen">Aufstellen<a class="headerlink" href="#aufstellen" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Öffnen Sie <strong>Bearbeiten &gt; Globale Einstellungen</strong>.</li>
@@ -2617,7 +2617,7 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 </ul>
 <h3 id="lokale-lm-studio-modellauswahl">Lokale LM Studio-Modellauswahl<a class="headerlink" href="#lokale-lm-studio-modellauswahl" title="Permanent link">&para;</a></h3>
 <p>Für lokale LM Studio-Profile kann korTTY aktuell geladene LLM-Modellschlüssel über den <code>GET /api/v1/models</code>-Endpunkt von LM Studio ermitteln.</p>
-<p>Der automatische Modus löst das effektive Modell unmittelbar vor Verbindungstests, KI-Chat- und Folgeanfragen, Terminal-KI-Aktionen und der Ausführung des Terminal-KI-Agenten auf. Wenn genau ein LLM geladen ist, verwendet korTTY dieses Modell. Wenn mehrere LLMs geladen sind, verwendet korTTY das gespeicherte bevorzugte Modell nur, wenn dieses Modell gerade geladen ist. Wenn kein LLM geladen ist oder mehrere LLMs ohne gültige gespeicherte Präferenz geladen werden, stoppt korTTY die Anfrage mit einem expliziten Fehler, anstatt zu raten.</p>
+<p>Der automatische Modus löst das effektive Modell unmittelbar vor Verbindungstests, KI-Chat- und Folgeanfragen, Terminal-KI-Aktionen und der Ausführung von Terminal-KI-Agenten auf. Wenn genau ein LLM geladen ist, verwendet korTTY dieses Modell. Wenn mehrere LLMs geladen sind, verwendet korTTY das gespeicherte bevorzugte Modell nur, wenn dieses Modell gerade geladen ist. Wenn kein LLM geladen ist oder mehrere LLMs ohne gültige gespeicherte Präferenz geladen werden, stoppt korTTY die Anfrage mit einem expliziten Fehler, anstatt zu raten.</p>
 <h2 id="ki-internetzugang">KI-Internetzugang<a class="headerlink" href="#ki-internetzugang" title="Permanent link">&para;</a></h2>
 <p>Der Internetzugang wird pro AI-Profil konfiguriert. Vorhandene und neue Profile sind standardmäßig <strong>Deaktiviert</strong>.</p>
 <table>
@@ -2773,20 +2773,20 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <p>Ein Mermaid-Antwortblock wie dieser wird als Flussdiagramm dargestellt:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>```mermaid
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>Diagramm TD;
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>Anmelden -&gt; Bestätigen;
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>Validieren--&gt;|ok| Sitzung;
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>Validieren -&gt;|fehlschlagen| Fehler;
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  Anmelden -&gt; Bestätigen;
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  Validieren--&gt;|ok| Sitzung;
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  Validieren -&gt;|fehlschlagen| Fehler;
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>```
 </span></code></pre></div>
 <p>Und zeigen Sie die Mathematik im Antworttext als gesetzte Formel an:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>$$a^2 + b^2 = c^2$$
 </span></code></pre></div>
 <p>!!! Hinweis „Darstellungsdetails und Anforderungen“
-* Die SVG- und PlantUML-Ausgabe wird mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.
-* Mermaid läuft mit der Sicherheitsstufe <code>strict</code> aus einer lokal gebündelten Bibliothek; LaTeX wird von einem lokal gebündelten MathJax gesetzt. Keiner von beiden benötigt einen Internetzugang.
-* Beim PlantUML-Rendering wird die lokale PlantUML-Toolchain verwendet: <code>java</code> und Graphviz <code>dot</code> müssen sich auf <code>PATH</code> befinden, und das PlantUML-JAR wird bei der ersten Verwendung in den Benutzercache heruntergeladen (dieselben Anforderungen wie bei Snippet-Diagrammen).
-* Vollständige LaTeX-Dokumente (<code>\documentclass</code>) bleiben absichtlich Codeblöcke; Es werden nur Formeln gesetzt.
-* Für gerenderte Bilder wird eine weiße Leinwand verwendet, sodass Diagramme und Formeln mit dunklen Strichen bei dunklen Themen lesbar bleiben.</p>
+    * Die SVG- und PlantUML-Ausgabe wird mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.
+    * Mermaid läuft mit der Sicherheitsstufe <code>strict</code> aus einer lokal gebündelten Bibliothek; LaTeX wird von einem lokal gebündelten MathJax gesetzt. Keiner von beiden benötigt einen Internetzugang.
+    * Beim PlantUML-Rendering wird die lokale PlantUML-Toolchain verwendet: <code>java</code> und Graphviz <code>dot</code> müssen sich auf <code>PATH</code> befinden, und das PlantUML-JAR wird bei der ersten Verwendung in den Benutzercache heruntergeladen (dieselben Anforderungen wie bei Snippet-Diagrammen).
+    * Vollständige LaTeX-Dokumente (<code>\documentclass</code>) bleiben absichtlich Codeblöcke; Es werden nur Formeln gesetzt.
+    * Für gerenderte Bilder wird eine weiße Leinwand verwendet, sodass Diagramme und Formeln mit dunklen Strichen bei dunklen Themen lesbar bleiben.</p>
 <h2 id="ki-manager">KI-Manager<a class="headerlink" href="#ki-manager" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie <strong>Tools &gt; AI Manager</strong> oder drücken Sie ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).</p>
 <p><img alt="AI Manager" src="../assets/screenshots/ai/ai-manager.png" /></p>
@@ -2811,21 +2811,11 @@ Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt ü
 <li>Ein entsperrter Master-Passwort-Tresor, wenn das Profil einen verschlüsselten API-Schlüssel speichert.</li>
 </ul>
 <p>!!! Warnung „Datensicherheit“
-Der Fragetext und die ausgewählten manuellen Auszüge werden an den konfigurierten KI-Endpunkt übermittelt. Der Inhalt der Anleitungs selbst ist eine öffentliche Dokumentation, aber Ihre Frage ist Freitext – vermeiden Sie das Einfügen von Geheimnissen oder verwenden Sie einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong>. Bei manuellen Fragen sind die Internetzugriffsmodi immer deaktiviert.</p>
+    Der Fragetext und die ausgewählten manuellen Auszüge werden an den konfigurierten KI-Endpunkt übermittelt. Der Inhalt der Anleitungs selbst ist eine öffentliche Dokumentation, aber Ihre Frage ist Freitext – vermeiden Sie das Einfügen von Geheimnissen oder verwenden Sie einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong>. Bei manuellen Fragen sind die Internetzugriffsmodi immer deaktiviert.</p>
 <h2 id="ki-agent-und-ki-planung">KI-Agent und KI-Planung<a class="headerlink" href="#ki-agent-und-ki-planung" title="Permanent link">&para;</a></h2>
 <p>korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.</p>
 <p>!!! Hinweis „SSH und lokale Shells“
-Die Befehlsausführungs-Engine des Agenten ist hinter einem von SSH entkoppelt
-<code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal)
-und <strong>local</strong> (ein neuer lokaler Prozess). Der <strong>KI-Agent</strong> und <strong>KI-Planung</strong>
-daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#local-shell">lokalen Shells</a>
-unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt
-(PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebung
-Sonde und Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native generiert
-Befehle, und es gilt der gleiche Genehmigungsablauf. <strong>Einschränkungen der lokalen Shell:</strong> Nein
-<code>sudo</code>/Administrator-Erhöhung unter Windows und kein Live-Arbeitsverzeichnis
-Tracking (der Agent verwendet das Startverzeichnis der Verbindung). Der JobScheduler
-Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.</p>
+    Die Befehlsausführungs-Engine des Agenten ist hinter einer <code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal) und <strong>local</strong> (ein neuer lokaler Prozess) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#local-shell">lokalen Shells</a> unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. <strong>Einschränkungen der lokalen Shell:</strong> keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
 <h3 id="starten-des-agenten">Starten des Agenten<a class="headerlink" href="#starten-des-agenten" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>AI Agent</strong> – Starten Sie über <strong>Tools &gt; AI Agent...</strong>, über das Kontextmenü des Terminals oder mit dem Terminal-Verknüpfungsbefehl. Der Agent kann je nach <strong>Einstellungen &gt; AI</strong> einen speziellen Chat-Tab öffnen oder auf das aktive Terminalfenster zielen.</li>
@@ -2998,10 +2988,7 @@ Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.</p>
 <p>Jeder Editor für generierte Skripte verfügt über die Schaltflächen <strong>A−</strong> / <strong>A+</strong> und unterstützt <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad (Cmd unter macOS), um die Schriftgröße zu ändern; Die gewählte Größe wird sitzungsübergreifend gespeichert.</p>
 <p>Die Größe des Workflow-Dialogfelds kann geändert werden und seine Größe und Position werden für die zukünftige Verwendung gespeichert.</p>
 <p>!!! Tipp „KI-Backend-Fehler deutlicher machen“
-Wenn der KI-Server nicht mehr über genügend Speicher verfügt oder ein Ressourcenlimit erreicht (z. B. LM
-Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“), im Dialog wird Folgendes angezeigt:
-kurzer, umsetzbarer Hinweis anstelle des rohen mehrzeiligen Backend-Stack-Trace; alle
-Andere KI-Fehler werden in einer einzigen Zeile zusammengefasst.</p>
+    Wenn der KI-Server nicht mehr über genügend Arbeitsspeicher verfügt oder ein Ressourcenlimit erreicht (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“), zeigt das Dialogfeld einen kurzen, umsetzbaren Hinweis anstelle des rohen mehrzeiligen Backend-Stack-Trace an; Alle anderen KI-Fehler werden in einer einzigen Zeile zusammengefasst.</p>
 
 
 

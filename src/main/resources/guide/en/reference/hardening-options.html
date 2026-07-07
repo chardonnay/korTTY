@@ -2086,16 +2086,8 @@
 
 
 <h1 id="hardening-options">Hardening options<a class="headerlink" href="#hardening-options" title="Permanent link">&para;</a></h1>
-<p><strong>Hardening options</strong> are a set of production-quality techniques you can ask the
-AI to bake into a script it generates or rewrites. Instead of writing the same
-instruction ("add error handling", "make it re-runnable", "give it a <code>--help</code>")
-by hand every time, you tick the techniques you want and KorTTY turns each one
-into a precise rule that is appended to the AI prompt. The result is a script
-that behaves like something a careful engineer would ship: it fails loudly
-instead of silently, cleans up after itself, logs what it does, and can be run
-again without surprises.</p>
-<p>The same eleven options are used everywhere KorTTY generates or improves a
-script, so they behave identically no matter where you start from.</p>
+<p><strong>Hardening options</strong> are a set of production-quality techniques you can ask the AI to bake into a script it generates or rewrites. Instead of writing the same instruction ("add error handling", "make it re-runnable", "give it a <code>--help</code>") by hand every time, you tick the techniques you want and KorTTY turns each one into a precise rule that is appended to the AI prompt. The result is a script that behaves like something a careful engineer would ship: it fails loudly instead of silently, cleans up after itself, logs what it does, and can be run again without surprises.</p>
+<p>The same eleven options are used everywhere KorTTY generates or improves a script, so they behave identically no matter where you start from.</p>
 <h2 id="where-they-appear">Where they appear<a class="headerlink" href="#where-they-appear" title="Permanent link">&para;</a></h2>
 <p>The <strong>Hardening options</strong> panel shows up in these places:</p>
 <table>
@@ -2136,166 +2128,104 @@ script, so they behave identically no matter where you start from.</p>
 </table>
 <div class="admonition note">
 <p class="admonition-title">Not shown for every action</p>
-<p><em>Improve readability</em> and <em>Improve performance</em> deliberately do <strong>not</strong> show
-hardening options — those actions are meant to stay close to the original
-code. Hardening options appear only where adding robustness is the point:
-<em>Improve robustness</em>, <em>Custom improvement</em>, <em>Full code analysis</em>, and the two
-workflow-script generators.</p>
+<p><em>Improve readability</em> and <em>Improve performance</em> deliberately do <strong>not</strong> show hardening options — those actions are meant to stay close to the original code. Hardening options appear only where adding robustness is the point: <em>Improve robustness</em>, <em>Custom improvement</em>, <em>Full code analysis</em>, and the two workflow-script generators.</p>
 </div>
-<p>Every option is <strong>ticked by default</strong>. Untick the ones you do not want. An
-unticked option contributes nothing to the prompt.</p>
+<p>Every option is <strong>ticked by default</strong>. Untick the ones you do not want. An unticked option contributes nothing to the prompt.</p>
 <p>Below the options, three buttons help you manage the selection:</p>
 <ul>
 <li><strong>All</strong> — tick every option.</li>
 <li><strong>Clear</strong> — untick every option (generate/apply with no hardening rules).</li>
-<li><strong>Save</strong> — remember the current selection permanently. From then on, every
-  hardening panel opens with your saved selection instead of the all-on default —
-  so you can set your preferred hardening once and have it applied everywhere.</li>
+<li><strong>Save</strong> — remember the current selection permanently. From then on, every hardening panel opens with your saved selection instead of the all-on default — so you can set your preferred hardening once and have it applied everywhere.</li>
 </ul>
 <h2 id="how-they-are-applied">How they are applied<a class="headerlink" href="#how-they-are-applied" title="Permanent link">&para;</a></h2>
-<p>Each ticked option becomes exactly one instruction line that KorTTY appends to
-the request sent to the AI (under <em>Apply these hardening techniques:</em> in the
-snippet editor, or <em>ADDITIONAL REQUIREMENTS:</em> in the workflow generator). The AI
-is then asked to honour those rules while producing the script.</p>
+<p>Each ticked option becomes exactly one instruction line that KorTTY appends to the request sent to the AI (under <em>Apply these hardening techniques:</em> in the snippet editor, or <em>ADDITIONAL REQUIREMENTS:</em> in the workflow generator). The AI is then asked to honour those rules while producing the script.</p>
 <p>The wording of each rule <strong>adapts to the target language</strong>:</p>
 <ul>
-<li><strong>Imperative scripts</strong> — Bash, Python, Perl, Ruby, PowerShell, Windows-CMD and
-  AppleScript get the imperative phrasing (flags, traps, exit codes, …).</li>
-<li><strong>Declarative artefacts</strong> — Ansible playbooks, and snippets whose language is
-  <code>YAML</code>/<code>YML</code> or contains <code>ansible</code>, get Ansible-idiomatic phrasing instead
-  (<code>block</code>/<code>rescue</code>/<code>always</code>, <code>assert</code>, <code>vars:</code>, check mode, …).</li>
+<li><strong>Imperative scripts</strong> — Bash, Python, Perl, Ruby, PowerShell, Windows-CMD and AppleScript get the imperative phrasing (flags, traps, exit codes, …).</li>
+<li><strong>Declarative artefacts</strong> — Ansible playbooks, and snippets whose language is <code>YAML</code>/<code>YML</code> or contains <code>ansible</code>, get Ansible-idiomatic phrasing instead (<code>block</code>/<code>rescue</code>/<code>always</code>, <code>assert</code>, <code>vars:</code>, check mode, …).</li>
 </ul>
-<p>So the <em>idea</em> of each option is the same everywhere, but a Bash script gets a
-<code>set -euo pipefail</code> style rule while an Ansible playbook gets an <code>assert</code> /
-<code>failed_when</code> style rule for the very same tick-box.</p>
+<p>So the <em>idea</em> of each option is the same everywhere, but a Bash script gets a <code>set -euo pipefail</code> style rule while an Ansible playbook gets an <code>assert</code> / <code>failed_when</code> style rule for the very same tick-box.</p>
 <h2 id="the-two-groups">The two groups<a class="headerlink" href="#the-two-groups" title="Permanent link">&para;</a></h2>
 <p>The eleven options fall into two groups by their effect on the script:</p>
 <ul>
-<li><strong>Behaviour-preserving hardening</strong> (the first seven) only add documentation,
-  logging, structure, and safety nets. They make the script sturdier and easier
-  to read <strong>without changing what it actually does</strong>. These are safe to leave on
-  for almost any script.</li>
-<li><strong>Behavioural / interactive changes</strong> (the last four) can change control flow
-  or add a command-line interface — precondition gates, re-run detection, a
-  dry-run mode, argument parsing. Leave them off if you want the rewrite to stay
-  as close as possible to the original behaviour.</li>
+<li><strong>Behaviour-preserving hardening</strong> (the first seven) only add documentation, logging, structure, and safety nets. They make the script sturdier and easier to read <strong>without changing what it actually does</strong>. These are safe to leave on for almost any script.</li>
+<li><strong>Behavioural / interactive changes</strong> (the last four) can change control flow or add a command-line interface — precondition gates, re-run detection, a dry-run mode, argument parsing. Leave them off if you want the rewrite to stay as close as possible to the original behaviour.</li>
 </ul>
 <h2 id="option-reference">Option reference<a class="headerlink" href="#option-reference" title="Permanent link">&para;</a></h2>
-<p>Each option below lists what it is for and the exact rule KorTTY sends to the
-AI — for imperative scripts and for Ansible playbooks.</p>
+<p>Each option below lists what it is for and the exact rule KorTTY sends to the AI — for imperative scripts and for Ansible playbooks.</p>
 <h3 id="behaviour-preserving-hardening">Behaviour-preserving hardening<a class="headerlink" href="#behaviour-preserving-hardening" title="Permanent link">&para;</a></h3>
 <h4 id="strict-mode-abort-on-error">Strict mode (abort on error)<a class="headerlink" href="#strict-mode-abort-on-error" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Stop the script the moment something goes wrong instead of
-  blindly continuing on a half-failed state.</li>
-<li><strong>Imperative scripts</strong> — Enable the language's strict / abort-on-error mode (for
-  example <code>set -euo pipefail</code> in Bash, <code>Set-StrictMode -Version Latest</code> with
-  <code>$ErrorActionPreference = 'Stop'</code> in PowerShell, <code>use strict; use warnings;</code> in
-  Perl).</li>
-<li><strong>Ansible playbooks</strong> — Validate prerequisites with <code>assert</code>/<code>failed_when</code> so
-  bad state fails the play immediately.</li>
+<li><strong>What it is for</strong> — Stop the script the moment something goes wrong instead of blindly continuing on a half-failed state.</li>
+<li><strong>Imperative scripts</strong> — Enable the language's strict / abort-on-error mode (for example <code>set -euo pipefail</code> in Bash, <code>Set-StrictMode -Version Latest</code> with <code>$ErrorActionPreference = 'Stop'</code> in PowerShell, <code>use strict; use warnings;</code> in Perl).</li>
+<li><strong>Ansible playbooks</strong> — Validate prerequisites with <code>assert</code>/<code>failed_when</code> so bad state fails the play immediately.</li>
 </ul>
 <h4 id="error-trap-cleanup">Error trap &amp; cleanup<a class="headerlink" href="#error-trap-cleanup" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Guarantee that a failure is reported clearly and that any
-  temporary state (temp files, mounts, locks) is cleaned up even when the script
-  aborts.</li>
-<li><strong>Imperative scripts</strong> — Add an error trap / <code>finally</code> / <code>ensure</code> block that
-  reports failures and cleans up temporary state.</li>
-<li><strong>Ansible playbooks</strong> — Use <code>block</code>/<code>rescue</code>/<code>always</code> so failures are caught and
-  cleanup always runs.</li>
+<li><strong>What it is for</strong> — Guarantee that a failure is reported clearly and that any temporary state (temp files, mounts, locks) is cleaned up even when the script aborts.</li>
+<li><strong>Imperative scripts</strong> — Add an error trap / <code>finally</code> / <code>ensure</code> block that reports failures and cleans up temporary state.</li>
+<li><strong>Ansible playbooks</strong> — Use <code>block</code>/<code>rescue</code>/<code>always</code> so failures are caught and cleanup always runs.</li>
 </ul>
 <h4 id="meaningful-exit-codes">Meaningful exit codes<a class="headerlink" href="#meaningful-exit-codes" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Let whoever calls the script (a scheduler, a CI job,
-  another script) tell <em>why</em> it failed, not just <em>that</em> it failed.</li>
-<li><strong>Imperative scripts</strong> — Use distinct, documented non-zero exit codes for
-  distinct failure classes.</li>
-<li><strong>Ansible playbooks</strong> — Make failing tasks stop the play with a clear message
-  (<code>any_errors_fatal</code> where sensible).</li>
+<li><strong>What it is for</strong> — Let whoever calls the script (a scheduler, a CI job, another script) tell <em>why</em> it failed, not just <em>that</em> it failed.</li>
+<li><strong>Imperative scripts</strong> — Use distinct, documented non-zero exit codes for distinct failure classes.</li>
+<li><strong>Ansible playbooks</strong> — Make failing tasks stop the play with a clear message (<code>any_errors_fatal</code> where sensible).</li>
 </ul>
 <h4 id="logging-verbose">Logging (<code>--verbose</code>)<a class="headerlink" href="#logging-verbose" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Make the script's progress visible and debuggable without
-  cluttering normal output.</li>
-<li><strong>Imperative scripts</strong> — Emit timestamped log messages to stderr and support a
-  <code>--verbose</code>/<code>-v</code> flag.</li>
-<li><strong>Ansible playbooks</strong> — Use the <code>debug</code> module for progress output (visible with
-  <code>-v</code>).</li>
+<li><strong>What it is for</strong> — Make the script's progress visible and debuggable without cluttering normal output.</li>
+<li><strong>Imperative scripts</strong> — Emit timestamped log messages to stderr and support a <code>--verbose</code>/<code>-v</code> flag.</li>
+<li><strong>Ansible playbooks</strong> — Use the <code>debug</code> module for progress output (visible with <code>-v</code>).</li>
 </ul>
 <h4 id="configuration-block-for-literals">Configuration block for literals<a class="headerlink" href="#configuration-block-for-literals" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Collect the values you are most likely to change (paths,
-  hostnames, package names) in one obvious place instead of scattering them
-  through the script.</li>
-<li><strong>Imperative scripts</strong> — Hoist all literals (paths, hosts, packages) into a
-  clearly commented configuration block near the top.</li>
+<li><strong>What it is for</strong> — Collect the values you are most likely to change (paths, hostnames, package names) in one obvious place instead of scattering them through the script.</li>
+<li><strong>Imperative scripts</strong> — Hoist all literals (paths, hosts, packages) into a clearly commented configuration block near the top.</li>
 <li><strong>Ansible playbooks</strong> — Hoist all literals into a <code>vars:</code> block at the top.</li>
 </ul>
 <h4 id="final-summary">Final summary<a class="headerlink" href="#final-summary" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — End with a short report so the operator can see at a glance
-  what happened.</li>
-<li><strong>Imperative scripts</strong> — Print a final summary of what was done (with
-  success/failure counts).</li>
+<li><strong>What it is for</strong> — End with a short report so the operator can see at a glance what happened.</li>
+<li><strong>Imperative scripts</strong> — Print a final summary of what was done (with success/failure counts).</li>
 <li><strong>Ansible playbooks</strong> — End with a <code>debug</code> summary of what changed.</li>
 </ul>
 <h4 id="style-guide-linter-clean">Style-guide / linter clean<a class="headerlink" href="#style-guide-linter-clean" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Produce code that passes the language's standard linter, so
-  it reads consistently and avoids common footguns.</li>
-<li><strong>Imperative scripts</strong> — Follow the language style guide and keep it
-  linter-clean (for example ShellCheck-clean for Bash).</li>
-<li><strong>Ansible playbooks</strong> — Follow <code>ansible-lint</code> conventions and use
-  fully-qualified module names.</li>
+<li><strong>What it is for</strong> — Produce code that passes the language's standard linter, so it reads consistently and avoids common footguns.</li>
+<li><strong>Imperative scripts</strong> — Follow the language style guide and keep it linter-clean (for example ShellCheck-clean for Bash).</li>
+<li><strong>Ansible playbooks</strong> — Follow <code>ansible-lint</code> conventions and use fully-qualified module names.</li>
 </ul>
 <h3 id="behavioural-interactive-changes">Behavioural / interactive changes<a class="headerlink" href="#behavioural-interactive-changes" title="Permanent link">&para;</a></h3>
 <h4 id="precondition-checks">Precondition checks<a class="headerlink" href="#precondition-checks" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Fail fast, before touching anything, if the environment
-  isn't ready — a missing command, insufficient privileges, or no network.</li>
-<li><strong>Imperative scripts</strong> — Before doing work, verify required commands, privileges
-  (root/sudo) and connectivity.</li>
-<li><strong>Ansible playbooks</strong> — Add <code>pre_tasks</code>/<code>assert</code> checks for required privileges,
-  packages and connectivity before any change.</li>
+<li><strong>What it is for</strong> — Fail fast, before touching anything, if the environment isn't ready — a missing command, insufficient privileges, or no network.</li>
+<li><strong>Imperative scripts</strong> — Before doing work, verify required commands, privileges (root/sudo) and connectivity.</li>
+<li><strong>Ansible playbooks</strong> — Add <code>pre_tasks</code>/<code>assert</code> checks for required privileges, packages and connectivity before any change.</li>
 </ul>
 <h4 id="idempotency-skip-completed-steps">Idempotency (skip completed steps)<a class="headerlink" href="#idempotency-skip-completed-steps" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Make the script safe to run a second time: steps that are
-  already done are detected and skipped instead of repeated or erroring out.</li>
-<li><strong>Imperative scripts</strong> — Detect already-completed steps and skip them so the
-  script is safe to re-run.</li>
-<li><strong>Ansible playbooks</strong> — Ensure the playbook is fully idempotent (safe to re-run;
-  rely on module idempotency and <code>creates</code>/<code>removes</code>).</li>
+<li><strong>What it is for</strong> — Make the script safe to run a second time: steps that are already done are detected and skipped instead of repeated or erroring out.</li>
+<li><strong>Imperative scripts</strong> — Detect already-completed steps and skip them so the script is safe to re-run.</li>
+<li><strong>Ansible playbooks</strong> — Ensure the playbook is fully idempotent (safe to re-run; rely on module idempotency and <code>creates</code>/<code>removes</code>).</li>
 </ul>
 <h4 id="safe-mode-dry-run-confirm">Safe mode (<code>--dry-run</code> + confirm)<a class="headerlink" href="#safe-mode-dry-run-confirm" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Let the operator preview what the script <em>would</em> do without
-  making any changes, and ask for confirmation before anything destructive.</li>
-<li><strong>Imperative scripts</strong> — Support a <code>--dry-run</code> flag that prints intended actions
-  without executing, and confirm before destructive operations (suppressible with
-  <code>--yes</code>).</li>
-<li><strong>Ansible playbooks</strong> — Support check mode (<code>--check</code>) and guard destructive
-  tasks so a dry run makes no changes.</li>
+<li><strong>What it is for</strong> — Let the operator preview what the script <em>would</em> do without making any changes, and ask for confirmation before anything destructive.</li>
+<li><strong>Imperative scripts</strong> — Support a <code>--dry-run</code> flag that prints intended actions without executing, and confirm before destructive operations (suppressible with <code>--yes</code>).</li>
+<li><strong>Ansible playbooks</strong> — Support check mode (<code>--check</code>) and guard destructive tasks so a dry run makes no changes.</li>
 </ul>
 <h4 id="-help-argument-parsing"><code>--help</code> &amp; argument parsing<a class="headerlink" href="#-help-argument-parsing" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>What it is for</strong> — Turn the script into a proper command-line tool with
-  documented, overridable inputs instead of hard-coded values.</li>
-<li><strong>Imperative scripts</strong> — Provide a <code>--help</code>/usage message and parse command-line
-  arguments for the configurable values.</li>
-<li><strong>Ansible playbooks</strong> — Document all variables and how to override them via
-  <code>--extra-vars</code> at the top of the file.</li>
+<li><strong>What it is for</strong> — Turn the script into a proper command-line tool with documented, overridable inputs instead of hard-coded values.</li>
+<li><strong>Imperative scripts</strong> — Provide a <code>--help</code>/usage message and parse command-line arguments for the configurable values.</li>
+<li><strong>Ansible playbooks</strong> — Document all variables and how to override them via <code>--extra-vars</code> at the top of the file.</li>
 </ul>
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Start with the defaults (all on) for a throwaway or personal script — the
-  behaviour-preserving group costs you nothing and the interactive group makes
-  the script friendlier.</li>
-<li>For a rewrite where you want the smallest possible diff, untick the four
-  behavioural options and keep only the behaviour-preserving group.</li>
-<li>The options are independent — you can tick any combination. KorTTY only sends
-  rules for the boxes that are ticked.</li>
+<li>Start with the defaults (all on) for a throwaway or personal script — the behaviour-preserving group costs you nothing and the interactive group makes the script friendlier.</li>
+<li>For a rewrite where you want the smallest possible diff, untick the four behavioural options and keep only the behaviour-preserving group.</li>
+<li>The options are independent — you can tick any combination. KorTTY only sends rules for the boxes that are ticked.</li>
 </ul>
 
 

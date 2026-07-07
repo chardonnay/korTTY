@@ -1944,34 +1944,20 @@
 <h1 id="ubersicht-uber-das-hauptfenster">Übersicht über das Hauptfenster<a class="headerlink" href="#ubersicht-uber-das-hauptfenster" title="Permanent link">&para;</a></h1>
 <p><img alt="korTTY main window" src="../assets/screenshots/main/main-window.png" /></p>
 <p><img alt="Main window layout" src="../assets/diagrams/mainwindow-layout.svg" /></p>
-<p>Ein neues korTTY-Fenster: die Menüleiste, der Terminalbereich (wo Sitzungsregisterkarten und
-(das optionale Dashboard wird angezeigt, sobald Sie eine Verbindung hergestellt haben) und die Statusleiste. Der
-Das folgende Diagramm bildet dieselben Regionen ab:</p>
+<p>Ein neues korTTY-Fenster: die Menüleiste, der Terminalbereich (in dem Sitzungsregisterkarten und das optionale Dashboard angezeigt werden, sobald Sie eine Verbindung hergestellt haben) und die Statusleiste. Das folgende Diagramm bildet dieselben Regionen ab:</p>
 <p><img alt="korTTY architecture" src="../assets/diagrams/architecture.svg" /></p>
 <p>Das Hauptfenster von korTTY hat diese Bereiche:</p>
 <ul>
-<li><strong>Menüleiste</strong> – Datei · Bearbeiten · Verbindungen · Sicherheit · Konfiguration · Tools ·
-Plugins · Anzeigen · Teamwork · KI · Hilfe. Alle Funktionen sind hier und über erreichbar
-<a href="../reference/keyboard-shortcuts.html">Tastaturkürzel</a>. Ein Live-<strong>JobScheduler
-Das Statusmenü</strong> erscheint nach <em>Hilfe</em>, wenn ein geplanter Eintrag aktiv ist.</li>
-<li><strong>Tab-Leiste</strong> – jede SSH/Mosh-Sitzung wird in einem eigenen Tab ausgeführt. ++Strg+T++ öffnet Quick
-Für einen neuen Tab verbinden; ++Strg+Tab++ / ++Strg+Umschalt+Tab++ Tabs wechseln.</li>
-<li><strong>Dashboard</strong> (umschalten ++Strg+Umschalt+D++) – listet alle offenen Verbindungen mit Status auf
-Indikatoren und KI-Agent-Abzeichen. Klicken Sie mit der rechten Maustaste auf eine Verbindung, um die Verbindung wiederherzustellen.
-duplizieren, SFTP öffnen oder schließen.</li>
-<li><strong>Terminalbereich</strong> – das aktive Terminal, mit optionalem geteiltem Bildschirm und
-Broadcast-Eingang.</li>
-<li><strong>Statusleiste</strong> – Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel
-Timer und Verbindungsdauer.</li>
+<li><strong>Menüleiste</strong> – Datei · Bearbeiten · Verbindungen · Sicherheit · Konfiguration · Tools · Plugins · Anzeigen · Teamwork · KI · Hilfe. Alle Funktionen sind hier und über <a href="../reference/keyboard-shortcuts.html">Tastaturkürzel</a>] erreichbar. Ein Live-Menü <strong>JobScheduler-Status</strong> erscheint nach <em>Hilfe</em>, wenn ein geplanter Eintrag aktiv ist.</li>
+<li><strong>Tab-Leiste</strong> – jede SSH/Mosh-Sitzung wird in einem eigenen Tab ausgeführt. ++Strg+T++ opens Quick Connect for a new tab; ++Strg+Tab++ / ++Strg+Umschalt+Tab++ Tabs wechseln.</li>
+<li><strong>Dashboard</strong> (umschalten ++Strg+Umschalt+D++) – listet alle offenen Verbindungen mit Statusanzeigen und KI-Agent-Abzeichen auf. Klicken Sie mit der rechten Maustaste auf eine Verbindung, um sie erneut zu verbinden, zu duplizieren, SFTP zu öffnen oder zu schließen.</li>
+<li><strong>Terminalbereich</strong> – das aktive Terminal, mit optionalem Splitscreen und Broadcast-Eingang.</li>
+<li><strong>Statusleiste</strong> – Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.</li>
 </ul>
 <p>!!! Tipp „Nur Terminal-Vollbild“
-Drücken Sie <span class="keys"><kbd class="key-f12">F12</kbd></span> (oder <strong>Ansicht → Nur Terminal-Vollbild</strong>), um alle Fenster auszublenden
-Chrome und zeigen nur das Terminal. <strong>Ansicht → Terminal-Bildlaufleisten ausblenden
-Vollbild</strong> entfernt auch die Bildlaufleisten. Drücken Sie erneut <span class="keys"><kbd class="key-f12">F12</kbd></span>, um die Wiederherstellung durchzuführen.</p>
+    Drücken Sie <span class="keys"><kbd class="key-f12">F12</kbd></span> (oder <strong>Ansicht → Nur Terminal-Vollbild</strong>), um das gesamte Fensterchrom auszublenden und nur das Terminal anzuzeigen. <strong>Ansicht → Terminal-Bildlaufleisten im Vollbildmodus ausblenden</strong> entfernt auch die Bildlaufleisten. Drücken Sie erneut <span class="keys"><kbd class="key-f12">F12</kbd></span>, um die Wiederherstellung durchzuführen.</p>
 <h2 id="macos-dock-menu">macOS Dock-Menü<a class="headerlink" href="#macos-dock-menu" title="Permanent link">&para;</a></h2>
-<p>Klicken Sie unter macOS schnell mit der rechten Maustaste (oder bei gedrückter Ctrl-Taste) auf das korTTY-Symbol im Dock
-Aktionen ohne Wechsel zur App – sie gelten für die aktuelle (fokussierte)
-Fenster, öffnet zuerst eines, wenn keines geöffnet ist:</p>
+<p>Klicken Sie unter macOS mit der rechten Maustaste (oder bei gedrückter Strg-Taste) auf das korTTY-Symbol im Dock, um schnelle Aktionen durchzuführen, ohne zur App wechseln zu müssen. Sie gelten für das aktuelle (fokussierte) Fenster und öffnen zuerst eines, wenn keines geöffnet ist:</p>
 <ul>
 <li><strong>Neues Fenster</strong></li>
 <li><strong>Neuer Tab im aktuellen Fenster</strong></li>
@@ -1980,9 +1966,7 @@ Fenster, öffnet zuerst eines, wenn keines geöffnet ist:</p>
 <li><strong>Anleitung</strong> (die In-App-Anleitung)</li>
 <li><strong>Über korTTY</strong></li>
 </ul>
-<p>Siehe die <a href="../reference/menu.html">Menüreferenz</a> für jeden Menüpunkt und die
-<a href="../reference/keyboard-shortcuts.html">Tastaturkürzel-Referenz </a> für die vollständige Beschreibung
-Liste der Beschleuniger.</p>
+<p>Sehen Sie sich die <a href="../reference/menu.html">Menüreferenz </a> für jeden Menüpunkt und die <a href="../reference/keyboard-shortcuts.html">Tastaturkürzel-Referenz </a> für die vollständige Liste der Zugriffstasten an.</p>
 
 
 

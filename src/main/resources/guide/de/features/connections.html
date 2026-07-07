@@ -1290,10 +1290,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#shell-auswahlen" class="md-nav__link">
+  <a href="#eine-muschel-auswahlen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shell auswählen
+        Eine Muschel auswählen
       
     </span>
   </a>
@@ -1301,10 +1301,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terminal-funktionen-in-lokalen-shells" class="md-nav__link">
+  <a href="#terminalfunktionen-in-lokalen-shells" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terminal-Funktionen in lokalen Shells
+        Terminalfunktionen in lokalen Shells
       
     </span>
   </a>
@@ -2064,10 +2064,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#shell-auswahlen" class="md-nav__link">
+  <a href="#eine-muschel-auswahlen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shell auswählen
+        Eine Muschel auswählen
       
     </span>
   </a>
@@ -2075,10 +2075,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terminal-funktionen-in-lokalen-shells" class="md-nav__link">
+  <a href="#terminalfunktionen-in-lokalen-shells" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terminal-Funktionen in lokalen Shells
+        Terminalfunktionen in lokalen Shells
       
     </span>
   </a>
@@ -2130,18 +2130,12 @@
 
 
 <h1 id="verbindungen">Verbindungen<a class="headerlink" href="#verbindungen" title="Permanent link">&para;</a></h1>
-<p>korTTY verwaltet SSH-, Mosh- und <strong>lokale Shell</strong>-Verbindungen über drei
-Einstiegspunkte: <strong>Quick Connect</strong>, der <strong>Verbindungsmanager</strong> und gespeicherte
-<strong>Projekte</strong>.</p>
+<p>korTTY verwaltet SSH-, Mosh- und <strong>Local-Shell</strong>-Verbindungen über drei Einstiegspunkte: <strong>Quick Connect</strong>, den <strong>Verbindungsmanager</strong> und gespeicherte <strong>Projekte</strong>.</p>
 <p><img alt="Connection flow" src="../assets/diagrams/connection-flow.svg" /></p>
 <h2 id="schnellverbindung">Schnellverbindung<a class="headerlink" href="#schnellverbindung" title="Permanent link">&para;</a></h2>
-<p>Öffnen Sie mit ++Strg+K++ (oder <strong>Verbindungen → Schnellverbindung…</strong>). Geben Sie Host, Port,
-Benutzername und Authentifizierung eingeben und ohne Speichern eine Verbindung herstellen. Häufig verwendet
-Verbindungen werden als Schnellschaltflächen angezeigt. Eine Live-Suche filtert sie.</p>
+<p>Öffnen Sie mit ++Strg+K++ (oder <strong>Verbindungen → Schnellverbindung…</strong>). Geben Sie Host, Port, Benutzernamen und Authentifizierung ein und stellen Sie eine Verbindung her, ohne zu speichern. Häufig verwendete Verbindungen werden als Schnellschaltflächen angezeigt. Eine Live-Suche filtert sie.</p>
 <h2 id="verbindungsmanager">Verbindungsmanager<a class="headerlink" href="#verbindungsmanager" title="Permanent link">&para;</a></h2>
-<p><strong>Verbindungen → Verbindungen verwalten…</strong> öffnet einen durchsuchbaren Baum gespeicherter Daten
-Verbindungen (optional gruppiert). Von hier aus erstellen, bearbeiten, duplizieren, löschen,
-Import- und Exportverbindungen.</p>
+<p><strong>Verbindungen → Verbindungen verwalten…</strong> öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert). Von hier aus erstellen, bearbeiten, duplizieren, löschen, importieren und exportieren Sie Verbindungen.</p>
 <h2 id="eine-verbindung-erstellenbearbeiten">Eine Verbindung erstellen/bearbeiten<a class="headerlink" href="#eine-verbindung-erstellenbearbeiten" title="Permanent link">&para;</a></h2>
 <p>Der Verbindungseditor verfügt über folgende Registerkarten:</p>
 <table>
@@ -2154,7 +2148,7 @@ Import- und Exportverbindungen.</p>
 <tbody>
 <tr>
 <td>Verbindung</td>
-<td>Host, Port, Benutzername, Protokoll (SSH / Mosh / lokale Shell), Authentifizierung (Passwort/Schlüssel/Tastatur-interaktiv). Für <strong>lokale Shell</strong>-Verbindungen werden Host, Port, Benutzername und Authentifizierung nicht benötigt und sind deaktiviert.</td>
+<td>Host, Port, Benutzername, Protokoll (SSH / Mosh / Local Shell), Authentifizierung (Passwort / Schlüssel / Tastatur-interaktiv). Für <strong>Local Shell</strong>-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert.</td>
 </tr>
 <tr>
 <td>Terminaleinstellungen</td>
@@ -2180,24 +2174,14 @@ Import- und Exportverbindungen.</p>
 </table>
 <h2 id="protokolle">Protokolle<a class="headerlink" href="#protokolle" title="Permanent link">&para;</a></h2>
 <p>=== „SSH“
-Standard-SSH über Apache MINA SSHD. Unterstützt Passwort, öffentlichen Schlüssel und
-Tastaturinteraktive Authentifizierung, Keep-Alive und OSC 8 anklickbar
-Hyperlinks.</p>
+    Standard-SSH über Apache MINA SSHD. Unterstützt Passwort-, Public-Key- und Tastatur-interaktive Authentifizierung, Keep-Alive und anklickbare OSC 8-Hyperlinks.</p>
 <p>=== „Mosh“
-Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist
-gebündelt in nativen Builds; Bestehende Verbindungen benötigen keine Migration.</p>
+    Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.</p>
 <p>=== „Lokale Shell“
-Öffnet die Shell des <strong>lokalen Rechners</strong> in einer Terminal-Registerkarte (ohne
-Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und
-Authentifizierung werden nicht benötigt. Siehe <a href="#lokale-shell">Lokale Shell</a> unten.</p>
+    Öffnet die Shell des <strong>lokalen Rechners</strong> in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe <a href="#local-shell">Lokale Shell</a> unten].</p>
 <h2 id="lokale-shell">Lokale Shell<a class="headerlink" href="#lokale-shell" title="Permanent link">&para;</a></h2>
-<p>Eine <strong>lokale Shell</strong>-Verbindung startet ein lokales Pseudo-Terminal (PTY) auf
-Ihrem eigenen Rechner, statt sich mit einem Remote-Host zu verbinden. Sie ist
-sowohl in <strong>Quick Connect</strong> als auch im <strong>Verbindungsmanager</strong> auswählbar; für
-diese Verbindungen werden Host, Port, Benutzername und Authentifizierung nicht
-benötigt (und sind in den Dialogen deaktiviert), und es wird keine
-Passwortabfrage angezeigt.</p>
-<h3 id="shell-auswahlen">Shell auswählen<a class="headerlink" href="#shell-auswahlen" title="Permanent link">&para;</a></h3>
+<p>Eine <strong>Lokale Shell</strong>-Verbindung erzeugt ein lokales Pseudo-Terminal (PTY) auf Ihrem eigenen Computer, anstatt eine Verbindung zu einem Remote-Host herzustellen. Es ist sowohl im <strong>Quick Connect</strong> als auch im <strong>Connection Manager</strong> auswählbar; Für diese Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich (und in den Dialogen deaktiviert), und es wird keine Passwortabfrage angezeigt.</p>
+<h3 id="eine-muschel-auswahlen">Eine Muschel auswählen<a class="headerlink" href="#eine-muschel-auswahlen" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2208,43 +2192,29 @@ Passwortabfrage angezeigt.</p>
 <tbody>
 <tr>
 <td>Windows</td>
-<td><strong>PowerShell</strong> (Standard) oder <strong>cmd.exe</strong>. <strong>Git Bash</strong>, <strong>Cygwin</strong> und <strong>WSL</strong> werden ebenfalls als Voreinstellungen angeboten – aber nur, wenn sie tatsächlich installiert sind (Git Bash/Cygwin werden über ihre üblichen Installationspfade / <code>PATH</code> erkannt; WSL erscheint nur, wenn <code>wsl.exe</code> vorhanden und mindestens eine Distribution installiert ist).</td>
+<td><strong>PowerShell</strong> (Standard) oder <strong>cmd.exe</strong>. <strong>Git Bash</strong>, <strong>Cygwin</strong> und <strong>WSL</strong> werden ebenfalls als Voreinstellungen angeboten – allerdings nur, wenn sie tatsächlich installiert sind (Git Bash/Cygwin werden über ihre üblichen Installationsorte / <code>PATH</code> erkannt; WSL erscheint nur, wenn <code>wsl.exe</code> vorhanden und mindestens eine Distribution installiert ist).</td>
 </tr>
 <tr>
 <td>macOS / Linux</td>
-<td>Standardmäßig Ihre <code>$SHELL</code> (Fallback auf <code>/bin/zsh</code> oder <code>/bin/bash</code>).</td>
+<td>Der Standardwert ist Ihr <code>$SHELL</code> (Rückfall auf <code>/bin/zsh</code> oder <code>/bin/bash</code>).</td>
 </tr>
 </tbody>
 </table>
-<p>Ein freies Feld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei
-mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, einen Git-Bash-Pfad), und
-ein optionales <strong>Startverzeichnis</strong> kann gesetzt werden. Der Befehls-Parser
-beachtet Anführungszeichen, sodass Shell-Pfade mit Leerzeichen – wie
-<code>"C:\Program Files\Git\bin\bash.exe"</code> – korrekt gestartet werden.</p>
-<h3 id="terminal-funktionen-in-lokalen-shells">Terminal-Funktionen in lokalen Shells<a class="headerlink" href="#terminal-funktionen-in-lokalen-shells" title="Permanent link">&para;</a></h3>
-<p>Terminalprotokollierung und -aufzeichnung sowie die KI-Eingabe-/Daten-Hooks
-funktionieren über eine gemeinsame <code>ObservableTtyConnector</code>-Schnittstelle auch
-für lokale Shells. Funktionen, die einen SSH-Kanal voraussetzen, bleiben
-SSH-exklusiv.</p>
-<p>!!! note „KI-Agent in lokalen Shells“
-    Der <strong>KI-Agent</strong> und die <strong>KI-Planung</strong> laufen ebenfalls in lokalen Shells
-    unter Windows, macOS und Linux – siehe
-    <a href="ai-assistant.html#ki-agent-und-ki-planung">KI-Assistent</a>.</p>
+<p>Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, ein Git-Bash-Pfad) und ein optionales <strong>Startverzeichnis</strong> kann festgelegt werden. Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade, die Leerzeichen enthalten – wie <code>"C:\Program Files\Git\bin\bash.exe"</code> – korrekt gestartet werden.</p>
+<h3 id="terminalfunktionen-in-lokalen-shells">Terminalfunktionen in lokalen Shells<a class="headerlink" href="#terminalfunktionen-in-lokalen-shells" title="Permanent link">&para;</a></h3>
+<p>Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.</p>
+<p>!!! Hinweis „KI-Agent in lokalen Shells“
+    Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe <a href="ai-assistant.html#ai-agent-and-ai-planning">AI Assistant</a>.</p>
 <h2 id="tunnel-und-sprungserver">Tunnel und Sprungserver<a class="headerlink" href="#tunnel-und-sprungserver" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>SSH-Tunnel</strong> – Ports über die Verbindung weiterleiten: <strong>lokal</strong> (<code>-L</code>),
-<strong>remote</strong> (<code>-R</code>) oder <strong>dynamisch / SOCKS</strong> (<code>-D</code>).</li>
-<li><strong>Jump-Server (Bastion)</strong> – Leiten Sie die Verbindung über einen oder mehrere weiter
-Zwischenwirte.</li>
+<li><strong>SSH-Tunnel</strong> – Ports über die Verbindung weiterleiten: <strong>lokal</strong> (<code>-L</code>), <strong>remote</strong> (<code>-R</code>) oder <strong>dynamisch / SOCKS</strong> (<code>-D</code>).</li>
+<li><strong>Jump-Server (Bastion)</strong> – leitet die Verbindung über einen oder mehrere Zwischenhosts weiter.</li>
 </ul>
 <p><img alt="Jump server flow" src="../assets/diagrams/jump-server-flow.svg" /></p>
 <h2 id="von-anderen-clients-importieren">Von anderen Clients importieren<a class="headerlink" href="#von-anderen-clients-importieren" title="Permanent link">&para;</a></h2>
-<p><strong>Verbindungen → Importieren…</strong> liest Verbindungsdateien von <strong>MTPuTTY</strong>, <strong>MobaXterm</strong>
-und <strong>PuTTY Connection Manager</strong> mit Gruppenfilterung und Anmeldeinformationsverarbeitung.</p>
+<p><strong>Verbindungen → Importieren…</strong> liest Verbindungsdateien von <strong>MTPuTTY</strong>, <strong>MobaXterm</strong> und <strong>PuTTY Connection Manager</strong>, mit Gruppenfilterung und Anmeldeinformationsverarbeitung.</p>
 <p>!!! Hinweis „Weitere folgen“
-Diese Seite ist Teil des Scaffolded-Anleitungs. Die vollständige Funktionsbibliothek – SFTP,
-Snippets, JobScheduler, KI-Assistent und Tools, Terminalaufzeichnung, Sicherheit,
-und die kompletten Einstellungstabellen – wird als nächstes ausgefüllt.</p>
+    Diese Seite ist Teil des Scaffolded-Anleitungs. Als nächstes wird die vollständige Funktionsbibliothek – SFTP, Snippets, JobScheduler, KI-Assistent und -Tools, Terminalaufzeichnung, Sicherheit und die vollständigen Einstellungstabellen – ausgefüllt.</p>
 
 
 

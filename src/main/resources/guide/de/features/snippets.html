@@ -2787,8 +2787,8 @@
 <p>Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also <strong>wählen Sie zuerst eine Coderegion aus</strong> – andernfalls fordert KorTTY Sie dazu auf. Die Umschreibung wird immer als Vorher-/Nachher-Vorschau (das Fenster <em>AI-Änderung überprüfen</em>) angezeigt, bevor etwas angewendet wird.</p>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p>Snippet-KI-Aktionen senden den aktuellen Snippet-Inhalt, Auswahl- oder Cursor-Metadaten, Eingabeaufforderungsanweisungen und optional aktivierte KI-Fähigkeiten an das konfigurierte Standard-KI-Profil (oder, für die Sicherheitsprüfung, das dedizierte Sicherheitsprüfungsprofil). Snippet-KI-Aktionen aktivieren keine Internet-Tools, selbst wenn das ausgewählte Profil über Internetzugang verfügt. Die automatische Vervollständigung kann das Snippet wiederholt senden, während sie aktiv ist. Deaktivieren Sie sie daher für sensible Snippets, es sei denn, Sie vertrauen dem konfigurierten Endpunkt.</p>
+</div>
 <h4 id="vollstandige-code-analyse">Vollständige Code-Analyse<a class="headerlink" href="#vollstandige-code-analyse" title="Permanent link">&para;</a></h4>
 <p><strong>Vollständige Codeanalyse</strong> öffnet ein spezielles Fenster, das das gesamte Snippet auf einmal untersucht und konkrete Verbesserungen anbietet, die Sie anwenden können. Das Fenster ist <strong>nicht modal</strong> – Sie können das Snippet weiter bearbeiten, während es geöffnet bleibt – und in der Titelleiste wird der Dateiname des Skripts angezeigt, sodass Sie mehrere Analysen unterscheiden können. In der Titelleiste des Snippet-Editors wird ebenfalls der Name der Datei angezeigt, die Sie bearbeiten.</p>
 <p>Das Fenster ist in zwei Bereiche aufgeteilt.</p>
@@ -2857,13 +2857,17 @@
 <h3 id="diagrammdarstellung">Diagrammdarstellung<a class="headerlink" href="#diagrammdarstellung" title="Permanent link">&para;</a></h3>
 <p>Beide Diagrammfenster – das eigenständige <strong>Diagramm</strong>-Dialogfeld und das <strong>Vollständige Codeanalyse</strong>-Flussdiagramm – teilen sich zwei Darstellungssteuerelemente und jedes merkt sich seine Einstellung sitzungsübergreifend:</p>
 <ul>
-<li><strong>Dunkelmodus</strong> – Eine <strong>Dunkelmodus</strong>-Taste mit drei Auswahlmöglichkeiten:</li>
+<li>
+<p><strong>Dunkelmodus</strong> – Eine <strong>Dunkelmodus</strong>-Taste mit drei Auswahlmöglichkeiten:</p>
+<ul>
 <li><strong>Auto</strong> – folgt dem Hell/Dunkel-Erscheinungsbild des Betriebssystems. Wenn Sie das Betriebssystem in den Dunkelmodus schalten, folgt das Diagramm beim nächsten Rendern (und wenn das Fenster wieder den Fokus erhält).</li>
 <li><strong>Licht</strong> – immer hell.</li>
 <li><strong>Dunkel</strong> – immer dunkel.</li>
 </ul>
 <p>Eine manuelle Auswahl bleibt so lange bestehen, bis Sie sie ändern. Im Dunkelmodus wird das <strong>gesamte</strong> Diagramm neu eingefärbt – eine dunkle Leinwand, abgedunkelte Knotenkarten mit hellem Text sowie helle Anschlüsse und Beschriftungen – nicht nur der Seitenrand.
 - <strong>Hintergrund</strong> – Ein Farbwähler für die Seiten-/Leinwandfarbe im hellen Modus. Dies gilt für das Diagramm selbst und für jedes exportierte SVG/PNG. Der Picker ist deaktiviert, während der Dunkelmodus aktiv ist, da der Dunkelmodus das Erscheinungsbild steuert.</p>
+</li>
+</ul>
 <h2 id="platzhaltervariablen">Platzhaltervariablen<a class="headerlink" href="#platzhaltervariablen" title="Permanent link">&para;</a></h2>
 <p>Snippets können Platzhaltervariablen enthalten, die ersetzt werden, wenn Sie das Snippet einfügen.</p>
 <h3 id="eingebaute-variablen">Eingebaute Variablen<a class="headerlink" href="#eingebaute-variablen" title="Permanent link">&para;</a></h3>
@@ -2985,8 +2989,8 @@
 </ul>
 <div class="admonition tipp">
 <p class="admonition-title">Tipp</p>
-</div>
 <p>Wählen Sie zwei Snippets aus, exportieren Sie sie als Nur-Text und bestätigen Sie, dass die erstellten Dateien die Namen aus der Spalte <strong>Name</strong> verwenden. Exportieren Sie dann dieselbe Auswahl als ZIP mit der erzwungenen Erweiterung <code>.txt</code> und überprüfen Sie, ob alle ZIP-Einträge <code>.txt</code> verwenden. Bestätigen Sie für den Passwortexport, dass die ZIP-Datei vor dem Extrahieren das Passwort erfordert. Für den GPG-Export entschlüsseln Sie <code>.zip.gpg</code> mit Ihrem lokalen GPG-Setup und überprüfen Sie die ZIP-Einträge.</p>
+</div>
 
 
 

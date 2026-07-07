@@ -2553,8 +2553,8 @@
 <p><strong>Sicherheit:</strong> Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.</p>
 <div class="admonition notiz">
 <p class="admonition-title">Notiz</p>
-</div>
 <p>Wenn ein Verbindungskennwort verschlüsselt ist, wird es in einem Hash-/verschlüsselten Format gespeichert und kann nicht als Klartext angezeigt werden. Wenn Sie eine gespeicherte Verbindung öffnen, wird das Passwort automatisch mit Ihrem Master-Passwort entschlüsselt.</p>
+</div>
 <h3 id="anmeldeinformationenxml">Anmeldeinformationen.xml<a class="headerlink" href="#anmeldeinformationenxml" title="Permanent link">&para;</a></h3>
 <p>Zentralisierte Speicherung von Anmeldeinformationen für Benutzername/Passwort-Paare.</p>
 <p><strong>Beinhaltet:</strong>
@@ -2573,8 +2573,8 @@
 <p><strong>Sicherheit:</strong> Schlüsselpassphrasen werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.</p>
 <div class="admonition tipp">
 <p class="admonition-title">Tipp</p>
-</div>
 <p>SSH-Schlüssel, auf die in dieser Datei verwiesen wird, können an ihrem ursprünglichen Speicherort aufbewahrt oder zur einfachen Sicherung und Migration über die Aktion <em>In Benutzerverzeichnis kopieren</em> in der SSH-Schlüsselverwaltung nach <code>~/.kortty/ssh-keys/</code> kopiert werden.</p>
+</div>
 <h3 id="gpg-keysxml">gpg-keys.xml<a class="headerlink" href="#gpg-keysxml" title="Permanent link">&para;</a></h3>
 <p>Speichert GPG-Schlüsselinformationen für die Backup-Verschlüsselung.</p>
 <p><strong>Beinhaltet:</strong>
@@ -2617,8 +2617,8 @@
 - Archivkennwörter und Anmeldeinformationen für die Backup-Verschlüsselung werden verschlüsselt gespeichert</p>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p>Wenn das Hauptkennwort gesperrt ist und ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert und ein Journaleintrag mit einer Erläuterung des Problems erstellt.</p>
+</div>
 <h3 id="ai-chatsxml">ai-chats.xml<a class="headerlink" href="#ai-chatsxml" title="Permanent link">&para;</a></h3>
 <p>Gespeicherte KI-Gespräche und Chat-Verlauf.</p>
 <p><strong>Beinhaltet:</strong>
@@ -2656,8 +2656,8 @@
 <p><strong>Sicherheit:</strong> Diese Datei enthält nicht das eigentliche Master-Passwort, sondern nur einen kryptografischen Hash, der zur Überprüfung des Passworts verwendet wird, das Sie beim Start eingeben. Wenn diese Datei verloren geht oder beschädigt ist, müssen Sie KorTTY neu starten und ein neues Master-Passwort festlegen (Sie verlieren jedoch den Zugriff auf zuvor gespeicherte verschlüsselte Anmeldeinformationen und SSH-Schlüssel-Passphrasen).</p>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p>Wenn Sie Ihr Master-Passwort vergessen, löschen Sie <code>master-password-hash</code> und <code>credentials.xml</code>, starten Sie KorTTY neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein. Es gibt keinen Wiederherstellungsmechanismus für das verlorene Passwort.</p>
+</div>
 <h3 id="terminal-effect-pluginsdisabled">terminal-effect-plugins.disabled<a class="headerlink" href="#terminal-effect-pluginsdisabled" title="Permanent link">&para;</a></h3>
 <p>Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).</p>
 <p><strong>Zweck:</strong> Wenn Sie ein Terminaleffekt-Plugin über <em>Plugins &gt; Terminaleffekte</em> deaktivieren, wird seine ID in diese Datei geschrieben, sodass es nach dem Neustart deaktiviert bleibt.</p>
@@ -2673,8 +2673,8 @@
 <p><strong>Rotation:</strong> Die Protokolldatei wächst während der Anwendungssitzung. Alte Protokolle werden nicht automatisch rotiert (die Protokolldatei bleibt bestehen, bis KorTTY beendet wird oder Sie sie manuell löschen).</p>
 <div class="admonition tipp">
 <p class="admonition-title">Tipp</p>
-</div>
 <p>Überprüfen Sie diese Datei, wenn Sie Verbindungsprobleme, Probleme beim Laden von Plugins oder unerwartetes Verhalten beheben. Zu den hier protokollierten häufigen Problemen gehören SSH-Fehler, Verschlüsselungsfehler und Import-/Exportprobleme.</p>
+</div>
 <h2 id="verzeichnisse">Verzeichnisse<a class="headerlink" href="#verzeichnisse" title="Permanent link">&para;</a></h2>
 <h3 id="geschichte">Geschichte/<a class="headerlink" href="#geschichte" title="Permanent link">&para;</a></h3>
 <p>Komprimierter Terminalsitzungsverlauf.</p>
@@ -2684,8 +2684,8 @@
 <p><strong>Zugriff:</strong> Der Terminalverlauf wird automatisch geladen, wenn Sie eine gespeicherte Verbindung öffnen, und in der Suchfunktion für den Terminalverlauf angezeigt.</p>
 <div class="admonition notiz">
 <p class="admonition-title">Notiz</p>
-</div>
 <p>In diesem Verzeichnis wird der Verlauf nur gespeichert, wenn Sie beim Erstellen oder Bearbeiten einer Verbindung explizit <em>Terminalprotokollierung</em> für eine Verbindung auf der Registerkarte <em>Terminalprotokollierung</em> aktivieren.</p>
+</div>
 <h3 id="plugins">Plugins/<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
 <p>Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.</p>
 <p><strong>Zweck:</strong> Externe Terminal-Effekt-Plugins, die Sie über <em>Plugins &gt; Terminal-Effekte &gt; Importieren</em> importieren.</p>
@@ -2693,8 +2693,8 @@
 <p><strong>Bereinigung:</strong> Wenn Sie ein Plugin aus diesem Verzeichnis löschen, ist es in KorTTY nicht mehr verfügbar. Deaktivierte Plugins bleiben in diesem Verzeichnis, werden aber in <code>terminal-effect-plugins.disabled</code> aufgeführt.</p>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p>Plugin-Abhängigkeiten müssen in der Plugin-JAR schattiert werden. Benachbarte Abhängigkeits-JARs werden nicht automatisch geladen. Verpackungsrichtlinien finden Sie unter <a href="../features/terminal-effect-plugins.html">Terminal Effect Plugins</a>].</p>
+</div>
 <h3 id="bundled-plugins">bundled-plugins/<a class="headerlink" href="#bundled-plugins" title="Permanent link">&para;</a></h3>
 <p>Laufzeitkopien der gebündelten exportierbaren Terminal-Effekt-Plugin-JARs.</p>
 <p><strong>Zweck:</strong> Backup und Arbeitskopien integrierter Plugins, die an externe Benutzer exportiert werden können.</p>
@@ -2719,8 +2719,8 @@
 <p><strong>Automatische Aktualisierung:</strong> Wenn Sie KorTTY auf eine neue Version aktualisieren, werden generierte Sprachdateien als veraltet markiert. Verwenden Sie <em>Einstellungen &gt; Übersetzung &gt; Veraltete neu generieren</em>, um sie mit allen neuen oder geänderten UI-Schlüsseln zu aktualisieren.</p>
 <div class="admonition notiz">
 <p class="admonition-title">Notiz</p>
-</div>
 <p>Integrierte Sprachen (Englisch, Deutsch, Italienisch, Spanisch, Portugiesisch, Französisch, Kroatisch, Niederländisch) werden mit der Anwendung geliefert und verwenden dieses Verzeichnis nicht. Dieses Verzeichnis wird nur für dynamisch generierte Übersetzungen verwendet.</p>
+</div>
 <h3 id="ssh-keys">ssh-keys/<a class="headerlink" href="#ssh-keys" title="Permanent link">&para;</a></h3>
 <p>Optionales Verzeichnis für kopierte SSH-Schlüssel.</p>
 <p><strong>Zweck:</strong> Speichert Kopien von SSH-Schlüsseln zur einfachen Sicherung und Migration.</p>
@@ -2801,8 +2801,8 @@
 <p>Das Backup wird verschlüsselt (passwortgeschütztes ZIP oder GPG) und an einem von Ihnen angegebenen Ort gespeichert.</p>
 <div class="admonition tipp">
 <p class="admonition-title">Tipp</p>
-</div>
 <p>Backups sind die empfohlene Methode, um KorTTY auf einen neuen Computer zu migrieren oder nach einem Datenverlust wiederherzustellen. Erstellen Sie regelmäßig ein Backup und bewahren Sie es an einem sicheren Ort auf.</p>
+</div>
 <h2 id="zugriff-auf-konfigurationsdateien">Zugriff auf Konfigurationsdateien<a class="headerlink" href="#zugriff-auf-konfigurationsdateien" title="Permanent link">&para;</a></h2>
 <p>Sie können die KorTTY-Konfiguration direkt bearbeiten, indem Sie:</p>
 <ol>
@@ -2813,8 +2813,8 @@
 </ol>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p>Das direkte Bearbeiten von XML-Dateien kann Ihre Daten beschädigen, wenn es nicht sorgfältig durchgeführt wird. Erstellen Sie vor der manuellen Bearbeitung immer ein Backup. Verwenden Sie für die meisten Konfigurationsaufgaben stattdessen die KorTTY-Benutzeroberfläche – sie verarbeitet Verschlüsselung, Validierung und Dateiformat korrekt.</p>
+</div>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <p><strong>Konfigurationsdatei nicht gefunden:</strong>
 - KorTTY erstellt beim ersten Start das Verzeichnis <code>~/.kortty/</code> und alle erforderlichen Unterverzeichnisse.

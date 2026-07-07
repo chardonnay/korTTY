@@ -2243,8 +2243,8 @@
 <p>GPG-Backups verschlüsseln die Backup-Datei mit dem öffentlichen Schlüssel Ihres ausgewählten GPG-Schlüssels. KorTTY erstellt zunächst eine temporäre ZIP-Datei, verschlüsselt sie dann mit <code>gpg --encrypt</code> und speichert die Datei <code>.gpg</code>. Die temporäre ZIP-Datei wird nach der Verschlüsselung sicher gelöscht.</p>
 <div class="admonition tipp">
 <p class="admonition-title">Tipp</p>
-</div>
 <p>Wenn Sie noch keine GPG-Schlüssel eingerichtet haben, verwenden Sie <strong>Verwaltung → GPG-Schlüssel verwalten...</strong>, um Schlüssel aus Ihrem Systemschlüsselbund zu importieren oder sie manuell hinzuzufügen.</p>
+</div>
 <h2 id="ein-backup-importieren">Ein Backup importieren<a class="headerlink" href="#ein-backup-importieren" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Öffnen Sie <strong>Bearbeiten → Backup importieren...</strong></li>
@@ -2258,8 +2258,8 @@
 </ol>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p>Durch das Importieren eines Backups mit aktiviertem <strong>Überschreiben</strong> werden Ihre aktuellen Einstellungen, Verbindungen und Anmeldeinformationen ersetzt. Wenn Sie sich nicht sicher sind, deaktivieren Sie diese Option, um das Backup zusammenzuführen, ohne es zu überschreiben.</p>
+</div>
 <h2 id="inhalt-der-sicherungsdatei">Inhalt der Sicherungsdatei<a class="headerlink" href="#inhalt-der-sicherungsdatei" title="Permanent link">&para;</a></h2>
 <p>Sowohl <code>.zip</code>- als auch <code>.gpg</code>-Backups enthalten dieselben Dateien:</p>
 <ul>
@@ -2277,8 +2277,8 @@
 </ul>
 <div class="admonition notiz">
 <p class="admonition-title">Notiz</p>
-</div>
 <p>Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie das Hauptkennwort für KorTTY entsperren, um die Anmeldeinformationen zu entschlüsseln.</p>
+</div>
 <h2 id="backup-aufbewahrung-und-bereinigung">Backup-Aufbewahrung und -Bereinigung<a class="headerlink" href="#backup-aufbewahrung-und-bereinigung" title="Permanent link">&para;</a></h2>
 <p>Wenn Sie ein neues Backup in einem Verzeichnis erstellen, das bereits eines enthält, führt KorTTY Folgendes aus:</p>
 <ol>

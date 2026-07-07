@@ -2286,23 +2286,23 @@
 <p>Wenn die Primärsprache Ihres Systems nicht in der integrierten oder generierten Liste enthalten ist, wird automatisch Englisch ausgewählt.</p>
 <h2 id="tipps-fur-die-ubersetzungsqualitat">Tipps für die Übersetzungsqualität<a class="headerlink" href="#tipps-fur-die-ubersetzungsqualitat" title="Permanent link">&para;</a></h2>
 <p>!!! Tipp „Übersetzungsergebnisse optimieren“
-- <strong>Kürzere Blöcke</strong>: Übersetzungs-APIs funktionieren am besten mit Zeichenfolgen mittlerer Größe. KorTTY stapelt Übersetzungen in Gruppen von 25 Zeichenfolgen
-- <strong>Platzhaltersicherheit</strong>: Platzhalter (<code>{0}</code>, <code>${var}</code>) werden während der Übersetzung automatisch geschützt und nie geändert
-- <strong>Test nach der Generierung</strong>: Überprüfen Sie nach dem Generieren einer neuen Sprache die Benutzeroberfläche auf umständliche Formulierungen und erwägen Sie eine Anpassung der API-Anbieter, wenn die Qualität nicht ausreicht</p>
+    - <strong>Kürzere Blöcke</strong>: Übersetzungs-APIs funktionieren am besten mit Zeichenfolgen mittlerer Größe. KorTTY stapelt Übersetzungen in Gruppen von 25 Zeichenfolgen
+    - <strong>Platzhaltersicherheit</strong>: Platzhalter (<code>{0}</code>, <code>${var}</code>) werden während der Übersetzung automatisch geschützt und nie geändert
+    - <strong>Test nach der Generierung</strong>: Überprüfen Sie nach dem Generieren einer neuen Sprache die Benutzeroberfläche auf umständliche Formulierungen und erwägen Sie eine Anpassung der API-Anbieter, wenn die Qualität nicht ausreicht</p>
 <p>!!! Hinweis „LibreTranslate Self-Hosting“
-Wenn Sie eine selbstgehostete LibreTranslate-Instanz ausführen, können Sie KorTTY darauf verweisen, indem Sie die benutzerdefinierte API-URL in den Übersetzungseinstellungen eingeben. Dadurch werden API-Schlüsselabhängigkeiten vermieden und Ihre Daten bleiben lokal.</p>
+    Wenn Sie eine selbstgehostete LibreTranslate-Instanz ausführen, können Sie KorTTY darauf verweisen, indem Sie die benutzerdefinierte API-URL in den Übersetzungseinstellungen eingeben. Dadurch werden API-Schlüsselabhängigkeiten vermieden und Ihre Daten bleiben lokal.</p>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <p>!!! Warnung „API-Verbindungsprobleme“
-Wenn <strong>API-Verbindung testen</strong> fehlschlägt, überprüfen Sie Folgendes:
-- Ihr API-Schlüssel ist korrekt und gültig
-- Beim Dienst des API-Anbieters kommt es zu keinen Ausfällen
-- Ihr Netzwerk kann den API-Endpunkt erreichen
-– Stellen Sie bei benutzerdefinierten URLs sicher, dass der Endpunkt erreichbar ist und ausgeführt wird</p>
+    Wenn <strong>API-Verbindung testen</strong> fehlschlägt, überprüfen Sie Folgendes:
+    - Ihr API-Schlüssel ist korrekt und gültig
+    - Beim Dienst des API-Anbieters kommt es zu keinen Ausfällen
+    - Ihr Netzwerk kann den API-Endpunkt erreichen
+    – Stellen Sie bei benutzerdefinierten URLs sicher, dass der Endpunkt erreichbar ist und ausgeführt wird</p>
 <p>!!! Warnung „Fehlende Sprachen nach dem Upgrade“
-Wenn eine generierte Sprachdatei nach dem Upgrade von KorTTY verschwindet:
-- Überprüfen Sie, ob die Datei unter <code>~/.kortty/i18n/messages_XX.properties</code> noch vorhanden ist
-- Stellen Sie sicher, dass die in der Datei aufgezeichnete App-Version mit der aktuellen App-Version übereinstimmt
-- Regenerieren Sie die Sprache bei Bedarf über <strong>Einstellungen → Übersetzung → Veraltete Sprache neu generieren</strong></p>
+    Wenn eine generierte Sprachdatei nach dem Upgrade von KorTTY verschwindet:
+    - Überprüfen Sie, ob die Datei unter <code>~/.kortty/i18n/messages_XX.properties</code> noch vorhanden ist
+    - Stellen Sie sicher, dass die in der Datei aufgezeichnete App-Version mit der aktuellen App-Version übereinstimmt
+    - Regenerieren Sie die Sprache bei Bedarf über <strong>Einstellungen → Übersetzung → Veraltete Sprache neu generieren</strong></p>
 
 
 

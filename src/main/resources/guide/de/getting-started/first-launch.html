@@ -1942,25 +1942,16 @@
 
 
 <h1 id="erster-start-master-passwort">Erster Start – Master-Passwort<a class="headerlink" href="#erster-start-master-passwort" title="Permanent link">&para;</a></h1>
-<p>Beim ersten Start fordert korTTY Sie auf, ein <strong>Master-Passwort</strong> zu erstellen. Dieses Passwort
-verschlüsselt alle gespeicherten Verbindungspasswörter, SSH-Schlüsselpassphrasen und Anmeldeinformationen
-unter Verwendung von <strong>AES-256-GCM</strong>.</p>
+<p>Beim ersten Start fordert korTTY Sie auf, ein <strong>Master-Passwort</strong> zu erstellen. Dieses Passwort verschlüsselt alle gespeicherten Verbindungspasswörter, SSH-Schlüsselpassphrasen und Anmeldeinformationen mit <strong>AES-256-GCM</strong>.</p>
 <ol>
-<li>Geben Sie ein Passwort ein (mindestens 6 Zeichen). Der Feldrand wird <strong>grün</strong>, wenn
-lang genug und <strong>rot</strong>, wenn zu kurz; Ein Stärkeindikator bewertet die Qualität.
-Bei einem schwachen oder gebräuchlichen Passwort wird eine Warnung angezeigt, es kann jedoch weiterhin verwendet werden, wenn Sie es bestätigen.</li>
+<li>Geben Sie ein Passwort ein (mindestens 6 Zeichen). Der Feldrand wird <strong>grün</strong>, wenn er lang genug ist, und <strong>rot</strong>, wenn er zu kurz ist; Ein Stärkeindikator bewertet die Qualität. Bei einem schwachen oder gebräuchlichen Passwort wird eine Warnung angezeigt, es kann jedoch weiterhin verwendet werden, wenn Sie es bestätigen.</li>
 <li>Bestätigen Sie das Passwort.</li>
-<li>Aktivieren Sie optional <strong>Anonyme Nutzungsstatistiken teilen</strong>, um korTTY zu verbessern. Das
-ist standardmäßig deaktiviert, vollständig anonym und DSGVO-konform und kann jederzeit geändert werden
-unter <strong>Einstellungen → Datenschutz</strong>. Die Schaltfläche <strong>?</strong> wird geöffnet
-<a href="../about/anonymous-data.html">Anonyme Daten zur Applikationsoptimierung</a>.</li>
+<li>Aktivieren Sie optional <strong>Anonyme Nutzungsstatistiken teilen</strong>, um korTTY zu verbessern. Dies ist standardmäßig deaktiviert, vollständig anonym und DSGVO-konform und kann jederzeit unter <strong>Einstellungen → Datenschutz</strong> geändert werden. Die Schaltfläche <strong>?</strong> öffnet <a href="../about/anonymous-data.html">Anonyme Daten zur Anwendungsoptimierung</a>.</li>
 <li>Klicken Sie auf <strong>Setup</strong>.</li>
 </ol>
-<p>Bei nachfolgenden Starts werden Sie aufgefordert, zum Entsperren das Master-Passwort einzugeben
-Ihre verschlüsselten Daten.</p>
+<p>Bei nachfolgenden Starts werden Sie aufgefordert, das Master-Passwort einzugeben, um Ihre verschlüsselten Daten zu entsperren.</p>
 <p>!!! Warnung „Die Eingabeaufforderung wird deaktiviert“
-Sie können die Aufforderung zum Entsperren unter <strong>Einstellungen → Sicherheit</strong> deaktivieren, sie wird jedoch gespeichert
-Passwörter bleiben solange unzugänglich, bis Sie das Master-Passwort manuell eingeben.</p>
+    Sie können die Aufforderung zum Entsperren unter <strong>Einstellungen → Sicherheit</strong> deaktivieren, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.</p>
 <h2 id="was-ist-verschlusselt">Was ist verschlüsselt?<a class="headerlink" href="#was-ist-verschlusselt" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1993,8 +1984,7 @@ Passwörter bleiben solange unzugänglich, bis Sie das Master-Passwort manuell e
 </tr>
 </tbody>
 </table>
-<p>Vollständige Informationen finden Sie in der <a href="../features/connections.html">Sicherheitsreferenz </a>
-Verschlüsselungs- und Backup-Modell.</p>
+<p>Das vollständige Verschlüsselungs- und Sicherungsmodell finden Sie in der <a href="../features/connections.html">Sicherheitsreferenz</a>].</p>
 <p><a class="md-button" href="main-window.html">Weiter: Übersicht über das Hauptfenster →</a></p>
 
 

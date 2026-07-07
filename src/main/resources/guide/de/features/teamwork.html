@@ -2589,7 +2589,7 @@
 <li>Alle N Minuten (basierend auf dem Mindestintervall zwischen aktivierten Quellen) geschieht Folgendes:</li>
 <li>Zieht/klont jede Quelle (Git) oder liest die Datei (Shared File).</li>
 <li>Lädt die XML-Verbindungen.
-– Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.</li>
+   – Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.</li>
 <li>Wenn eine Quellaktualisierung fehlschlägt, wird die vorherige zwischengespeicherte Version beibehalten.</li>
 </ol>
 <h3 id="manuelle-synchronisierung">Manuelle Synchronisierung<a class="headerlink" href="#manuelle-synchronisierung" title="Permanent link">&para;</a></h3>
@@ -2616,9 +2616,9 @@
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="nt">&lt;/connections&gt;</span>
 </span></code></pre></div>
 <p>!!! Warnung „Keine Inline-Geheimnisse einbeziehen“
-Teamwork-Verbindungen dürfen <strong>nicht</strong> <code>encryptedPassword</code>, <code>privateKeyPath</code> oder <code>privateKeyPassphrase</code> enthalten. Stattdessen:
-- Verwenden Sie <code>credentialId</code>, um auf gespeicherte Anmeldeinformationen in <strong>Sicherheit → Anmeldeinformationen…</strong> zu verweisen.
-- Verwenden Sie <code>sshKeyId</code>, um auf einen gespeicherten SSH-Schlüssel in <strong>Sicherheit → SSH-Schlüssel…</strong> zu verweisen.</p>
+    Teamwork-Verbindungen dürfen <strong>nicht</strong> <code>encryptedPassword</code>, <code>privateKeyPath</code> oder <code>privateKeyPassphrase</code> enthalten. Stattdessen:
+    - Verwenden Sie <code>credentialId</code>, um auf gespeicherte Anmeldeinformationen in <strong>Sicherheit → Anmeldeinformationen…</strong> zu verweisen.
+    - Verwenden Sie <code>sshKeyId</code>, um auf einen gespeicherten SSH-Schlüssel in <strong>Sicherheit → SSH-Schlüssel…</strong> zu verweisen.</p>
 <p>Wenn in der freigegebenen Datei Inline-Geheimnisse gefunden werden, entfernt KorTTY diese automatisch (sie werden nicht geladen).</p>
 <h2 id="teamwork-verbindungen-nutzen">Teamwork-Verbindungen nutzen<a class="headerlink" href="#teamwork-verbindungen-nutzen" title="Permanent link">&para;</a></h2>
 <p>Sobald eine Quelle synchronisiert ist:</p>
@@ -2691,13 +2691,13 @@ Teamwork-Verbindungen dürfen <strong>nicht</strong> <code>encryptedPassword</co
 </table>
 <h2 id="sicherheitsuberlegungen">Sicherheitsüberlegungen<a class="headerlink" href="#sicherheitsuberlegungen" title="Permanent link">&para;</a></h2>
 <p>!!! Warnung „Anmeldeinformationen sind nur lokal“
-Gemeinsame Verbindungen übertragen keine Passwörter oder Schlüsselpassphrasen. Ihr lokaler verschlüsselter Speicher (Master-Passwort geschützt) enthält die tatsächlichen Geheimnisse. Teammitglieder müssen ihre eigenen Anmeldeinformationen lokal eingerichtet haben.</p>
+    Gemeinsame Verbindungen übertragen keine Passwörter oder Schlüsselpassphrasen. Ihr lokaler verschlüsselter Speicher (Master-Passwort geschützt) enthält die tatsächlichen Geheimnisse. Teammitglieder müssen ihre eigenen Anmeldeinformationen lokal eingerichtet haben.</p>
 <p>!!! Warnung „Git-Repositorys sollten keine Geheimnisse speichern“
-Übergeben Sie niemals Passwörter, SSH-Schlüsselinhalte oder API-Tokens an das Teamwork-Repository. Verwenden Sie nur Anmeldeinformations-IDs und Schlüsselreferenzen.</p>
+    Übergeben Sie niemals Passwörter, SSH-Schlüsselinhalte oder API-Tokens an das Teamwork-Repository. Verwenden Sie nur Anmeldeinformations-IDs und Schlüsselreferenzen.</p>
 <p>!!! Warnung „Dateiberechtigungen“
-Beschränken Sie den Lese-/Schreibzugriff für freigegebene Dateien auf Netzwerkpfaden nur auf Teammitglieder. Stellen Sie sicher, dass der Pfad nicht allgemein lesbar ist.</p>
+    Beschränken Sie den Lese-/Schreibzugriff für freigegebene Dateien auf Netzwerkpfaden nur auf Teammitglieder. Stellen Sie sicher, dass der Pfad nicht allgemein lesbar ist.</p>
 <p>!!! Tipp „Audit Trail“
-Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überprüfen Sie die Änderungen, bevor Sie sie abrufen, indem Sie den Remote-Zweig überprüfen.</p>
+    Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überprüfen Sie die Änderungen, bevor Sie sie abrufen, indem Sie den Remote-Zweig überprüfen.</p>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <h3 id="quelle-wird-nicht-synchronisiert">Quelle wird nicht synchronisiert<a class="headerlink" href="#quelle-wird-nicht-synchronisiert" title="Permanent link">&para;</a></h3>
 <ol>

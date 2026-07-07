@@ -2278,8 +2278,8 @@
 <p>Zeitplanberechnungen verwenden die Zeitzone des lokalen Systems. Wenn keine feste Zeit und kein Intervall konfiguriert sind, ist der nächste Lauf der Fensterstart an einem erlaubten Datum.</p>
 <div class="admonition notiz">
 <p class="admonition-title">Notiz</p>
-</div>
 <p>Scheduler-Jobs unterstützen nur gespeicherte SSH-TCP-Verbindungen. Mosh-Ziele werden als nicht unterstützt blockiert und der Grund wird in das Journal geschrieben.</p>
+</div>
 <h3 id="hostschlussel-sudo-und-geheimnisse">Hostschlüssel, Sudo und Geheimnisse<a class="headerlink" href="#hostschlussel-sudo-und-geheimnisse" title="Permanent link">&para;</a></h3>
 <p>Die Überprüfung des Hostschlüssels ist standardmäßig sicher. Wählen Sie vor der unbeaufsichtigten SSH/SFTP/Rsync-Ausführung das Ziel aus und klicken Sie auf <strong>Hostschlüssel bestätigen</strong>, damit KorTTY den angehefteten Fingerabdruck und das öffentliche OpenSSH-Schlüsselmaterial speichert.</p>
 <p>Das Kontrollkästchen <strong>Hostschlüsselüberprüfung für diesen Job deaktivieren</strong> deaktiviert die Hostschlüsselüberprüfung nur für den ausgewählten Job. Dies ist unsicher und sollte nur verwendet werden, wenn das Risiko bekannt ist.</p>
@@ -2390,8 +2390,8 @@
 <p>Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche <strong>Planen…</strong> in der Registerkarte <a href="ai-swarm.html#scheduling-swarm-runs-jobscheduler">AI Swarm</a>: Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.</p>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p>Ein geplanter Schwarm mit deaktiviertem <strong>Schwarm-Schreibschutz</strong> und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.</p>
+</div>
 <h4 id="sftp-archivjobs">SFTP-Archivjobs<a class="headerlink" href="#sftp-archivjobs" title="Permanent link">&para;</a></h4>
 <p>SFTP-Archivierungsjobs unterstützen ZIP, passwortgeschütztes ZIP, TAR und TAR.BZ2. Archivquellen und Ausschlussmuster akzeptieren einen Pfad oder ein Muster pro Zeile. Das Archiv kann optional nach der Erstellung heruntergeladen werden.</p>
 <p>Wenn <strong>Sudo-Staging für SFTP-Pfade verwenden</strong> aktiviert ist, stellt KorTTY Dateien an einem temporären Speicherort bereit und verwendet sudo-unterstützte Remote-Befehle wie <code>mv</code>, <code>cp</code>, <code>tar</code>, <code>chmod</code> und <code>chown</code>, wenn erhöhte Rechte erforderlich sind. Bereinigungsfehler werden in das Journal geschrieben.</p>
@@ -2444,7 +2444,6 @@
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p><strong>JobScheduler-Job ist blockiert:</strong> Öffnen Sie <strong>Extras &gt; JobScheduler... &gt; Journal</strong> und überprüfen Sie den Detailtext des ausgewählten Eintrags. Häufige Ursachen sind:
 - Gesperrtes Master-Passwort
 - Fehlender Hostschlüssel-Pin
@@ -2453,6 +2452,7 @@
 – Alter Host-Key-Pin ohne OpenSSH-Public-Key-Material für Rsync</p>
 <p><strong>JobScheduler Rsync kann nicht gestartet werden:</strong> Überprüfen Sie die lokalen Werte <code>rsync --version</code> und <code>ssh -V</code> oder konfigurieren Sie den Rsync-Binärpfad unter <strong>Einstellungen &gt; SFTP &gt; JobScheduler Rsync</strong>.</p>
 <p><strong>JobScheduler-Remotebrowser kann nicht geöffnet werden:</strong> Wählen Sie genau ein Ziel aus und bestätigen Sie zuerst den Hostschlüssel, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.</p>
+</div>
 <hr />
 
 

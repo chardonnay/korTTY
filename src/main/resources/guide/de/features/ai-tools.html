@@ -2720,7 +2720,7 @@
 <h1 id="terminal-ki-agent-und-tools">Terminal-KI-Agent und -Tools<a class="headerlink" href="#terminal-ki-agent-und-tools" title="Permanent link">&para;</a></h1>
 <p>Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) entkoppelt wurde, auch in <a href="connections.html#local-shell">lokalen Shells</a> unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.</p>
 <p>!!! Hinweis „SSH vs. lokale Shells“
-In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
+    In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
 <p><img alt="AI agent execution loop" src="../assets/diagrams/ai-agent-execution-loop.svg" /></p>
 <h2 id="befehlsvarianten">Befehlsvarianten<a class="headerlink" href="#befehlsvarianten" title="Permanent link">&para;</a></h2>
 <p>Der Terminal AI Agent wird über Shortcut-Befehle am Shell-Prompt ausgelöst. Wenn KorTTY unter <strong>Einstellungen &gt; AI</strong> aktiviert ist, fängt KorTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:</p>
@@ -2736,8 +2736,8 @@ In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerS
 </ul>
 <div class="admonition notiz">
 <p class="admonition-title">Notiz</p>
-</div>
 <p>KorTTY fängt diese Verknüpfungen lokal ab, bevor sie die Remote-Shell erreichen. Vom Benutzer eingegebene Agentenbefehle bleiben im Shell-Verlauf verfügbar.</p>
+</div>
 <h3 id="befehlszwecke">Befehlszwecke<a class="headerlink" href="#befehlszwecke" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>agent &lt;goal&gt;</code></strong> – Führen Sie sichere SSH-Befehle aus, um ein Ziel zu erreichen. Der Agent prüft die Sitzung, plant nicht interaktive Befehle, fordert bei Bedarf eine Genehmigung an und schreibt die endgültige Antwort zurück an das Terminal.</li>
@@ -2789,8 +2789,8 @@ In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerS
 </ul>
 <div class="admonition tipp">
 <p class="admonition-title">Tipp</p>
-</div>
 <p>Benennen Sie bei lokalen Dateiüberprüfungsaufgaben die Datei in Ihrer Eingabeaufforderung. Der Agent sollte es dann mit SSH-Befehlen wie <code>sed -n</code>, <code>cat</code>, <code>file</code> oder sprachspezifischen Syntaxprüfungen überprüfen. Wenn ein internetfähiges Profil aktiv ist, hält KorTTY weiterhin Web-Tools von der lokalen Dateiplanung fern, es sei denn, Ihre Aufgabe verlangt eindeutig nach aktuellen oder externen Informationen.</p>
+</div>
 <h2 id="aktivitatsbereich">Aktivitätsbereich<a class="headerlink" href="#aktivitatsbereich" title="Permanent link">&para;</a></h2>
 <p>Auf Terminals ausgerichtete Agentenausführungen verwenden ein Inline-Aktivitätsfenster am unteren Rand der aktuellen Terminalaufteilung.</p>
 <h3 id="panel-funktionen">Panel-Funktionen<a class="headerlink" href="#panel-funktionen" title="Permanent link">&para;</a></h3>
@@ -3116,8 +3116,8 @@ In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerS
 <p>Konfigurieren Sie den Internetzugang pro AI-Profil unter <strong>Einstellungen &gt; AI &gt; Internetzugang</strong>.</p>
 <div class="admonition warnung">
 <p class="admonition-title">Warnung</p>
-</div>
 <p><strong>Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen</strong>, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Überprüfung einer lokalen Datei sollten SSH-Befehle wie <code>sed</code>, <code>cat</code>, <code>find</code> oder sprachspezifische Tools verwendet werden, keine Websuche.</p>
+</div>
 
 
 

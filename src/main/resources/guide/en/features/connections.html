@@ -2130,17 +2130,12 @@
 
 
 <h1 id="connections">Connections<a class="headerlink" href="#connections" title="Permanent link">&para;</a></h1>
-<p>korTTY manages SSH, Mosh and <strong>local-shell</strong> connections through three entry
-points: <strong>Quick Connect</strong>, the <strong>Connection Manager</strong>, and saved <strong>Projects</strong>.</p>
+<p>korTTY manages SSH, Mosh and <strong>local-shell</strong> connections through three entry points: <strong>Quick Connect</strong>, the <strong>Connection Manager</strong>, and saved <strong>Projects</strong>.</p>
 <p><img alt="Connection flow" src="../assets/diagrams/connection-flow.svg" /></p>
 <h2 id="quick-connect">Quick Connect<a class="headerlink" href="#quick-connect" title="Permanent link">&para;</a></h2>
-<p>Open with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (or <strong>Connections → Quick Connect…</strong>). Enter host, port,
-username and authentication, and connect without saving. Frequently used
-connections appear as quick buttons; a live search filters them.</p>
+<p>Open with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (or <strong>Connections → Quick Connect…</strong>). Enter host, port, username and authentication, and connect without saving. Frequently used connections appear as quick buttons; a live search filters them.</p>
 <h2 id="connection-manager">Connection Manager<a class="headerlink" href="#connection-manager" title="Permanent link">&para;</a></h2>
-<p><strong>Connections → Manage Connections…</strong> opens a searchable tree of saved
-connections (optionally grouped). From here you create, edit, duplicate, delete,
-import and export connections.</p>
+<p><strong>Connections → Manage Connections…</strong> opens a searchable tree of saved connections (optionally grouped). From here you create, edit, duplicate, delete, import and export connections.</p>
 <h2 id="creating-editing-a-connection">Creating / editing a connection<a class="headerlink" href="#creating-editing-a-connection" title="Permanent link">&para;</a></h2>
 <p>The connection editor has these tabs:</p>
 <table>
@@ -2181,27 +2176,18 @@ import and export connections.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SSH</label><label for="__tabbed_1_2">Mosh</label><label for="__tabbed_1_3">Local Shell</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Standard SSH via Apache MINA SSHD. Supports password, public-key and
-keyboard-interactive authentication, keep-alive, and OSC 8 clickable
-hyperlinks.</p>
+<p>Standard SSH via Apache MINA SSHD. Supports password, public-key and keyboard-interactive authentication, keep-alive, and OSC 8 clickable hyperlinks.</p>
 </div>
 <div class="tabbed-block">
-<p>Roaming, latency-friendly Mosh transport (mosh4j). The Mosh backend is
-bundled in native builds; existing connections need no migration.</p>
+<p>Roaming, latency-friendly Mosh transport (mosh4j). The Mosh backend is bundled in native builds; existing connections need no migration.</p>
 </div>
 <div class="tabbed-block">
-<p>Opens the <strong>local machine's</strong> shell in a terminal tab (no network) via a
-pty4j-backed pseudo-terminal. Host, port, username and authentication are
-not required. See <a href="#local-shell">Local Shell</a> below.</p>
+<p>Opens the <strong>local machine's</strong> shell in a terminal tab (no network) via a pty4j-backed pseudo-terminal. Host, port, username and authentication are not required. See <a href="#local-shell">Local Shell</a> below.</p>
 </div>
 </div>
 </div>
 <h2 id="local-shell">Local Shell<a class="headerlink" href="#local-shell" title="Permanent link">&para;</a></h2>
-<p>A <strong>Local Shell</strong> connection spawns a local pseudo-terminal (PTY) on your own
-machine instead of connecting to a remote host. It is selectable in both <strong>Quick
-Connect</strong> and the <strong>Connection Manager</strong>; for these connections host, port,
-username and authentication are not required (and are disabled in the dialogs),
-and no password prompt is shown.</p>
+<p>A <strong>Local Shell</strong> connection spawns a local pseudo-terminal (PTY) on your own machine instead of connecting to a remote host. It is selectable in both <strong>Quick Connect</strong> and the <strong>Connection Manager</strong>; for these connections host, port, username and authentication are not required (and are disabled in the dialogs), and no password prompt is shown.</p>
 <h3 id="choosing-a-shell">Choosing a shell<a class="headerlink" href="#choosing-a-shell" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2221,36 +2207,24 @@ and no password prompt is shown.</p>
 </tr>
 </tbody>
 </table>
-<p>A free-form <strong>Custom command</strong> field accepts any executable with arguments
-(e.g. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, a Git Bash path), and an optional <strong>start
-directory</strong> can be set. The command parser is quote-aware, so shell paths
-containing spaces — like <code>"C:\Program Files\Git\bin\bash.exe"</code> — launch
-correctly.</p>
+<p>A free-form <strong>Custom command</strong> field accepts any executable with arguments (e.g. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, a Git Bash path), and an optional <strong>start directory</strong> can be set. The command parser is quote-aware, so shell paths containing spaces — like <code>"C:\Program Files\Git\bin\bash.exe"</code> — launch correctly.</p>
 <h3 id="terminal-features-in-local-shells">Terminal features in local shells<a class="headerlink" href="#terminal-features-in-local-shells" title="Permanent link">&para;</a></h3>
-<p>Terminal logging and recording, plus the AI input/data hooks, work for local
-shells via a shared <code>ObservableTtyConnector</code> interface. Features that depend on
-an SSH channel stay SSH-only.</p>
+<p>Terminal logging and recording, plus the AI input/data hooks, work for local shells via a shared <code>ObservableTtyConnector</code> interface. Features that depend on an SSH channel stay SSH-only.</p>
 <div class="admonition note">
 <p class="admonition-title">AI Agent in local shells</p>
-<p>The <strong>AI Agent</strong> and <strong>AI Planning</strong> also run in local shells on Windows,
-macOS and Linux — see <a href="ai-assistant.html#ai-agent-and-ai-planning">AI assistant</a>.</p>
+<p>The <strong>AI Agent</strong> and <strong>AI Planning</strong> also run in local shells on Windows, macOS and Linux — see <a href="ai-assistant.html#ai-agent-and-ai-planning">AI assistant</a>.</p>
 </div>
 <h2 id="tunnels-jump-servers">Tunnels &amp; jump servers<a class="headerlink" href="#tunnels-jump-servers" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>SSH tunnels</strong> — forward ports through the connection: <strong>local</strong> (<code>-L</code>),
-  <strong>remote</strong> (<code>-R</code>) or <strong>dynamic / SOCKS</strong> (<code>-D</code>).</li>
-<li><strong>Jump server (bastion)</strong> — route the connection through one or more
-  intermediate hosts.</li>
+<li><strong>SSH tunnels</strong> — forward ports through the connection: <strong>local</strong> (<code>-L</code>), <strong>remote</strong> (<code>-R</code>) or <strong>dynamic / SOCKS</strong> (<code>-D</code>).</li>
+<li><strong>Jump server (bastion)</strong> — route the connection through one or more intermediate hosts.</li>
 </ul>
 <p><img alt="Jump server flow" src="../assets/diagrams/jump-server-flow.svg" /></p>
 <h2 id="import-from-other-clients">Import from other clients<a class="headerlink" href="#import-from-other-clients" title="Permanent link">&para;</a></h2>
-<p><strong>Connections → Import…</strong> reads connection files from <strong>MTPuTTY</strong>, <strong>MobaXterm</strong>
-and <strong>PuTTY Connection Manager</strong>, with group filtering and credential handling.</p>
+<p><strong>Connections → Import…</strong> reads connection files from <strong>MTPuTTY</strong>, <strong>MobaXterm</strong> and <strong>PuTTY Connection Manager</strong>, with group filtering and credential handling.</p>
 <div class="admonition note">
 <p class="admonition-title">More to come</p>
-<p>This page is part of the scaffolded guide. The full feature library — SFTP,
-snippets, JobScheduler, AI assistant &amp; tools, terminal recording, security,
-and the complete settings tables — is being filled in next.</p>
+<p>This page is part of the scaffolded guide. The full feature library — SFTP, snippets, JobScheduler, AI assistant &amp; tools, terminal recording, security, and the complete settings tables — is being filled in next.</p>
 </div>
 
 
