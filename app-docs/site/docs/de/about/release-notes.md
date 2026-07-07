@@ -62,14 +62,7 @@ global statt nur für die aktuelle Sitzung gespeichert.
 
 ### Terminal
 
-- **Anpassbare Terminal-Hintergrundtransparenz** – eine neue **Ansicht → Zoom → Hintergrund
-Der Schieberegler „Transparenz**“ (0–100 %) sorgt dafür, dass der Hintergrund des Terminals durchsichtig ist
-auf dem Desktop, während der Text vollständig undurchsichtig und scharf bleibt. Der Wert wird über gespeichert
-startet neu. Nur der Terminalbereich wird transparent – ​​Titel, Menü und Status
-Stäbe bleiben solide. Da der Durchsichtmodus ein randloses Fenster verwendet, wird er aktiviert
-oder off wird erst nach einem Neustart wirksam; in diesem Modus eine schlanke benutzerdefinierte Titelleiste
-Bietet Verschieben, Größenänderung, Minimieren, Maximieren und Schließen. Währenddessen den Pegel anpassen
-bereits transparent gilt live.
+- **Anpassbare Terminal-Hintergrundtransparenz** – **Ansicht → Zoom → Hintergrundtransparenz** ist ein neuer Schieberegler (0–100 %), der den Terminal-Hintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Der Wert wird über Neustarts hinweg gespeichert. Nur der Terminalbereich wird transparent – ​​Titel, Menü und Statusleiste bleiben einfarbig. Da der Durchsichtmodus ein randloses Fenster verwendet, wird das Ein- oder Ausschalten erst nach einem Neustart wirksam. In diesem Modus ermöglicht eine schlanke benutzerdefinierte Titelleiste das Verschieben, Ändern der Größe, Minimieren, Maximieren und Schließen. Die Anpassung des Pegels bei bereits transparentem Zustand gilt live.
 - **Leiseres Schließen eines Tabs** – Beim Schließen eines Terminal-Tabs wird jetzt nur noch nach einer Bestätigung gefragt, wann
 Es gibt etwas zu verlieren: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt
 (erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein
@@ -279,7 +272,7 @@ auf allen Schwarmzielen parallel (Base64-übertragen, einmalige Bestätigung),
 mit Live-Ausgabe pro Server und einer Exit-Code-/Ausgabeergebnistabelle pro Server.
 - **Schedule Swarm Runs** – ein neuer JobScheduler-Aktionstyp **AI_SWARM** mit
 **Schwarm-Parallelität** (1–16) und **Schwarm-Lesefelder**; die Schwarm-Registerkarte
-Mit der Schaltfläche **Planen…** wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
+Mit der Schaltfläche „Planen…“ wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
 Die Ergebnisse gehen in das Journal *und* in einen gespeicherten Schwarm-Chat.
 - **Sichtbarer Composer- und Tab-Statuspunkt** – die Schwarmeingabe ist klar umrahmt
 dreizeiliges Feld und auf der Registerkarte wird ein farbiger Aktivitätspunkt angezeigt (läuft/wartet).
@@ -492,7 +485,7 @@ MÄSSIG); protobuf-java `4.28.2 → 4.35.1`.
 
 ### KI-Agenten-Panel und -Aktivität
 
-- **Platzierung des AI Agent Panels**: *Unten* (Standard), *Links andocken* oder *Andocken
+- **AI Agent Panel-Platzierung**: *Unten* (Standard), *Links andocken* oder *Andocken
 Richtig*, über alle Neustarts hinweg im Gedächtnis geblieben.
 - **Mehrere gleichzeitige Läufe pro Split** (Kapitel 5), Pause/Fortsetzung pro Lauf und
 Dashboard-/Tab-Statusabzeichen (✋ wartend · ⚡ in Arbeit · ⏸ pausiert · ✓ fertig).
