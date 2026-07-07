@@ -280,7 +280,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "dcff3f4"
+    last_synced_ref: "05d74fa"
 
   # ---- About: anonymous usage statistics --------------------------------------
   - path: app-docs/site/docs/en/about/anonymous-data.md

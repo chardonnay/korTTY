@@ -36,6 +36,10 @@ shown in the footer.
 - **Windows no longer lock the main window** — the snippet **Diff** and **Manage
   variables** windows opened from the Snippet Manager no longer freeze the main
   KorTTY window while they are open.
+- **Hardening options — All / Clear / Save** — every hardening-options panel gained
+  **All** (tick everything), **Clear** (untick everything) and **Save** buttons.
+  Save remembers your selection permanently, so every hardening panel then opens
+  with your preferred options instead of the all-on default.
 
 ### Snippet Security Check
 

@@ -38,6 +38,14 @@ The **Hardening options** panel shows up in these places:
 Every option is **ticked by default**. Untick the ones you do not want. An
 unticked option contributes nothing to the prompt.
 
+Below the options, three buttons help you manage the selection:
+
+- **All** — tick every option.
+- **Clear** — untick every option (generate/apply with no hardening rules).
+- **Save** — remember the current selection permanently. From then on, every
+  hardening panel opens with your saved selection instead of the all-on default —
+  so you can set your preferred hardening once and have it applied everywhere.
+
 ## How they are applied
 
 Each ticked option becomes exactly one instruction line that KorTTY appends to

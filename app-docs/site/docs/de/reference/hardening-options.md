@@ -38,6 +38,14 @@ Workflow-Skript-Generatoren.
 Jede Option ist **standardmäßig aktiviert**. Deaktivieren Sie diejenigen, die Sie nicht möchten. Ein
 Eine deaktivierte Option trägt nichts zur Eingabeaufforderung bei.
 
+Unterhalb der Optionen helfen Ihnen drei Schaltflächen bei der Verwaltung der Auswahl:
+
+- **Alle** – kreuzen Sie jede Option an.
+- **Löschen** – alle Optionen deaktivieren (ohne Härtungsregeln generieren/anwenden).
+- **Speichern** – aktuelle Auswahl dauerhaft speichern. Von da an jeder
+Das Härtungsfenster wird mit Ihrer gespeicherten Auswahl anstelle der All-On-Standardeinstellung geöffnet –
+So können Sie Ihre bevorzugte Härtung einmalig einstellen und überall anwenden lassen.
+
 ## Wie sie angewendet werden
 
 Jede angekreuzte Option wird zu genau einer Anweisungszeile, an die KorTTY anhängt

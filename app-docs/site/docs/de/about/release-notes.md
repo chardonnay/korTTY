@@ -36,6 +36,10 @@ Diagrammseite selbst (nicht nur deren Rand) und gilt für exportierte SVG/PNG.
 - **Windows sperrt das Hauptfenster nicht mehr** – die Snippets **Diff** und **Manage
 Variablen**-Fenster, die über den Snippet-Manager geöffnet werden, frieren das Hauptfenster nicht mehr ein
 KorTTY-Fenster, solange sie geöffnet sind.
+- **Härtungsoptionen – Alle / Löschen / Speichern** – alle Härtungsoptionen wurden hinzugefügt
+Schaltflächen **Alle** (alles ankreuzen), **Löschen** (alles ankreuzen) und **Speichern**.
+Speichern speichert Ihre Auswahl dauerhaft, so dass anschließend jedes Härtungsfenster geöffnet wird
+mit Ihren bevorzugten Optionen anstelle der All-on-Standardeinstellung.
 
 ### Snippet-Sicherheitsüberprüfung
 
