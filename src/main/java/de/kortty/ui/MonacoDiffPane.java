@@ -11,11 +11,11 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.util.Duration;
+import netscape.javascript.JSObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -188,10 +188,10 @@ public class MonacoDiffPane extends StackPane {
 
     private void installBridge(WebEngine engine) {
         try {
-            Object window = engine.executeScript("window");
-            Method setMember = window.getClass().getMethod("setMember", String.class, Object.class);
-            setMember.invoke(window, "javaBridge", javaBridge);
-        } catch (ReflectiveOperationException | RuntimeException e) {
+            JSObject window = (JSObject) engine.executeScript("window");
+            window.setMember("javaBridge", javaBridge);
+            logger.debug("Installed Monaco diff Java bridge");
+        } catch (RuntimeException e) {
             logger.error("Could not install Monaco diff Java bridge", e);
         }
     }

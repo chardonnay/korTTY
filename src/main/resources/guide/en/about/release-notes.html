@@ -419,6 +419,8 @@
       
         
       
+        
+      
     
     
     
@@ -582,6 +584,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardening options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -625,7 +655,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -647,14 +677,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1787,6 +1817,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#snippet-ai-code-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet AI code analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#snippet-security-check" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2319,6 +2360,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#snippet-ai-code-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet AI code analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#snippet-security-check" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2761,6 +2813,42 @@
 <p>The full, version-by-version changelog. The version this guide was built for is
 shown in the footer.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="snippet-ai-code-analysis">Snippet AI code analysis<a class="headerlink" href="#snippet-ai-code-analysis" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Full code analysis</strong> — the snippet editor's <em>AI Code → Full code analysis</em>
+  opens a rich, non-modal window with a plain-language summary of what the script
+  does, its external dependencies (each with a reduce/replace suggestion),
+  improvement suggestions grouped into Security / Optimization / Design that you
+  tick and apply, and an auto-generated flow diagram. The diagram carries the full
+  toolbar (zoom, fit, save SVG/PNG, copy image/PlantUML, background colour,
+  regenerate) and highlights the matching source lines when you hover a node.</li>
+<li><strong>File names in title bars</strong> — the snippet editor and the analysis window now
+  show the script's file name in their title bars.</li>
+<li><strong>Per-run AI profile &amp; re-run</strong> — the analysis and other AI-code windows let you
+  pick a transient AI profile for the next run and re-run with it; font sizes are
+  remembered per window.</li>
+<li><strong>AI skills picker</strong> — relevant AI Skills are pre-selected automatically and can
+  be pinned so they apply to every AI-code action.</li>
+<li><strong>Hardening options</strong> — <em>Improve robustness</em>, <em>Custom improvement</em>, <em>Full code
+  analysis</em>, and both workflow-script generators can bake a chosen set of
+  production-quality techniques (strict mode, error traps, meaningful exit codes,
+  logging, idempotency, dry-run, <code>--help</code>, and more) into the result. See the new
+  <a href="../reference/hardening-options.html">Hardening options</a> reference for what each
+  option means and how it is applied.</li>
+<li><strong>Diagram Dark mode</strong> — both diagram windows (Full code analysis and the
+  standalone Diagram dialog) gained a <strong>Dark mode</strong> button with <em>Auto</em> (follow the
+  operating-system appearance), <em>Light</em> and <em>Dark</em>. The choice is remembered and
+  recolours the whole diagram — dark canvas, darkened node cards with light text,
+  and light connectors — while the manual background-colour picker now colours the
+  diagram page itself (not just its margin) and applies to exported SVG/PNG.</li>
+<li><strong>Windows no longer lock the main window</strong> — the snippet <strong>Diff</strong> and <strong>Manage
+  variables</strong> windows opened from the Snippet Manager no longer freeze the main
+  KorTTY window while they are open.</li>
+<li><strong>Hardening options — All / Clear / Save</strong> — every hardening-options panel gained
+  <strong>All</strong> (tick everything), <strong>Clear</strong> (untick everything) and <strong>Save</strong> buttons.
+  Save remembers your selection permanently, so every hardening panel then opens
+  with your preferred options instead of the all-on default.</li>
+</ul>
 <h3 id="snippet-security-check">Snippet Security Check<a class="headerlink" href="#snippet-security-check" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Explained security fixes</strong> — the <strong>Review security fixes</strong> window now renders

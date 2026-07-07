@@ -200,6 +200,7 @@ For fleet-wide tasks, the [AI Swarm](ai-swarm.md#generate-multi-server-workflow)
 ### Script generation capabilities
 
 - **Auto-load matching AI Skills** — Skills like language-quality guidelines for the target language are automatically included.
+- **Hardening options** — A collapsible panel of production-quality techniques (strict mode, error traps, meaningful exit codes, logging, idempotency, dry-run, `--help`, and more) that are baked into the generated script. All are on by default; untick any you don't want. See [Hardening options](../reference/hardening-options.md) for what each one means.
 - **Eight target languages** — Bash, Python, Perl, Ruby, PowerShell, Ansible, plus **Windows-CMD** (`.cmd` batch — `@echo off`, `REM` headers, `errorlevel` checks) and **AppleScript** (`.applescript` — `osascript` shebang, `--` comments, `try`/`on error`).
 - **Multiple language variants** — Generate several language variants and suggestions as inline tabs within the workflow dialog.
 - **Adjustable font size** — Each generated-script editor has **A−** / **A+** buttons and supports ++ctrl++ + mouse wheel (Cmd on macOS); the chosen size is remembered across sessions.

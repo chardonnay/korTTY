@@ -285,6 +285,22 @@ public class GlobalSettings {
     @XmlElement
     private Integer aiDiffFontSize = 14;
 
+    /** Font size used in the AI code-review / syntax-check findings window. */
+    @XmlElement
+    private Integer aiReviewFontSize = 14;
+
+    /** Font size used in the AI technical-description window. */
+    @XmlElement
+    private Integer aiDescribeFontSize = 14;
+
+    /** Font size used in the AI alternative-solutions previews. */
+    @XmlElement
+    private Integer aiAlternativesFontSize = 14;
+
+    /** Font size used in the AI code-analysis window (left analysis pane). */
+    @XmlElement
+    private Integer codeAnalysisFontSize = 14;
+
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
     private Integer workflowScriptFontSize = 14;
@@ -478,6 +494,14 @@ public class GlobalSettings {
 
     @XmlElement
     private String snippetDiagramBackgroundColor = "#FFFFFF";
+
+    /** Diagram light/dark appearance: "auto" (follow OS), "light" or "dark". */
+    @XmlElement
+    private String snippetDiagramColorMode = "auto";
+
+    /** Persisted hardening-option selection (comma-separated enum names); null = never saved → use defaults. */
+    @XmlElement
+    private String snippetHardeningOptions;
 
     @XmlElement
     private String selectedSnippetEditorProfileId; // null = use explicit snippet editor colors
@@ -1251,6 +1275,38 @@ public class GlobalSettings {
 
     public void setAiDiffFontSize(Integer aiDiffFontSize) {
         this.aiDiffFontSize = aiDiffFontSize;
+    }
+
+    public Integer getAiReviewFontSize() {
+        return aiReviewFontSize;
+    }
+
+    public void setAiReviewFontSize(Integer aiReviewFontSize) {
+        this.aiReviewFontSize = aiReviewFontSize;
+    }
+
+    public Integer getAiDescribeFontSize() {
+        return aiDescribeFontSize;
+    }
+
+    public void setAiDescribeFontSize(Integer aiDescribeFontSize) {
+        this.aiDescribeFontSize = aiDescribeFontSize;
+    }
+
+    public Integer getAiAlternativesFontSize() {
+        return aiAlternativesFontSize;
+    }
+
+    public void setAiAlternativesFontSize(Integer aiAlternativesFontSize) {
+        this.aiAlternativesFontSize = aiAlternativesFontSize;
+    }
+
+    public Integer getCodeAnalysisFontSize() {
+        return codeAnalysisFontSize;
+    }
+
+    public void setCodeAnalysisFontSize(Integer codeAnalysisFontSize) {
+        this.codeAnalysisFontSize = codeAnalysisFontSize;
     }
 
     public Integer getWorkflowScriptFontSize() {
@@ -2036,6 +2092,27 @@ public class GlobalSettings {
         this.snippetDiagramBackgroundColor = snippetDiagramBackgroundColor != null && !snippetDiagramBackgroundColor.isBlank()
             ? snippetDiagramBackgroundColor.trim()
             : "#FFFFFF";
+    }
+
+    public String getSnippetDiagramColorMode() {
+        return snippetDiagramColorMode != null && !snippetDiagramColorMode.isBlank()
+            ? snippetDiagramColorMode
+            : "auto";
+    }
+
+    public void setSnippetDiagramColorMode(String snippetDiagramColorMode) {
+        this.snippetDiagramColorMode = snippetDiagramColorMode != null && !snippetDiagramColorMode.isBlank()
+            ? snippetDiagramColorMode.trim().toLowerCase(java.util.Locale.ROOT)
+            : "auto";
+    }
+
+    /** Raw persisted hardening selection (may be null = never saved, or "" = saved empty). */
+    public String getSnippetHardeningOptions() {
+        return snippetHardeningOptions;
+    }
+
+    public void setSnippetHardeningOptions(String snippetHardeningOptions) {
+        this.snippetHardeningOptions = snippetHardeningOptions;
     }
 
     public String getSelectedSnippetEditorProfileId() { return selectedSnippetEditorProfileId; }

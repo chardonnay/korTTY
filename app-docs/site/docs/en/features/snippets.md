@@ -39,7 +39,7 @@ The snippet editor toolbar provides:
 - **Format Code** — Format the content using local formatters or AI-assisted formatting.
 - **Check Syntax** — Validate the syntax (local or AI-assisted).
 - **AI Text** — Correct spelling, translate, or generate technical descriptions.
-- **AI Code** — Complete code, review errors, improve selections, check security, or generate diagrams.
+- **AI Code** — Complete code, run a full code analysis, improve a selection (readability, robustness, performance, or a custom instruction), check security, or generate diagrams.
 - **One-liner** — Export as a terminal one-liner.
 - **Editor zoom** — Adjust text size with ++ctrl+plus++ and ++ctrl+minus++.
 - **Editor profiles** — Switch between built-in IntelliJ-inspired profiles and custom color schemes.
@@ -111,16 +111,44 @@ The ↺ button switches between the original code and the last AI-generated edit
 - **AI Complete** — Requests code completion at the current cursor position and shows it as a non-editing ghost suggestion. Click to insert.
 - **Auto AI Complete** — Requests completions automatically after you pause at a cursor position. Off by default; only active for the current editor session.
 
-### Editor context menu AI actions
+### AI Code actions
 
-- **AI Assistant…** — Opens an instruction dialog for the current cursor position. KorTTY sends the full snippet, cursor offset, line, column, and your instruction to the configured AI profile. The result is shown as a before/after preview.
-- **Review errors and improvements** — Generates an informational report without changing content.
-- **Improve…** — Rewrites only the selected code region.
+The **AI Code** menu groups the actions that read or rewrite the code itself:
+
+- **AI Complete** / **Auto AI Complete** — Code completion at the cursor (see [AI Code completions](#ai-code-completions) above).
+- **Full code analysis** — Opens a rich analysis window: a plain-language summary of what the script does, its external dependencies, categorized improvement suggestions you can tick and apply, and an auto-generated flow diagram. See [Full code analysis](#full-code-analysis) below.
+- **Improve readability / robustness / performance** — Rewrites the **selected** code region toward one goal without unrelated changes. *Improve robustness* additionally offers [Hardening options](../reference/hardening-options.md) before it runs.
+- **Custom improvement…** — Rewrites the selected code region following a free-text instruction you type, with the same [Hardening options](../reference/hardening-options.md).
 - **Security Check** — Generates a security report. Select findings to fix; KorTTY applies them with a before/after preview that highlights what changed and why. See [Security Check](#security-check) below.
 - **Diagram** — Generates and saves a persisted PlantUML logical-structure diagram for the snippet.
 
+The editor context menu also offers **AI Assistant…**, which opens an instruction dialog for the current cursor position: KorTTY sends the full snippet, cursor offset, line, column, and your instruction to the configured AI profile and shows the result as a before/after preview.
+
+All improvement actions rewrite the selected region only, so **select a code region first** — otherwise KorTTY prompts you to. The rewrite is always shown as a before/after preview (the *Review AI change* window) before anything is applied.
+
 !!! warning
     Snippet AI actions send the current snippet content, selection or cursor metadata, prompt instructions, and optionally enabled AI Skills to the configured default AI profile (or, for Security Check, the dedicated security-check profile). Snippet AI actions do not enable internet tools, even when the selected profile has internet access. Auto-completion can send the snippet repeatedly while active, so disable it for sensitive snippets unless you trust the configured endpoint.
+
+#### Full code analysis
+
+**Full code analysis** opens a dedicated window that examines the whole snippet at once and offers concrete improvements you can apply. The window is **non-modal** — you can keep editing the snippet while it stays open — and its title bar shows the script's file name so you can tell several analyses apart. The snippet editor's own title bar likewise shows the name of the file you are editing.
+
+The window is split into two panes.
+
+**Left — analysis and improvements:**
+
+- **Summary** — A short, plain-language description of what the script does.
+- **Improvements** — Suggestions grouped into **Security**, **Optimization** and **Design** categories, each with a severity badge, an explanation, and a concrete recommendation. Tick the ones you want; use **Select all** to tick everything at once. Empty categories are hidden.
+- **Dependencies** — External programs, scripts or services the snippet relies on, each with its *Purpose* and a *Reduce/replace* suggestion. Tick a dependency to have its suggestion applied too.
+
+**Right — flow diagram:**
+
+- An **auto-generated flow diagram** of the script's logic renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom **−** / **Fit** / **+**, **Save SVG** / **Save PNG**, **Copy image** / **Copy PlantUML**, a **Dark mode** control and a **Background** colour picker (both remembered), and **Regenerate**. See [Diagram appearance](#diagram-appearance) below.
+- **Hover code references** — Moving the mouse over a diagram node shows the matching lines from the snippet, so you can trace each step back to the code — the same behaviour as the standalone [Diagram](#plantuml-diagrams) window.
+
+At the bottom, a collapsible **Hardening options** panel lets you attach production-quality techniques to the fixes that get applied. See [Hardening options](../reference/hardening-options.md) for what each option means and how it is applied.
+
+When you click **Apply selected**, KorTTY sends the ticked improvements and dependency suggestions (plus any hardening options) to the AI in one request and shows the result in an *Apply improvements — review changes* window: the original and rewritten script side by side, with changed lines highlighted and per-change reasons, exactly like the Security-Check review below. Apply the change to update the editor.
 
 #### Security Check
 
@@ -133,6 +161,19 @@ The **Security Check** report window lists each finding with a colour-coded seve
 - **Re-run check** to repeat the review with the newly selected profile.
 
 When you apply fixes, the **Review security fixes** window shows the original and corrected code side by side. Changed lines are highlighted automatically and carry a marker in the margin. Hover anywhere in a changed block to see which finding(s) it addresses — for example `S1`, or `S1 + S2` when one block covers two findings — together with the reason for the change. The same explanations are also listed as cards below the diff, so the reasoning stays visible even when a marker cannot be placed. The preview font size can be zoomed and is remembered across sessions.
+
+### AI profile, re-run and zoom
+
+The AI-code report windows (Full code analysis, Security Check, the technical-description and alternative-solution dialogs, and the change-review diff) share a small toolbar:
+
+- **AI profile** — Pick a different AI profile for the **next** run of that window. The choice is transient: it resets to the default profile when the window is reopened. (Security Check keeps its own permanently remembered *Security profile* instead.)
+- **Re-run** — Repeat the request with the currently selected profile.
+- **A− / A+** — Adjust the reading or preview font size; the chosen size is remembered across sessions, separately per window type.
+- **Copy** — Copy the report or content to the clipboard.
+
+### AI skills
+
+When [AI Skills](../reference/settings/ai-skills.md) are configured, the snippet editor shows an **AI skills** picker. Skills relevant to the snippet's language are pre-selected automatically, and any skill you tick here is applied to **every** AI-code action (completion, analysis, improvement, security check, diagram) regardless of the skill's configured target. The picker appears only when at least one AI Skill is enabled.
 
 ### Text correction and translation
 
@@ -164,8 +205,20 @@ Right-click a selected code region and choose **Alternative solution** to:
 PlantUML diagrams are stored with the snippet. If the snippet content changes after diagram generation, KorTTY marks the diagram as possibly outdated and offers regeneration.
 
 - **Rendering:** Local only — KorTTY uses a checksum-verified PlantUML JAR and Graphviz `dot`; no remote server is used.
-- **Dialog features:** Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, and clipboard copy.
+- **Dialog features:** Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, clipboard copy, and the shared [Diagram appearance](#diagram-appearance) controls.
 - **Dependency errors:** If local rendering is unavailable, KorTTY shows the error so Java/Graphviz can be fixed.
+
+### Diagram appearance
+
+Both diagram windows — the standalone **Diagram** dialog and the **Full code analysis** flow diagram — share two appearance controls, and each remembers its setting across sessions:
+
+- **Dark mode** — A **Dark mode** button with three choices:
+    - **Auto** — follows the operating system's light/dark appearance. When you switch the OS to dark mode the diagram follows on the next render (and when the window regains focus).
+    - **Light** — always light.
+    - **Dark** — always dark.
+
+    A manual choice is permanent until you change it. Dark mode recolours the **whole** diagram — a dark canvas, darkened node cards with light text, and light connectors and labels — not just the page margin.
+- **Background** — A colour picker for the page/canvas colour in light mode. It applies to the diagram itself and to any exported SVG/PNG. The picker is disabled while dark mode is active, because dark mode drives the appearance.
 
 ## Placeholder variables
 

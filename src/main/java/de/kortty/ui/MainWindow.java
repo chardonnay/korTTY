@@ -4778,6 +4778,15 @@ public class MainWindow {
     }
 
     private AiService createAiService(AiProfile profile, ServerConnection connection) {
+        return createAiService(profile, connection, null);
+    }
+
+    /**
+     * Creates an AI service and additionally pins {@code forcedSkillIds} (unioned with the connection's
+     * assigned skills) so those skills are injected regardless of their target — used by the snippet
+     * editor's AI-code skill picker.
+     */
+    private AiService createAiService(AiProfile profile, ServerConnection connection, java.util.Collection<String> forcedSkillIds) {
         if (profile == null) {
             return null;
         }
@@ -4786,6 +4795,13 @@ public class MainWindow {
             && (profile.getApiUrl() == null || profile.getApiUrl().isBlank())) {
             return null;
         }
+        java.util.Set<String> pinnedSkillIds = new java.util.LinkedHashSet<>();
+        if (connection != null && connection.getAiSkillIds() != null) {
+            pinnedSkillIds.addAll(connection.getAiSkillIds());
+        }
+        if (forcedSkillIds != null) {
+            pinnedSkillIds.addAll(forcedSkillIds);
+        }
         try {
             return AiServiceFactory.create(
                 profile,
@@ -4793,7 +4809,7 @@ public class MainWindow {
                 buildInternetAccessConfiguration(profile),
                 AiSkillPromptSupport.fromSettings(
                     app.getGlobalSettingsManager().getSettings(),
-                    connection != null ? connection.getAiSkillIds() : null));
+                    pinnedSkillIds.isEmpty() ? null : pinnedSkillIds));
         } catch (IllegalStateException e) {
             return new FailingAiService(e.getMessage());
         }
@@ -5326,7 +5342,7 @@ public class MainWindow {
             case DESCRIBE_SNIPPET_SELECTION, DESCRIBE_SNIPPET_FULL -> I18n.get("snippets.ai.menu.describe");
             case GENERATE_SNIPPET_ALTERNATIVES -> I18n.get("snippets.ai.alternatives.context");
             case COMPLETE_SNIPPET_CODE -> I18n.get("snippets.ai.code.complete");
-            case REVIEW_SNIPPET_CODE -> I18n.get("snippets.ai.code.review");
+            case REVIEW_SNIPPET_CODE, ANALYZE_SNIPPET_CODE, APPLY_SNIPPET_IMPROVEMENTS -> I18n.get("snippets.ai.code.review");
             case IMPROVE_SNIPPET_CODE -> I18n.get("snippets.ai.code.improve.custom");
             case ASSIST_SNIPPET_CODE -> I18n.get("snippets.ai.assistant.context");
             case SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES -> I18n.get("snippets.ai.security.title");
@@ -6636,6 +6652,11 @@ public class MainWindow {
 
     AiService createAiServiceForProfile(AiProfile profile) {
         return createAiService(profile);
+    }
+
+    /** Like {@link #createAiServiceForProfile(AiProfile)} but pins {@code forcedSkillIds} onto the service. */
+    AiService createAiServiceForProfile(AiProfile profile, java.util.Collection<String> forcedSkillIds) {
+        return createAiService(profile, null, forcedSkillIds);
     }
 
     /** A factory that builds a fresh {@link AiPromptService} per call (one per swarm agent thread). */

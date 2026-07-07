@@ -65,7 +65,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<ScriptLanguage> languageCombo = new ComboBox<>();
     private final ComboBox<HeaderChoice> headerCombo = new ComboBox<>();
     private final Button setDefaultHeaderButton = new Button(I18n.get("ai.workflow.header.setDefault"));
-    private final Map<HardeningOption, CheckBox> optionChecks = new EnumMap<>(HardeningOption.class);
+    private final HardeningOptionsSelector hardeningSelector = new HardeningOptionsSelector();
     private final Map<ScriptLanguage, CheckMenuItem> additionalLanguageItems = new EnumMap<>(ScriptLanguage.class);
     private final MenuButton additionalLanguagesButton = new MenuButton(I18n.get("ai.workflow.alsoLanguages"));
     private final Spinner<Integer> suggestionsSpinner = new Spinner<>(1, 5, 1);
@@ -219,19 +219,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         headerRow.setAlignment(Pos.CENTER_LEFT);
 
         // Hardening options.
-        GridPane optionsGrid = new GridPane();
-        optionsGrid.setHgap(16);
-        optionsGrid.setVgap(4);
-        EnumSet<HardeningOption> defaults = HardeningOption.defaults();
-        HardeningOption[] all = HardeningOption.values();
-        for (int i = 0; i < all.length; i++) {
-            HardeningOption option = all[i];
-            CheckBox check = new CheckBox(I18n.get("ai.workflow.option." + option.name()));
-            check.setSelected(defaults.contains(option));
-            optionChecks.put(option, check);
-            optionsGrid.add(check, i % 2, i / 2);
-        }
-        TitledPane optionsPane = new TitledPane(I18n.get("ai.workflow.options.title"), optionsGrid);
+        TitledPane optionsPane = new TitledPane(I18n.get("ai.workflow.options.title"), hardeningSelector);
         optionsPane.setExpanded(false);
 
         extraInstructionsArea.setPromptText(I18n.get("ai.workflow.extra.prompt"));
@@ -363,13 +351,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
     }
 
     private EnumSet<HardeningOption> selectedOptions() {
-        EnumSet<HardeningOption> selected = EnumSet.noneOf(HardeningOption.class);
-        optionChecks.forEach((option, check) -> {
-            if (check.isSelected()) {
-                selected.add(option);
-            }
-        });
-        return selected;
+        return hardeningSelector.selectedOptions();
     }
 
     private HeaderFacts factsFor(ScriptLanguage language) {

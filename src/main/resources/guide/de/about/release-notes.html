@@ -419,6 +419,8 @@
       
         
       
+        
+      
     
     
     
@@ -582,6 +584,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Härtemöglichkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -625,7 +655,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -647,14 +677,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1787,6 +1817,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#snippet-ki-codeanalyse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet-KI-Codeanalyse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#snippet-sicherheitsuberprufung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2319,6 +2360,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#snippet-ki-codeanalyse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet-KI-Codeanalyse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#snippet-sicherheitsuberprufung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2761,6 +2813,42 @@
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
 in der Fußzeile angezeigt.</p>
 <h2 id="unveroffentlicht">Unveröffentlicht<a class="headerlink" href="#unveroffentlicht" title="Permanent link">&para;</a></h2>
+<h3 id="snippet-ki-codeanalyse">Snippet-KI-Codeanalyse<a class="headerlink" href="#snippet-ki-codeanalyse" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Vollständige Code-Analyse</strong> – der <em>AI-Code des Snippet-Editors → Vollständige Code-Analyse</em>
+öffnet ein umfangreiches, nicht modales Fenster mit einer Zusammenfassung des Skripts im Klartext
+tut, seine externen Abhängigkeiten (jeweils mit einem Reduzierungs-/Ersetzungsvorschlag),
+Verbesserungsvorschläge, gruppiert in Sicherheit / Optimierung / Design, die Sie erhalten
+Ankreuzen und Anwenden sowie ein automatisch generiertes Flussdiagramm. Das Diagramm trägt das Ganze
+Symbolleiste (Zoom, Anpassen, SVG/PNG speichern, Bild kopieren/PlantUML, Hintergrundfarbe,
+neu generieren) und hebt die übereinstimmenden Quellzeilen hervor, wenn Sie mit der Maus über einen Knoten fahren.</li>
+<li><strong>Dateinamen in Titelleisten</strong> – jetzt der Snippet-Editor und das Analysefenster
+Zeigen Sie den Dateinamen des Skripts in der Titelleiste an.</li>
+<li><strong>KI-Profil pro Lauf und erneuter Lauf</strong> – die Analyse und andere AI-Code-Fenster ermöglichen es Ihnen
+Wählen Sie ein vorübergehendes KI-Profil für den nächsten Lauf und führen Sie es erneut aus. Schriftgrößen sind
+pro Fenster gespeichert.</li>
+<li><strong>KI-Skills-Auswahl</strong> – relevante KI-Skills werden automatisch vorgewählt und können
+angeheftet werden, damit sie für jede AI-Code-Aktion gelten.</li>
+<li><strong>Härtungsoptionen</strong> – <em>Stabilität verbessern</em>, <em>Benutzerdefinierte Verbesserung</em>, <em>Vollständiger Code
+Analyse</em>, und beide Workflow-Skript-Generatoren können einen ausgewählten Satz von erstellen
+Produktionsqualitätstechniken (strenger Modus, Fehlerfallen, sinnvolle Exit-Codes,
+Protokollierung, Idempotenz, Trockenlauf, <code>--help</code> und mehr) in das Ergebnis ein. Sehen Sie das Neue
+<a href="../reference/hardening-options.html">Härtungsoptionen</a>-Referenz für was jeweils
+Option bedeutet und wie sie angewendet wird.</li>
+<li><strong>Diagramm-Dunkelmodus</strong> – beide Diagrammfenster (vollständige Codeanalyse und die
+eigenständiges Diagrammdialogfeld) hat eine <strong>Dunkelmodus</strong>-Schaltfläche mit <em>Auto</em> erhalten (folgen Sie den Anweisungen).
+Erscheinungsbild des Betriebssystems), <em>Hell</em> und <em>Dunkel</em>. Die Wahl wird erinnert und
+färbt das gesamte Diagramm neu – dunkle Leinwand, abgedunkelte Knotenkarten mit hellem Text,
+und Lichtanschlüsse – während der manuelle Hintergrundfarbwähler jetzt die Farben einfärbt
+Diagrammseite selbst (nicht nur deren Rand) und gilt für exportierte SVG/PNG.</li>
+<li><strong>Windows sperrt das Hauptfenster nicht mehr</strong> – die Snippets <strong>Diff</strong> und <strong>Manage
+Variablen</strong>-Fenster, die über den Snippet-Manager geöffnet werden, frieren das Hauptfenster nicht mehr ein
+KorTTY-Fenster, solange sie geöffnet sind.</li>
+<li><strong>Härtungsoptionen – Alle / Löschen / Speichern</strong> – alle Härtungsoptionen wurden hinzugefügt
+Schaltflächen <strong>Alle</strong> (alles ankreuzen), <strong>Löschen</strong> (alles ankreuzen) und <strong>Speichern</strong>.
+Speichern speichert Ihre Auswahl dauerhaft, so dass anschließend jedes Härtungsfenster geöffnet wird
+mit Ihren bevorzugten Optionen anstelle der All-on-Standardeinstellung.</li>
+</ul>
 <h3 id="snippet-sicherheitsuberprufung">Snippet-Sicherheitsüberprüfung<a class="headerlink" href="#snippet-sicherheitsuberprufung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Erläuterte Sicherheitsfixes</strong> – das Fenster <strong>Sicherheitsfixes überprüfen</strong> wird jetzt angezeigt

@@ -5,6 +5,42 @@ shown in the footer.
 
 ## Unreleased
 
+### Snippet AI code analysis
+
+- **Full code analysis** — the snippet editor's *AI Code → Full code analysis*
+  opens a rich, non-modal window with a plain-language summary of what the script
+  does, its external dependencies (each with a reduce/replace suggestion),
+  improvement suggestions grouped into Security / Optimization / Design that you
+  tick and apply, and an auto-generated flow diagram. The diagram carries the full
+  toolbar (zoom, fit, save SVG/PNG, copy image/PlantUML, background colour,
+  regenerate) and highlights the matching source lines when you hover a node.
+- **File names in title bars** — the snippet editor and the analysis window now
+  show the script's file name in their title bars.
+- **Per-run AI profile & re-run** — the analysis and other AI-code windows let you
+  pick a transient AI profile for the next run and re-run with it; font sizes are
+  remembered per window.
+- **AI skills picker** — relevant AI Skills are pre-selected automatically and can
+  be pinned so they apply to every AI-code action.
+- **Hardening options** — *Improve robustness*, *Custom improvement*, *Full code
+  analysis*, and both workflow-script generators can bake a chosen set of
+  production-quality techniques (strict mode, error traps, meaningful exit codes,
+  logging, idempotency, dry-run, `--help`, and more) into the result. See the new
+  [Hardening options](../reference/hardening-options.md) reference for what each
+  option means and how it is applied.
+- **Diagram Dark mode** — both diagram windows (Full code analysis and the
+  standalone Diagram dialog) gained a **Dark mode** button with *Auto* (follow the
+  operating-system appearance), *Light* and *Dark*. The choice is remembered and
+  recolours the whole diagram — dark canvas, darkened node cards with light text,
+  and light connectors — while the manual background-colour picker now colours the
+  diagram page itself (not just its margin) and applies to exported SVG/PNG.
+- **Windows no longer lock the main window** — the snippet **Diff** and **Manage
+  variables** windows opened from the Snippet Manager no longer freeze the main
+  KorTTY window while they are open.
+- **Hardening options — All / Clear / Save** — every hardening-options panel gained
+  **All** (tick everything), **Clear** (untick everything) and **Save** buttons.
+  Save remembers your selection permanently, so every hardening panel then opens
+  with your preferred options instead of the all-on default.
+
 ### Snippet Security Check
 
 - **Explained security fixes** — the **Review security fixes** window now renders

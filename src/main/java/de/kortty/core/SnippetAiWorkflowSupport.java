@@ -326,6 +326,56 @@ public final class SnippetAiWorkflowSupport {
         return SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
     }
 
+    /** Rich code analysis: summary + external dependencies (with reduce/replace suggestions) + categorized improvements. */
+    public static SnippetAiResponseSupport.ScriptAnalysis analyzeSnippetCode(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions) throws Exception {
+
+        AiRequest request = new AiRequest(
+            AiAction.ANALYZE_SNIPPET_CODE,
+            fullContent,
+            connectionDisplayName,
+            fallbackLanguageCode,
+            additionalInstructions,
+            buildAnalysisContext(fullContent, snippetLanguage, fallbackLanguageCode));
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null && usageRecorder != null) {
+            usageRecorder.record(request, result);
+        }
+        return SnippetAiResponseSupport.parseScriptAnalysis(result != null ? result.content() : null);
+    }
+
+    /** Applies the user-selected improvements + dependency suggestions; returns the same shape as the security-fix flow. */
+    public static SnippetAiResponseSupport.SnippetSecurityFix applySnippetImprovements(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String additionalInstructions) throws Exception {
+
+        AiRequest request = new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS,
+            fullContent,
+            connectionDisplayName,
+            fallbackLanguageCode,
+            additionalInstructions,
+            buildImprovementApplyContext(fullContent, snippetLanguage, fallbackLanguageCode, improvements, dependencies));
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null && usageRecorder != null) {
+            usageRecorder.record(request, result);
+        }
+        return SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
+    }
+
     public static SnippetAiResponseSupport.PlantUmlDiagram generateSnippetPlantUml(
         AiService aiService,
         UsageRecorder usageRecorder,
@@ -531,6 +581,48 @@ public final class SnippetAiWorkflowSupport {
             + "Natural language for the summary: " + fallbackLanguageCode + "\n"
             + "Selected security findings to fix:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(findingsText)
+            + "\nFull snippet to update:\n"
+            + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+    }
+
+    private static String buildAnalysisContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
+        return "Snippet language: " + snippetLanguage + "\n"
+            + "Natural language for the analysis: " + fallbackLanguageCode + "\n"
+            + "Explain in plain language what the script does. List external dependencies (other scripts, "
+            + "programs or services) with a reduce-or-replace suggestion for each. List concrete, individually-"
+            + "applicable improvements categorized as security, optimization or design. Only report what this code supports.\n"
+            + "Line-numbered snippet:\n"
+            + lineNumberedTextBlock(fullContent)
+            + "\nFull snippet:\n"
+            + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+    }
+
+    private static String buildImprovementApplyContext(
+        String fullContent,
+        String snippetLanguage,
+        String fallbackLanguageCode,
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies) {
+
+        StringBuilder items = new StringBuilder();
+        if (improvements != null) {
+            for (SnippetAiResponseSupport.ScriptImprovement improvement : improvements) {
+                items.append(improvement.id()).append(" [").append(improvement.category())
+                    .append('/').append(improvement.severity()).append("] ").append(improvement.title())
+                    .append("\nRecommendation: ").append(improvement.recommendation()).append("\n\n");
+            }
+        }
+        if (dependencies != null) {
+            for (SnippetAiResponseSupport.ScriptDependency dependency : dependencies) {
+                items.append(dependency.id()).append(" [dependency] ").append(dependency.name())
+                    .append(" (").append(dependency.kind()).append(")\nReduce/replace: ")
+                    .append(dependency.suggestion()).append("\n\n");
+            }
+        }
+        return "Snippet language: " + snippetLanguage + "\n"
+            + "Natural language for the summary: " + fallbackLanguageCode + "\n"
+            + "Selected items to apply (each tagged with its id — echo the id back in changes[].finding):\n"
+            + AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip())
             + "\nFull snippet to update:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
     }

@@ -419,6 +419,8 @@
       
         
       
+        
+      
     
     
     
@@ -582,6 +584,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardening options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -625,7 +655,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -647,14 +677,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1494,10 +1524,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#editor-context-menu-ai-actions" class="md-nav__link">
+  <a href="#ai-code-actions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Editor context menu AI actions
+        AI Code actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-profile-re-run-and-zoom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI profile, re-run and zoom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI skills
       
     </span>
   </a>
@@ -1542,6 +1594,17 @@
     <span class="md-ellipsis">
       
         PlantUML diagrams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#diagram-appearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagram appearance
       
     </span>
   </a>
@@ -2372,10 +2435,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#editor-context-menu-ai-actions" class="md-nav__link">
+  <a href="#ai-code-actions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Editor context menu AI actions
+        AI Code actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-profile-re-run-and-zoom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI profile, re-run and zoom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI skills
       
     </span>
   </a>
@@ -2420,6 +2505,17 @@
     <span class="md-ellipsis">
       
         PlantUML diagrams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#diagram-appearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagram appearance
       
     </span>
   </a>
@@ -2620,7 +2716,7 @@
 <li><strong>Format Code</strong> — Format the content using local formatters or AI-assisted formatting.</li>
 <li><strong>Check Syntax</strong> — Validate the syntax (local or AI-assisted).</li>
 <li><strong>AI Text</strong> — Correct spelling, translate, or generate technical descriptions.</li>
-<li><strong>AI Code</strong> — Complete code, review errors, improve selections, check security, or generate diagrams.</li>
+<li><strong>AI Code</strong> — Complete code, run a full code analysis, improve a selection (readability, robustness, performance, or a custom instruction), check security, or generate diagrams.</li>
 <li><strong>One-liner</strong> — Export as a terminal one-liner.</li>
 <li><strong>Editor zoom</strong> — Adjust text size with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span>.</li>
 <li><strong>Editor profiles</strong> — Switch between built-in IntelliJ-inspired profiles and custom color schemes.</li>
@@ -2677,18 +2773,38 @@
 <li><strong>AI Complete</strong> — Requests code completion at the current cursor position and shows it as a non-editing ghost suggestion. Click to insert.</li>
 <li><strong>Auto AI Complete</strong> — Requests completions automatically after you pause at a cursor position. Off by default; only active for the current editor session.</li>
 </ul>
-<h3 id="editor-context-menu-ai-actions">Editor context menu AI actions<a class="headerlink" href="#editor-context-menu-ai-actions" title="Permanent link">&para;</a></h3>
+<h3 id="ai-code-actions">AI Code actions<a class="headerlink" href="#ai-code-actions" title="Permanent link">&para;</a></h3>
+<p>The <strong>AI Code</strong> menu groups the actions that read or rewrite the code itself:</p>
 <ul>
-<li><strong>AI Assistant…</strong> — Opens an instruction dialog for the current cursor position. KorTTY sends the full snippet, cursor offset, line, column, and your instruction to the configured AI profile. The result is shown as a before/after preview.</li>
-<li><strong>Review errors and improvements</strong> — Generates an informational report without changing content.</li>
-<li><strong>Improve…</strong> — Rewrites only the selected code region.</li>
+<li><strong>AI Complete</strong> / <strong>Auto AI Complete</strong> — Code completion at the cursor (see <a href="#ai-code-completions">AI Code completions</a> above).</li>
+<li><strong>Full code analysis</strong> — Opens a rich analysis window: a plain-language summary of what the script does, its external dependencies, categorized improvement suggestions you can tick and apply, and an auto-generated flow diagram. See <a href="#full-code-analysis">Full code analysis</a> below.</li>
+<li><strong>Improve readability / robustness / performance</strong> — Rewrites the <strong>selected</strong> code region toward one goal without unrelated changes. <em>Improve robustness</em> additionally offers <a href="../reference/hardening-options.html">Hardening options</a> before it runs.</li>
+<li><strong>Custom improvement…</strong> — Rewrites the selected code region following a free-text instruction you type, with the same <a href="../reference/hardening-options.html">Hardening options</a>.</li>
 <li><strong>Security Check</strong> — Generates a security report. Select findings to fix; KorTTY applies them with a before/after preview that highlights what changed and why. See <a href="#security-check">Security Check</a> below.</li>
 <li><strong>Diagram</strong> — Generates and saves a persisted PlantUML logical-structure diagram for the snippet.</li>
 </ul>
+<p>The editor context menu also offers <strong>AI Assistant…</strong>, which opens an instruction dialog for the current cursor position: KorTTY sends the full snippet, cursor offset, line, column, and your instruction to the configured AI profile and shows the result as a before/after preview.</p>
+<p>All improvement actions rewrite the selected region only, so <strong>select a code region first</strong> — otherwise KorTTY prompts you to. The rewrite is always shown as a before/after preview (the <em>Review AI change</em> window) before anything is applied.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Snippet AI actions send the current snippet content, selection or cursor metadata, prompt instructions, and optionally enabled AI Skills to the configured default AI profile (or, for Security Check, the dedicated security-check profile). Snippet AI actions do not enable internet tools, even when the selected profile has internet access. Auto-completion can send the snippet repeatedly while active, so disable it for sensitive snippets unless you trust the configured endpoint.</p>
 </div>
+<h4 id="full-code-analysis">Full code analysis<a class="headerlink" href="#full-code-analysis" title="Permanent link">&para;</a></h4>
+<p><strong>Full code analysis</strong> opens a dedicated window that examines the whole snippet at once and offers concrete improvements you can apply. The window is <strong>non-modal</strong> — you can keep editing the snippet while it stays open — and its title bar shows the script's file name so you can tell several analyses apart. The snippet editor's own title bar likewise shows the name of the file you are editing.</p>
+<p>The window is split into two panes.</p>
+<p><strong>Left — analysis and improvements:</strong></p>
+<ul>
+<li><strong>Summary</strong> — A short, plain-language description of what the script does.</li>
+<li><strong>Improvements</strong> — Suggestions grouped into <strong>Security</strong>, <strong>Optimization</strong> and <strong>Design</strong> categories, each with a severity badge, an explanation, and a concrete recommendation. Tick the ones you want; use <strong>Select all</strong> to tick everything at once. Empty categories are hidden.</li>
+<li><strong>Dependencies</strong> — External programs, scripts or services the snippet relies on, each with its <em>Purpose</em> and a <em>Reduce/replace</em> suggestion. Tick a dependency to have its suggestion applied too.</li>
+</ul>
+<p><strong>Right — flow diagram:</strong></p>
+<ul>
+<li>An <strong>auto-generated flow diagram</strong> of the script's logic renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom <strong>−</strong> / <strong>Fit</strong> / <strong>+</strong>, <strong>Save SVG</strong> / <strong>Save PNG</strong>, <strong>Copy image</strong> / <strong>Copy PlantUML</strong>, a <strong>Dark mode</strong> control and a <strong>Background</strong> colour picker (both remembered), and <strong>Regenerate</strong>. See <a href="#diagram-appearance">Diagram appearance</a> below.</li>
+<li><strong>Hover code references</strong> — Moving the mouse over a diagram node shows the matching lines from the snippet, so you can trace each step back to the code — the same behaviour as the standalone <a href="#plantuml-diagrams">Diagram</a> window.</li>
+</ul>
+<p>At the bottom, a collapsible <strong>Hardening options</strong> panel lets you attach production-quality techniques to the fixes that get applied. See <a href="../reference/hardening-options.html">Hardening options</a> for what each option means and how it is applied.</p>
+<p>When you click <strong>Apply selected</strong>, KorTTY sends the ticked improvements and dependency suggestions (plus any hardening options) to the AI in one request and shows the result in an <em>Apply improvements — review changes</em> window: the original and rewritten script side by side, with changed lines highlighted and per-change reasons, exactly like the Security-Check review below. Apply the change to update the editor.</p>
 <h4 id="security-check">Security Check<a class="headerlink" href="#security-check" title="Permanent link">&para;</a></h4>
 <p>The <strong>Security Check</strong> report window lists each finding with a colour-coded severity badge (findings are sorted most-severe first). From this window you can:</p>
 <ul>
@@ -2699,6 +2815,16 @@
 <li><strong>Re-run check</strong> to repeat the review with the newly selected profile.</li>
 </ul>
 <p>When you apply fixes, the <strong>Review security fixes</strong> window shows the original and corrected code side by side. Changed lines are highlighted automatically and carry a marker in the margin. Hover anywhere in a changed block to see which finding(s) it addresses — for example <code>S1</code>, or <code>S1 + S2</code> when one block covers two findings — together with the reason for the change. The same explanations are also listed as cards below the diff, so the reasoning stays visible even when a marker cannot be placed. The preview font size can be zoomed and is remembered across sessions.</p>
+<h3 id="ai-profile-re-run-and-zoom">AI profile, re-run and zoom<a class="headerlink" href="#ai-profile-re-run-and-zoom" title="Permanent link">&para;</a></h3>
+<p>The AI-code report windows (Full code analysis, Security Check, the technical-description and alternative-solution dialogs, and the change-review diff) share a small toolbar:</p>
+<ul>
+<li><strong>AI profile</strong> — Pick a different AI profile for the <strong>next</strong> run of that window. The choice is transient: it resets to the default profile when the window is reopened. (Security Check keeps its own permanently remembered <em>Security profile</em> instead.)</li>
+<li><strong>Re-run</strong> — Repeat the request with the currently selected profile.</li>
+<li><strong>A− / A+</strong> — Adjust the reading or preview font size; the chosen size is remembered across sessions, separately per window type.</li>
+<li><strong>Copy</strong> — Copy the report or content to the clipboard.</li>
+</ul>
+<h3 id="ai-skills">AI skills<a class="headerlink" href="#ai-skills" title="Permanent link">&para;</a></h3>
+<p>When <a href="../reference/settings/ai-skills.html">AI Skills</a> are configured, the snippet editor shows an <strong>AI skills</strong> picker. Skills relevant to the snippet's language are pre-selected automatically, and any skill you tick here is applied to <strong>every</strong> AI-code action (completion, analysis, improvement, security check, diagram) regardless of the skill's configured target. The picker appears only when at least one AI Skill is enabled.</p>
 <h3 id="text-correction-and-translation">Text correction and translation<a class="headerlink" href="#text-correction-and-translation" title="Permanent link">&para;</a></h3>
 <p>For selection-based text correction and translation, KorTTY only rewrites editable comment text, string literals, and user-facing text segments. It does not rewrite logical code structure.</p>
 <h3 id="technical-descriptions">Technical descriptions<a class="headerlink" href="#technical-descriptions" title="Permanent link">&para;</a></h3>
@@ -2725,8 +2851,22 @@
 <p>PlantUML diagrams are stored with the snippet. If the snippet content changes after diagram generation, KorTTY marks the diagram as possibly outdated and offers regeneration.</p>
 <ul>
 <li><strong>Rendering:</strong> Local only — KorTTY uses a checksum-verified PlantUML JAR and Graphviz <code>dot</code>; no remote server is used.</li>
-<li><strong>Dialog features:</strong> Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, and clipboard copy.</li>
+<li><strong>Dialog features:</strong> Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, clipboard copy, and the shared <a href="#diagram-appearance">Diagram appearance</a> controls.</li>
 <li><strong>Dependency errors:</strong> If local rendering is unavailable, KorTTY shows the error so Java/Graphviz can be fixed.</li>
+</ul>
+<h3 id="diagram-appearance">Diagram appearance<a class="headerlink" href="#diagram-appearance" title="Permanent link">&para;</a></h3>
+<p>Both diagram windows — the standalone <strong>Diagram</strong> dialog and the <strong>Full code analysis</strong> flow diagram — share two appearance controls, and each remembers its setting across sessions:</p>
+<ul>
+<li>
+<p><strong>Dark mode</strong> — A <strong>Dark mode</strong> button with three choices:</p>
+<ul>
+<li><strong>Auto</strong> — follows the operating system's light/dark appearance. When you switch the OS to dark mode the diagram follows on the next render (and when the window regains focus).</li>
+<li><strong>Light</strong> — always light.</li>
+<li><strong>Dark</strong> — always dark.</li>
+</ul>
+<p>A manual choice is permanent until you change it. Dark mode recolours the <strong>whole</strong> diagram — a dark canvas, darkened node cards with light text, and light connectors and labels — not just the page margin.
+- <strong>Background</strong> — A colour picker for the page/canvas colour in light mode. It applies to the diagram itself and to any exported SVG/PNG. The picker is disabled while dark mode is active, because dark mode drives the appearance.</p>
+</li>
 </ul>
 <h2 id="placeholder-variables">Placeholder variables<a class="headerlink" href="#placeholder-variables" title="Permanent link">&para;</a></h2>
 <p>Snippets can contain placeholder variables that are replaced when you insert the snippet.</p>

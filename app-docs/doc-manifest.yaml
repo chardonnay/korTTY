@@ -205,7 +205,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/SnippetManager.java]
     diagrams: [snippet-editor-workflow.svg]
-    last_synced_ref: "e7f0df8"
+    last_synced_ref: "790e3ef"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/jobscheduler]
@@ -230,13 +230,13 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "984bbba"
+    last_synced_ref: "dcff3f4"
   - path: app-docs/site/docs/en/features/ai-swarm.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]
     diagrams: [swarm-status-strip.svg]
     screenshots: [ai/swarm-status-strip-states.png, ai/swarm-status-strip-many.png]
-    last_synced_ref: "984bbba"
+    last_synced_ref: "dcff3f4"
   - path: app-docs/site/docs/en/features/security.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/security]
@@ -275,6 +275,12 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/persistence]
     last_synced_ref: "e7f0df8"
+  - path: app-docs/site/docs/en/reference/hardening-options.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java]
+    diagrams: []
+    screenshots: []
+    last_synced_ref: "05d74fa"
 
   # ---- About: anonymous usage statistics --------------------------------------
   - path: app-docs/site/docs/en/about/anonymous-data.md

@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiResponseSupport;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.WindowGeometry;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
@@ -10,12 +12,14 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
@@ -36,10 +40,13 @@ import java.util.List;
 public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetAiResponseSupport.AlternativeSolution> {
 
     private static final String AI_ACTION_PREFIX = "\u2728 ";
+    private static final int DEFAULT_PREVIEW_FONT_SIZE = 14;
+    private static final int MIN_PREVIEW_FONT_SIZE = 8;
+    private static final int MAX_PREVIEW_FONT_SIZE = 32;
 
     @FunctionalInterface
     public interface AlternativeSolutionLoader {
-        List<SnippetAiResponseSupport.AlternativeSolution> load(String additionalInstructions) throws Exception;
+        List<SnippetAiResponseSupport.AlternativeSolution> load(String additionalInstructions, String aiProfileId) throws Exception;
     }
 
     private final String snippetLanguage;
@@ -48,12 +55,15 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
     private final Button reloadButton;
     private final ProgressIndicator progressIndicator;
     private final Label statusLabel;
+    private final Label fontSizeLabel = new Label();
+    private final ComboBox<SnippetAiDialogSupport.ProfileChoice> profileCombo;
     private final VBox solutionsBox;
     private final ScrollPane solutionsScrollPane;
     private final VBox root;
     private final List<SolutionCard> solutionCards = new ArrayList<>();
     private Task<List<SnippetAiResponseSupport.AlternativeSolution>> loadTask;
     private SolutionCard zoomedCard;
+    private int previewFontSize;
 
     private record SolutionCard(
         VBox container,
@@ -67,8 +77,19 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         String snippetLanguage,
         AlternativeSolutionLoader loader) {
 
+        this(owner, snippetLanguage, loader, false, null);
+    }
+
+    public AlternativeSnippetSolutionsDialog(
+        Window owner,
+        String snippetLanguage,
+        AlternativeSolutionLoader loader,
+        boolean profileSwitchingSupported,
+        String activeProfileId) {
+
         this.snippetLanguage = snippetLanguage;
         this.loader = loader;
+        this.previewFontSize = clampFontSize(loadPersistedFontSize());
 
         setTitle(I18n.get("snippets.ai.alternatives.title"));
         setResizable(true);
@@ -83,7 +104,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         instructionsArea.setMinHeight(Region.USE_PREF_SIZE);
 
         reloadButton = new Button(AI_ACTION_PREFIX + "\u21bb");
-        reloadButton.setTooltip(new javafx.scene.control.Tooltip(I18n.get("snippets.ai.alternatives.reload")));
+        reloadButton.setTooltip(new Tooltip(I18n.get("snippets.ai.alternatives.reload")));
         reloadButton.setOnAction(event -> loadSolutions());
 
         progressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
@@ -101,6 +122,27 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         topBar.setAlignment(Pos.TOP_LEFT);
         HBox.setHgrow(instructionsArea, Priority.ALWAYS);
 
+        profileCombo = profileSwitchingSupported
+            ? SnippetAiDialogSupport.buildProfileCombo(activeProfileId)
+            : null;
+
+        Button zoomOutButton = new Button(I18n.get("editor.zoomOut"));
+        zoomOutButton.setTooltip(new Tooltip(I18n.get("menu.view.zoomOut")));
+        zoomOutButton.setOnAction(event -> changePreviewFontSize(-1));
+        Button zoomInButton = new Button(I18n.get("editor.zoomIn"));
+        zoomInButton.setTooltip(new Tooltip(I18n.get("menu.view.zoomIn")));
+        zoomInButton.setOnAction(event -> changePreviewFontSize(1));
+        updateFontSizeLabel();
+
+        Region controlsSpacer = new Region();
+        HBox controlsBar = new HBox(8);
+        controlsBar.setAlignment(Pos.CENTER_LEFT);
+        if (profileCombo != null) {
+            controlsBar.getChildren().addAll(SnippetAiDialogSupport.profileLabel(), profileCombo);
+        }
+        controlsBar.getChildren().addAll(controlsSpacer, zoomOutButton, fontSizeLabel, zoomInButton);
+        HBox.setHgrow(controlsSpacer, Priority.ALWAYS);
+
         solutionsBox = new VBox(12);
         solutionsBox.setFillWidth(true);
         solutionsScrollPane = new ScrollPane(solutionsBox);
@@ -108,7 +150,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         solutionsScrollPane.setFitToHeight(true);
         VBox.setVgrow(solutionsScrollPane, Priority.ALWAYS);
 
-        root = new VBox(10, topBar, statusLabel, solutionsScrollPane);
+        root = new VBox(10, topBar, controlsBar, statusLabel, solutionsScrollPane);
         root.setPadding(new Insets(14));
         VBox.setVgrow(solutionsScrollPane, Priority.ALWAYS);
 
@@ -131,10 +173,11 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
             return;
         }
         cancelLoadTask();
+        String profileId = SnippetAiDialogSupport.selectedProfileId(profileCombo);
         loadTask = new Task<>() {
             @Override
             protected List<SnippetAiResponseSupport.AlternativeSolution> call() throws Exception {
-                return loader.load(instructionsArea.getText());
+                return loader.load(instructionsArea.getText(), profileId);
             }
         };
         loadTask.setOnRunning(event -> {
@@ -186,6 +229,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         previewArea.setPrefHeight(180);
         EditorSettingsHelper.Settings settings = EditorSettingsHelper.loadSnippetSettings();
         EditorSettingsHelper.applyStyle(previewArea, settings);
+        previewArea.setFontSize(previewFontSize);
         previewArea.setLanguage(snippetLanguage);
         previewArea.replaceText(solution.code());
         installPreviewCopySupport(previewArea);
@@ -330,6 +374,9 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
 
     private void setBusy(boolean busy) {
         reloadButton.setDisable(busy);
+        if (profileCombo != null) {
+            profileCombo.setDisable(busy);
+        }
         progressIndicator.setManaged(busy);
         progressIndicator.setVisible(busy);
     }
@@ -340,5 +387,46 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
             loadTask = null;
         }
         setBusy(false);
+    }
+
+    private void changePreviewFontSize(int delta) {
+        int next = clampFontSize(previewFontSize + delta);
+        if (next == previewFontSize) {
+            return;
+        }
+        previewFontSize = next;
+        for (SolutionCard card : solutionCards) {
+            card.previewScrollPane().setFontSize(previewFontSize);
+        }
+        updateFontSizeLabel();
+        persistFontSize();
+    }
+
+    private void updateFontSizeLabel() {
+        fontSizeLabel.setText(previewFontSize + "pt");
+    }
+
+    private static int clampFontSize(int size) {
+        return Math.max(MIN_PREVIEW_FONT_SIZE, Math.min(MAX_PREVIEW_FONT_SIZE, size));
+    }
+
+    private int loadPersistedFontSize() {
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        if (settings != null && settings.getAiAlternativesFontSize() != null) {
+            return settings.getAiAlternativesFontSize();
+        }
+        return DEFAULT_PREVIEW_FONT_SIZE;
+    }
+
+    private void persistFontSize() {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setAiAlternativesFontSize(previewFontSize);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+        }
     }
 }

@@ -118,6 +118,31 @@ public final class AiPromptBuilder {
                 + "Write summary and every reason in language code " + languageCode + ". "
                 + "Do not include Markdown outside the JSON object.";
         }
+        if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
+            return "You analyze a code snippet in depth for a developer. "
+                + "Return exactly one JSON object with keys summary, dependencies and improvements. "
+                + "summary is a short plain-language explanation of what the script does. "
+                + "dependencies is an array of external dependencies the script relies on (other scripts, "
+                + "programs or services); each has id, name, kind (script|program|service), purpose and "
+                + "suggestion (how to reduce or replace this dependency). "
+                + "improvements is an array of concrete, individually-applicable improvements; each has id, "
+                + "category (security|optimization|design), severity, title, detail, recommendation and optionally line. "
+                + "Only report what the provided code supports; use empty arrays when nothing applies. "
+                + "Write human-readable text in language code " + languageCode + ". "
+                + "Do not rewrite code and do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS) {
+            return "You apply only the selected improvements to the provided snippet. "
+                + "Return exactly one JSON object with keys replacement, summary and changes. "
+                + "replacement must contain the full updated snippet content. "
+                + "changes must be an array with one entry per edited region, each with keys finding (the id "
+                + "of the selected item it addresses), anchor (a single line copied verbatim from replacement "
+                + "that locates the edited region) and reason (one short sentence explaining why this region changed). "
+                + "Apply only the selected items; for a selected dependency, implement its reduce/replace suggestion. "
+                + "Preserve unrelated behavior and formatting where possible. "
+                + "Write summary and every reason in language code " + languageCode + ". "
+                + "Do not include Markdown outside the JSON object.";
+        }
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER) {
             return "You convert a code snippet into a compact, pasteable one-line shell command. "
                 + "Return exactly one JSON object with key command. "
@@ -255,6 +280,21 @@ public final class AiPromptBuilder {
                     + "\"changes\": [ { \"finding\": \"S1\", \"anchor\": \"<verbatim line from replacement>\", \"reason\": \"...\" } ] }\n"
                     + "The replacement must be the full updated snippet content. "
                     + "Add one changes entry per edited region; anchor must be a line copied verbatim from replacement.\n");
+            case ANALYZE_SNIPPET_CODE -> prompt.append(
+                "Analyze the provided snippet in depth.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"summary\": \"...\", "
+                    + "\"dependencies\": [ { \"id\": \"D1\", \"name\": \"curl\", \"kind\": \"program\", \"purpose\": \"...\", \"suggestion\": \"...\" } ], "
+                    + "\"improvements\": [ { \"id\": \"SEC-1\", \"category\": \"security\", \"severity\": \"high\", \"title\": \"...\", \"detail\": \"...\", \"recommendation\": \"...\", \"line\": 1 } ] }\n"
+                    + "summary explains what the script does. Each dependency lists an external script/program/service and a suggestion to reduce or replace it.\n"
+                    + "Use category values security, optimization or design for improvements. Return empty arrays (and an empty summary) when nothing applies.\n");
+            case APPLY_SNIPPET_IMPROVEMENTS -> prompt.append(
+                "Apply only the selected improvements to the full snippet.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"replacement\": \"...\", \"summary\": \"...\", "
+                    + "\"changes\": [ { \"finding\": \"SEC-1\", \"anchor\": \"<verbatim line from replacement>\", \"reason\": \"...\" } ] }\n"
+                    + "The replacement must be the full updated snippet content. For a selected dependency, implement its reduce/replace suggestion.\n"
+                    + "Add one changes entry per edited region; anchor must be a line copied verbatim from replacement.\n");
             case GENERATE_SNIPPET_ONE_LINER -> prompt.append(
                 "Convert the snippet into a compact one-liner command.\n"
                     + "Return exactly one JSON object with this shape:\n"
@@ -325,6 +365,8 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.GENERATE_SNIPPET_ALTERNATIVES
             || request.action() == AiAction.COMPLETE_SNIPPET_CODE
             || request.action() == AiAction.REVIEW_SNIPPET_CODE
+            || request.action() == AiAction.ANALYZE_SNIPPET_CODE
+            || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS
             || request.action() == AiAction.IMPROVE_SNIPPET_CODE
             || request.action() == AiAction.ASSIST_SNIPPET_CODE
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE

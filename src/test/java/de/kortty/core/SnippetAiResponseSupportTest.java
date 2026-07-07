@@ -422,4 +422,49 @@ class SnippetAiResponseSupportTest {
         assertThat(fix.changes()).hasSize(1);
         assertThat(fix.changes().get(0).finding()).isEqualTo("S2");
     }
+
+    @Test
+    void parseScriptAnalysisReadsSummaryDependenciesAndCategorizedImprovements() {
+        SnippetAiResponseSupport.ScriptAnalysis analysis = SnippetAiResponseSupport.parseScriptAnalysis(
+            """
+            Here is the analysis:
+            ```json
+            {
+              "summary": "Downloads a release asset and installs it.",
+              "dependencies": [
+                { "id": "D1", "name": "curl", "kind": "program", "purpose": "download", "suggestion": "use wget or a built-in" }
+              ],
+              "improvements": [
+                { "id": "SEC-1", "category": "security", "severity": "high", "title": "Unquoted path", "detail": "d", "recommendation": "quote it", "line": 3 },
+                { "id": "OPT-1", "category": "performance", "severity": "low", "title": "Cache", "recommendation": "cache the result" },
+                { "id": "X-1", "title": "Readability", "recommendation": "rename vars" }
+              ]
+            }
+            ```
+            """);
+
+        assertThat(analysis.summary()).isEqualTo("Downloads a release asset and installs it.");
+        assertThat(analysis.dependencies()).hasSize(1);
+        assertThat(analysis.dependencies().get(0).name()).isEqualTo("curl");
+        assertThat(analysis.dependencies().get(0).suggestion()).isEqualTo("use wget or a built-in");
+        assertThat(analysis.improvements()).hasSize(3);
+        // category is normalized: performance -> optimization, missing -> design.
+        assertThat(analysis.improvements().stream().map(SnippetAiResponseSupport.ScriptImprovement::category).toList())
+            .containsExactly("security", "optimization", "design").inOrder();
+        assertThat(analysis.improvements().get(0).line()).isEqualTo(3);
+    }
+
+    @Test
+    void parseScriptAnalysisToleratesMissingSectionsAndProse() {
+        SnippetAiResponseSupport.ScriptAnalysis analysis = SnippetAiResponseSupport.parseScriptAnalysis(
+            "{ \"summary\": \"Just a summary.\", \"improvements\": [] }");
+
+        assertThat(analysis.summary()).isEqualTo("Just a summary.");
+        assertThat(analysis.dependencies()).isEmpty();
+        assertThat(analysis.improvements()).isEmpty();
+
+        SnippetAiResponseSupport.ScriptAnalysis empty = SnippetAiResponseSupport.parseScriptAnalysis("not json at all");
+        assertThat(empty.summary()).isEmpty();
+        assertThat(empty.improvements()).isEmpty();
+    }
 }

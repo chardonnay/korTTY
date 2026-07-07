@@ -13,6 +13,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,9 @@ public class SnippetVariableManagementDialog extends ThemeAwareDialog<Void> {
 
         setTitle(I18n.get("snippets.variables.title"));
         setResizable(true);
+        // Modal to its owner (the snippet manager) only — not the whole app — so the main window stays
+        // responsive while this panel is open (a JavaFX Dialog otherwise defaults to APPLICATION_MODAL).
+        initModality(Modality.WINDOW_MODAL);
 
         searchField = new TextField();
         searchField.setPromptText(I18n.get("snippets.variables.searchPrompt"));

@@ -1519,6 +1519,14 @@ tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetAiDialogsSmoke") {
+    group = "verification"
+    description = "Builds the unified snippet AI dialogs (review, describe, alternatives, diff) with the profile picker and re-run enabled and snapshots each to build/smoke/snippet-ai-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetAiDialogsSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateDesignPreviews") {
     group = "build"
     description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."

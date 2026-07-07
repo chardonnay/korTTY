@@ -52,6 +52,7 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     private final ComboBox<String> syntaxCombo;
     private final Label fontSizeLabel;
     private final WebView explanationsView;
+    private final HBox toolbar;
     private final String originalText;
     private final String replacementText;
     private final EditorSettingsHelper.Settings previewSettings;
@@ -107,7 +108,7 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         copyButton.setOnAction(event -> copyReplacementText());
 
         Region spacer = new Region();
-        HBox toolbar = new HBox(
+        toolbar = new HBox(
             8,
             new Label(I18n.get("snippets.ai.diff.syntax")),
             syntaxCombo,
@@ -169,6 +170,23 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         explanationsView.getEngine().loadContent(html);
         explanationsView.setManaged(true);
         explanationsView.setVisible(true);
+    }
+
+    /**
+     * Enables the transient AI-profile picker and a re-run button so this adjustment can be repeated
+     * with a different profile. No-op when {@code onRerun} is {@code null} (e.g. the security-fix flow
+     * that manages re-runs from its findings window instead).
+     */
+    public void setRerunHandler(String activeProfileId, java.util.function.Consumer<String> onRerun) {
+        if (onRerun == null) {
+            return;
+        }
+        ComboBox<SnippetAiDialogSupport.ProfileChoice> profileCombo =
+            SnippetAiDialogSupport.buildProfileCombo(activeProfileId);
+        Button rerunButton = SnippetAiDialogSupport.buildRerunButton(
+            () -> SnippetAiDialogSupport.selectedProfileId(profileCombo), onRerun, this::close);
+        toolbar.getChildren().addAll(0, List.of(
+            SnippetAiDialogSupport.profileLabel(), profileCombo, rerunButton));
     }
 
     private HBox buildSummaryBanner(String summary) {

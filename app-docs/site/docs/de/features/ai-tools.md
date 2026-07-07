@@ -200,6 +200,7 @@ Für flottenweite Aufgaben verfügt die Registerkarte [AI Swarm](ai-swarm.md#gen
 ### Funktionen zur Skriptgenerierung
 
 - **Passende KI-Fähigkeiten automatisch laden** – Fähigkeiten wie Sprachqualitätsrichtlinien für die Zielsprache werden automatisch einbezogen.
+- **Härtungsoptionen** – Eine zusammenklappbare Palette von Techniken in Produktionsqualität (strikter Modus, Fehlerfallen, sinnvolle Exit-Codes, Protokollierung, Idempotenz, Trockenlauf, `--help` und mehr), die in das generierte Skript integriert sind. Alle sind standardmäßig aktiviert. Deaktivieren Sie alle, die Sie nicht möchten. Was die einzelnen Optionen bedeuten, erfahren Sie unter [Härtungsoptionen](../reference/hardening-options.md)].
 - **Acht Zielsprachen** – Bash, Python, Perl, Ruby, PowerShell, Ansible, plus **Windows-CMD** (`.cmd`-Batch – `@echo off`, `REM`-Header, `errorlevel`-Prüfungen) und **AppleScript** (`.applescript` – `osascript`-Shebang, `--`-Kommentare, `try`/`on error`).
 - **Mehrere Sprachvarianten** – Generieren Sie mehrere Sprachvarianten und Vorschläge als Inline-Registerkarten im Workflow-Dialogfeld.
 - **Anpassbare Schriftgröße** – Jeder Editor für generierte Skripte verfügt über **A−** / **A+**-Tasten und unterstützt ++ctrl++ + Mausrad (Cmd unter macOS); Die gewählte Größe wird sitzungsübergreifend gespeichert.

@@ -23,6 +23,15 @@ public final class SnippetDiagramSupport {
     private static final String COLOR_SETUP = "#EAF7EF";
     private static final String COLOR_MAIN = "#EAF4FF";
     private static final String COLOR_FAILURE = "#FDECEC";
+    /** Dark-mode canvas + palette for {@link #applyDarkMode(String)}. */
+    public static final String DARK_BACKGROUND_COLOR = "#1E1E1E";
+    private static final String DARK_SETUP = "#26382D";
+    private static final String DARK_MAIN = "#22303D";
+    private static final String DARK_FAILURE = "#3E2A2A";
+    private static final String DARK_FOREGROUND = "#E6E6E6";
+    private static final String DARK_LINE = "#B8C2CC";
+    private static final String DARK_BORDER = "#5A6673";
+    private static final String DARK_PANEL = "#2B2B2B";
     private static final Pattern ACTIVITY_LABEL_PATTERN =
         Pattern.compile("^\\s*(?:#[A-Fa-f0-9]{6})?:(.*?)\\s*;\\s*(?:<<\\s*#[A-Fa-f0-9]{6}\\s*>>)?\\s*$");
     private static final Pattern DECISION_LABEL_PATTERN =
@@ -104,6 +113,85 @@ public final class SnippetDiagramSupport {
         return (value.substring(0, firstLineEnd + 1)
             + backgroundLine
             + value.substring(firstLineEnd + 1)).trim();
+    }
+
+    /**
+     * How a diagram viewer picks its light/dark appearance. {@code AUTO} follows the operating system
+     * (see {@link SystemThemeDetector}); {@code LIGHT}/{@code DARK} are permanent manual choices.
+     */
+    public enum DiagramColorMode {
+        AUTO, LIGHT, DARK;
+
+        /** Stable lowercase key for persistence in settings. */
+        public String key() {
+            return name().toLowerCase(Locale.ROOT);
+        }
+
+        /** Parses a persisted key, defaulting to {@link #AUTO} for null/unknown values. */
+        public static DiagramColorMode fromKey(String key) {
+            if (key != null) {
+                for (DiagramColorMode mode : values()) {
+                    if (mode.key().equalsIgnoreCase(key.trim())) {
+                        return mode;
+                    }
+                }
+            }
+            return AUTO;
+        }
+
+        /** @return whether a diagram should render dark for this mode right now (AUTO consults the OS). */
+        public boolean isDarkActive() {
+            return this == DARK || (this == AUTO && SystemThemeDetector.isSystemDarkMode());
+        }
+    }
+
+    /**
+     * Rewrites {@code source} for a dark canvas: known light activity-node colours are swapped for dark
+     * equivalents, and a skinparam block sets a dark background plus light connectors, borders, diamonds,
+     * notes and default font so the whole diagram (not just the page padding) reads on dark. Nodes carrying
+     * an unknown explicit colour keep it (light node cards stay legible on the dark canvas). Safe to call on
+     * any source; returns "" for blank/unrenderable input.
+     */
+    public static String applyDarkMode(String source) {
+        String value = normalizePlantUml(source);
+        if (value.isBlank()) {
+            return value;
+        }
+        value = replaceColorIgnoreCase(value, COLOR_SETUP, DARK_SETUP);
+        value = replaceColorIgnoreCase(value, COLOR_MAIN, DARK_MAIN);
+        value = replaceColorIgnoreCase(value, COLOR_FAILURE, DARK_FAILURE);
+        String block = String.join("\n",
+            "skinparam backgroundColor " + DARK_BACKGROUND_COLOR,
+            "skinparam defaultFontColor " + DARK_FOREGROUND,
+            "skinparam ArrowColor " + DARK_LINE,
+            "skinparam ArrowFontColor " + DARK_FOREGROUND,
+            "skinparam ActivityBackgroundColor " + DARK_PANEL,
+            "skinparam ActivityBorderColor " + DARK_BORDER,
+            "skinparam ActivityFontColor " + DARK_FOREGROUND,
+            "skinparam ActivityDiamondBackgroundColor " + DARK_PANEL,
+            "skinparam ActivityDiamondBorderColor " + DARK_BORDER,
+            "skinparam ActivityDiamondFontColor " + DARK_FOREGROUND,
+            "skinparam ActivityStartColor " + DARK_FOREGROUND,
+            "skinparam ActivityEndColor " + DARK_FOREGROUND,
+            "skinparam ActivityBarColor " + DARK_FOREGROUND,
+            "skinparam NoteBackgroundColor " + DARK_PANEL,
+            "skinparam NoteBorderColor " + DARK_BORDER,
+            "skinparam NoteFontColor " + DARK_FOREGROUND) + "\n";
+        return insertAfterStartLine(value, block);
+    }
+
+    private static String replaceColorIgnoreCase(String value, String from, String to) {
+        return Pattern.compile(Pattern.quote(from), Pattern.CASE_INSENSITIVE)
+            .matcher(value).replaceAll(Matcher.quoteReplacement(to));
+    }
+
+    /** Inserts {@code block} right after the first line (the {@code @startuml} line) of a normalized source. */
+    private static String insertAfterStartLine(String value, String block) {
+        int firstLineEnd = value.indexOf('\n');
+        if (firstLineEnd < 0) {
+            return (value + "\n" + block).trim();
+        }
+        return (value.substring(0, firstLineEnd + 1) + block + value.substring(firstLineEnd + 1)).trim();
     }
 
     public static String normalizeHexColor(String color, String fallback) {
