@@ -10,16 +10,16 @@ korTTY wird offen auf GitHub entwickelt: <https://github.com/chardonnay/korTTY>.
 
 1. **Suchen Sie nach vorhandenen Berichten** zuerst bei <https://github.com/chardonnay/korTTY/issues> (einschließlich geschlossener Probleme) – Ihr Problem ist möglicherweise bereits bekannt oder wurde sogar in einer neueren Version behoben.
 2. **Sammeln Sie die wichtigsten Fakten:**
-* Die korTTY-Version – angezeigt unter **Hilfe > Info** und in der Fußzeile diese Anleitungs.
-* Ihr Betriebssystem und Ihre Version (z. B. macOS 15, Windows 11, Ubuntu 24.04).
-* Genaue Schritte zur Reproduktion des Problems, was Sie erwartet haben und was stattdessen passiert ist.
-* Ein relevanter Auszug aus dem Anwendungsprotokoll `~/.kortty/kortty.log` (siehe [Konfigurationsdateien ](../reference/config-files.md)) und, bei Abstürzen, jedem Absturzbericht, den Ihr Betriebssystem erstellt hat.
-* Ein Screenshot, wenn das Problem visuell ist.
+    * Die korTTY-Version – angezeigt unter **Hilfe > Info** und in der Fußzeile diese Anleitungs.
+    * Ihr Betriebssystem und Ihre Version (z. B. macOS 15, Windows 11, Ubuntu 24.04).
+    * Genaue Schritte zur Reproduktion des Problems, was Sie erwartet haben und was stattdessen passiert ist.
+    * Ein relevanter Auszug aus dem Anwendungsprotokoll `~/.kortty/kortty.log` (siehe [Konfigurationsdateien ](../reference/config-files.md)) und, bei Abstürzen, jedem Absturzbericht, den Ihr Betriebssystem erstellt hat.
+    * Ein Screenshot, wenn das Problem visuell ist.
 3. **Öffnen Sie das Issue** bei <https://github.com/chardonnay/korTTY/issues/new>: Verwenden Sie einen kurzen, spezifischen Titel (z. B. *„SFTP-Tab friert ein, wenn eine Datei unter Windows 11 umbenannt wird“*), fügen Sie die gesammelten Fakten in die Beschreibung ein und senden Sie sie ab.
 4. **Erreichbar bleiben** – Folgefragen zu diesem Thema sind häufig; Aktivieren Sie GitHub-Benachrichtigungen dafür.
 
 !!! Warnung „Datensicherheit“
-Protokolldateien und Screenshots können vertrauliche Informationen wie Hostnamen, Benutzernamen, Dateipfade oder Sitzungsdetails enthalten. Überprüfen und redigieren Sie alles, was Sie einem öffentlichen GitHub-Issue hinzufügen.
+    Protokolldateien und Screenshots können vertrauliche Informationen wie Hostnamen, Benutzernamen, Dateipfade oder Sitzungsdetails enthalten. Überprüfen und redigieren Sie alles, was Sie einem öffentlichen GitHub-Issue hinzufügen.
 
 ## Schlagen Sie eine Funktion oder Idee vor
 

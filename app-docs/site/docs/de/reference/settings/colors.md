@@ -37,7 +37,7 @@ Konfigurieren Sie die Anzeigefarben des Terminals, einschließlich Text, Hinterg
 ## Notizen
 
 !!! Hinweis „Farbprofile“
-Mit dem **Farbprofil** können Sie ein voreingestelltes Design auswählen, das die Einstellungen für Vordergrund, Hintergrund, Cursor und Cursorstil gleichzeitig anwendet. Beim Wechseln der Profile werden die einzelnen Farbsteuerungen aktualisiert. Wenn **Profil anwenden** verfügbar ist, werden die Farben auf die Standardeinstellungen des ausgewählten Themas zurückgesetzt.
+    Mit dem **Farbprofil** können Sie ein voreingestelltes Design auswählen, das die Einstellungen für Vordergrund, Hintergrund, Cursor und Cursorstil gleichzeitig anwendet. Beim Wechseln der Profile werden die einzelnen Farbsteuerungen aktualisiert. Wenn **Profil anwenden** verfügbar ist, werden die Farben auf die Standardeinstellungen des ausgewählten Themas zurückgesetzt.
 
 !!! Hinweis „ANSI-Farben“
-Die Farbpaletten **Normal** und **Hell** definieren die 16 ANSI-Farben (0–7 normal, 8–15 hell), die verwendet werden, wenn **Terminalfarben aktivieren** aktiviert ist. Jeder Satz von 8 Farben entspricht Schwarz, Rot, Grün, Gelb, Blau, Magenta, Cyan und Weiß. Wenn Terminalfarben deaktiviert sind, werden nur die konfigurierten **Textfarben** und **Hintergrund** verwendet, alle ANSI- und TrueColor-Sequenzen werden ignoriert.
+    Die Farbpaletten **Normal** und **Hell** definieren die 16 ANSI-Farben (0–7 normal, 8–15 hell), die verwendet werden, wenn **Terminalfarben aktivieren** aktiviert ist. Jeder Satz von 8 Farben entspricht Schwarz, Rot, Grün, Gelb, Blau, Magenta, Cyan und Weiß. Wenn Terminalfarben deaktiviert sind, werden nur die konfigurierten **Textfarben** und **Hintergrund** verwendet, alle ANSI- und TrueColor-Sequenzen werden ignoriert.

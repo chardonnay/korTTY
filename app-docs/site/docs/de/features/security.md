@@ -27,7 +27,7 @@ Das Master-Passwort selbst wird mit PBKDF2 gehasht (310.000 Iterationen) und nie
 Bei nachfolgenden Starts werden Sie von KorTTY aufgefordert, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Sie können diese Eingabeaufforderung unter **Einstellungen > Sicherheit** deaktivieren, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.
 
 !!! Notiz
-Wenn Sie das Master-Passwort verlieren, können verschlüsselte Daten nicht wiederhergestellt werden. Löschen Sie `master-password-hash` und `credentials.xml`, starten Sie neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein.
+    Wenn Sie das Master-Passwort verlieren, können verschlüsselte Daten nicht wiederhergestellt werden. Löschen Sie `master-password-hash` und `credentials.xml`, starten Sie neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein.
 
 ## Verschlüsselungsmodell
 
@@ -53,12 +53,12 @@ Speichern Sie zentralisierte Benutzernamen-/Passwort-Anmeldeinformationen, die �
 
 1. Klicken Sie auf **Hinzufügen**.
 2. Füllen Sie aus:
-- **Name** – Beschreibende Kennung
-- **Benutzername** – Login-Benutzername
-- **Passwort** – Mit AES-256-GCM verschlüsselt gespeichert
-- **Umgebung** – Produktion, Entwicklung, Test oder Staging
-- **Servermuster** (optional) – Glob-Muster (z. B. `*.example.com`, `10.0.0.*`) für den automatischen Abgleich von Anmeldeinformationen mit Verbindungen
-- **Beschreibung** (optional) – Freitextnotizen
+   - **Name** – Beschreibende Kennung
+   - **Benutzername** – Login-Benutzername
+   - **Passwort** – Mit AES-256-GCM verschlüsselt gespeichert
+   - **Umgebung** – Produktion, Entwicklung, Test oder Staging
+   - **Servermuster** (optional) – Glob-Muster (z. B. `*.example.com`, `10.0.0.*`) für den automatischen Abgleich von Anmeldeinformationen mit Verbindungen
+   - **Beschreibung** (optional) – Freitextnotizen
 3. Klicken Sie auf **OK**.
 
 ### Anmeldeinformationen in Verbindungen verwenden
@@ -154,7 +154,7 @@ Folgende Daten werden verschlüsselt in `~/.kortty/` gespeichert:
 ## Best Practices für die Sicherheit
 
 !!! Warnung
-Ausgewählter Terminaltext, der an KI-Endpunkte gesendet wird, kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie **LM Studio** oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden.
+    Ausgewählter Terminaltext, der an KI-Endpunkte gesendet wird, kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie **LM Studio** oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden.
 
 ### Master-Passwort
 

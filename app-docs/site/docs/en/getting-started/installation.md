@@ -1,7 +1,6 @@
 # Installation
 
-korTTY runs on **macOS, Windows and Linux**. You can install a pre-built package
-or build from source.
+korTTY runs on **macOS, Windows and Linux**. You can install a pre-built package or build from source.
 
 ## System requirements
 
@@ -15,21 +14,16 @@ or build from source.
 
 ## Pre-built binaries (recommended)
 
-Ready-to-use packages are published on the
-[GitHub Releases page](https://github.com/chardonnay/korTTY/releases). Each asset
-name includes the architecture (`-x86_64` / `-aarch64` / `-arm64`). Pick the file
-matching your system:
+Ready-to-use packages are published on the [GitHub Releases page](https://github.com/chardonnay/korTTY/releases). Each asset name includes the architecture (`-x86_64` / `-aarch64` / `-arm64`). Pick the file matching your system:
 
 === "macOS"
     Apple Silicon only — use the `-aarch64` `.dmg`.
 
 === "Windows"
-    Use `-x86_64` for Intel/AMD, or `-arm64` for Windows on ARM. `.exe` (portable)
-    or `.msi` (installer).
+    Use `-x86_64` for Intel/AMD, or `-arm64` for Windows on ARM. `.exe` (portable) or `.msi` (installer).
 
 === "Linux"
-    Use `-x86_64`, or `-aarch64` for ARM (e.g. Raspberry Pi 4, many cloud
-    instances). Packages: `.deb`, `.rpm`, `.tar.gz`, `.zip`.
+    Use `-x86_64`, or `-aarch64` for ARM (e.g. Raspberry Pi 4, many cloud instances). Packages: `.deb`, `.rpm`, `.tar.gz`, `.zip`.
 
 ## Build from source
 
@@ -47,8 +41,7 @@ Run directly:
 
 ### Build native packages locally
 
-korTTY is packaged with `jpackage`; the output matches the architecture of the
-build machine.
+korTTY is packaged with `jpackage`; the output matches the architecture of the build machine.
 
 | Platform | Command | Output |
 | --- | --- | --- |
@@ -61,10 +54,6 @@ build machine.
 | Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-<version>.rpm` |
 
 !!! note "macOS Local Network privacy"
-    When launched via the Gradle daemon, korTTY runs as a child of a background
-    process that has no "Local Network" permission, so connecting to LAN /
-    private-IP hosts may fail. For LAN SSH, launch the packaged `.app` (which
-    prompts for Local Network access on first launch) or start korTTY as a child
-    of Terminal.
+    When launched via the Gradle daemon, korTTY runs as a child of a background process that has no "Local Network" permission, so connecting to LAN / private-IP hosts may fail. For LAN SSH, launch the packaged `.app` (which prompts for Local Network access on first launch) or start korTTY as a child of Terminal.
 
 [Next: First launch & master password →](first-launch.md){ .md-button }

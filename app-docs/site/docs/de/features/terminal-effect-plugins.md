@@ -51,7 +51,7 @@ Externe Plugins werden jeweils aus einem JAR geladen, wobei der Anwendungsklasse
 ![Terminal effect plugin flow](../assets/diagrams/terminal-effect-plugin-flow.svg)
 
 !!! Warnung
-Terminal-Effekt-Plugins sind vertrauenswürdiger lokaler Java-Code. KorTTY führt keine Sandbox für importierte JARs durch. Ein Plugin wird innerhalb der KorTTY-JVM mit denselben lokalen Prozessberechtigungen wie KorTTY selbst ausgeführt. Importieren Sie Plugins nur aus Quellen, denen Sie vertrauen.
+    Terminal-Effekt-Plugins sind vertrauenswürdiger lokaler Java-Code. KorTTY führt keine Sandbox für importierte JARs durch. Ein Plugin wird innerhalb der KorTTY-JVM mit denselben lokalen Prozessberechtigungen wie KorTTY selbst ausgeführt. Importieren Sie Plugins nur aus Quellen, denen Sie vertrauen.
 
 ## Plugin-Verwaltung in der Benutzeroberfläche
 

@@ -11,8 +11,8 @@ Projekte speichern und stellen Ihren gesamten Arbeitsbereichsstatus wieder her �
 1. Öffnen Sie *Datei > Projekt speichern* oder drücken Sie ++Strg+s++ (++cmd+s++ unter macOS).
 2. Geben Sie einen **Namen** und optional eine **Beschreibung** für das Projekt ein.
 3. Konfigurieren Sie **Auto-Reconnect**:
-– Wenn diese Option aktiviert ist, werden beim Öffnen des Projekts alle gespeicherten SSH-Sitzungen automatisch wieder verbunden.
-– Bei Deaktivierung werden Fenster und Registerkarten wiederhergestellt, Sie müssen die Verbindung jedoch manuell wiederherstellen.
+   – Wenn diese Option aktiviert ist, werden beim Öffnen des Projekts alle gespeicherten SSH-Sitzungen automatisch wieder verbunden.
+   – Bei Deaktivierung werden Fenster und Registerkarten wiederhergestellt, Sie müssen die Verbindung jedoch manuell wiederherstellen.
 4. Klicken Sie auf *Speichern*.
 
 Projekte werden als `.kortty`-Dateien in `~/.kortty/projects/` gespeichert.
@@ -22,9 +22,9 @@ Projekte werden als `.kortty`-Dateien in `~/.kortty/projects/` gespeichert.
 1. Öffnen Sie *Datei > Projekt öffnen* oder drücken Sie ++Strg+o++ (++cmd+o++ unter macOS).
 2. Wählen Sie im Dateibrowser eine `.kortty`-Projektdatei aus.
 3. Das Dialogfeld **Projektvorschau** wird angezeigt und zeigt Folgendes:
-- Anzahl der wiederherzustellenden Fenster
-- Registerkarten und Verbindungen in jedem Fenster
-- Projektmetadaten (Name, Beschreibung, letzte Änderung)
+   - Anzahl der wiederherzustellenden Fenster
+   - Registerkarten und Verbindungen in jedem Fenster
+   - Projektmetadaten (Name, Beschreibung, letzte Änderung)
 4. Klicken Sie auf *Öffnen*, um das Projekt zu laden.
 
 ## Was gespeichert wird
@@ -41,7 +41,7 @@ Ein Projekt erfasst den vollständigen Zustand Ihres Arbeitsbereichs:
 | **Terminalsitzungen** | Sitzungsstatus einschließlich Cursorposition und Scrollback (sofern von der Sitzung unterstützt) |
 
 !!! Notiz
-AI-Ergebnisregisterkarten werden nicht mit Projekten gespeichert. Sie bleiben nur in der aktuellen Sitzung bestehen und gehen verloren, wenn Sie die Registerkarte schließen oder ein Projekt öffnen.
+    AI-Ergebnisregisterkarten werden nicht mit Projekten gespeichert. Sie bleiben nur in der aktuellen Sitzung bestehen und gehen verloren, wenn Sie die Registerkarte schließen oder ein Projekt öffnen.
 
 ## Automatische Wiederverbindung
 

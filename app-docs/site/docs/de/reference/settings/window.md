@@ -19,7 +19,7 @@ Auf dieser Registerkarte werden das Verhalten der Fenstergeometrie, die Beibehal
 | Y-Position: | Nummer | 0–3000 | — | `fixedWindowGeometry.y` |
 
 !!! Notiz
-Wenn **Feste Fenstergeometrie verwenden** aktiviert ist, hat sie Vorrang vor **Fenstergeometrie speichern**. Das Fenster wird immer an der angegebenen Position und Größe geöffnet und ignoriert alle zuvor gespeicherten Geometrien.
+    Wenn **Feste Fenstergeometrie verwenden** aktiviert ist, hat sie Vorrang vor **Fenstergeometrie speichern**. Das Fenster wird immer an der angegebenen Position und Größe geöffnet und ignoriert alle zuvor gespeicherten Geometrien.
 
 !!! Notiz
-Die Einstellung **Dashboard-Status merken** behält bei, ob das Dashboard-Panel beim letzten Schließen der Anwendung geöffnet oder geschlossen war, und stellt diesen Status beim nächsten Start wieder her.
+    Die Einstellung **Dashboard-Status merken** behält bei, ob das Dashboard-Panel beim letzten Schließen der Anwendung geöffnet oder geschlossen war, und stellt diesen Status beim nächsten Start wieder her.

@@ -44,6 +44,4 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ▶️ (activity panel) | Resume a paused run |
 
 !!! note
-    The complete, always-current shortcut list is generated from the application's
-    accelerator definitions. If a shortcut here differs from what the app shows,
-    the app is authoritative.
+    The complete, always-current shortcut list is generated from the application's accelerator definitions. If a shortcut here differs from what the app shows, the app is authoritative.

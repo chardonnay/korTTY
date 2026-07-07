@@ -50,6 +50,11 @@ The same built site is **bundled into the app** (`/guide/**`, opened via
 - **Markdown**, Material flavor. Use admonitions (`!!! note`), tables for
   references, `++ctrl+c++` for keys, fenced ` ```bash ` for shell. No raw HTML
   except the hero on `index.md`.
+- **Don't hard-wrap prose onto multiple physical lines.** `translate_docs.py`
+  translates line-by-line; a bold span or sentence split across a line break
+  garbles German word order (and an indented list-item/admonition-body line
+  loses its content association if the wrap lands mid-paragraph). Write each
+  paragraph/bullet as one long line, matching `features/terminal.md`.
 - **No version literals** in prose — the footer shows it from `KORTTY_VERSION`.
 - **SVG diagrams** must match the house style: `viewBox="0 0 1280 720"`,
   `role="img"` + `<title>`/`<desc>`, a `<defs>` arrow marker + a `<style>` block

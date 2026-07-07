@@ -1,8 +1,6 @@
 # Referenz zu den Einstellungen
 
-Die Einstellungen von korTTY sind unter **Konfiguration → Globale Einstellungen…** verfügbar. Sie werden gespeichert
-in `~/.kortty/global-settings.xml`. Diese Referenz dokumentiert **jede** Einstellung,
-Nach Registerkarten geordnet.
+Die Einstellungen von korTTY sind unter **Konfiguration → Globale Einstellungen…** verfügbar. Sie werden in `~/.kortty/global-settings.xml` gespeichert. Diese Referenz dokumentiert **jede** Einstellung, geordnet nach Registerkarten.
 
 Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 
@@ -27,7 +25,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Updates](updates.md) | Automatische Aktualisierungsprüfung und -intervall |
 | [Sicherheit](security.md) | Master-Passwort-Abfrage, Master-Passwort ändern, temporäre SSH-Schlüssel |
 | [Datenschutz](../../about/anonymous-data.md) | Opt-in für anonyme Nutzungsstatistiken (Aptabase, EU/DSGVO) |
-| [Sprache](language.md) | Auswahl der UI-Sprache (8 integriert) + automatische Erkennung |
+| [Language](language.md) | Auswahl der UI-Sprache (8 integriert) + automatische Erkennung |
 | [Übersetzung](translation.md) | Anbieter für dynamische Übersetzung, API-Schlüssel, Zielsprache, Sprachdatei generieren |
 | [Video](video.md) | Terminalaufzeichnung / `ffmpeg`-Videoexport |
 | [AI](ai.md) | KI-Funktionen, Agentenausführung, Profile, Argumentationsaufwand, Token-Quote, Internet-Tools |
@@ -36,9 +34,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 Im Einstellungsdialog werden auch die Registerkarten **SFTP-Manager**, **Editor** und **Snippet-Editor** angezeigt, die die Standardeinstellungen für Dateimanager und Monaco-Editor (Schriftart, Farben, Cursor) für diese Tools festlegen.
 
 !!! Info „Vollständigkeit“
-Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung ist überprüft
-automatisch mit den Einstellungsschlüsseln der Anwendung verknüpft, sodass keine Einstellung übrig bleibt
-undokumentiert.
+    Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung wird automatisch anhand der Einstellungsschlüssel der Anwendung überprüft, sodass keine Einstellung undokumentiert bleibt.
 
 ## Visuelle Referenz
 

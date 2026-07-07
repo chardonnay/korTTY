@@ -199,7 +199,12 @@ def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> t
         if lines[idx] == "title: ":
             lines[idx] = f'title: {translated}'
         else:
-            lines[idx] = translated
+            # The translation API strips leading whitespace from its output, but a
+            # list item's indented continuation paragraph (e.g. the "grid cards"
+            # layout on index.md) depends on that indent to stay nested under its
+            # item — restore whatever indentation the original line had.
+            indent = lines[idx][:len(lines[idx]) - len(lines[idx].lstrip(" "))]
+            lines[idx] = indent + translated.lstrip(" ") if indent else translated
     return apply_glossary("\n".join(lines)), len(jobs) - len(misses), len(misses)
 
 

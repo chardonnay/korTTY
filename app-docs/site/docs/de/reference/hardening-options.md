@@ -4,17 +4,9 @@ title: Härtemöglichkeiten
 
 # Härtungsoptionen
 
-**Härtungsoptionen** sind eine Reihe von Techniken in Produktionsqualität, die Sie anfordern können
-KI zum Einbinden in ein Skript, das sie generiert oder neu schreibt. Anstatt dasselbe zu schreiben
-Anweisung („Fehlerbehandlung hinzufügen“, „Wiederausführbar machen“, „Geben Sie ihm einen `--help`“)
-Jedes Mal von Hand kreuzen Sie die gewünschten Techniken an und KorTTY dreht jede einzelne
-in eine präzise Regel umwandeln, die an die KI-Eingabeaufforderung angehängt wird. Das Ergebnis ist ein Skript
-Das verhält sich wie etwas, das ein sorgfältiger Ingenieur liefern würde: Es versagt lautstark
-Statt stillschweigend bereinigt es sich selbst, protokolliert, was es tut, und kann ausgeführt werden
-wieder ohne Überraschungen.
+**Härtungsoptionen** sind eine Reihe von Techniken in Produktionsqualität, die Sie von der KI in ein von ihr generiertes oder neu geschriebenes Skript einbauen lassen können. Anstatt jedes Mal die gleiche Anweisung („Fehlerbehandlung hinzufügen“, „Wiederausführbar machen“, „Geben Sie ihm einen `--help`“) von Hand zu schreiben, kreuzen Sie die gewünschten Techniken an und KorTTY wandelt jede einzelne in eine präzise Regel um, die an die KI-Eingabeaufforderung angehängt wird. Das Ergebnis ist ein Skript, das sich wie etwas verhält, das ein sorgfältiger Ingenieur ausliefern würde: Es schlägt laut statt lautlos fehl, bereinigt sich selbst, protokolliert, was es tut, und kann ohne Überraschungen erneut ausgeführt werden.
 
-Die gleichen elf Optionen werden überall dort verwendet, wo KorTTY ein generiert oder verbessert
-Skript, sodass sie sich unabhängig von der Ausgangsposition identisch verhalten.
+Die gleichen elf Optionen werden überall dort verwendet, wo KorTTY ein Skript generiert oder verbessert, sodass sie sich unabhängig von der Ausgangsposition identisch verhalten.
 
 ## Wo sie erscheinen
 
@@ -29,172 +21,110 @@ Das Bedienfeld **Härtungsoptionen** wird an folgenden Stellen angezeigt:
 | **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Zusammenklappbares Feld *Härtungsoptionen* am unteren Rand des Fensters | Sie klicken auf *Auswahl übernehmen* |
 
 !!! Hinweis „Wird nicht bei jeder Aktion angezeigt“
-*Lesbarkeit verbessern* und *Leistung verbessern* werden bewusst **nicht** angezeigt
-Härtungsoptionen – diese Aktionen sollen nah am Original bleiben
-Code. Härtungsoptionen erscheinen nur dort, wo es auf die Erhöhung der Robustheit ankommt:
-*Stabilität verbessern*, *Benutzerdefinierte Verbesserung*, *Vollständige Code-Analyse* und beides
-Workflow-Skript-Generatoren.
+    *Lesbarkeit verbessern* und *Leistung verbessern* zeigen absichtlich **keine** Härtungsoptionen an – diese Aktionen sollen nah am Originalcode bleiben. Härtungsoptionen werden nur dort angezeigt, wo es auf das Hinzufügen von Robustheit ankommt: *Robustheit verbessern*, *Benutzerdefinierte Verbesserung*, *Vollständige Codeanalyse* und die beiden Workflow-Skriptgeneratoren.
 
-Jede Option ist **standardmäßig aktiviert**. Deaktivieren Sie diejenigen, die Sie nicht möchten. Ein
-Eine deaktivierte Option trägt nichts zur Eingabeaufforderung bei.
+Jede Option ist **standardmäßig aktiviert**. Deaktivieren Sie diejenigen, die Sie nicht möchten. Eine deaktivierte Option trägt nichts zur Eingabeaufforderung bei.
 
 Unterhalb der Optionen helfen Ihnen drei Schaltflächen bei der Verwaltung der Auswahl:
 
 - **Alle** – kreuzen Sie jede Option an.
 - **Löschen** – alle Optionen deaktivieren (ohne Härtungsregeln generieren/anwenden).
-- **Speichern** – aktuelle Auswahl dauerhaft speichern. Von da an jeder
-Das Härtungsfenster wird mit Ihrer gespeicherten Auswahl anstelle der All-On-Standardeinstellung geöffnet –
-So können Sie Ihre bevorzugte Härtung einmalig einstellen und überall anwenden lassen.
+- **Speichern** – aktuelle Auswahl dauerhaft speichern. Von da an wird jedes Härtungsfenster mit Ihrer gespeicherten Auswahl anstelle der allgemeinen Standardeinstellung geöffnet – Sie können also Ihre bevorzugte Härtung einmal festlegen und sie überall anwenden.
 
 ## Wie sie angewendet werden
 
-Jede angekreuzte Option wird zu genau einer Anweisungszeile, an die KorTTY anhängt
-die an die KI gesendete Anfrage (unter *Diese Härtungstechniken anwenden:* im
-Snippet-Editor oder *ZUSÄTZLICHE ANFORDERUNGEN:* im Workflow-Generator). Die KI
-wird dann gebeten, diese Regeln bei der Erstellung des Drehbuchs einzuhalten.
+Jede angekreuzte Option wird zu genau einer Anweisungszeile, die KorTTY an die an die KI gesendete Anfrage anhängt (unter *Diese Härtungstechniken anwenden:* im Snippet-Editor oder *ZUSÄTZLICHE ANFORDERUNGEN:* im Workflow-Generator). Die KI wird dann aufgefordert, diese Regeln bei der Erstellung des Drehbuchs einzuhalten.
 
 Der Wortlaut jeder Regel passt sich der Zielsprache an:
 
-- **Imperative Skripte** – Bash, Python, Perl, Ruby, PowerShell, Windows-CMD und
-AppleScript erhält die zwingende Formulierung (Flags, Traps, Exit-Codes, …).
-- **Deklarative Artefakte** – Ansible-Playbooks und Snippets, deren Sprache ist
-`YAML`/`YML` oder `ansible` enthält, erhalten Sie stattdessen Ansible-idiomatische Formulierungen
-(`block`/`rescue`/`always`, `assert`, `vars:`, Prüfmodus, …).
+- **Imperative Skripte** – Bash, Python, Perl, Ruby, PowerShell, Windows-CMD und AppleScript erhalten die imperative Formulierung (Flags, Traps, Exit-Codes, …).
+- **Deklarative Artefakte** – Ansible-Playbooks und Snippets, deren Sprache `YAML`/`YML` ist oder `ansible` enthält, erhalten stattdessen Ansible-idiomatische Formulierungen (`block`/`rescue`/`always`, `assert`, `vars:`, Prüfmodus, …).
 
-Die *Idee* jeder Option ist also überall gleich, aber ein Bash-Skript erhält eine
-`set -euo pipefail`-Stilregel, während ein Ansible-Playbook eine `assert` / erhält
-`failed_when`-Stilregel für dasselbe Kontrollkästchen.
+Die *Idee* jeder Option ist also überall gleich, aber ein Bash-Skript erhält eine `set -euo pipefail`-Stilregel, während ein Ansible-Playbook eine `assert`/`failed_when`-Stilregel für genau dasselbe Kontrollkästchen erhält.
 
 ## Die beiden Gruppen
 
 Die elf Optionen lassen sich aufgrund ihrer Auswirkung auf das Skript in zwei Gruppen einteilen:
 
-- **Verhaltenserhaltende Härtung** (die ersten sieben) fügt nur Dokumentation hinzu,
-Holzeinschlag, Struktur und Sicherheitsnetze. Sie machen das Skript stabiler und einfacher
-lesen, **ohne zu ändern, was es tatsächlich tut**. Diese können bedenkenlos belassen werden
-für fast jedes Skript.
-- **Verhaltens-/interaktive Änderungen** (die letzten vier) können den Kontrollfluss ändern
-oder fügen Sie eine Befehlszeilenschnittstelle hinzu – Vorbedingungs-Gates, Erkennung erneuter Ausführung usw
-Probelaufmodus, Argumentanalyse. Lassen Sie sie weg, wenn Sie möchten, dass die Umschreibung erhalten bleibt
-so nah wie möglich am ursprünglichen Verhalten.
+- **Verhaltenserhaltende Härtung** (die ersten sieben) fügen nur Dokumentation, Protokollierung, Struktur und Sicherheitsnetze hinzu. Sie machen das Skript stabiler und leichter lesbar, **ohne seine eigentliche Funktion zu ändern**. Diese können bei fast jedem Drehbuch bedenkenlos aktiviert bleiben.
+- **Verhaltens-/interaktive Änderungen** (die letzten vier) können den Kontrollfluss ändern oder eine Befehlszeilenschnittstelle hinzufügen – Vorbedingungs-Gates, Erkennung erneuter Ausführung, ein Probelaufmodus, Argumentanalyse. Lassen Sie sie weg, wenn Sie möchten, dass die Umschreibung so nah wie möglich am ursprünglichen Verhalten bleibt.
 
 ## Optionsreferenz
 
-Jede Option unten listet den Zweck und die genaue Regel auf, die KorTTY an die sendet
-KI – für zwingende Skripte und für Ansible-Playbooks.
+Jede Option unten listet auf, wozu sie dient und welche genaue Regel KorTTY an die KI sendet – für imperative Skripte und für Ansible-Playbooks.
 
 ### Verhaltenserhaltende Verhärtung
 
 #### Strikter Modus (Abbruch bei Fehler)
 
-- **Wofür es ist** – Stoppen Sie das Skript, sobald etwas schief geht
-Blindes Weitermachen in einem halb gescheiterten Zustand.
-- **Imperative Skripte** – Aktivieren Sie den Strict-/Abort-on-Error-Modus der Sprache (für
-Beispiel `set -euo pipefail` in Bash, `Set-StrictMode -Version Latest` mit
-`$ErrorActionPreference = 'Stop'` in PowerShell, `use strict; use warnings;` in
-Perl).
-- **Ansible-Playbooks** – Überprüfen Sie die Voraussetzungen mit `assert`/`failed_when`
-Schlechter Zustand schlägt das Spiel sofort fehl.
+- **Wofür es ist** – Stoppen Sie das Skript in dem Moment, in dem etwas schief geht, anstatt blind in einem halb gescheiterten Zustand fortzufahren.
+- **Imperative Skripte** – Aktivieren Sie den Strict-/Abort-on-Error-Modus der Sprache (z. B. `set -euo pipefail` in Bash, `Set-StrictMode -Version Latest` mit `$ErrorActionPreference = 'Stop'` in PowerShell, `use strict; use warnings;` in Perl).
+- **Ansible-Playbooks** – Validieren Sie die Voraussetzungen mit `assert`/`failed_when`, damit die Wiedergabe aufgrund eines fehlerhaften Zustands sofort fehlschlägt.
 
 #### Fehlerfalle und Bereinigung
 
-- **Wofür es ist** – Gewährleisten, dass ein Fehler klar und deutlich gemeldet wird
-Der temporäre Status (temporäre Dateien, Bereitstellungen, Sperren) wird auch dann bereinigt, wenn das Skript ausgeführt wird
-bricht ab.
-- **Imperative Skripte** – Fügen Sie einen Fehler-Trap / `finally` / `ensure`-Block hinzu
-Meldet Fehler und bereinigt den temporären Zustand.
-- **Ansible-Playbooks** – Verwenden Sie `block`/`rescue`/`always`, damit Fehler abgefangen und behoben werden
-Die Bereinigung läuft immer.
+- **Wofür es ist** – Gewährleisten, dass ein Fehler klar gemeldet wird und dass jeder temporäre Status (temporäre Dateien, Bereitstellungen, Sperren) bereinigt wird, selbst wenn das Skript abgebrochen wird.
+- **Imperative Skripte** – Fügen Sie einen Fehler-Trap-/`finally`-/`ensure`-Block hinzu, der Fehler meldet und den temporären Status bereinigt.
+- **Ansible-Playbooks** – Verwenden Sie `block`/`rescue`/`always`, damit Fehler abgefangen werden und die Bereinigung immer ausgeführt wird.
 
 #### Sinnvolle Exit-Codes
 
-- **Wofür es ist** – Wer auch immer das Skript aufruft (einen Scheduler, einen CI-Job,
-ein anderes Skript) erklären, *warum* es fehlgeschlagen ist, nicht nur, *dass* es fehlgeschlagen ist.
-- **Imperative Skripte** – Verwenden Sie eindeutige, dokumentierte Exit-Codes ungleich Null für
-unterschiedliche Fehlerklassen.
-- **Ansible Playbooks** – Stoppen Sie fehlgeschlagene Aufgaben mit einer klaren Botschaft
-(`any_errors_fatal`, wo sinnvoll).
+- **Wofür es ist** – Lassen Sie denjenigen, der das Skript aufruft (einen Scheduler, einen CI-Job, ein anderes Skript), sagen, *warum* es fehlgeschlagen ist, nicht nur *dass* es fehlgeschlagen ist.
+- **Imperative Skripte** – Verwenden Sie unterschiedliche, dokumentierte Exit-Codes ungleich Null für unterschiedliche Fehlerklassen.
+- **Ansible Playbooks** – Sorgen Sie dafür, dass fehlgeschlagene Aufgaben mit einer klaren Nachricht (`any_errors_fatal`, wo sinnvoll) das Spiel stoppen.
 
 #### Protokollierung (`--verbose`)
 
-- **Wofür es ist** – Machen Sie den Fortschritt des Skripts sichtbar und debuggbar, ohne dass es nötig ist
-überladene normale Ausgabe.
-- **Imperative Skripte** – Senden Sie zeitgestempelte Protokollnachrichten an stderr und unterstützen Sie a
-`--verbose`/`-v`-Flag.
-- **Ansible-Playbooks** – Verwenden Sie das `debug`-Modul für die Fortschrittsausgabe (sichtbar mit
-`-v`).
+- **Wofür es ist** – Machen Sie den Fortschritt des Skripts sichtbar und debuggbar, ohne die normale Ausgabe zu überladen.
+- **Imperative Skripte** – Senden Sie Protokollnachrichten mit Zeitstempel an stderr und unterstützen Sie ein `--verbose`/`-v`-Flag.
+- **Ansible-Playbooks** – Verwenden Sie das `debug`-Modul für die Fortschrittsausgabe (sichtbar mit `-v`).
 
 #### Konfigurationsblock für Literale
 
-- **Wofür es ist** – Sammeln Sie die Werte, die Sie am wahrscheinlichsten ändern werden (Pfade,
-Hostnamen, Paketnamen) an einem offensichtlichen Ort, anstatt sie zu verstreuen
-durch das Drehbuch.
-- **Imperative Skripte** – Heben Sie alle Literale (Pfade, Hosts, Pakete) in ein
-deutlich kommentierter Konfigurationsblock oben.
+- **Wofür es ist** – Sammeln Sie die Werte, die Sie am wahrscheinlichsten ändern (Pfade, Hostnamen, Paketnamen), an einer offensichtlichen Stelle, anstatt sie über das Skript zu verteilen.
+- **Imperative Skripte** – Heben Sie alle Literale (Pfade, Hosts, Pakete) in einen klar kommentierten Konfigurationsblock oben.
 - **Ansible-Playbooks** – Heben Sie alle Literale oben in einen `vars:`-Block.
 
 #### Abschließende Zusammenfassung
 
-- **Wofür es ist** – Schließen Sie mit einem kurzen Bericht ab, damit der Bediener es auf einen Blick erkennen kann
-was ist passiert.
-- **Imperative Skripte** – Drucken Sie eine abschließende Zusammenfassung dessen, was getan wurde (mit
-Erfolg/Misserfolg zählt).
+- **Wofür es ist** – Schließen Sie mit einem kurzen Bericht ab, damit der Bediener auf einen Blick sehen kann, was passiert ist.
+- **Imperative Skripte** – Drucken Sie eine abschließende Zusammenfassung dessen, was getan wurde (mit Erfolgs-/Misserfolgszählung).
 - **Ansible-Playbooks** – Beenden Sie mit einer `debug`-Zusammenfassung dessen, was sich geändert hat.
 
 #### Style-Guide / Linter reinigen
 
-- **Wofür es ist** – Produzieren Sie Code, der den Standard-Linter der Sprache übersteht
-Es liest sich einheitlich und vermeidet übliche Fußfeuer.
-- **Imperative Skripte** – Befolgen Sie den Sprach-Styleguide und behalten Sie ihn bei
-linter-clean (zum Beispiel ShellCheck-clean für Bash).
-- **Ansible-Playbooks** – Befolgen Sie die `ansible-lint`-Konventionen und verwenden Sie sie
-vollqualifizierte Modulnamen.
+- **Wofür es ist** – Erstellen Sie Code, der den Standard-Linter der Sprache überwindet, sodass er konsistent liest und häufige Fehler vermeidet.
+- **Imperative Skripte** – Befolgen Sie den Sprach-Styleguide und halten Sie ihn sauber (z. B. ShellCheck-clean für Bash).
+- **Ansible-Playbooks** – Befolgen Sie die `ansible-lint`-Konventionen und verwenden Sie vollständig qualifizierte Modulnamen.
 
 ### Verhaltens-/interaktive Änderungen
 
 #### Vorbedingungsprüfungen
 
-- **Wofür es ist** – Versagen Sie schnell, bevor Sie irgendetwas in der Umgebung berühren
-ist nicht bereit – ein fehlender Befehl, unzureichende Berechtigungen oder kein Netzwerk.
-- **Imperative Skripte** – Überprüfen Sie vor der Arbeit die erforderlichen Befehle und Berechtigungen
-(root/sudo) und Konnektivität.
-- **Ansible-Playbooks** – `pre_tasks`/`assert`-Prüfungen für erforderliche Berechtigungen hinzufügen,
-Pakete und Konnektivität vor jeder Änderung.
+- **Wofür es ist** – Machen Sie schnell einen Fehler, bevor Sie irgendetwas anfassen, wenn die Umgebung nicht bereit ist – ein fehlender Befehl, unzureichende Berechtigungen oder kein Netzwerk.
+- **Imperative Skripte** – Überprüfen Sie vor der Arbeit die erforderlichen Befehle, Berechtigungen (root/sudo) und Konnektivität.
+- **Ansible-Playbooks** – Fügen Sie vor jeder Änderung `pre_tasks`/`assert`-Prüfungen für erforderliche Berechtigungen, Pakete und Konnektivität hinzu.
 
 #### Idempotenz (abgeschlossene Schritte überspringen)
 
-- **Wofür es ist** – Machen Sie das Skript sicher, um es ein zweites Mal auszuführen: Schritte, die es sind
-Bereits erledigte Schritte werden erkannt und übersprungen, anstatt wiederholt zu werden oder einen Fehler zu verursachen.
-- **Imperative Skripte** – Erkennen Sie bereits abgeschlossene Schritte und überspringen Sie sie, damit die
-Das Skript kann sicher erneut ausgeführt werden.
-- **Ansible-Playbooks** – Stellen Sie sicher, dass das Playbook vollständig idempotent ist (sicheres erneutes Ausführen;
-verlassen sich auf Modul-Idempotenz und `creates`/`removes`).
+- **Wofür es ist** – Machen Sie das Skript sicher für die zweite Ausführung: Schritte, die bereits ausgeführt wurden, werden erkannt und übersprungen, anstatt wiederholt zu werden oder einen Fehler zu verursachen.
+- **Imperative Skripte** – Erkennen Sie bereits abgeschlossene Schritte und überspringen Sie sie, damit das Skript sicher erneut ausgeführt werden kann.
+- **Ansible-Playbooks** – Stellen Sie sicher, dass das Playbook vollständig idempotent ist (sichere erneute Ausführung; verlassen Sie sich auf Modul-Idempotenz und `creates`/`removes`).
 
 #### Abgesicherter Modus (`--dry-run` + bestätigen)
 
-- **Wofür es ist** – Lassen Sie den Bediener in der Vorschau sehen, worauf das Skript verzichten würde
-Nehmen Sie keine Änderungen vor und bitten Sie um Bestätigung, bevor Sie etwas Zerstörerisches tun.
-- **Imperative Skripte** – Unterstützen Sie ein `--dry-run`-Flag, das beabsichtigte Aktionen ausgibt
-ohne auszuführen, und vor destruktiven Vorgängen bestätigen (unterdrückbar mit).
-`--yes`).
-- **Ansible-Playbooks** – Unterstützt den Prüfmodus (`--check`) und den Schutz destruktiv
-Aufgaben, sodass ein Probelauf keine Änderungen vornimmt.
+- **Wofür es ist** – Lassen Sie den Bediener eine Vorschau dessen anzeigen, was das Skript tun würde, ohne irgendwelche Änderungen vorzunehmen, und bitten Sie um Bestätigung, bevor etwas destruktives geschieht.
+- **Imperative Skripte** – Unterstützen Sie ein `--dry-run`-Flag, das beabsichtigte Aktionen ohne Ausführung ausgibt und vor destruktiven Vorgängen bestätigt (unterdrückbar mit `--yes`).
+- **Ansible-Playbooks** – Unterstützt den Prüfmodus (`--check`) und schützt destruktive Aufgaben, sodass ein Probelauf keine Änderungen vornimmt.
 
 #### `--help` & Argumentanalyse
 
-- **Wofür es ist** – Verwandeln Sie das Skript in ein richtiges Befehlszeilentool mit
-dokumentierte, überschreibbare Eingaben statt fest codierter Werte.
-- **Imperative Skripte** – Stellen Sie eine `--help`/Nutzungsnachricht bereit und analysieren Sie die Befehlszeile
-Argumente für die konfigurierbaren Werte.
-- **Ansible-Playbooks** – Dokumentieren Sie alle Variablen und wie Sie sie überschreiben können
-`--extra-vars` oben in der Datei.
+- **Wofür es ist** – Verwandeln Sie das Skript in ein richtiges Befehlszeilentool mit dokumentierten, überschreibbaren Eingaben anstelle von fest codierten Werten.
+- **Imperative Skripte** – Stellen Sie eine `--help`/usage-Nachricht bereit und analysieren Sie Befehlszeilenargumente für die konfigurierbaren Werte.
+- **Ansible-Playbooks** – Dokumentieren Sie alle Variablen und wie Sie sie über `--extra-vars` am Anfang der Datei überschreiben können.
 
 ## Tipps
 
-- Beginnen Sie mit den Standardeinstellungen (alle aktiviert) für ein Wegwerf- oder persönliches Skript – das
-Die verhaltenserhaltende Gruppe kostet Sie nichts und die interaktive Gruppe macht Spaß
-das Skript freundlicher.
-- Für eine Umschreibung, bei der Sie den kleinstmöglichen Unterschied wünschen, deaktivieren Sie die vier
-Verhaltensoptionen und behalten Sie nur die verhaltenserhaltende Gruppe.
-- Die Optionen sind unabhängig – Sie können jede beliebige Kombination ankreuzen. KorTTY sendet nur
-Regeln für die angekreuzten Kästchen.
+- Beginnen Sie mit den Standardeinstellungen (alle aktiviert) für ein wegwerfbares oder persönliches Skript – die verhaltenserhaltende Gruppe kostet Sie nichts und die interaktive Gruppe macht das Skript benutzerfreundlicher.
+– Für eine Umschreibung, bei der Sie den kleinstmöglichen Unterschied wünschen, deaktivieren Sie die vier Verhaltensoptionen und behalten Sie nur die verhaltenserhaltende Gruppe bei.
+- Die Optionen sind unabhängig – Sie können jede beliebige Kombination ankreuzen. KorTTY sendet nur Regeln für die angekreuzten Kästchen.

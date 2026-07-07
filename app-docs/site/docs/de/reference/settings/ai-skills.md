@@ -32,13 +32,13 @@ Wenn Sie eine Fertigkeit auswählen oder erstellen, werden im rechten Bereich Fe
 ## Notizen
 
 !!! Hinweis „Verhalten der automatischen Erkennung“
-Wenn **Nur übereinstimmende Fertigkeiten automatisch senden** aktiviert ist, wertet korTTY die Tags jeder Fertigkeit anhand der aktuellen Anfrage aus und schließt nur diejenigen ein, die übereinstimmen. Wenn diese Option deaktiviert ist, werden alle aktiven Fertigkeiten unabhängig von den Tags gesendet.
+    Wenn **Nur übereinstimmende Fertigkeiten automatisch senden** aktiviert ist, wertet korTTY die Tags jeder Fertigkeit anhand der aktuellen Anfrage aus und schließt nur diejenigen ein, die übereinstimmen. Wenn diese Option deaktiviert ist, werden alle aktiven Fertigkeiten unabhängig von den Tags gesendet.
 
 !!! Hinweis „Fähigkeitsziele“
-- **KI-Chat/Funktionen**: Fähigkeiten, die in KI-Chat- und Funktionsaufrufkontexten verfügbar sind
-- **KI-Agent**: Vom Terminal-KI-Agenten verwendete Fähigkeiten
-- **Beide**: Verfügbar sowohl für AI Chat- als auch für AI Agent-Kontexte
-- **Verbindung**: Spezielle Fähigkeiten für die Handhabung von SSH-Verbindungen
+    - **KI-Chat/Funktionen**: Fähigkeiten, die in KI-Chat- und Funktionsaufrufkontexten verfügbar sind
+    - **KI-Agent**: Vom Terminal-KI-Agenten verwendete Fähigkeiten
+    - **Beide**: Verfügbar sowohl für AI Chat- als auch für AI Agent-Kontexte
+    - **Verbindung**: Spezielle Fähigkeiten für die Handhabung von SSH-Verbindungen
 
 !!! Hinweis „Skill-Lebenszyklus“
-Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie **Importieren**, um Fertigkeiten aus Markdown-Dateien zu laden, und **Exportieren**, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden.
+    Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie **Importieren**, um Fertigkeiten aus Markdown-Dateien zu laden, und **Exportieren**, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden.

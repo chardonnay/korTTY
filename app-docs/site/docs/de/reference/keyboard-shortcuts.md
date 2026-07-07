@@ -9,8 +9,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++Strg+T++ | Neuer Tab (Schnellverbindung) |
 | ++Strg+Umschalt+N++ | Neues Fenster |
 | ++Strg+W++ | Tab schließen |
-| ++ctrl+tab++ | Nächste Registerkarte |
-| ++ctrl+shift+tab++ | Vorheriger Tab |
+| ++Strg+Tab++ | Nächste Registerkarte |
+| ++Strg+Umschalt+Tab++ | Vorheriger Tab |
 | ++Strg+O++ | Projekt öffnen |
 | ++Strg+S++ | Projekt speichern |
 | ++Strg+K++ | Schnellverbindung |
@@ -24,8 +24,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++alt+plus++ | Vergrößern |
 | ++alt+minus++ | Verkleinern |
 | ++alt+0++ | Zoom zurücksetzen |
-| ++ctrl++ + Mausrad | Terminal-Schriftgröße hinein-/herauszoomen (Cmd + Mausrad auf macOS) |
-| ++ctrl+d++ | Lokale cmd.exe-/PowerShell-Registerkarte schließen (EOF bei Bash-Familien-Shells und SSH) |
+| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminalschriftart (Befehlstaste + Rad unter macOS) |
+| ++Strg+D++ | Schließen Sie eine lokale Registerkarte „cmd.exe/PowerShell“ (EOF für Shells der Bash-Familie und SSH) |
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
 | ++f11++ | Vollbild umschalten |
 | ++f12++ | Nur Terminal-Vollbild umschalten |
@@ -44,6 +44,4 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ▶️ (Aktivitätsbereich) | Einen angehaltenen Lauf fortsetzen |
 
 !!! Notiz
-Die vollständige, immer aktuelle Shortcut-Liste wird aus den Verknüpfungen der Anwendung generiert
-Beschleunigerdefinitionen. Wenn eine Verknüpfung hier von der in der App angezeigten abweicht,
-Die App ist maßgeblich.
+    Die vollständige, immer aktuelle Shortcut-Liste wird aus den Beschleunigerdefinitionen der Anwendung generiert. Wenn eine Verknüpfung hier von der in der App angezeigten abweicht, ist die App maßgeblich.

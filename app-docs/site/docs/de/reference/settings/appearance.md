@@ -19,7 +19,7 @@ Passen Sie den visuellen Stil des Anwendungsfensters und des Dialogs an.
 Mit den Schaltflächen `◀` und `▶` neben dem Dropdown-Menü können Sie durch die Designs vor- und zurückblättern (an den Enden umlaufend). Wenn ein anderes Design als **Standard** ausgewählt wird, wird unterhalb der Steuerelemente ein Vorschaubild dieses Designs angezeigt. Das **Standarddesign** hat keine Vorschau und zeigt stattdessen eine kurze Notiz an.
 
 !!! Notiz
-App Design gilt nur für die Anwendungsfenster und Dialoge von korTTY. Terminalsitzungen und der Dateieditor behalten ihre eigenen unabhängigen Farbeinstellungen (konfiguriert über die Registerkarten „Farben“ oder „Themen“).
+    App Design gilt nur für die Anwendungsfenster und Dialoge von korTTY. Terminalsitzungen und der Dateieditor behalten ihre eigenen unabhängigen Farbeinstellungen (konfiguriert über die Registerkarten „Farben“ oder „Themen“).
 
 ## Registerkarte „Schriftart“.
 
@@ -33,7 +33,7 @@ Legen Sie die Schriftart und -größe des Terminals und Editors fest.
 | Schriftgröße | Nummer | 8–72 pt | 12 | `defaultTerminalSettings.fontSize` |
 
 !!! Notiz
-Auf der Registerkarte „Schriftart“ werden globale Standardeinstellungen für alle neuen Terminalverbindungen festgelegt. Einzelne Verbindungen können diese Werte über ihre eigenen Verbindungseinstellungen überschreiben. Während Sie die Steuerelemente anpassen, wird eine Live-Vorschau angezeigt.
+    Auf der Registerkarte „Schriftart“ werden globale Standardeinstellungen für alle neuen Terminalverbindungen festgelegt. Einzelne Verbindungen können diese Werte über ihre eigenen Verbindungseinstellungen überschreiben. Während Sie die Steuerelemente anpassen, wird eine Live-Vorschau angezeigt.
 
 ## Registerkarte „Themen“.
 
@@ -57,14 +57,14 @@ Erstellen, bearbeiten und verwalten Sie Terminal-Farbthemen. Themen definieren F
 | Option „Schriftart anwenden“ | umschalten | Aus | `applyThemeFonts` |
 
 !!! Notiz
-Wenn die Option „Schriftart anwenden“ aktiviert ist, wird bei der Auswahl eines Themas aus der Dropdown-Liste „Farbprofil“ auf der Registerkarte „Farben“ auch die Schriftfamilie und -größe dieses Themas angewendet. Wenn die Option deaktiviert ist, werden nur die Farben des Themas angewendet.
+    Wenn die Option „Schriftart anwenden“ aktiviert ist, wird bei der Auswahl eines Themas aus der Dropdown-Liste „Farbprofil“ auf der Registerkarte „Farben“ auch die Schriftfamilie und -größe dieses Themas angewendet. Wenn die Option deaktiviert ist, werden nur die Farben des Themas angewendet.
 
 ### Integrierte vs. benutzerdefinierte Designs
 
 korTTY enthält eine Reihe integrierter Farbthemen (z. B. Standard, Dunkelmodus, Solarisiertes Licht). Benutzerdefinierte Designs werden in `~/.kortty/themes/` als einzelne XML-Dateien gespeichert. Alle Themen werden in der Farbprofilauswahl der Registerkarte „Farben“ und in verbindungsspezifischen Themen-Dropdown-Menüs angezeigt.
 
 !!! Warnung
-Integrierte Designs können nicht bearbeitet oder gelöscht werden. Um ein integriertes Design zu ändern, duplizieren Sie es zunächst und bearbeiten Sie dann die benutzerdefinierte Kopie.
+    Integrierte Designs können nicht bearbeitet oder gelöscht werden. Um ein integriertes Design zu ändern, duplizieren Sie es zunächst und bearbeiten Sie dann die benutzerdefinierte Kopie.
 
 ### Theme-Vorschau
 

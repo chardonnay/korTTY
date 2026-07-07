@@ -14,4 +14,4 @@ Konfigurieren Sie die automatische Update-Überprüfung und die Häufigkeit, mit
 | Prüfintervall | Schieberegler | 1–30 Tage | 1 Tag | `updateCheckIntervalDays` |
 
 !!! Notiz
-Automatische Update-Prüfungen laufen unbemerkt im Hintergrund und zeigen nur dann einen Benachrichtigungsdialog an, wenn eine neuere kompatible Version verfügbar ist. Manuelle Update-Prüfungen sind jederzeit über das Dialogfeld „Info“ verfügbar.
+    Automatische Update-Prüfungen laufen unbemerkt im Hintergrund und zeigen nur dann einen Benachrichtigungsdialog an, wenn eine neuere kompatible Version verfügbar ist. Manuelle Update-Prüfungen sind jederzeit über das Dialogfeld „Info“ verfügbar.

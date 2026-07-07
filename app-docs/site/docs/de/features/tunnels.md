@@ -76,7 +76,7 @@ Your machine:1080  -->  SSH Server  -->  (any destination)
 Konfigurieren Sie Ihren Browser oder Ihre Anwendung so, dass `localhost:1080` als SOCKS5-Proxy verwendet wird. Der gesamte Datenverkehr wird sicher über den SSH-Server weitergeleitet.
 
 !!! Notiz
-Für die dynamische Portweiterleitung ist nur der lokale Port erforderlich. Die Felder „Remote-Host“ und „Remote-Port“ werden nicht verwendet.
+    Für die dynamische Portweiterleitung ist nur der lokale Port erforderlich. Die Felder „Remote-Host“ und „Remote-Port“ werden nicht verwendet.
 
 ## Tunnel verwalten
 
@@ -88,4 +88,4 @@ Für die dynamische Portweiterleitung ist nur der lokale Port erforderlich. Die 
 Tunnel werden beim Öffnen der SSH-Verbindung eingerichtet und bleiben für die Dauer der Sitzung aktiv.
 
 !!! Warnung
-Wenn Sie die lokale oder Remote-Portweiterleitung an Ports unter 1024 (z. B. Port 80 oder 443) verwenden, sind für Ihr System möglicherweise erhöhte Berechtigungen erforderlich. Verwenden Sie die Ports 1024 und höher, um Berechtigungsprobleme zu vermeiden.
+    Wenn Sie die lokale oder Remote-Portweiterleitung an Ports unter 1024 (z. B. Port 80 oder 443) verwenden, sind für Ihr System möglicherweise erhöhte Berechtigungen erforderlich. Verwenden Sie die Ports 1024 und höher, um Berechtigungsprobleme zu vermeiden.

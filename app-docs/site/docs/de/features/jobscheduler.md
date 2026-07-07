@@ -46,7 +46,7 @@ Verwenden Sie die Registerkarte **Job**, um zu definieren, wo und wann ein Job a
 Zeitplanberechnungen verwenden die Zeitzone des lokalen Systems. Wenn keine feste Zeit und kein Intervall konfiguriert sind, ist der nächste Lauf der Fensterstart an einem erlaubten Datum.
 
 !!! Notiz
-Scheduler-Jobs unterstützen nur gespeicherte SSH-TCP-Verbindungen. Mosh-Ziele werden als nicht unterstützt blockiert und der Grund wird in das Journal geschrieben.
+    Scheduler-Jobs unterstützen nur gespeicherte SSH-TCP-Verbindungen. Mosh-Ziele werden als nicht unterstützt blockiert und der Grund wird in das Journal geschrieben.
 
 ### Hostschlüssel, Sudo und Geheimnisse
 
@@ -105,7 +105,7 @@ Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Lauferge
 Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche **Planen…** in der Registerkarte [AI Swarm](ai-swarm.md#scheduling-swarm-runs-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.
 
 !!! Warnung
-Ein geplanter Schwarm mit deaktiviertem **Schwarm-Schreibschutz** und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
+    Ein geplanter Schwarm mit deaktiviertem **Schwarm-Schreibschutz** und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
 
 #### SFTP-Archivjobs
 
@@ -176,15 +176,15 @@ Wenn KorTTY kurz vor dem Beenden steht, während JobScheduler-Jobs ausgeführt w
 ## Fehlerbehebung
 
 !!! Warnung
-**JobScheduler-Job ist blockiert:** Öffnen Sie **Extras > JobScheduler... > Journal** und überprüfen Sie den Detailtext des ausgewählten Eintrags. Häufige Ursachen sind:
-- Gesperrtes Master-Passwort
-- Fehlender Hostschlüssel-Pin
-- Nicht unterstütztes Mosh-Ziel
-- `rsync` oder `ssh` fehlt im PATH
-– Alter Host-Key-Pin ohne OpenSSH-Public-Key-Material für Rsync
+    **JobScheduler-Job ist blockiert:** Öffnen Sie **Extras > JobScheduler... > Journal** und überprüfen Sie den Detailtext des ausgewählten Eintrags. Häufige Ursachen sind:
+    - Gesperrtes Master-Passwort
+    - Fehlender Hostschlüssel-Pin
+    - Nicht unterstütztes Mosh-Ziel
+    - `rsync` oder `ssh` fehlt im PATH
+    – Alter Host-Key-Pin ohne OpenSSH-Public-Key-Material für Rsync
 
-**JobScheduler Rsync kann nicht gestartet werden:** Überprüfen Sie die lokalen Werte `rsync --version` und `ssh -V` oder konfigurieren Sie den Rsync-Binärpfad unter **Einstellungen > SFTP > JobScheduler Rsync**.
+    **JobScheduler Rsync kann nicht gestartet werden:** Überprüfen Sie die lokalen Werte `rsync --version` und `ssh -V` oder konfigurieren Sie den Rsync-Binärpfad unter **Einstellungen > SFTP > JobScheduler Rsync**.
 
-**JobScheduler-Remotebrowser kann nicht geöffnet werden:** Wählen Sie genau ein Ziel aus und bestätigen Sie zuerst den Hostschlüssel, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
+    **JobScheduler-Remotebrowser kann nicht geöffnet werden:** Wählen Sie genau ein Ziel aus und bestätigen Sie zuerst den Hostschlüssel, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
 
 ---

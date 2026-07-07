@@ -16,7 +16,7 @@ Die Terminalaufzeichnung speichert Sitzungsdaten in komprimierten JSONL-Wiederga
 - **Inhalt**: Änderungen des Bildschirmstatus, Zeitereignisse und optionale Farbläufe
 
 !!! Notiz
-Aufnahmen erfassen nicht kontinuierlich Pixel und werden nicht über das Netzwerk gestreamt. Die Dateigröße hängt von der Aktivitätsstufe ab und davon, ob die Farberfassung aktiviert ist.
+    Aufnahmen erfassen nicht kontinuierlich Pixel und werden nicht über das Netzwerk gestreamt. Die Dateigröße hängt von der Aktivitätsstufe ab und davon, ob die Farberfassung aktiviert ist.
 
 ## Konfiguration
 
@@ -49,7 +49,7 @@ Legen Sie unter **Tools > Video Manager** die folgenden Optionen fest:
 | **ffmpeg-Pfad** | Pfad zur lokalen `ffmpeg`-Binärdatei für den Videoexport |
 
 !!! Tipp
-Aktivieren Sie die Farberfassung *vor* der Aufnahme, wenn Sie möchten, dass exportierte Videos die Terminalfarben genau wiedergeben. Vorhandene Aufnahmen ohne Farbdaten können weiterhin exportiert werden, die Farben bleiben jedoch nicht erhalten.
+    Aktivieren Sie die Farberfassung *vor* der Aufnahme, wenn Sie möchten, dass exportierte Videos die Terminalfarben genau wiedergeben. Vorhandene Aufnahmen ohne Farbdaten können weiterhin exportiert werden, die Farben bleiben jedoch nicht erhalten.
 
 ### ffmpeg-Konfiguration
 
@@ -67,11 +67,11 @@ Wenn sich `ffmpeg` unter macOS und Linux in Ihrem PATH befindet, erkennt KorTTY 
 
 1. Öffnen oder fokussieren Sie eine SSH-Terminal-Registerkarte
 2. Wenn die Aufzeichnung aktiviert ist, klicken Sie in der Terminalleiste auf **Aufzeichnung starten** oder:
-- Wählen Sie **Extras > Terminalaufzeichnung starten/stoppen**, oder
-- Drücken Sie ++Strg+Umschalt+e++ (++cmd+Umschalt+e++ unter macOS)
+   - Wählen Sie **Extras > Terminalaufzeichnung starten/stoppen**, oder
+   - Drücken Sie ++Strg+Umschalt+e++ (++cmd+Umschalt+e++ unter macOS)
 3. Wenn die Registerkarte geteilte Anschlüsse enthält, wählen Sie:
-- **Aktive Teilung** – Nur den fokussierten Terminalbereich aufzeichnen
-- **Gesamte Registerkarte** – zeichnet alle sichtbaren Teilungen auf
+   - **Aktive Teilung** – Nur den fokussierten Terminalbereich aufzeichnen
+   - **Gesamte Registerkarte** – zeichnet alle sichtbaren Teilungen auf
 
 Das Steuerelement in der Terminalleiste ist ausgeblendet, bis die Aufzeichnung aktiviert oder der Menüpunkt/die Verknüpfung verwendet wird.
 
@@ -95,12 +95,12 @@ Für exportierte Videos muss `ffmpeg` verfügbar und konfiguriert sein.
 3. Stellen Sie sicher, dass der **ffmpeg-Status** besagt, dass der Videoexport aktiviert ist
 4. Klicken Sie auf **Exportieren**
 5. Im Exportdialog:
-- Wählen Sie **Gesamte Aufzeichnung exportieren** oder geben Sie einen benutzerdefinierten Zeitraum an
-– Geben Sie für benutzerdefinierte Bereiche die Start-/Endzeiten als `MM` (Minuten) oder `MM:SS` (Minuten und Sekunden) ein.
-- Werte, die über die Wiedergabedauer hinausgehen, werden abgelehnt
-– Wählen Sie, ob **Terminalfarben einbezogen werden** (nur verfügbar, wenn die Wiedergabe Farbdaten enthält)
-- Wählen Sie das Ausgabeformat: **WebM/VP9** oder **MKV/FFV1**
-- Wählen Sie den Ausgabeort
+   - Wählen Sie **Gesamte Aufzeichnung exportieren** oder geben Sie einen benutzerdefinierten Zeitraum an
+   – Geben Sie für benutzerdefinierte Bereiche die Start-/Endzeiten als `MM` (Minuten) oder `MM:SS` (Minuten und Sekunden) ein.
+   - Werte, die über die Wiedergabedauer hinausgehen, werden abgelehnt
+   – Wählen Sie, ob **Terminalfarben einbezogen werden** (nur verfügbar, wenn die Wiedergabe Farbdaten enthält)
+   - Wählen Sie das Ausgabeformat: **WebM/VP9** oder **MKV/FFV1**
+   - Wählen Sie den Ausgabeort
 
 ### Exportfortschritt
 
@@ -120,9 +120,9 @@ Beim Export wird die aufgezeichnete Terminalgeometrie verwendet, um das Zuschnei
 2. Wählen Sie eine `.korttyrec.jsonl.gz`-Wiedergabedatei aus
 3. Klicken Sie auf **Anzeigen**, um die Wiedergabe im integrierten Viewer zu öffnen
 4. Verwenden Sie die Timeline-Steuerelemente:
-- **Timeline-Schieberegler** – Ziehen Sie, um zu einer beliebigen Position zu springen
-- **Zeitsprung** – Geben Sie `5` für Minute 5 und `5:30` für 5 Minuten 30 Sekunden ein
-- **Geschwindigkeit** – Stellen Sie die Wiedergabegeschwindigkeit zwischen 1x und 20x ein
+   - **Timeline-Schieberegler** – Ziehen Sie, um zu einer beliebigen Position zu springen
+   - **Zeitsprung** – Geben Sie `5` für Minute 5 und `5:30` für 5 Minuten 30 Sekunden ein
+   - **Geschwindigkeit** – Stellen Sie die Wiedergabegeschwindigkeit zwischen 1x und 20x ein
 
 ### Eine Wiederholung umbenennen
 

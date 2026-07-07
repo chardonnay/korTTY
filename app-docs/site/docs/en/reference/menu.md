@@ -1,8 +1,6 @@
 # Menu reference
 
-Every item in korTTY's menu bar, with its shortcut (where defined) and what it
-does. The menu bar can be hidden with ++ctrl+shift+l++ and shown again by
-right-clicking the terminal or status bar.
+Every item in korTTY's menu bar, with its shortcut (where defined) and what it does. The menu bar can be hidden with ++ctrl+shift+l++ and shown again by right-clicking the terminal or status bar.
 
 ## File
 
@@ -82,8 +80,7 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | AI Planning… | Open the AI planning workflow |
 | AI Swarm… | Broadcast one AI task to many servers and compare the answers (++ctrl+alt+s++) |
 
-**AI Manager** lists your AI profiles (each with connection mode, model,
-reasoning effort, internet access and token budget) and your saved chats:
+**AI Manager** lists your AI profiles (each with connection mode, model, reasoning effort, internet access and token budget) and your saved chats:
 
 ![AI Manager](../assets/screenshots/ai/ai-manager.png)
 
@@ -124,15 +121,9 @@ reasoning effort, internet access and token budget) and your saved chats:
 
 ## macOS Dock & menu bar
 
-On macOS the packaged app keeps running in the background (so the JobScheduler
-can run scheduled jobs) even after the last window is closed. korTTY therefore
-adds two extra entry points so it stays reachable — and quittable — with no
-window open:
+On macOS the packaged app keeps running in the background (so the JobScheduler can run scheduled jobs) even after the last window is closed. korTTY therefore adds two extra entry points so it stays reachable — and quittable — with no window open:
 
-- **Dock icon menu** — right-click korTTY's Dock icon for quick actions: **New
-  Window**, **New Tab**, **Manage Connections…**, **Open Project…**, **Manual**,
-  **About korTTY**, and **Quit**.
-- **Menu-bar (status) icon** — a system-tray icon with **New Window** and
-  **Quit**; clicking the icon opens a new window.
+- **Dock icon menu** — right-click korTTY's Dock icon for quick actions: **New Window**, **New Tab**, **Manage Connections…**, **Open Project…**, **Manual**, **About korTTY**, and **Quit**.
+- **Menu-bar (status) icon** — a system-tray icon with **New Window** and **Quit**; clicking the icon opens a new window.
 
 Both provide a reliable **Quit** even when every window is closed.

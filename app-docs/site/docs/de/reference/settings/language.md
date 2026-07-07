@@ -13,4 +13,4 @@ Konfigurieren Sie die Sprache der Benutzeroberfläche für korTTY. Unterstützt 
 | Wählen Sie Sprache: | Dropdown | Automatische Erkennung (Systemsprache), Englisch, Deutsch, Italienisch, Spanisch, Portugiesisch, Französisch, Kroatisch, Niederländisch | Automatische Erkennung (Systemsprache) | `language` |
 
 !!! Notiz
-Sprachänderungen werden nach dem Neustart der Anwendung wirksam. Die Einstellung wird beim nächsten Start von korTTY auf die Beschriftungen, Menüs und Dialoge der Benutzeroberfläche angewendet.
+    Sprachänderungen werden nach dem Neustart der Anwendung wirksam. Die Einstellung wird beim nächsten Start von korTTY auf die Beschriftungen, Menüs und Dialoge der Benutzeroberfläche angewendet.

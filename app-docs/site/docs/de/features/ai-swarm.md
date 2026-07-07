@@ -4,13 +4,9 @@ title: KI-Schwarm
 
 # KI-Schwarm
 
-Der KI-Schwarm sendet eine KI-Agentenaufgabe gleichzeitig an viele Server. Jeder ausgewählt
-Der Server erhält seinen eigenen unabhängigen Agenten, der über seine SSH-Sitzung ausgeführt wird, und der
-Die Antworten pro Server werden in einer einzigen Vergleichstabelle zusammengefasst – eine Zeile pro Server
-Server – in einem gemeinsamen Gespräch.
+Der KI-Schwarm sendet eine KI-Agentenaufgabe gleichzeitig an viele Server. Jeder ausgewählte Server erhält seinen eigenen unabhängigen Agenten, der über seine SSH-Sitzung ausgeführt wird, und die Antworten pro Server werden in einer einzigen Vergleichstabelle – einer Zeile pro Server – in einer gemeinsamen Konversation zusammengefasst.
 
-Öffnen Sie es mit **Tools > AI Swarm...** oder ++Strg+Alt+S++ (Cmd unter macOS). Der Schwarm
-Wird als normale Registerkarte geöffnet, sodass Terminals während der Ausführung eines Schwarms nutzbar bleiben.
+Öffnen Sie es mit **Tools > AI Swarm...** oder ++Strg+Alt+S++ (Cmd unter macOS). Der Schwarm wird als normaler Tab geöffnet, sodass Terminals während der Ausführung eines Schwarms nutzbar bleiben.
 
 ## Der Schwarm-Tab
 
@@ -22,25 +18,13 @@ Die Registerkarte ist in drei Bereiche unterteilt:
 | **Agenten** | Eine Zeile pro Server mit Status-Badge, verstrichener Zeit, Token-Anzahl und einem erweiterbaren Live-Transkript |
 | **Gespräch** | Der gemeinsame Chat: Ihre Eingabeaufforderung, der Fortschritt pro Lauf und die kombinierte Antwort |
 
-Der Composer unten (*Alle ausgewählten Server fragen…*) ist ein klar umrahmter,
-dreizeilige Eingabe. **Senden** startet einen Lauf auf jedes ausgewählte Ziel; nachverfolgen
-Aufforderungen setzen das gleiche Gespräch fort.
+Der Composer unten (*Alle ausgewählten Server fragen…*) ist eine klar umrahmte, dreizeilige Eingabe. **Senden** startet einen Lauf auf jedes ausgewählte Ziel; Folgeaufforderungen setzen das gleiche Gespräch fort.
 
 ### Ziele auswählen
 
-**Server auswählen…** öffnet eine Auswahl für Ihre gespeicherten Verbindungen. Das Ziel
-Die Übersicht daneben zeigt, wie viele Server ausgewählt sind und wie viele bereits über einen verfügen
-offenes Terminal (*Offen: n*) und wie viele davon ohne eines laufen (*Ohne
-Terminal: n*).
+**Server auswählen…** öffnet eine Auswahl für Ihre gespeicherten Verbindungen. Die Zielübersicht daneben zeigt, wie viele Server ausgewählt sind, wie viele bereits über ein offenes Terminal verfügen (*Offen: n*) und wie viele ohne eines laufen (*Ohne Terminal: n*).
 
-Server **ohne offenes Terminal werden vollständig unterstützt**: Der Schwarm öffnet a
-Hintergrund-SSH-Sitzung für sie bei Bedarf – es wird kein Terminal-Tab geöffnet oder
-erforderlich. Dazu muss der Master-Passwort-Tresor entsperrt werden (das gespeicherte Passwort).
-Anmeldeinformationen werden verwendet) und der Serverschlüssel wird beim ersten Kontakt akzeptiert
-Vertrauensmodell, das das Terminal für neue Verbindungen verwendet. **Verbindung fehlt (n)**
-bleibt als explizite Opt-in-Option verfügbar, wenn Sie stattdessen die Öffnung von Terminals *wollen*.
-**Lokale Shell einschließen** fügt Ihren lokalen Computer zum Schwarm hinzu (lokale Shells).
-benötigen immer ihren offenen Tab und sind von Headless-Läufen ausgeschlossen.
+Server **ohne offenes Terminal werden vollständig unterstützt**: Der Schwarm öffnet bei Bedarf eine Hintergrund-SSH-Sitzung für sie – es ist kein Terminal-Tab geöffnet oder erforderlich. Dazu muss der Master-Passwort-Tresor entsperrt werden (die gespeicherten Anmeldeinformationen werden verwendet) und der Serverschlüssel wird beim ersten Kontakt akzeptiert, das gleiche Vertrauensmodell, das das Terminal für neue Verbindungen verwendet. **Connect fehlt (n)** bleibt als explizite Option verfügbar, wenn Sie stattdessen Terminals öffnen *möchten*. **Lokale Shell einschließen** fügt Ihren lokalen Computer zum Schwarm hinzu (lokale Shells benötigen immer ihre offene Registerkarte und sind von Headless-Läufen ausgeschlossen).
 
 ## Statusstreifen
 
@@ -59,19 +43,11 @@ Eine Kugel pro Agent, gefärbt und animiert nach Bundesstaat:
 | **Fehlgeschlagen** | rot | Der Lauf ist fehlerhaft; Einzelheiten finden Sie in der Agentenzeile |
 | **Abgebrochen / Übersprungen** | dunkelgrau | Angehalten oder übersprungen (z. B. nicht unterstützte Shell) |
 
-**Adaptive Langsamerkennung** – ein Agent wird *ungewöhnlich lange* markiert, wenn er aktiv ist
-verstrichene Zeit überschreitet `max(60 s, 2 × median of the finished agents)`; bis um
-Wenn mindestens zwei Agenten fertig sind, gilt ein fester Schwellenwert von 180 Sekunden. Angehalten und
-Wartende Agenten werden nie markiert und die Pausenzeit wird von der verstrichenen abgezogen
-Zeit, so dass der Vergleich fair bleibt.
+**Adaptive langsame Erkennung** – ein Agent wird als *ungewöhnlich lange* gekennzeichnet, wenn seine verstrichene Zeit `max(60 s, 2 × median of the finished agents)` überschreitet; Bis mindestens zwei Agenten fertig sind, gilt ein fester Schwellenwert von 180 Sekunden. Angehaltene und wartende Agenten werden nie gekennzeichnet und die angehaltene Zeit wird von der verstrichenen Zeit abgezogen, damit der Vergleich fair bleibt.
 
-Während ein Lauf aktiv ist, wird durch **Klicken auf eine Kugel** zu dieser gescrollt und diese hervorgehoben
-Zeile des Agenten in der Agentenliste; Beim Schweben werden der Servername und die verstrichene Zeit angezeigt.
-Legendenchips unter den Kugeln fassen die Zählungen zusammen (Laufen, Warten, Pause,
-erledigt, fehlgeschlagen). Nach dem Lauf friert der Streifen im Endzustand ein.
+Während ein Lauf aktiv ist, wird durch **Klicken auf eine Kugel** zur Zeile dieses Agenten in der Agentenliste gescrollt und diese hervorgehoben. Beim Schweben werden der Servername und die verstrichene Zeit angezeigt. Legendenchips unter den Kugeln fassen die Zählungen zusammen (läuft, wartet, pausiert, erledigt, fehlgeschlagen). Nach dem Lauf friert der Streifen im Endzustand ein.
 
-Der Streifen lässt sich von einem einzelnen Server bis hin zu großen Flotten skalieren – die Kugeln schrumpfen und packen sich
-in Zeilen, wenn die Anzahl der Agenten wächst:
+Der Streifen lässt sich von einem einzelnen Server bis hin zu großen Flotten skalieren – die Kugeln schrumpfen und packen sich in Reihen, wenn die Anzahl der Agenten wächst:
 
 ![Status strip with all states](../assets/screenshots/ai/swarm-status-strip-states.png)
 
@@ -79,28 +55,17 @@ in Zeilen, wenn die Anzahl der Agenten wächst:
 
 ## Agentenzeilen und Live-Transkripte
 
-Für jeden Server gibt es in der **Agents**-Liste eine Zeile mit seinem Statusabzeichen „Abgelaufen“.
-Zeit und Tokenanzahl. **Klicken Sie mit der linken Maustaste auf eine Zeile**, um sie inline zu erweitern und anzusehen
-Live-Transkript des Agenten (Befehle, Ausgabe und Fortschritt) während der Ausführung – nein
-Zusätzliches Fenster erforderlich. Sehr lange Transkripte werden von vorne beschnitten
-Die neueste Ausgabe ist immer sichtbar.
+Jeder Server verfügt über eine Zeile in der **Agents**-Liste, in der sein Status-Badge, die verstrichene Zeit und die Token-Anzahl angezeigt werden. **Klicken Sie mit der linken Maustaste auf eine Zeile**, um sie inline zu erweitern und das Live-Transkript des Agenten (Befehle, Ausgabe und Fortschritt) während der Ausführung anzusehen – kein zusätzliches Fenster erforderlich. Sehr lange Transkripte werden von vorne beschnitten, sodass immer die neueste Ausgabe sichtbar ist.
 
-**Klicken Sie mit der rechten Maustaste auf eine Zeile**, um die Kontrolle pro Agent zu erhalten: **Pause**, **Fortsetzen**,
-**Neustart** und **Stop** gelten nur für diesen Agenten. Der Neustart eines Agenten reicht aus
-die anderen nicht stören; seine Antwort wird im kombinierten Ergebnis ersetzt.
+**Klicken Sie mit der rechten Maustaste auf eine Zeile**, um die Kontrolle pro Agent zu erhalten: **Pause**, **Fortsetzen**, **Neustart** und **Stopp** gelten nur für diesen Agenten. Durch den Neustart eines Agenten werden die anderen nicht gestört. seine Antwort wird im kombinierten Ergebnis ersetzt.
 
 ## Steuerung ausführen
 
-Die Symbolleiste bietet die gleichen vier Steuerelemente für den **gesamten Schwarm**: **Pause**,
-**Fortsetzen**, **Neustart** und **Stop**. Das Pausieren ist kooperativ – jeder Agent
-hält an seinem nächsten sicheren Kontrollpunkt an (auf dem Badge steht *Pause…*, bis es dauert).
-Effekt), und abgelaufene Timer stoppen, während sie angehalten werden.
+Die Symbolleiste bietet die gleichen vier Steuerelemente für den **gesamten Schwarm**: **Pause**, **Fortsetzen**, **Neustart** und **Stop**. Das Pausieren ist kooperativ – jeder Agent pausiert an seinem nächsten sicheren Kontrollpunkt (auf dem Abzeichen wird *Pause…* angezeigt, bis es wirksam wird), und abgelaufene Timer bleiben während der Pause stehen.
 
 ## Schreibgeschützter Modus und Genehmigungen
 
-Durch das Kontrollkästchen **Schreibgeschützt** wird sichergestellt, dass jeder Agent nicht mutiert
-Befehle. Wenn der schreibgeschützte Zugriff deaktiviert ist, entscheidet die **Genehmigungsrichtlinie** darüber, wie
-Systemverändernde Befehle werden bestätigt:
+Durch das Kontrollkästchen **Schreibgeschützt** bleibt jeder Agent auf nicht mutierende Befehle beschränkt. Wenn der schreibgeschützte Zugriff deaktiviert ist, entscheidet die **Genehmigungsrichtlinie**, wie systemverändernde Befehle bestätigt werden:
 
 | Politik | Verhalten |
 | --- | --- |
@@ -111,68 +76,35 @@ Der Genehmigungsdialog bietet außerdem die Option **Schwarm abbrechen**, um den
 
 ## Kombinierte Antwort- und Zeilendetails
 
-Wenn alle Agenten fertig sind, kombiniert der Schwarm die Antworten pro Server zu einer einzigen
-Markdown-Vergleichstabelle mit genau einer Zeile pro Server. Die letzte Spalte ist
-immer mit **"Fehler"** betitelt und Abweichungen, fehlende Daten und Fehler (bzw
-`-`, wenn nichts zu melden ist), unabhängig von der Antwortsprache.
+Wenn alle Agenten fertig sind, kombiniert der Schwarm die Antworten pro Server in einer Markdown-Vergleichstabelle mit genau einer Zeile pro Server. Die letzte Spalte trägt immer den Titel **"Fehler"** und listet Abweichungen, fehlende Daten und Fehler (oder `-`, wenn es nichts zu melden gibt) auf, unabhängig von der Antwortsprache.
 
-Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **klicken Sie auf eine beliebige Tabelle
-row**, um es in einem separaten *Zeilendetails*-Fenster mit lesbarem Layout zu öffnen,
-Schaltflächen für die Schriftgröße **A− / A+** und eine Schaltfläche zum Kopieren in die Zwischenablage.
+Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **klicken Sie auf eine beliebige Tabellenzeile**, um sie in einem separaten Fenster *Zeilendetails* mit lesbarem Layout, **A− / A+**-Schriftgrößenschaltflächen und einer Schaltfläche zum Kopieren in die Zwischenablage zu öffnen.
 
 ## Konversation kopieren, exportieren und speichern
 
-Der Konversationsheader verfügt über eine Schaltfläche **Kopieren** (die gesamte Konversation wird in die Kopfzeile verschoben).
-Zwischenablage) und ein **Exportieren**-Menü mit **Nur-Text**, **Markdown** und
-**PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; geretteter Schwarm
-Chats erscheinen in einem speziellen **Swarm Chats**-Bereich des
-[AI Manager](ai-assistant.md#ai-manager) und kann später wieder geöffnet werden.
+Der Konversationskopf verfügt über eine Schaltfläche **Kopieren** (gesamte Konversation in die Zwischenablage) und ein Menü **Exportieren** mit **Nur-Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Abschnitt **Schwarm-Chats** des [AI Manager](ai-assistant.md#ai-manager)] angezeigt und können später wieder geöffnet werden.
 
 ## Skripte ohne KI ausführen
 
-**Skript ausführen…** führt ein Snippet-Manager-Skript auf **allen Schwarmzielen in aus
-parallel – ohne KI-Beteiligung**. Der Dialog bietet ein durchsuchbares Skript
-Auswahl (nach Name, Kategorie, Sprache oder ID), ein Parameterfeld (ein Parameter).
-pro Zeile) und eine Live-Zusammenfassung; Die Schaltfläche **Ausführen** ist die einzige Bestätigung.
+**Skript ausführen…** führt ein Snippet-Manager-Skript auf **allen Schwarmzielen parallel aus – ohne KI-Beteiligung**. Der Dialog bietet eine durchsuchbare Skriptauswahl (nach Name, Kategorie, Sprache oder ID), ein Parameterfeld (ein Parameter pro Zeile) und eine Live-Zusammenfassung; Die Schaltfläche **Ausführen** ist die einzige Bestätigung.
 
-Das Skript wird Base64-kodiert übertragen (keine Anführungszeichen oder Sonderzeichen).
-Probleme) und auf dem Server dekodiert, wobei die Parameter als `$1`, `$2`, … übergeben werden.
-Der Fortschritt wird in denselben Agentenzeilen angezeigt. Erweitern Sie eine Zeile, um den Live-Vorgang anzusehen
-Ausgabe – und das Ergebnis ist eine Tabelle pro Server mit Exit-Code und Ausgabe.
-Nicht-POSIX-Shells (z. B. Windows-Ziele) werden mit einem *Skipped: Shell übersprungen
-nicht POSIX*-Notiz, während der Rest des Schwarms fortschreitet; nicht erreichbare Server sind
-als *Nicht verbunden* gemeldet. **Stop** bricht eine laufende Skriptausführung ab.
+Das Skript wird Base64-kodiert übertragen (keine Probleme mit Anführungszeichen oder Sonderzeichen) und auf dem Server dekodiert, wobei die Parameter als `$1`, `$2`, … übergeben werden. Der Fortschritt wird in denselben Agentenzeilen angezeigt – erweitern Sie eine Zeile, um die Live-Ausgabe anzusehen – und das Ergebnis ist eine Tabelle pro Server mit Exit-Code und Ausgabe. Nicht-POSIX-Shells (z. B. Windows-Ziele) werden mit dem Hinweis *Skipped: Shell is not POSIX* übersprungen, während der Rest des Schwarms weiterläuft; Nicht erreichbare Server werden als *Nicht verbunden* gemeldet. **Stop** bricht eine laufende Skriptausführung ab.
 
 ## Generieren Sie einen Multi-Server-Workflow
 
-Die Schaltfläche **Workflow** verwandelt die aktuelle Schwarmaufgabe in eine einzelne wiederverwendbare Aufgabe
-Multi-Server-Skript über den Dialog **Multi-Server-Workflow generieren**: Wählen Sie
-die Skriptsprache, die Hostlistenquelle (ausgewählte Verbindungen, manuelle Liste oder
-externe Hostdatei/Inventar) und Multi-Server-Härtungsoptionen (parallel).
-Fan-Out, Timeout pro Host, Wiederholung mit Backoff, aggregierter End-of-Run-Bericht,
-Jump Host, Sudo/Become, Dry-Run und mehr).
+Die Schaltfläche **Workflow** verwandelt die aktuelle Schwarmaufgabe über das Dialogfeld **Multiserver-Workflow generieren** in ein einzelnes wiederverwendbares Multi-Server-Skript: Wählen Sie die Skriptsprache, die Hostlistenquelle (ausgewählte Verbindungen, manuelle Liste oder externe Hostdatei/Inventar) und Multi-Server-Härtungsoptionen (paralleles Fanout, pro-Host-Timeout, Wiederholung mit Backoff, aggregierter End-of-Run-Bericht, Jump-Host, sudo/become, Trockenlauf und mehr).
 
 Der Dialog beinhaltet:
 
-- **Syntaxhervorhebung** – das generierte Skript wird in einem vollständigen Editor mit angezeigt
-Hervorhebung für die ausgewählte Sprache.
-- **Sichtbarer Fortschritt** – eine funktionierende Animation mit einem Live-Zähler
-(*Generieren… 0:42*), während die KI arbeitet, und die Gesamtdauer (*Fertig – hat gedauert
-1:37*), wenn es fertig ist.
-- **Zusätzliche Anweisungen** – ein dreizeiliges Feld zur zusätzlichen Anleitung der KI
-muss folgen, mit einem **Verlauf**-Menü Ihrer letzten 10 einzelnen Einträge.
-- **In Snippets speichern** – speichert das Skript mit einem im Snippet-Manager
-passenden, vorausgefüllten Skriptnamen und die richtige Dateierweiterung.
-- **Härtungsoptionen** – pro Skript gleich
-[Härtungsoptionen](../reference/hardening-options.md) als Einzelhost
-Workflow-Generator (strenger Modus, Fehlerfallen, Idempotenz, Trockenlauf, `--help`,
-und mehr), die auf das generierte Skript angewendet werden. Diese sind getrennt von der
-Multi-Server-Optionen oben.
+- **Syntaxhervorhebung** – das generierte Skript wird in einem vollständigen Editor mit Hervorhebung für die ausgewählte Sprache angezeigt.
+- **Sichtbarer Fortschritt** – eine funktionierende Animation mit einem Live-Ablaufzähler (*Generierung… 0:42*), während die KI arbeitet, und der Gesamtdauer (*Fertig – hat 1:37 gedauert*), wenn sie fertig ist.
+- **Zusätzliche Anweisungen** – ein dreizeiliges Feld für zusätzliche Anweisungen, denen die KI folgen muss, mit einem **Verlauf**-Menü Ihrer letzten 10 einzelnen Einträge.
+- **In Snippets speichern** – speichert das Skript im Snippet-Manager mit einem passenden, vorab ausgefüllten Skriptnamen und der richtigen Dateierweiterung.
+- **Härtungsoptionen** – dieselben pro Skript [Härtungsoptionen](../reference/hardening-options.md) wie der Single-Host-Workflow-Generator (strikter Modus, Fehlerfallen, Idempotenz, Probelauf, `--help` und mehr), angewendet auf das generierte Skript. Diese unterscheiden sich von den oben genannten Multiserver-Optionen.
 
 ##Tab-Aktivitätsanzeige
 
-Auf der Registerkarte „AI Swarm“ selbst wird ein farbiger Statuspunkt angezeigt, sodass Sie den Fortschritt verfolgen können
-von jeder anderen Registerkarte:
+Auf der Registerkarte „AI Swarm“ selbst wird ein farbiger Statuspunkt angezeigt, sodass Sie den Fortschritt von jeder anderen Registerkarte aus verfolgen können:
 
 | Punkt | Bedeutung |
 | --- | --- |
@@ -183,15 +115,9 @@ von jeder anderen Registerkarte:
 
 ## Schwarmläufe planen (JobScheduler)
 
-Schwarmläufe können unbeaufsichtigt als [JobScheduler](jobscheduler.md)-Jobs mit ausgeführt werden
-der Aktionstyp **KI-Schwarm**. Die Schaltfläche **Planen…** in der Schwarmsymbolleiste ist
-Der schnellste Weg: Er öffnet den JobScheduler mit einem neuen Job, der aus dem vorab ausgefüllt ist
-Aktuelle Registerkarte – die ausgewählten Server, die aktuelle Eingabeaufforderung, das AI-Profil und die
-schreibgeschützte Einstellung. Der Job wird deaktiviert erstellt, sodass Sie den Zeitplan überprüfen können
-bevor Sie es aktivieren.
+Schwarmläufe können unbeaufsichtigt als [JobScheduler](jobscheduler.md)-Jobs mit dem Aktionstyp **AI Swarm** ausgeführt werden. Die Schaltfläche **Schedule…** in der Swarm-Symbolleiste ist der schnellste Weg: Sie öffnet den JobScheduler mit einem neuen Job, der auf der aktuellen Registerkarte vorab ausgefüllt ist – die ausgewählten Server, die aktuelle Eingabeaufforderung, das KI-Profil und die schreibgeschützte Einstellung. Der Job wird deaktiviert erstellt, sodass Sie den Zeitplan überprüfen können, bevor Sie ihn aktivieren.
 
-Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – nein
-Terminalregisterkarten werden geöffnet. Schwarmspezifische Berufsfelder:
+Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – es werden keine Terminal-Registerkarten geöffnet. Schwarmspezifische Berufsfelder:
 
 | Feld | Beschreibung |
 | --- | --- |
@@ -201,31 +127,16 @@ Terminalregisterkarten werden geöffnet. Schwarmspezifische Berufsfelder:
 | **Schwarmparallelität** | Wie viele Server laufen gleichzeitig (1–16, Standard 4) |
 | **Schwarm schreibgeschützt** | Alle Agenten auf nicht mutierende Befehle beschränken (Standard: Ein) |
 
-Die Ergebnisse landen an **zwei Stellen**: Das Job-Journal** zeichnet die Ergebnisse pro auf
-ausgeführt, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – ist
-als **gespeicherter Schwarm-Chat** gespeichert, sodass Sie ihn später von der KI aus öffnen können
-Gehen Sie zum Abschnitt *Swarm Chats* des Managers und klicken Sie sich wie ein durch die Ergebnistabelle
-interaktiver Lauf. Es gelten die Master-Passwort- und Host-Key-Gates des Schedulers
-für andere Jobtypen.
+Die Ergebnisse landen an **zwei Stellen**: Das Job-**Journal** zeichnet das Ergebnis pro Lauf auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – wird als **gespeicherter Schwarm-Chat** gespeichert, sodass Sie ihn später im Abschnitt *Schwarm-Chats* des AI Managers öffnen und wie bei einem interaktiven Lauf durch die Ergebnistabelle klicken können. Die Master-Passwort- und Host-Key-Gates des Schedulers gelten wie für andere Jobtypen.
 
 !!! Tipp „Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen“
-Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus.
-Verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf
-**Zeitplan…** – die abgestimmte Eingabeaufforderung und Zielliste werden in den Job übernommen.
+    Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus, verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf **Planen…** – die abgestimmte Eingabeaufforderung und die Zielliste werden in den Job übernommen.
 
 Typische Kombinationen von Schwarm + Scheduler:
 
-- **Nächtlicher Flottenzustandsbericht** – eine schreibgeschützte Eingabeaufforderung wie *„Datenträger melden“.
-Nutzung, ausgefallene Systemd-Einheiten und ausstehende Sicherheitsupdates"* für alle
-Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle an
-der KI-Manager.
-- **Erkennung von Konfigurationsabweichungen** – Fragen Sie nach den effektiven Einstellungen von a
-Service auf jedem Host; Abweichungen fallen in den Zeilen pro Server auf
-Spalte *Fehler*.
-- **Bestandsaufnahme auf Patch-Ebene** – Sammeln Sie Kernel- und Paketversionen im gesamten
-Flotte nach einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.
+- **Nächtlicher Flottenzustandsbericht** – eine schreibgeschützte Eingabeaufforderung wie *„Festplattennutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“* für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom AI-Manager an.
+- **Erkennung von Konfigurationsdrifts** – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte *Fehler* auf.
+- **Bestandsaufnahme auf Patch-Ebene** – Sammeln Sie Kernel- und Paketversionen in der gesamten Flotte in einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.
 
 !!! Warnung „Unbeaufsichtigte Änderungen“
-Ein geplanter Schwarm mit Änderungen, die **schreibgeschützt aus** und **automatisch genehmigen ein** sind
-Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die
-prompt ist bewusst darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.
+    Ein geplanter Schwarm mit **Schreibgeschützt aus** und **Auto-Genehmigung ein** ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.

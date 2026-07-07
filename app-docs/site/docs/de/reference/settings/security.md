@@ -15,7 +15,7 @@ Auf dieser Registerkarte werden die Optionen für die Sicherheit des Passwort-Tr
 | Option „Temporären SSH-Schlüssel aktivieren“ | umschalten | — | Aus | `temporarySshKeyEnabled` |
 
 !!! Warnung „Master-Passwort beim Start“
-Wenn „Master-Passwort beim Start erforderlich“ deaktiviert ist, können verschlüsselte Passwörter und SSH-Schlüssel nicht automatisch ohne manuelle Passworteingabe entschlüsselt werden. Dies stellt ein Sicherheitsrisiko dar und sollte nur deaktiviert werden, wenn Sie die Konsequenzen verstehen.
+    Wenn „Master-Passwort beim Start erforderlich“ deaktiviert ist, können verschlüsselte Passwörter und SSH-Schlüssel nicht automatisch ohne manuelle Passworteingabe entschlüsselt werden. Dies stellt ein Sicherheitsrisiko dar und sollte nur deaktiviert werden, wenn Sie die Konsequenzen verstehen.
 
 !!! Hinweis „Schaltfläche „Master-Passwort ändern““
-Öffnet einen Dialog zum Festlegen oder Ändern des Master-Passworts. Alle gespeicherten Verbindungspasswörter werden automatisch neu verschlüsselt, wenn Sie dieses Passwort ändern.
+    Öffnet einen Dialog zum Festlegen oder Ändern des Master-Passworts. Alle gespeicherten Verbindungspasswörter werden automatisch neu verschlüsselt, wenn Sie dieses Passwort ändern.

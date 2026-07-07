@@ -100,7 +100,7 @@ Terminaleffekte können den sichtbaren Terminalstil und die Ausgabeanimation än
 - Plugins **Exportieren**, die über eine Quell-JAR verfügen. Der gebündelte MOTHER-Effekt ist exportierbar.
 
 !!! Warnung
-Importierte Terminaleffekt-Plugins sind vertrauenswürdiger Java-Code und werden nicht in einer Sandbox gespeichert. Importieren Sie Plugins nur aus Quellen, denen Sie vertrauen.
+    Importierte Terminaleffekt-Plugins sind vertrauenswürdiger Java-Code und werden nicht in einer Sandbox gespeichert. Importieren Sie Plugins nur aus Quellen, denen Sie vertrauen.
 
 Eine ausführliche Dokumentation zur Plugin-Entwicklung finden Sie unter [Terminal Effect Plugins](terminal-effect-plugins.md).
 
@@ -113,7 +113,7 @@ Verhindern Sie, dass Verbindungen aufgrund von Inaktivität unterbrochen werden,
 3. KorTTY sendet `SSH_MSG_IGNORE`-Heartbeat-Nachrichten im konfigurierten Intervall und aktiviert TCP-Socket-Keepalive, während die Option aktiv ist.
 
 !!! Notiz
-Wenn ein Server, eine Firewall, ein VPN oder ein NAT-Gateway inaktive Sitzungen früher als im konfigurierten Intervall schließt, kann die Verbindung trotzdem beendet werden. Überprüfen Sie in diesem Fall die serverseitige SSH-Konfiguration und die Netzwerk-Leerlauf-Timeout-Einstellungen sowie das KorTTY-Protokoll.
+    Wenn ein Server, eine Firewall, ein VPN oder ein NAT-Gateway inaktive Sitzungen früher als im konfigurierten Intervall schließt, kann die Verbindung trotzdem beendet werden. Überprüfen Sie in diesem Fall die serverseitige SSH-Konfiguration und die Netzwerk-Leerlauf-Timeout-Einstellungen sowie das KorTTY-Protokoll.
 
 ## Terminalprotokollierung
 
@@ -121,9 +121,9 @@ Protokollieren Sie die Ausgabe der Terminalsitzung automatisch zu Prüf- und Deb
 
 1. Aktivieren Sie die Protokollierung auf der Registerkarte **Terminalprotokollierung** der Verbindung.
 2. Wählen Sie ein Protokollformat:
-- **Klarer Text** – Rohe Terminalausgabe.
-- **XML** – Strukturiertes XML mit Zeitstempeln.
-- **JSON** – Strukturiertes JSON mit Zeitstempeln.
+   - **Klarer Text** – Rohe Terminalausgabe.
+   - **XML** – Strukturiertes XML mit Zeitstempeln.
+   - **JSON** – Strukturiertes JSON mit Zeitstempeln.
 3. Legen Sie eine **maximale Dateigröße** fest (Standard: 10 MB). Bei Überschreitung wird die Protokolldatei rotiert.
 4. Protokolle werden in `~/.kortty/history/` als komprimierte Dateien gespeichert.
 
@@ -157,9 +157,9 @@ Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipie
 3. Stellen Sie sicher, dass der ffmpeg-Status besagt, dass der Videoexport aktiviert ist.
 4. Klicken Sie auf **Exportieren...**.
 5. In den Exportoptionen:
-- Wählen Sie **Gesamte Aufzeichnung exportieren** oder geben Sie Start-/Endzeiten im Minuten- oder `MM:SS`-Format ein.
-– Wählen Sie, ob Terminalfarben einbezogen werden sollen (nur verfügbar, wenn die Wiedergabe Farbdaten enthält).
-- Wählen Sie das Format **WebM/VP9** oder **MKV/FFV1** und dann einen Ausgabepfad.
+   - Wählen Sie **Gesamte Aufzeichnung exportieren** oder geben Sie Start-/Endzeiten im Minuten- oder `MM:SS`-Format ein.
+   – Wählen Sie, ob Terminalfarben einbezogen werden sollen (nur verfügbar, wenn die Wiedergabe Farbdaten enthält).
+   - Wählen Sie das Format **WebM/VP9** oder **MKV/FFV1** und dann einen Ausgabepfad.
 6. Während KorTTY Frames rendert und `ffmpeg` ausführt, zeigt der Exportfortschrittsdialog die aktuelle Phase, den Fortschrittsbalken und die geschätzte verbleibende Zeit an. Beim Export wird die aufgezeichnete Terminalgeometrie verwendet, sodass große Terminalbildschirme nicht beschnitten werden.
 
 ### Aufnahmen ansehen und verwalten

@@ -14,11 +14,7 @@ hide:
 
 # korTTY Guide
 
-<p class="kt-tagline">
-The complete reference for korTTY — a modern, cross-platform JavaFX SSH client
-with tabbed terminals, SFTP tooling, a background job scheduler, snippet
-management, terminal-effect plugins and OpenAI-compatible AI assistance.
-Every feature, setting and tool, explained in detail.
+<p class="kt-tagline"> The complete reference for korTTY — a modern, cross-platform JavaFX SSH client with tabbed terminals, SFTP tooling, a background job scheduler, snippet management, terminal-effect plugins and OpenAI-compatible AI assistance. Every feature, setting and tool, explained in detail.
 </p>
 
 <span class="kt-badge">Press F1 inside korTTY to open this guide</span>
@@ -41,8 +37,7 @@ Every feature, setting and tool, explained in detail.
 
 -   :material-tune-variant: __Settings reference__
 
-    Every setting across all configuration tabs, with types, defaults and where
-    each value is stored.
+    Every setting across all configuration tabs, with types, defaults and where each value is stored.
 
     [:octicons-arrow-right-24: Settings](reference/settings/index.md)
 
@@ -67,7 +62,4 @@ Every feature, setting and tool, explained in detail.
 </div>
 
 !!! info "About this guide"
-    This guide is bundled inside korTTY (**Help → Manual**, shortcut ++f1++)
-    and published online. It is available in **English** and **German**, and is
-    kept in sync with the code automatically. The korTTY version this guide was
-    built for is shown in the footer.
+    This guide is bundled inside korTTY (**Help → Manual**, shortcut ++f1++) and published online. It is available in **English** and **German**, and is kept in sync with the code automatically. The korTTY version this guide was built for is shown in the footer.

@@ -64,7 +64,7 @@ Passwortgeschützte Backups verwenden die Standard-ZIP-Verschlüsselung (`Encryp
 GPG-Backups verschlüsseln die Backup-Datei mit dem öffentlichen Schlüssel Ihres ausgewählten GPG-Schlüssels. KorTTY erstellt zunächst eine temporäre ZIP-Datei, verschlüsselt sie dann mit `gpg --encrypt` und speichert die Datei `.gpg`. Die temporäre ZIP-Datei wird nach der Verschlüsselung sicher gelöscht.
 
 !!! Tipp
-Wenn Sie noch keine GPG-Schlüssel eingerichtet haben, verwenden Sie **Verwaltung → GPG-Schlüssel verwalten...**, um Schlüssel aus Ihrem Systemschlüsselbund zu importieren oder sie manuell hinzuzufügen.
+    Wenn Sie noch keine GPG-Schlüssel eingerichtet haben, verwenden Sie **Verwaltung → GPG-Schlüssel verwalten...**, um Schlüssel aus Ihrem Systemschlüsselbund zu importieren oder sie manuell hinzuzufügen.
 
 ## Ein Backup importieren
 
@@ -72,13 +72,13 @@ Wenn Sie noch keine GPG-Schlüssel eingerichtet haben, verwenden Sie **Verwaltun
 2. Wählen Sie eine Sicherungsdatei (`.zip` oder `.gpg`)
 3. Wenn die Sicherung passwortgeschützt ist, geben Sie das Passwort ein, wenn Sie dazu aufgefordert werden
 4. Wählen Sie, ob Sie **Vorhandene Dateien überschreiben** möchten:
-* **Aktiviert** – Sicherungsdateien ersetzen alle vorhandenen Dateien in Ihrer Konfiguration
-* **Deaktiviert** – Vorhandene Dateien werden übersprungen; Es werden nur fehlende Dateien importiert
+   * **Aktiviert** – Sicherungsdateien ersetzen alle vorhandenen Dateien in Ihrer Konfiguration
+   * **Deaktiviert** – Vorhandene Dateien werden übersprungen; Es werden nur fehlende Dateien importiert
 5. Klicken Sie auf **Importieren**
 6. **Starten Sie die Anwendung neu**, damit alle Änderungen wirksam werden
 
 !!! Warnung
-Durch das Importieren eines Backups mit aktiviertem **Überschreiben** werden Ihre aktuellen Einstellungen, Verbindungen und Anmeldeinformationen ersetzt. Wenn Sie sich nicht sicher sind, deaktivieren Sie diese Option, um das Backup zusammenzuführen, ohne es zu überschreiben.
+    Durch das Importieren eines Backups mit aktiviertem **Überschreiben** werden Ihre aktuellen Einstellungen, Verbindungen und Anmeldeinformationen ersetzt. Wenn Sie sich nicht sicher sind, deaktivieren Sie diese Option, um das Backup zusammenzuführen, ohne es zu überschreiben.
 
 ## Inhalt der Sicherungsdatei
 
@@ -97,7 +97,7 @@ Sowohl `.zip`- als auch `.gpg`-Backups enthalten dieselben Dateien:
 * `projects/` – Alle gespeicherten Projektarbeitsbereichsdateien (`.kortty`)
 
 !!! Notiz
-Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie das Hauptkennwort für KorTTY entsperren, um die Anmeldeinformationen zu entschlüsseln.
+    Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie das Hauptkennwort für KorTTY entsperren, um die Anmeldeinformationen zu entschlüsseln.
 
 ## Backup-Aufbewahrung und -Bereinigung
 
@@ -112,17 +112,17 @@ Um unbegrenzt alte Backups aufzubewahren, stellen Sie **Maximale Backups** unter
 ## Maschinenübergreifende Sicherungen verwenden
 
 1. **Exportieren Sie Ihre aktuelle Konfiguration:**
-* Öffnen Sie auf Computer A **Bearbeiten → Backup erstellen...** und speichern Sie es auf einem USB-Laufwerk oder einem Cloud-Speicher
+   * Öffnen Sie auf Computer A **Bearbeiten → Backup erstellen...** und speichern Sie es auf einem USB-Laufwerk oder einem Cloud-Speicher
 
 2. **Sicherungsdatei verschieben:**
-* Kopieren Sie `kortty-backup.zip` (oder `.gpg`) auf Maschine B
+   * Kopieren Sie `kortty-backup.zip` (oder `.gpg`) auf Maschine B
 
 3. **Import auf der neuen Maschine:**
-* Öffnen Sie auf Computer B **Bearbeiten → Backup importieren...**
-* Wählen Sie die Sicherungsdatei aus Schritt 2 aus
-* Geben Sie das Backup-Passwort ein, wenn Sie dazu aufgefordert werden
-* Lassen Sie **Überschreiben** deaktiviert, es sei denn, Sie möchten vorhandene Verbindungen ersetzen
-* Starten Sie KorTTY neu
+   * Öffnen Sie auf Computer B **Bearbeiten → Backup importieren...**
+   * Wählen Sie die Sicherungsdatei aus Schritt 2 aus
+   * Geben Sie das Backup-Passwort ein, wenn Sie dazu aufgefordert werden
+   * Lassen Sie **Überschreiben** deaktiviert, es sei denn, Sie möchten vorhandene Verbindungen ersetzen
+   * Starten Sie KorTTY neu
 
 Alle Ihre Verbindungen, Einstellungen, Snippets und gespeicherten Chats sind auf Computer B verfügbar.
 

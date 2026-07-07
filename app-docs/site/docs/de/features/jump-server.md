@@ -20,12 +20,12 @@ So konfigurieren Sie einen Jump-Server für eine Verbindung:
 2. Bearbeiten Sie die Verbindung und wechseln Sie zur Registerkarte **Jump Server** (oder zur Registerkarte **Erweitert**).
 3. Aktivieren Sie **Jump Server**.
 4. Geben Sie die Details des Jump-Servers ein:
-- **Host** – Hostname oder IP-Adresse des Jump-Servers
-- **Port** – SSH-Port (Standard: 22)
-- **Benutzername** – Login-Benutzername für den Jump-Server
+   - **Host** – Hostname oder IP-Adresse des Jump-Servers
+   - **Port** – SSH-Port (Standard: 22)
+   - **Benutzername** – Login-Benutzername für den Jump-Server
 5. Wählen Sie eine **Authentifizierungsmethode**:
-- **Passwort** – Geben Sie das Passwort direkt ein (wird verschlüsselt mit Ihrem Master-Passwort gespeichert)
-- **SSH-Schlüssel** – Wählen Sie einen gespeicherten SSH-Schlüssel aus Ihrer Schlüsselverwaltung aus
+   - **Passwort** – Geben Sie das Passwort direkt ein (wird verschlüsselt mit Ihrem Master-Passwort gespeichert)
+   - **SSH-Schlüssel** – Wählen Sie einen gespeicherten SSH-Schlüssel aus Ihrer Schlüsselverwaltung aus
 6. Legen Sie optional einen **Auto-Befehl** fest, der nach der Verbindung mit dem Jump-Server ausgeführt wird (z. B. `ssh internal-server`).
 7. Klicken Sie auf **Speichern**.
 
@@ -45,4 +45,4 @@ Dies ist besonders nützlich, wenn:
 - Die interne Infrastruktur verwendet private IPs und erfordert einen Vermittler für den Zugriff
 
 !!! Notiz
-Die Jump-Server-Anmeldeinformationen werden wie normale Verbindungsanmeldeinformationen verschlüsselt in KorTTY gespeichert. Ihr Master-Passwort schützt alle gespeicherten Jump-Server-Passwörter und SSH-Schlüssel-Passphrasen.
+    Die Jump-Server-Anmeldeinformationen werden wie normale Verbindungsanmeldeinformationen verschlüsselt in KorTTY gespeichert. Ihr Master-Passwort schützt alle gespeicherten Jump-Server-Passwörter und SSH-Schlüssel-Passphrasen.

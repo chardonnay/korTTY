@@ -1,495 +1,190 @@
 # Versionshinweise
 
-Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, ist
-in der Fußzeile angezeigt.
+Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.
 
 ## v2.4.1
 
 ### Snippet-KI-Codeanalyse
 
-- **Vollständige Code-Analyse** – der *AI-Code des Snippet-Editors → Vollständige Code-Analyse*
-öffnet ein umfangreiches, nicht modales Fenster mit einer Zusammenfassung des Skripts im Klartext
-tut, seine externen Abhängigkeiten (jeweils mit einem Reduzierungs-/Ersetzungsvorschlag),
-Verbesserungsvorschläge, gruppiert in Sicherheit / Optimierung / Design, die Sie erhalten
-Ankreuzen und Anwenden sowie ein automatisch generiertes Flussdiagramm. Das Diagramm trägt das Ganze
-Symbolleiste (Zoom, Anpassen, SVG/PNG speichern, Bild kopieren/PlantUML, Hintergrundfarbe,
-neu generieren) und hebt die übereinstimmenden Quellzeilen hervor, wenn Sie mit der Maus über einen Knoten fahren.
-- **Dateinamen in Titelleisten** – jetzt der Snippet-Editor und das Analysefenster
-Zeigen Sie den Dateinamen des Skripts in der Titelleiste an.
-- **KI-Profil pro Lauf und erneuter Lauf** – die Analyse und andere AI-Code-Fenster ermöglichen es Ihnen
-Wählen Sie ein vorübergehendes KI-Profil für den nächsten Lauf und führen Sie es erneut aus. Schriftgrößen sind
-pro Fenster gespeichert.
-- **KI-Skills-Auswahl** – relevante KI-Skills werden automatisch vorgewählt und können
-angeheftet werden, damit sie für jede AI-Code-Aktion gelten.
-- **Härtungsoptionen** – *Stabilität verbessern*, *Benutzerdefinierte Verbesserung*, *Vollständiger Code
-Analyse*, und beide Workflow-Skript-Generatoren können einen ausgewählten Satz von erstellen
-Produktionsqualitätstechniken (strenger Modus, Fehlerfallen, sinnvolle Exit-Codes,
-Protokollierung, Idempotenz, Trockenlauf, `--help` und mehr) in das Ergebnis ein. Sehen Sie das Neue
-[Härtungsoptionen](../reference/hardening-options.md)-Referenz für was jeweils
-Option bedeutet und wie sie angewendet wird.
-- **Diagramm-Dunkelmodus** – beide Diagrammfenster (vollständige Codeanalyse und die
-eigenständiges Diagrammdialogfeld) hat eine **Dunkelmodus**-Schaltfläche mit *Auto* erhalten (folgen Sie den Anweisungen).
-Erscheinungsbild des Betriebssystems), *Hell* und *Dunkel*. Die Wahl wird erinnert und
-färbt das gesamte Diagramm neu – dunkle Leinwand, abgedunkelte Knotenkarten mit hellem Text,
-und Lichtanschlüsse – während der manuelle Hintergrundfarbwähler jetzt die Farben einfärbt
-Diagrammseite selbst (nicht nur deren Rand) und gilt für exportierte SVG/PNG.
-- **Windows sperrt das Hauptfenster nicht mehr** – die Snippets **Diff** und **Manage
-Variablen**-Fenster, die über den Snippet-Manager geöffnet werden, frieren das Hauptfenster nicht mehr ein
-KorTTY-Fenster, solange sie geöffnet sind.
-- **Härtungsoptionen – Alle / Löschen / Speichern** – alle Härtungsoptionen wurden hinzugefügt
-Schaltflächen **Alle** (alles ankreuzen), **Löschen** (alles ankreuzen) und **Speichern**.
-Speichern speichert Ihre Auswahl dauerhaft, so dass anschließend jedes Härtungsfenster geöffnet wird
-mit Ihren bevorzugten Optionen anstelle der All-on-Standardeinstellung.
+- **Vollständige Code-Analyse** – Die Option *AI-Code → Vollständige Code-Analyse* des Snippet-Editors öffnet ein umfangreiches, nicht modales Fenster mit einer Zusammenfassung der Funktionsweise des Skripts in Klartext, seinen externen Abhängigkeiten (jeweils mit einem Reduzierungs-/Ersetzungsvorschlag), Verbesserungsvorschlägen gruppiert in Sicherheit/Optimierung/Design, die Sie ankreuzen und anwenden, und einem automatisch generierten Flussdiagramm. Das Diagramm verfügt über die vollständige Symbolleiste (Zoom, Anpassen, SVG/PNG speichern, Bild/PlantUML kopieren, Hintergrundfarbe, Regenerieren) und hebt die passenden Quellzeilen hervor, wenn Sie mit der Maus über einen Knoten fahren.
+- **Dateinamen in Titelleisten** – Der Snippet-Editor und das Analysefenster zeigen jetzt den Dateinamen des Skripts in ihren Titelleisten an.
+- **KI-Profil pro Lauf und erneuter Lauf** – in den Analyse- und anderen AI-Code-Fenstern können Sie ein vorübergehendes KI-Profil für den nächsten Lauf auswählen und damit erneut laufen; Schriftgrößen werden pro Fenster gespeichert.
+- **KI-Skills-Auswahl** – relevante KI-Skills werden automatisch vorab ausgewählt und können angeheftet werden, sodass sie für jede AI-Code-Aktion gelten.
+- **Härtungsoptionen** – *Verbesserung der Robustheit*, *Benutzerdefinierte Verbesserung*, *Vollständige Codeanalyse*, und beide Workflow-Skriptgeneratoren können einen ausgewählten Satz von Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, sinnvolle Exit-Codes, Protokollierung, Idempotenz, Probelauf, `--help` und mehr) in das Ergebnis integrieren. In der neuen [Hardening options](../reference/hardening-options.md)-Referenz] erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.
+- **Diagramm-Dunkelmodus** – beide Diagrammfenster (vollständige Codeanalyse und das eigenständige Diagrammdialogfeld) haben eine **Dunkelmodus**-Schaltfläche mit *Auto* (dem Erscheinungsbild des Betriebssystems folgend), *Hell* und *Dunkel* erhalten. Die Auswahl wird gespeichert und färbt das gesamte Diagramm neu ein – dunkle Leinwand, abgedunkelte Knotenkarten mit hellem Text und helle Anschlüsse –, während der manuelle Hintergrundfarbwähler jetzt die Diagrammseite selbst (nicht nur ihren Rand) einfärbt und auf exportiertes SVG/PNG anwendet.
+- **Windows sperrt das Hauptfenster nicht mehr** – die Snippet-Fenster **Diff** und **Variablen verwalten**, die über den Snippet-Manager geöffnet werden, frieren das Hauptfenster von KorTTY nicht mehr ein, während sie geöffnet sind.
+- **Härtungsoptionen – Alle / Löschen / Speichern** – jedes Härtungsoptionsfeld verfügt über die Schaltflächen **Alle** (alles ankreuzen), **Löschen** (alles abhaken) und **Speichern**. Speichern speichert Ihre Auswahl dauerhaft, sodass jedes Härtungsfenster dann mit Ihren bevorzugten Optionen anstelle der vollständigen Standardoptionen geöffnet wird.
 
 ### Snippet-Sicherheitsüberprüfung
 
-- **Erläuterte Sicherheitsfixes** – das Fenster **Sicherheitsfixes überprüfen** wird jetzt angezeigt
-das Original und der korrigierte Snippet in einem Side-by-Side-Diff, der hervorhebt
-geänderte Zeilen automatisch. Wenn Sie mit der Maus über einen geänderten Block fahren, benennen Sie die Ergebnisse
-Adressen (zum Beispiel `S1` oder `S1 + S2`, wenn ein Block zwei Befunde umfasst) und
-zeigt den/die Grund(e) an, und jeder Grund wird auch als Karte unter dem Diff aufgeführt
-Die Begründung bleibt sichtbar.
-- **Spezielles KI-Profil für Sicherheitsüberprüfungen** – Sie können ein separates KI-Profil auswählen
-nur für Sicherheitskontrollen und KorTTY merkt sich es dauerhaft. Stellen Sie es ein
-Fenster „Sicherheitsüberprüfung“ oder unter **Konfiguration → Globale Einstellungen → AI**; beide
-Orte haben dieselbe Einstellung und wenn sie leer bleibt, wird das Standardprofil wiederverwendet.
-- **Verbesserungen des Sicherheitsüberprüfungsfensters** – anpassbare (und gespeicherte) Schriftgröße,
-eine Schaltfläche zum Kopieren in die Zwischenablage für alle Ergebnisse, farbcodierte Schweregrad-Abzeichen mit
-Sortierung nach dem „Schweresten“ zuerst, ein „Alle auswählen“-Schalter und eine Schaltfläche **Prüfung erneut ausführen**
-Dadurch wird die Überprüfung mit dem ausgewählten Profil wiederholt.
-- **Diff-Zoom gespeichert** – die Schriftgröße in den AI-Diff-/Überprüfungsfenstern ist jetzt
-global statt nur für die aktuelle Sitzung gespeichert.
+- **Erläuterte Sicherheitsfixes** – Das Fenster **Sicherheitsfixes überprüfen** stellt jetzt den ursprünglichen und den korrigierten Snippet in einem Parallelvergleich dar, der geänderte Zeilen automatisch hervorhebt. Wenn Sie den Mauszeiger über einen geänderten Block bewegen, benennen Sie den/die Befund(e), auf den/die er sich bezieht (zum Beispiel `S1` oder `S1 + S2`, wenn ein Block zwei Befunde abdeckt) und zeigen Sie den/die Grund(e) an. Jeder Grund wird auch als Karte unter dem Diff aufgeführt, sodass die Begründung sichtbar bleibt.
+- **Spezielles KI-Profil für Sicherheitsüberprüfungen** – Sie können ein separates KI-Profil nur für Sicherheitsüberprüfungen auswählen und KorTTY speichert es dauerhaft. Legen Sie es im Fenster „Sicherheitsüberprüfung“ oder unter **Konfiguration → Globale Einstellungen → AI** fest; Beide Orte haben dieselbe Einstellung, und wenn Sie diese leer lassen, wird das Standardprofil wiederverwendet.
+- **Verbesserungen des Sicherheitsüberprüfungsfensters** – anpassbare (und gespeicherte) Schriftgröße, eine Schaltfläche zum Kopieren in die Zwischenablage für alle Ergebnisse, farbcodierte Schweregrad-Badges mit der Sortierung „Schweregrad zuerst“, Umschalter „Alles auswählen“ und eine Schaltfläche **Überprüfung erneut ausführen**, die die Überprüfung mit dem ausgewählten Profil wiederholt.
+- **Diff-Zoom gespeichert** – Die Schriftgröße in den AI-Differenz-/Überprüfungsfenstern wird jetzt global gespeichert und nicht nur für die aktuelle Sitzung.
 
 ### Terminal
 
 - **Anpassbare Terminal-Hintergrundtransparenz** – **Ansicht → Zoom → Hintergrundtransparenz** ist ein neuer Schieberegler (0–100 %), der den Terminal-Hintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Der Wert wird über Neustarts hinweg gespeichert. Nur der Terminalbereich wird transparent – ​​Titel, Menü und Statusleiste bleiben einfarbig. Da der Durchsichtmodus ein randloses Fenster verwendet, wird das Ein- oder Ausschalten erst nach einem Neustart wirksam. In diesem Modus ermöglicht eine schlanke benutzerdefinierte Titelleiste das Verschieben, Ändern der Größe, Minimieren, Maximieren und Schließen. Die Anpassung des Pegels bei bereits transparentem Zustand gilt live.
-- **Leiseres Schließen eines Tabs** – Beim Schließen eines Terminal-Tabs wird jetzt nur noch nach einer Bestätigung gefragt, wann
-Es gibt etwas zu verlieren: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt
-(erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein
-Ein einzelnes inaktives Terminal wird sofort geschlossen. Die Pro-Verbindung *Schließen ohne
-Mit der Option „Bestätigung*“ wird die Eingabeaufforderung weiterhin vollständig unterdrückt.
-- **Klarere Kontextmenübezeichnung** – die Terminal-Rechtsklick-Aktion, die a lädt
-Die ausgewählte Remote-Datei im Snippet-Editor heißt jetzt **In Snippet öffnen
-Editor** (bisher *Als Textdatei laden*).
+- **Leiseres Schließen eines Tabs** – Beim Schließen eines Terminal-Tabs wird jetzt nur noch nach einer Bestätigung gefragt, wenn etwas verloren geht: Der Tab hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Option *Ohne Bestätigung schließen* unterdrückt die Eingabeaufforderung weiterhin vollständig.
+- **Eindeutigere Beschriftung im Kontextmenü** – die Terminal-Rechtsklick-Aktion, die eine ausgewählte Remote-Datei in den Snippet-Editor lädt, heißt jetzt **Im Snippet-Editor öffnen** (vorher *Als Textdatei laden*).
 
 ## v2.4.0
 
 ### Endgültige Auswirkungen
 
-- **Zehn neue integrierte Terminaleffekte** – neben MU/TH/UR 6000, ein Bundle
-Das Effektpaket enthält jetzt zehn thematische Effekte aus den Bereichen Cyberpunk, Retro und Grusel
-Stile: **Amber CRT '90** (Bernstein-Phosphor-Monitor der 90er Jahre mit Scanlines, Glow,
-Flackern und ein rollendes Bildwiederholband), **Commodore Heritage** (C64 blau mit
-Ladebalken), **Neon City** (Glitch Tears und RGB-Split-Flimmern), **Digital
-Regen** (schwach fallende Matrixglyphen), **Hologramm-HUD** (Interferenzbänder und
-HUD-Eckklammern), **Poltergeist** (atmende Vignette, statische Ausbrüche und
-gespenstische Blitze), **VHS 1987** (Spurgeräusch, Rollverzerrung und ein PLAY
-Overlay), **Synthwave Horizon** (leuchtendes perspektivisches Raster), **Deep Space
-Radar** (langsamer Radardurchlauf mit Blips) und **Typewriter Noir** (Sepiapapier).
-Blick mit zeichenweiser Ausgabegeschwindigkeit). Jeder Effekt respektiert die
-Die Einstellung der Animationsgeschwindigkeit und ihre Beschreibung sind in allen unterstützten Sprachen lokalisiert
-Sprachen.
-- **Getaktete Ausgabe mit Typewriter Noir** – die Effekttypen **Typewriter Noir**
-Terminalausgabe Zeichen für Zeichen für das Gefühl einer mechanischen Schreibmaschine; Schüttgut
-Bei der Ausgabe wie dem Drucken einer großen Datei wird die Geschwindigkeit umgangen, sodass sie nie verlangsamt wird
-runter.
-- **Terminaleffekte pro Bereich** – Terminaleffekte sind jetzt auf jeden Bereich beschränkt
-Einzelner geteilter Bereich anstelle der gesamten Registerkarte. Innerhalb einer Registerkarte können Sie eine ausführen
-Effekt in einem Bereich, während ein Geschwisterbereich einen anderen oder keinen Effekt zeigt, und
-Die Farben und Schriftarten jedes Effekts bleiben auf einen eigenen Bereich beschränkt. Globaler Zoom und
-Zurücksetzen gilt weiterhin für die gesamte Registerkarte.
-- **Fensterspezifisches Effektmenü und Vererbung** – das Rechtsklick-Menü jedes geteilten Fensters
-erhält ein Untermenü „Terminaleffekt“, in dem Sie „Keine“ oder einen beliebigen installierten Effekt auswählen können
-nur für diesen Bereich, plus einen Schieberegler für die Animationsgeschwindigkeit; Die Auswahl erfolgt nur zur Laufzeit
-und wird nicht in der Verbindung gespeichert. Durch das Teilen eines Bereichs wird der neue Bereich mit gestartet
-den gleichen Effekt und die gleiche Animationsgeschwindigkeit wie der Bereich, von dem es getrennt wurde.
-- **Animierte Effektvorschauen im Plugin-Manager** – **Plugins → Terminal
-Effekte** zeigt jetzt eine animierte Live-Vorschau des ausgewählten Effekts neben dem an
-Plugin-Liste, sodass Effekte verglichen werden können, bevor sie in einer Sitzung aktiviert werden.
-Plugins ohne Vorschau zeigen stattdessen einen Platzhalter an.
+- **Zehn neue integrierte Terminaleffekte** – neben MU/TH/UR 6000 enthält ein gebündeltes Effektpaket jetzt zehn thematische Effekte, die Cyberpunk-, Retro- und Grusel-Stile umfassen: **Amber CRT '90** (Bernstein-Phosphor-Monitor der 90er Jahre mit Scanlines, Glühen, Flimmern und einem rollenden Aktualisierungsband), **Commodore Heritage** (C64 blau mit Ladebalken), **Neon City** (Glitch Tears und RGB-Split-Flimmern), **Digital Rain** (schwach fallende Matrixglyphen), **Hologram HUD** (Interferenzbänder und HUD-Eckklammern), **Poltergeist** (atmende Vignette, statische Ausbrüche und geisterhafte Blitze), **VHS 1987** (Verfolgungsgeräusch, rollende Verzerrung und eine PLAY-Überlagerung), **Synthwave Horizon** (leuchtendes perspektivisches Raster), **Deep Space Radar** (langsamer Radardurchlauf mit Blips) und **Typewriter Noir** (Sepia). Papieroptik mit zeichenweiser Ausgabegeschwindigkeit). Jeder Effekt berücksichtigt die Einstellung der Animationsgeschwindigkeit und seine Beschreibung ist in allen unterstützten Sprachen lokalisiert.
+- **Getaktete Ausgabe der Typewriter Noir** – der Effekt **Typewriter Noir** gibt die Terminalausgabe Zeichen für Zeichen aus, um das Gefühl einer mechanischen Schreibmaschine zu erzeugen; Bei Massenausgaben wie dem Drucken einer großen Datei wird die Geschwindigkeit umgangen, sodass sie nie verlangsamt wird.
+- **Terminaleffekte pro Bereich** – Terminaleffekte beziehen sich jetzt auf jeden einzelnen geteilten Bereich statt auf die gesamte Registerkarte. Innerhalb einer Registerkarte können Sie einen Effekt in einem Bereich ausführen, während ein gleichgeordneter Bereich einen anderen oder keinen Effekt anzeigt und die Farben und Schriftarten jedes Effekts auf seinen eigenen Bereich beschränkt bleiben. Globales Zoomen und Zurücksetzen gelten weiterhin für die gesamte Registerkarte.
+- **Fensterspezifisches Effektmenü und Vererbung** – das Rechtsklick-Menü jedes geteilten Fensters erhält ein Untermenü **Terminaleffekt**, in dem Sie **Keine** oder einen beliebigen installierten Effekt nur für dieses Fenster auswählen können, sowie einen Schieberegler für die Animationsgeschwindigkeit; Die Auswahl gilt nur zur Laufzeit und wird nicht in der Verbindung gespeichert. Beim Teilen eines Bereichs wird der neue Bereich mit dem gleichen Effekt und der gleichen Animationsgeschwindigkeit wie der Bereich gestartet, von dem er geteilt wurde.
+- **Animierte Effektvorschauen im Plugin-Manager** – **Plugins → Terminaleffekte** zeigt jetzt eine animierte Live-Vorschau des ausgewählten Effekts neben der Plugin-Liste an, sodass Effekte verglichen werden können, bevor sie in einer Sitzung aktiviert werden. Plugins ohne Vorschau zeigen stattdessen einen Platzhalter an.
 
 ### KI-Chat
 
-- **Chat-Farbprofile** – der AI-Chat und der AI-Swarm-Chat sind jetzt auswählbar
-Farbthemen. Elf integrierte Profile enthalten: **Automatisch (Thema)**, das
-folgt Ihrem aktiven Terminal-Thema, plus **Original**, **Paper**, **Midnight**,
-**Cyberpunk**, **Retrowave**, **Forest**, **Ocean**, **Terminal**, **GPT** und
-**Niedlich**. Wählen Sie eines aus der Dropdown-Liste „Farbprofil“ in der Chat-Symbolleiste oder darunter aus
-**Einstellungen → Erscheinungsbild → Chat-Farbprofil**; Die Auswahl wird gespeichert und angewendet
-Live zu jedem offenen Chat.
-- **Volltext-Chat-Suche** (++Strg+F++, Befehl+F unter macOS) – klicken Sie auf **Suchen**
-Klicken Sie auf die Schaltfläche in der Chat-Symbolleiste oder drücken Sie die Verknüpfung, um eine Suchleiste über einer KI zu öffnen
-oder Schwarmgespräch. Es durchsucht den gesamten Chat, einschließlich Codeblöcken und Shows
-eine Live-Match-Zählung, Sprünge zwischen Treffern mit den Pfeiltasten oder Enter und
-Umreißt und scrollt jedes Spiel in die Ansicht. Esc schließt die Leiste.
-- **Neu gestalteter, vollständig themenbezogener Chat** – der KI-Chat und der Schwarm-Chat wurden neu gestaltet
-Ihre Nachrichten befinden sich also in einer nach rechts eingerückten, abgerundeten Blase und jede KI-Antwort ist eine
-Karte in voller Breite, mit Codeblöcken, Tabellen, dem Komponisten und Bildlaufleisten
-Folgen Sie dem ausgewählten Farbprofil anstelle eines festen Lichtstils.
+- **Chat-Farbprofile** – der AI-Chat und der AI-Swarm-Chat verfügen jetzt über auswählbare Farbthemen. Elf integrierte Profile werden mitgeliefert: **Automatic (Theme)**, das Ihrem aktiven Terminal-Theme folgt, plus **Original**, **Paper**, **Midnight**, **Cyberpunk**, **Retrowave**, **Forest**, **Ocean**, **Terminal**, **GPT** und **Cute**. Wählen Sie eines aus der Dropdown-Liste „Farbprofil“ in der Chat-Symbolleiste oder unter **Einstellungen → Erscheinungsbild → Chat-Farbprofil**; Die Auswahl wird gespeichert und live auf jeden offenen Chat angewendet.
+- **Volltext-Chat-Suche** (++Strg+F++, Befehl+F auf macOS) – klicken Sie auf die Schaltfläche **Suchen** in der Chat-Symbolleiste oder drücken Sie die Tastenkombination, um eine Suchleiste über einer KI- oder Schwarmkonversation zu öffnen. Es durchsucht den gesamten Chat einschließlich Codeblöcken, zeigt die Anzahl der Live-Matches an, springt mit den Pfeiltasten oder der Eingabetaste zwischen Treffern und skizziert und scrollt jedes Match in die Ansicht. Esc schließt die Leiste.
+- **Neu gestalteter, vollständig themenbezogener Chat** – der KI-Chat und der Schwarm-Chat wurden neu gestaltet, sodass Ihre Nachrichten in einer nach rechts eingerückten abgerundeten Blase angezeigt werden und jede KI-Antwort eine Karte in voller Breite darstellt, wobei Codeblöcke, Tabellen, der Komponist und Bildlaufleisten alle dem ausgewählten Farbprofil folgen, anstatt einem festen Lichtstil.
 
 ### Datenschutz und Analyse
 
-- **Anonyme Nutzungsanalyse (opt-in, standardmäßig deaktiviert)** – korTTY kann optional
-Teilen Sie anonyme, DSGVO-konforme Nutzungsstatistiken über Aptabase (verarbeitet auf EU-Ebene).
-Servern), um Funktionen zu priorisieren und Oberflächenabstürze und häufige Fehler zu beheben.
-Es ist standardmäßig eine strikte Opt-in- und Deaktivierungsfunktion. Nur Ereignisnamen, aggregierte Anzahl
-und Flags, die App-Version, Betriebssystemname und -version, App-Sprache und eine anonyme
-Pro Start werden Sitzungs-IDs gesendet – Hostnamen, Benutzernamen, Verbindungsdaten, Datei
-Pfade, Snippet-/Terminal-/Chat-Inhalte, Schlüssel, Passwörter und Fehlermeldungstext
-werden nie gesammelt.
-- **Einmalige Einwilligungsaufforderung** – Sie werden nach der Weitergabe anonymer Daten gefragt
-genau einmal: bei Neuinstallationen als Kontrollkästchen neben der Master-Passwort-Einrichtung,
-und bei bestehenden Installationen als einmalige Eingabeaufforderung nach dem Entsperren. Irgendeine Entlassung
-gilt als *nein* und Sie werden nicht erneut gefragt. Jede Zustimmungsoberfläche verfügt über ein **Mehr
-Info**-Button, der das neue Anleitungkapitel öffnet *Anonyme Daten zur Bewerbung
-Optimierung*.
-- **Einstellungen → Registerkarte „Datenschutz“** – eine neue Registerkarte **Datenschutz** unter **Einstellungen** ermöglicht Ihnen
-Sie können die anonyme Nutzungsstatistik jederzeit ein- oder ausschalten und genau sehen, was passiert
-und wird nicht erfasst, zuzüglich des Datums, an dem Ihre Wahl erfasst wurde. Ausschalten
-stoppt die Sammlung sofort und verwirft sowohl die ausstehende Warteschlange als auch alle anderen
-lokal zwischengespeicherte Ereignisse.
-- **Offline-Ereignis-Caching** – während Sie offline sind, werden anonyme Ereignisse zwischengespeichert
-lokal unter `~/.kortty` und versendet, sobald eine Verbindung verfügbar ist; sie überleben
-Die App wird neu gestartet, nach drei Tagen gelöscht und vollständig verworfen, wenn Sie dies tun
-Opt-out.
+- **Anonyme Nutzungsanalyse (Opt-in, standardmäßig deaktiviert)** – korTTY kann optional anonyme, DSGVO-konforme Nutzungsstatistiken über Aptabase teilen (verarbeitet auf EU-Servern), um Funktionen zu priorisieren und Abstürze und häufige Fehler aufzudecken. Es ist standardmäßig eine strikte Opt-in- und Deaktivierungsfunktion. Es werden nur Ereignisnamen, aggregierte Anzahlen und Flags, die App-Version, der Name und die Version des Betriebssystems, die App-Sprache und eine anonyme Sitzungs-ID pro Start gesendet – Hostnamen, Benutzernamen, Verbindungsdaten, Dateipfade, Snippet-/Terminal-/Chat-Inhalte, Schlüssel, Passwörter und Fehlermeldungstexte werden niemals erfasst.
+- **Einmalige Einwilligungsaufforderung** – Sie werden genau einmal gefragt, ob Sie anonyme Daten weitergeben möchten: bei Neuinstallationen als Kontrollkästchen neben der Einrichtung des Master-Passworts und bei bestehenden Installationen als einmalige Aufforderung nach dem Entsperren. Jede Entlassung gilt als *nein* und Sie werden nicht erneut gefragt. Jede Einwilligungsoberfläche verfügt über eine Schaltfläche **Weitere Informationen**, die das neue Anleitungkapitel *Anonyme Daten zur Anwendungsoptimierung* öffnet.
+- **Einstellungen → Registerkarte „Datenschutz“** – eine neue Registerkarte **Datenschutz** unter **Einstellungen** ermöglicht es Ihnen, anonyme Nutzungsstatistiken jederzeit ein- oder auszuschalten und zeigt genau an, was erfasst wird und was nicht, sowie das Datum, an dem Ihre Wahl aufgezeichnet wurde. Wenn Sie es deaktivieren, wird die Erfassung sofort gestoppt und sowohl die ausstehende Warteschlange als auch alle lokal zwischengespeicherten Ereignisse verworfen.
+- **Offline-Ereignis-Caching** – während Sie offline sind, werden anonyme Ereignisse lokal unter `~/.kortty` zwischengespeichert und gesendet, sobald eine Verbindung verfügbar ist; Sie überleben App-Neustarts, werden nach drei Tagen gelöscht und werden vollständig verworfen, wenn Sie sich abmelden.
 
 ### Korrekturen
 
-- **Effekte leuchten korrekt, wenn sie für ein Live-Fenster eingeschaltet sind** – MU/TH/UR
-Das zeilenweise Leuchten des Effekts funktioniert jetzt, wenn Sie einen Effekt auf einem aktivieren
-Bereich „bereits verbunden“, nicht nur, wenn der Effekt vor der Verbindung aktiv war,
-und es pulsiert bei schnell scrollender Ausgabe gleichmäßig, anstatt zu flackern.
-- **Strg+D in einem geteilten Bereich schließt nur diesen Bereich** – Verlassen der Shell (Strg+D oder
-`exit`) in einem Bereich einer Aufteilung schließt nun nur diesen Bereich und verlässt den anderen
-Scheiben offen; Die Registerkarte wird erst geschlossen, wenn die Sitzung des letzten verbleibenden Bereichs endet.
-- **Terminaleffekte stürzen beim Rendern nicht mehr ab, wenn viele Registerkarten geöffnet sind** – Öffnen
-Mehrere Terminal-Tabs mit jeweils aktivem Effekt könnten die GPU-Textur erschöpfen
-Pool- und Crash-Rendering. Effekt-Overlays (einschließlich MU/TH/UR 6000) sind jetzt verfügbar
-ihre Leinwandtextur im gesamten Fenster, während sich ihre Registerkarte im Hintergrund befindet und
-automatisch neu binden, wenn die Registerkarte erneut angezeigt wird.
-- **AI Planning stellt abgeschnittenes oder fehlerhaftes JSON wieder her** – das **AI Planning**
-Die Registerkarte schlägt nicht mehr vollständig mit der Fehlermeldung * „AI-Antwort enthielt nicht das Erforderliche“ fehl
-JSON-Objekt"*, wenn ein Modell einen unvollständigen oder nicht geschlossenen Plan zurückgibt, häufig bei
-Sehr kleine Modelle, die vor Abschluss des Schemas anhalten. Die Planung wird jetzt erneut durchgeführt
-einmal mit einer Reparaturaufforderung und meist beim zweiten Versuch erfolgreich; wenn es noch
-schlägt fehl, der Fehler erklärt, dass das Modell zweimal ungültiges JSON zurückgegeben hat und
-schlägt ein größeres oder leistungsfähigeres Planungsmodell vor.
-- **Guide-Fenster stürzt nicht mehr im Hintergrund ab** – der In-App-Guide bleibt erhalten
-(**Hilfe → Anleitung**, F1) beim Öffnen zu einer anderen App kann korTTY zum Absturz bringen
-nach einer Weile automatisch, da der eingebettete Browser im Leerlauf im Hintergrund lief.
-korTTY entlädt nun die Leitseite, nachdem das Fenster minimiert wurde oder
-20 Sekunden lang unfokussiert und stellt danach die gleiche Seite und Bildlaufposition wieder her
-Sie kehren zurück und das Einführungsvideo der Anleitungs wird einmal abgespielt, anstatt in einer Schleife
-endlos.
+- **Effekte leuchten korrekt, wenn sie für ein Live-Fenster aktiviert sind** – das zeilenweise Leuchten des MU/TH/UR-Effekts funktioniert jetzt, wenn Sie einen Effekt in einem bereits verbundenen Fenster aktivieren, nicht nur, wenn der Effekt vor der Verbindung aktiv war, und es pulsiert bei der Ausgabe mit schnellem Scrollen gleichmäßig, anstatt zu flackern.
+- **Strg+D in einem geteilten Bereich schließt nur diesen Bereich** – das Verlassen der Shell (Strg+D oder `exit`) in einem Bereich einer Teilung schließt jetzt nur diesen Bereich und lässt die anderen Bereiche geöffnet; Die Registerkarte wird erst geschlossen, wenn die Sitzung des letzten verbleibenden Bereichs endet.
+- **Terminaleffekte stürzen das Rendern nicht mehr ab, wenn viele Tabs geöffnet sind** – Das Öffnen mehrerer Terminal-Tabs mit jeweils einem aktiven Effekt könnte den GPU-Texturpool erschöpfen und das Rendern abstürzen lassen. Effekt-Overlays (einschließlich MU/TH/UR 6000) geben jetzt ihre Leinwandtextur für das gesamte Fenster frei, während sich ihre Registerkarte im Hintergrund befindet, und binden sich automatisch neu, wenn die Registerkarte erneut angezeigt wird.
+- **AI Planning stellt abgeschnittenes oder fehlerhaftes JSON wieder her** – die Registerkarte **AI Planning** schlägt nicht mehr vollständig mit der Meldung *„AI-Antwort enthielt nicht das erforderliche JSON-Objekt“* fehl, wenn ein Modell einen unvollständigen oder nicht geschlossenen Plan zurückgibt, was häufig bei sehr kleinen Modellen vorkommt, die vor Abschluss des Schemas anhalten. Planning versucht es jetzt einmal mit einer Reparaturaufforderung erneut und ist normalerweise beim zweiten Versuch erfolgreich. Wenn es immer noch fehlschlägt, erklärt der Fehler, dass das Modell zweimal ungültiges JSON zurückgegeben hat, und schlägt ein größeres oder leistungsfähigeres Planungsmodell vor.
+- **Anleitungsfenster stürzt nicht mehr im Hintergrund ab** – Wenn Sie die In-App-Anleitung (**Hilfe → Anleitung**, F1) geöffnet lassen, während Sie zu einer anderen App wechseln, kann korTTY nach einer Weile nativ abstürzen, da der inaktive eingebettete Browser im Hintergrund läuft. korTTY entlädt jetzt die Guide-Seite, nachdem das Fenster 20 Sekunden lang minimiert oder unfokussiert war, und stellt beim Zurückkehren dieselbe Seite und Bildlaufposition wieder her, und das Einführungsvideo des Guides wird einmal abgespielt, anstatt sich endlos zu wiederholen.
 
 ## v2.3.3
 
 ### Korrekturen
 
-- **macOS: „Quit korTTY“ beendet tatsächlich die App** – auf der paketierten macOS-App, a
-natives Beenden (Befehl+Q, **Beenden von korTTY** im App-Menü, **Beenden** des Docks oder
-logout) ließ korTTY im Hintergrund laufen, sodass der Prozess abgebrochen werden musste.
-Die gepackte App läuft absichtlich weiter, nachdem das letzte Fenster geschlossen wurde (so
-der JobScheduler kann Hintergrundjobs ausführen), aber JavaFX hat nur einen nativen Job übersetzt
-Beenden Sie mit „Schließen Sie die Fenster“, niemals einen tatsächlichen Ausgang. korTTY fängt jetzt das ab
-native quit und führt seine eigentliche Quit-Sequenz aus. Zusätzlich ein Shutdown-Watchdog
-garantiert, dass der Prozess immer beendet wird, der Dialog „Warten auf laufende Jobs“.
-Ich habe die Schaltfläche **Jetzt Beenden erzwingen** erhalten und die Bereinigung der Menüleistensymbole entfällt
-Es besteht die Gefahr, dass das Herunterfahren verzögert wird.
+- **macOS: „Quit korTTY“ beendet tatsächlich die App** – in der gepackten macOS-App wurde korTTY durch ein natives Beenden (Cmd+Q, **Quit korTTY** im App-Menü, **Quit** des Docks oder Abmelden) im Hintergrund ausgeführt, sodass der Prozess abgebrochen werden musste. Die gepackte App läuft absichtlich weiter, nachdem das letzte Fenster geschlossen wurde (damit der JobScheduler Hintergrundjobs ausführen kann), aber JavaFX hat ein natives Beenden nur in „Fenster schließen“ übersetzt, nie in ein tatsächliches Beenden. korTTY fängt nun das native Quit ab und führt seine eigentliche Quit-Sequenz aus. Ein Shutdown-Watchdog garantiert außerdem, dass der Prozess immer beendet wird, das Dialogfeld „Warten auf laufende Jobs“ hat eine Schaltfläche „Jetzt beenden erzwingen“ erhalten und die Bereinigung der Menüleistensymbole birgt nicht mehr das Risiko, dass das Herunterfahren verzögert wird.
 
 ## v2.3.2
 
 ### Korrekturen
 
-- **Snippet-Editor-Diagramme werden gerendert, wenn Graphviz außerhalb der App installiert ist
-PFAD** – Das Generieren eines **Diagramms** im Snippet-Editor schlägt nicht mehr fehl
-„Zum Rendern von PlantUML-Diagrammen ist Graphviz Dot erforderlich“, wenn `dot` installiert ist
-(z. B. über Homebrew), aber nicht auf dem minimalen PATH, den eine auf dem Desktop gestartete App erbt
-von launchd. korTTY lokalisiert jetzt `dot` und die Java-Laufzeitumgebung auf die gleiche Weise
-findet AI-CLIs – durchsucht den PATH und allgemeine Installationsverzeichnisse
-(`/opt/homebrew/bin`, `/usr/local/bin`, …) – und übergibt den aufgelösten `dot`-Pfad
-über `GRAPHVIZ_DOT` an den PlantUML-Renderer gesendet, sodass er es nicht erneut ermitteln muss.
+- **Snippet-Editor-Diagramme werden gerendert, wenn Graphviz außerhalb des PATH der App installiert ist** – das Generieren eines **Diagramms** im Snippet-Editor schlägt nicht mehr mit „Graphviz dot ist erforderlich, um PlantUML-Diagramme zu rendern“ fehl, wenn `dot` installiert ist (z. B. über Homebrew), aber nicht auf dem minimalen PATH, den eine auf dem Desktop gestartete App von launchd erbt. korTTY findet `dot` und die Java-Laufzeit jetzt auf die gleiche Weise, wie es AI-CLIs findet – durchsucht den PATH sowie allgemeine Installationsverzeichnisse (`/opt/homebrew/bin`, `/usr/local/bin`, …) – und übergibt den aufgelösten `dot`-Pfad über `GRAPHVIZ_DOT` an den PlantUML-Renderer, sodass dieser ihn nicht erneut ermitteln muss.
 
 ## v2.3.1
 
 ### Korrekturen
 
-- **„Als Textdatei laden“ folgt `cd` in lokalen Shells** – in einer Registerkarte einer lokalen Shell,
-Laden einer ausgewählten Datei mit **Als Textdatei laden** nach Änderung der Verzeichnis-Nr
-Die Datei wird nicht mehr gefunden. korTTY liest jetzt die Live-Funktion der Shell
-Verzeichnis direkt vom Betriebssystem (das aktuelle Verzeichnis des Shell-Prozesses).
-Verzeichnis), anstatt sich nur auf den Eingabeaufforderungstext zu verlassen, der nichts preisgibt
-den vollständigen Pfad, wenn in der Eingabeaufforderung nur der Ordnername angezeigt wird (das macOS zsh
-Standard). Unter macOS/Linux wird dadurch die Auswahl anhand des Verzeichnisses aufgelöst
-Shell ist tatsächlich drin; Unter Windows wird auf die vorherige Eingabeaufforderung zurückgegriffen
-Verhalten.
-- **Die KI-Funktionen des Snippet-Editors arbeiten mit Argumentationsmodellen und sind gesprächig
-Antworten** – KI-Aktionen im Snippet-Editor (**Diagramm**, **Rezension**,
-**Verbessern**, **Assistent**, **Sicherheit**, **Alternativen**, **Beschreiben**,
-**Vollständig**, **Einzeiler**) schlagen nicht mehr fehl – ​​z.B. *"PlantUML-Generierung
-failed“* – wenn das Modell seine JSON-Antwort in Prosa oder einen Code-Fence verpackt, oder
-Wenn ein lokales Argumentationsmodell (LM Studio, Ollama, llama.cpp) verwendet wird
-DeepSeek-R1/QwQ/gpt-oss) gibt einen `<think>…</think>`-Block aus. Der Antwortparser
-Entfernt jetzt durchgesickerte Argumente und extrahiert stattdessen robust die echte JSON-Nutzlast
-eines gierigen Streichholzes, das bei jeder verirrten Zahnspange zerbrach.
-- **Fehler der Snippet-Editor-KI sind jetzt sichtbar** – wenn eine Snippet-Editor-KI-Aktion ausgeführt wird
-Schlägt ein Fehler fehl, wird die eigentliche Ursache in das Protokoll geschrieben und die entsprechende Meldung im angezeigt
-Statusleiste. Zuvor wurde die Ausnahme verworfen, also eine falsch konfigurierte KI
-Profil (z. B. ein Cloud-Profil ohne ausgewähltes Modell, das *„Wählen Sie ein
-Modell…"*) führte dazu, dass jede KI-Funktion stillschweigend mit nur einer generischen Nachricht fehlschlug und
-nichts im Protokoll.
+- **„Als Textdatei laden“ folgt `cd` in lokalen Shells** – in einer lokalen Shell-Registerkarte schlägt das Laden einer ausgewählten Datei mit **Als Textdatei laden** nach einem Verzeichniswechsel nicht mehr fehl, die Datei zu finden. korTTY liest jetzt das Live-Arbeitsverzeichnis der Shell direkt vom Betriebssystem (dem aktuellen Verzeichnis des Shell-Prozesses), anstatt sich nur auf den Eingabeaufforderungstext zu verlassen, der nicht den vollständigen Pfad preisgibt, wenn die Eingabeaufforderung nur den Ordnernamen anzeigt (die macOS-zsh-Standardeinstellung). Unter macOS/Linux wird die Auswahl anhand des Verzeichnisses aufgelöst, in dem sich die Shell tatsächlich befindet. Unter Windows greift es auf das vorherige auf Eingabeaufforderungen basierende Verhalten zurück.
+- **KI-Funktionen des Snippet-Editors arbeiten mit Argumentationsmodellen und gesprächigen Antworten** – KI-Aktionen im Snippet-Editor (**Diagramm**, **Überprüfung**, **Verbessern**, **Assistent**, **Sicherheit**, **Alternativen**, **Beschreiben**, **Vollständig**, **Einzeiler**) schlagen nicht mehr fehl – ​​z. B. *„PlantUML-Generierung fehlgeschlagen“* – wenn das Modell seine JSON-Antwort in Prosa oder einen Code-Fence verpackt oder wenn ein lokales Argumentationsmodell (LM Studio, Ollama, llama.cpp, das DeepSeek-R1/QwQ/gpt-oss bereitstellt) einen `<think>…</think>`-Block ausgibt. Der Antwortparser entfernt jetzt durchgesickerte Argumente und extrahiert die echte JSON-Nutzlast robust anstelle eines gierigen Matchs, das bei einer verirrten Klammer fehlschlug.
+- **Snippet-Editor-KI-Fehler sind jetzt sichtbar** – wenn eine Snippet-Editor-KI-Aktion fehlschlägt, wird die eigentliche Ursache in das Protokoll geschrieben und die entsprechende Meldung wird in der Statusleiste angezeigt. Zuvor wurde die Ausnahme verworfen, sodass ein falsch konfiguriertes KI-Profil (z. B. ein Cloud-Profil ohne ausgewähltes Modell, das *„Wählen Sie ein Modell…“* meldet) dazu führte, dass jede KI-Funktion stillschweigend fehlschlug und nur eine generische Meldung und nichts im Protokoll angezeigt wurde.
 
 ## v2.3.0
 
 ### KI-Schwarm
 
-- **Registerkarte „AI Swarm“** (**AI → AI Swarm...**, ++ctrl+alt+s++ / Cmd auf macOS) – Übertragung
-eine KI-Agent-Aufgabe für viele Server gleichzeitig; Jeder Server führt seinen eigenen Agenten aus und
-Die Antworten werden in einer einzigen Vergleichstabelle mit jeweils einer Zeile zusammengefasst
-Server und eine wörtliche Spalte **"Fehler"** für Abweichungen und Fehler.
-- **Animierter Statusstreifen** – eine Kugel pro Agent über den Konversationsshows
-in der Warteschlange/wird ausgeführt/wartet auf Eingaben/angehalten/erledigt/fehlgeschlagen/abgebrochen auf einen Blick,
-Flags *ungewöhnlich lange* Läufe über einen adaptiven Schwellenwert
-(`max(60 s, 2 × median of finished agents)`) und das Klicken auf eine Kugel springt zum
-Reihe des Agenten. Der Strip skaliert von 1 bis 50+ Servern.
-- **Pro-Agent und schwarmweite Laufsteuerung** – Anhalten, Fortsetzen, Neustarten und Stoppen
-entweder ein einzelner Agent (klicken Sie mit der rechten Maustaste auf seine Zeile) oder der gesamte Schwarm (Symbolleiste).
-Das Pausieren ist kooperativ und stoppt die abgelaufenen Timer. Neustarts ersetzen nur
-Die Antwort dieses Agenten.
-- **Erweiterbare Live-Transkripte** – Klicken Sie mit der linken Maustaste auf eine Agentenzeile, um sie live anzusehen
-Befehls-/Ausgabetranskript inline während der Ausführung.
-- **Konversation kopieren und exportieren** – Kopieren Sie die gesamte Schwarmkonversation in die
-in die Zwischenablage kopieren oder als einfachen Text, Markdown oder PDF exportieren; Gespeicherte Schwarm-Chats erhalten
-ihren eigenen **Schwarm-Chats**-Bereich im AI Manager.
-- **Lesbare Ergebniszeilen** – Durch Klicken auf eine Zeile der kombinierten Antworttabelle wird geöffnet
-es in einem separaten **Zeilendetails**-Fenster mit der Schriftgröße A−/A+ und
-In die Zwischenablage kopieren.
-- **Ziele ohne offene Terminals** – Schwarmläufe (KI und Skript) funktionieren jetzt
-gespeicherte Server ohne geöffnetes Terminal über Hintergrund-SSH-Sitzungen; kein Terminal
-Die Registerkarte wird geöffnet. Erfordert einen entsperrten Master-Passwort-Tresor.
-- **Skripte ohne KI ausführen** – Führen Sie ein Snippet Manager-Skript mit Parametern aus
-auf allen Schwarmzielen parallel (Base64-übertragen, einmalige Bestätigung),
-mit Live-Ausgabe pro Server und einer Exit-Code-/Ausgabeergebnistabelle pro Server.
-- **Schedule Swarm Runs** – ein neuer JobScheduler-Aktionstyp **AI_SWARM** mit
-**Schwarm-Parallelität** (1–16) und **Schwarm-Lesefelder**; die Schwarm-Registerkarte
-Mit der Schaltfläche „Planen…“ wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt.
-Die Ergebnisse gehen in das Journal *und* in einen gespeicherten Schwarm-Chat.
-- **Sichtbarer Composer- und Tab-Statuspunkt** – die Schwarmeingabe ist klar umrahmt
-dreizeiliges Feld und auf der Registerkarte wird ein farbiger Aktivitätspunkt angezeigt (läuft/wartet).
-für Eingabe / Pause / Fertig – der grüne Punkt bleibt bis zum nächsten Durchlauf bestehen).
-- **Multi-Server-Workflow-Dialog überarbeitet** – Syntax-hervorgehobene Skriptansicht, a
-sichtbare Arbeitsanimation mit Live-Ablaufzeit und Gesamtdauer, an
-Feld „Zusatzanweisungen“ mit einem deduplizierten Verlauf mit 10 Einträgen und
-**In Snippets speichern** mit einem passenden vorab ausgefüllten Skriptnamen.
+- **Registerkarte „AI Swarm“** (**AI → AI Swarm...**, ++ctrl+alt+s++ / Cmd auf macOS) – sendet eine AI-Agent-Aufgabe gleichzeitig an viele Server; Jeder Server führt seinen eigenen Agenten aus und die Antworten werden in einer einzigen Vergleichstabelle mit einer Zeile pro Server und einer wörtlichen Spalte „Fehler“ für Abweichungen und Fehler zusammengefasst.
+- **Animierter Statusstreifen** – eine Kugel pro Agent über der Konversation zeigt auf einen Blick an, ob sie in der Warteschlange steht/läuft/auf Eingaben wartet/angehalten/erledigt/fehlgeschlagen/abgebrochen ist, markiert *ungewöhnlich lange* Ausführungen über einen adaptiven Schwellenwert (`max(60 s, 2 × median of finished agents)`) und durch Klicken auf eine Kugel springt man zur Zeile des Agenten. Der Strip skaliert von 1 bis 50+ Servern.
+- **Pro-Agent- und Schwarm-weite Laufsteuerung** – Anhalten, Fortsetzen, Neustarten und Stoppen entweder eines einzelnen Agenten (Rechtsklick auf seine Zeile) oder des gesamten Schwarms (Symbolleiste). Das Pausieren ist kooperativ und stoppt die abgelaufenen Timer. Neustarts ersetzen nur die Antwort dieses Agenten.
+- **Erweiterbare Live-Transkripte** – Klicken Sie mit der linken Maustaste auf eine Agentenzeile, um deren Live-Befehls-/Ausgabetranskript während der Ausführung inline anzusehen.
+- **Konversation kopieren und exportieren** – Kopieren Sie die gesamte Schwarmkonversation in die Zwischenablage oder exportieren Sie sie als einfachen Text, Markdown oder PDF; Gespeicherte Schwarm-Chats erhalten im AI Manager einen eigenen Bereich **Schwarm-Chats**.
+- **Lesbare Ergebniszeilen** – Wenn Sie auf eine Zeile der kombinierten Antworttabelle klicken, wird diese in einem separaten Fenster mit **Zeilendetails** mit der Schriftgröße A−/A+ und der Option zum Kopieren in die Zwischenablage geöffnet.
+- **Ziele ohne offene Terminals** – Schwarmläufe (KI und Skript) funktionieren jetzt über Hintergrund-SSH-Sitzungen auf gespeicherten Servern ohne offene Terminals; Es wird kein Terminal-Tab geöffnet. Erfordert einen entsperrten Master-Passwort-Tresor.
+- **Skripte ohne KI ausführen** – Führen Sie ein Snippet-Manager-Skript mit Parametern auf allen Schwarmzielen parallel aus (Base64-übertragen, einzelne Bestätigung), mit Live-Ausgabe pro Server und einer Exit-Code-/Ausgabeergebnistabelle pro Server.
+- **Schedule Swarm Runs** – ein neuer JobScheduler-Aktionstyp **AI_SWARM** mit **Swarm-Parallelität** (1–16) und **Swarm-schreibgeschützten** Feldern; Über die Schaltfläche **Planen…** auf der Registerkarte „Schwarm“ wird ein Job anhand der aktuellen Ziele und Eingabeaufforderungen vorab ausgefüllt. Die Ergebnisse gehen in das Journal *und* in einen gespeicherten Schwarm-Chat.
+- **Sichtbarer Composer- und Tab-Statuspunkt** – die Schwarmeingabe ist ein klar umrahmtes dreizeiliges Feld, und der Tab zeigt einen farbigen Aktivitätspunkt (wird ausgeführt / wartet auf Eingabe / pausiert / beendet – der grüne Punkt bleibt bis zur nächsten Ausführung bestehen).
+- **Multi-Server-Workflow-Dialog überarbeitet** – syntaxhervorgehobene Skriptansicht, eine sichtbare Arbeitsanimation mit verstrichener Live-Zeit und Gesamtdauer, ein Feld für zusätzliche Anweisungen mit einem deduplizierten 10-Eintrags-Verlauf und **In Snippets speichern** mit einem passenden vorab ausgefüllten Skriptnamen.
 
 ### Aussehen
 
-- **Fünf neue App-Designs** – *Amber CRT* (warmes Bernstein-Phosphor-Retro-Terminal),
-*Synthwave '84* (80er Outrun Neon), *Gruvbox Retro* (gemütlich warm erdig),
-*Nord Arctic* (ruhiges, flaches arktisches Blaugrau) und *Dracula* (sanftes Lila/Rosa)
-Fügen Sie die vorhandenen Designs unter *Einstellungen → Erscheinungsbild* hinzu, jedes mit seinem eigenen
-Vorschau-Miniaturansicht. Die bestehenden Designs bleiben unverändert.
-- **Subtile Designanimationen umschaltbar** – eine neue Darstellungseinstellung (standardmäßig aktiviert)
-lässt die leuchtenden Designs einen kleinen Akzentpunkt in der Statusleiste einhauchen; es ausschalten
-dient gleichzeitig als Option zur Bewegungsreduzierung und die Animation stoppt, während das Fenster geöffnet ist
-ist versteckt.
-- **Konsistenteres Design-Chrom** – es gelten jetzt die Farben eines benutzerdefinierten Designs
-deterministisch über Menüs und Dialoge hinweg sowie die Dynamik des Terminalthemas
-Das Stylesheet überschreibt nicht mehr die Chromfarben des aktiven Designs.
+- **Fünf neue App-Designs** – *Amber CRT* (warmes Bernstein-Phosphor-Retro-Terminal), *Synthwave '84* (80er-Jahre-Outrun-Neon), *Gruvbox Retro* (gemütlich warm erdig), *Nord Arctic* (ruhiges, flaches arktisches Blaugrau) und *Dracula* (sanftes Lila/Rosa) ergänzen die bestehenden Designs unter *Einstellungen → Aussehen*, jedes mit seinem eigenen Vorschaubild. Die bestehenden Designs bleiben unverändert.
+- **Dezente Designanimationen umschaltbar** – eine neue Darstellungseinstellung (standardmäßig aktiviert) lässt die leuchtenden Designs einen kleinen Akzentpunkt in der Statusleiste einhauchen; Das Ausschalten dient gleichzeitig als Option zur Bewegungsreduzierung und die Animation stoppt, während das Fenster ausgeblendet ist.
+- **Konsistenteres Design-Chrom** – die Farben eines benutzerdefinierten Designs gelten jetzt deterministisch für alle Menüs und Dialoge, und das dynamische Stylesheet des Terminal-Designs überschreibt nicht mehr die Chromfarben des aktiven Designs.
 - **App-Design `Normal` in *Einstellungen → Erscheinungsbild* in `Default`** umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.
 - Mit den Schaltflächen „Zurück/Weiter“ neben dem Dropdown-Menü „App-Design“ können Sie durch die Designs vor- und zurückblättern (an den Enden umschließen), ohne das Dropdown-Menü zu öffnen.
 - **Die Designvorschau wurde unter die Steuerelemente verschoben** in einen Bereich mit fester Größe, sodass beim Wechseln der Designs (oder zurück zu `Default`, wo es keine Vorschau gibt) die Vorschau nicht mehr über dem Dropdown-Menü angezeigt wird.
 
 ### Lokale Shell-Verbindungen
 
-- **Öffnen Sie die Shell des lokalen Computers in einem Terminal-Tab (kein Netzwerk)** – ein neues
-Das **Local Shell**-Protokoll erzeugt stattdessen ein lokales Pseudo-Terminal (PTY) über pty4j
-eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie **PowerShell** wählen.
-(Standard) oder **cmd.exe**; Unter macOS/Linux wird standardmäßig Ihr `$SHELL` (fallend) verwendet
-zurück zu `/bin/zsh` oder `/bin/bash`). Ein Freiformfeld **Benutzerdefinierter Befehl** akzeptiert
-jede ausführbare Datei mit Argumenten (z. B. `pwsh.exe`, `wsl.exe -d Ubuntu`, Git Bash),
-und ein optionales Startverzeichnis kann festgelegt werden. In beiden Fällen ist die lokale Shell wählbar
-Quick Connect und der Verbindungsmanager; für diese Verbindungen
-Host/Port/Benutzername/Authentifizierung sind nicht erforderlich und im deaktiviert
-Dialoge.
-- **Git Bash / Cygwin / WSL-Voreinstellungen** unter Windows – jeweils nur angeboten, wenn sie tatsächlich vorhanden sind
-installiert (Git Bash/Cygwin über ihre üblichen Installationsorte / `PATH`; nur WSL).
-wenn `wsl.exe` vorhanden ist und mindestens eine Distribution installiert ist). Der
-Der Befehlsparser erkennt Anführungszeichen, daher können Shell-Pfade, die Leerzeichen enthalten (wie
-`"C:\Program Files\Git\bin\bash.exe"`) korrekt starten.
-- **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die KI-Eingabe/-Daten
-Haken wurden auf eine gemeinsame `ObservableTtyConnector`-Schnittstelle gehoben, also auch
-Arbeit für lokale Shells. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
-- **AI Agent & Planning in lokalen Shells** – die Befehlsausführungs-Engine des Agenten
-wurde hinter einer `AgentCommandRunner`-Abstraktion (SSH exec.) von SSH entkoppelt
-Kanal- und lokale Prozess-Backends). Der **KI-Agent** und **KI-Planung** jetzt
-In lokalen Shells unter Windows, macOS und Linux ausführen: Befehle werden im ausgeführt
-Verbindungs-Shell (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`),
-Die Umgebungsprobe und die Systemeingabeaufforderung sind plattformorientiert und vorhanden
-Es gilt der Genehmigungsablauf. Einschränkungen für lokale Shells: kein `sudo`/Administrator
-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Der JobScheduler
-Die Aktion des kopflosen KI-Agenten erfolgt weiterhin nur über SSH.
+- **Öffnen Sie die Shell des lokalen Computers in einer Terminal-Registerkarte (kein Netzwerk)** – ein neues **Lokale Shell**-Protokoll erzeugt ein lokales Pseudo-Terminal (PTY) über pty4j, anstatt eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie **PowerShell** (Standard) oder **cmd.exe** wählen; Unter macOS/Linux wird standardmäßig Ihr `$SHELL` verwendet (wobei auf `/bin/zsh` oder `/bin/bash` zurückgegriffen wird). Ein Freiformfeld **Benutzerdefinierter Befehl** akzeptiert jede ausführbare Datei mit Argumenten (z. B. `pwsh.exe`, `wsl.exe -d Ubuntu`, Git Bash), und ein optionales Startverzeichnis kann festgelegt werden. Die lokale Shell kann sowohl in Quick Connect als auch im Verbindungsmanager ausgewählt werden. Für diese Verbindungen sind Host/Port/Benutzername/Authentifizierung nicht erforderlich und in den Dialogen deaktiviert.
+- **Git Bash/Cygwin/WSL-Voreinstellungen** unter Windows – werden jeweils nur angeboten, wenn sie tatsächlich installiert sind (Git Bash/Cygwin über ihre üblichen Installationsorte / `PATH`; WSL nur, wenn `wsl.exe` vorhanden und mindestens eine Distribution installiert ist). Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade mit Leerzeichen (wie `"C:\Program Files\Git\bin\bash.exe"`) korrekt gestartet werden.
+- **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die AI-Eingabe-/Daten-Hooks wurden auf eine gemeinsam genutzte `ObservableTtyConnector`-Schnittstelle übertragen, sodass sie auch für lokale Shells funktionieren. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
+- **AI Agent & Planning in lokalen Shells** – die Befehlsausführungs-Engine des Agenten wurde hinter einer `AgentCommandRunner`-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) von SSH entkoppelt. Der **AI Agent** und **AI Planning** werden jetzt in lokalen Shells unter Windows, macOS und Linux ausgeführt: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformorientiert und es gilt der bestehende Genehmigungsablauf. Einschränkungen für lokale Shells: keine `sudo`/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
 
 ### Terminal-Benutzerfreundlichkeit
 
-- **Strg + Mausrad-Zoom** – **Strg** (oder **Befehl** unter macOS) gedrückt halten und
-Wenn Sie mit dem Mausrad über das Terminal scrollen, ändert sich jetzt die Schriftgröße statt
-Scrollen durch den Puffer. Dies ergänzt das bestehende Alt+Plus / Alt+Minus / Alt+0
-Verknüpfungen.
-- **Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte** – diese Windows-Shells tun dies nicht
-Exit auf EOF, daher hatte Strg+D dort keine Auswirkung. Für Shells der Bash-Familie
-(Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.
+- **Strg + Mausrad-Zoom** – Halten Sie **Strg** (oder **Befehl** unter macOS) gedrückt und scrollen Sie mit dem Mausrad über das Terminal, um jetzt die Schriftgröße zu ändern, anstatt durch den Puffer zu scrollen. Dies ergänzt die vorhandenen Tastenkombinationen Alt+Plus / Alt+Minus / Alt+0.
+- **Strg+D schließt eine lokale cmd.exe/PowerShell-Registerkarte** – diese Windows-Shells werden bei EOF nicht beendet, daher hatte Strg+D dort keine Auswirkung. Bei Shells der Bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält Strg+D seine normale EOF-Bedeutung.
 
 ### KI-Chat und Agent
 
-- **Bilder, Diagramme und Mathematik werden in KI-Chats gerendert** – KI-Antworten mit einem
-SVG-Dokument, ein Base64-Rasterbild (`data:image/png;base64,…` – PNG, JPEG,
-GIF, BMP), ein ` ```plantuml `-Block, ein ` ```mermaid `-Block oder LaTeX-Mathematik
-(` ```latex `/` ```tex `/` ```math ` Blöcke und `$$…$$` in Prosa) werden als angezeigt
-Bilder anstelle von Roh-Markup, jeweils mit einem Umschalter **Code anzeigen/Bild anzeigen** und
-Schaltfläche „Kopieren“. Mermaid und MathJax sind gebündelt (kein Netzwerk); PlantUML verwendet die
-lokale Toolchain (`java` + Graphviz `dot`); Die SVG-Ausgabe wird bereinigt und angezeigt
-mit deaktiviertem JavaScript.
-- **Vollständige Modellbegründung in Agent Thinking-Zeilen** – Erweitern einer 💭-Zeile in der
-Das Agentenaktivitätsfeld zeigt jetzt die tatsächliche Argumentation des Modells beim Anbieter an
-legt es offen (Anthropisches erweitertes Denken gemäß der Argumentationsbemühungen des Profils,
-OpenAI-kompatibler `reasoning_content`, LM Studio Reasoning-Ausgabe, `<think>`
-Blöcke aus lokalen CLI-Modellen), andernfalls wird auf die Entscheidungszusammenfassung zurückgegriffen.
-- **Das Laufprotokoll zeichnet das AI-Profil auf** – jeder Agentenlauf beginnt mit einem
-`AI profile: <name> (<model>)`-Aktivitätszeile.
-- **Beim Neuladen wird das aktuell aktive Profil verwendet** – das Neuladen des Aktivitätsbereichs
-Mit der Schaltfläche wird der Befehl mit dem Profil erneut ausgeführt, das jetzt aktiv ist, nicht mit dem Profil, das gerade aktiv ist
-Der ursprüngliche Lauf wurde mit gestartet.
-- **Agent Ask umfasst die Terminalauswahl** – Starten von **AI → Ask AI Agent**
-aus dem Rechtsklick-Menü mit ausgewähltem Text sendet die Auswahl als Kontext, also
-Die Frage wird bezüglich der ausgewählten Ausgabe oder des ausgewählten Skripts beantwortet.
-- **Konkrete Modelle für Wolkenprofile** – die Modellauswahl ist vorab gefüllt
-gängige Modellnamen für bekannte Cloud-Anbieter (offline, kein API-Schlüssel erforderlich), die
-Klicken Sie auf die Schaltfläche „Aktualisieren“, um die Live-Modellliste des Endpunkts zusammenzuführen
-Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option **Auto** ist nicht mehr verfügbar
-Wird für Cloud-Endpunkte angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).
+- **Bilder, Diagramme und Mathematik werden in KI-Chats gerendert** – KI-Antworten, die ein SVG-Dokument, ein Base64-Rasterbild (`data:image/png;base64,…` – PNG, JPEG, GIF, BMP), einen ` ```plantuml `-Block, einen ` ```mermaid `-Block oder LaTeX-Mathematik enthalten (` ```latex `/` ```tex `/` ```math `-Blöcke und `$$…$$` in Prosa) werden als Bilder statt als rohes Markup angezeigt, jeweils mit einer Umschalt- und Kopierschaltfläche **Code anzeigen/Bild anzeigen**. Mermaid und MathJax sind gebündelt (kein Netzwerk); PlantUML verwendet die lokale Toolchain (`java` + Graphviz `dot`); Die SVG-Ausgabe wird bereinigt und mit deaktiviertem JavaScript angezeigt.
+- **Vollständige Modellbegründung in Agenten-Denkzeilen** – Durch Erweitern einer 💭-Zeile im Agentenaktivitätsbereich wird jetzt die tatsächliche Begründung des Modells angezeigt, wenn der Anbieter sie verfügbar macht (Anthropisches erweitertes Denken gemäß dem Begründungsaufwand des Profils, OpenAI-kompatibles `reasoning_content`, LM Studio-Begründungsausgabe, `<think>`-Blöcke von lokalen CLI-Modellen), andernfalls wird auf die Entscheidungszusammenfassung zurückgegriffen.
+- **Das Laufprotokoll zeichnet das AI-Profil auf** – jeder Agentenlauf beginnt mit einer `AI profile: <name> (<model>)`-Aktivitätszeile.
+- **Beim Neuladen wird das aktuell aktive Profil verwendet** – die Neuladen-Schaltfläche des Aktivitätsbereichs führt den Befehl erneut mit dem Profil aus, das jetzt aktiv ist, nicht mit dem, mit dem die ursprüngliche Ausführung gestartet wurde.
+- **Agent Ask umfasst die Terminalauswahl** – Wenn Sie **AI → Ask AI Agent** über das Kontextmenü mit ausgewähltem Text starten, wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.
+- **Konkrete Modelle für Cloud-Profile** – die Modellauswahl ist vorab mit gängigen Modellnamen für bekannte Cloud-Anbieter gefüllt (offline, kein API-Schlüssel erforderlich), die Schaltfläche „Aktualisieren“ führt die Live-Modellliste des Endpunkts zusammen, das Klicken auf ein Modell in der Dropdown-Liste wendet es jetzt zuverlässig an und die unbrauchbare Option „Auto“ wird für Cloud-Endpunkte nicht mehr angeboten (mit einem deutlicheren Fehler, wenn kein Modell ausgewählt ist).
 
 ### Anleitung zur Suche nach AI-Dokumenten
 
-- **Fragen Sie die Anleitung in natürlicher Sprache** – die integrierte Anleitung (**Hilfe → Anleitung**,
-++f1++) erhält ein Seitenfeld **KI-Suche**: Geben Sie eine Frage in Ihrer Sprache ein und
-Erhalten Sie eine Antwort, die ausschließlich aus der mitgelieferten Dokumentation generiert wird, mit
-Anklickbare Zitate, die den Anleitung direkt zur verwiesenen Seite weiterleiten.
-- **Verwendet Ihr Standard-KI-Profil; Der Abruf erfolgt vollständig offline** – kein Server, nein
-zusätzliche API-Schlüssel, keine neuen Abhängigkeiten. Der Abruf erfolgt lokal über das Bundle
-Suchindex (mit zweisprachigen Synonymen, deutscher Kompositumsteilung und Umlaut).
-falten); Off-Topic-Fragen werden vor Ort beantwortet, ohne dass die KI kontaktiert werden muss
-Endpunkt überhaupt.
-- **Fundierte Antworten** – das Modell ist auf die abgerufenen Auszüge beschränkt,
-erfundene Links werden repariert oder entfernt, und es gibt immer eine native **Quellen**-Liste
-zeigt die zitierten Seiten unabhängig von der Antwort des Modells an.
+- **Fragen Sie die Anleitung in natürlicher Sprache** – der integrierte Anleitung (**Hilfe → Anleitung**, ++f1++) verfügt über ein Seitenfeld **KI-Suche**: Geben Sie eine Frage in Ihrer Sprache ein und Sie erhalten eine Antwort, die ausschließlich aus der gebündelten Dokumentation generiert wird, mit anklickbaren Zitaten, die den Anleitung direkt zur referenzierten Seite weiterleiten.
+- **Verwendet Ihr Standard-KI-Profil; Der Abruf erfolgt vollständig offline** – kein Server, keine zusätzlichen API-Schlüssel, keine neuen Abhängigkeiten. Die Recherche erfolgt lokal über den gebündelten Suchindex (mit zweisprachigen Synonymen, deutschem Kompositumsplitting und Umlautfaltung); Off-Topic-Fragen werden lokal beantwortet, ohne dass der KI-Endpunkt überhaupt kontaktiert werden muss.
+- **Fundierte Antworten** – das Modell ist auf die abgerufenen Auszüge beschränkt, erfundene Links werden repariert oder entfernt und eine native **Quellenliste** zeigt immer die zitierten Seiten an, unabhängig von der Antwort des Modells.
 
 ### Workflow-Skriptgenerator
 
-- **Zwei neue Zielsprachen** – der Agent kann den → **Workflow**-Skriptgenerator ausführen
-Jetzt **Windows-CMD** (`.cmd`-Batch) und **AppleScript** (`.applescript`) erstellen
-zusätzlich zu Bash, Python, Perl, Ruby, PowerShell und Ansible.
-- **Anpassbare Skriptschriftgröße** – jeder Editor für generierte Skripte verfügt über **A−** /
-**A+**-Tasten und unterstützt **Strg + Mausrad** (Cmd unter macOS); der Auserwählte
-Die Größe wird sitzungsübergreifend gespeichert.
-- **Sichtbarer Fortschritt während der Generierung eines Diagramms** – Generieren einer PlantUML
-Das Diagramm aus einem Skript zeigt jetzt den funktionierenden Spinner.
-- **Deutlichere AI-Backend-Fehler** – Fehler aufgrund von unzureichendem Arbeitsspeicher/Ressourcenlimit
-AI-Server (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“) zeigt a
-kurzer, umsetzbarer Hinweis anstelle des rohen Stack-Trace; Alle anderen KI-Fehler sind es
-auf eine einzige Zeile reduziert.
+- **Zwei neue Zielsprachen** – der Agentenlauf → **Workflow**-Skriptgenerator kann jetzt zusätzlich zu Bash, Python, Perl, Ruby, PowerShell und Ansible auch **Windows-CMD** (`.cmd`-Batch) und **AppleScript** (`.applescript`) erzeugen.
+- **Anpassbare Skriptschriftgröße** – jeder Editor für generierte Skripte verfügt über **A−** / **A+**-Tasten und unterstützt **Strg + Mausrad** (Befehlstaste unter macOS); Die gewählte Größe wird sitzungsübergreifend gespeichert.
+- **Sichtbarer Fortschritt beim Generieren eines Diagramms** – Beim Generieren eines PlantUML-Diagramms aus einem Skript wird jetzt der funktionierende Spinner angezeigt.
+- **Deutlichere AI-Backend-Fehler** – Fehler wegen unzureichendem Arbeitsspeicher/Ressourcenlimit vom AI-Server (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“) zeigen einen kurzen, umsetzbaren Hinweis anstelle des rohen Stack-Trace; Alle anderen KI-Fehler werden in einer einzigen Zeile zusammengefasst.
 
 ### Korrekturen
 
-- **Das Schließen einer lokalen Shell friert korTTY nicht mehr ein** – der PTY-Prozess ist jetzt
-zerstört, bevor seine Streams geschlossen werden, wodurch ein Terminal-Reader-Thread freigegeben wird
-in einem pty `read()` blockiert, anstatt das Schließen des JavaFX-Threads zu blockieren.
-- **Korrekter Wortlaut für lokale Shells beim Schließen** – die Schließbestätigungs-Nr
-sagt länger: „SSH-Verbindung beenden?“ für eine lokale Shell und die Eingabeaufforderung zum Schließen des Fensters
-ist nun transportneutral („Aktive Sitzungen“).
-- **Keine Passwortabfrage für lokale Shells** – Das Öffnen einer lokalen Shell wird nicht mehr angezeigt
-ein irrelevanter Passwortdialog (lokale Shells verwenden keine Authentifizierung).
-- **„Als Textdatei laden“ funktioniert in lokalen Shells** – Rechtsklick auf eine ausgewählte Datei
-Name in einer lokalen Shell-Registerkarte und die Auswahl von **Als Textdatei laden** schlägt nicht mehr fehl
-mit „Es ist keine aktive SSH-Verbindung verfügbar“. Die Datei wird lokal gelesen
-Dateisystem – wird anhand des in der Shell-Eingabeaufforderung angezeigten Arbeitsverzeichnisses aufgelöst
-wenn verfügbar, andernfalls das Verzeichnis, in dem die Shell gestartet wurde – und geöffnet wird
-im Snippet-Editor mit **Lokale Datei überschreiben** und **Speichern unter...** einfach
-wie die SSH/SFTP-Variante. Die Fehlermeldung „Nicht verbunden“ lautet jetzt
-transportneutral.
-- **Überschreibungen lokaler Dateien sind jetzt atomar** – beide „Lokale Datei überschreiben“-Abläufe
-(local-Shell **Als Textdatei laden** und der lokale Dateieditor des SFTP-Managers)
-Wird verwendet, um die Zieldatei an Ort und Stelle zu kürzen, so dass ein Fehler während des Schreibvorgangs auftritt (Festplatte voll,
-Prozess abgebrochen, Stromausfall) könnte dazu führen, dass es ohne Wiederherstellung abgeschnitten wird.
-Überschreibt jetzt, schreibt in eine temporäre Geschwisterdatei und verschiebt sie an ihren Platz, behält sie bei
-die POSIX-Berechtigungen der Originaldatei und schreiben Sie über symbolische Links darauf
-echtes Ziel, anstatt den Link selbst zu ersetzen.
+- **Das Schließen einer lokalen Shell friert korTTY nicht mehr ein** – der PTY-Prozess wird jetzt zerstört, bevor seine Streams geschlossen werden, wodurch ein in einem pty `read()` blockierter Terminal-Reader-Thread freigegeben wird, anstatt das Schließen im JavaFX-Thread zu blockieren.
+- **Korrekter Wortlaut für lokale Shells beim Schließen** – die Schließbestätigung sagt nicht mehr „SSH-Verbindung beenden?“ für eine lokale Shell, und die Eingabeaufforderung zum Schließen des Fensters ist jetzt transportneutral („Aktive Sitzungen“).
+- **Keine Passwortabfrage für lokale Shells** – Beim Öffnen einer lokalen Shell wird kein irrelevantes Passwortdialogfeld mehr angezeigt (lokale Shells verwenden keine Authentifizierung).
+- **„Als Textdatei laden“ funktioniert in lokalen Shells** – wenn Sie mit der rechten Maustaste auf einen ausgewählten Dateinamen in einer lokalen Shell-Registerkarte klicken und **Als Textdatei laden** auswählen, schlägt die Meldung „Keine aktive SSH-Verbindung ist verfügbar“ fehl. Die Datei wird aus dem lokalen Dateisystem gelesen – aufgelöst anhand des Arbeitsverzeichnisses, das in der Shell-Eingabeaufforderung angezeigt wird, sofern verfügbar, andernfalls dem Verzeichnis, in dem die Shell gestartet wurde – und wird im Snippet-Editor mit **Lokale Datei überschreiben** und **Speichern unter...** geöffnet, genau wie die SSH/SFTP-Variante. Die Fehlermeldung „Nicht verbunden“ ist jetzt transportneutral.
+- **Lokale Dateiüberschreibungen sind jetzt atomar** – beide „Lokale Datei überschreiben“-Abläufe (lokale Shell **Als Textdatei laden** und der lokale Dateieditor des SFTP-Managers) werden verwendet, um die Zieldatei an Ort und Stelle zu kürzen, sodass ein Fehler während des Schreibvorgangs (Festplatte voll, Prozessabbruch, Stromausfall) dazu führen kann, dass sie ohne Wiederherstellung abgeschnitten wird. Überschreiber schreiben jetzt in eine gleichgeordnete temporäre Datei und verschieben sie an ihren Platz, behalten die POSIX-Berechtigungen der Originaldatei bei und schreiben über symbolische Links zu ihrem eigentlichen Ziel, anstatt den Link selbst zu ersetzen.
 
 ## v2.2.3
 
 ### Kritischer Fix: Die Monaco-Editoren konnten die gepackte App nicht laden
 
-- **Behoben, dass die auf Monaco basierenden Editoren (Snippet, Datei, AI, Diff) leer geöffnet wurden
-Bereich in der gepackten/beglaubigten macOS-App** – kein Einfügezeichen, kein Eintippen, kein Einfügen. In
-In der gepackten App hat WebView seine Seite von einer `jar:`-URL und den Seiten geladen
-Content-Security-Policy (`script-src 'self'`) blockierte dann die eigene des Herausgebers
-`monaco-host.js`/`.css`, da ein Dokument mit `jar:`-Ursprung dies nicht autorisiert
-`jar:` Geschwister. Die Monaco-Ressourcen werden jetzt in ein temporäres Verzeichnis extrahiert und
-wird von einer `file:`-URL geladen, was der CSP zulässt. Ein fehlgeschlagener Editor-Ladevorgang ist jetzt ebenfalls aufgetreten
-zeigt einen Fehler anstelle eines stillschweigend leeren Bereichs an, und das Editor-Bundle ist es auch
-zusätzlich minimiert durch ein großzügigeres Boot-Budget.
+- **Behoben, dass die auf Monaco basierenden Editoren (Snippet, Datei, AI, Diff) in der gepackten/notariell beglaubigten macOS-App ein leeres Fenster öffneten** – kein Caret, kein Tippen, kein Einfügen. In der gepackten App hat WebView seine Seite von einer `jar:`-URL geladen, und die Content-Security-Policy (`script-src 'self'`) der Seite hat dann die eigene `monaco-host.js`/`.css` des Herausgebers blockiert, da ein `jar:`-Ursprungsdokument seine `jar:`-Geschwister nicht autorisiert. Die Monaco-Ressourcen werden nun in ein temporäres Verzeichnis extrahiert und von einer `file:`-URL geladen, was der CSP zulässt. Ein fehlgeschlagener Editor-Ladevorgang zeigt jetzt auch einen Fehler anstelle eines stillschweigend leeren Bereichs an, und das Editor-Bundle wird zusätzlich durch ein großzügigeres Boot-Budget verkleinert.
 
 ## v2.2.2
 
 ### Kritischer Fix: Absturz beim Öffnen der Monaco-Editoren
 
-- **Ein schwerer Absturz (kein Bildschirmfehler) beim Öffnen des Snippet-Managers wurde behoben
-Snippet-Editor oder der AI-Skill-Editor für Einstellungen in Paket-Builds**: der
-In der gebündelten Laufzeit fehlte also das `jdk.jsobject`-Modul
-`netscape.javascript.JSObject` war zur Laufzeit nicht verfügbar und die JVM stürzte ab
-in JNI `get_method_id` (`SIGSEGV`). `jdk.jsobject` ist jetzt im Paket enthalten
-verpackte Laufzeit. Diese Version ersetzt v2.2.0 und v2.2.1, deren Binärdateien sind
-von diesem Absturz betroffen.
+– **Ein schwerer Absturz (kein Bildschirmfehler) beim Öffnen des Snippet-Managers, des Snippet-Editors oder des AI-Skill-Editors für Einstellungen in gepackten Builds wurde behoben**: In der gebündelten Laufzeit fehlte das `jdk.jsobject`-Modul, sodass `netscape.javascript.JSObject` zur Laufzeit nicht verfügbar war und die JVM in JNI `get_method_id` (`SIGSEGV`) abstürzte. `jdk.jsobject` ist jetzt in der Paketlaufzeit gebündelt. Diese Version ersetzt v2.2.0 und v2.2.1, deren Binärdateien von diesem Absturz betroffen sind.
 
 ## v2.2.1
 
 ### Stabilitätskorrekturen
 
-- **Absturz des Einstellungen-/Snippet-Managers behoben**: Öffnen der **Globalen Einstellungen** oder des
-**Snippet Manager** könnte die App abbrechen. Der eingebettete Monaco-Editor
-Die JavaScript→Java-Brücke ist nun eine starke Referenz für den Herausgeber
-Lebensdauer.
-- **Verstärkung des WebView-Lebenszyklus**: Monaco-Editoren werden bei ihrem Dialog entsorgt
-schließt; Späte Timer-/Laderückrufe nach dem Schließen werden ignoriert. Die Einstellungen *AI
-Der Skills*-Editor lädt bei der ersten Verwendung langsam.
+- **Absturz der Einstellungen/Snippet-Manager behoben**: Das Öffnen der **Globalen Einstellungen** oder des **Snippet-Managers** konnte zum Abbruch der App führen. Die JavaScript→Java-Brücke des eingebetteten Monaco-Editors wird jetzt für die gesamte Lebensdauer des Editors von einer starken Referenz gehalten.
+- **Verstärkung des WebView-Lebenszyklus**: Monaco-Editoren werden entsorgt, wenn ihr Dialog geschlossen wird; Späte Timer-/Laderückrufe nach dem Schließen werden ignoriert. Der Einstellungen-Editor *AI Skills* lädt bei der ersten Verwendung langsam.
 
 ### Anmeldefenster mit Master-Passwort
 
-- **Vollflächiges animiertes Logo** im Standard-App-Design, mit Passwortformular
-überzogen mit einer durchscheinenden Karte.
+- **Vollflächiges animiertes Logo** im Standard-App-Design, mit dem Passwortformular auf einer durchsichtigen Karte überlagert.
 
 ## v2.2.0
 
 ### Terminal-Engine und Hyperlinks
 
 - Terminal-Engine **SithTermFX 1.2.0** (aus dem Quellcode erstellt).
-- **Anklickbare OSC 8-Hyperlinks** – Links, die von Programmen wie ausgegeben werden
-`ls --hyperlink` oder `eza`, beschränkt auf eine sichere URI-Schema-Zulassungsliste.
+- **Anklickbare OSC 8-Hyperlinks** – von Programmen wie `ls --hyperlink` oder `eza` ausgegebene Links, beschränkt auf eine sichere URI-Schema-Zulassungsliste.
 
 ### Mosh (mosh4j) 2.0.2 Upgrade und Sicherheitshärtung
 
-- mosh4j `2.0.0 → 2.0.2` mit Wiedergabe-/Aktivitätsschutz pro Richtung und
-Grenzwerte für Dekompressionsbomben; Geben Sie JARs frei, die in nativen Builds gebündelt sind.
-- Hüpfburg `1.78.1 → 1.84` (behebt CVE-2026-5598 HIGH und CVE-2026-0636).
-MÄSSIG); protobuf-java `4.28.2 → 4.35.1`.
+- mosh4j `2.0.0 → 2.0.2` mit richtungsabhängigem Wiedergabe-/Aktivitätsschutz und Dekompressionsbombenbegrenzungen; Geben Sie JARs frei, die in nativen Builds gebündelt sind.
+- Hüpfburg `1.78.1 → 1.84` (behebt CVE-2026-5598 HIGH und CVE-2026-0636 MODERATE); protobuf-java `4.28.2 → 4.35.1`.
 
 ### KI-Agenten-Panel und -Aktivität
 
-- **AI Agent Panel-Platzierung**: *Unten* (Standard), *Links andocken* oder *Andocken
-Richtig*, über alle Neustarts hinweg im Gedächtnis geblieben.
-- **Mehrere gleichzeitige Läufe pro Split** (Kapitel 5), Pause/Fortsetzung pro Lauf und
-Dashboard-/Tab-Statusabzeichen (✋ wartend · ⚡ in Arbeit · ⏸ pausiert · ✓ fertig).
+- **Platzierung des AI Agent Panels**: *Unten* (Standard), *Links andocken* oder *Rechts andocken*, wird bei jedem Neustart gespeichert.
+- **Mehrere gleichzeitige Läufe pro Split** (Kapitel 5), Pause/Fortsetzung pro Lauf und Dashboard-/Tab-Statusabzeichen (✋ wartend · ⚡ in Arbeit · ⏸ pausiert · ✓ beendet).
 
 !!! Notiz
-Ältere Versionen werden im `app-docs/RELEASE_NOTES.adoc` des Repositorys erfasst
-und wird vollständig hierher migriert.
+    Ältere Releases sind im `app-docs/RELEASE_NOTES.adoc` des Repositorys erfasst und werden hierher vollständig migriert.

@@ -7,7 +7,7 @@ title: Terminal-KI-Agent und -Tools
 Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer `AgentCommandRunner`-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) entkoppelt wurde, auch in [lokalen Shells](connections.md#local-shell) unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.
 
 !!! Hinweis „SSH vs. lokale Shells“
-In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine `sudo`/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
+    In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine `sudo`/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
 
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
@@ -29,7 +29,7 @@ Der Basisbefehlsname kann unter **Einstellungen > AI** konfiguriert werden. Wenn
 - Deaktivieren Sie den Setup-Dialog pro Lauf (verwendet das konfigurierte Standardprofil, wenn es deaktiviert ist).
 
 !!! Notiz
-KorTTY fängt diese Verknüpfungen lokal ab, bevor sie die Remote-Shell erreichen. Vom Benutzer eingegebene Agentenbefehle bleiben im Shell-Verlauf verfügbar.
+    KorTTY fängt diese Verknüpfungen lokal ab, bevor sie die Remote-Shell erreichen. Vom Benutzer eingegebene Agentenbefehle bleiben im Shell-Verlauf verfügbar.
 
 ### Befehlszwecke
 
@@ -87,7 +87,7 @@ Der Terminal AI Agent folgt einer strengen, sicheren Ausführungsschleife:
 - Webrecherche nach lokalen Dateien, es sei denn, der Benutzer fragt ausdrücklich nach externen/aktuellen Informationen
 
 !!! Tipp
-Benennen Sie bei lokalen Dateiüberprüfungsaufgaben die Datei in Ihrer Eingabeaufforderung. Der Agent sollte es dann mit SSH-Befehlen wie `sed -n`, `cat`, `file` oder sprachspezifischen Syntaxprüfungen überprüfen. Wenn ein internetfähiges Profil aktiv ist, hält KorTTY weiterhin Web-Tools von der lokalen Dateiplanung fern, es sei denn, Ihre Aufgabe verlangt eindeutig nach aktuellen oder externen Informationen.
+    Benennen Sie bei lokalen Dateiüberprüfungsaufgaben die Datei in Ihrer Eingabeaufforderung. Der Agent sollte es dann mit SSH-Befehlen wie `sed -n`, `cat`, `file` oder sprachspezifischen Syntaxprüfungen überprüfen. Wenn ein internetfähiges Profil aktiv ist, hält KorTTY weiterhin Web-Tools von der lokalen Dateiplanung fern, es sei denn, Ihre Aufgabe verlangt eindeutig nach aktuellen oder externen Informationen.
 
 ## Aktivitätsbereich
 
@@ -180,8 +180,8 @@ KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 
 - **Nicht gesperrt** – Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist normales Tippen weiterhin zulässig. Sie können weiterhin die Shell-Eingabeaufforderung eingeben und neue `agent`-Befehle starten (sie öffnen neue Registerkarten).
 - **Nur Run-Control-Schlüssel** – Es werden nur Run-Control-Schlüssel abgefangen:
-- ++esc++ oder ++Strg+C++ – Brechen Sie die Registerkarte des ausgewählten Laufs ab
-- ++Strg+R++ – Schaltet die Denkdetails des ausgewählten Laufs um
+  - ++esc++ oder ++Strg+C++ – Brechen Sie die Registerkarte des ausgewählten Laufs ab
+  - ++Strg+R++ – Schaltet die Denkdetails des ausgewählten Laufs um
 
 ### Web-Tools
 
@@ -248,15 +248,15 @@ So starten Sie eine Agentenaufgabe:
 2. **Der Agent prüft die Sitzung** – Er erfasst sofort den aktuellen Benutzer, das Betriebssystem, das Arbeitsverzeichnis und den Sudo-Status.
 
 3. **Im Planungsmodus** stellt der Agent klärende Fragen und schlägt Vorgehensweisen vor, bevor Sie Folgendes genehmigen:
-- Beantworten Sie die Fragen oder schlagen Sie Ihren eigenen Ansatz vor
-- Überprüfen Sie den endgültigen Plan
-- Klicken Sie auf **Implementieren**, um die Ausführung zu starten
+   - Beantworten Sie die Fragen oder schlagen Sie Ihren eigenen Ansatz vor
+   - Überprüfen Sie den endgültigen Plan
+   - Klicken Sie auf **Implementieren**, um die Ausführung zu starten
 
 4. **Das Aktivitätsfenster** erscheint am unteren Rand der Aufteilung und zeigt Folgendes:
-- Die Benutzeraufforderung
-- Jede getroffene Entscheidung (welche Befehle ausgeführt werden sollen)
-- Befehlsausgabe in Echtzeit während der Ausführung
-- Jegliche Genehmigungs- oder Passwortanfragen
+   - Die Benutzeraufforderung
+   - Jede getroffene Entscheidung (welche Befehle ausgeführt werden sollen)
+   - Befehlsausgabe in Echtzeit während der Ausführung
+   - Jegliche Genehmigungs- oder Passwortanfragen
 
 5. **Genehmigungen** – Wenn der Agent eine Genehmigung benötigt, um systemverändernde Befehle auszuführen, klicken Sie auf **Einmal genehmigen** (nur dieser Satz) oder **Immer genehmigen** (alle verbleibenden Sätze in der Ausführung) oder klicken Sie auf **Abbrechen**.
 
@@ -325,5 +325,5 @@ Der Agent kann optional Web-Tools verwenden, wenn für die Aufgabe eindeutig akt
 Konfigurieren Sie den Internetzugang pro AI-Profil unter **Einstellungen > AI > Internetzugang**.
 
 !!! Warnung
-**Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen**, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Überprüfung einer lokalen Datei sollten SSH-Befehle wie `sed`, `cat`, `find` oder sprachspezifische Tools verwendet werden, keine Websuche.
+    **Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen**, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Überprüfung einer lokalen Datei sollten SSH-Befehle wie `sed`, `cat`, `find` oder sprachspezifische Tools verwendet werden, keine Websuche.
 

@@ -1,8 +1,6 @@
 # Settings reference
 
-korTTY's settings live in **Configuration → Global Settings…**. They are stored
-in `~/.kortty/global-settings.xml`. This reference documents **every** setting,
-organized by tab.
+korTTY's settings live in **Configuration → Global Settings…**. They are stored in `~/.kortty/global-settings.xml`. This reference documents **every** setting, organized by tab.
 
 Each per-tab page lists settings as a table:
 
@@ -36,9 +34,7 @@ Each per-tab page lists settings as a table:
 The settings dialog also exposes **SFTP Manager**, **Editor** and **Snippet Editor** tabs, which set file-manager and Monaco-editor defaults (font, colors, cursor) for those tools.
 
 !!! info "Completeness"
-    The per-tab pages enumerate every individual setting. Coverage is verified
-    automatically against the application's setting keys, so no setting is left
-    undocumented.
+    The per-tab pages enumerate every individual setting. Coverage is verified automatically against the application's setting keys, so no setting is left undocumented.
 
 ## Visual reference
 

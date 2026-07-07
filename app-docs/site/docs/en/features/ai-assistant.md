@@ -239,17 +239,7 @@ Requirements:
 korTTY supports agent-style workflows for an active terminal session.
 
 !!! note "SSH and local shells"
-    The agent's command-execution engine is decoupled from SSH behind an
-    `AgentCommandRunner` abstraction with two backends — **SSH** (exec channel)
-    and **local** (a fresh local process). The **AI Agent** and **AI Planning**
-    therefore run both in SSH sessions and in [local shells](connections.md#local-shell)
-    on Windows, macOS and Linux: commands execute in the connection's shell
-    (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`), the environment
-    probe and system prompt are platform-aware so the model generates native
-    commands, and the same approval flow applies. **Local-shell limitations:** no
-    `sudo`/administrator elevation on Windows, and no live working-directory
-    tracking (the agent uses the connection's start directory). The JobScheduler's
-    headless AI-agent action stays SSH-only.
+    The agent's command-execution engine is decoupled from SSH behind an `AgentCommandRunner` abstraction with two backends — **SSH** (exec channel) and **local** (a fresh local process). The **AI Agent** and **AI Planning** therefore run both in SSH sessions and in [local shells](connections.md#local-shell) on Windows, macOS and Linux: commands execute in the connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`), the environment probe and system prompt are platform-aware so the model generates native commands, and the same approval flow applies. **Local-shell limitations:** no `sudo`/administrator elevation on Windows, and no live working-directory tracking (the agent uses the connection's start directory). The JobScheduler's headless AI-agent action stays SSH-only.
 
 ### Starting the agent
 
@@ -401,7 +391,4 @@ Each generated-script editor has **A−** / **A+** buttons and supports ++ctrl++
 The workflow dialog is resizable and remembers its size and position for future use.
 
 !!! tip "Clearer AI backend errors"
-    When the AI server runs out of memory or hits a resource limit (e.g. LM
-    Studio/MLX "Resource limit exceeded", "metal::malloc"), the dialog shows a
-    short, actionable hint instead of the raw multi-line backend stack trace; all
-    other AI errors are collapsed to a single line.
+    When the AI server runs out of memory or hits a resource limit (e.g. LM Studio/MLX "Resource limit exceeded", "metal::malloc"), the dialog shows a short, actionable hint instead of the raw multi-line backend stack trace; all other AI errors are collapsed to a single line.

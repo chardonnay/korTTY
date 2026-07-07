@@ -1,8 +1,6 @@
 # Menüreferenz
 
-Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (wo definiert) und was es ist
-tut. Die Menüleiste kann mit ++Strg+Umschalt+L++ ausgeblendet und mit wieder eingeblendet werden
-Klicken Sie mit der rechten Maustaste auf das Terminal oder die Statusleiste.
+Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern definiert) und seiner Funktion. Die Menüleiste kann mit ++Strg+Umschalt+L++ ausgeblendet und durch einen Rechtsklick auf das Terminal oder die Statusleiste wieder eingeblendet werden.
 
 ## Datei
 
@@ -82,8 +80,7 @@ Sehen Sie sich die [Einstellungsreferenz](settings/index.md)] für jede einzelne
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
 | KI-Schwarm… | Übertragen Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++Strg+Alt+S++) |
 
-**AI Manager** listet Ihre AI-Profile auf (jeweils mit Verbindungsmodus, Modell,
-Argumentationsaufwand, Internetzugang und Token-Budget) und Ihre gespeicherten Chats:
+**AI Manager** listet Ihre KI-Profile (jeweils mit Verbindungsmodus, Modell, Argumentationsaufwand, Internetzugang und Token-Budget) und Ihre gespeicherten Chats auf:
 
 ![AI Manager](../assets/screenshots/ai/ai-manager.png)
 
@@ -124,15 +121,9 @@ Argumentationsaufwand, Internetzugang und Token-Budget) und Ihre gespeicherten C
 
 ## macOS Dock und Menüleiste
 
-Unter macOS läuft die gepackte App weiterhin im Hintergrund (also der JobScheduler
-kann geplante Jobs ausführen), auch nachdem das letzte Fenster geschlossen wurde. korTTY also
-Fügt zwei zusätzliche Einstiegspunkte hinzu, damit es ohne Probleme erreichbar – und aufrufbar – bleibt
-Fenster geöffnet:
+Unter macOS läuft die gepackte App weiterhin im Hintergrund (damit der JobScheduler geplante Jobs ausführen kann), auch nachdem das letzte Fenster geschlossen wurde. korTTY fügt daher zwei zusätzliche Einstiegspunkte hinzu, damit es erreichbar – und beendet – bleibt, auch wenn kein Fenster geöffnet ist:
 
-- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen durchzuführen: **Neu
-Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**,
-**Über korTTY** und **Quit**.
-- **Menüleisten-(Status-)Symbol** – ein Taskleistensymbol mit **Neues Fenster** und
-**Aufhören**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
+- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen auszuführen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
+- **Symbol in der Menüleiste (Status)** – ein Symbol in der Taskleiste mit **Neues Fenster** und **Beenden**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
 
 Beide bieten ein zuverlässiges **Beenden**, selbst wenn jedes Fenster geschlossen ist.

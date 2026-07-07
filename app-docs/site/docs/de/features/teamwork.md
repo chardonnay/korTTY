@@ -28,11 +28,11 @@ Teamwork ermöglicht es Teams, eine zentrale Bibliothek von Verbindungskonfigura
 
 1. Klicken Sie auf **Hinzufügen**, um eine neue Quelle zu erstellen.
 2. Wählen Sie die Quelle **Typ**:
-- **Git** – Von einer HTTPS-, SSH- oder git://-URL klonen.
-- **Freigegebene Datei** – Von einem lokalen oder Netzwerkpfad lesen (z. B. `file:///mnt/share/connections.xml` oder `//host/share/connections.xml`).
+   - **Git** – Von einer HTTPS-, SSH- oder git://-URL klonen.
+   - **Freigegebene Datei** – Von einem lokalen oder Netzwerkpfad lesen (z. B. `file:///mnt/share/connections.xml` oder `//host/share/connections.xml`).
 3. Geben Sie den **Standort** ein:
-- Für Git: die Klon-URL.
-- Für freigegebene Dateien: ein lokaler/Netzwerk-Dateipfad (kann ein file://-URI oder ein UNC-Pfad sein).
+   - Für Git: die Klon-URL.
+   - Für freigegebene Dateien: ein lokaler/Netzwerk-Dateipfad (kann ein file://-URI oder ein UNC-Pfad sein).
 4. Stellen Sie das **Prüfintervall** ein (1–1440 Minuten; Standard: 15).
 5. Aktivieren Sie optional **Schreibgeschützt**, um Rückschreibvorgänge zu verhindern (nur Git-Quellen).
 6. Klicken Sie zum Speichern auf **OK**.
@@ -64,9 +64,9 @@ Sobald Sie die Teamwork-Einstellungen gespeichert haben:
 
 1. KorTTY startet einen Hintergrundsynchronisierungsthread.
 2. Alle N Minuten (basierend auf dem Mindestintervall zwischen aktivierten Quellen) geschieht Folgendes:
-- Zieht/klont jede Quelle (Git) oder liest die Datei (Shared File).
-- Lädt die XML-Verbindungen.
-– Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.
+   - Zieht/klont jede Quelle (Git) oder liest die Datei (Shared File).
+   - Lädt die XML-Verbindungen.
+   – Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.
 3. Wenn eine Quellaktualisierung fehlschlägt, wird die vorherige zwischengespeicherte Version beibehalten.
 
 ### Manuelle Synchronisierung
@@ -102,9 +102,9 @@ Erstellen Sie eine `kortty-teamwork-connections.xml`-Datei (oder `connections.xm
 ```
 
 !!! Warnung „Keine Inline-Geheimnisse einbeziehen“
-Teamwork-Verbindungen dürfen **nicht** `encryptedPassword`, `privateKeyPath` oder `privateKeyPassphrase` enthalten. Stattdessen:
-- Verwenden Sie `credentialId`, um auf gespeicherte Anmeldeinformationen in **Sicherheit → Anmeldeinformationen…** zu verweisen.
-- Verwenden Sie `sshKeyId`, um auf einen gespeicherten SSH-Schlüssel in **Sicherheit → SSH-Schlüssel…** zu verweisen.
+    Teamwork-Verbindungen dürfen **nicht** `encryptedPassword`, `privateKeyPath` oder `privateKeyPassphrase` enthalten. Stattdessen:
+    - Verwenden Sie `credentialId`, um auf gespeicherte Anmeldeinformationen in **Sicherheit → Anmeldeinformationen…** zu verweisen.
+    - Verwenden Sie `sshKeyId`, um auf einen gespeicherten SSH-Schlüssel in **Sicherheit → SSH-Schlüssel…** zu verweisen.
 
 Wenn in der freigegebenen Datei Inline-Geheimnisse gefunden werden, entfernt KorTTY diese automatisch (sie werden nicht geladen).
 
@@ -179,16 +179,16 @@ So teilen Sie Verbindungen über eine Datei:
 ## Sicherheitsüberlegungen
 
 !!! Warnung „Anmeldeinformationen sind nur lokal“
-Gemeinsame Verbindungen übertragen keine Passwörter oder Schlüsselpassphrasen. Ihr lokaler verschlüsselter Speicher (Master-Passwort geschützt) enthält die tatsächlichen Geheimnisse. Teammitglieder müssen ihre eigenen Anmeldeinformationen lokal eingerichtet haben.
+    Gemeinsame Verbindungen übertragen keine Passwörter oder Schlüsselpassphrasen. Ihr lokaler verschlüsselter Speicher (Master-Passwort geschützt) enthält die tatsächlichen Geheimnisse. Teammitglieder müssen ihre eigenen Anmeldeinformationen lokal eingerichtet haben.
 
 !!! Warnung „Git-Repositorys sollten keine Geheimnisse speichern“
-Übergeben Sie niemals Passwörter, SSH-Schlüsselinhalte oder API-Tokens an das Teamwork-Repository. Verwenden Sie nur Anmeldeinformations-IDs und Schlüsselreferenzen.
+    Übergeben Sie niemals Passwörter, SSH-Schlüsselinhalte oder API-Tokens an das Teamwork-Repository. Verwenden Sie nur Anmeldeinformations-IDs und Schlüsselreferenzen.
 
 !!! Warnung „Dateiberechtigungen“
-Beschränken Sie den Lese-/Schreibzugriff für freigegebene Dateien auf Netzwerkpfaden nur auf Teammitglieder. Stellen Sie sicher, dass der Pfad nicht allgemein lesbar ist.
+    Beschränken Sie den Lese-/Schreibzugriff für freigegebene Dateien auf Netzwerkpfaden nur auf Teammitglieder. Stellen Sie sicher, dass der Pfad nicht allgemein lesbar ist.
 
 !!! Tipp „Audit Trail“
-Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überprüfen Sie die Änderungen, bevor Sie sie abrufen, indem Sie den Remote-Zweig überprüfen.
+    Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überprüfen Sie die Änderungen, bevor Sie sie abrufen, indem Sie den Remote-Zweig überprüfen.
 
 ## Fehlerbehebung
 
@@ -197,8 +197,8 @@ Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überpr�
 1. Öffnen Sie **Teamwork → Teamwork-Einstellungen…**.
 2. Stellen Sie sicher, dass die Quelle **Aktiviert** ist.
 3. Überprüfen Sie, ob der **Standort** korrekt und zugänglich ist:
-- **Git** – Führen Sie `git clone <url>` zum Testen manuell aus.
-- **Freigegebene Datei** – Stellen Sie sicher, dass die Datei vorhanden und auf Ihrem Computer lesbar ist.
+   - **Git** – Führen Sie `git clone <url>` zum Testen manuell aus.
+   - **Freigegebene Datei** – Stellen Sie sicher, dass die Datei vorhanden und auf Ihrem Computer lesbar ist.
 4. Klicken Sie auf **OK**, um eine manuelle Synchronisierung auszulösen.
 5. Überprüfen Sie das Anwendungsprotokoll (`~/.kortty/kortty.log`) auf Fehler.
 

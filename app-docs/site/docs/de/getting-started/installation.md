@@ -1,7 +1,6 @@
 # Installation
 
-korTTY läuft auf **macOS, Windows und Linux**. Sie können ein vorgefertigtes Paket installieren
-oder aus dem Quellcode erstellen.
+korTTY läuft auf **macOS, Windows und Linux**. Sie können ein vorgefertigtes Paket installieren oder aus dem Quellcode erstellen.
 
 ## Systemanforderungen
 
@@ -15,21 +14,16 @@ oder aus dem Quellcode erstellen.
 
 ## Vorgefertigte Binärdateien (empfohlen)
 
-Gebrauchsfertige Pakete werden auf der veröffentlicht
-[GitHub-Releases-Seite](https://github.com/chardonnay/korTTY/releases). Jedes Asset
-Der Name beinhaltet die Architektur (`-x86_64` / `-aarch64` / `-arm64`). Wählen Sie die Datei aus
-Passend zu Ihrem System:
+Gebrauchsfertige Pakete werden auf der [GitHub Releases-Seite](https://github.com/chardonnay/korTTY/releases)] veröffentlicht. Jeder Asset-Name enthält die Architektur (`-x86_64` / `-aarch64` / `-arm64`). Wählen Sie die zu Ihrem System passende Datei aus:
 
 === "macOS"
-Nur Apple Silicon – verwenden Sie den `-aarch64` `.dmg`.
+    Nur Apple Silicon – verwenden Sie den `-aarch64` `.dmg`.
 
 === „Windows“
-Verwenden Sie `-x86_64` für Intel/AMD oder `-arm64` für Windows auf ARM. `.exe` (tragbar)
-oder `.msi` (Installateur).
+    Verwenden Sie `-x86_64` für Intel/AMD oder `-arm64` für Windows auf ARM. `.exe` (tragbar) oder `.msi` (Installer).
 
 === "Linux"
-Verwenden Sie `-x86_64` oder `-aarch64` für ARM (z. B. Raspberry Pi 4, viele Cloud
-Instanzen). Pakete: `.deb`, `.rpm`, `.tar.gz`, `.zip`.
+    Verwenden Sie `-x86_64` oder `-aarch64` für ARM (z. B. Raspberry Pi 4, viele Cloud-Instanzen). Pakete: `.deb`, `.rpm`, `.tar.gz`, `.zip`.
 
 ## Aus dem Quellcode erstellen
 
@@ -47,8 +41,7 @@ Direkt ausführen:
 
 ### Native Pakete lokal erstellen
 
-korTTY ist mit `jpackage` verpackt; Die Ausgabe entspricht der Architektur des
-Maschine bauen.
+korTTY ist mit `jpackage` verpackt; Die Ausgabe entspricht der Architektur der Build-Maschine.
 
 | Plattform | Befehl | Ausgabe |
 | --- | --- | --- |
@@ -61,10 +54,6 @@ Maschine bauen.
 | Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-<version>.rpm` |
 
 !!! Hinweis „Datenschutz im lokalen Netzwerk von macOS“
-Wenn korTTY über den Gradle-Daemon gestartet wird, wird es als untergeordnetes Element eines Hintergrunds ausgeführt
-Prozess, der keine „Lokales Netzwerk“-Berechtigung hat, also eine Verbindung zu LAN /
-Private-IP-Hosts können fehlschlagen. Starten Sie für LAN-SSH das Paket `.app` (das
-fordert beim ersten Start zum Zugriff auf das lokale Netzwerk auf) oder starten Sie korTTY als Kind
-des Terminals.
+    Wenn korTTY über den Gradle-Daemon gestartet wird, wird es als untergeordnetes Element eines Hintergrundprozesses ausgeführt, der keine Berechtigung für „Lokales Netzwerk“ hat, sodass die Verbindung zu LAN-/privaten IP-Hosts möglicherweise fehlschlägt. Starten Sie für LAN-SSH das Paket `.app` (das beim ersten Start zum Zugriff auf das lokale Netzwerk auffordert) oder starten Sie korTTY als untergeordnetes Terminal von Terminal.
 
 [Weiter: Erster Start und Master-Passwort →](first-launch.md){ .md-button }
