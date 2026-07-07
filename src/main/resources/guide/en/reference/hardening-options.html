@@ -1,6 +1,6 @@
 
 <!doctype html>
-<html lang="de" class="no-js">
+<html lang="en" class="no-js">
   <head>
     
       <meta charset="utf-8">
@@ -12,35 +12,35 @@
         <meta name="author" content="korTTY">
       
       
-        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/reference/settings/ai-skills.html">
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/en/reference/hardening-options.html">
       
       
-        <link rel="prev" href="ai.html">
+        <link rel="prev" href="config-files.html">
       
       
-        <link rel="next" href="../../features/connections.html">
+        <link rel="next" href="settings/index.html">
       
       
         
-          <link rel="alternate" href="../../en" hreflang="en">
+          <link rel="alternate" href="../en" hreflang="en">
         
-          <link rel="alternate" href="../../de" hreflang="de">
+          <link rel="alternate" href="../de" hreflang="de">
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>KI-Fähigkeiten - korTTY Anleitung</title>
+        <title>Hardening options - korTTY Guide</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -57,9 +57,9 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/kortty.css">
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -82,8 +82,8 @@
     <div data-md-component="skip">
       
         
-        <a href="#ki-fahigkeiten" class="md-skip">
-          Zum Inhalt
+        <a href="#hardening-options" class="md-skip">
+          Skip to content
         </a>
       
     </div>
@@ -97,10 +97,10 @@
   
 
 <header class="md-header md-header--shadow" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
-    <a href="../../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="korTTY Guide" class="md-header__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
       
-  <img src="../../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/kortty-logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -111,13 +111,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            korTTY Anleitung
+            korTTY Guide
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              KI-Fähigkeiten
+              Hardening options
             
           </span>
         </div>
@@ -132,9 +132,9 @@
 
 <div class="md-header__option">
   <a class="md-header__button md-icon kt-lang-switch"
-     href="../../../en/reference/settings/ai-skills.html"
-     title="English" hreflang="en">
-    <span class="kt-lang-code">EN</span>
+     href="../../de/reference/hardening-options.html"
+     title="Deutsch" hreflang="de">
+    <span class="kt-lang-code">DE</span>
   </a>
 </div>
     
@@ -149,21 +149,21 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
       <label class="md-search__icon md-icon" for="__search">
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
       </label>
-      <nav class="md-search__options" aria-label="Suche">
+      <nav class="md-search__options" aria-label="Search">
         
-          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
             
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
           </a>
         
-        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
@@ -176,7 +176,7 @@
       <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            Suche wird initialisiert
+            Initializing search
           </div>
           <ol class="md-search-result__list" role="presentation"></ol>
         </div>
@@ -212,12 +212,12 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+    <a href="../index.html" title="korTTY Guide" class="md-nav__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
       
-  <img src="../../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/kortty-logo.png" alt="logo">
 
     </a>
-    korTTY Anleitung
+    korTTY Guide
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -229,7 +229,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../index.html" class="md-nav__link">
+      <a href="../index.html" class="md-nav__link">
         
   
   
@@ -316,7 +316,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/installation.html" class="md-nav__link">
+      <a href="../getting-started/installation.html" class="md-nav__link">
         
   
   
@@ -344,14 +344,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/first-launch.html" class="md-nav__link">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Erster Start – Master-Passwort
+    First launch — master password
   
 
     
@@ -372,14 +372,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/main-window.html" class="md-nav__link">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -475,14 +475,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../menu.html" class="md-nav__link">
+      <a href="menu.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Menüreferenz
+    Menu reference
   
 
     
@@ -503,14 +503,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../keyboard-shortcuts.html" class="md-nav__link">
+      <a href="keyboard-shortcuts.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tastaturkürzel
+    Keyboard shortcuts
   
 
     
@@ -531,14 +531,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../architecture.html" class="md-nav__link">
+      <a href="architecture.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Architektur
+    Architecture
   
 
     
@@ -559,470 +559,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../config-files.html" class="md-nav__link">
+      <a href="config-files.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Konfigurationsdateien
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../hardening-options.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Härtemöglichkeiten
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    
-    
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" checked>
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="index.html" class="md-nav__link ">
-              
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Settings
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3_6">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Settings
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="appearance.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Aussehen, Themen und Schriftart
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="colors.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Farben
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="terminal.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Terminal
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="window.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Fenster
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="logging.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Protokollierung
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="backup.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sicherung
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="updates.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Aktualisierungen
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="security.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sicherheit
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="language.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sprache
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="translation.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Übersetzung
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="video.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Video
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="ai.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    KI
+    Configuration files
   
 
     
@@ -1059,7 +603,7 @@
   <span class="md-ellipsis">
     
   
-    KI-Fähigkeiten
+    Hardening options
   
 
     
@@ -1070,14 +614,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="ai-skills.html" class="md-nav__link md-nav__link--active">
+      <a href="hardening-options.html" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    KI-Fähigkeiten
+    Hardening options
   
 
     
@@ -1089,7 +633,7 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
   
   
   
@@ -1098,15 +642,15 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Inhaltsverzeichnis
+      Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#globale-einstellungen" class="md-nav__link">
+  <a href="#where-they-appear" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Globale Einstellungen
+        Where they appear
       
     </span>
   </a>
@@ -1114,10 +658,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#felder-des-skill-editors" class="md-nav__link">
+  <a href="#how-they-are-applied" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Felder des Skill-Editors
+        How they are applied
       
     </span>
   </a>
@@ -1125,10 +669,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notizen" class="md-nav__link">
+  <a href="#the-two-groups" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notizen
+        The two groups
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#option-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Option reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#behaviour-preserving-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behaviour-preserving hardening
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavioural-interactive-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavioural / interactive changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tips
       
     </span>
   </a>
@@ -1139,6 +733,460 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Appearance, themes & font
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Colors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Window
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1256,14 +1304,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/connections.html" class="md-nav__link">
+      <a href="../features/connections.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Verbindungen
+    Connections
   
 
     
@@ -1284,14 +1332,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/terminal.html" class="md-nav__link">
+      <a href="../features/terminal.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Terminalsitzungen
+    Terminal sessions
   
 
     
@@ -1312,14 +1360,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/tunnels.html" class="md-nav__link">
+      <a href="../features/tunnels.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    SSH-Tunnel (Portweiterleitung)
+    SSH Tunnels (Port Forwarding)
   
 
     
@@ -1340,14 +1388,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/jump-server.html" class="md-nav__link">
+      <a href="../features/jump-server.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Jump-Server (Bastion Host)
+    Jump Server (Bastion Host)
   
 
     
@@ -1368,14 +1416,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/sftp.html" class="md-nav__link">
+      <a href="../features/sftp.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    SFTP-Dateimanager
+    SFTP file manager
   
 
     
@@ -1396,14 +1444,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/snippets.html" class="md-nav__link">
+      <a href="../features/snippets.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Snippet-Manager
+    Snippet manager
   
 
     
@@ -1424,7 +1472,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/jobscheduler.html" class="md-nav__link">
+      <a href="../features/jobscheduler.html" class="md-nav__link">
         
   
   
@@ -1452,14 +1500,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/projects.html" class="md-nav__link">
+      <a href="../features/projects.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Projekte (Arbeitsbereiche)
+    Projects (workspaces)
   
 
     
@@ -1480,14 +1528,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/teamwork.html" class="md-nav__link">
+      <a href="../features/teamwork.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Teamarbeit (gemeinsame Verbindungen)
+    Teamwork (shared connections)
   
 
     
@@ -1508,14 +1556,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/ai-assistant.html" class="md-nav__link">
+      <a href="../features/ai-assistant.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    KI-Assistent
+    AI assistant
   
 
     
@@ -1536,14 +1584,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/ai-tools.html" class="md-nav__link">
+      <a href="../features/ai-tools.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Terminal-KI-Agent und -Tools
+    Terminal AI agent & tools
   
 
     
@@ -1564,14 +1612,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/ai-swarm.html" class="md-nav__link">
+      <a href="../features/ai-swarm.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    KI-Schwarm
+    AI Swarm
   
 
     
@@ -1592,14 +1640,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/security.html" class="md-nav__link">
+      <a href="../features/security.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+    Security — credentials, keys & encryption
   
 
     
@@ -1620,14 +1668,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/backup.html" class="md-nav__link">
+      <a href="../features/backup.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Sichern und wiederherstellen
+    Backup & restore
   
 
     
@@ -1648,14 +1696,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/recording.html" class="md-nav__link">
+      <a href="../features/recording.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Terminalaufzeichnung
+    Terminal recording
   
 
     
@@ -1676,14 +1724,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/ascii-art.html" class="md-nav__link">
+      <a href="../features/ascii-art.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII art banner
   
 
     
@@ -1704,14 +1752,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/terminal-effect-plugins.html" class="md-nav__link">
+      <a href="../features/terminal-effect-plugins.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Terminaleffekt-Plugins
+    Terminal effect plugins
   
 
     
@@ -1732,14 +1780,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/i18n.html" class="md-nav__link">
+      <a href="../features/i18n.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Sprachen und dynamische Übersetzung
+    Languages & dynamic translation
   
 
     
@@ -1827,14 +1875,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../about/release-notes.html" class="md-nav__link">
+      <a href="../about/release-notes.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Versionshinweise
+    Release notes
   
 
     
@@ -1855,14 +1903,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../about/feedback.html" class="md-nav__link">
+      <a href="../about/feedback.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Feedback und Support
+    Feedback & support
   
 
     
@@ -1883,14 +1931,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../about/anonymous-data.html" class="md-nav__link">
+      <a href="../about/anonymous-data.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Anonyme Daten zur Applikationsoptimierung
+    Anonymous data for application optimization
   
 
     
@@ -1924,7 +1972,7 @@
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
   
   
   
@@ -1933,15 +1981,15 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Inhaltsverzeichnis
+      Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#globale-einstellungen" class="md-nav__link">
+  <a href="#where-they-appear" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Globale Einstellungen
+        Where they appear
       
     </span>
   </a>
@@ -1949,10 +1997,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#felder-des-skill-editors" class="md-nav__link">
+  <a href="#how-they-are-applied" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Felder des Skill-Editors
+        How they are applied
       
     </span>
   </a>
@@ -1960,10 +2008,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notizen" class="md-nav__link">
+  <a href="#the-two-groups" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notizen
+        The two groups
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#option-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Option reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#behaviour-preserving-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behaviour-preserving hardening
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavioural-interactive-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavioural / interactive changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tips
       
     </span>
   </a>
@@ -1987,111 +2085,210 @@
 
 
 
-<h1 id="ki-fahigkeiten">KI-Fähigkeiten<a class="headerlink" href="#ki-fahigkeiten" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie benutzerdefinierte KI-Fähigkeiten, die KI-Interaktionen verbessern. Auf dieser Registerkarte können Sie eine Bibliothek mit Markdown-basierten Fertigkeiten verwalten, die automatisch oder manuell in KI-Anfragen einbezogen werden. Öffnen über <strong>Konfiguration → Globale Einstellungen → KI-Fähigkeiten</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
-<p><img alt="AI Skills settings tab" src="../../assets/screenshots/settings/ai-skills.png" /></p>
-<h2 id="globale-einstellungen">Globale Einstellungen<a class="headerlink" href="#globale-einstellungen" title="Permanent link">&para;</a></h2>
+<h1 id="hardening-options">Hardening options<a class="headerlink" href="#hardening-options" title="Permanent link">&para;</a></h1>
+<p><strong>Hardening options</strong> are a set of production-quality techniques you can ask the
+AI to bake into a script it generates or rewrites. Instead of writing the same
+instruction ("add error handling", "make it re-runnable", "give it a <code>--help</code>")
+by hand every time, you tick the techniques you want and KorTTY turns each one
+into a precise rule that is appended to the AI prompt. The result is a script
+that behaves like something a careful engineer would ship: it fails loudly
+instead of silently, cleans up after itself, logs what it does, and can be run
+again without surprises.</p>
+<p>The same eleven options are used everywhere KorTTY generates or improves a
+script, so they behave identically no matter where you start from.</p>
+<h2 id="where-they-appear">Where they appear<a class="headerlink" href="#where-they-appear" title="Permanent link">&para;</a></h2>
+<p>The <strong>Hardening options</strong> panel shows up in these places:</p>
 <table>
 <thead>
 <tr>
-<th>Einstellung</th>
-<th>Geben Sie</th>
-<th>ein Werte</th>
-<th>Standard</th>
-<th>Gespeichert als</th>
+<th>Where</th>
+<th>How it looks</th>
+<th>Applied when</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>KI-Fähigkeiten aktivieren</td>
-<td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
-<td><code>aiSkillsEnabled</code></td>
+<td><strong>Terminal → Generate Workflow Script</strong> (the <em>Workflow</em> button after an agent run)</td>
+<td>Collapsible <em>Hardening options</em> panel (collapsed by default)</td>
+<td>You click <em>Generate</em></td>
 </tr>
 <tr>
-<td>Nur passende Fähigkeiten automatisch senden</td>
-<td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
-<td><code>aiSkillAutoDetectionEnabled</code></td>
+<td><strong>AI Swarm → Generate multi-server workflow</strong></td>
+<td>Same collapsible panel</td>
+<td>You generate the multi-server script</td>
 </tr>
 <tr>
-<td>Sortieren</td>
-<td>Dropdown</td>
-<td>Alphabetisch, Status (zuerst aktiviert)</td>
-<td>Alphabetisch</td>
-<td>—</td>
+<td><strong>Snippet editor → AI Code → Improve robustness</strong></td>
+<td>Options panel with all boxes ticked</td>
+<td>You confirm the dialog</td>
+</tr>
+<tr>
+<td><strong>Snippet editor → AI Code → Custom improvement…</strong></td>
+<td>Options panel plus a free-text instruction field</td>
+<td>You confirm the dialog</td>
+</tr>
+<tr>
+<td><strong>Snippet editor → AI Code → Full code analysis</strong></td>
+<td>Collapsible <em>Hardening options</em> panel at the bottom of the window</td>
+<td>You click <em>Apply selected</em></td>
 </tr>
 </tbody>
 </table>
-<h2 id="felder-des-skill-editors">Felder des Skill-Editors<a class="headerlink" href="#felder-des-skill-editors" title="Permanent link">&para;</a></h2>
-<p>Wenn Sie eine Fertigkeit auswählen oder erstellen, werden im rechten Bereich Felder pro Fertigkeit angezeigt. Jede Fertigkeit wird einzeln in der Fertigkeitsliste gespeichert.</p>
-<table>
-<thead>
-<tr>
-<th>Einstellung</th>
-<th>Geben Sie</th>
-<th>ein Werte</th>
-<th>Standard</th>
-<th>Gespeichert als</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Fähigkeitsname</td>
-<td>Text</td>
-<td>—</td>
-<td>„KI-Fähigkeit“</td>
-<td><code>name</code> (auf AiSkill-Objekt)</td>
-</tr>
-<tr>
-<td>Beschreibung</td>
-<td>Text</td>
-<td>—</td>
-<td>—</td>
-<td><code>description</code></td>
-</tr>
-<tr>
-<td>Schlagworte</td>
-<td>Text</td>
-<td>Durch Kommas getrennte Tags (z. B. Linux, Bash)</td>
-<td>—</td>
-<td><code>tags</code></td>
-</tr>
-<tr>
-<td>Ziel</td>
-<td>Dropdown</td>
-<td>KI-Chat/-Funktionen, KI-Agent, Beide, Verbindung</td>
-<td>Beide</td>
-<td><code>target</code></td>
-</tr>
-<tr>
-<td>Aktiv</td>
-<td>umschalten</td>
-<td>—</td>
-<td>Aus</td>
-<td><code>enabled</code></td>
-</tr>
-<tr>
-<td>Fertigkeitsabschlag</td>
-<td>Text</td>
-<td>Markdown-formatierte Fertigkeitsinhalte</td>
-<td>—</td>
-<td><code>content</code></td>
-</tr>
-</tbody>
-</table>
-<h2 id="notizen">Notizen<a class="headerlink" href="#notizen" title="Permanent link">&para;</a></h2>
-<p>!!! Hinweis „Verhalten der automatischen Erkennung“
-Wenn <strong>Nur übereinstimmende Fertigkeiten automatisch senden</strong> aktiviert ist, wertet korTTY die Tags jeder Fertigkeit anhand der aktuellen Anfrage aus und schließt nur diejenigen ein, die übereinstimmen. Wenn diese Option deaktiviert ist, werden alle aktiven Fertigkeiten unabhängig von den Tags gesendet.</p>
-<p>!!! Hinweis „Fähigkeitsziele“
-- <strong>KI-Chat/Funktionen</strong>: Fähigkeiten, die in KI-Chat- und Funktionsaufrufkontexten verfügbar sind
-- <strong>KI-Agent</strong>: Vom Terminal-KI-Agenten verwendete Fähigkeiten
-- <strong>Beide</strong>: Verfügbar sowohl für AI Chat- als auch für AI Agent-Kontexte
-- <strong>Verbindung</strong>: Spezielle Fähigkeiten für die Handhabung von SSH-Verbindungen</p>
-<p>!!! Hinweis „Skill-Lebenszyklus“
-Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie <strong>Importieren</strong>, um Fertigkeiten aus Markdown-Dateien zu laden, und <strong>Exportieren</strong>, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden.</p>
+<div class="admonition note">
+<p class="admonition-title">Not shown for every action</p>
+<p><em>Improve readability</em> and <em>Improve performance</em> deliberately do <strong>not</strong> show
+hardening options — those actions are meant to stay close to the original
+code. Hardening options appear only where adding robustness is the point:
+<em>Improve robustness</em>, <em>Custom improvement</em>, <em>Full code analysis</em>, and the two
+workflow-script generators.</p>
+</div>
+<p>Every option is <strong>ticked by default</strong>. Untick the ones you do not want. An
+unticked option contributes nothing to the prompt.</p>
+<h2 id="how-they-are-applied">How they are applied<a class="headerlink" href="#how-they-are-applied" title="Permanent link">&para;</a></h2>
+<p>Each ticked option becomes exactly one instruction line that KorTTY appends to
+the request sent to the AI (under <em>Apply these hardening techniques:</em> in the
+snippet editor, or <em>ADDITIONAL REQUIREMENTS:</em> in the workflow generator). The AI
+is then asked to honour those rules while producing the script.</p>
+<p>The wording of each rule <strong>adapts to the target language</strong>:</p>
+<ul>
+<li><strong>Imperative scripts</strong> — Bash, Python, Perl, Ruby, PowerShell, Windows-CMD and
+  AppleScript get the imperative phrasing (flags, traps, exit codes, …).</li>
+<li><strong>Declarative artefacts</strong> — Ansible playbooks, and snippets whose language is
+  <code>YAML</code>/<code>YML</code> or contains <code>ansible</code>, get Ansible-idiomatic phrasing instead
+  (<code>block</code>/<code>rescue</code>/<code>always</code>, <code>assert</code>, <code>vars:</code>, check mode, …).</li>
+</ul>
+<p>So the <em>idea</em> of each option is the same everywhere, but a Bash script gets a
+<code>set -euo pipefail</code> style rule while an Ansible playbook gets an <code>assert</code> /
+<code>failed_when</code> style rule for the very same tick-box.</p>
+<h2 id="the-two-groups">The two groups<a class="headerlink" href="#the-two-groups" title="Permanent link">&para;</a></h2>
+<p>The eleven options fall into two groups by their effect on the script:</p>
+<ul>
+<li><strong>Behaviour-preserving hardening</strong> (the first seven) only add documentation,
+  logging, structure, and safety nets. They make the script sturdier and easier
+  to read <strong>without changing what it actually does</strong>. These are safe to leave on
+  for almost any script.</li>
+<li><strong>Behavioural / interactive changes</strong> (the last four) can change control flow
+  or add a command-line interface — precondition gates, re-run detection, a
+  dry-run mode, argument parsing. Leave them off if you want the rewrite to stay
+  as close as possible to the original behaviour.</li>
+</ul>
+<h2 id="option-reference">Option reference<a class="headerlink" href="#option-reference" title="Permanent link">&para;</a></h2>
+<p>Each option below lists what it is for and the exact rule KorTTY sends to the
+AI — for imperative scripts and for Ansible playbooks.</p>
+<h3 id="behaviour-preserving-hardening">Behaviour-preserving hardening<a class="headerlink" href="#behaviour-preserving-hardening" title="Permanent link">&para;</a></h3>
+<h4 id="strict-mode-abort-on-error">Strict mode (abort on error)<a class="headerlink" href="#strict-mode-abort-on-error" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Stop the script the moment something goes wrong instead of
+  blindly continuing on a half-failed state.</li>
+<li><strong>Imperative scripts</strong> — Enable the language's strict / abort-on-error mode (for
+  example <code>set -euo pipefail</code> in Bash, <code>Set-StrictMode -Version Latest</code> with
+  <code>$ErrorActionPreference = 'Stop'</code> in PowerShell, <code>use strict; use warnings;</code> in
+  Perl).</li>
+<li><strong>Ansible playbooks</strong> — Validate prerequisites with <code>assert</code>/<code>failed_when</code> so
+  bad state fails the play immediately.</li>
+</ul>
+<h4 id="error-trap-cleanup">Error trap &amp; cleanup<a class="headerlink" href="#error-trap-cleanup" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Guarantee that a failure is reported clearly and that any
+  temporary state (temp files, mounts, locks) is cleaned up even when the script
+  aborts.</li>
+<li><strong>Imperative scripts</strong> — Add an error trap / <code>finally</code> / <code>ensure</code> block that
+  reports failures and cleans up temporary state.</li>
+<li><strong>Ansible playbooks</strong> — Use <code>block</code>/<code>rescue</code>/<code>always</code> so failures are caught and
+  cleanup always runs.</li>
+</ul>
+<h4 id="meaningful-exit-codes">Meaningful exit codes<a class="headerlink" href="#meaningful-exit-codes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Let whoever calls the script (a scheduler, a CI job,
+  another script) tell <em>why</em> it failed, not just <em>that</em> it failed.</li>
+<li><strong>Imperative scripts</strong> — Use distinct, documented non-zero exit codes for
+  distinct failure classes.</li>
+<li><strong>Ansible playbooks</strong> — Make failing tasks stop the play with a clear message
+  (<code>any_errors_fatal</code> where sensible).</li>
+</ul>
+<h4 id="logging-verbose">Logging (<code>--verbose</code>)<a class="headerlink" href="#logging-verbose" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Make the script's progress visible and debuggable without
+  cluttering normal output.</li>
+<li><strong>Imperative scripts</strong> — Emit timestamped log messages to stderr and support a
+  <code>--verbose</code>/<code>-v</code> flag.</li>
+<li><strong>Ansible playbooks</strong> — Use the <code>debug</code> module for progress output (visible with
+  <code>-v</code>).</li>
+</ul>
+<h4 id="configuration-block-for-literals">Configuration block for literals<a class="headerlink" href="#configuration-block-for-literals" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Collect the values you are most likely to change (paths,
+  hostnames, package names) in one obvious place instead of scattering them
+  through the script.</li>
+<li><strong>Imperative scripts</strong> — Hoist all literals (paths, hosts, packages) into a
+  clearly commented configuration block near the top.</li>
+<li><strong>Ansible playbooks</strong> — Hoist all literals into a <code>vars:</code> block at the top.</li>
+</ul>
+<h4 id="final-summary">Final summary<a class="headerlink" href="#final-summary" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — End with a short report so the operator can see at a glance
+  what happened.</li>
+<li><strong>Imperative scripts</strong> — Print a final summary of what was done (with
+  success/failure counts).</li>
+<li><strong>Ansible playbooks</strong> — End with a <code>debug</code> summary of what changed.</li>
+</ul>
+<h4 id="style-guide-linter-clean">Style-guide / linter clean<a class="headerlink" href="#style-guide-linter-clean" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Produce code that passes the language's standard linter, so
+  it reads consistently and avoids common footguns.</li>
+<li><strong>Imperative scripts</strong> — Follow the language style guide and keep it
+  linter-clean (for example ShellCheck-clean for Bash).</li>
+<li><strong>Ansible playbooks</strong> — Follow <code>ansible-lint</code> conventions and use
+  fully-qualified module names.</li>
+</ul>
+<h3 id="behavioural-interactive-changes">Behavioural / interactive changes<a class="headerlink" href="#behavioural-interactive-changes" title="Permanent link">&para;</a></h3>
+<h4 id="precondition-checks">Precondition checks<a class="headerlink" href="#precondition-checks" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Fail fast, before touching anything, if the environment
+  isn't ready — a missing command, insufficient privileges, or no network.</li>
+<li><strong>Imperative scripts</strong> — Before doing work, verify required commands, privileges
+  (root/sudo) and connectivity.</li>
+<li><strong>Ansible playbooks</strong> — Add <code>pre_tasks</code>/<code>assert</code> checks for required privileges,
+  packages and connectivity before any change.</li>
+</ul>
+<h4 id="idempotency-skip-completed-steps">Idempotency (skip completed steps)<a class="headerlink" href="#idempotency-skip-completed-steps" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Make the script safe to run a second time: steps that are
+  already done are detected and skipped instead of repeated or erroring out.</li>
+<li><strong>Imperative scripts</strong> — Detect already-completed steps and skip them so the
+  script is safe to re-run.</li>
+<li><strong>Ansible playbooks</strong> — Ensure the playbook is fully idempotent (safe to re-run;
+  rely on module idempotency and <code>creates</code>/<code>removes</code>).</li>
+</ul>
+<h4 id="safe-mode-dry-run-confirm">Safe mode (<code>--dry-run</code> + confirm)<a class="headerlink" href="#safe-mode-dry-run-confirm" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Let the operator preview what the script <em>would</em> do without
+  making any changes, and ask for confirmation before anything destructive.</li>
+<li><strong>Imperative scripts</strong> — Support a <code>--dry-run</code> flag that prints intended actions
+  without executing, and confirm before destructive operations (suppressible with
+  <code>--yes</code>).</li>
+<li><strong>Ansible playbooks</strong> — Support check mode (<code>--check</code>) and guard destructive
+  tasks so a dry run makes no changes.</li>
+</ul>
+<h4 id="-help-argument-parsing"><code>--help</code> &amp; argument parsing<a class="headerlink" href="#-help-argument-parsing" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>What it is for</strong> — Turn the script into a proper command-line tool with
+  documented, overridable inputs instead of hard-coded values.</li>
+<li><strong>Imperative scripts</strong> — Provide a <code>--help</code>/usage message and parse command-line
+  arguments for the configurable values.</li>
+<li><strong>Ansible playbooks</strong> — Document all variables and how to override them via
+  <code>--extra-vars</code> at the top of the file.</li>
+</ul>
+<h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Start with the defaults (all on) for a throwaway or personal script — the
+  behaviour-preserving group costs you nothing and the interactive group makes
+  the script friendlier.</li>
+<li>For a rewrite where you want the smallest possible diff, untick the four
+  behavioural options and keep only the behaviour-preserving group.</li>
+<li>The options are independent — you can tick any combination. KorTTY only sends
+  rules for the boxes that are ticked.</li>
+</ul>
 
 
 
@@ -2120,7 +2317,7 @@ Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeiche
           <button type="button" class="md-top md-icon" data-md-component="top" hidden>
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
-  Zurück zum Seitenanfang
+  Back to top
 </button>
         
       </main>
@@ -2133,7 +2330,7 @@ Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeiche
 
 
 <div class="md-copyright">
-  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
     korTTY <strong>v2.4.0</strong>
   </div>
@@ -2165,10 +2362,10 @@ Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeiche
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
