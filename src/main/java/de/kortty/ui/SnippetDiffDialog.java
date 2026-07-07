@@ -10,6 +10,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import javafx.stage.Window;
 
 import java.util.Objects;
@@ -32,6 +33,9 @@ public class SnippetDiffDialog extends ThemeAwareDialog<Void> {
 
         setTitle(I18n.get("snippets.diff.title"));
         setResizable(true);
+        // Non-modal like the other snippet windows: a JavaFX Dialog defaults to APPLICATION_MODAL, which
+        // would lock the whole app (including the main window) while this persistent diff window is open.
+        initModality(Modality.NONE);
         if (owner != null) {
             initOwner(owner);
         }
