@@ -121,6 +121,10 @@ pages:
     screenshots:
       - settings/window.png
     last_synced_ref: "0395363"
+  - path: app-docs/site/docs/en/reference/settings/resources.md
+    owns_i18n: [settings.resources.]
+    owns_code: [src/main/java/de/kortty/model/JvmResourceProfile.java, src/main/java/de/kortty/JvmRelauncher.java]
+    last_synced_ref: "fddb9e7"
   - path: app-docs/site/docs/en/reference/settings/logging.md
     owns_i18n: [settings.logging.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]

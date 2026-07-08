@@ -645,6 +645,8 @@
       
         
       
+        
+      
     
     
     
@@ -795,6 +797,34 @@
     
   
     Window
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/resources.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resources
   
 
     
@@ -2863,6 +2893,7 @@
 <ul>
 <li><strong>Much lower memory use</strong> — AI chat tabs, file editors and the snippet AI windows now release their embedded browser engines (Monaco/WebView) when they are closed, when chat messages are re-rendered after a font-size change, and when solutions or scripts are regenerated; closing a split pane now also frees its scrollback buffer and timers. Long sessions with many chats, editors and splits no longer accumulate memory.</li>
 <li><strong>Bounded memory footprint</strong> — the packaged application now runs with a 2 GB Java heap ceiling and periodically returns unused memory to the operating system when idle.</li>
+<li><strong>Opt-in resource profile</strong> — a new <strong>Configuration → Global Settings → Resources</strong> tab lets you trade that low footprint for more of your machine's resources when you need it: <strong>High</strong> raises the heap to about half your RAM, and <strong>Maximum</strong> goes to about three quarters with the low-pause Z garbage collector. The default (<strong>Balanced</strong>) is unchanged. See <a href="../reference/settings/resources.html">Resources</a>.</li>
 <li><strong>Smaller downloads and installs</strong> — the bundled formatter runtime and the embedded Java runtime were trimmed and compressed, the macOS disk image now uses stronger (LZMA) compression, and the offline guide no longer ships developer sourcemaps or unused search components. Installations shrink by roughly 150 MB, downloads by 25–40 %.</li>
 <li><strong>Date and number formats</strong> — the installed application bundles Java locale data only for the 8 supported interface languages; on operating-system locales outside this list, dates and numbers are formatted using English conventions.</li>
 </ul>

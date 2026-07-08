@@ -645,6 +645,8 @@
       
         
       
+        
+      
     
     
     
@@ -795,6 +797,34 @@
     
   
     Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/resources.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ressourcen
   
 
     
@@ -2863,7 +2893,8 @@
 <ul>
 <li><strong>Viel geringerer Speicherverbrauch</strong> – KI-Chat-Registerkarten, Dateieditoren und die Snippet-KI-Fenster geben jetzt ihre eingebetteten Browser-Engines (Monaco/WebView) frei, wenn sie geschlossen werden, wenn Chat-Nachrichten nach einer Änderung der Schriftgröße neu gerendert werden und wenn Lösungen oder Skripte neu generiert werden; das Schließen eines geteilten Bereichs gibt jetzt auch dessen Scrollback-Puffer und Timer frei. Lange Sitzungen mit vielen Chats, Editoren und geteilten Bereichen sammeln keinen Speicher mehr an.</li>
 <li><strong>Begrenzter Speicherbedarf</strong> – die paketierte Anwendung läuft jetzt mit einer Java-Heap-Obergrenze von 2 GB und gibt ungenutzten Speicher im Leerlauf regelmäßig an das Betriebssystem zurück.</li>
-<li><strong>Kleinere Downloads und Installationen</strong> – die mitgelieferte Formatter-Laufzeit und die eingebettete Java-Laufzeit wurden verschlankt und komprimiert, das macOS-Disk-Image nutzt jetzt eine stärkere (LZMA-)Kompression, und das Offline-Handbuch enthält keine Entwickler-Sourcemaps und ungenutzten Suchkomponenten mehr. Installationen schrumpfen um rund 150 MB, Downloads um 25–40 %.</li>
+<li><strong>Opt-in-Ressourcenprofil</strong> – über einen neuen Reiter <strong>Konfiguration → Globale Einstellungen → Ressourcen</strong> können Sie diesen geringen Speicherbedarf bei Bedarf gegen mehr Ressourcen Ihres Rechners eintauschen: <strong>Hoch</strong> erhöht den Heap auf etwa die Hälfte Ihres RAM, <strong>Maximal</strong> auf etwa drei Viertel mit dem pausenarmen Z-Garbage-Collector. Die Voreinstellung (<strong>Ausbalanciert</strong>) bleibt unverändert. Siehe <a href="../reference/settings/resources.html">Ressourcen</a>.</li>
+<li><strong>Kleinere Downloads und Installationen</strong> – die mitgelieferte Formatter-Laufzeit und die eingebettete Java-Laufzeit wurden verschlankt und komprimiert, das macOS-Disk-Image nutzt jetzt eine stärkere (LZMA-)Kompression, und das Offline-Anleitung enthält keine Entwickler-Sourcemaps und ungenutzten Suchkomponenten mehr. Installationen schrumpfen um rund 150 MB, Downloads um 25–40 %.</li>
 <li><strong>Datums- und Zahlenformate</strong> – die installierte Anwendung bündelt Java-Gebietsschemadaten nur für die 8 unterstützten Oberflächensprachen; bei Betriebssystem-Gebietsschemata außerhalb dieser Liste werden Datums- und Zahlenangaben nach englischen Konventionen formatiert.</li>
 </ul>
 <h2 id="v240">v2.4.0<a class="headerlink" href="#v240" title="Permanent link">&para;</a></h2>
