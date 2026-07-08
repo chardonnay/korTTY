@@ -440,9 +440,15 @@ tasks.register("copyBundledNode") {
             ?: throw GradleException("Could not find unpacked Node.js root for $archiveName")
         val target = bundledFormatterDir.get().asFile.resolve("node")
         delete(target)
+        // Only the node binary is executed at runtime (CodeFormatterService.findBundledNode);
+        // npm/corepack/include/share would add ~80 MB, and their bin/ symlinks would dangle
+        // after a partial trim (a codesign/notarization hazard) — hence an include-list.
         copy {
             from(unpackedRoot)
             into(target)
+            include("bin/node")   // Unix archive layout
+            include("node.exe")   // Windows archive layout (node.exe at the root)
+            include("LICENSE")
         }
         val nodeExecutable = if (isWindows) target.resolve("node.exe") else target.resolve("bin/node")
         nodeExecutable.setExecutable(true, false)
@@ -639,6 +645,14 @@ tasks.named<ProcessResources>("processResources") {
     from(chatRenderGeneratedResourceDir) {
         into("")
     }
+    // Jar slimming: sourcemaps and the Thai/Japanese search segmenters are dead weight in the
+    // bundled guide (UI languages are en/de; lunr loads wordcut/tinyseg only for th/ja). The
+    // .icns/.ico are packaging-only inputs that jpackage reads from the source tree, not the jar.
+    exclude("guide/**/*.map")
+    exclude("guide/**/assets/javascripts/lunr/wordcut.js")
+    exclude("guide/**/assets/javascripts/lunr/tinyseg.js")
+    exclude("icon/kortty_icon.icns")
+    exclude("icon/kortty_icon.ico")
 }
 
 // ---- AI-chat diagram/math rendering assets (mermaid + MathJax) ----------------
@@ -870,6 +884,11 @@ tasks.register("copyBundledSqlFormatter") {
         delete(target)
         copy {
             from(tarTree(resources.gzip(archive))) {
+                // The runner script below requires only dist/sql-formatter.min.cjs; the
+                // cjs/esm module trees and sourcemaps in the tarball are dead weight (~4 MB).
+                include("package/dist/sql-formatter.min.cjs")
+                include("package/LICENSE")
+                include("package/package.json")
                 eachFile { stripFirstPathSegment(this) }
                 includeEmptyDirs = false
             }
