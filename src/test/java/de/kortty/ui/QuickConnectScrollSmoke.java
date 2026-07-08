@@ -16,6 +16,8 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
+import javafx.scene.text.Text;
 import javafx.scene.transform.Transform;
 
 import javax.imageio.ImageIO;
@@ -131,6 +133,30 @@ public final class QuickConnectScrollSmoke {
                 + "); scroll would not engage");
         }
 
+        // Section titles must be readable on the dark theme (the base dialog CSS previously had no
+        // titled-pane rule, so the title text fell back to a near-black default).
+        for (TitledPane section : sections) {
+            Node titleText = section.lookup(".title .text");
+            if (!(titleText instanceof Text text)) {
+                throw new IllegalStateException("Could not find title text node for section: " + section.getText());
+            }
+            double brightness = brightnessOf(text.getFill());
+            System.out.println("  title '" + section.getText() + "' fill=" + text.getFill() + " brightness=" + brightness);
+            if (brightness < 0.5) {
+                throw new IllegalStateException("Section title '" + section.getText()
+                    + "' is too dark to read on the dark theme (brightness " + brightness + ")");
+            }
+        }
+
+        // Snapshot at natural height so the (now readable) section titles are visible in the image.
+        double naturalHeight = contentHeight + 120;
+        pane.setPrefSize(WIDTH, naturalHeight);
+        pane.setMinSize(WIDTH, naturalHeight);
+        pane.setMaxSize(WIDTH, naturalHeight);
+        pane.applyCss();
+        pane.resize(WIDTH, naturalHeight);
+        pane.layout();
+
         SnapshotParameters params = new SnapshotParameters();
         params.setFill(Color.web("#1e1e1e"));
         params.setTransform(Transform.scale(2, 2));
@@ -161,6 +187,10 @@ public final class QuickConnectScrollSmoke {
                 collectTitledPanes(child, out);
             }
         }
+    }
+
+    private static double brightnessOf(Paint paint) {
+        return paint instanceof Color color ? color.getBrightness() : 1.0;
     }
 
     private static ScrollBar verticalScrollBar(ScrollPane scrollPane) {
