@@ -147,10 +147,11 @@ public final class SnippetDiagramSupport {
 
     /**
      * Rewrites {@code source} for a dark canvas: known light activity-node colours are swapped for dark
-     * equivalents, and a skinparam block sets a dark background plus light connectors, borders, diamonds,
-     * notes and default font so the whole diagram (not just the page padding) reads on dark. Nodes carrying
-     * an unknown explicit colour keep it (light node cards stay legible on the dark canvas). Safe to call on
-     * any source; returns "" for blank/unrenderable input.
+     * equivalents, ANY other light explicit node colour the AI may have picked is darkened to a same-hue
+     * dark tint, and a skinparam block sets a dark background plus light connectors, borders, diamonds,
+     * notes and default font so the whole diagram reads on dark. This keeps the light default font legible
+     * on every card (a light card would otherwise render light-on-light). Safe to call on any source;
+     * returns "" for blank/unrenderable input.
      */
     public static String applyDarkMode(String source) {
         String value = normalizePlantUml(source);
@@ -160,6 +161,10 @@ public final class SnippetDiagramSupport {
         value = replaceColorIgnoreCase(value, COLOR_SETUP, DARK_SETUP);
         value = replaceColorIgnoreCase(value, COLOR_MAIN, DARK_MAIN);
         value = replaceColorIgnoreCase(value, COLOR_FAILURE, DARK_FAILURE);
+        // The AI is free to pick its own <<#RRGGBB>> palette beyond the three semantic colours (e.g. a
+        // cream "skip" card). Any such light fill would be unreadable under the light default font, so
+        // darken every remaining light node stereotype to a same-hue dark tint. Already-dark fills stay.
+        value = darkenLightActivityStereotypes(value);
         String block = String.join("\n",
             "skinparam backgroundColor " + DARK_BACKGROUND_COLOR,
             "skinparam defaultFontColor " + DARK_FOREGROUND,
@@ -183,6 +188,45 @@ public final class SnippetDiagramSupport {
     private static String replaceColorIgnoreCase(String value, String from, String to) {
         return Pattern.compile(Pattern.quote(from), Pattern.CASE_INSENSITIVE)
             .matcher(value).replaceAll(Matcher.quoteReplacement(to));
+    }
+
+    private static final Pattern ACTIVITY_STEREOTYPE_COLOR =
+        Pattern.compile("<<\\s*#([0-9A-Fa-f]{6})\\s*>>");
+
+    /**
+     * Darkens every light {@code <<#RRGGBB>>} activity-node stereotype to a same-hue dark tint so the
+     * light dark-mode font stays readable on it. Already-dark fills (including the swapped DARK_* ones)
+     * are left untouched. Covers arbitrary palette colours the AI may pick beyond the three semantic ones.
+     */
+    private static String darkenLightActivityStereotypes(String value) {
+        Matcher matcher = ACTIVITY_STEREOTYPE_COLOR.matcher(value);
+        StringBuilder builder = new StringBuilder();
+        while (matcher.find()) {
+            String hex = matcher.group(1);
+            String replacement = isLightColor(hex) ? "<<#" + darkTint(hex) + ">>" : matcher.group();
+            matcher.appendReplacement(builder, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(builder);
+        return builder.toString();
+    }
+
+    /** True when the colour is bright enough that light dark-mode text would be hard to read on it. */
+    private static boolean isLightColor(String hex) {
+        int r = Integer.parseInt(hex.substring(0, 2), 16);
+        int g = Integer.parseInt(hex.substring(2, 4), 16);
+        int b = Integer.parseInt(hex.substring(4, 6), 16);
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255.0 > 0.5;
+    }
+
+    /** Same hue, dark brightness, saturation lifted so pastel fills still read as a tint (not flat grey). */
+    private static String darkTint(String hex) {
+        int r = Integer.parseInt(hex.substring(0, 2), 16);
+        int g = Integer.parseInt(hex.substring(2, 4), 16);
+        int b = Integer.parseInt(hex.substring(4, 6), 16);
+        float[] hsb = java.awt.Color.RGBtoHSB(r, g, b, null);
+        float saturation = Math.min(0.45f, Math.max(0.22f, hsb[1] * 2.0f));
+        java.awt.Color tint = java.awt.Color.getHSBColor(hsb[0], saturation, 0.22f);
+        return String.format(Locale.ROOT, "%02X%02X%02X", tint.getRed(), tint.getGreen(), tint.getBlue());
     }
 
     /** Inserts {@code block} right after the first line (the {@code @startuml} line) of a normalized source. */
