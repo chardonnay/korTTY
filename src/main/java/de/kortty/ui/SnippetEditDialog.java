@@ -3281,6 +3281,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.analysis.fix.empty"));
                 return;
             }
+            // Guard against a degenerate reply (e.g. a bare "$code") wiping the whole snippet.
+            if (SnippetAiResponseSupport.isDegenerateFullReplacement(originalContent, fix.replacement())) {
+                setStatus(I18n.get("snippets.ai.fix.degenerate"));
+                return;
+            }
             SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
                 I18n.get("snippets.ai.analysis.diff.title"),
@@ -3755,6 +3760,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             SnippetAiResponseSupport.SnippetSecurityFix fix = task.getValue();
             if (fix == null || !fix.isUsable()) {
                 setStatus(I18n.get("snippets.ai.security.fix.empty"));
+                return;
+            }
+            // Guard against a degenerate reply (e.g. a bare "$code") wiping the whole snippet.
+            if (SnippetAiResponseSupport.isDegenerateFullReplacement(originalContent, fix.replacement())) {
+                setStatus(I18n.get("snippets.ai.fix.degenerate"));
                 return;
             }
             SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(

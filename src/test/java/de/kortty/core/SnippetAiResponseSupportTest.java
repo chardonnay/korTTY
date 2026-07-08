@@ -467,4 +467,25 @@ class SnippetAiResponseSupportTest {
         assertThat(empty.summary()).isEmpty();
         assertThat(empty.improvements()).isEmpty();
     }
+
+    @Test
+    void isDegenerateFullReplacementRejectsBareTokensAndTinyCollapses() {
+        String realScript = "#!/usr/bin/perl\nuse strict;\nuse warnings;\n"
+            + "my $log = shift or die \"usage\";\nopen my $fh, '<', $log or die $!;\n"
+            + "while (my $line = <$fh>) { print $line if $line =~ /error/i; }\nclose $fh;\n";
+
+        // The reported failure: a bare "$code" (or similar) must be rejected — never applied.
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "$code")).isTrue();
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "${code}")).isTrue();
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "code")).isTrue();
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "  \n ")).isTrue();
+        // A multi-line body collapsing to a tiny single line is also degenerate.
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "print 1;")).isTrue();
+
+        // A genuine improved snippet (comparable size, multi-line) must pass.
+        String improved = realScript + "\n# hardened: added error handling and exit codes\nexit 0;\n";
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, improved)).isFalse();
+        // Short originals are never guarded (nothing substantial to lose).
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement("echo hi", "ls")).isFalse();
+    }
 }
