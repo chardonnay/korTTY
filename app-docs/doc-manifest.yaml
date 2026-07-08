@@ -67,7 +67,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png]
-    last_synced_ref: "0395363"
+    last_synced_ref: "0d15d06"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
@@ -114,7 +114,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
     screenshots:
       - settings/terminal.png
-    last_synced_ref: "0395363"
+    last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/reference/settings/window.md
     owns_i18n: [settings.window.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
@@ -150,7 +150,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/LanguageManager.java]
     screenshots:
       - settings/language.png
-    last_synced_ref: "8250396"
+    last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/reference/settings/translation.md
     owns_i18n: [settings.translation.]
     owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java]
@@ -162,7 +162,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
     screenshots:
       - settings/video.png
-    last_synced_ref: "0395363"
+    last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/reference/settings/ai.md
     owns_i18n: [settings.ai.]
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
@@ -186,7 +186,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "4c5af99"
+    last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/model]
@@ -236,7 +236,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]
     diagrams: [swarm-status-strip.svg]
     screenshots: [ai/swarm-status-strip-states.png, ai/swarm-status-strip-many.png]
-    last_synced_ref: "dcff3f4"
+    last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/features/security.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/security]

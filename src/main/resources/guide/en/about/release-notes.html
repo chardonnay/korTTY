@@ -1849,6 +1849,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#performance-footprint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance &amp; footprint
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2392,6 +2403,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#performance-footprint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance &amp; footprint
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2835,6 +2857,14 @@
 <li><strong>Adjustable terminal background transparency</strong> — <strong>View → Zoom → Background Transparency</strong> is a new slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays fully opaque and sharp. The value is saved across restarts. Only the terminal area turns transparent — the title, menu and status bars stay solid. Because see-through mode uses a borderless window, turning it on or off takes effect after a restart; in that mode a lightweight custom title bar provides move, resize, minimise, maximise and close. Adjusting the level while already transparent applies live.</li>
 <li><strong>Quieter tab close</strong> — closing a terminal tab now only asks for confirmation when there is something to lose: the tab has split panes, or a command is still running (detected from the local shell's process tree, or from the SSH shell prompt). An idle single terminal closes immediately. The per-connection <em>Close without confirmation</em> option still suppresses the prompt entirely.</li>
 <li><strong>Clearer context-menu label</strong> — the terminal right-click action that loads a selected remote file into the snippet editor is now called <strong>Open in Snippet Editor</strong> (previously <em>Load as text file</em>).</li>
+<li><strong>Scrollback setting now works</strong> — the <strong>Scrollback</strong> value under <strong>Configuration → Global Settings → Terminal</strong> (100–100,000 lines) is now actually applied to the terminal buffer; it was previously ignored and every pane used a fixed 10,000 lines. The value is read when a terminal is created, so it applies to newly opened tabs and split panes.</li>
+</ul>
+<h3 id="performance-footprint">Performance &amp; footprint<a class="headerlink" href="#performance-footprint" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Much lower memory use</strong> — AI chat tabs, file editors and the snippet AI windows now release their embedded browser engines (Monaco/WebView) when they are closed, when chat messages are re-rendered after a font-size change, and when solutions or scripts are regenerated; closing a split pane now also frees its scrollback buffer and timers. Long sessions with many chats, editors and splits no longer accumulate memory.</li>
+<li><strong>Bounded memory footprint</strong> — the packaged application now runs with a 2 GB Java heap ceiling and periodically returns unused memory to the operating system when idle.</li>
+<li><strong>Smaller downloads and installs</strong> — the bundled formatter runtime and the embedded Java runtime were trimmed and compressed, the macOS disk image now uses stronger (LZMA) compression, and the offline guide no longer ships developer sourcemaps or unused search components. Installations shrink by roughly 150 MB, downloads by 25–40 %.</li>
+<li><strong>Date and number formats</strong> — the installed application bundles Java locale data only for the 8 supported interface languages; on operating-system locales outside this list, dates and numbers are formatted using English conventions.</li>
 </ul>
 <h2 id="v240">v2.4.0<a class="headerlink" href="#v240" title="Permanent link">&para;</a></h2>
 <h3 id="terminal-effects">Terminal Effects<a class="headerlink" href="#terminal-effects" title="Permanent link">&para;</a></h3>

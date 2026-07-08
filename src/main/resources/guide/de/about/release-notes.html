@@ -1849,6 +1849,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#leistung-und-speicherbedarf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leistung und Speicherbedarf
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2392,6 +2403,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#leistung-und-speicherbedarf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leistung und Speicherbedarf
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2835,6 +2857,14 @@
 <li><strong>Anpassbare Terminal-Hintergrundtransparenz</strong> – <strong>Ansicht → Zoom → Hintergrundtransparenz</strong> ist ein neuer Schieberegler (0–100 %), der den Terminal-Hintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Der Wert wird über Neustarts hinweg gespeichert. Nur der Terminalbereich wird transparent – ​​Titel, Menü und Statusleiste bleiben einfarbig. Da der Durchsichtmodus ein randloses Fenster verwendet, wird das Ein- oder Ausschalten erst nach einem Neustart wirksam. In diesem Modus ermöglicht eine schlanke benutzerdefinierte Titelleiste das Verschieben, Ändern der Größe, Minimieren, Maximieren und Schließen. Die Anpassung des Pegels bei bereits transparentem Zustand gilt live.</li>
 <li><strong>Leiseres Schließen eines Tabs</strong> – Beim Schließen eines Terminal-Tabs wird jetzt nur noch nach einer Bestätigung gefragt, wenn etwas verloren geht: Der Tab hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Option <em>Ohne Bestätigung schließen</em> unterdrückt die Eingabeaufforderung weiterhin vollständig.</li>
 <li><strong>Eindeutigere Beschriftung im Kontextmenü</strong> – die Terminal-Rechtsklick-Aktion, die eine ausgewählte Remote-Datei in den Snippet-Editor lädt, heißt jetzt <strong>Im Snippet-Editor öffnen</strong> (vorher <em>Als Textdatei laden</em>).</li>
+<li><strong>Scrollback-Einstellung funktioniert jetzt</strong> – der Wert <strong>Scrollback</strong> unter <strong>Konfiguration → Globale Einstellungen → Terminal</strong> (100–100.000 Zeilen) wird jetzt tatsächlich auf den Terminal-Puffer angewendet; er wurde zuvor ignoriert, und jeder Bereich nutzte fest 10.000 Zeilen. Der Wert wird beim Erstellen eines Terminals gelesen und gilt daher für neu geöffnete Tabs und geteilte Bereiche.</li>
+</ul>
+<h3 id="leistung-und-speicherbedarf">Leistung und Speicherbedarf<a class="headerlink" href="#leistung-und-speicherbedarf" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Viel geringerer Speicherverbrauch</strong> – KI-Chat-Registerkarten, Dateieditoren und die Snippet-KI-Fenster geben jetzt ihre eingebetteten Browser-Engines (Monaco/WebView) frei, wenn sie geschlossen werden, wenn Chat-Nachrichten nach einer Änderung der Schriftgröße neu gerendert werden und wenn Lösungen oder Skripte neu generiert werden; das Schließen eines geteilten Bereichs gibt jetzt auch dessen Scrollback-Puffer und Timer frei. Lange Sitzungen mit vielen Chats, Editoren und geteilten Bereichen sammeln keinen Speicher mehr an.</li>
+<li><strong>Begrenzter Speicherbedarf</strong> – die paketierte Anwendung läuft jetzt mit einer Java-Heap-Obergrenze von 2 GB und gibt ungenutzten Speicher im Leerlauf regelmäßig an das Betriebssystem zurück.</li>
+<li><strong>Kleinere Downloads und Installationen</strong> – die mitgelieferte Formatter-Laufzeit und die eingebettete Java-Laufzeit wurden verschlankt und komprimiert, das macOS-Disk-Image nutzt jetzt eine stärkere (LZMA-)Kompression, und das Offline-Handbuch enthält keine Entwickler-Sourcemaps und ungenutzten Suchkomponenten mehr. Installationen schrumpfen um rund 150 MB, Downloads um 25–40 %.</li>
+<li><strong>Datums- und Zahlenformate</strong> – die installierte Anwendung bündelt Java-Gebietsschemadaten nur für die 8 unterstützten Oberflächensprachen; bei Betriebssystem-Gebietsschemata außerhalb dieser Liste werden Datums- und Zahlenangaben nach englischen Konventionen formatiert.</li>
 </ul>
 <h2 id="v240">v2.4.0<a class="headerlink" href="#v240" title="Permanent link">&para;</a></h2>
 <h3 id="endgultige-auswirkungen">Endgültige Auswirkungen<a class="headerlink" href="#endgultige-auswirkungen" title="Permanent link">&para;</a></h3>
