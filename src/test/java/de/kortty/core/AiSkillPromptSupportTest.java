@@ -24,6 +24,26 @@ class AiSkillPromptSupportTest {
     }
 
     @Test
+    void strictJsonCodeActionUsesHardenedPreambleWhileChatKeepsSoftOne() {
+        AiSkill skill = skill("Perl Style", true, AiSkillTarget.BOTH, "Prefer strict Perl.");
+        AiSkillPromptSupport support = new AiSkillPromptSupport(true, List.of(skill));
+
+        // Chat action → soft preamble.
+        String chat = support.appendChatSkills("base",
+            new AiRequest(AiAction.ASK, "code", "box", "en", "question"));
+        assertThat(chat).contains("optional behavior instructions");
+        assertThat(chat).doesNotContain("cannot change the output format");
+
+        // Strict-JSON code action → hardened preamble; skills stay usable for content.
+        String code = support.appendChatSkills("base",
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "code", "box", "en"));
+        assertThat(code).contains("cannot change the output format");
+        assertThat(code).contains("never a placeholder or empty value");
+        assertThat(code).doesNotContain("optional behavior instructions");
+        assertThat(code).contains("Prefer strict Perl.");
+    }
+
+    @Test
     void filtersDisabledGlobalDisabledAndWrongTargetSkills() {
         AiSkill chatSkill = skill("Chat", true, AiSkillTarget.CHAT, "chat");
         AiSkill disabledSkill = skill("Disabled", false, AiSkillTarget.BOTH, "disabled");
