@@ -29,6 +29,7 @@ import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedSwarmChat;
+import de.kortty.model.WindowGeometry;
 import de.kortty.security.EncryptionService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -65,6 +66,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -204,11 +207,15 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         getDialogPane().setContent(root);
         getDialogPane().setPrefSize(980, 640);
         getDialogPane().setMinSize(760, 480);
+        restoreGeometry();
 
         // Persist pending profile edits (model, URL, …) when the dialog is closed, so changes are
         // saved even when the user does not click the explicit "Save" button. saveProfiles() is
         // silent on success and only surfaces genuine save failures (missing name, locked vault).
+        // The user-adjusted window size/position is remembered the same way, via saveGeometry().
+        setOnCloseRequest(event -> saveGeometry());
         setOnHidden(event -> {
+            saveGeometry();
             try {
                 if (app != null && app.getGlobalSettingsManager() != null) {
                     saveProfiles(true); // quiet: no modal alerts while the dialog is closing
@@ -219,6 +226,45 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         });
 
         refreshAll();
+    }
+
+    /** Restore the user's last size/position for this dialog (mirrors other korTTY dialogs). */
+    private void restoreGeometry() {
+        try {
+            var settings = app != null && app.getGlobalSettingsManager() != null
+                    ? app.getGlobalSettingsManager().getSettings() : null;
+            WindowGeometry geometry = settings != null ? settings.getAiManagerDialogGeometry() : null;
+            if (geometry != null && geometry.getWidth() > 100 && geometry.getHeight() > 100) {
+                getDialogPane().setPrefWidth(geometry.getWidth());
+                getDialogPane().setPrefHeight(geometry.getHeight());
+                setOnShowing(event -> {
+                    Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+                    if (window instanceof Stage stage) {
+                        stage.setX(geometry.getX());
+                        stage.setY(geometry.getY());
+                        stage.setWidth(geometry.getWidth());
+                        stage.setHeight(geometry.getHeight());
+                    }
+                });
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Persist the current size/position so it is restored next time the dialog opens. */
+    private void saveGeometry() {
+        try {
+            Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+            if (window instanceof Stage stage) {
+                WindowGeometry geometry = new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+                var settingsManager = app != null ? app.getGlobalSettingsManager() : null;
+                if (settingsManager != null && settingsManager.getSettings() != null) {
+                    settingsManager.getSettings().setAiManagerDialogGeometry(geometry);
+                    settingsManager.save();
+                }
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private TableView<SavedAiChat> buildChatTable() {

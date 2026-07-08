@@ -558,6 +558,10 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry guideViewerGeometry;
 
+    /** Last window geometry of the AI manager dialog ("AI-Manager"). */
+    @XmlElement
+    private WindowGeometry aiManagerDialogGeometry;
+
     // Teamwork: shared connection sources (Git or shared file)
     @XmlElementWrapper(name = "teamworkSources")
     @XmlElement(name = "source")
@@ -2246,6 +2250,13 @@ public class GlobalSettings {
     /** Stores the in-app guide viewer window position/size. */
     public void setGuideViewerGeometry(WindowGeometry guideViewerGeometry) {
         this.guideViewerGeometry = guideViewerGeometry;
+    }
+
+    public WindowGeometry getAiManagerDialogGeometry() { return aiManagerDialogGeometry; }
+
+    /** Stores the AI manager dialog window position/size. */
+    public void setAiManagerDialogGeometry(WindowGeometry aiManagerDialogGeometry) {
+        this.aiManagerDialogGeometry = aiManagerDialogGeometry;
     }
 
     // ---- Teamwork ----
