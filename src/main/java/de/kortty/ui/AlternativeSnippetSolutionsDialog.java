@@ -165,7 +165,20 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         setOnHidden(event -> {
             cancelLoadTask();
             saveGeometry();
+            disposeSolutionCards();
         });
+    }
+
+    /**
+     * Releases the Monaco WebViews of the current solution cards — one full WebKit engine per
+     * card, recreated on every reload and never freed by GC promptly.
+     */
+    private void disposeSolutionCards() {
+        for (SolutionCard card : solutionCards) {
+            card.previewScrollPane().dispose();
+        }
+        solutionCards.clear();
+        zoomedCard = null;
     }
 
     private void loadSolutions() {
@@ -181,6 +194,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
             }
         };
         loadTask.setOnRunning(event -> {
+            disposeSolutionCards();
             solutionsBox.getChildren().clear();
             setBusy(true);
             statusLabel.setText(I18n.get("snippets.ai.alternatives.loading"));

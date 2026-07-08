@@ -268,7 +268,11 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         setResultConverter(buttonType -> null);
         getDialogPane().setPrefWidth(980);
         getDialogPane().setPrefHeight(700);
-        setOnHidden(event -> cancelTasks());
+        setOnHidden(event -> {
+            cancelTasks();
+            // Unload the diagram page so its WebKit engine releases its native memory.
+            diagramView.getEngine().loadContent("");
+        });
         updateDiagramControls(false);
         if (!diagramListView.getItems().isEmpty()) {
             diagramListView.getSelectionModel().selectFirst();

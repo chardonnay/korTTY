@@ -143,7 +143,11 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         setResultConverter(buttonType -> buttonType == applyButton ? readSelection() : null);
 
         setOnShown(event -> diagramView.loadIfNeeded());
-        setOnHidden(event -> diagramView.dispose());
+        setOnHidden(event -> {
+            diagramView.dispose();
+            // Unload the findings page so its WebKit engine releases its native memory.
+            findingsView.getEngine().loadContent("");
+        });
     }
 
     private HBox buildToolbar(String activeProfileId, Consumer<String> onRerun) {

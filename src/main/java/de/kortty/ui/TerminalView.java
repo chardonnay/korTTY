@@ -942,6 +942,73 @@ public class TerminalView extends BorderPane {
         stopPaneEffect(widget);
         paneProviders.remove(widget);
         discardTerminalAgentRunsForWidget(widget);
+        releasePaneState(widget);
+    }
+
+    /**
+     * Drops every per-pane map entry that would otherwise keep the closed widget — and through
+     * it its canvas and scrollback buffer — strongly reachable for the life of the tab. The
+     * consumers of these maps tolerate missing entries, so removal degrades to no-ops for any
+     * late callbacks.
+     */
+    private void releasePaneState(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        gutterMap.remove(widget);
+        lastTimestampLineByWidget.remove(widget);
+        timestampHistoryByWidget.remove(widget);
+        awaitingCommandCompletionByWidget.remove(widget);
+        PauseTransition completionTimer = commandCompletionTimerByWidget.remove(widget);
+        if (completionTimer != null) {
+            // A running transition is pinned by the FX master timer and its onFinished holds the widget.
+            completionTimer.stop();
+        }
+        commandStartLineByWidget.remove(widget);
+        agentShortcutBuffers.remove(widget);
+        TerminalModelListener recordingListener = terminalRecordingModelListeners.remove(widget);
+        if (recordingListener != null && widget.getTerminalTextBuffer() != null) {
+            widget.getTerminalTextBuffer().removeModelListener(recordingListener);
+        }
+        if (terminalRecordingTargetWidgets.contains(widget)) {
+            terminalRecordingTargetWidgets = terminalRecordingTargetWidgets.stream()
+                .filter(target -> target != widget)
+                .toList();
+        }
+        // Connector-keyed state: splits normally own their connector, but only release it when
+        // no surviving pane still runs on the same one.
+        TtyConnector baseConnector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (baseConnector == null || connectorInUseByOtherPane(widget, baseConnector)) {
+            return;
+        }
+        if (baseConnector instanceof ObservableTtyConnector observableConnector) {
+            ObservableTtyConnector.InputActivityListener inputListener =
+                terminalRecordingInputListeners.remove(observableConnector);
+            if (inputListener != null) {
+                observableConnector.removeInputActivityListener(inputListener);
+            }
+        }
+        if (baseConnector instanceof SshTtyConnector sshConnector) {
+            ObservableTtyConnector.DataListener promptListener =
+                terminalAgentPromptDataListeners.remove(sshConnector);
+            if (promptListener != null) {
+                sshConnector.removeDataListener(promptListener);
+            }
+            terminalAgentOscBuffers.remove(sshConnector);
+        }
+    }
+
+    private boolean connectorInUseByOtherPane(SithTermFxWidget closingWidget, TtyConnector baseConnector) {
+        if (splitPane == null) {
+            return false;
+        }
+        for (SithTermFxWidget widget : splitPane.getAllWidgets()) {
+            if (widget != null && widget != closingWidget
+                && unwrapTerminalEffectConnector(widget.getTtyConnector()) == baseConnector) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** New split panes inherit the source pane's effect (id + speed), per the feature design. */
@@ -5154,6 +5221,20 @@ public class TerminalView extends BorderPane {
         terminalAgentActivityPanels.clear();
         terminalAgentPromptDataListeners.clear();
         terminalAgentOscBuffers.clear();
+        terminalAgentRunStates.clear();
+        // Per-widget state: a still-running completion timer would pin the whole discarded
+        // view graph via the FX master timer until it fires; the rest is reference hygiene so
+        // a leaked TerminalView cannot keep every widget's scrollback buffer alive.
+        for (PauseTransition completionTimer : commandCompletionTimerByWidget.values()) {
+            completionTimer.stop();
+        }
+        commandCompletionTimerByWidget.clear();
+        gutterMap.clear();
+        lastTimestampLineByWidget.clear();
+        timestampHistoryByWidget.clear();
+        awaitingCommandCompletionByWidget.clear();
+        commandStartLineByWidget.clear();
+        agentShortcutBuffers.clear();
         terminalWidget = null;
     }
     
@@ -6155,7 +6236,15 @@ public class TerminalView extends BorderPane {
         
         @Override
         public int getBufferMaxLinesCount() {
-            return 10000;
+            // Honors the connection's scrollback setting (Settings > Terminal); the widget reads
+            // this once in its constructor, so it applies to newly opened tabs/split panes.
+            int lines = settings != null ? settings.getScrollbackLines() : 10000;
+            if (lines <= 0) {
+                // Legacy/corrupt persisted XML: fall back to the model default.
+                lines = 10000;
+            }
+            // Mirror the settings spinner's range so the buffer stays within sane bounds.
+            return Math.max(100, Math.min(100_000, lines));
         }
     }
 }

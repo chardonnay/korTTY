@@ -129,7 +129,17 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         getDialogPane().setPrefSize(820, 700);
         restoreGeometry();
         setOnCloseRequest(event -> saveGeometry());
-        setOnHidden(event -> saveGeometry());
+        setOnHidden(event -> {
+            saveGeometry();
+            disposeResultEditors();
+        });
+    }
+
+    /** Releases the Monaco WebViews of the result tabs — one WebKit engine per script language. */
+    private void disposeResultEditors() {
+        for (ResultTab resultTab : resultTabList) {
+            resultTab.editor.dispose();
+        }
     }
 
     // ---------------------------------------------------------------- geometry
@@ -371,6 +381,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         }
         List<ScriptLanguage> languages = generationLanguages();
         int count = suggestionsSpinner.getValue() != null ? suggestionsSpinner.getValue() : 1;
+        disposeResultEditors();
         resultTabs.getTabs().clear();
         resultTabList.clear();
 
