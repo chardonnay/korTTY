@@ -358,6 +358,35 @@ public final class SnippetAiResponseSupport {
         return new SnippetSecurityFix(improvement.replacement(), improvement.summary(), changes);
     }
 
+    private static final Pattern BARE_TOKEN_PATTERN =
+        Pattern.compile("[$@%&]?\\{?[A-Za-z_][A-Za-z0-9_]*}?");
+
+    /**
+     * True when a whole-snippet {@code replacement} is degenerate and must NOT be applied — applying it
+     * would silently wipe the user's code. Catches the reported failure where a model (often steered by a
+     * user AI skill) returns a bare token like {@code "$code"} instead of the full updated snippet, as well
+     * as a substantial multi-line body collapsing to a tiny single line. {@code original} is the current
+     * snippet content; short originals are never guarded (nothing substantial to lose).
+     */
+    public static boolean isDegenerateFullReplacement(String original, String replacement) {
+        String current = original != null ? original.strip() : "";
+        String candidate = replacement != null ? replacement.strip() : "";
+        if (candidate.isEmpty()) {
+            return true;
+        }
+        if (current.length() < 40) {
+            return false;
+        }
+        // A single bare identifier/variable ("$code", "${code}", "code", "@arr", …) is never a snippet body.
+        if (BARE_TOKEN_PATTERN.matcher(candidate).matches()) {
+            return true;
+        }
+        // A multi-line body collapsing to a tiny single line is degenerate too.
+        boolean originalMultiLine = current.lines().filter(line -> !line.isBlank()).count() >= 3;
+        boolean tinySingleLine = !candidate.contains("\n") && candidate.length() < Math.max(24, current.length() / 8);
+        return originalMultiLine && tinySingleLine;
+    }
+
     private static List<SecurityChange> parseSecurityChanges(JsonObject object) {
         JsonArray array = firstArray(object, "changes", "explanations", "reasons");
         if (array == null) {

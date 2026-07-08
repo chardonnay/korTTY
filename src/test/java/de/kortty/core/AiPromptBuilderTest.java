@@ -320,4 +320,25 @@ class AiPromptBuilderTest {
         assertThat(userPrompt).contains("Do not invent files");
         assertThat(userPrompt).contains("Script content for context only");
     }
+
+    @Test
+    void codePayloadActionsAppendFullCodeAnchorAsLastLine() {
+        AiRequest apply = new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "print 1;\nprint 2;\n", "box", "en");
+        String applyPrompt = AiPromptBuilder.buildUserPrompt(apply);
+
+        assertThat(applyPrompt).contains("Every code field must contain the actual code");
+        // The anchor is the very last content, after the (untrusted) code block.
+        assertThat(applyPrompt.strip()).endsWith("less fails.");
+    }
+
+    @Test
+    void nonCodePayloadActionsDoNotGetTheCodeAnchor() {
+        // A findings-only strict-JSON action has no code field to protect → no anchor.
+        AiRequest analyze = new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "print 1;", "box", "en");
+        assertThat(AiPromptBuilder.buildUserPrompt(analyze)).doesNotContain("Every code field must contain");
+
+        // A chat action → no anchor.
+        AiRequest chat = new AiRequest(AiAction.SUMMARIZE, "text", "box", "en");
+        assertThat(AiPromptBuilder.buildUserPrompt(chat)).doesNotContain("Every code field must contain");
+    }
 }
