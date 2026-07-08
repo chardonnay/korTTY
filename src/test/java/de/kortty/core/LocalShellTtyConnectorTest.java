@@ -56,21 +56,24 @@ class LocalShellTtyConnectorTest {
 
     @Test
     void startDirectoryMatchesPtySpawnSemantics() {
-        // No configured directory: pty4j spawns the child in the JVM's working directory.
+        String homeAbs = new java.io.File(System.getProperty("user.home")).getAbsolutePath();
+
+        // No configured directory: default to the user's home directory (never the JVM cwd, which
+        // is "/" when the app is launched from the macOS Finder/Dock). The pty is spawned there via
+        // PtyProcessBuilder.setDirectory, so getStartDirectory() must report home to stay in sync.
         de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
         assertThat(new LocalShellTtyConnector(connection).getStartDirectory())
-            .isEqualTo(System.getProperty("user.dir"));
+            .isEqualTo(homeAbs);
 
-        // A configured but nonexistent directory is ignored at spawn time — same here.
+        // A configured but nonexistent directory is ignored and also falls back to home.
         connection.setLocalShellWorkingDirectory("/definitely/not/a/real/dir/xyz");
         assertThat(new LocalShellTtyConnector(connection).getStartDirectory())
-            .isEqualTo(System.getProperty("user.dir"));
+            .isEqualTo(homeAbs);
 
         // A configured existing directory is used as-is (absolute form).
-        String home = System.getProperty("user.home");
-        connection.setLocalShellWorkingDirectory(home);
+        connection.setLocalShellWorkingDirectory(homeAbs);
         assertThat(new LocalShellTtyConnector(connection).getStartDirectory())
-            .isEqualTo(new java.io.File(home).getAbsolutePath());
+            .isEqualTo(homeAbs);
     }
 
     @Test
