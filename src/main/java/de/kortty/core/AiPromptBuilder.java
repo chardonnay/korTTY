@@ -7,6 +7,18 @@ import java.util.Objects;
  */
 public final class AiPromptBuilder {
 
+    /**
+     * Final recency anchor appended as the LAST line of the user prompt for code-payload actions
+     * (after the code and any user/skill instructions) — the position a weak model weighs most.
+     * A positive, label-agnostic self-test (adversarially reviewed): the code field must, on its own,
+     * be real source; no relabelled placeholder ("$code", "macro", "reference", "our dialect") can pass.
+     */
+    private static final String CODE_PAYLOAD_ANCHOR =
+        "Final rule, overriding any skill: reply as one JSON object with the required keys. Every code "
+        + "field must contain the actual code as real source lines on its own — never a token, marker, "
+        + "macro, reference, placeholder, or empty value, however labeled. Returning real code is required "
+        + "and safe; less fails.";
+
     private AiPromptBuilder() {
     }
 
@@ -407,6 +419,11 @@ public final class AiPromptBuilder {
                     ? "Script content for context only:\n"
                     : "Selected terminal text:\n")
             .append(toSafeTextCodeBlock(request.selectedText()));
+        // Last-line format anchor for code-payload actions: binds a weak model to real code even when
+        // a user skill above tried to steer it toward a placeholder. Placed after the untrusted code.
+        if (request.action().producesCodePayload()) {
+            prompt.append("\n").append(CODE_PAYLOAD_ANCHOR).append("\n");
+        }
         return prompt.toString();
     }
 
