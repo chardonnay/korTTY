@@ -49,6 +49,17 @@ public class JvmResourceProfileTest {
     }
 
     @Test
+    public void maxHeapMegabytesReportsCeilingForEveryProfile() {
+        // Balanced reports its fixed 2 GB ceiling for display even though it never relaunches.
+        assertThat(JvmResourceProfile.BALANCED.maxHeapMegabytes(32 * GB)).isEqualTo(2048);
+        assertThat(JvmResourceProfile.HIGH.maxHeapMegabytes(16 * GB)).isEqualTo(8192);
+        assertThat(JvmResourceProfile.MAXIMUM.maxHeapMegabytes(32 * GB)).isEqualTo(24576);
+        // The resolved -Xmx must match the displayed ceiling.
+        assertThat(JvmResourceProfile.MAXIMUM.resolveJavaOptions(32 * GB))
+            .contains("-Xmx" + JvmResourceProfile.MAXIMUM.maxHeapMegabytes(32 * GB) + "m");
+    }
+
+    @Test
     public void fromNameIsLenientAndDefaultsToBalanced() {
         assertThat(JvmResourceProfile.fromName("MAXIMUM")).isEqualTo(JvmResourceProfile.MAXIMUM);
         assertThat(JvmResourceProfile.fromName(" high ")).isEqualTo(JvmResourceProfile.HIGH);

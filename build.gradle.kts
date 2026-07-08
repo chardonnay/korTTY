@@ -1576,6 +1576,14 @@ tasks.register<JavaExec>("aiChatRedesignSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("resourcesTabSmoke") {
+    group = "verification"
+    description = "Renders Settings > Resources, asserts the max-heap line for every profile, snapshots to build/smoke/resources-tab.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ResourcesTabSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     group = "verification"
     description = "Renders the update 'download complete' dialog and snapshots it to build/smoke/update-download-complete.png."

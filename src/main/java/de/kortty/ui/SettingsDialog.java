@@ -3198,10 +3198,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             : I18n.get("settings.resources.detectedRam.unknown"));
         ramLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
 
+        // Live ceiling for the selected profile: how much memory korTTY may use at most.
+        Label maxHeapLabel = new Label();
+        maxHeapLabel.setWrapText(true);
+        maxHeapLabel.setStyle("-fx-font-weight: bold;");
+
         Label profileDetail = new Label();
         profileDetail.setWrapText(true);
-        Runnable updateDetail = () -> profileDetail.setText(
-            describeJvmProfile(jvmResourceProfileCombo.getValue(), ramBytes));
+        profileDetail.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+
+        Runnable updateDetail = () -> {
+            JvmResourceProfile selected = jvmResourceProfileCombo.getValue();
+            if (selected == null) {
+                maxHeapLabel.setText("");
+                profileDetail.setText("");
+                return;
+            }
+            String heap = formatGigabytes(selected.maxHeapMegabytes(ramBytes) * 1024L * 1024L);
+            maxHeapLabel.setText(ramBytes > 0
+                ? I18n.get("settings.resources.maxHeap", heap, formatGigabytes(ramBytes))
+                : I18n.get("settings.resources.maxHeap.noRam", heap));
+            profileDetail.setText(I18n.get("settings.resources.profile." + selected.i18nKey() + ".detail"));
+        };
         jvmResourceProfileCombo.valueProperty().addListener((obs, oldV, newV) -> updateDetail.run());
         updateDetail.run();
 
@@ -3213,34 +3231,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         restartInfo.setWrapText(true);
         restartInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
 
-        vbox.getChildren().addAll(header, desc, profileRow, ramLabel, profileDetail, warn, restartInfo);
+        vbox.getChildren().addAll(header, desc, profileRow, ramLabel, maxHeapLabel, profileDetail, warn, restartInfo);
         tab.setContent(vbox);
         return tab;
-    }
-
-    /** Human-readable per-profile explanation including the approximate resulting heap. */
-    private String describeJvmProfile(JvmResourceProfile profile, long ramBytes) {
-        if (profile == null) {
-            return "";
-        }
-        String base = I18n.get("settings.resources.profile." + profile.i18nKey() + ".detail");
-        if (profile == JvmResourceProfile.BALANCED) {
-            return base;
-        }
-        String options = profile.resolveJavaOptions(ramBytes);
-        long heapMb = parseHeapMb(options);
-        if (heapMb <= 0) {
-            return base;
-        }
-        return base + " " + I18n.get("settings.resources.approxHeap", formatGigabytes(heapMb * 1024L * 1024L));
-    }
-
-    private static long parseHeapMb(String javaOptions) {
-        if (javaOptions == null) {
-            return 0;
-        }
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("-Xmx(\\d+)m").matcher(javaOptions);
-        return m.find() ? Long.parseLong(m.group(1)) : 0;
     }
 
     private static String formatGigabytes(long bytes) {

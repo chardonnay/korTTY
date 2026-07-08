@@ -45,10 +45,23 @@ public enum JvmResourceProfile {
     public String resolveJavaOptions(long totalPhysicalMemoryBytes) {
         return switch (this) {
             case BALANCED -> null;
-            case HIGH -> "-Xmx" + heapMb(totalPhysicalMemoryBytes, 50, HIGH_FALLBACK_MB) + "m";
+            case HIGH -> "-Xmx" + maxHeapMegabytes(totalPhysicalMemoryBytes) + "m";
             // ZGC is added on top of the baked options; G1 is not baked explicitly, so there is no
             // collector conflict, and the remaining G1-only flags are inert (not fatal) under ZGC.
-            case MAXIMUM -> "-XX:+UseZGC -Xmx" + heapMb(totalPhysicalMemoryBytes, 75, MAXIMUM_FALLBACK_MB) + "m";
+            case MAXIMUM -> "-XX:+UseZGC -Xmx" + maxHeapMegabytes(totalPhysicalMemoryBytes) + "m";
+        };
+    }
+
+    /**
+     * The maximum Java heap (in MB) this profile allows on a machine with the given physical RAM.
+     * BALANCED reports the shipped fixed 2 GB cap even though it does not relaunch, so callers can
+     * display a consistent ceiling for every profile. Pass {@code <= 0} to use fixed fallbacks.
+     */
+    public long maxHeapMegabytes(long totalPhysicalMemoryBytes) {
+        return switch (this) {
+            case BALANCED -> MIN_HEAP_MB;
+            case HIGH -> heapMb(totalPhysicalMemoryBytes, 50, HIGH_FALLBACK_MB);
+            case MAXIMUM -> heapMb(totalPhysicalMemoryBytes, 75, MAXIMUM_FALLBACK_MB);
         };
     }
 
