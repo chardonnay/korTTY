@@ -299,14 +299,24 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     }
 
     private static String resolveWorkingDirectory(String configured) {
-        if (configured == null || configured.isBlank()) {
-            return null;
+        if (configured != null && !configured.isBlank()) {
+            File dir = new File(configured.trim());
+            if (dir.isDirectory()) {
+                return dir.getAbsolutePath();
+            }
+            logger.warn("Configured local shell working directory does not exist, "
+                + "falling back to the home directory: {}", configured);
         }
-        File dir = new File(configured.trim());
-        if (dir.isDirectory()) {
-            return dir.getAbsolutePath();
+        // No usable configured directory: default to the user's home directory so the shell never
+        // spawns in "/" (the JVM cwd when the app is launched from the macOS Finder/Dock). A fresh
+        // local terminal is expected to open in the user's home, not the filesystem root.
+        String home = System.getProperty("user.home");
+        if (home != null && !home.isBlank()) {
+            File homeDir = new File(home);
+            if (homeDir.isDirectory()) {
+                return homeDir.getAbsolutePath();
+            }
         }
-        logger.warn("Configured local shell working directory does not exist, ignoring: {}", configured);
         return null;
     }
 
