@@ -182,6 +182,10 @@ public class GlobalSettings {
     /** Translation API provider for dynamic i18n (Google Translate or DeepL). */
     @XmlElement
     private TranslationApiProvider translationApiProvider;
+
+    /** Opt-in JVM heap/GC profile for the packaged app; applied via relaunch, needs a restart. */
+    @XmlElement
+    private JvmResourceProfile jvmResourceProfile = JvmResourceProfile.BALANCED;
     
     /** Encrypted API key for translation service (decrypted with master password). */
     @XmlElement
@@ -1259,6 +1263,14 @@ public class GlobalSettings {
 
     public void setAiResultFontSize(Integer aiResultFontSize) {
         this.aiResultFontSize = aiResultFontSize;
+    }
+
+    public JvmResourceProfile getJvmResourceProfile() {
+        return jvmResourceProfile != null ? jvmResourceProfile : JvmResourceProfile.BALANCED;
+    }
+
+    public void setJvmResourceProfile(JvmResourceProfile jvmResourceProfile) {
+        this.jvmResourceProfile = jvmResourceProfile != null ? jvmResourceProfile : JvmResourceProfile.BALANCED;
     }
 
     public Integer getSecurityReportFontSize() {

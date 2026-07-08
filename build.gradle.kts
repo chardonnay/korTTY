@@ -1068,7 +1068,9 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         // resolves via FindClass to marshal JS->Java. The compile-time jdk-jsobject artifact does NOT
         // bundle it, and jlink drops it by default, so without this every Monaco editor that returns
         // a JSObject crashes the JVM in JNI get_method_id (NULL class / NoClassDefFoundError) on macOS.
-        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.unsupported",
+        // jdk.management provides com.sun.management.OperatingSystemMXBean, which the JVM-resource
+        // relaunch (Launcher/JvmRelauncher) uses to size the heap from physical RAM.
+        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.management,jdk.unsupported",
         // Shrink the jlink runtime image: --jlink-options REPLACES jpackage's defaults
         // (--strip-native-commands --strip-debug --no-man-pages --no-header-files), so they are
         // re-stated before the additions. zip-6 roughly halves lib/modules; --include-locales
@@ -1081,12 +1083,14 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--java-options", "--enable-native-access=ALL-UNNAMED",
         // Conservative memory bounds: the JVM default max heap is 25% of physical RAM (8 GB on
         // a 32 GB machine). 2 GB is generous for terminal buffers/chats/exports; WebView/WebKit
-        // memory is native and NOT governed by the heap. Periodic G1 GC (JEP 346) plus the
-        // free-ratio bounds uncommit idle heap so RSS shrinks back after load. Beware: an
-        // unrecognized -XX flag aborts JVM startup, i.e. the packaged app would not launch.
+        // memory is native and NOT governed by the heap. The periodic-GC (JEP 346) and free-ratio
+        // bounds uncommit idle heap so RSS shrinks back after load. G1 is deliberately NOT selected
+        // explicitly here — it is the JDK default, and baking `-XX:+UseG1GC` would collide
+        // ("Multiple garbage collectors selected") with the opt-in ZGC profile that the JVM-resource
+        // relaunch applies via _JAVA_OPTIONS. The G1-only flags below are inert (not fatal) under ZGC.
+        // Beware: an unrecognized -XX flag aborts JVM startup, i.e. the packaged app would not launch.
         "--java-options", "-Xms64m",
         "--java-options", "-Xmx2g",
-        "--java-options", "-XX:+UseG1GC",
         "--java-options", "-XX:G1PeriodicGCInterval=60000",
         "--java-options", "-XX:MinHeapFreeRatio=10",
         "--java-options", "-XX:MaxHeapFreeRatio=25",

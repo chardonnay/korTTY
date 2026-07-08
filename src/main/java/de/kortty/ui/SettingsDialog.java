@@ -7,6 +7,8 @@ import de.kortty.telemetry.TelemetryService;
 import de.kortty.ui.I18n;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.JvmLaunchProfileStore;
+import de.kortty.model.JvmResourceProfile;
 import de.kortty.core.DynamicLanguageGenerator;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.AiCliArgumentPreset;
@@ -193,6 +195,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Spinner<Integer> fixedXSpinner;
     private final Spinner<Integer> fixedYSpinner;
     
+    // JVM resource profile (opt-in heap/GC), applied via relaunch on next start
+    private ComboBox<JvmResourceProfile> jvmResourceProfileCombo;
+
     // Language settings
     private final ComboBox<String> languageCombo;
     
@@ -2396,8 +2401,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         // Themes tab
         Tab themesTab = createThemesTab(owner);
-        
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, updatesTab, windowTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
+
+        // Resources tab (opt-in JVM heap/GC profile)
+        Tab resourcesTab = createResourcesTab();
+
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, updatesTab, windowTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab, aiSkillsTab);
         
         final double defaultContentWidth = 1000;
         final double minimumContentWidth = 860;
@@ -2584,6 +2592,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
+
+            // JVM resource profile: persist in GlobalSettings and mirror to the tiny launch file
+            // that JvmRelauncher reads at startup. Applied on the next launch (relaunch), not now.
+            if (jvmResourceProfileCombo != null && jvmResourceProfileCombo.getValue() != null) {
+                JvmResourceProfile chosenProfile = jvmResourceProfileCombo.getValue();
+                globalSettings.setJvmResourceProfile(chosenProfile);
+                JvmLaunchProfileStore.write(KorTTYApplication.getConfigDirectory(), chosenProfile);
+            }
 
             // Privacy tab: persist the consent decision (date only when the user actually changed it).
             boolean telemetrySelected = telemetryEnabledCheck != null && telemetryEnabledCheck.isSelected();
@@ -3135,6 +3151,113 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         tab.setContent(vbox);
         return tab;
+    }
+
+    /**
+     * Builds the Resources tab: an opt-in JVM heap/GC profile. The choice is persisted and applied
+     * by relaunching the packaged app at the next start (see {@code de.kortty.JvmRelauncher}); the
+     * default (Balanced) keeps the shipped 2 GB cap and never relaunches.
+     */
+    private Tab createResourcesTab() {
+        Tab tab = new Tab(I18n.get("settings.tab.resources"));
+        tab.setClosable(false);
+
+        VBox vbox = new VBox(12);
+        vbox.setPadding(new Insets(20));
+
+        Label header = new Label(I18n.get("settings.resources.header"));
+        header.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        Label desc = new Label(I18n.get("settings.resources.description"));
+        desc.setWrapText(true);
+        desc.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+
+        jvmResourceProfileCombo = new ComboBox<>();
+        jvmResourceProfileCombo.getItems().addAll(
+            JvmResourceProfile.BALANCED, JvmResourceProfile.HIGH, JvmResourceProfile.MAXIMUM);
+        jvmResourceProfileCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(JvmResourceProfile profile) {
+                return profile == null ? "" : I18n.get("settings.resources.profile." + profile.i18nKey());
+            }
+
+            @Override
+            public JvmResourceProfile fromString(String value) {
+                return null;
+            }
+        });
+        JvmResourceProfile current = globalSettings != null
+            ? globalSettings.getJvmResourceProfile() : JvmResourceProfile.BALANCED;
+        jvmResourceProfileCombo.setValue(current);
+
+        HBox profileRow = new HBox(10, new Label(I18n.get("settings.resources.profile")), jvmResourceProfileCombo);
+        profileRow.setAlignment(Pos.CENTER_LEFT);
+
+        long ramBytes = detectedPhysicalMemoryBytes();
+        Label ramLabel = new Label(ramBytes > 0
+            ? I18n.get("settings.resources.detectedRam", formatGigabytes(ramBytes))
+            : I18n.get("settings.resources.detectedRam.unknown"));
+        ramLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+
+        Label profileDetail = new Label();
+        profileDetail.setWrapText(true);
+        Runnable updateDetail = () -> profileDetail.setText(
+            describeJvmProfile(jvmResourceProfileCombo.getValue(), ramBytes));
+        jvmResourceProfileCombo.valueProperty().addListener((obs, oldV, newV) -> updateDetail.run());
+        updateDetail.run();
+
+        Label warn = new Label(I18n.get("settings.resources.warning"));
+        warn.setWrapText(true);
+        warn.setStyle("-fx-font-size: 11px; -fx-text-fill: derive(-fx-text-inner-color, -20%);");
+
+        Label restartInfo = new Label(I18n.get("settings.resources.restart"));
+        restartInfo.setWrapText(true);
+        restartInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+
+        vbox.getChildren().addAll(header, desc, profileRow, ramLabel, profileDetail, warn, restartInfo);
+        tab.setContent(vbox);
+        return tab;
+    }
+
+    /** Human-readable per-profile explanation including the approximate resulting heap. */
+    private String describeJvmProfile(JvmResourceProfile profile, long ramBytes) {
+        if (profile == null) {
+            return "";
+        }
+        String base = I18n.get("settings.resources.profile." + profile.i18nKey() + ".detail");
+        if (profile == JvmResourceProfile.BALANCED) {
+            return base;
+        }
+        String options = profile.resolveJavaOptions(ramBytes);
+        long heapMb = parseHeapMb(options);
+        if (heapMb <= 0) {
+            return base;
+        }
+        return base + " " + I18n.get("settings.resources.approxHeap", formatGigabytes(heapMb * 1024L * 1024L));
+    }
+
+    private static long parseHeapMb(String javaOptions) {
+        if (javaOptions == null) {
+            return 0;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("-Xmx(\\d+)m").matcher(javaOptions);
+        return m.find() ? Long.parseLong(m.group(1)) : 0;
+    }
+
+    private static String formatGigabytes(long bytes) {
+        double gb = bytes / (1024.0 * 1024.0 * 1024.0);
+        return String.format(java.util.Locale.ROOT, "%.1f GB", gb);
+    }
+
+    private static long detectedPhysicalMemoryBytes() {
+        try {
+            var bean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+            if (bean instanceof com.sun.management.OperatingSystemMXBean sunBean) {
+                return sunBean.getTotalMemorySize();
+            }
+        } catch (Throwable ignored) {
+            // fall through
+        }
+        return 0L;
     }
 
     private Window getSettingsDialogOwner(Stage fallbackOwner) {
