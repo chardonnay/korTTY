@@ -18,6 +18,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -142,10 +143,21 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         tabPane.getTabs().addAll(individualTab, groupTab);
         
         mainContent.getChildren().add(tabPane);
-        
-        getDialogPane().setContent(mainContent);
+
+        // Wrap the form in a scroll pane so expanding the collapsible sections stays reachable even
+        // when the content grows past the screen height (the window is also grown to fit up to a
+        // screen-height cap, beyond which this scrolls instead of clipping the bottom off-screen).
+        ScrollPane contentScroll = new ScrollPane(mainContent);
+        contentScroll.setFitToWidth(true);
+        contentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        contentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        // Blend the viewport into the dialog (no grey frame on the dark theme).
+        contentScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        getDialogPane().setContent(contentScroll);
         getDialogPane().setMinWidth(700);
         getDialogPane().setPrefWidth(750);
+        // If the dialog opens taller than the screen, cap it so the scroll bar is usable.
+        setOnShown(shownEvent -> javafx.application.Platform.runLater(this::clampDialogHeightToScreen));
         
         // Buttons
         ButtonType connectButtonType = new ButtonType(I18n.get("quickConnect.connect"), ButtonBar.ButtonData.OK_DONE);
@@ -858,14 +870,31 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         return titled;
     }
 
-    /** Grows/shrinks the dialog window to fit its content after a section is expanded or collapsed. */
+    /**
+     * Grows/shrinks the dialog window to fit its content after a section is expanded or collapsed,
+     * then caps the height to the screen so the content scroll pane takes over instead of the
+     * window extending off-screen.
+     */
     private void resizeDialogToScene() {
         javafx.application.Platform.runLater(() -> {
             javafx.scene.Scene scene = getDialogPane().getScene();
             if (scene != null && scene.getWindow() != null) {
                 scene.getWindow().sizeToScene();
+                clampDialogHeightToScreen();
             }
         });
+    }
+
+    /** Caps the dialog height to 90% of the screen so the content scroll pane stays usable. */
+    private void clampDialogHeightToScreen() {
+        javafx.scene.Scene scene = getDialogPane().getScene();
+        if (scene == null || !(scene.getWindow() instanceof Stage stage)) {
+            return;
+        }
+        double maxHeight = Screen.getPrimary().getVisualBounds().getHeight() * 0.9;
+        if (stage.getHeight() > maxHeight) {
+            stage.setHeight(maxHeight);
+        }
     }
 
     /**

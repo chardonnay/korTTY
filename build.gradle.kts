@@ -1584,6 +1584,14 @@ tasks.register<JavaExec>("resourcesTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("quickConnectScrollSmoke") {
+    group = "verification"
+    description = "Expands Quick Connect's collapsible sections in a short window and asserts the content scroll bar engages; snapshots build/smoke/quick-connect-scroll.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.QuickConnectScrollSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     group = "verification"
     description = "Renders the update 'download complete' dialog and snapshots it to build/smoke/update-download-complete.png."
