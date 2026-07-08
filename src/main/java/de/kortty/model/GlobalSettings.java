@@ -221,6 +221,12 @@ public class GlobalSettings {
     @XmlElement(name = "skill")
     private java.util.List<AiSkill> aiSkills = new java.util.ArrayList<>();
 
+    /** AI skill ids pre-selected for every new Quick-Connect connection. The "Save" button in the
+     *  connection-skills picker persists the current selection here. */
+    @XmlElementWrapper(name = "defaultConnectionAiSkillIds")
+    @XmlElement(name = "skillId")
+    private java.util.List<String> defaultConnectionAiSkillIds = new java.util.ArrayList<>();
+
     /** Preferred AI profile used when no explicit profile is selected by the user. */
     @XmlElement
     private String defaultAiProfileId;
@@ -1161,6 +1167,20 @@ public class GlobalSettings {
     public void setAiSkills(java.util.List<AiSkill> aiSkills) {
         this.aiSkills = aiSkills != null ? aiSkills : new java.util.ArrayList<>();
         normalizeAiSkills();
+    }
+
+    /** AI skill ids pre-selected for every new Quick-Connect connection (never null). */
+    public java.util.List<String> getDefaultConnectionAiSkillIds() {
+        if (defaultConnectionAiSkillIds == null) {
+            defaultConnectionAiSkillIds = new java.util.ArrayList<>();
+        }
+        return defaultConnectionAiSkillIds;
+    }
+
+    public void setDefaultConnectionAiSkillIds(java.util.List<String> defaultConnectionAiSkillIds) {
+        this.defaultConnectionAiSkillIds = defaultConnectionAiSkillIds != null
+            ? new java.util.ArrayList<>(defaultConnectionAiSkillIds)
+            : new java.util.ArrayList<>();
     }
 
     public String getDefaultAiProfileId() {

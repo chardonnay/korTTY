@@ -488,11 +488,11 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         connectionNameField.setPromptText(I18n.get("quickConnect.connectionNamePrompt"));
         connectionNameField.setDisable(true);
         
-        timeoutSpinner = new Spinner<>(1, 300, 15);
+        timeoutSpinner = new Spinner<>(1, 300, 10);
         timeoutSpinner.setEditable(true);
         timeoutSpinner.setPrefWidth(80);
-        
-        retrySpinner = new Spinner<>(1, 20, 4);
+
+        retrySpinner = new Spinner<>(0, 20, 0);
         retrySpinner.setEditable(true);
         retrySpinner.setPrefWidth(80);
         
@@ -664,27 +664,26 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         grid.add(new Label(I18n.get("quickConnect.connectionName")), 0, row);
         grid.add(connectionNameField, 1, row++);
         
-        grid.add(new Separator(), 0, row, 2, 1);
-        row++;
-        
-        grid.add(new Label(I18n.get("quickConnect.connectionTimeout")), 0, row);
+        // ---- Optional settings grouped into collapsible sections. They start COLLAPSED so the
+        // ---- dialog opens compact; expanding one grows the window to fit (see collapsibleSection).
+        VBox collapsibleSections = new VBox(8);
+
+        // ===== Connection Timeout =====
+        GridPane timeoutGrid = sectionGrid();
+        timeoutGrid.add(new Label(I18n.get("quickConnect.connectionTimeout")), 0, 0);
         HBox timeoutBox = new HBox(10);
         timeoutBox.getChildren().addAll(timeoutSpinner, new Label(I18n.get("common.seconds")));
-        grid.add(timeoutBox, 1, row++);
-        
-        grid.add(new Label(I18n.get("quickConnect.retries")), 0, row);
+        timeoutGrid.add(timeoutBox, 1, 0);
+        timeoutGrid.add(new Label(I18n.get("quickConnect.retries")), 0, 1);
         HBox retryBox = new HBox(10);
-        retryBox.getChildren().addAll(retrySpinner, new Label("attempts"));
-        grid.add(retryBox, 1, row++);
-        
-        grid.add(new Separator(), 0, row, 2, 1);
-        row++;
-        
-        Label appearanceLabel = new Label(I18n.get("quickConnect.terminalAppearance"));
-        appearanceLabel.setStyle("-fx-font-weight: bold;");
-        grid.add(appearanceLabel, 0, row, 2, 1);
-        row++;
-        
+        retryBox.getChildren().addAll(retrySpinner, new Label(I18n.get("quickConnect.attempts")));
+        timeoutGrid.add(retryBox, 1, 1);
+        collapsibleSections.getChildren().add(
+            collapsibleSection(I18n.get("quickConnect.section.connectionTimeout"), timeoutGrid));
+
+        // ===== Terminal Appearance =====
+        GridPane appearanceGrid = sectionGrid();
+        int arow = 0;
         // Theme selector
         themeCombo = new ComboBox<>();
         themeCombo.setPromptText(I18n.get("quickConnect.theme"));
@@ -720,24 +719,23 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         } catch (Exception e) {
             // Theme manager not available
         }
-        
-        grid.add(new Label(I18n.get("quickConnect.theme")), 0, row);
-        grid.add(themeCombo, 1, row++);
-        
+        appearanceGrid.add(new Label(I18n.get("quickConnect.theme")), 0, arow);
+        appearanceGrid.add(themeCombo, 1, arow++);
+
         fontFamilyCombo = new ComboBox<>();
         fontFamilyCombo.getItems().addAll(getMonospaceFonts());
         fontFamilyCombo.setValue("Monospaced");
         fontFamilyCombo.setPrefWidth(200);
-        
+
         fontSizeSpinner = new Spinner<>(8, 72, 14);
         fontSizeSpinner.setEditable(true);
         fontSizeSpinner.setPrefWidth(80);
-        
-        grid.add(new Label(I18n.get("quickConnect.font")), 0, row);
+
+        appearanceGrid.add(new Label(I18n.get("quickConnect.font")), 0, arow);
         HBox fontBox = new HBox(10);
         fontBox.getChildren().addAll(fontFamilyCombo, new Label(I18n.get("quickConnect.fontSize")), fontSizeSpinner);
-        grid.add(fontBox, 1, row++);
-        
+        appearanceGrid.add(fontBox, 1, arow++);
+
         foregroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#FFFFFF"));
         backgroundColorPicker = new ColorPicker(javafx.scene.paint.Color.web("#1E1E1E"));
         terminalColorsEnabledCheck = new CheckBox(I18n.get("settings.colors.terminalColors"));
@@ -751,94 +749,72 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 TerminalEffectAnimationSpeed.DEFAULT);
         terminalEffectCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateTerminalEffectSpeedState());
         updateTerminalEffectSpeedState();
-        
-        grid.add(new Label(I18n.get("quickConnect.textColor")), 0, row);
-        grid.add(foregroundColorPicker, 1, row++);
-        
-        grid.add(new Label(I18n.get("quickConnect.background")), 0, row);
-        grid.add(backgroundColorPicker, 1, row++);
-        grid.add(terminalColorsEnabledCheck, 0, row++, 2, 1);
 
+        appearanceGrid.add(new Label(I18n.get("quickConnect.textColor")), 0, arow);
+        appearanceGrid.add(foregroundColorPicker, 1, arow++);
+        appearanceGrid.add(new Label(I18n.get("quickConnect.background")), 0, arow);
+        appearanceGrid.add(backgroundColorPicker, 1, arow++);
+        appearanceGrid.add(terminalColorsEnabledCheck, 0, arow++, 2, 1);
+        collapsibleSections.getChildren().add(
+            collapsibleSection(I18n.get("quickConnect.section.terminalAppearance"), appearanceGrid));
+
+        // ===== Terminal Effect (optional) =====
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
-            grid.add(new Separator(), 0, row++, 2, 1);
-
-            Label terminalEffectLabel = new Label(I18n.get("connection.terminalEffect"));
-            terminalEffectLabel.setStyle("-fx-font-weight: bold;");
-            grid.add(terminalEffectLabel, 0, row, 2, 1);
-            row++;
-
-            grid.add(new Label(I18n.get("connection.terminalEffect")), 0, row);
-            grid.add(terminalEffectCombo, 1, row++);
-
-            grid.add(new Label(I18n.get("connection.animationSpeed")), 0, row);
-            grid.add(terminalEffectSpeedControls.root(), 1, row++);
+            GridPane effectGrid = sectionGrid();
+            effectGrid.add(new Label(I18n.get("connection.terminalEffect")), 0, 0);
+            effectGrid.add(terminalEffectCombo, 1, 0);
+            effectGrid.add(new Label(I18n.get("connection.animationSpeed")), 0, 1);
+            effectGrid.add(terminalEffectSpeedControls.root(), 1, 1);
+            collapsibleSections.getChildren().add(
+                collapsibleSection(I18n.get("connection.terminalEffect"), effectGrid));
         }
-        
+
+        // ===== AI (profile + connection skills) =====
         java.util.List<de.kortty.model.AiProfile> aiProfiles = loadAiProfilesSorted();
         java.util.List<de.kortty.model.AiSkill> connectionAiSkills = loadConnectionTargetAiSkills();
         aiSkillChecksById = new java.util.LinkedHashMap<>();
         if (!aiProfiles.isEmpty() || !connectionAiSkills.isEmpty()) {
-            grid.add(new Separator(), 0, row++, 2, 1);
-            Label aiSectionLabel = new Label(I18n.get("connEdit.tab.ai"));
-            aiSectionLabel.setStyle("-fx-font-weight: bold;");
-            grid.add(aiSectionLabel, 0, row++, 2, 1);
-        }
-        if (!aiProfiles.isEmpty()) {
-            aiProfileCombo = new ComboBox<>();
-            aiProfileCombo.setPrefWidth(300);
-            aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
-                @Override
-                public String toString(AiProfileOption option) {
-                    return option != null ? option.label() : "";
-                }
-
-                @Override
-                public AiProfileOption fromString(String string) {
-                    return null;
-                }
-            });
-            aiProfileDefaultOption = new AiProfileOption(null, I18n.get("connEdit.ai.profile.default"));
-            aiProfileCombo.getItems().add(aiProfileDefaultOption);
-            for (de.kortty.model.AiProfile profile : aiProfiles) {
-                String name = profile.getName() != null && !profile.getName().isBlank()
-                    ? profile.getName().trim()
-                    : profile.getId();
-                aiProfileCombo.getItems().add(new AiProfileOption(profile.getId(), name));
-            }
-            aiProfileCombo.getSelectionModel().select(aiProfileDefaultOption);
-            grid.add(new Label(I18n.get("connEdit.ai.profile")), 0, row);
-            grid.add(aiProfileCombo, 1, row++);
-        }
-        if (!connectionAiSkills.isEmpty()) {
-            for (de.kortty.model.AiSkill skill : connectionAiSkills) {
-                aiSkillChecksById.put(skill.getId(), new javafx.beans.property.SimpleBooleanProperty(false));
-            }
-            grid.add(new Label(I18n.get("connEdit.ai.skills")), 0, row);
-            ListView<de.kortty.model.AiSkill> aiSkillsListView = new ListView<>(
-                javafx.collections.FXCollections.observableArrayList(connectionAiSkills));
-            aiSkillsListView.setPrefHeight(120);
-            aiSkillsListView.setCellFactory(javafx.scene.control.cell.CheckBoxListCell.forListView(
-                skill -> aiSkillChecksById.get(skill.getId()),
-                new javafx.util.StringConverter<>() {
+            VBox aiContent = new VBox(10);
+            if (!aiProfiles.isEmpty()) {
+                aiProfileCombo = new ComboBox<>();
+                aiProfileCombo.setPrefWidth(300);
+                aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
                     @Override
-                    public String toString(de.kortty.model.AiSkill skill) {
-                        return ConnectionEditDialog.aiSkillListLabel(skill);
+                    public String toString(AiProfileOption option) {
+                        return option != null ? option.label() : "";
                     }
 
                     @Override
-                    public de.kortty.model.AiSkill fromString(String string) {
+                    public AiProfileOption fromString(String string) {
                         return null;
                     }
-                }));
-            grid.add(aiSkillsListView, 1, row++);
+                });
+                aiProfileDefaultOption = new AiProfileOption(null, I18n.get("connEdit.ai.profile.default"));
+                aiProfileCombo.getItems().add(aiProfileDefaultOption);
+                for (de.kortty.model.AiProfile profile : aiProfiles) {
+                    String name = profile.getName() != null && !profile.getName().isBlank()
+                        ? profile.getName().trim()
+                        : profile.getId();
+                    aiProfileCombo.getItems().add(new AiProfileOption(profile.getId(), name));
+                }
+                aiProfileCombo.getSelectionModel().select(aiProfileDefaultOption);
+                GridPane profileGrid = sectionGrid();
+                profileGrid.add(new Label(I18n.get("connEdit.ai.profile")), 0, 0);
+                profileGrid.add(aiProfileCombo, 1, 0);
+                aiContent.getChildren().add(profileGrid);
+            }
+            if (!connectionAiSkills.isEmpty()) {
+                aiContent.getChildren().add(buildConnectionSkillsUi(connectionAiSkills));
+            }
+            collapsibleSections.getChildren().add(
+                collapsibleSection(I18n.get("connEdit.tab.ai"), aiContent));
         }
 
         Button resetButton = new Button(I18n.get("quickConnect.resetToDefaults"));
         resetButton.setOnAction(e -> resetToDefaultSettings());
         HBox buttonBox = new HBox(10);
         buttonBox.getChildren().add(resetButton);
-        grid.add(buttonBox, 1, row);
-        
+
         // Load last used settings or default settings from GlobalSettings
         loadTerminalSettings();
         
@@ -847,11 +823,171 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             Label savedLabel = new Label(I18n.get("quickConnect.savedConnections"));
             pane.getChildren().addAll(savedLabel, savedConnectionsSearchField, savedConnectionsCombo, new Separator());
         }
-        pane.getChildren().add(grid);
-        
+        pane.getChildren().addAll(grid, collapsibleSections, buttonBox);
+
         return pane;
     }
-    
+
+    /** A two-column grid (label | input) matching the main form, used for a collapsible section body. */
+    private GridPane sectionGrid() {
+        GridPane g = new GridPane();
+        g.setHgap(10);
+        g.setVgap(10);
+        g.setPadding(new Insets(8, 6, 6, 6));
+        ColumnConstraints labelCol = new ColumnConstraints();
+        labelCol.setMinWidth(200);
+        labelCol.setPrefWidth(220);
+        labelCol.setHgrow(Priority.NEVER);
+        ColumnConstraints inputCol = new ColumnConstraints();
+        inputCol.setHgrow(Priority.ALWAYS);
+        inputCol.setMinWidth(400);
+        g.getColumnConstraints().addAll(labelCol, inputCol);
+        return g;
+    }
+
+    /**
+     * Wraps a section body in a collapsible {@link javafx.scene.control.TitledPane} whose title is the
+     * section name and whose disclosure arrow toggles visibility. Starts collapsed so the dialog opens
+     * compact; expanding or collapsing resizes the window to fit (see {@link #resizeDialogToScene()}).
+     */
+    private javafx.scene.control.TitledPane collapsibleSection(String title, javafx.scene.Node content) {
+        javafx.scene.control.TitledPane titled = new javafx.scene.control.TitledPane(title, content);
+        titled.setExpanded(false);
+        titled.setAnimated(false);
+        titled.expandedProperty().addListener((obs, was, now) -> resizeDialogToScene());
+        return titled;
+    }
+
+    /** Grows/shrinks the dialog window to fit its content after a section is expanded or collapsed. */
+    private void resizeDialogToScene() {
+        javafx.application.Platform.runLater(() -> {
+            javafx.scene.Scene scene = getDialogPane().getScene();
+            if (scene != null && scene.getWindow() != null) {
+                scene.getWindow().sizeToScene();
+            }
+        });
+    }
+
+    /**
+     * Builds the connection-skills picker: a glob-aware search field (supports {@code *} wildcards), a
+     * scrollable checkbox list, and All / Clear / Save buttons. "Save" persists the current selection as
+     * the default skill set pre-selected for every new connection
+     * ({@link de.kortty.model.GlobalSettings#getDefaultConnectionAiSkillIds()}).
+     */
+    private javafx.scene.Node buildConnectionSkillsUi(java.util.List<de.kortty.model.AiSkill> skills) {
+        for (de.kortty.model.AiSkill skill : skills) {
+            aiSkillChecksById.put(skill.getId(), new javafx.beans.property.SimpleBooleanProperty(false));
+        }
+        // Pre-select the saved default skills so new connections inherit them.
+        applyDefaultConnectionSkillSelection();
+
+        javafx.collections.ObservableList<de.kortty.model.AiSkill> allSkills =
+            javafx.collections.FXCollections.observableArrayList(skills);
+        ListView<de.kortty.model.AiSkill> listView = new ListView<>(
+            javafx.collections.FXCollections.observableArrayList(skills));
+        listView.setPrefHeight(180);
+        listView.setCellFactory(javafx.scene.control.cell.CheckBoxListCell.forListView(
+            skill -> aiSkillChecksById.get(skill.getId()),
+            new javafx.util.StringConverter<>() {
+                @Override
+                public String toString(de.kortty.model.AiSkill skill) {
+                    return ConnectionEditDialog.aiSkillListLabel(skill);
+                }
+
+                @Override
+                public de.kortty.model.AiSkill fromString(String string) {
+                    return null;
+                }
+            }));
+
+        // Glob-aware search ('*' wildcards), reusing the saved-connection matcher.
+        TextField searchField = new TextField();
+        searchField.setPromptText(I18n.get("quickConnect.skills.searchPrompt"));
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            String text = newVal != null ? newVal.trim() : "";
+            if (text.isEmpty()) {
+                listView.getItems().setAll(allSkills);
+                return;
+            }
+            java.util.function.Predicate<String> matcher = buildSavedConnectionMatcher(text);
+            listView.getItems().setAll(allSkills.stream()
+                .filter(skill -> matcher.test(ConnectionEditDialog.aiSkillListLabel(skill))
+                    || matcher.test(skill.getName() != null ? skill.getName() : "")
+                    || matcher.test(skill.getId() != null ? skill.getId() : ""))
+                .collect(java.util.stream.Collectors.toList()));
+        });
+
+        Button allButton = new Button(I18n.get("quickConnect.skills.all"));
+        allButton.setOnAction(e -> aiSkillChecksById.values().forEach(prop -> prop.set(true)));
+        Button clearButton = new Button(I18n.get("quickConnect.skills.clear"));
+        clearButton.setOnAction(e -> aiSkillChecksById.values().forEach(prop -> prop.set(false)));
+        Button saveButton = new Button(I18n.get("quickConnect.skills.save"));
+        saveButton.setTooltip(new Tooltip(I18n.get("quickConnect.skills.save.tooltip")));
+        saveButton.setOnAction(e -> {
+            saveDefaultConnectionSkills();
+            // Brief inline confirmation so the user knows the default set was persisted.
+            String original = I18n.get("quickConnect.skills.save");
+            saveButton.setText(I18n.get("quickConnect.skills.saved"));
+            saveButton.setDisable(true);
+            javafx.animation.PauseTransition pause =
+                new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1.2));
+            pause.setOnFinished(ev -> {
+                saveButton.setText(original);
+                saveButton.setDisable(false);
+            });
+            pause.play();
+        });
+        HBox skillButtons = new HBox(8, allButton, clearButton, saveButton);
+
+        return new VBox(6,
+            new Label(I18n.get("connEdit.ai.skills")),
+            searchField,
+            listView,
+            skillButtons);
+    }
+
+    /** Pre-checks the skills saved as the connection default (GlobalSettings.defaultConnectionAiSkillIds). */
+    private void applyDefaultConnectionSkillSelection() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm =
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings == null) {
+                return;
+            }
+            for (String skillId : settings.getDefaultConnectionAiSkillIds()) {
+                javafx.beans.property.BooleanProperty prop = aiSkillChecksById.get(skillId);
+                if (prop != null) {
+                    prop.set(true);
+                }
+            }
+        } catch (Exception ignored) {
+            // Best-effort pre-selection.
+        }
+    }
+
+    /** Persists the currently checked skills as the default set pre-selected for new connections. */
+    private void saveDefaultConnectionSkills() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm =
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings == null) {
+                return;
+            }
+            java.util.List<String> selected = new java.util.ArrayList<>();
+            aiSkillChecksById.forEach((skillId, checked) -> {
+                if (checked != null && checked.get()) {
+                    selected.add(skillId);
+                }
+            });
+            settings.setDefaultConnectionAiSkillIds(selected);
+            gsm.save();
+        } catch (Exception ignored) {
+            // Best-effort persistence.
+        }
+    }
+
     private java.util.List<de.kortty.model.AiSkill> loadConnectionTargetAiSkills() {
         java.util.List<de.kortty.model.AiSkill> connectionSkills = new java.util.ArrayList<>();
         try {
@@ -1658,25 +1794,10 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
      * Loads connection settings (timeout and retries) from GlobalSettings.
      */
     private void loadConnectionSettings() {
-        try {
-            de.kortty.core.GlobalSettingsManager gsm = 
-                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
-            de.kortty.model.GlobalSettings globalSettings = gsm.getSettings();
-            
-            if (globalSettings != null) {
-                // Load timeout
-                if (globalSettings.getLastQuickConnectTimeout() != null) {
-                    timeoutSpinner.getValueFactory().setValue(globalSettings.getLastQuickConnectTimeout());
-                }
-                
-                // Load retries
-                if (globalSettings.getLastQuickConnectRetries() != null) {
-                    retrySpinner.getValueFactory().setValue(globalSettings.getLastQuickConnectRetries());
-                }
-            }
-        } catch (Exception e) {
-            // Ignore, use default values
-        }
+        // Connection timeout and retries intentionally use FIXED defaults every time the dialog
+        // opens (10 seconds / 0 retries — see the timeoutSpinner/retrySpinner construction); they
+        // are deliberately NOT restored from the previous session. Picking a saved connection still
+        // fills in that connection's own timeout/retries (see fillFormWithConnection).
     }
     
     /**
@@ -1798,10 +1919,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                                         ? terminalEffectSpeedControls.getValue()
                                         : TerminalEffectAnimationSpeed.DEFAULT));
                 
-                // Save connection settings (timeout and retries)
-                globalSettings.setLastQuickConnectTimeout(timeoutSpinner.getValue());
-                globalSettings.setLastQuickConnectRetries(retrySpinner.getValue());
-                
+                // Connection timeout/retries are intentionally NOT persisted here — the dialog
+                // always opens with fixed defaults (10s / 0 retries). See loadConnectionSettings().
+
                 gsm.save();
             }
         } catch (Exception e) {
