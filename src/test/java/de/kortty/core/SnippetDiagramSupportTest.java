@@ -303,6 +303,34 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
+    void applyDarkModeDarkensUnknownLightNodeColours() {
+        // The AI may pick its own light palette colour beyond the three semantic ones (e.g. a cream
+        // "skip" card). It must be darkened so the light dark-mode font stays readable — light text on
+        // a light card was the reported bug.
+        String source = "@startuml\nstart\n:Skip empty message; <<#FEFECE>>\nstop\n@enduml";
+
+        String dark = SnippetDiagramSupport.applyDarkMode(source);
+
+        assertThat(dark).doesNotContain("#FEFECE");
+        java.util.regex.Matcher matcher =
+            java.util.regex.Pattern.compile("<<#([0-9A-Fa-f]{6})>>").matcher(dark);
+        assertThat(matcher.find()).isTrue();
+        String hex = matcher.group(1);
+        int r = Integer.parseInt(hex.substring(0, 2), 16);
+        int g = Integer.parseInt(hex.substring(2, 4), 16);
+        int b = Integer.parseInt(hex.substring(4, 6), 16);
+        double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+        assertThat(luminance).isLessThan(0.35);
+    }
+
+    @Test
+    void applyDarkModeKeepsAlreadyDarkNodeColours() {
+        // A node whose explicit colour is already dark must be left untouched (never flipped light).
+        String dark = SnippetDiagramSupport.applyDarkMode("@startuml\n:x; <<#26382D>>\n@enduml");
+        assertThat(dark).contains("<<#26382D>>");
+    }
+
+    @Test
     void applyDarkModeReturnsBlankForBlankSource() {
         assertThat(SnippetDiagramSupport.applyDarkMode("   ")).isEmpty();
         assertThat(SnippetDiagramSupport.applyDarkMode(null)).isEmpty();
