@@ -184,7 +184,8 @@ public class FileEditorTab extends Tab {
         
         setText(filename + " (Remote)");
         setClosable(true);
-        
+        setOnClosed(event -> dispose());
+
         // Create code area (MonacoEditorPane for reliable syntax highlighting)
         codeArea = new MonacoEditorPane();
         codeArea.getStyleClass().add("code-area");
@@ -249,7 +250,8 @@ public class FileEditorTab extends Tab {
         
         setText(localPath.getFileName().toString());
         setClosable(true);
-        
+        setOnClosed(event -> dispose());
+
         // Create code area (MonacoEditorPane for reliable syntax highlighting)
         codeArea = new MonacoEditorPane();
         codeArea.getStyleClass().add("code-area");
@@ -301,7 +303,15 @@ public class FileEditorTab extends Tab {
         
         logger.info("Opened local file for editing: {}", localPath);
     }
-    
+
+    /**
+     * Releases the Monaco WebView's native WebKit engine. Idempotent; runs from onClosed for
+     * user closes and from MainWindow's programmatic close paths (Cmd+W, close-all).
+     */
+    public void dispose() {
+        codeArea.dispose();
+    }
+
     private BorderPane createContent() {
         BorderPane root = new BorderPane();
         

@@ -157,6 +157,9 @@ public class AiResultTab extends Tab {
     // that gets the search-hit outline (the user bubble, not its full-width row).
     private final List<Node> messageNodes = new ArrayList<>();
     private final List<Node> highlightNodes = new ArrayList<>();
+    // Every rendered Monaco/WebView node registers its dispose here; rebuilds and tab close
+    // release the native WebKit engines instead of orphaning them (each holds tens of MB).
+    private final ChatRenderDisposables renderDisposables = new ChatRenderDisposables();
     private HBox searchBar;
     private TextField searchField;
     private Label searchCountLabel;
@@ -192,7 +195,10 @@ public class AiResultTab extends Tab {
 
         setClosable(true);
         setOnCloseRequest(event -> cancelActiveRequest());
-        setOnClosed(event -> ownerWindow.unregisterSavedChatTab(savedChatId));
+        setOnClosed(event -> {
+            ownerWindow.unregisterSavedChatTab(savedChatId);
+            disposeRenderedContent();
+        });
 
         messagesBox = new VBox(12);
         messagesBox.setFillWidth(true);
@@ -439,9 +445,20 @@ public class AiResultTab extends Tab {
     public void closeTab() {
         cancelActiveRequest();
         ownerWindow.unregisterSavedChatTab(savedChatId);
+        // onClosed does not fire for a programmatic remove, so release the WebViews here.
+        disposeRenderedContent();
         if (getTabPane() != null) {
             getTabPane().getTabs().remove(this);
         }
+    }
+
+    /**
+     * Releases everything holding native memory for this tab: the rendered Monaco/WebView
+     * engines and the indefinite waiting timeline. Idempotent; must run on the FX thread.
+     */
+    void disposeRenderedContent() {
+        waitingTimeline.stop();
+        renderDisposables.close();
     }
 
     private void initializeFromSavedChat(SavedAiChat savedChat, String fallbackTitle) {
@@ -1011,6 +1028,10 @@ public class AiResultTab extends Tab {
     }
 
     private void rebuildMessages() {
+        // Dispose before dropping the nodes: every rebuild (font zoom) re-creates all
+        // Monaco/WebView blocks, and the orphaned engines' native memory is not reclaimed
+        // promptly by GC.
+        renderDisposables.disposeAll();
         messagesBox.getChildren().clear();
         messageNodes.clear();
         highlightNodes.clear();
@@ -1393,6 +1414,7 @@ public class AiResultTab extends Tab {
 
     private javafx.scene.Node createCodeEditorNode(String normalizedLanguage, String code) {
         MonacoEditorPane codeArea = new MonacoEditorPane();
+        renderDisposables.register(codeArea::dispose);
         codeArea.setEditable(false);
         codeArea.replaceText(code != null ? code : "");
         codeArea.setLanguage(normalizedLanguage);
@@ -1491,6 +1513,9 @@ public class AiResultTab extends Tab {
         diagramBox.getStyleClass().add("ai-chat-block-surface");
 
         String source = AiChatDiagramSupport.normalizePlantUml(code);
+        // The WebView is created only after the render subprocess returns; by then the tab may
+        // have been closed or rebuilt (font zoom), so a stale epoch must not attach anything.
+        int renderEpoch = renderDisposables.epoch();
         PLANT_UML_RENDER_POOL.submit(() -> {
             PlantUmlRenderService.RenderResult result = PLANT_UML_RENDERER.renderSvg(source);
             String svg = null;
@@ -1504,9 +1529,13 @@ public class AiResultTab extends Tab {
             String renderedSvg = svg;
             String failureMessage = result.message();
             Platform.runLater(() -> {
+                if (!renderDisposables.isLive(renderEpoch)) {
+                    return;
+                }
                 if (renderedSvg != null) {
                     String sanitizedSvg = AiSvgContentSupport.sanitizeSvg(renderedSvg);
                     WebView imageView = new WebView();
+                    renderDisposables.register(() -> imageView.getEngine().loadContent(""));
                     imageView.getEngine().setJavaScriptEnabled(false);
                     imageView.setContextMenuEnabled(false);
                     imageView.setPrefHeight(AiSvgContentSupport.estimateDisplayHeight(sanitizedSvg, 120, 520, 320));
@@ -1560,8 +1589,14 @@ public class AiResultTab extends Tab {
     private void pollRenderState(
         WebView view,
         int attemptsLeft,
+        java.util.function.BooleanSupplier live,
         Runnable onSuccess,
         java.util.function.Consumer<String> onFailure) {
+        if (!live.getAsBoolean()) {
+            // Tab closed or messages rebuilt: stop the retry chain instead of pinning the
+            // orphaned WebView through the FX master timer for up to 10 s.
+            return;
+        }
         Object state = null;
         try {
             state = view.getEngine().executeScript(AiChatRenderPageSupport.RENDER_STATE_EXPRESSION);
@@ -1581,7 +1616,7 @@ public class AiResultTab extends Tab {
             return;
         }
         PauseTransition retry = new PauseTransition(Duration.millis(250));
-        retry.setOnFinished(e -> pollRenderState(view, attemptsLeft - 1, onSuccess, onFailure));
+        retry.setOnFinished(e -> pollRenderState(view, attemptsLeft - 1, live, onSuccess, onFailure));
         retry.play();
     }
 
@@ -1626,10 +1661,12 @@ public class AiResultTab extends Tab {
             return renderedBox;
         }
         WebView renderView = new WebView();
+        renderDisposables.register(() -> renderView.getEngine().loadContent(""));
         renderView.setContextMenuEnabled(false);
         renderView.setPrefHeight(Math.min(maxHeight, Math.max(minHeight, 320)));
         renderView.getEngine().load(pageUrl);
-        pollRenderState(renderView, 40, () -> {
+        int renderEpoch = renderDisposables.epoch();
+        pollRenderState(renderView, 40, () -> renderDisposables.isLive(renderEpoch), () -> {
             double contentHeight = renderView.getPrefHeight();
             try {
                 Object scrollHeight = renderView.getEngine().executeScript("document.body.scrollHeight");
@@ -1697,6 +1734,7 @@ public class AiResultTab extends Tab {
 
         String sanitizedSvg = AiSvgContentSupport.sanitizeSvg(code);
         WebView imageView = new WebView();
+        renderDisposables.register(() -> imageView.getEngine().loadContent(""));
         imageView.getEngine().setJavaScriptEnabled(false);
         imageView.setContextMenuEnabled(false);
         imageView.setPrefHeight(AiSvgContentSupport.estimateDisplayHeight(sanitizedSvg, 120, 520, 320));

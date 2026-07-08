@@ -942,8 +942,12 @@ public class SwarmAgentTab extends Tab {
         }
     }
 
-    /** Stops all animation/timers when the tab closes; late callback deliveries become no-ops. */
-    private void handleTabClosed() {
+    /**
+     * Stops all animation/timers when the tab closes; late callback deliveries become no-ops.
+     * Idempotent; also called from MainWindow's programmatic close paths, where JavaFX fires
+     * no onClosed event.
+     */
+    void handleTabClosed() {
         restartPending = false;
         closeHeadlessRunners();
         stopTabIndicatorAnimation();
