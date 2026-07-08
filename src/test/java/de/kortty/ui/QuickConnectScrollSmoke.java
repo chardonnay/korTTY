@@ -41,7 +41,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class QuickConnectScrollSmoke {
 
     private static final double WIDTH = 780;
-    private static final double CONSTRAINED_HEIGHT = 560; // deliberately shorter than expanded content
 
     private QuickConnectScrollSmoke() {
     }
@@ -85,52 +84,85 @@ public final class QuickConnectScrollSmoke {
         DialogThemeHelper.applyTheme(dialog);
 
         DialogPane pane = dialog.getDialogPane();
-        Node content = pane.getContent();
-        if (!(content instanceof ScrollPane scrollPane)) {
-            throw new IllegalStateException("Dialog content is not a ScrollPane but "
-                + (content == null ? "null" : content.getClass().getName()));
+
+        // The scroll pane now lives INSIDE the individual-connection tab, directly around the form
+        // VBox (no TabPane between it and the growing content — that indirection was the clipping bug).
+        ScrollPane scrollPane = findScrollPane(pane.getContent());
+        if (scrollPane == null) {
+            throw new IllegalStateException("No ScrollPane found inside the dialog content");
+        }
+        if (!(scrollPane.getContent() instanceof javafx.scene.layout.VBox)) {
+            throw new IllegalStateException("ScrollPane content is not the form VBox but "
+                + scrollPane.getContent().getClass().getName()
+                + " — the scroll pane must wrap the form directly");
         }
 
-        // Expand every collapsible section so the form overflows a short window.
         List<TitledPane> sections = new ArrayList<>();
         collectTitledPanes(scrollPane.getContent(), sections);
         if (sections.isEmpty()) {
             throw new IllegalStateException("No collapsible sections (TitledPane) found");
         }
+        double screenHeight = javafx.stage.Screen.getPrimary().getVisualBounds().getHeight();
+
+        // Fixed, compact preferred viewport height, bounded well below the screen: the window chrome
+        // (header, tab strip, buttons, ~350px) plus this must always fit, and the form is taller than
+        // this even collapsed, so the scroll bar engages and there is no dead space.
+        double viewport = scrollPane.getPrefViewportHeight();
+        if (viewport <= 0 || viewport > 620 || viewport > screenHeight * 0.55 + 1) {
+            throw new IllegalStateException("Viewport height " + Math.round(viewport)
+                + " is not a bounded compact value (expected <= min(620, 0.55*screen="
+                + Math.round(screenHeight * 0.55) + "))");
+        }
+
+        // Lay the dialog out at its OWN preferred size — exactly what the real window does. The
+        // regression this reproduces: at the real (fixed) dialog height, expanding a section must
+        // grow the scroll range instead of clipping the new content.
+        pane.setPrefWidth(WIDTH);
+        pane.applyCss();
+        double paneHeight = pane.prefHeight(WIDTH);
+        pane.resize(WIDTH, paneHeight);
+        pane.layout();
+
+        Node form = scrollPane.getContent();
+        double collapsedContent = form.getLayoutBounds().getHeight();
+        System.out.println("collapsed: paneHeight=" + Math.round(paneHeight)
+            + " content=" + Math.round(collapsedContent)
+            + " viewport=" + Math.round(viewport) + " screen=" + Math.round(screenHeight));
+        if (collapsedContent <= viewport) {
+            throw new IllegalStateException("Collapsed content (" + Math.round(collapsedContent)
+                + ") does not exceed the viewport (" + Math.round(viewport)
+                + ") — the dialog could leave dead space");
+        }
+
+        // Expand all sections WITHOUT resizing the pane (the real window does not resize) — the form
+        // must grow and must NOT be clipped: its laid-out height has to match its own fresh preferred
+        // height. This is the exact failure the user hit (expanded sections cut off mid-row).
         for (TitledPane section : sections) {
             section.setExpanded(true);
         }
-
-        // Lay the dialog out at a height shorter than the expanded content.
-        pane.setPrefSize(WIDTH, CONSTRAINED_HEIGHT);
-        pane.setMinSize(WIDTH, CONSTRAINED_HEIGHT);
-        pane.setMaxSize(WIDTH, CONSTRAINED_HEIGHT);
-        pane.applyCss();
-        pane.resize(WIDTH, CONSTRAINED_HEIGHT);
-        pane.layout();
-
-        // Second layout pass so the AS_NEEDED skin settles its scroll-bar state.
         pane.applyCss();
         pane.layout();
-
-        double viewportHeight = scrollPane.getViewportBounds().getHeight();
-        double contentHeight = scrollPane.getContent().getLayoutBounds().getHeight();
+        double contentHeight = form.getLayoutBounds().getHeight();
+        double contentPref = form.prefHeight(form.getLayoutBounds().getWidth());
         ScrollBar vbar = verticalScrollBar(scrollPane);
         boolean barVisible = vbar != null && vbar.isVisible();
-
-        System.out.println("sections=" + sections.size()
-            + " viewportHeight=" + Math.round(viewportHeight)
-            + " contentHeight=" + Math.round(contentHeight)
+        System.out.println("expanded: content=" + Math.round(contentHeight)
+            + " contentPref=" + Math.round(contentPref)
+            + " viewport=" + Math.round(viewport)
             + " vbarPresent=" + (vbar != null) + " vbarVisible=" + barVisible);
-
-        // The deterministic guarantee that scrolling engages: the expanded content is taller than
-        // the viewport, so the ScrollPane is scrollable (the bottom of the form is reachable rather
-        // than clipped off-screen). Scroll-bar node visibility is a rendering detail that the
-        // AS_NEEDED skin only settles once shown, so it is logged, not asserted.
-        if (contentHeight <= viewportHeight) {
+        if (contentHeight <= collapsedContent + 50) {
+            throw new IllegalStateException("Expanding sections did not grow the scrollable content ("
+                + Math.round(collapsedContent) + " -> " + Math.round(contentHeight)
+                + ") — expanded content would be clipped");
+        }
+        if (contentHeight < contentPref - 4) {
+            throw new IllegalStateException("Form is laid out at " + Math.round(contentHeight)
+                + " but prefers " + Math.round(contentPref)
+                + " — the expanded content is CLIPPED instead of scrollable");
+        }
+        if (contentHeight <= viewport) {
             throw new IllegalStateException("Expanded content (" + Math.round(contentHeight)
-                + ") did not exceed the constrained viewport (" + Math.round(viewportHeight)
-                + "); scroll would not engage");
+                + ") did not exceed the viewport (" + Math.round(viewport) + "); scroll would not engage");
         }
 
         // Section titles must be readable on the dark theme (the base dialog CSS previously had no
@@ -191,6 +223,29 @@ public final class QuickConnectScrollSmoke {
 
     private static double brightnessOf(Paint paint) {
         return paint instanceof Color color ? color.getBrightness() : 1.0;
+    }
+
+    private static ScrollPane findScrollPane(Node node) {
+        if (node instanceof ScrollPane scrollPane) {
+            return scrollPane;
+        }
+        if (node instanceof TabPane tabPane) {
+            for (Tab tab : tabPane.getTabs()) {
+                ScrollPane found = tab.getContent() != null ? findScrollPane(tab.getContent()) : null;
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                ScrollPane found = findScrollPane(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     private static ScrollBar verticalScrollBar(ScrollPane scrollPane) {

@@ -41,7 +41,13 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private final SSHKeyManager sshKeyManager;
     private final char[] masterPassword;
     private final int topConnectionsCount;
-    
+
+    // Scroll wrapper around the form; its viewport is fitted to min(content, screen cap) so the
+    // dialog is compact when short and scrolls (rather than clipping or leaving dead space) when the
+    // form + expanded sections exceed the screen.
+    private ScrollPane contentScroll;
+    private double viewportHeightCap;
+
     private boolean ignoreSavedCredentialsEvents;
     
     // Individual connection tab
@@ -133,31 +139,40 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         // TabPane for Individual vs Group connection
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        
-        Tab individualTab = new Tab(I18n.get("quickConnect.individualConnection"));
-        individualTab.setContent(createIndividualConnectionPane());
-        
-        Tab groupTab = new Tab(I18n.get("quickConnect.openGroup"));
-        groupTab.setContent(createGroupSelectionPane());
-        
-        tabPane.getTabs().addAll(individualTab, groupTab);
-        
-        mainContent.getChildren().add(tabPane);
 
-        // Wrap the form in a scroll pane so expanding the collapsible sections stays reachable even
-        // when the content grows past the screen height (the window is also grown to fit up to a
-        // screen-height cap, beyond which this scrolls instead of clipping the bottom off-screen).
-        ScrollPane contentScroll = new ScrollPane(mainContent);
+        Tab individualTab = new Tab(I18n.get("quickConnect.individualConnection"));
+        // Scroll the individual-connection FORM only, directly inside its tab: the ScrollPane must be
+        // the immediate parent of the growing VBox. An earlier attempt wrapped the whole dialog
+        // content (header + TabPane + form) in one ScrollPane, but the TabPane's content region
+        // between the ScrollPane and the form swallowed the height growth when a collapsible section
+        // was expanded — the scroll range never grew and the expanded content was clipped. With the
+        // ScrollPane directly around the form, expanding a section grows the VBox's preferred height
+        // and the scroll range follows; header and tab strip stay fixed above.
+        contentScroll = new ScrollPane(createIndividualConnectionPane());
         contentScroll.setFitToWidth(true);
         contentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         contentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         // Blend the viewport into the dialog (no grey frame on the dark theme).
         contentScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-        getDialogPane().setContent(contentScroll);
+        // Fixed, compact preferred viewport height, bounded well below any screen (the window chrome —
+        // header, tab strip, buttons — adds ~350px on top). The form is taller than this even fully
+        // collapsed, so there is never dead space and the scroll bar engages whenever needed. The
+        // dialog stays resizable; enlarging the window grows the viewport (VGROW below).
+        viewportHeightCap = Math.min(Screen.getPrimary().getVisualBounds().getHeight() * 0.55, 620);
+        contentScroll.setPrefViewportHeight(viewportHeightCap);
+        individualTab.setContent(contentScroll);
+
+        Tab groupTab = new Tab(I18n.get("quickConnect.openGroup"));
+        groupTab.setContent(createGroupSelectionPane());
+
+        tabPane.getTabs().addAll(individualTab, groupTab);
+
+        mainContent.getChildren().add(tabPane);
+        VBox.setVgrow(tabPane, Priority.ALWAYS);
+
+        getDialogPane().setContent(mainContent);
         getDialogPane().setMinWidth(700);
         getDialogPane().setPrefWidth(750);
-        // If the dialog opens taller than the screen, cap it so the scroll bar is usable.
-        setOnShown(shownEvent -> javafx.application.Platform.runLater(this::clampDialogHeightToScreen));
         
         // Buttons
         ButtonType connectButtonType = new ButtonType(I18n.get("quickConnect.connect"), ButtonBar.ButtonData.OK_DONE);
@@ -859,42 +874,14 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
 
     /**
      * Wraps a section body in a collapsible {@link javafx.scene.control.TitledPane} whose title is the
-     * section name and whose disclosure arrow toggles visibility. Starts collapsed so the dialog opens
-     * compact; expanding or collapsing resizes the window to fit (see {@link #resizeDialogToScene()}).
+     * section name and whose disclosure arrow toggles visibility. Starts collapsed; expanding it simply
+     * makes the surrounding scroll pane show more content (the viewport height is fixed).
      */
     private javafx.scene.control.TitledPane collapsibleSection(String title, javafx.scene.Node content) {
         javafx.scene.control.TitledPane titled = new javafx.scene.control.TitledPane(title, content);
         titled.setExpanded(false);
         titled.setAnimated(false);
-        titled.expandedProperty().addListener((obs, was, now) -> resizeDialogToScene());
         return titled;
-    }
-
-    /**
-     * Grows/shrinks the dialog window to fit its content after a section is expanded or collapsed,
-     * then caps the height to the screen so the content scroll pane takes over instead of the
-     * window extending off-screen.
-     */
-    private void resizeDialogToScene() {
-        javafx.application.Platform.runLater(() -> {
-            javafx.scene.Scene scene = getDialogPane().getScene();
-            if (scene != null && scene.getWindow() != null) {
-                scene.getWindow().sizeToScene();
-                clampDialogHeightToScreen();
-            }
-        });
-    }
-
-    /** Caps the dialog height to 90% of the screen so the content scroll pane stays usable. */
-    private void clampDialogHeightToScreen() {
-        javafx.scene.Scene scene = getDialogPane().getScene();
-        if (scene == null || !(scene.getWindow() instanceof Stage stage)) {
-            return;
-        }
-        double maxHeight = Screen.getPrimary().getVisualBounds().getHeight() * 0.9;
-        if (stage.getHeight() > maxHeight) {
-            stage.setHeight(maxHeight);
-        }
     }
 
     /**
