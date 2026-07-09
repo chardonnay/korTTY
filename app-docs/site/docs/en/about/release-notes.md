@@ -23,6 +23,25 @@ The full, version-by-version changelog. The version this guide was built for is 
 - **Degenerate AI replies no longer wipe your code** — applying AI improvements or a security fix to a snippet could, with a weak/local model and an active AI skill, replace the whole snippet with a bare placeholder (literally `$code`) returned by the model. This is now detected and rejected — you get *"AI reply was not a valid snippet — code left unchanged"* instead of losing your code — and the AI prompt itself was hardened so a skill's instructions can no longer talk the model into returning a placeholder instead of real source.
 - **Diagram dark mode covers every colour** — in the AI Code Analysis flow diagram's dark mode, all light node colours are now darkened to a matching dark tint, not just the three most common ones, so the light node text stays readable regardless of which colour a node was given.
 
+### AI Code Analysis
+
+- **Pick the AI skills for an analysis** — the **Full code analysis** window now shows which AI Skills were included, as chips with an *(auto-selected)* or *(manual)* badge, and lets you change them with a **searchable** picker (filter by name, description or tags). Your changes take effect on the next **Re-run**, so one deliberate click runs one analysis with exactly the skills you chose. korTTY also auto-selects the skills relevant to the snippet before the first analysis so the set is meaningful out of the box.
+- **Hardening options show a count and remember their state** — the *Hardening options* panel title now shows how many options are ticked (e.g. *Hardening options (11)*), and the window remembers whether you left the panel open or closed.
+- **Add a script header on apply** — a **Script header** selector lets you prepend one of your saved *Script-Header* snippets to the code when you apply the analysis; a header on its own is inserted without an AI round-trip.
+- **Export the report** — a new **Export** button saves the whole report — summary, categorized improvements, dependencies and the flow diagram — as a **PDF**, a self-contained **HTML** page, or **Markdown**, in an attractive print-friendly design that records the profile and included skills.
+- **Which profile is in use** — the window now shows the name of the AI profile that produced the analysis (the default profile's real name, not just "Default profile").
+- **Clearer sections** — each improvement section (Security / Optimization / Design / Dependencies) now carries a colour-coded icon, and the summary block no longer shows a selection accent bar it never needed.
+- **Clearer change reviews** — in the *review changes* window, the "Why these parts changed" cards now show each finding's colour-coded category icon and the line range it affects (for example *Lines 23–40*); the on-hover explanations in the diff are more reliable — matching tolerates re-indented or case-shifted lines, and reasons whose anchor cannot be found are attached to the remaining changed blocks instead of silently disappearing.
+
+### File browser
+
+- **Clearer context-menu label** — right-clicking a file in the local **file browser** (View menu) now offers **Open in Snippet Editor** instead of the misleading *Load as text file* (the action already opened the snippet editor), matching the terminal context menu.
+
+### Fixes
+
+- **No crash when a snippet fails to save** — saving a snippet as a new entry could, if the save failed, crash with a null-pointer error while trying to show the failure message. The error is now reported cleanly.
+- **"Save as new snippet" no longer shows a false "already exists" error** — after editing a snippet (for example applying analysis improvements) and saving it under a new name with **Save as new snippet**, korTTY wrongly popped up *"Snippet name already exists"* even though it had just saved the snippet correctly. The dialog now delivers its save exactly once.
+
 ### Miscellaneous
 
 - **AI Manager remembers its window** — the AI Manager dialog now reopens at the size and position you last left it at, instead of resetting every time.

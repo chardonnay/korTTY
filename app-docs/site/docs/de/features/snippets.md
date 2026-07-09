@@ -119,7 +119,7 @@ Das Menü **AI-Code** gruppiert die Aktionen, die den Code selbst lesen oder neu
 - **Vollständige Code-Analyse** – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts im Klartext, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe [Vollständige Codeanalyse](#full-code-analysis) unten].
 - **Verbesserung der Lesbarkeit/Robustheit/Leistung** – Schreibt den **ausgewählten** Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. *Robustheit verbessern* bietet zusätzlich [Härtungsoptionen](../reference/hardening-options.md) vor der Ausführung.
 - **Benutzerdefinierte Verbesserung…** – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu, mit den gleichen [Härtungsoptionen](../reference/hardening-options.md).
-- **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#security-check) unten].
+- **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus; KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#security-check) unten].
 - **Diagramm** – Erzeugt und speichert ein persistentes PlantUML-Logikstrukturdiagramm für das Snippet.
 
 Das Editor-Kontextmenü bietet außerdem **AI Assistant…**, der einen Anweisungsdialog für die aktuelle Cursorposition öffnet: KorTTY sendet den vollständigen Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil und zeigt das Ergebnis als Vorher/Nachher-Vorschau an.
@@ -133,22 +133,57 @@ Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also **wä
 
 **Vollständige Codeanalyse** öffnet ein spezielles Fenster, das das gesamte Snippet auf einmal untersucht und konkrete Verbesserungen anbietet, die Sie anwenden können. Das Fenster ist **nicht modal** – Sie können das Snippet weiter bearbeiten, während es geöffnet bleibt – und in der Titelleiste wird der Dateiname des Skripts angezeigt, sodass Sie mehrere Analysen unterscheiden können. In der Titelleiste des Snippet-Editors wird ebenfalls der Name der Datei angezeigt, die Sie bearbeiten.
 
-Das Fenster ist in zwei Bereiche aufgeteilt.
+Am oberen Rand des Fensters verläuft eine Symbolleiste, der Bericht und das Flussdiagramm füllen die beiden Bereiche darunter aus, und in der Fußzeile befindet sich eine Skript-Kopfzeilenauswahl sowie ein ausklappbares Härtungsfeld.
+
+**Symbolleiste:**
+
+- **Verwendetes Profil** – Der Name des KI-Profils, mit dem die Analyse ausgeführt wurde, wird links angezeigt (für das Standardprofil wird sein *tatsächlicher* Name angezeigt, z. B. *Profil: LM Studio* – nicht nur „Standardprofil“), sodass Sie immer erkennen können, welches Modell den Bericht erstellt hat.
+- **KI-Fähigkeiten** – Wenn [KI-Fähigkeiten](../reference/settings/ai-skills.md) konfiguriert sind, wird in einer Zeile angezeigt, welche Fähigkeiten enthalten waren, und Sie können diese ändern; siehe **KI-Fähigkeiten für diese Analyse** unten.
+- **Erneut ausführen** – Eine vorübergehende KI-Profilauswahl und eine Schaltfläche **Erneut ausführen** wiederholen die Analyse mit dem ausgewählten Profil *und* Ihrer aktuellen KI-Fähigkeitsauswahl. Die Auswahl wird auf die Standardeinstellung zurückgesetzt, wenn das Fenster erneut geöffnet wird.
+- **Alle auswählen** – Markieren Sie alle Verbesserungen und Abhängigkeiten gleichzeitig.
+- **A− / A+** – Passen Sie die Leseschriftgröße an (wird sitzungsübergreifend gespeichert).
+- **Kopieren** – Kopieren Sie die Zusammenfassung, Verbesserungen und Abhängigkeiten als Klartext in die Zwischenablage.
+- **Exportieren** – Speichern Sie den gesamten Bericht (einschließlich des Diagramms) als Datei; siehe **Bericht exportieren** unten.
 
 **Links – Analyse und Verbesserungen:**
 
-- **Zusammenfassung** – Eine kurze, verständliche Beschreibung dessen, was das Skript tut.
-- **Verbesserungen** – Vorschläge gruppiert in die Kategorien **Sicherheit**, **Optimierung** und **Design**, jeweils mit einem Schweregrad-Abzeichen, einer Erklärung und einer konkreten Empfehlung. Kreuzen Sie die gewünschten an; Verwenden Sie **Alle auswählen**, um alles auf einmal anzukreuzen. Leere Kategorien werden ausgeblendet.
+- **Zusammenfassung** – Eine kurze, verständliche Beschreibung dessen, was das Skript tut. Da es sich um eine Beschreibung und nicht um ein auswählbares Element handelt, wird es als einfacher Block ohne Auswahlakzent angezeigt.
+- **Verbesserungen** – Vorschläge gruppiert in die Abschnitte **Sicherheit**, **Optimierung** und **Design**. Jeder Abschnittstitel trägt ein farbcodiertes Symbol und eine Anzahl, und jeder Vorschlag verfügt über ein Schweregradkennzeichen, eine Erklärung und eine konkrete Empfehlung. Kreuzen Sie die gewünschten an; Verwenden Sie **Alle auswählen**, um alles auf einmal anzukreuzen. Leere Abschnitte werden ausgeblendet.
 - **Abhängigkeiten** – Externe Programme, Skripte oder Dienste, auf die sich das Snippet stützt, jedes mit seinem *Zweck* und einem *Reduzieren/Ersetzen*-Vorschlag. Markieren Sie eine Abhängigkeit, um deren Vorschlag ebenfalls anzuwenden.
 
 **Rechts – Flussdiagramm:**
 
 - Ein **automatisch generiertes Flussdiagramm** der Logik des Skripts wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom **−** / **Anpassen** / **+**, **SVG speichern** / **PNG speichern**, **Bild kopieren** / **PflanzenUML kopieren**, ein Steuerelement **Dunkelmodus** und einen Farbwähler **Hintergrund** (beide gespeichert) und **Regenerieren**. Siehe [Diagrammdarstellung](#diagram-appearance) unten].
-- **Hover-Code-Referenzen** – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die passenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen [Diagram](#plantuml-diagrams)-Fenster.
+- **Hover-Code-Referenzen** – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die übereinstimmenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen [Diagram](#plantuml-diagrams)-Fenster.
 
-An der Unterseite können Sie über ein zusammenklappbares Feld mit **Härtungsoptionen** Techniken in Produktionsqualität zu den angewendeten Korrekturen hinzufügen. Unter [Härtungsoptionen](../reference/hardening-options.md)] erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.
+**KI-Fähigkeiten für diese Analyse:**
 
-Wenn Sie auf **Ausgewählte anwenden** klicken, sendet KorTTY die angekreuzten Verbesserungen und Abhängigkeitsvorschläge (plus etwaige Härtungsoptionen) in einer Anfrage an die KI und zeigt das Ergebnis in einem Fenster *Verbesserungen anwenden – Änderungen überprüfen* an: das ursprüngliche und das neu geschriebene Skript nebeneinander, mit hervorgehobenen geänderten Zeilen und den Gründen für jede Änderung, genau wie die Sicherheitsüberprüfung unten. Übernehmen Sie die Änderung, um den Editor zu aktualisieren.
+Wenn [AI Skills](../reference/settings/ai-skills.md) konfiguriert sind, zeigt eine Zeile oben im Fenster genau an, **welche Fähigkeiten** in die Analyse einbezogen wurden, als Chips, mit einem **(automatisch ausgewählten)** oder **(manuell)**-Abzeichen:
+
+- **Automatisch ausgewählt** – korTTY wählt die für das Snippet relevanten Fertigkeiten vorab aus, indem es die Tags, den Namen und die Beschreibung jeder Fertigkeit mit der Sprache und dem Inhalt des Snippets abgleicht und sie in die Analyse einbezieht. Aus diesem Grund lautet das Abzeichen beim ersten Durchlauf *(automatisch ausgewählt)*.
+- **Manuell** – Klicken Sie auf **Auswählen…**, um eine **durchsuchbare Auswahl** zu öffnen: Geben Sie in das Suchfeld ein, um Ihre gespeicherten Fertigkeiten nach Namen, Beschreibung oder Tags zu filtern, und aktivieren oder deaktivieren Sie dann die gewünschten Fertigkeiten. Sobald Sie das Set ändern, wechselt das Badge zu *(manuell)* und korTTY behält Ihre Auswahl bei, anstatt sie automatisch auszuwählen.
+
+Durch das Ändern der Fertigkeiten wird **nicht** sofort eine erneute Analyse durchgeführt – der neue Satz wird beim nächsten **Wiederholen** angewendet, sodass ein bewusster Klick eine Analyse mit genau den von Ihnen ausgewählten Fertigkeiten erzeugt (und keine überraschende Flut von KI-Anrufen). Fertigkeiten, die Sie hier einschließen, werden unabhängig vom konfigurierten *Ziel* der einzelnen Fertigkeiten gesendet. Die Zeile wird nur angezeigt, wenn mindestens eine KI-Fähigkeit aktiviert ist.
+
+**Härtungsmöglichkeiten:**
+
+Unten können Sie in einem zusammenklappbaren Bereich **Härtungsoptionen** Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, aussagekräftige Exit-Codes, Protokollierung, Idempotenz, `--dry-run`, `--help` und mehr) den angewendeten Korrekturen hinzufügen. Der Panel-Titel zeigt live **Zählung**, wie viele Optionen derzeit aktiviert sind – zum Beispiel *Härtungsoptionen (11)* – und korTTY **merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben** und stellt diesen Zustand wieder her, wenn das Fenster das nächste Mal geöffnet wird. Unter [Härtungsoptionen](../reference/hardening-options.md)] erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.
+
+**Skript-Header:**
+
+Mit einem **Skript-Header**-Selektor können Sie einem Ihrer gespeicherten *Skript-Header*-Snippets (aus der festen [Skript-Header-Kategorie ](#creating-and-editing-snippets))) dem Code voranstellen, wenn Sie die Analyse anwenden. Wählen Sie einen Header aus – oder belassen Sie ihn auf *Kein Header* (Standardeinstellung) – und sein Inhalt wird mit ersetzten Variablen oben im Snippet nach einer vorhandenen Shebang-/Lead-Zeile als Teil derselben Änderung eingefügt.
+
+**Ausgewählt anwenden:**
+
+Wenn Sie auf **Ausgewählte übernehmen** klicken, sendet korTTY die angekreuzten Verbesserungen und Abhängigkeitsvorschläge (sowie alle Härtungsoptionen) in einer Anfrage an die KI und zeigt das Ergebnis in einem Fenster *Verbesserungen anwenden – Änderungen überprüfen* an: das ursprüngliche und das neu geschriebene Skript nebeneinander, mit hervorgehobenen geänderten Zeilen und den Gründen für jede Änderung, genau wie die Sicherheitsüberprüfung unten. Jeder ausgewählte **Skript-Header** wird dem Ergebnis vorangestellt, bevor es angezeigt wird. Übernehmen Sie die Änderung, um den Editor zu aktualisieren. Ein eigenständiger Header – ohne angekreuzte Verbesserungen, Abhängigkeiten oder Härtung – wird direkt eingefügt, ohne einen KI-Roundtrip, und immer noch zuerst als Vorher/Nachher-Vorschau angezeigt.
+
+**Bericht exportieren:**
+
+Die Schaltfläche **Exportieren** speichert den vollständigen Bericht – Zusammenfassung, kategorisierte Verbesserungen, Abhängigkeiten und das Flussdiagramm – als eigenständige Datei in einem attraktiven, druckfreundlichen Design. Im Export-Header werden der Skriptname, das verwendete KI-Profil, das Datum und die enthaltenen KI-Fähigkeiten aufgezeichnet:
+
+- **PDF** – Ein paginiertes Dokument mit eingebettetem Diagramm als Bild.
+- **HTML** – Eine einzelne eigenständige Webseite (das Diagramm ist inline eingebettet), die in jedem Browser geöffnet wird.
+- **Markdown** – Eine `.md`-Datei, neben der das Diagramm als PNG gespeichert ist.
 
 #### Sicherheitsüberprüfung
 
@@ -160,7 +195,7 @@ Im Berichtsfenster **Sicherheitsüberprüfung** wird jeder Befund mit einem farb
 - Wählen Sie ein dediziertes **Sicherheitsprofil** – das KI-Profil, das für Sicherheitsüberprüfungen verwendet wird. Die Auswahl wird dauerhaft gespeichert und ist auch unter **Konfiguration → Globale Einstellungen → AI** verfügbar; Lassen Sie es auf *Standardprofil verwenden*, um die Standardeinstellung wiederzuverwenden. Änderungen werden sofort wirksam.
 - **Prüfung erneut ausführen**, um die Überprüfung mit dem neu ausgewählten Profil zu wiederholen.
 
-Wenn Sie Fixes anwenden, werden im Fenster **Sicherheitsfixes überprüfen** der ursprüngliche und der korrigierte Code nebeneinander angezeigt. Geänderte Zeilen werden automatisch hervorgehoben und tragen eine Markierung am Rand. Bewegen Sie den Mauszeiger an eine beliebige Stelle in einem geänderten Block, um zu sehen, auf welche(s) Ergebnis(se) er sich bezieht (zum Beispiel `S1` oder `S1 + S2`, wenn ein Block zwei Ergebnisse abdeckt), zusammen mit dem Grund für die Änderung. Die gleichen Erklärungen werden auch als Karten unterhalb des Unterschieds aufgeführt, sodass die Begründung auch dann sichtbar bleibt, wenn kein Marker platziert werden kann. Die Schriftgröße der Vorschau kann gezoomt werden und wird sitzungsübergreifend gespeichert.
+Wenn Sie Fixes anwenden, werden im Fenster **Sicherheitsfixes überprüfen** der ursprüngliche und der korrigierte Code nebeneinander angezeigt. Geänderte Zeilen werden automatisch hervorgehoben und tragen eine Markierung am Rand. Bewegen Sie den Mauszeiger an eine beliebige Stelle in einem geänderten Block, um zu sehen, auf welche(s) Ergebnis(se) er sich bezieht (zum Beispiel `S1` oder `S1 + S2`, wenn ein Block zwei Ergebnisse abdeckt), zusammen mit dem Grund für die Änderung. Beim Hover-Matching werden neu eingerückte Zeilen oder Zeilen mit geänderter Groß-/Kleinschreibung toleriert, und ein Grund, dessen Ankerzeile überhaupt nicht gefunden werden kann, wird der Reihe nach an die verbleibenden geänderten Blöcke angehängt, sodass im Diff keine Erklärungen mehr fehlen. Dieselben Erklärungen werden auch als Karten unter dem Diff aufgeführt: Jede Karte trägt das Abzeichen des Ergebnisses und ein farbcodiertes Kategoriesymbol (dieselben Symbole wie die Analyseabschnitte) sowie den Zeilenbereich, den sie auf der korrigierten Seite betrifft (z. B. *Zeilen 23–40*), sodass die Begründung auch dann sichtbar bleibt, wenn keine Markierung platziert werden kann. Die Schriftgröße der Vorschau kann gezoomt werden und wird sitzungsübergreifend gespeichert. Das gleiche Überprüfungsfenster (und seine Erklärungskarten) wird verwendet, wenn Verbesserungen der **vollständigen Codeanalyse** angewendet werden.
 
 ### AI-Profil, erneut ausführen und zoomen
 
@@ -174,6 +209,8 @@ Die AI-Code-Berichtsfenster (vollständige Codeanalyse, Sicherheitsprüfung, die
 ### KI-Fähigkeiten
 
 Wenn [KI-Fähigkeiten](../reference/settings/ai-skills.md) konfiguriert sind, zeigt der Snippet-Editor eine **KI-Fähigkeiten**-Auswahl an. Fertigkeiten, die für die Sprache des Snippets relevant sind, werden automatisch vorab ausgewählt, und jede Fertigkeit, die Sie hier ankreuzen, wird auf **jede** AI-Code-Aktion (Abschluss, Analyse, Verbesserung, Sicherheitsüberprüfung, Diagramm) angewendet, unabhängig vom konfigurierten Ziel der Fertigkeit. Die Auswahl erscheint nur, wenn mindestens eine KI-Fähigkeit aktiviert ist.
+
+Das Fenster **Vollständige Codeanalyse** zeigt dieselbe Auswahl als eine Reihe von Chips an – mit der Bezeichnung *(automatisch ausgewählt)* oder *(manuell)* – und ermöglicht Ihnen, sie mithilfe einer durchsuchbaren Auswahl nur für diese Analyse zu verfeinern. Dort vorgenommene Änderungen gelten bei der nächsten **Wiederholung**. Siehe [Vollständige Codeanalyse](#full-code-analysis).
 
 ### Textkorrektur und Übersetzung
 

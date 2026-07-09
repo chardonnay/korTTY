@@ -53,6 +53,7 @@ public class MonacoDiffPane extends StackPane {
     private String backgroundColor = "#1e1e1e";
     private Consumer<String> workerReadyHandler;
     private Consumer<String> workerFailureHandler;
+    private Consumer<String> changeReasonRangesHandler;
 
     public MonacoDiffPane() {
         getStyleClass().add("monaco-diff-pane");
@@ -113,6 +114,16 @@ public class MonacoDiffPane extends StackPane {
 
     public void setWorkerReadyHandler(Consumer<String> workerReadyHandler) {
         this.workerReadyHandler = workerReadyHandler;
+    }
+
+    /**
+     * Receives the resolved line ranges (modified side) of the change reasons whenever the diff host
+     * (re-)applies its hover decorations: a JSON array of {@code { idx, start, end }} objects, where
+     * {@code idx} echoes the reason's index from {@link #setChangeReasons}. Cosmetic — used to label the
+     * explanation cards with "Lines 23-40".
+     */
+    public void setChangeReasonRangesHandler(Consumer<String> changeReasonRangesHandler) {
+        this.changeReasonRangesHandler = changeReasonRangesHandler;
     }
 
     public void setWorkerFailureHandler(Consumer<String> workerFailureHandler) {
@@ -318,6 +329,17 @@ public class MonacoDiffPane extends StackPane {
             Consumer<String> handler = pane.workerReadyHandler;
             if (handler != null) {
                 Platform.runLater(() -> handler.accept(label));
+            }
+        }
+
+        public void onChangeReasonRanges(String rangesJson) {
+            MonacoDiffPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
+            Consumer<String> handler = pane.changeReasonRangesHandler;
+            if (handler != null) {
+                Platform.runLater(() -> handler.accept(rangesJson));
             }
         }
 

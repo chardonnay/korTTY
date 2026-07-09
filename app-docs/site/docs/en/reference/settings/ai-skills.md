@@ -42,3 +42,6 @@ When you select or create a skill, the right panel shows per-skill fields. Each 
 
 !!! note "Skill lifecycle"
     Skills are stored as XML elements within the global settings file. Use **Import** to load skills from markdown files and **Export** to save selected skills as markdown files. The skill list can be sorted alphabetically by name or by status (enabled first).
+
+!!! note "Choosing skills per request"
+    This tab manages the global library. Which of these enabled skills apply to a given action is chosen elsewhere: the snippet editor's **AI skills** picker pins your selection to every snippet AI action, and the **Full code analysis** window shows the included skills as chips — labelled *(auto-selected)* or *(manual)* — with a searchable picker whose changes take effect on the next re-run. See [Snippets → AI skills](../../features/snippets.md#ai-skills).

@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiResponseSupport;
@@ -27,7 +29,10 @@ import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.Window;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Shows the original and AI-generated replacement before applying an editor change. Uses Monaco's
@@ -58,6 +63,8 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     private final EditorSettingsHelper.Settings previewSettings;
     private int fontSize;
     private String lastReasonsJson;
+    private List<SnippetAiResponseSupport.SecurityChange> lastChanges;
+    private Map<Integer, int[]> lastReasonRanges = Map.of();
 
     public SnippetAiDiffDialog(Window owner, String title, String summary, String originalText, String replacementText) {
         this(owner, title, summary, originalText, replacementText, null, EditorSettingsHelper.loadSnippetSettings(), null);
@@ -160,16 +167,62 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         if (changes == null || changes.isEmpty()) {
             return;
         }
+        lastChanges = changes;
         lastReasonsJson = toReasonsJson(changes);
+        // The diff host reports each reason's resolved line range (modified side) once Monaco has
+        // computed the diff; re-render the cards so they carry a "Lines 23-40" chip.
+        diffPane.setChangeReasonRangesHandler(this::applyReasonRanges);
         diffPane.setChangeReasons(lastReasonsJson);
+        renderExplanations();
+    }
 
-        String html = buildExplanationsHtml(changes);
+    private void renderExplanations() {
+        if (lastChanges == null) {
+            return;
+        }
+        String html = buildExplanationsHtml(lastChanges, lastReasonRanges);
         if (html == null) {
             return;
         }
         explanationsView.getEngine().loadContent(html);
         explanationsView.setManaged(true);
         explanationsView.setVisible(true);
+    }
+
+    /** Consumes the {@code [{idx,start,end}]} ranges reported by the diff host (see MonacoDiffPane). */
+    private void applyReasonRanges(String rangesJson) {
+        Map<Integer, int[]> ranges = new HashMap<>();
+        try {
+            JsonElement parsed = JsonParser.parseString(rangesJson != null ? rangesJson : "[]");
+            if (parsed.isJsonArray()) {
+                for (JsonElement element : parsed.getAsJsonArray()) {
+                    if (!element.isJsonObject()) {
+                        continue;
+                    }
+                    JsonObject object = element.getAsJsonObject();
+                    if (object.has("idx") && object.has("start") && object.has("end")) {
+                        ranges.put(object.get("idx").getAsInt(),
+                            new int[]{object.get("start").getAsInt(), object.get("end").getAsInt()});
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            return; // Malformed range report: keep the cards without line chips.
+        }
+        if (Objects.equals(rangesToKey(ranges), rangesToKey(lastReasonRanges))) {
+            return; // Monaco re-applies decorations on every diff update; avoid redundant reloads.
+        }
+        lastReasonRanges = ranges;
+        renderExplanations();
+    }
+
+    private static String rangesToKey(Map<Integer, int[]> ranges) {
+        StringBuilder key = new StringBuilder();
+        ranges.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> key.append(entry.getKey()).append(':')
+                .append(entry.getValue()[0]).append('-').append(entry.getValue()[1]).append(';'));
+        return key.toString();
     }
 
     /**
@@ -260,17 +313,36 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
 
     // ---- Explanations panel (themed HTML) -------------------------------------------------------
 
-    private String buildExplanationsHtml(List<SnippetAiResponseSupport.SecurityChange> changes) {
+    private String buildExplanationsHtml(
+        List<SnippetAiResponseSupport.SecurityChange> changes,
+        Map<Integer, int[]> reasonRanges) {
+
         StringBuilder items = new StringBuilder();
         int count = 0;
-        for (SnippetAiResponseSupport.SecurityChange change : changes) {
+        for (int index = 0; index < changes.size(); index++) {
+            SnippetAiResponseSupport.SecurityChange change = changes.get(index);
             if (change == null || change.reason().isBlank()) {
                 continue;
             }
             count++;
+            String category = SnippetAiDialogSupport.categoryForFindingId(change.finding());
+            String color = category != null ? SnippetAiDialogSupport.sectionColor(category) : ACCENT;
             String badge = !change.finding().isBlank() ? escapeHtml(change.finding()) : "•";
-            items.append("<div class=\"item\"><span class=\"badge\">").append(badge).append("</span>")
-                .append("<span class=\"reason\">").append(escapeHtml(change.reason())).append("</span></div>");
+            items.append("<div class=\"item\" style=\"border-left-color:").append(color).append(";\">")
+                .append("<span class=\"badge\" style=\"background:").append(color).append(";\">")
+                .append(badge).append("</span>");
+            if (category != null) {
+                // Category glyph (shield/bolt/drop/box) so the section is recognizable at a glance,
+                // matching the icons in the analysis window's section titles.
+                items.append("<span class=\"cat\" style=\"color:").append(color).append(";\">")
+                    .append(SnippetAiDialogSupport.sectionIconSvg(category)).append("</span>");
+            }
+            int[] range = reasonRanges.get(index);
+            if (range != null) {
+                items.append("<span class=\"lines\">").append(escapeHtml(formatLineRange(range[0], range[1])))
+                    .append("</span>");
+            }
+            items.append("<span class=\"reason\">").append(escapeHtml(change.reason())).append("</span></div>");
         }
         if (count == 0) {
             return null;
@@ -291,11 +363,23 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
             + "background:rgba(127,127,127,0.08);border-left:3px solid " + ACCENT + ";}"
             + ".badge{flex:0 0 auto;font-family:'SF Mono',Menlo,Consolas,monospace;font-weight:700;font-size:0.82em;"
             + "padding:1px 8px;border-radius:6px;background:" + ACCENT + ";color:#fff;}"
+            + ".cat{flex:0 0 auto;line-height:1;}"
+            + ".cat .sec-ic{width:1.05em;height:1.05em;fill:currentColor;vertical-align:-.12em;}"
+            + ".lines{flex:0 0 auto;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:0.82em;opacity:.65;"
+            + "white-space:nowrap;padding-top:1px;}"
             + ".reason{opacity:.96;}"
             + "</style></head><body>"
             + "<div class=\"head\"><span class=\"dot\"></span>" + header + "</div>"
             + items
             + "</body></html>";
+    }
+
+    /** "Line 23" for a single line, "Lines 23-40" for a block (modified/right side of the diff). */
+    private static String formatLineRange(int start, int end) {
+        if (end <= start) {
+            return I18n.get("common.line") + " " + start;
+        }
+        return I18n.get("snippets.ai.diff.reasons.lines", start, end);
     }
 
     private ThemeCssSupport.ThemeColors resolveThemeColors() {
@@ -308,11 +392,14 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
 
     private static String toReasonsJson(List<SnippetAiResponseSupport.SecurityChange> changes) {
         JsonArray array = new JsonArray();
-        for (SnippetAiResponseSupport.SecurityChange change : changes) {
+        for (int index = 0; index < changes.size(); index++) {
+            SnippetAiResponseSupport.SecurityChange change = changes.get(index);
             if (change == null) {
                 continue;
             }
             JsonObject object = new JsonObject();
+            // The list index keys the range report back to its explanation card (see applyReasonRanges).
+            object.addProperty("idx", index);
             object.addProperty("finding", change.finding());
             object.addProperty("anchor", change.anchor());
             object.addProperty("reason", change.reason());

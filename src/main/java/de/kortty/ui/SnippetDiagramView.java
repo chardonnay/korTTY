@@ -198,6 +198,18 @@ final class SnippetDiagramView extends VBox {
     }
 
     /**
+     * The currently-shown diagram's PlantUML with the active appearance (background / dark palette) baked in,
+     * or {@code null} when nothing has rendered yet. Lets the analysis dialog re-render the same image for an
+     * export without reaching into the view's private render state.
+     */
+    String currentStyledPlantUml() {
+        if (currentPlantUml == null || currentPlantUml.isBlank()) {
+            return null;
+        }
+        return styledPlantUml(currentPlantUml);
+    }
+
+    /**
      * @param resetZoom {@code true} for a genuinely new diagram (fit to viewport); {@code false} for a
      *                  re-render that only changes appearance (background colour, dark mode) so the user's
      *                  current zoom is preserved.

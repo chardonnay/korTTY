@@ -167,6 +167,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private boolean externalFileActionRunning;
     private Consumer<Snippet> liveSaveHandler;
     private Snippet liveSavedSnippet;
+    private boolean finalResultDelivered;
     private final List<SnippetDiagram> diagrams = new ArrayList<>();
     private final PauseTransition autoCompletionDelay = new PauseTransition(Duration.millis(900));
     private final PauseTransition markupPreviewRefreshDelay = new PauseTransition(Duration.millis(180));
@@ -1296,8 +1297,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         this.liveSaveHandler = resultHandler;
         if (resultHandler != null) {
             addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+                // Deliver the final result at most once. A button whose ACTION filter consumes the event and
+                // then calls setResult(...) + close() (our hidden Save / "Save as new" buttons) makes JavaFX
+                // fire DIALOG_HIDDEN twice for a single click, so without this guard the caller's save runs
+                // twice: for "Save as new" the second addSnippet sees the snippet the first one just added
+                // and throws "Snippet name already exists" even though the save actually succeeded.
+                if (finalResultDelivered) {
+                    return;
+                }
                 Snippet result = getResult();
                 if (result != null) {
+                    finalResultDelivered = true;
                     try {
                         resultHandler.accept(result);
                     } catch (RuntimeException e) {
@@ -2689,6 +2699,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
 
+    /**
+     * The AI-skill context handed to the code-analysis dialog so it can show which skills were included and
+     * let the user change them. The dialog's edits flow back into {@link #selectedAiSkillIds} and the shared
+     * runtime options here, so the next re-run picks them up. Returns {@code null} when the skill picker does
+     * not apply (no skills, or a profile that cannot pin them).
+     */
+    private SnippetCodeAnalysisDialog.SkillContext buildAnalysisSkillContext() {
+        if (!aiSkillPickerShouldShow()) {
+            return null;
+        }
+        return new SnippetCodeAnalysisDialog.SkillContext(
+            enabledAiSkills(),
+            new LinkedHashSet<>(selectedAiSkillIds),
+            !aiSkillsUserEdited,
+            ids -> {
+                selectedAiSkillIds.clear();
+                selectedAiSkillIds.addAll(ids);
+                aiSkillsUserEdited = true;
+                applyForcedAiSkills();
+                updateAiSkillsButtonText();
+            });
+    }
+
     private static GlobalSettings currentGlobalSettings() {
         try {
             return KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
@@ -3170,6 +3203,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (fullContent == null || fullContent.isBlank()) {
             return;
         }
+        // Pre-tick + force the skills relevant to this snippet (unless the user already edited the set) so the
+        // analysis actually uses them and the dialog can show which skills were auto-included. No-op when the
+        // skill picker doesn't apply or the user has taken manual control.
+        autoDetectAiSkills();
         String language = languageCombo.getValue();
         String fallback = resolveAiTextFallbackLanguageCode();
         String extra = additionalInstructions();
@@ -3204,7 +3241,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 task.getValue(),
                 diagramLoader,
                 aiProfileId,
-                profileSwitchingSupported() ? this::runCodeReview : null);
+                profileSwitchingSupported() ? this::runCodeReview : null,
+                buildAnalysisSkillContext());
             // Non-modal: the editor stays usable. Apply the selection (if any) once the window closes.
             dialog.setOnHidden(hidden -> {
                 SnippetCodeAnalysisDialog.ApplySelection selection = dialog.getResult();
@@ -3251,10 +3289,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     /** Applies the user-selected analysis improvements + dependency suggestions (mirror of {@link #runSecurityFixes}). */
     private void runImprovementFixes(SnippetCodeAnalysisDialog.ApplySelection selection) {
-        if (selection == null || selection.isEmpty() || aiAssist == null || aiAssist.improvementFixProvider() == null) {
+        if (selection == null || selection.isEmpty()) {
             return;
         }
         String originalContent = contentArea.getText();
+        boolean hasAiWork = !selection.improvements().isEmpty()
+            || !selection.dependencies().isEmpty()
+            || !selection.hardening().isEmpty();
+        // A chosen script header is a deterministic prepend — apply it locally without an AI round-trip
+        // when no findings/hardening were ticked.
+        if (!hasAiWork) {
+            applyScriptHeaderOnly(selection, originalContent);
+            return;
+        }
+        if (aiAssist == null || aiAssist.improvementFixProvider() == null) {
+            return;
+        }
         // Fold any chosen hardening options into the apply instructions (computed on the FX thread).
         String effectiveInstructions = withHardeningRules(additionalInstructions(), selection.hardening());
         Task<SnippetAiResponseSupport.SnippetSecurityFix> task = new Task<>() {
@@ -3288,18 +3338,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.fix.degenerate"));
                 return;
             }
+            // Prepend the chosen script header (if any) to the AI-fixed script before review/apply.
+            String replacement = injectSelectedHeader(selection, fix.replacement());
             SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
                 I18n.get("snippets.ai.analysis.diff.title"),
                 fix.summary(),
                 originalContent,
-                fix.replacement(),
+                replacement,
                 languageCombo.getValue(),
                 editorSettings,
                 editorProfile);
             diffDialog.setChangeExplanations(fix.changes());
             if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(0, originalContent.length(), fix.replacement(),
+                applyAiContentChange(0, originalContent.length(), replacement,
                     I18n.get("snippets.ai.toggle.action.improve"));
                 setStatus(I18n.get("snippets.ai.analysis.fix.applied"));
             }
@@ -3310,6 +3362,41 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Thread thread = new Thread(task, "snippet-ai-improvement-fix");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    /** Prepends the analysis dialog's chosen script header (if any) to {@code content}, using the editor's
+     *  language to place it after an existing shebang / lead line (reusing the workflow-script injector). */
+    private String injectSelectedHeader(SnippetCodeAnalysisDialog.ApplySelection selection, String content) {
+        if (selection == null || !selection.hasHeader()) {
+            return content;
+        }
+        WorkflowScriptSupport.ScriptLanguage language =
+            WorkflowScriptSupport.ScriptLanguage.fromId(languageCombo.getValue());
+        return WorkflowScriptSupport.injectHeaderOverride(content, language, selection.headerText());
+    }
+
+    /** Applies a chosen script header alone (no findings/hardening ticked): a deterministic prepend, still
+     *  routed through the diff dialog so the user reviews and confirms the change. */
+    private void applyScriptHeaderOnly(SnippetCodeAnalysisDialog.ApplySelection selection, String originalContent) {
+        String updated = injectSelectedHeader(selection, originalContent);
+        if (updated.equals(originalContent)) {
+            setStatus(I18n.get("snippets.ai.analysis.fix.empty"));
+            return;
+        }
+        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
+            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            I18n.get("snippets.ai.analysis.diff.title"),
+            I18n.get("snippets.ai.analysis.header.applied"),
+            originalContent,
+            updated,
+            languageCombo.getValue(),
+            editorSettings,
+            editorProfile);
+        if (diffDialog.showAndWait().orElse(false)) {
+            applyAiContentChange(0, originalContent.length(), updated,
+                I18n.get("snippets.ai.toggle.action.improve"));
+            setStatus(I18n.get("snippets.ai.analysis.fix.applied"));
+        }
     }
 
     /** "Improve robustness" with the reusable script-hardening options folded into the improvement prompt. */
@@ -4847,7 +4934,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         alert.setContentText(formatterInfo.unavailableReason() != null
             ? formatterInfo.unavailableReason()
             : I18n.get("editor.format.installHint", formatterInfo.installHint()));
-        alert.initOwner(getDialogPane().getScene().getWindow());
+        alert.initOwner(resolveAlertOwner());
         alert.showAndWait();
         setStatus(I18n.get("editor.format.unavailable", formatterInfo.displayName()));
     }
@@ -4945,8 +5032,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         alert.setTitle(I18n.get("snippets.editTitle"));
         alert.setHeaderText(null);
         alert.setContentText(message);
-        alert.initOwner(getDialogPane().getScene().getWindow());
+        alert.initOwner(resolveAlertOwner());
         alert.showAndWait();
+    }
+
+    /**
+     * The window an alert raised by this dialog should own: the dialog's stable owner (every caller sets
+     * one via {@code initOwner}), falling back to its scene's window, else {@code null}. This must never
+     * dereference a possibly-detached scene directly — a save failure surfaced from {@code DIALOG_HIDDEN}
+     * (see {@link #showNonBlocking}) runs after {@code close()} has torn the scene down, so
+     * {@code getDialogPane().getScene()} is {@code null} at that point.
+     */
+    private javafx.stage.Window resolveAlertOwner() {
+        javafx.stage.Window owner = getOwner();
+        if (owner == null) {
+            javafx.scene.Scene scene = getDialogPane().getScene();
+            owner = scene != null ? scene.getWindow() : null;
+        }
+        return owner;
     }
 
     private void setStatus(String message) {
