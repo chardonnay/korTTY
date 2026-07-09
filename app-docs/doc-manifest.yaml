@@ -10,7 +10,7 @@
 schema_version: 1
 
 # Mirrored from build.gradle.kts:12 by scripts/sync-version.py.
-version: "2.4.1"
+version: "2.4.2"
 
 coverage:
   i18n_source: src/main/resources/i18n/messages_en.properties
